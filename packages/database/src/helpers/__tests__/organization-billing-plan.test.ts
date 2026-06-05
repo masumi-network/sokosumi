@@ -64,7 +64,7 @@ describe("resolveOrganizationBillingPlan", () => {
     assert.equal(plan.purchasedSeats, 25);
     assert.equal(plan.contractId, CONTRACT_ID);
     assert.equal(
-      plan.contractEnd.toISOString(),
+      plan.endsAt.toISOString(),
       deriveEnterpriseContractEndDate(activatedAt, 8).toISOString(),
     );
     assert.equal(
@@ -76,11 +76,8 @@ describe("resolveOrganizationBillingPlan", () => {
   it("returns enterprise_contract with isConsumable false after the commercial term", async () => {
     const activatedAt = new Date("2026-01-01T00:00:00.000Z");
     const periodCount = 1;
-    const contractEnd = deriveEnterpriseContractEndDate(
-      activatedAt,
-      periodCount,
-    );
-    const now = new Date(contractEnd.getTime() + 1);
+    const endsAt = deriveEnterpriseContractEndDate(activatedAt, periodCount);
+    const now = new Date(endsAt.getTime() + 1);
     const tx = createTx({
       id: CONTRACT_ID,
       periodCount,

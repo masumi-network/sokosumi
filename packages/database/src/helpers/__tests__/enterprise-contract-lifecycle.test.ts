@@ -795,7 +795,7 @@ describe("cancelEnterpriseContract", () => {
 describe("completeEnterpriseContractsAfterLastPeriod", () => {
   const activatedAt = new Date("2026-05-01T00:00:00.000Z");
   const periodCount = 3;
-  const contractEnd = deriveEnterpriseContractEndDate(activatedAt, periodCount);
+  const endsAt = deriveEnterpriseContractEndDate(activatedAt, periodCount);
 
   function createCompletionClient(
     contracts: Array<{
@@ -828,7 +828,7 @@ describe("completeEnterpriseContractsAfterLastPeriod", () => {
 
     const count = await completeEnterpriseContractsAfterLastPeriod(
       client.tx,
-      contractEnd,
+      endsAt,
     );
 
     assert.equal(count, 0);
@@ -846,7 +846,7 @@ describe("completeEnterpriseContractsAfterLastPeriod", () => {
 
     const count = await completeEnterpriseContractsAfterLastPeriod(
       client.tx,
-      new Date(contractEnd.getTime() + 1),
+      new Date(endsAt.getTime() + 1),
     );
 
     assert.equal(count, 1);
@@ -874,7 +874,7 @@ describe("completeEnterpriseContractsAfterLastPeriod", () => {
 
     const count = await completeEnterpriseContractsAfterLastPeriod(
       client.tx,
-      new Date(contractEnd.getTime() + 1),
+      new Date(endsAt.getTime() + 1),
     );
 
     assert.equal(count, 1);

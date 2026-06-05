@@ -2524,7 +2524,7 @@
         "monthlyGrantCredits": "{credits, plural, =0 {无 Credits} =1 {# Credit} other {# Credits}}",
         "currentPeriodEndLabel": "当前周期结束",
         "activatedAtLabel": "合同生效",
-        "contractEndLabel": "合同结束",
+        "endsAtLabel": "合同结束",
         "nextActivationLabel": "下次 Credits 激活",
         "nextActivationNone": "暂无即将激活",
         "notAvailable": "不可用",

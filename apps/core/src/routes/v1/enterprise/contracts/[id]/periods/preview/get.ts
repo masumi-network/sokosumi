@@ -65,7 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       purchasedSeats: contract.seats,
     });
 
-    const contractEnd = derivePreviewContractEnd({
+    const endsAt = derivePreviewContractEnd({
       activatedAt,
       periodCount: contract.periodCount,
     });
@@ -74,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       enterpriseContractPreviewSchema.parse({
         activatedAt,
-        contractEnd,
+        endsAt,
         periods: schedule.map(mapEnterpriseContractPreviewPeriodForApi),
       }),
     );

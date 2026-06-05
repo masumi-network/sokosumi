@@ -152,7 +152,7 @@ describe("organizationSeatService", () => {
     memberCountMock.mockResolvedValue(5);
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       cancelAtPeriodEnd: false,
-      contractEnd: new Date("2027-01-01T00:00:00.000Z"),
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
       contractId: "contract-1",
       isConsumable: false,
       mode: "enterprise_contract",
@@ -223,7 +223,7 @@ describe("organizationSeatService", () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role: "owner" });
     resolveOrganizationBillingPlanMock.mockResolvedValue({
       cancelAtPeriodEnd: false,
-      contractEnd: new Date("2027-01-01T00:00:00.000Z"),
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
       contractId: "contract-1",
       isConsumable: true,
       mode: "enterprise_contract",

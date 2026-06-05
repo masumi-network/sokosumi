@@ -21,7 +21,7 @@ export type OrganizationBillingPlan =
       isConsumable: boolean;
       purchasedSeats: number;
       contractId: string;
-      contractEnd: Date;
+      endsAt: Date;
       activatedAt: Date;
       cancelAtPeriodEnd: false;
       periodEnd: null;
@@ -65,7 +65,7 @@ export async function resolveOrganizationBillingPlan(
       isConsumable,
       purchasedSeats: activeContract.seats,
       contractId: activeContract.id,
-      contractEnd: deriveEnterpriseContractEndDate(
+      endsAt: deriveEnterpriseContractEndDate(
         activeContract.activatedAt,
         activeContract.periodCount,
       ),

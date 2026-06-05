@@ -2493,7 +2493,7 @@
         "monthlyGrantCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit} other {# Credits}}",
         "currentPeriodEndLabel": "Fin del periodo actual",
         "activatedAtLabel": "Contrato activado",
-        "contractEndLabel": "Fin del contrato",
+        "endsAtLabel": "Fin del contrato",
         "nextActivationLabel": "Próxima activación de Credits",
         "nextActivationNone": "No hay activaciones próximas",
         "notAvailable": "No disponible",

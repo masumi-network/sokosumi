@@ -93,7 +93,7 @@ export function mapEnterpriseContractForApi(
     organization: { slug: string };
   },
 ) {
-  const contractEnd =
+  const endsAt =
     contract.activatedAt != null
       ? deriveEnterpriseContractEndDate(
           contract.activatedAt,
@@ -120,7 +120,7 @@ export function mapEnterpriseContractForApi(
     paymentReference: contract.paymentReference,
     notes: contract.notes,
     externalReference: contract.externalReference,
-    contractEnd,
+    endsAt,
     contractPeriods: contract.periods
       ?.toSorted(
         (left, right) =>

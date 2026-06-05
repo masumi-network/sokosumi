@@ -95,7 +95,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     isConsumable: true,
     purchasedSeats: 10,
     contractId: "contract-1",
-    contractEnd: new Date("2026-12-14T23:59:59.999Z"),
+    endsAt: new Date("2026-12-14T23:59:59.999Z"),
     activatedAt: new Date("2026-01-15T00:00:00.000Z"),
     cancelAtPeriodEnd: false as const,
     periodEnd: null,
@@ -174,7 +174,7 @@ describe("getEnterpriseContractBillingSummary", () => {
 
     expect(summary).toEqual({
       activatedAt: billingPlan.activatedAt,
-      contractEnd: billingPlan.contractEnd,
+      endsAt: billingPlan.endsAt,
       currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
       isConsumable: true,
       monthlyCredits: 6_000,

@@ -72,7 +72,7 @@ export const enterpriseContractSchema = z
     paymentReference: z.string().nullable(),
     notes: z.string().nullable(),
     externalReference: z.string().nullable(),
-    contractEnd: dateTimeSchema.nullable().openapi({
+    endsAt: dateTimeSchema.nullable().openapi({
       description:
         "Derived end of the commercial term (not stored on the contract)",
     }),
@@ -161,7 +161,7 @@ export const enterpriseContractPreviewPeriodSchema = z
 export const enterpriseContractPreviewSchema = z
   .object({
     activatedAt: dateTimeSchema,
-    contractEnd: dateTimeSchema,
+    endsAt: dateTimeSchema,
     periods: z.array(enterpriseContractPreviewPeriodSchema),
   })
   .openapi("EnterpriseContractPreview");

@@ -124,12 +124,12 @@ export function isEnterpriseContractPastCommercialTerm(params: {
   }
 
   const now = params.now ?? new Date();
-  const contractEnd = deriveEnterpriseContractEndDate(
+  const endsAt = deriveEnterpriseContractEndDate(
     params.activatedAt,
     params.periodCount,
   );
 
-  return now.getTime() > contractEnd.getTime();
+  return now.getTime() > endsAt.getTime();
 }
 
 export function isEnterpriseContractConsumable(params: {

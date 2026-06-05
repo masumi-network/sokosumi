@@ -263,14 +263,11 @@ describe("isEnterpriseContractConsumable", () => {
   });
 
   it("is true at the exact contract end (inclusive boundary)", () => {
-    const contractEnd = deriveEnterpriseContractEndDate(
-      activatedAt,
-      periodCount,
-    );
+    const endsAt = deriveEnterpriseContractEndDate(activatedAt, periodCount);
 
     assert.equal(
       isEnterpriseContractConsumable({
-        now: contractEnd,
+        now: endsAt,
         periodCount,
         activatedAt,
         status: EnterpriseContractStatus.active,
@@ -280,14 +277,11 @@ describe("isEnterpriseContractConsumable", () => {
   });
 
   it("is false after the last period ends", () => {
-    const contractEnd = deriveEnterpriseContractEndDate(
-      activatedAt,
-      periodCount,
-    );
+    const endsAt = deriveEnterpriseContractEndDate(activatedAt, periodCount);
 
     assert.equal(
       isEnterpriseContractConsumable({
-        now: new Date(contractEnd.getTime() + 1),
+        now: new Date(endsAt.getTime() + 1),
         periodCount,
         activatedAt,
         status: EnterpriseContractStatus.active,

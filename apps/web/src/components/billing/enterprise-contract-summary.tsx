@@ -71,9 +71,9 @@ export async function EnterpriseContractSummary({
             </dd>
           </div>
           <div className="space-y-1">
-            <dt className="text-muted-foreground">{t("contractEndLabel")}</dt>
+            <dt className="text-muted-foreground">{t("endsAtLabel")}</dt>
             <dd className="font-medium">
-              {formatDate(formatter, summary.contractEnd)}
+              {formatDate(formatter, summary.endsAt)}
             </dd>
           </div>
           <div className="space-y-1">
