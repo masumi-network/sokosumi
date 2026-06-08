@@ -49,14 +49,14 @@ export default function Sidebar({
           <NewChatTaskActions />
           <SidebarSeparator className="mx-0 mt-2" />
           <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
-          <SidebarSeparator className="mx-0 mt-2" />
-          <ChatListsClient />
           {adminMenuEnabled ? (
             <>
               <SidebarSeparator className="mx-0" />
               <AdminMenu />
             </>
           ) : null}
+          <SidebarSeparator className="mx-0" />
+          <ChatListsClient />
         </div>
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
