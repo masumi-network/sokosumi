@@ -22,11 +22,19 @@ Create exactly one Linear issue with:
 ## Hard rules
 
 - Use MCP only. Do not use `LINEAR_API_KEY`, curl, browser automation, or GraphQL fallback.
-- Before any `CallMcpTool`, list and read the MCP tool descriptor JSON files.
+- Before any MCP write call, inspect the available Linear tool schema/descriptor for the current runtime.
 - Use the Linear tool names and parameter names below only after confirming them against descriptors.
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded in the current agent.
 - Do not create the issue until the user explicitly approves the PRD.
+
+## Runtime notes
+
+| Agent | Linear MCP behavior |
+|-------|---------------------|
+| Cursor | Use `CallMcpTool` with server `user-linear` when available. Read descriptors from the MCP filesystem before calls. |
+| Claude Code | Use the configured Linear MCP server if available. Inspect tool schemas before calls. |
+| Codex | Use the configured Linear MCP server if available. If Codex has no Linear MCP tools, stop after approval and report the missing MCP access. |
 
 ## MCP health check
 
@@ -35,7 +43,7 @@ Before creating the issue:
 1. Inspect the MCP folder for `user-linear/tools/*.json`.
 2. Read descriptors for tools that list teams, projects, states/statuses, labels, and create issues.
 3. If descriptors are missing, check whether the current agent exposes the `user-linear` server.
-4. If `CallMcpTool` says the server does not exist, stop and say:
+4. If the runtime says the Linear server does not exist, stop and say:
 
    ```text
    Linear MCP is configured but not loaded in this agent. Reload MCP servers in Cursor Settings, then rerun approval.
@@ -110,6 +118,7 @@ Use this shape after confirming the descriptor:
 
 ```json
 {
+  "runtime": "Cursor CallMcpTool example",
   "server": "user-linear",
   "toolName": "create_issue",
   "arguments": {

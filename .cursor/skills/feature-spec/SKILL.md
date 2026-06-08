@@ -8,6 +8,18 @@ disable-model-invocation: true
 
 Create a concise, Linear-ready PRD for Sokosumi features. The spec should be useful to an implementer, not a strategy memo.
 
+## Runtime compatibility
+
+This skill is tool-agnostic. Use the same workflow in Cursor, Claude Code, and Codex.
+
+| Agent | How to use |
+|-------|------------|
+| Cursor | Load this as a project skill from `.cursor/skills/feature-spec/SKILL.md`. |
+| Claude Code | Read this `SKILL.md` directly when asked to write a Sokosumi feature spec. Follow linked local files in this directory. |
+| Codex | Treat this directory as task instructions. Read `SKILL.md`, then `TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `LINEAR-MCP.md` when needed. |
+
+If an agent does not support Cursor skills, it must still follow this file as plain markdown instructions.
+
 ## Defaults
 
 Use these unless the user overrides them:
@@ -51,10 +63,11 @@ Do not ask for the Linear project by default. Ask only when the user explicitly 
 
 4. After approval
    - Read `LINEAR-MCP.md`.
-   - Use the user-linear MCP only.
-   - Read the relevant MCP tool descriptors before any MCP call.
+   - Use Linear MCP only when it is available in the current agent runtime.
+   - Read the relevant MCP/tool descriptors before any MCP call.
    - Create the Linear issue in `Sokosumi`, state `Todo`, with exactly one label.
    - Return the issue identifier, URL, and applied label.
+   - If the current agent cannot access Linear MCP, stop and say what must be reloaded or configured. Do not use browser automation or raw API fallback.
 
 ## Writing style
 
