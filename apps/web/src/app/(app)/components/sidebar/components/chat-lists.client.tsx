@@ -8,6 +8,7 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { getBucketKeyFromMetadata } from "@/app/chat/utils/bucket-slug";
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
+import { getConversationIdFromChatPathname } from "@/app/chat-ui/utils/chat-route-base";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -38,7 +39,12 @@ export default function ChatListsClient() {
     bucketSlug?: string;
     conversationId?: string;
   }>();
-  const conversationId = params?.conversationId;
+  const conversationIdFromPath = useMemo(
+    () => getConversationIdFromChatPathname(pathname ?? ""),
+    [pathname],
+  );
+  const conversationId =
+    params?.conversationId ?? conversationIdFromPath ?? null;
   const isChatRoute = pathname.startsWith("/chat");
 
   const chatGroups = useMemo(
