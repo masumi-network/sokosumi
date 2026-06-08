@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { getUserJobs } from "@/helpers/job";
 import {

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { JobType, jobInclude, OnChainJobStatus } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";

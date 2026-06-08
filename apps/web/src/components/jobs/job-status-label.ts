@@ -1,4 +1,5 @@
-import { JobType, SokosumiJobStatus } from "@sokosumi/database";
+import { JobType } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 export function getJobStatusBadgeLabelKey(
   status: SokosumiJobStatus,

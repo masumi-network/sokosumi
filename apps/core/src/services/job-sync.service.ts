@@ -1,10 +1,5 @@
 import * as Sentry from "@sentry/node";
-import {
-  AgentJobStatus,
-  JobType,
-  Prisma,
-  SokosumiJobStatus,
-} from "@sokosumi/database";
+import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseSyncWhere,
@@ -27,6 +22,7 @@ import {
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import { createAgentClient } from "@sokosumi/masumi";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";

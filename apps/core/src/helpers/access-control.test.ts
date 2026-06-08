@@ -1,4 +1,5 @@
-import { type Prisma, TaskStatus } from "@sokosumi/database";
+import { type Prisma } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 import type { EnvVariables } from "@/lib/hono";

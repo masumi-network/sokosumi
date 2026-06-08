@@ -1,9 +1,5 @@
-import {
-  type Job,
-  type Prisma,
-  type Task,
-  TaskStatus,
-} from "@sokosumi/database";
+import { type Job, type Prisma, type Task } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";

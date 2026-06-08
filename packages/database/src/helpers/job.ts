@@ -1,4 +1,4 @@
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
 
 import {
   AgentJobStatus,
@@ -18,7 +18,6 @@ import {
   type JobWithSokosumiStatus,
   type JobWithTransaction,
   type PaidJobWithStatus,
-  SokosumiJobStatus,
 } from "../types/job.js";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min

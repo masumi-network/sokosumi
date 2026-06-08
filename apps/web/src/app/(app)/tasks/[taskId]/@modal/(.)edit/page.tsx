@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 

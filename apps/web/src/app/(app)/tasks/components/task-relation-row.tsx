@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";

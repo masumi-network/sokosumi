@@ -1,4 +1,4 @@
-import type { SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 export interface SyncJobTransactionResult {
   jobStatus: SokosumiJobStatus;

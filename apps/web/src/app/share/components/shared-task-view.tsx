@@ -1,10 +1,10 @@
+import { BlobStatus, TaskEventOrigin } from "@sokosumi/database";
 import {
-  BlobStatus,
+  extractFileLikeLinks,
+  extractHttpLinks,
   SokosumiJobStatus,
-  TaskEventOrigin,
   TaskStatus,
-} from "@sokosumi/database";
-import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
+} from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter } from "next-intl";

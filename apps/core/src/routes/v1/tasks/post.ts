@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";

@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { TaskEventOrigin } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { jobSchema } from "@/schemas/job.schema.js";

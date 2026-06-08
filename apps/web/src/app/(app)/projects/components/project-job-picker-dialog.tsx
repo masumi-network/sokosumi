@@ -1,6 +1,6 @@
 "use client";
 
-import type { SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { unassignedWorkspaceJobsQuery } from "@/app/projects/constants";

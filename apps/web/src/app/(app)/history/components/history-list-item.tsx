@@ -1,6 +1,6 @@
 "use client";
 
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import {

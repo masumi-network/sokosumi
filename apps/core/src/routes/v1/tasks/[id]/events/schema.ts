@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { isTaskStatusSpendable } from "@/helpers/task";

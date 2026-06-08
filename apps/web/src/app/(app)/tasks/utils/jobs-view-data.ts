@@ -1,9 +1,7 @@
 import "server-only";
 
-import type {
-  AgentWithCreditsPrice,
-  SokosumiJobStatus,
-} from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";

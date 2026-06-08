@@ -1,11 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import { AgentJobStatus, JobType, OnChainJobStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
 import type {
   InputFieldSchemaType,
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { inputGroupsSchema, inputSchemaSchema } from "@sokosumi/masumi/schemas";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
