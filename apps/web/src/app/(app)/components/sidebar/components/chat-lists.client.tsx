@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { getBucketKeyFromMetadata } from "@/app/chat/utils/bucket-slug";
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
-import { FALLBACK_BUCKET_SEGMENT } from "@/app/chat-ui/utils/chat-route-base";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -35,8 +35,11 @@ export default function ChatListsClient() {
   const { conversations, refreshConversations, isLoading } =
     useConversationsContext();
   const { coworkers } = useCoworkersContext();
-  const params = useParams<{ bucketSlug?: string }>();
-  const bucketSlug = params?.bucketSlug;
+  const params = useParams<{
+    bucketSlug?: string;
+    conversationId?: string;
+  }>();
+  const conversationId = params?.conversationId;
   const isChatRoute = pathname.startsWith("/chat");
 
   useEffect(() => {
@@ -51,6 +54,16 @@ export default function ChatListsClient() {
       ),
     [conversations, t],
   );
+
+  // Find the bucket key for the currently viewed conversation
+  const currentBucketKey = useMemo(() => {
+    if (!conversationId || !conversations.length) return null;
+    const conv = conversations.find((c) => c.id === conversationId);
+    if (!conv) return null;
+    return getBucketKeyFromMetadata(
+      (conv.metadata as Record<string, unknown>) || null,
+    );
+  }, [conversationId, conversations]);
 
   const hasAnyChats = conversations.length > 0;
   const [isOpen, setIsOpen] = useState(true);
@@ -116,10 +129,7 @@ export default function ChatListsClient() {
                   const slug = group.displaySlug;
                   const mostRecentConversation = group.conversations[0];
                   const isActive =
-                    isChatRoute &&
-                    (bucketSlug === slug ||
-                      (bucketSlug === FALLBACK_BUCKET_SEGMENT &&
-                        !slug.includes("/")));
+                    isChatRoute && currentBucketKey === group.key;
                   const chatHref =
                     mostRecentConversation != null
                       ? `/chat/${slug}/conversation/${mostRecentConversation.id}`

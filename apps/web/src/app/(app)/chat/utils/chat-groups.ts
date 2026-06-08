@@ -74,8 +74,6 @@ export function buildChatGroups(
   }
 
   const groups: ChatGroup[] = [];
-  const slugCounts = new Map<string, number>();
-
   for (const [key, entry] of byKey) {
     const sorted = [...entry.conversations].sort((a, b) => {
       const ta = new Date(a.updatedAt).getTime();
@@ -84,17 +82,8 @@ export function buildChatGroups(
     });
     const firstMeta =
       (sorted[0]?.metadata as Record<string, unknown> | null) ?? null;
-    let displaySlug =
+    const displaySlug =
       displaySlugFromMetadata(firstMeta) || slugify(entry.displayName) || key;
-
-    const count = slugCounts.get(displaySlug) || 0;
-    if (count > 0) {
-      const keyPart = key.split(":")[1] || key;
-      const shortKey = keyPart.slice(0, 8);
-      displaySlug = `${displaySlug}-${shortKey}`;
-    }
-    slugCounts.set(displaySlug, count + 1);
-
     const latestUpdatedAt =
       sorted.length > 0 ? new Date(sorted[0].updatedAt).getTime() : 0;
     groups.push({
