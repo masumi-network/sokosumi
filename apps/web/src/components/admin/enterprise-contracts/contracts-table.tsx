@@ -198,15 +198,17 @@ export function ContractsTable({
   useEffect(() => {
     setOrganizationSlug(appliedFilters.organizationSlug);
     setStatus(appliedFilters.status ?? "all");
-    // Drop the seeded combobox selection when the applied slug no longer matches
-    // it (e.g. browser back/forward navigation), so the trigger can't show a
-    // stale organization that isn't the active filter.
-    setSelectedFilterOrganization((current) =>
-      current && current.slug === appliedFilters.organizationSlug
-        ? current
-        : null,
-    );
   }, [appliedFilters.organizationSlug, appliedFilters.status]);
+
+  // Keep the combobox selection in sync with the server-resolved organization
+  // for the active URL slug. The server component re-runs on navigation (filter
+  // apply, browser back/forward) and provides the matching option, so the
+  // trigger never shows a stale org or an empty placeholder while a slug filter
+  // is active. Local (unapplied) selections are preserved because this prop
+  // only changes on a server render.
+  useEffect(() => {
+    setSelectedFilterOrganization(initialFilterOrganization);
+  }, [initialFilterOrganization]);
 
   const orgLabels: AsyncSearchComboboxLabels = {
     placeholder: t("Filters.organizationAll"),

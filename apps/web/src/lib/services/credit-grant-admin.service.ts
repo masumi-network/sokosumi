@@ -309,6 +309,17 @@ export const creditGrantAdminService = (() => {
         );
       }
 
+      // A non-free grant must cost something. Billing `quantity × price` lets
+      // Stripe round a tiny fractional total down to $0, which would finalize
+      // as paid and silently grant credits for free. Reject it so the admin
+      // raises the credit amount, picks a higher price, or marks it free —
+      // this preserves the old `getCreditTopUpTotalMinorUnits` >= 1 invariant.
+      if (!params.markFree && (invoice.amount_due ?? 0) === 0) {
+        throw new CreditGrantValidationError(
+          "Grant total rounded to $0. Increase the credit amount, choose a higher price, or mark the grant as free.",
+        );
+      }
+
       // A free ($0) grant finalizes as paid immediately, so grant the credits
       // now instead of waiting on the invoice.paid webhook. Non-free grants
       // stay open until an admin marks them paid (no "Mark as paid" step is

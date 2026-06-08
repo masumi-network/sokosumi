@@ -310,6 +310,35 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     // No credits should be granted for a non-free "free" invoice.
     expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
   });
+
+  it("throws when a non-free grant rounds to a $0 total", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      stripeCustomerId: "cus_org",
+      metadata: null,
+    });
+    // A tiny fractional price × small credit count can round to $0 at Stripe.
+    createCreditGrantInvoiceMock.mockResolvedValue({
+      id: "in_zero",
+      currency: "usd",
+      amount_due: 0,
+      status: "paid",
+    });
+
+    await expect(
+      creditGrantAdminService.createGrantInvoice({
+        target: { targetType: "organization", targetId: "org_1" },
+        credits: 1,
+        ttlDays: null,
+        priceId: null,
+        markFree: false,
+      }),
+    ).rejects.toThrow(CreditGrantValidationError);
+    // Must not silently grant free credits for a paid grant.
+    expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("creditGrantAdminService.markGrantInvoicePaid", () => {
