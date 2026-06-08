@@ -124,8 +124,6 @@
       "account": "Account",
       "billing": "Fatturazione",
       "connections": "Connessioni",
-      "admin": "Amministrazione",
-      "enterpriseContracts": "Contratti enterprise",
       "help": "Aiuto",
       "legal": "Note legali",
       "support": "Supporto",
@@ -261,7 +259,8 @@
       "hermes": "Hermes",
       "history": "Cronologia",
       "new": "Nuovo",
-      "projects": "Progetti"
+      "projects": "Progetti",
+      "credit-grants": "Assegna crediti"
     },
     "Jobs": {
       "StatusBadge": {
@@ -662,6 +661,11 @@
       "copy": "Copia",
       "copySuccess": "Copiato negli appunti",
       "copyError": "Impossibile copiare"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "Seleziona un'organizzazione",
+      "search": "Cerca organizzazioni…",
+      "empty": "Nessuna organizzazione trovata."
     }
   },
   "AcceptInvitation": {
@@ -2347,7 +2351,8 @@
           "taskManager": "Attività",
           "projects": "Progetti",
           "hermes": "Hermes",
-          "history": "Cronologia"
+          "history": "Cronologia",
+          "admin": "Amministrazione"
         }
       }
     },
@@ -2513,11 +2518,12 @@
         "loading": "Caricamento…",
         "loadFailed": "Impossibile caricare i contratti enterprise.",
         "Filters": {
-          "organizationSlug": "Slug organizzazione",
+          "organizationSlug": "Organizzazione",
           "organizationSlugPlaceholder": "acme-corp",
           "status": "Stato",
           "statusAll": "Tutti",
-          "apply": "Applica filtri"
+          "apply": "Applica filtri",
+          "organizationAll": "Tutte le organizzazioni"
         },
         "Status": {
           "draft": "Bozza",
@@ -2545,7 +2551,7 @@
           "optionalSection": "Facoltativo",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "Organizzazione",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2583,10 +2589,70 @@
           "updateSuccess": "Contratto aggiornato",
           "createError": "Impossibile creare il contratto",
           "updateError": "Impossibile aggiornare il contratto",
-          "missingContract": "Contratto mancante"
+          "missingContract": "Contratto mancante",
+          "organizationRequired": "Seleziona un'organizzazione"
         },
         "Detail": {
           "noExpiry": "Nessuna scadenza"
+        }
+      },
+      "Overview": {
+        "title": "Amministrazione",
+        "description": "Strumenti interni per gestire organizzazioni e fatturazione.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Contratti enterprise",
+            "description": "Crea e gestisci contratti enterprise in bozza, attivi e annullati."
+          },
+          "creditGrants": {
+            "title": "Assegna crediti",
+            "description": "Assegna crediti una tantum a un'organizzazione tramite una fattura Stripe."
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "Assegna crediti",
+        "description": "Assegna crediti una tantum a un'organizzazione tramite una fattura Stripe. Contrassegnando la fattura come pagata, i crediti vengono assegnati immediatamente.",
+        "cardTitle": "Nuova assegnazione di crediti",
+        "Form": {
+          "Fields": {
+            "organization": "Organizzazione",
+            "credits": "Crediti",
+            "expiryDays": "Scadenza (giorni)",
+            "price": "Prezzo per credito"
+          },
+          "organizationRequired": "Seleziona un'organizzazione",
+          "creditsRequired": "Inserisci un numero positivo di crediti",
+          "creditsHelper": "Numero di crediti da assegnare all'organizzazione.",
+          "expiryDays": "Scadenza (giorni)",
+          "expiryHelper": "Facoltativo. Giorni prima della scadenza dei crediti. Lascia vuoto per nessuna scadenza.",
+          "expiryPlaceholder": "Nessuna scadenza",
+          "expiryInvalid": "La scadenza deve essere un numero intero positivo di giorni",
+          "submit": "Crea fattura",
+          "submitting": "Creazione fattura…",
+          "createSuccess": "Fattura creata",
+          "createError": "Creazione della fattura non riuscita",
+          "pricePlaceholder": "Seleziona un prezzo",
+          "priceHelper": "Prezzo per credito utilizzato per l'importo della fattura.",
+          "priceRequired": "Seleziona un prezzo"
+        },
+        "Result": {
+          "heading": "Fattura di assegnazione crediti",
+          "pendingHelper": "Contrassegna la fattura come pagata per assegnare i crediti immediatamente, oppure lasciala pagare in Stripe.",
+          "paidHelper": "La fattura è pagata e i crediti sono stati assegnati all'organizzazione.",
+          "organization": "Organizzazione",
+          "credits": "Crediti",
+          "expiry": "Scadenza",
+          "expiryDays": "{days, number} giorno/i",
+          "noExpiry": "Nessuna scadenza",
+          "amount": "Importo",
+          "status": "Stato",
+          "invoiceId": "ID fattura",
+          "markPaid": "Segna come pagata",
+          "marking": "Assegnazione crediti…",
+          "paidSuccess": "Crediti assegnati",
+          "paidError": "Impossibile contrassegnare la fattura come pagata",
+          "openInStripe": "Apri in Stripe"
         }
       }
     },

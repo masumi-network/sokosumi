@@ -72,6 +72,7 @@ sokosumi/
 - **Enums**: Avoid enums; use maps instead
 - **Components**: Use functional components with TypeScript interfaces
 - **Inference**: Leverage Prisma type inference when possible
+- **Type assertions**: Avoid `as unknown as X` double casts and `as any`; they discard type safety and hide bugs. Prefer typed APIs, type guards, or schema validation. Reach for a single `as` only to narrow a known-safe type (e.g. auth context).
 
 ### Key Conventions
 

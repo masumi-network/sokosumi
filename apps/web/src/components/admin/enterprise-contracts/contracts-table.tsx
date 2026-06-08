@@ -7,9 +7,9 @@ import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
+import { OrganizationCombobox } from "@/components/admin/organization-combobox";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -22,6 +22,7 @@ import type {
   EnterpriseContract,
   EnterpriseContractStatus,
 } from "@/lib/clients/generated/core/types.gen";
+import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const ENTERPRISE_CONTRACT_STATUSES = [
@@ -166,9 +167,13 @@ function getColumns(
 
 interface ContractsTableProps {
   contracts: EnterpriseContract[];
+  organizations: AdminOrganizationOption[];
 }
 
-export function ContractsTable({ contracts }: ContractsTableProps) {
+export function ContractsTable({
+  contracts,
+  organizations,
+}: ContractsTableProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts");
   const formatter = useFormatter();
   const [isPending, startTransition] = useTransition();
@@ -186,6 +191,9 @@ export function ContractsTable({ contracts }: ContractsTableProps) {
     setOrganizationSlug(appliedFilters.organizationSlug);
     setStatus(appliedFilters.status ?? "all");
   }, [appliedFilters.organizationSlug, appliedFilters.status]);
+
+  const selectedFilterOrganizationId =
+    organizations.find((org) => org.slug === organizationSlug)?.id ?? "";
 
   const columns = useMemo(() => getColumns(t, formatter), [t, formatter]);
 
@@ -212,11 +220,13 @@ export function ContractsTable({ contracts }: ContractsTableProps) {
           <Label htmlFor="filter-organizationSlug">
             {t("Filters.organizationSlug")}
           </Label>
-          <Input
+          <OrganizationCombobox
             id="filter-organizationSlug"
-            value={organizationSlug}
-            onChange={(event) => setOrganizationSlug(event.target.value)}
-            placeholder={t("Filters.organizationSlugPlaceholder")}
+            organizations={organizations}
+            value={selectedFilterOrganizationId}
+            onChange={(org) => setOrganizationSlug(org?.slug ?? "")}
+            placeholder={t("Filters.organizationAll")}
+            allowClear
           />
         </div>
         <div className="space-y-2">

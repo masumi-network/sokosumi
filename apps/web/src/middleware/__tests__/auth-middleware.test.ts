@@ -22,22 +22,30 @@ describe("withSession", () => {
     vi.clearAllMocks();
   });
 
-  it("uses provided session without reading session fallback", async () => {
+  it("ignores a client-supplied session and uses the server-loaded one", async () => {
+    const serverSession = {
+      user: { id: "user_server" },
+      session: { activeOrganizationId: null },
+    };
+    vi.mocked(getSession).mockResolvedValue(serverSession as never);
+
     const wrapped = withSession<TestParams, string>(async (params) => {
       return `${params.value}:${params.session.user.id}`;
     });
-    const session = {
-      user: { id: "user_1" },
+
+    // A forged session on the params must never be trusted.
+    const forgedSession = {
+      user: { id: "attacker", role: "admin" },
       session: { activeOrganizationId: null },
     };
 
     const result = await wrapped({
       value: "input",
-      session: session as never,
+      session: forgedSession as never,
     });
 
-    expect(result).toBe("input:user_1");
-    expect(getSession).not.toHaveBeenCalled();
+    expect(result).toBe("input:user_server");
+    expect(getSession).toHaveBeenCalledTimes(1);
   });
 
   it("derives session when not provided", async () => {

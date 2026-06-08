@@ -124,8 +124,6 @@
       "account": "Konto",
       "billing": "Abrechnung",
       "connections": "Verbindungen",
-      "admin": "Administration",
-      "enterpriseContracts": "Enterprise-Verträge",
       "support": "Support",
       "logout": "Abmelden",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits verwendet",
@@ -261,7 +259,8 @@
       "hermes": "Hermes",
       "history": "Verlauf",
       "new": "Neu",
-      "projects": "Projekte"
+      "projects": "Projekte",
+      "credit-grants": "Credits gewähren"
     },
     "Jobs": {
       "StatusBadge": {
@@ -662,6 +661,11 @@
       "copy": "Kopieren",
       "copySuccess": "In Zwischenablage kopiert",
       "copyError": "Kopieren fehlgeschlagen"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "Organisation auswählen",
+      "search": "Organisationen suchen…",
+      "empty": "Keine Organisationen gefunden."
     }
   },
   "AcceptInvitation": {
@@ -2347,7 +2351,8 @@
           "taskManager": "Aufgaben",
           "projects": "Projekte",
           "hermes": "Hermes",
-          "history": "Verlauf"
+          "history": "Verlauf",
+          "admin": "Administration"
         }
       }
     },
@@ -2482,11 +2487,12 @@
         "loading": "Wird geladen…",
         "loadFailed": "Enterprise-Verträge konnten nicht geladen werden.",
         "Filters": {
-          "organizationSlug": "Organisations-Slug",
+          "organizationSlug": "Organisation",
           "organizationSlugPlaceholder": "acme-corp",
           "status": "Status",
           "statusAll": "Alle",
-          "apply": "Filter anwenden"
+          "apply": "Filter anwenden",
+          "organizationAll": "Alle Organisationen"
         },
         "Status": {
           "draft": "Entwurf",
@@ -2514,7 +2520,7 @@
           "optionalSection": "Optional",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "Organisation",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2552,10 +2558,70 @@
           "updateSuccess": "Vertrag aktualisiert",
           "createError": "Vertrag konnte nicht erstellt werden",
           "updateError": "Vertrag konnte nicht aktualisiert werden",
-          "missingContract": "Vertrag fehlt"
+          "missingContract": "Vertrag fehlt",
+          "organizationRequired": "Wählen Sie eine Organisation aus"
         },
         "Detail": {
           "noExpiry": "Kein Ablauf"
+        }
+      },
+      "Overview": {
+        "title": "Administration",
+        "description": "Interne Tools zur Verwaltung von Organisationen und Abrechnung.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Enterprise-Verträge",
+            "description": "Entwürfe sowie aktive und stornierte Enterprise-Verträge erstellen und verwalten."
+          },
+          "creditGrants": {
+            "title": "Credits gewähren",
+            "description": "Einer Organisation einmalige Credits über eine Stripe-Rechnung gewähren."
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "Credits gewähren",
+        "description": "Gewähren Sie einer Organisation einmalige Credits über eine Stripe-Rechnung. Sobald die Rechnung als bezahlt markiert ist, werden die Credits sofort gewährt.",
+        "cardTitle": "Neue Credit-Gewährung",
+        "Form": {
+          "Fields": {
+            "organization": "Organisation",
+            "credits": "Credits",
+            "expiryDays": "Ablauf (Tage)",
+            "price": "Preis pro Credit"
+          },
+          "organizationRequired": "Wählen Sie eine Organisation aus",
+          "creditsRequired": "Geben Sie eine positive Anzahl von Credits ein",
+          "creditsHelper": "Anzahl der Credits, die der Organisation gewährt werden.",
+          "expiryDays": "Ablauf (Tage)",
+          "expiryHelper": "Optional. Tage bis zum Ablauf der Credits. Leer lassen für kein Ablaufdatum.",
+          "expiryPlaceholder": "Kein Ablauf",
+          "expiryInvalid": "Der Ablauf muss eine positive ganze Zahl von Tagen sein",
+          "submit": "Rechnung erstellen",
+          "submitting": "Rechnung wird erstellt…",
+          "createSuccess": "Rechnung erstellt",
+          "createError": "Rechnung konnte nicht erstellt werden",
+          "pricePlaceholder": "Preis auswählen",
+          "priceHelper": "Preis pro Credit für den Rechnungsbetrag.",
+          "priceRequired": "Wählen Sie einen Preis aus"
+        },
+        "Result": {
+          "heading": "Credit-Gewährungsrechnung",
+          "pendingHelper": "Markieren Sie die Rechnung als bezahlt, um die Credits sofort zu gewähren, oder lassen Sie sie in Stripe bezahlen.",
+          "paidHelper": "Die Rechnung ist bezahlt und die Credits wurden der Organisation gewährt.",
+          "organization": "Organisation",
+          "credits": "Credits",
+          "expiry": "Ablauf",
+          "expiryDays": "{days, number} Tag(e)",
+          "noExpiry": "Kein Ablauf",
+          "amount": "Betrag",
+          "status": "Status",
+          "invoiceId": "Rechnungs-ID",
+          "markPaid": "Als bezahlt markieren",
+          "marking": "Credits werden gewährt…",
+          "paidSuccess": "Credits gewährt",
+          "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
+          "openInStripe": "In Stripe öffnen"
         }
       }
     },

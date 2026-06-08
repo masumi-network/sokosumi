@@ -124,8 +124,6 @@
       "account": "Cuenta",
       "billing": "Facturación",
       "connections": "Conexiones",
-      "admin": "Administración",
-      "enterpriseContracts": "Contratos empresariales",
       "support": "Soporte",
       "logout": "Cerrar sesión",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits usados",
@@ -261,7 +259,8 @@
       "hermes": "Hermes",
       "history": "Historial",
       "new": "Nuevo",
-      "projects": "Proyectos"
+      "projects": "Proyectos",
+      "credit-grants": "Otorgar créditos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -662,6 +661,11 @@
       "copy": "Copiar",
       "copySuccess": "Copiado al portapapeles",
       "copyError": "Error al copiar"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "Selecciona una organización",
+      "search": "Buscar organizaciones…",
+      "empty": "No se encontraron organizaciones."
     }
   },
   "AcceptInvitation": {
@@ -2347,7 +2351,8 @@
           "taskManager": "Tareas",
           "projects": "Proyectos",
           "hermes": "Hermes",
-          "history": "Historial"
+          "history": "Historial",
+          "admin": "Administración"
         }
       }
     },
@@ -2482,11 +2487,12 @@
         "loading": "Cargando…",
         "loadFailed": "No se pudieron cargar los contratos empresariales.",
         "Filters": {
-          "organizationSlug": "Slug de la organización",
+          "organizationSlug": "Organización",
           "organizationSlugPlaceholder": "acme-corp",
           "status": "Estado",
           "statusAll": "Todos",
-          "apply": "Aplicar filtros"
+          "apply": "Aplicar filtros",
+          "organizationAll": "Todas las organizaciones"
         },
         "Status": {
           "draft": "Borrador",
@@ -2514,7 +2520,7 @@
           "optionalSection": "Opcional",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "Organización",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2552,10 +2558,70 @@
           "updateSuccess": "Contrato actualizado",
           "createError": "No se pudo crear el contrato",
           "updateError": "No se pudo actualizar el contrato",
-          "missingContract": "Contrato no encontrado"
+          "missingContract": "Contrato no encontrado",
+          "organizationRequired": "Selecciona una organización"
         },
         "Detail": {
           "noExpiry": "Sin caducidad"
+        }
+      },
+      "Overview": {
+        "title": "Administración",
+        "description": "Herramientas internas para gestionar organizaciones y facturación.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Contratos empresariales",
+            "description": "Crea y gestiona contratos empresariales en borrador, activos y cancelados."
+          },
+          "creditGrants": {
+            "title": "Otorgar créditos",
+            "description": "Otorga créditos únicos a una organización mediante una factura de Stripe."
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "Otorgar créditos",
+        "description": "Otorga créditos únicos a una organización mediante una factura de Stripe. Al marcar la factura como pagada, los créditos se otorgan al instante.",
+        "cardTitle": "Nueva concesión de créditos",
+        "Form": {
+          "Fields": {
+            "organization": "Organización",
+            "credits": "Créditos",
+            "expiryDays": "Caducidad (días)",
+            "price": "Precio por crédito"
+          },
+          "organizationRequired": "Selecciona una organización",
+          "creditsRequired": "Introduce un número positivo de créditos",
+          "creditsHelper": "Número de créditos que se otorgarán a la organización.",
+          "expiryDays": "Caducidad (días)",
+          "expiryHelper": "Opcional. Días hasta que caduquen los créditos. Déjalo en blanco para que no caduquen.",
+          "expiryPlaceholder": "Sin caducidad",
+          "expiryInvalid": "La caducidad debe ser un número entero positivo de días",
+          "submit": "Crear factura",
+          "submitting": "Creando factura…",
+          "createSuccess": "Factura creada",
+          "createError": "No se pudo crear la factura",
+          "pricePlaceholder": "Selecciona un precio",
+          "priceHelper": "Precio por crédito utilizado para el importe de la factura.",
+          "priceRequired": "Selecciona un precio"
+        },
+        "Result": {
+          "heading": "Factura de concesión de créditos",
+          "pendingHelper": "Marca la factura como pagada para otorgar los créditos al instante, o déjala para pagarla en Stripe.",
+          "paidHelper": "La factura está pagada y los créditos se han otorgado a la organización.",
+          "organization": "Organización",
+          "credits": "Créditos",
+          "expiry": "Caducidad",
+          "expiryDays": "{days, number} día(s)",
+          "noExpiry": "Sin caducidad",
+          "amount": "Importe",
+          "status": "Estado",
+          "invoiceId": "ID de factura",
+          "markPaid": "Marcar como pagada",
+          "marking": "Otorgando créditos…",
+          "paidSuccess": "Créditos otorgados",
+          "paidError": "No se pudo marcar la factura como pagada",
+          "openInStripe": "Abrir en Stripe"
         }
       }
     },

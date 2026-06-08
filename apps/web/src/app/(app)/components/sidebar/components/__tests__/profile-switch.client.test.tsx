@@ -349,7 +349,6 @@ describe("ProfileSwitchClient", () => {
 
     render(
       <ProfileSwitchClient
-        adminMenuEnabled={false}
         sessionUser={sessionUser}
         members={[createMember()]}
         activeOrganizationId={null}
@@ -368,7 +367,6 @@ describe("ProfileSwitchClient", () => {
 
     render(
       <ProfileSwitchClient
-        adminMenuEnabled={false}
         sessionUser={sessionUser}
         members={[createMember()]}
         activeOrganizationId="org-1"
@@ -386,7 +384,6 @@ describe("ProfileSwitchClient", () => {
 
     render(
       <ProfileSwitchClient
-        adminMenuEnabled={false}
         sessionUser={sessionUser}
         members={[
           createMember(),
@@ -435,7 +432,6 @@ describe("ProfileSwitchClient", () => {
 
     render(
       <ProfileSwitchClient
-        adminMenuEnabled={false}
         sessionUser={sessionUser}
         members={[createMember()]}
         activeOrganizationId={null}
