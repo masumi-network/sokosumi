@@ -124,8 +124,6 @@
       "account": "Compte",
       "billing": "Facturation",
       "connections": "Connexions",
-      "admin": "Administration",
-      "enterpriseContracts": "Contrats entreprise",
       "help": "Aide",
       "legal": "Mentions légales",
       "support": "Support",
@@ -261,7 +259,8 @@
       "hermes": "Hermes",
       "history": "Historique",
       "new": "Nouveau",
-      "projects": "Projets"
+      "projects": "Projets",
+      "credit-grants": "Accorder des crédits"
     },
     "Jobs": {
       "StatusBadge": {
@@ -662,6 +661,11 @@
       "copy": "Copier",
       "copySuccess": "Copié dans le presse-papiers",
       "copyError": "Échec de la copie"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "Sélectionner une organisation",
+      "search": "Rechercher des organisations…",
+      "empty": "Aucune organisation trouvée."
     }
   },
   "AcceptInvitation": {
@@ -2354,7 +2358,8 @@
           "taskManager": "Tâches",
           "projects": "Projets",
           "hermes": "Hermes",
-          "history": "Historique"
+          "history": "Historique",
+          "admin": "Administration"
         }
       }
     },
@@ -2520,11 +2525,12 @@
         "loading": "Chargement…",
         "loadFailed": "Impossible de charger les contrats entreprise.",
         "Filters": {
-          "organizationSlug": "Slug de l'organisation",
+          "organizationSlug": "Organisation",
           "organizationSlugPlaceholder": "acme-corp",
           "status": "Statut",
           "statusAll": "Tous",
-          "apply": "Appliquer les filtres"
+          "apply": "Appliquer les filtres",
+          "organizationAll": "Toutes les organisations"
         },
         "Status": {
           "draft": "Brouillon",
@@ -2552,7 +2558,7 @@
           "optionalSection": "Facultatif",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "Organisation",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2590,10 +2596,70 @@
           "updateSuccess": "Contrat mis à jour",
           "createError": "Impossible de créer le contrat",
           "updateError": "Impossible de mettre à jour le contrat",
-          "missingContract": "Contrat introuvable"
+          "missingContract": "Contrat introuvable",
+          "organizationRequired": "Sélectionnez une organisation"
         },
         "Detail": {
           "noExpiry": "Sans expiration"
+        }
+      },
+      "Overview": {
+        "title": "Administration",
+        "description": "Outils internes pour gérer les organisations et la facturation.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Contrats entreprise",
+            "description": "Créez et gérez les contrats entreprise en brouillon, actifs et annulés."
+          },
+          "creditGrants": {
+            "title": "Accorder des crédits",
+            "description": "Accordez des crédits uniques à une organisation via une facture Stripe."
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "Accorder des crédits",
+        "description": "Accordez des crédits uniques à une organisation via une facture Stripe. Marquer la facture comme payée accorde les crédits instantanément.",
+        "cardTitle": "Nouvelle attribution de crédits",
+        "Form": {
+          "Fields": {
+            "organization": "Organisation",
+            "credits": "Crédits",
+            "expiryDays": "Expiration (jours)",
+            "price": "Prix par crédit"
+          },
+          "organizationRequired": "Sélectionnez une organisation",
+          "creditsRequired": "Saisissez un nombre positif de crédits",
+          "creditsHelper": "Nombre de crédits à accorder à l'organisation.",
+          "expiryDays": "Expiration (jours)",
+          "expiryHelper": "Facultatif. Nombre de jours avant l'expiration des crédits. Laissez vide pour aucune expiration.",
+          "expiryPlaceholder": "Aucune expiration",
+          "expiryInvalid": "L'expiration doit être un nombre entier positif de jours",
+          "submit": "Créer la facture",
+          "submitting": "Création de la facture…",
+          "createSuccess": "Facture créée",
+          "createError": "Échec de la création de la facture",
+          "pricePlaceholder": "Sélectionner un prix",
+          "priceHelper": "Prix par crédit utilisé pour le montant de la facture.",
+          "priceRequired": "Sélectionnez un prix"
+        },
+        "Result": {
+          "heading": "Facture d'attribution de crédits",
+          "pendingHelper": "Marquez la facture comme payée pour accorder les crédits instantanément, ou laissez-la être payée dans Stripe.",
+          "paidHelper": "La facture est payée et les crédits ont été accordés à l'organisation.",
+          "organization": "Organisation",
+          "credits": "Crédits",
+          "expiry": "Expiration",
+          "expiryDays": "{days, number} jour(s)",
+          "noExpiry": "Aucune expiration",
+          "amount": "Montant",
+          "status": "Statut",
+          "invoiceId": "ID de facture",
+          "markPaid": "Marquer comme payée",
+          "marking": "Attribution des crédits…",
+          "paidSuccess": "Crédits accordés",
+          "paidError": "Échec du marquage de la facture comme payée",
+          "openInStripe": "Ouvrir dans Stripe"
         }
       }
     },

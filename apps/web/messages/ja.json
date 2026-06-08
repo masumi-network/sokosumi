@@ -124,8 +124,6 @@
       "account": "アカウント",
       "billing": "請求",
       "connections": "接続",
-      "admin": "管理",
-      "enterpriseContracts": "エンタープライズ契約",
       "help": "ヘルプ",
       "legal": "法務",
       "support": "サポート",
@@ -261,7 +259,8 @@
       "hermes": "Hermes",
       "history": "履歴",
       "new": "新規",
-      "projects": "プロジェクト"
+      "projects": "プロジェクト",
+      "credit-grants": "クレジットを付与"
     },
     "Jobs": {
       "StatusBadge": {
@@ -662,6 +661,11 @@
       "copy": "コピー",
       "copySuccess": "クリップボードにコピーしました",
       "copyError": "コピーに失敗しました"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "組織を選択",
+      "search": "組織を検索…",
+      "empty": "組織が見つかりません。"
     }
   },
   "AcceptInvitation": {
@@ -2354,7 +2358,8 @@
           "taskManager": "タスク",
           "projects": "プロジェクト",
           "hermes": "Hermes",
-          "history": "履歴"
+          "history": "履歴",
+          "admin": "管理"
         }
       }
     },
@@ -2520,11 +2525,12 @@
         "loading": "読み込み中…",
         "loadFailed": "エンタープライズ契約を読み込めませんでした。",
         "Filters": {
-          "organizationSlug": "組織スラッグ",
+          "organizationSlug": "組織",
           "organizationSlugPlaceholder": "acme-corp",
           "status": "ステータス",
           "statusAll": "すべて",
-          "apply": "フィルターを適用"
+          "apply": "フィルターを適用",
+          "organizationAll": "すべての組織"
         },
         "Status": {
           "draft": "下書き",
@@ -2552,7 +2558,7 @@
           "optionalSection": "任意",
           "Fields": {
             "organizationSlug": {
-              "label": "スラッグ",
+              "label": "組織",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2590,10 +2596,70 @@
           "updateSuccess": "契約を更新しました",
           "createError": "契約を作成できませんでした",
           "updateError": "契約を更新できませんでした",
-          "missingContract": "契約が見つかりません"
+          "missingContract": "契約が見つかりません",
+          "organizationRequired": "組織を選択してください"
         },
         "Detail": {
           "noExpiry": "期限なし"
+        }
+      },
+      "Overview": {
+        "title": "管理",
+        "description": "組織と請求を管理するための内部ツール。",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "エンタープライズ契約",
+            "description": "下書き、有効、キャンセル済みのエンタープライズ契約を作成・管理します。"
+          },
+          "creditGrants": {
+            "title": "クレジットを付与",
+            "description": "Stripe の請求書を通じて組織に一度限りのクレジットを付与します。"
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "クレジットを付与",
+        "description": "Stripe の請求書を通じて組織に一度限りのクレジットを付与します。請求書を支払い済みにすると、クレジットが即座に付与されます。",
+        "cardTitle": "新しいクレジット付与",
+        "Form": {
+          "Fields": {
+            "organization": "組織",
+            "credits": "クレジット",
+            "expiryDays": "有効期限（日数）",
+            "price": "クレジットあたりの価格"
+          },
+          "organizationRequired": "組織を選択してください",
+          "creditsRequired": "正のクレジット数を入力してください",
+          "creditsHelper": "組織に付与するクレジット数。",
+          "expiryDays": "有効期限（日数）",
+          "expiryHelper": "任意。クレジットが失効するまでの日数。空欄の場合は無期限です。",
+          "expiryPlaceholder": "無期限",
+          "expiryInvalid": "有効期限は正の整数の日数である必要があります",
+          "submit": "請求書を作成",
+          "submitting": "請求書を作成中…",
+          "createSuccess": "請求書を作成しました",
+          "createError": "請求書の作成に失敗しました",
+          "pricePlaceholder": "価格を選択",
+          "priceHelper": "請求金額に使用するクレジットあたりの価格。",
+          "priceRequired": "価格を選択してください"
+        },
+        "Result": {
+          "heading": "クレジット付与の請求書",
+          "pendingHelper": "請求書を支払い済みにするとクレジットが即座に付与されます。または Stripe での支払いに任せることもできます。",
+          "paidHelper": "請求書は支払い済みで、クレジットは組織に付与されました。",
+          "organization": "組織",
+          "credits": "クレジット",
+          "expiry": "有効期限",
+          "expiryDays": "{days, number} 日",
+          "noExpiry": "無期限",
+          "amount": "金額",
+          "status": "ステータス",
+          "invoiceId": "請求書 ID",
+          "markPaid": "支払い済みにする",
+          "marking": "クレジットを付与中…",
+          "paidSuccess": "クレジットを付与しました",
+          "paidError": "請求書を支払い済みにできませんでした",
+          "openInStripe": "Stripe で開く"
         }
       }
     },

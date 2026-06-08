@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
+import { OrganizationCombobox } from "@/components/admin/organization-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ import {
   formatDatetimeLocalValue,
   parseDatetimeLocalValue,
 } from "@/lib/job-input/date-value";
+import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 
 const MIN_CREDITS_PER_MONTH = 60_000;
 const MIN_PERIODS = 1;
@@ -162,6 +164,7 @@ function buildPatchBody(
 interface ContractFormProps {
   mode: "create" | "edit";
   contract?: EnterpriseContract;
+  organizations: AdminOrganizationOption[];
 }
 
 interface FormSectionProps {
@@ -190,13 +193,20 @@ function FormSection({
   );
 }
 
-export function ContractForm({ mode, contract }: ContractFormProps) {
+export function ContractForm({
+  mode,
+  contract,
+  organizations,
+}: ContractFormProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts.Form");
   const router = useRouter();
   const [values, setValues] = useState<ContractFormValues>(() =>
     toFormValues(contract),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const selectedOrganizationId =
+    organizations.find((org) => org.slug === values.organizationSlug)?.id ?? "";
 
   function updateValue<K extends keyof ContractFormValues>(
     key: K,
@@ -207,6 +217,12 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (mode === "create" && !values.organizationSlug.trim()) {
+      toast.error(t("organizationRequired"));
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -253,14 +269,11 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
           <Label htmlFor="organizationSlug">
             {t("Fields.organizationSlug.label")}
           </Label>
-          <Input
+          <OrganizationCombobox
             id="organizationSlug"
-            placeholder={t("Fields.organizationSlug.placeholder")}
-            value={values.organizationSlug}
-            onChange={(event) =>
-              updateValue("organizationSlug", event.target.value)
-            }
-            required
+            organizations={organizations}
+            value={selectedOrganizationId}
+            onChange={(org) => updateValue("organizationSlug", org?.slug ?? "")}
             disabled={mode === "edit"}
           />
         </div>

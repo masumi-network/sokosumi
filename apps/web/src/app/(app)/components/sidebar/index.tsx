@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import type { Session } from "@/lib/auth/auth";
 
+import AdminMenu from "./components/admin-menu";
 import AnnouncementCards from "./components/announcement-cards";
 import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
@@ -39,10 +40,7 @@ export default function Sidebar({
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
         <div className="flex items-center gap-2 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:pt-1! group-data-[collapsible=icon]:pl-0!">
-          <ProfileSwitch
-            adminMenuEnabled={adminMenuEnabled}
-            session={session}
-          />
+          <ProfileSwitch session={session} />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarHeader>
@@ -53,6 +51,12 @@ export default function Sidebar({
           <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
           <SidebarSeparator className="mx-0 mt-2" />
           <ChatListsClient />
+          {adminMenuEnabled ? (
+            <>
+              <SidebarSeparator className="mx-0" />
+              <AdminMenu />
+            </>
+          ) : null}
         </div>
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">

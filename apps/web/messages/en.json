@@ -124,8 +124,6 @@
       "account": "Account",
       "billing": "Billing",
       "connections": "Connections",
-      "admin": "Admin",
-      "enterpriseContracts": "Enterprise contracts",
       "help": "Help",
       "legal": "Legal",
       "support": "Support",
@@ -243,6 +241,11 @@
         "resendError": "Failed to resend invitation"
       }
     },
+    "OrganizationCombobox": {
+      "placeholder": "Select an organization",
+      "search": "Search organizations…",
+      "empty": "No organizations found."
+    },
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Agents",
@@ -254,6 +257,7 @@
       "admin": "Admin",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
+      "credit-grants": "Grant credits",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",
@@ -2354,7 +2358,8 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "hermes": "Hermes",
-          "history": "History"
+          "history": "History",
+          "admin": "Admin"
         }
       }
     },
@@ -2520,8 +2525,9 @@
         "loading": "Loading…",
         "loadFailed": "Failed to load enterprise contracts.",
         "Filters": {
-          "organizationSlug": "Organization slug",
+          "organizationSlug": "Organization",
           "organizationSlugPlaceholder": "acme-corp",
+          "organizationAll": "All organizations",
           "status": "Status",
           "statusAll": "All",
           "apply": "Apply filters"
@@ -2552,7 +2558,7 @@
           "optionalSection": "Optional",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "Organization",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2590,10 +2596,70 @@
           "updateSuccess": "Contract updated",
           "createError": "Failed to create contract",
           "updateError": "Failed to update contract",
-          "missingContract": "Missing contract"
+          "missingContract": "Missing contract",
+          "organizationRequired": "Select an organization"
         },
         "Detail": {
           "noExpiry": "No expiry"
+        }
+      },
+      "CreditGrants": {
+        "title": "Grant credits",
+        "description": "Grant one-time credits to an organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
+        "cardTitle": "New credit grant",
+        "Form": {
+          "Fields": {
+            "organization": "Organization",
+            "credits": "Credits",
+            "expiryDays": "Expiry (days)",
+            "price": "Price per credit"
+          },
+          "organizationRequired": "Select an organization",
+          "creditsRequired": "Enter a positive number of credits",
+          "creditsHelper": "Number of credits to grant to the organization.",
+          "expiryDays": "Expiry (days)",
+          "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
+          "expiryPlaceholder": "No expiry",
+          "expiryInvalid": "Expiry must be a positive whole number of days",
+          "submit": "Create invoice",
+          "submitting": "Creating invoice…",
+          "createSuccess": "Invoice created",
+          "createError": "Failed to create invoice",
+          "pricePlaceholder": "Select a price",
+          "priceHelper": "Price per credit used for the invoice amount.",
+          "priceRequired": "Select a price"
+        },
+        "Result": {
+          "heading": "Credit grant invoice",
+          "pendingHelper": "Mark the invoice paid to grant the credits instantly, or leave it to be paid in Stripe.",
+          "paidHelper": "The invoice is paid and the credits have been granted to the organization.",
+          "organization": "Organization",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "invoiceId": "Invoice ID",
+          "markPaid": "Mark as paid",
+          "marking": "Granting credits…",
+          "paidSuccess": "Credits granted",
+          "paidError": "Failed to mark invoice as paid",
+          "openInStripe": "Open in Stripe"
+        }
+      },
+      "Overview": {
+        "title": "Admin",
+        "description": "Internal tools for managing organizations and billing.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Enterprise contracts",
+            "description": "Create and manage draft, active, and canceled enterprise contracts."
+          },
+          "creditGrants": {
+            "title": "Grant credits",
+            "description": "Grant one-time credits to an organization via a Stripe invoice."
+          }
         }
       }
     },

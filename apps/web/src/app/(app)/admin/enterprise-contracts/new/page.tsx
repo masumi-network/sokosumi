@@ -4,13 +4,16 @@ import Link from "next/link";
 import { ContractForm } from "@/components/admin/enterprise-contracts/contract-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
 export const metadata: Metadata = {
   title: "New enterprise contract",
   description: "Create a draft enterprise contract",
 };
 
-export default function NewEnterpriseContractPage() {
+export default async function NewEnterpriseContractPage() {
+  const organizations = await adminOrganizationService.listOrganizations();
+
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">
@@ -33,7 +36,7 @@ export default function NewEnterpriseContractPage() {
             <CardTitle>Draft details</CardTitle>
           </CardHeader>
           <CardContent>
-            <ContractForm mode="create" />
+            <ContractForm mode="create" organizations={organizations} />
           </CardContent>
         </Card>
       </div>
