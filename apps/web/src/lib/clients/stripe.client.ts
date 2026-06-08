@@ -573,6 +573,9 @@ export const stripeClient = (() => {
       ttlDays?: number;
       daysUntilDue?: number;
       description?: string;
+      /** When set, applies this coupon as an invoice-level discount. A 100%-off
+       * coupon makes the grant free ($0 due). */
+      couponId?: string;
     }): Promise<Stripe.Invoice> {
       const metadata: Record<string, string> = {
         credits: String(params.credits),
@@ -590,6 +593,9 @@ export const stripeClient = (() => {
         collection_method: "send_invoice",
         days_until_due: params.daysUntilDue ?? 30,
         auto_advance: false,
+        ...(params.couponId
+          ? { discounts: [{ coupon: params.couponId }] }
+          : {}),
         metadata,
       });
 

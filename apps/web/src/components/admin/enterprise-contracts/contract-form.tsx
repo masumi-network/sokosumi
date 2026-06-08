@@ -308,7 +308,9 @@ export function ContractForm({
             renderOption={(org) => (
               <span className="flex flex-col">
                 <span>{org.name}</span>
-                <span className="text-muted-foreground text-xs">{org.slug}</span>
+                <span className="text-muted-foreground text-xs">
+                  {org.slug}
+                </span>
               </span>
             )}
             labels={orgLabels}

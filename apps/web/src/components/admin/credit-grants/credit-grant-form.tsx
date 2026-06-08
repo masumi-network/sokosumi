@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   searchOrganizationsAction,
@@ -123,10 +124,13 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
     useState<CreditGrantTargetType>("organization");
   const [selectedOrg, setSelectedOrg] =
     useState<AdminOrganizationOption | null>(null);
-  const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
+    null,
+  );
   const [creditsInput, setCreditsInput] = useState("");
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
   const [priceId, setPriceId] = useState(defaultPriceId);
+  const [markFree, setMarkFree] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [invoice, setInvoice] = useState<CreditGrantInvoiceSummary | null>(
@@ -155,8 +159,7 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const targetId =
-      targetType === "user" ? selectedUser?.id : selectedOrg?.id;
+    const targetId = targetType === "user" ? selectedUser?.id : selectedOrg?.id;
     if (!targetId) {
       toast.error(t("Form.targetRequired"));
       return;
@@ -188,6 +191,7 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
         credits,
         ttlDays,
         priceId: priceId || null,
+        markFree,
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Form.createError"));
@@ -222,7 +226,9 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
 
   if (invoice) {
     const targetLabel =
-      invoice.targetType === "user" ? t("Result.user") : t("Result.organization");
+      invoice.targetType === "user"
+        ? t("Result.user")
+        : t("Result.organization");
     return (
       <div className="space-y-6">
         <div className="space-y-1">
@@ -330,7 +336,9 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
             renderOption={(org) => (
               <span className="flex flex-col">
                 <span>{org.name}</span>
-                <span className="text-muted-foreground text-xs">{org.slug}</span>
+                <span className="text-muted-foreground text-xs">
+                  {org.slug}
+                </span>
               </span>
             )}
             labels={orgLabels}
@@ -384,6 +392,20 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
           </SelectContent>
         </Select>
         <p className="text-muted-foreground text-xs">{t("Form.priceHelper")}</p>
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <Label htmlFor="markFree">{t("Form.Fields.markFree")}</Label>
+          <p className="text-muted-foreground text-xs">
+            {t("Form.markFreeHelper")}
+          </p>
+        </div>
+        <Switch
+          id="markFree"
+          checked={markFree}
+          onCheckedChange={setMarkFree}
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

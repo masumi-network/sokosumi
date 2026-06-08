@@ -45,26 +45,38 @@ interface CreateCreditGrantInvoiceParameters extends AuthenticatedRequest {
   credits: number;
   ttlDays: number | null;
   priceId: string | null;
+  markFree: boolean;
 }
 
 export const createCreditGrantInvoiceAction = withSession<
   CreateCreditGrantInvoiceParameters,
   Result<CreditGrantInvoiceSummary, ActionError>
->(async ({ session, targetType, targetId, credits, ttlDays, priceId }) => {
-  try {
-    assertAdminSession(session);
-    const summary = await creditGrantAdminService.createGrantInvoice({
-      target: { targetType, targetId },
-      credits,
-      ttlDays,
-      priceId,
-    });
-    revalidatePath("/admin/credit-grants");
-    return Ok(summary);
-  } catch (error) {
-    return Err(mapError(error));
-  }
-});
+>(
+  async ({
+    session,
+    targetType,
+    targetId,
+    credits,
+    ttlDays,
+    priceId,
+    markFree,
+  }) => {
+    try {
+      assertAdminSession(session);
+      const summary = await creditGrantAdminService.createGrantInvoice({
+        target: { targetType, targetId },
+        credits,
+        ttlDays,
+        priceId,
+        markFree,
+      });
+      revalidatePath("/admin/credit-grants");
+      return Ok(summary);
+    } catch (error) {
+      return Err(mapError(error));
+    }
+  },
+);
 
 interface MarkCreditGrantInvoicePaidParameters extends AuthenticatedRequest {
   invoiceId: string;

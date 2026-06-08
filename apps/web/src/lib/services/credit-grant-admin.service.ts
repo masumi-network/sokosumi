@@ -10,7 +10,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
-
+import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import {
@@ -183,7 +183,9 @@ export const creditGrantAdminService = (() => {
     };
   }
 
-  async function resolveTarget(target: CreditGrantTarget): Promise<ResolvedTarget> {
+  async function resolveTarget(
+    target: CreditGrantTarget,
+  ): Promise<ResolvedTarget> {
     return target.targetType === "user"
       ? ensureUserStripeCustomerId(target.targetId)
       : ensureOrganizationStripeCustomerId(target.targetId);
@@ -216,6 +218,8 @@ export const creditGrantAdminService = (() => {
       credits: number;
       ttlDays: number | null;
       priceId: string | null;
+      /** When true, applies the support coupon so the invoice is free ($0). */
+      markFree: boolean;
     }): Promise<CreditGrantInvoiceSummary> {
       if (!isPositiveIntegerCredits(params.credits)) {
         throw new CreditGrantValidationError(
@@ -249,6 +253,9 @@ export const creditGrantAdminService = (() => {
         totalMinorUnits,
         currency: price.currency,
         ttlDays: params.ttlDays ?? undefined,
+        ...(params.markFree
+          ? { couponId: getEnvSecrets().STRIPE_SUPPORT_COUPON }
+          : {}),
       });
 
       const accountId = await stripeClient.getAccountId();
@@ -295,7 +302,11 @@ export const creditGrantAdminService = (() => {
         prisma,
       );
 
-      let target: { targetType: CreditGrantTargetType; id: string; name: string };
+      let target: {
+        targetType: CreditGrantTargetType;
+        id: string;
+        name: string;
+      };
       let expectedReferenceId: string;
       let grantedBucketWhere: {
         userId?: string;
