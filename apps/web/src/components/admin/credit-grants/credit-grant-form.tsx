@@ -1,36 +1,21 @@
 "use client";
 
-import { Check, ChevronsUpDown, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { OrganizationCombobox } from "@/components/admin/organization-combobox";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import {
   createCreditGrantInvoiceAction,
   markCreditGrantInvoicePaidAction,
 } from "@/lib/actions/credit-grant/action";
-import type {
-  AdminOrganizationOption,
-  CreditGrantInvoiceSummary,
-} from "@/lib/services/credit-grant-admin.service";
-import { cn } from "@/lib/utils";
+import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
+import type { CreditGrantInvoiceSummary } from "@/lib/services/credit-grant-admin.service";
 
 interface CreditGrantFormProps {
   organizations: AdminOrganizationOption[];
@@ -64,16 +49,10 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
   const [organizationId, setOrganizationId] = useState("");
   const [creditsInput, setCreditsInput] = useState("");
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
-  const [orgPickerOpen, setOrgPickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [invoice, setInvoice] = useState<CreditGrantInvoiceSummary | null>(
     null,
-  );
-
-  const selectedOrganization = useMemo(
-    () => organizations.find((org) => org.id === organizationId) ?? null,
-    [organizations, organizationId],
   );
 
   const isPaid = invoice?.status === "paid";
@@ -235,69 +214,12 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="organization">{t("Form.Fields.organization")}</Label>
-        <Popover open={orgPickerOpen} onOpenChange={setOrgPickerOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              id="organization"
-              type="button"
-              variant="outline"
-              role="combobox"
-              aria-expanded={orgPickerOpen}
-              className="w-full justify-between font-normal"
-            >
-              <span
-                className={cn(!selectedOrganization && "text-muted-foreground")}
-              >
-                {selectedOrganization
-                  ? selectedOrganization.name
-                  : t("Form.organizationPlaceholder")}
-              </span>
-              <ChevronsUpDown className="size-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-(--radix-popover-trigger-width) p-0"
-            align="start"
-          >
-            <Command
-              filter={(value, search) =>
-                value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
-              }
-            >
-              <CommandInput placeholder={t("Form.organizationSearch")} />
-              <CommandList>
-                <CommandEmpty>{t("Form.organizationEmpty")}</CommandEmpty>
-                <CommandGroup>
-                  {organizations.map((org) => (
-                    <CommandItem
-                      key={org.id}
-                      value={`${org.name} ${org.slug}`}
-                      onSelect={() => {
-                        setOrganizationId(org.id);
-                        setOrgPickerOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "size-4",
-                          organizationId === org.id
-                            ? "opacity-100"
-                            : "opacity-0",
-                        )}
-                      />
-                      <span className="flex flex-col">
-                        <span>{org.name}</span>
-                        <span className="text-muted-foreground text-xs">
-                          {org.slug}
-                        </span>
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+        <OrganizationCombobox
+          id="organization"
+          organizations={organizations}
+          value={organizationId}
+          onChange={(org) => setOrganizationId(org?.id ?? "")}
+        />
       </div>
 
       <Separator />

@@ -15,12 +15,6 @@ import { handleInvoicePaidEvent } from "@/lib/stripe/webhook-handlers";
 const ADMIN_CREDIT_GRANT_SOURCE = "admin_one_time_credit";
 const MAX_TTL_DAYS = 3650;
 
-export interface AdminOrganizationOption {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 export interface CreditGrantInvoiceSummary {
   invoiceId: string;
   organizationId: string;
@@ -106,19 +100,6 @@ export const creditGrantAdminService = (() => {
   }
 
   return {
-    async listOrganizations(): Promise<AdminOrganizationOption[]> {
-      const organizations =
-        await organizationRepository.listOrganizationsWithLimitedInfo(prisma);
-
-      return organizations
-        .map((organization) => ({
-          id: organization.id,
-          name: organization.name,
-          slug: organization.slug,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    },
-
     async createGrantInvoice(params: {
       organizationId: string;
       credits: number;

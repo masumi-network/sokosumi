@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
+import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
 export const metadata: Metadata = {
   title: "Edit enterprise contract",
@@ -45,6 +46,8 @@ export default async function EditEnterpriseContractPage({
     redirect(`/admin/enterprise-contracts/${id}`);
   }
 
+  const organizations = await adminOrganizationService.listOrganizations();
+
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">
@@ -69,7 +72,11 @@ export default async function EditEnterpriseContractPage({
             <CardTitle>{result.data.organizationSlug}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ContractForm mode="edit" contract={result.data} />
+            <ContractForm
+              mode="edit"
+              contract={result.data}
+              organizations={organizations}
+            />
           </CardContent>
         </Card>
       </div>

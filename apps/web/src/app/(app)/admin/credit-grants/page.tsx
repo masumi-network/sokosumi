@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { CreditGrantForm } from "@/components/admin/credit-grants/credit-grant-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
+import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
 export const metadata: Metadata = {
   title: "Grant credits",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function CreditGrantsPage() {
   const t = await getTranslations("App.Admin.CreditGrants");
-  const organizations = await creditGrantAdminService.listOrganizations();
+  const organizations = await adminOrganizationService.listOrganizations();
 
   return (
     <div className="min-h-full w-full">

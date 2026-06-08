@@ -244,6 +244,11 @@
         "resendError": "Failed to resend invitation"
       }
     },
+    "OrganizationCombobox": {
+      "placeholder": "Select an organization",
+      "search": "Search organizations…",
+      "empty": "No organizations found."
+    },
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Agents",
@@ -2547,7 +2552,7 @@
           "optionalSection": "Optional",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "Organization",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2601,9 +2606,6 @@
             "credits": "Credits",
             "expiryDays": "Expiry (days)"
           },
-          "organizationPlaceholder": "Select an organization",
-          "organizationSearch": "Search organizations…",
-          "organizationEmpty": "No organizations found.",
           "organizationRequired": "Select an organization",
           "creditsRequired": "Enter a positive number of credits",
           "creditsHelper": "Number of credits to grant to the organization.",
