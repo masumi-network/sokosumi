@@ -1,5 +1,6 @@
 import "server-only";
 
+import { buildOrganizationInvoiceCreditReferenceId } from "@sokosumi/database/helpers";
 import { organizationRepository } from "@sokosumi/database/repositories";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
@@ -241,6 +242,29 @@ export const creditGrantAdminService = (() => {
       // Grant instantly via the shared automation. Idempotent against the
       // webhook that Stripe also fires for this invoice.
       await handleInvoicePaidEvent(paidInvoice);
+
+      // handleInvoicePaidEvent can return early without granting (e.g. the
+      // organization has no owner/members), leaving the invoice paid but no
+      // credits issued. Verify the grant landed instead of reporting false
+      // success; the invoice is already paid, so a re-run (after fixing
+      // membership) is idempotent and will complete the grant.
+      const expectedReferenceId = buildOrganizationInvoiceCreditReferenceId(
+        organization.id,
+        invoiceId,
+        "topup",
+      );
+      const grantedBucket = await prisma.creditBucket.findFirst({
+        where: {
+          organizationId: organization.id,
+          referenceId: expectedReferenceId,
+        },
+        select: { id: true },
+      });
+      if (!grantedBucket) {
+        throw new CreditGrantValidationError(
+          "Invoice was marked paid but credits were not granted (the organization may have no owner). Resolve the issue and mark it paid again to retry.",
+        );
+      }
 
       const credits = Number(paidInvoice.metadata?.credits ?? 0);
       const ttlDaysRaw = paidInvoice.metadata?.ttl_days;
