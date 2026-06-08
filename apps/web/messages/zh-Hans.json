@@ -2617,7 +2617,8 @@
           "Fields": {
             "organization": "组织",
             "credits": "积分",
-            "expiryDays": "有效期（天）"
+            "expiryDays": "有效期（天）",
+            "price": "每积分价格"
           },
           "organizationRequired": "请选择一个组织",
           "creditsRequired": "请输入正整数的积分数量",
@@ -2629,7 +2630,10 @@
           "submit": "创建发票",
           "submitting": "正在创建发票…",
           "createSuccess": "发票已创建",
-          "createError": "创建发票失败"
+          "createError": "创建发票失败",
+          "pricePlaceholder": "选择价格",
+          "priceHelper": "用于发票金额的每积分价格。",
+          "priceRequired": "请选择价格"
         },
         "Result": {
           "heading": "积分授予发票",

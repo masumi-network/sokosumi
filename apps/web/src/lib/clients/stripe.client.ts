@@ -341,6 +341,48 @@ export const stripeClient = (() => {
       return await this.getPriceByLookupKey(BASE_CREDIT_TOPUP_LOOKUP_KEY);
     },
 
+    /**
+     * Lists all active one-time prices configured on the credit product, for
+     * admin selection. Invalid prices (unsupported currency, zero amount,
+     * recurring) are skipped. Sorted by currency, then amount per credit.
+     */
+    async listCreditTopUpPrices(): Promise<
+      Array<Price & { nickname: string | null }>
+    > {
+      const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
+      const prices = await stripe.prices.list({
+        product: productId,
+        active: true,
+        limit: 100,
+      });
+
+      return prices.data
+        .filter((price) => price.recurring === null && isValidCreditPrice(price))
+        .map((price) => ({
+          ...validatePrice(price),
+          nickname: price.nickname ?? null,
+        }))
+        .sort((a, b) =>
+          a.currency === b.currency
+            ? a.amountPerCredit - b.amountPerCredit
+            : a.currency.localeCompare(b.currency),
+        );
+    },
+
+    /**
+     * Retrieves a single price by id and verifies it belongs to the credit
+     * product before validating it. Throws otherwise.
+     */
+    async getCreditTopUpPriceById(priceId: string): Promise<Price> {
+      const price = await stripe.prices.retrieve(priceId);
+      const productId =
+        typeof price.product === "string" ? price.product : price.product?.id;
+      if (productId !== getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID) {
+        throw new Error("Price does not belong to the credit product");
+      }
+      return validatePrice(price);
+    },
+
     async getCreditTopUpPriceCatalog(): Promise<CreditTopUpPriceCatalog> {
       const prices = await Promise.all(
         CREDIT_TOPUP_LOOKUP_KEYS.map(async (lookupKey) => [

@@ -2586,7 +2586,8 @@
           "Fields": {
             "organization": "Organisation",
             "credits": "Credits",
-            "expiryDays": "Ablauf (Tage)"
+            "expiryDays": "Ablauf (Tage)",
+            "price": "Preis pro Credit"
           },
           "organizationRequired": "Wählen Sie eine Organisation aus",
           "creditsRequired": "Geben Sie eine positive Anzahl von Credits ein",
@@ -2598,7 +2599,10 @@
           "submit": "Rechnung erstellen",
           "submitting": "Rechnung wird erstellt…",
           "createSuccess": "Rechnung erstellt",
-          "createError": "Rechnung konnte nicht erstellt werden"
+          "createError": "Rechnung konnte nicht erstellt werden",
+          "pricePlaceholder": "Preis auswählen",
+          "priceHelper": "Preis pro Credit für den Rechnungsbetrag.",
+          "priceRequired": "Wählen Sie einen Preis aus"
         },
         "Result": {
           "heading": "Credit-Gewährungsrechnung",

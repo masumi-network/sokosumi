@@ -2617,7 +2617,8 @@
           "Fields": {
             "organization": "組織",
             "credits": "クレジット",
-            "expiryDays": "有効期限（日数）"
+            "expiryDays": "有効期限（日数）",
+            "price": "クレジットあたりの価格"
           },
           "organizationRequired": "組織を選択してください",
           "creditsRequired": "正のクレジット数を入力してください",
@@ -2629,7 +2630,10 @@
           "submit": "請求書を作成",
           "submitting": "請求書を作成中…",
           "createSuccess": "請求書を作成しました",
-          "createError": "請求書の作成に失敗しました"
+          "createError": "請求書の作成に失敗しました",
+          "pricePlaceholder": "価格を選択",
+          "priceHelper": "請求金額に使用するクレジットあたりの価格。",
+          "priceRequired": "価格を選択してください"
         },
         "Result": {
           "heading": "クレジット付与の請求書",

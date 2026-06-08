@@ -2617,7 +2617,8 @@
           "Fields": {
             "organization": "Organizzazione",
             "credits": "Crediti",
-            "expiryDays": "Scadenza (giorni)"
+            "expiryDays": "Scadenza (giorni)",
+            "price": "Prezzo per credito"
           },
           "organizationRequired": "Seleziona un'organizzazione",
           "creditsRequired": "Inserisci un numero positivo di crediti",
@@ -2629,7 +2630,10 @@
           "submit": "Crea fattura",
           "submitting": "Creazione fattura…",
           "createSuccess": "Fattura creata",
-          "createError": "Creazione della fattura non riuscita"
+          "createError": "Creazione della fattura non riuscita",
+          "pricePlaceholder": "Seleziona un prezzo",
+          "priceHelper": "Prezzo per credito utilizzato per l'importo della fattura.",
+          "priceRequired": "Seleziona un prezzo"
         },
         "Result": {
           "heading": "Fattura di assegnazione crediti",

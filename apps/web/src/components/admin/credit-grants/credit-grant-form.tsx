@@ -9,16 +9,27 @@ import { OrganizationCombobox } from "@/components/admin/organization-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   createCreditGrantInvoiceAction,
   markCreditGrantInvoicePaidAction,
 } from "@/lib/actions/credit-grant/action";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
-import type { CreditGrantInvoiceSummary } from "@/lib/services/credit-grant-admin.service";
+import type {
+  CreditGrantInvoiceSummary,
+  CreditPriceOption,
+} from "@/lib/services/credit-grant-admin.service";
 
 interface CreditGrantFormProps {
   organizations: AdminOrganizationOption[];
+  prices: CreditPriceOption[];
 }
 
 function parseOptionalPositiveInteger(value: string): number | null {
@@ -44,11 +55,37 @@ function formatCurrency(minorUnits: number, currency: string): string {
   }
 }
 
-export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
+function formatPricePerCredit(
+  amountPerCredit: number,
+  currency: string,
+): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    }).format(amountPerCredit / 100);
+  } catch {
+    return `${(amountPerCredit / 100).toFixed(4)} ${currency.toUpperCase()}`;
+  }
+}
+
+function formatPriceOption(price: CreditPriceOption): string {
+  const base = formatPricePerCredit(price.amountPerCredit, price.currency);
+  return price.nickname ? `${base} · ${price.nickname}` : base;
+}
+
+export function CreditGrantForm({
+  organizations,
+  prices,
+}: CreditGrantFormProps) {
   const t = useTranslations("App.Admin.CreditGrants");
+  const defaultPriceId = prices[0]?.id ?? "";
   const [organizationId, setOrganizationId] = useState("");
   const [creditsInput, setCreditsInput] = useState("");
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
+  const [priceId, setPriceId] = useState(defaultPriceId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [invoice, setInvoice] = useState<CreditGrantInvoiceSummary | null>(
@@ -62,6 +99,7 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
     setOrganizationId("");
     setCreditsInput("");
     setExpiryDaysInput("");
+    setPriceId(defaultPriceId);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -74,6 +112,10 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
     }
     if (credits === null) {
       toast.error(t("Form.creditsRequired"));
+      return;
+    }
+    if (prices.length > 0 && !priceId) {
+      toast.error(t("Form.priceRequired"));
       return;
     }
 
@@ -91,6 +133,7 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
         organizationId,
         credits,
         ttlDays,
+        priceId: priceId || null,
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Form.createError"));
@@ -190,18 +233,16 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
               {isMarkingPaid ? t("Result.marking") : t("Result.markPaid")}
             </Button>
           ) : null}
-          {invoice.hostedInvoiceUrl ? (
-            <Button variant="outline" asChild>
-              <a
-                href={invoice.hostedInvoiceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="size-4" />
-                {t("Result.openInStripe")}
-              </a>
-            </Button>
-          ) : null}
+          <Button variant="outline" asChild>
+            <a
+              href={invoice.dashboardUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="size-4" />
+              {t("Result.openInStripe")}
+            </a>
+          </Button>
           <Button variant="outline" onClick={resetForm}>
             {t("Result.newGrant")}
           </Button>
@@ -223,6 +264,23 @@ export function CreditGrantForm({ organizations }: CreditGrantFormProps) {
       </div>
 
       <Separator />
+
+      <div className="space-y-2">
+        <Label htmlFor="price">{t("Form.Fields.price")}</Label>
+        <Select value={priceId} onValueChange={setPriceId}>
+          <SelectTrigger id="price" className="w-full">
+            <SelectValue placeholder={t("Form.pricePlaceholder")} />
+          </SelectTrigger>
+          <SelectContent>
+            {prices.map((price) => (
+              <SelectItem key={price.id} value={price.id}>
+                {formatPriceOption(price)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground text-xs">{t("Form.priceHelper")}</p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">

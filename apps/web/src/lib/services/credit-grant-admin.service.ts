@@ -24,7 +24,26 @@ export interface CreditGrantInvoiceSummary {
   currency: string;
   amountDue: number;
   status: Stripe.Invoice.Status | null;
-  hostedInvoiceUrl: string | null;
+  /** Stripe dashboard URL for the invoice (admin-facing, not the payment page). */
+  dashboardUrl: string;
+}
+
+export interface CreditPriceOption {
+  id: string;
+  amountPerCredit: number;
+  currency: string;
+  nickname: string | null;
+}
+
+/**
+ * Builds the Stripe dashboard URL for an invoice (the admin-facing view), not
+ * the customer hosted-invoice/payment page.
+ */
+function buildInvoiceDashboardUrl(invoice: Stripe.Invoice): string {
+  const base = invoice.livemode
+    ? "https://dashboard.stripe.com"
+    : "https://dashboard.stripe.com/test";
+  return `${base}/invoices/${invoice.id}`;
 }
 
 export class CreditGrantValidationError extends Error {
@@ -53,7 +72,7 @@ function toInvoiceSummary(
     currency: invoice.currency ?? "",
     amountDue: invoice.amount_due ?? 0,
     status: invoice.status ?? null,
-    hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+    dashboardUrl: buildInvoiceDashboardUrl(invoice),
   };
 }
 
@@ -99,11 +118,33 @@ export const creditGrantAdminService = (() => {
     };
   }
 
+  async function resolvePrice(priceId: string | null) {
+    if (!priceId) {
+      return await stripeClient.getBaseCreditTopUpPrice();
+    }
+    try {
+      return await stripeClient.getCreditTopUpPriceById(priceId);
+    } catch {
+      throw new CreditGrantValidationError("Selected price is not valid");
+    }
+  }
+
   return {
+    async listPrices(): Promise<CreditPriceOption[]> {
+      const prices = await stripeClient.listCreditTopUpPrices();
+      return prices.map((price) => ({
+        id: price.id,
+        amountPerCredit: price.amountPerCredit,
+        currency: price.currency,
+        nickname: price.nickname,
+      }));
+    },
+
     async createGrantInvoice(params: {
       organizationId: string;
       credits: number;
       ttlDays: number | null;
+      priceId: string | null;
     }): Promise<CreditGrantInvoiceSummary> {
       if (!isPositiveIntegerCredits(params.credits)) {
         throw new CreditGrantValidationError(
@@ -127,7 +168,7 @@ export const creditGrantAdminService = (() => {
         params.organizationId,
       );
 
-      const price = await stripeClient.getBaseCreditTopUpPrice();
+      const price = await resolvePrice(params.priceId);
       const totalMinorUnits = getCreditTopUpTotalMinorUnits(
         params.credits,
         price.amountPerCredit,

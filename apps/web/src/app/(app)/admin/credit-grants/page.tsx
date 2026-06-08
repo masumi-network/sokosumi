@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { CreditGrantForm } from "@/components/admin/credit-grants/credit-grant-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
+import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
 
 export const metadata: Metadata = {
   title: "Grant credits",
@@ -12,7 +13,10 @@ export const metadata: Metadata = {
 
 export default async function CreditGrantsPage() {
   const t = await getTranslations("App.Admin.CreditGrants");
-  const organizations = await adminOrganizationService.listOrganizations();
+  const [organizations, prices] = await Promise.all([
+    adminOrganizationService.listOrganizations(),
+    creditGrantAdminService.listPrices(),
+  ]);
 
   return (
     <div className="min-h-full w-full">
@@ -29,7 +33,7 @@ export default async function CreditGrantsPage() {
             <CardTitle>{t("cardTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CreditGrantForm organizations={organizations} />
+            <CreditGrantForm organizations={organizations} prices={prices} />
           </CardContent>
         </Card>
       </div>

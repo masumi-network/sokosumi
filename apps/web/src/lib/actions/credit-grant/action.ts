@@ -42,18 +42,20 @@ interface CreateCreditGrantInvoiceParameters extends AuthenticatedRequest {
   organizationId: string;
   credits: number;
   ttlDays: number | null;
+  priceId: string | null;
 }
 
 export const createCreditGrantInvoiceAction = withSession<
   CreateCreditGrantInvoiceParameters,
   Result<CreditGrantInvoiceSummary, ActionError>
->(async ({ session, organizationId, credits, ttlDays }) => {
+>(async ({ session, organizationId, credits, ttlDays, priceId }) => {
   try {
     assertAdminSession(session);
     const summary = await creditGrantAdminService.createGrantInvoice({
       organizationId,
       credits,
       ttlDays,
+      priceId,
     });
     revalidatePath("/admin/credit-grants");
     return Ok(summary);

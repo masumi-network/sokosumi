@@ -2586,7 +2586,8 @@
           "Fields": {
             "organization": "Organización",
             "credits": "Créditos",
-            "expiryDays": "Caducidad (días)"
+            "expiryDays": "Caducidad (días)",
+            "price": "Precio por crédito"
           },
           "organizationRequired": "Selecciona una organización",
           "creditsRequired": "Introduce un número positivo de créditos",
@@ -2598,7 +2599,10 @@
           "submit": "Crear factura",
           "submitting": "Creando factura…",
           "createSuccess": "Factura creada",
-          "createError": "No se pudo crear la factura"
+          "createError": "No se pudo crear la factura",
+          "pricePlaceholder": "Selecciona un precio",
+          "priceHelper": "Precio por crédito utilizado para el importe de la factura.",
+          "priceRequired": "Selecciona un precio"
         },
         "Result": {
           "heading": "Factura de concesión de créditos",
