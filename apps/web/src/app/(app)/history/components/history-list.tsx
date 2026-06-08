@@ -11,8 +11,8 @@ import {
 } from "@/app/history/components/history-list-item";
 import type { HistoryFilters } from "@/app/history/utils/history-filters";
 import {
-  type HistorySubtitleLookups,
-  mergeHistorySubtitleLookups,
+  type HistoryBucketLookups,
+  mergeHistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
 import { Button } from "@/components/ui/button";
 import type { HistoryItem } from "@/lib/services/history.service";
@@ -31,7 +31,7 @@ export interface HistoryListLabels {
 interface HistoryListProps {
   history: HistoryItem[];
   nextCursor: string | null;
-  subtitleLookups: HistorySubtitleLookups;
+  bucketLookups: HistoryBucketLookups;
   filterResetKey: string;
   filters: HistoryFilters;
   labels: HistoryListLabels;
@@ -40,15 +40,14 @@ interface HistoryListProps {
 export function HistoryList({
   history,
   nextCursor,
-  subtitleLookups,
+  bucketLookups,
   filterResetKey,
   filters,
   labels,
 }: HistoryListProps) {
   const [items, setItems] = useState(history);
   const [cursor, setCursor] = useState(nextCursor);
-  const [activeSubtitleLookups, setActiveSubtitleLookups] =
-    useState(subtitleLookups);
+  const [activeBucketLookups, setActiveBucketLookups] = useState(bucketLookups);
   const [isPending, startTransition] = useTransition();
   const hasHistory = items.length > 0;
   const showEmptyState = !hasHistory && !isPending;
@@ -60,8 +59,8 @@ export function HistoryList({
       try {
         const result = await loadMoreHistory({ cursor, filters });
         setItems((prev) => appendUniqueHistoryItems(prev, result.history));
-        setActiveSubtitleLookups((prev) =>
-          mergeHistorySubtitleLookups(prev, result.subtitleLookups),
+        setActiveBucketLookups((prev) =>
+          mergeHistoryBucketLookups(prev, result.bucketLookups),
         );
         setCursor(result.nextCursor);
       } catch {
@@ -79,7 +78,7 @@ export function HistoryList({
               <li key={`${item.kind}:${item.id}`}>
                 <HistoryListItem
                   item={item}
-                  subtitleLookups={activeSubtitleLookups}
+                  bucketLookups={activeBucketLookups}
                   labels={labels.row}
                 />
               </li>

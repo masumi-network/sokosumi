@@ -27,6 +27,8 @@ describe("getHistoryResponseTransformer", () => {
           credits: 5,
           projectId: null,
           agentId: "agent-1",
+          agentName: "Research Agent",
+          agentIcon: "https://example.com/research.svg",
         },
       ],
       meta: {

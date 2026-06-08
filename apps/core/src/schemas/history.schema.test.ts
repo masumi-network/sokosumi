@@ -33,6 +33,8 @@ const jobItem = {
   credits: 5,
   projectId: null,
   agentId: "agent_123",
+  agentName: "Research Agent",
+  agentIcon: "https://example.com/research.svg",
 };
 
 const conversationItem = {

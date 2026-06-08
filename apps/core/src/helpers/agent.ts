@@ -27,14 +27,16 @@ export const getAgentImage = (agent: Agent): string | null => {
   return resolveIpfsOrHttpUrl(image);
 };
 
-export const getAgentIcon = (agent: Agent): string | null => {
+export const getAgentIcon = (agent: Pick<Agent, "icon">): string | null => {
   if (!agent.icon) {
     return null;
   }
   return resolveIpfsOrHttpUrl(agent.icon);
 };
 
-export const getAgentName = (agent: Agent): string => {
+export const getAgentName = (
+  agent: Pick<Agent, "name" | "overrideName">,
+): string => {
   return agent.overrideName ?? agent.name;
 };
 
