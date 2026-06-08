@@ -1156,6 +1156,17 @@
     "delete": "Löschen",
     "cancel": "Abbrechen",
     "save": "Speichern",
+    "Sidebar": {
+      "Content": {
+        "ChatLists": {
+          "title": "Letzte Chats",
+          "noChats": "Noch keine Chats",
+          "untitledChat": "Unbenannter Chat",
+          "modelAlt": "Modell",
+          "coworkerAlt": "Mitarbeiter"
+        }
+      }
+    },
     "History": {
       "Metadata": {
         "title": "Verlauf",
