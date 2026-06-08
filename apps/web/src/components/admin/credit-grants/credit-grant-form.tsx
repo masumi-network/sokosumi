@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import {
   AsyncSearchCombobox,
-  type AsyncSearchComboboxLabels,
+  buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,22 +121,8 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
 
   const isPaid = invoice?.status === "paid";
 
-  const orgLabels: AsyncSearchComboboxLabels = {
-    placeholder: tOrg("placeholder"),
-    searchPlaceholder: tOrg("search"),
-    empty: tOrg("empty"),
-    loading: tOrg("loading"),
-    error: tOrg("error"),
-    idle: tOrg("idle"),
-  };
-  const userLabels: AsyncSearchComboboxLabels = {
-    placeholder: tUser("placeholder"),
-    searchPlaceholder: tUser("search"),
-    empty: tUser("empty"),
-    loading: tUser("loading"),
-    error: tUser("error"),
-    idle: tUser("idle"),
-  };
+  const orgLabels = buildComboboxLabels(tOrg);
+  const userLabels = buildComboboxLabels(tUser);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

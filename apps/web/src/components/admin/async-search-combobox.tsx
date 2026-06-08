@@ -42,6 +42,35 @@ export interface AsyncSearchComboboxLabels {
   clear?: string;
 }
 
+/**
+ * Translator for a combobox-labels namespace (e.g. `Components.OrganizationCombobox`,
+ * `Components.UserCombobox`) that exposes the standard label keys.
+ */
+type ComboboxLabelTranslator = (
+  key: "placeholder" | "search" | "empty" | "loading" | "error" | "idle",
+) => string;
+
+/**
+ * Builds the {@link AsyncSearchComboboxLabels} from a namespace translator,
+ * collapsing the repeated `t(...)` wiring at each call site. Pass `overrides`
+ * to customise the trigger placeholder or clear label (e.g. a filter that shows
+ * "All organizations").
+ */
+export function buildComboboxLabels(
+  t: ComboboxLabelTranslator,
+  overrides?: Partial<AsyncSearchComboboxLabels>,
+): AsyncSearchComboboxLabels {
+  return {
+    placeholder: t("placeholder"),
+    searchPlaceholder: t("search"),
+    empty: t("empty"),
+    loading: t("loading"),
+    error: t("error"),
+    idle: t("idle"),
+    ...overrides,
+  };
+}
+
 interface AsyncSearchComboboxProps<T> {
   /** The currently selected option (the caller owns it so the trigger label
    * renders without a fetch-by-id round trip), or null when none is selected. */

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import {
   AsyncSearchCombobox,
-  type AsyncSearchComboboxLabels,
+  buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,14 +215,7 @@ export function ContractForm({
     useState<AdminOrganizationOption | null>(initialOrganization);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const orgLabels: AsyncSearchComboboxLabels = {
-    placeholder: tOrg("placeholder"),
-    searchPlaceholder: tOrg("search"),
-    empty: tOrg("empty"),
-    loading: tOrg("loading"),
-    error: tOrg("error"),
-    idle: tOrg("idle"),
-  };
+  const orgLabels = buildComboboxLabels(tOrg);
 
   function updateValue<K extends keyof ContractFormValues>(
     key: K,

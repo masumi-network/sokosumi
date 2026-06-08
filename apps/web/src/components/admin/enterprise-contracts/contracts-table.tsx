@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   AsyncSearchCombobox,
-  type AsyncSearchComboboxLabels,
+  buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
 import { DataTable } from "@/components/data-table";
@@ -210,15 +210,10 @@ export function ContractsTable({
     setSelectedFilterOrganization(initialFilterOrganization);
   }, [initialFilterOrganization]);
 
-  const orgLabels: AsyncSearchComboboxLabels = {
+  const orgLabels = buildComboboxLabels(tOrg, {
     placeholder: t("Filters.organizationAll"),
-    searchPlaceholder: tOrg("search"),
-    empty: tOrg("empty"),
-    loading: tOrg("loading"),
-    error: tOrg("error"),
-    idle: tOrg("idle"),
     clear: t("Filters.organizationAll"),
-  };
+  });
 
   const columns = useMemo(() => getColumns(t, formatter), [t, formatter]);
 

@@ -47,10 +47,15 @@ export interface CreditPriceOption {
   nickname: string | null;
 }
 
-interface ResolvedTarget {
+/** Identity of a grant target (user or organization) used for summaries and
+ * credit-bucket verification, independent of Stripe billing details. */
+interface TargetIdentity {
   targetType: CreditGrantTargetType;
   id: string;
   name: string;
+}
+
+interface ResolvedTarget extends TargetIdentity {
   stripeCustomerId: string;
 }
 
@@ -76,7 +81,7 @@ export class CreditGrantValidationError extends Error {
 
 function toInvoiceSummary(
   invoice: Stripe.Invoice,
-  target: { targetType: CreditGrantTargetType; id: string; name: string },
+  target: TargetIdentity,
   credits: number,
   ttlDays: number | null,
   accountId: string,
@@ -206,7 +211,7 @@ export const creditGrantAdminService = (() => {
    */
   async function grantCreditsForPaidInvoice(
     paidInvoice: Stripe.Invoice,
-    target: { targetType: CreditGrantTargetType; id: string; name: string },
+    target: TargetIdentity,
   ): Promise<void> {
     if (!paidInvoice.id) {
       throw new Error("Stripe invoice is missing an id");
@@ -284,9 +289,13 @@ export const creditGrantAdminService = (() => {
         }
       }
 
-      const target = await resolveTarget(params.target);
-
-      const price = await resolvePrice(params.priceId);
+      // These are independent reads (target lookup, price lookup, Stripe
+      // account id) — run them concurrently rather than serially.
+      const [target, price, accountId] = await Promise.all([
+        resolveTarget(params.target),
+        resolvePrice(params.priceId),
+        stripeClient.getAccountId(),
+      ]);
 
       const invoice = await stripeClient.createCreditGrantInvoice({
         customerId: target.stripeCustomerId,
@@ -328,7 +337,6 @@ export const creditGrantAdminService = (() => {
         await grantCreditsForPaidInvoice(invoice, target);
       }
 
-      const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         invoice,
         target,
@@ -372,11 +380,7 @@ export const creditGrantAdminService = (() => {
         prisma,
       );
 
-      let target: {
-        targetType: CreditGrantTargetType;
-        id: string;
-        name: string;
-      };
+      let target: TargetIdentity;
 
       if (user) {
         target = { targetType: "user", id: user.id, name: user.name };
