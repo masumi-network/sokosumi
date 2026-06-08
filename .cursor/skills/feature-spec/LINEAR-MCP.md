@@ -60,7 +60,7 @@ Known config in this workspace:
   {
     "mcpServers": {
       "linear": {
-        "url": "https://mcp.linear.app/sse"
+        "url": "https://mcp.linear.app/mcp"
       }
     }
   }
