@@ -1,11 +1,17 @@
-import { HistoryKind, type Prisma, TaskStatus } from "@sokosumi/database";
+import {
+  type Agent,
+  HistoryKind,
+  type Prisma,
+  TaskStatus,
+} from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
 import {
   jobForStatusComputeSelect,
   SokosumiJobStatus,
 } from "@sokosumi/database/types/job";
-import { convertCentsToCredits, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
+import { getAgentIcon, getAgentName } from "@/helpers/agent";
 import { createPaginationMeta } from "@/helpers/pagination";
 import type prisma from "@/lib/db/prisma";
 import type { UserContext } from "@/middleware/auth";
@@ -362,15 +368,16 @@ export interface AgentPreview {
 }
 
 /**
- * Resolves an agent icon to a renderable URL, mirroring the web client's
- * previous behavior: null when missing, and null when the resolved value is
- * not a valid URL.
+ * Resolves an agent icon to a renderable URL. Reuses the shared getAgentIcon
+ * resolution and additionally drops values that are not valid URLs, mirroring
+ * the web client's previous history rendering (which fell back to no icon for
+ * unparseable values).
  */
-function resolveAgentIcon(icon: string | null): string | null {
-  if (!icon) {
+function resolveAgentIcon(agent: Pick<Agent, "icon">): string | null {
+  const resolvedUrl = getAgentIcon(agent);
+  if (!resolvedUrl) {
     return null;
   }
-  const resolvedUrl = resolveIpfsOrHttpUrl(icon);
   try {
     new URL(resolvedUrl);
     return resolvedUrl;
@@ -412,8 +419,8 @@ export async function loadAgentPreviewsByIds(
     agents.map((agent) => [
       agent.id,
       {
-        name: agent.overrideName ?? agent.name,
-        icon: resolveAgentIcon(agent.icon),
+        name: getAgentName(agent),
+        icon: resolveAgentIcon(agent),
       },
     ]),
   );
