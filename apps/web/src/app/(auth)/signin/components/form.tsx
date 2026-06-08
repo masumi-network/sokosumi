@@ -166,6 +166,7 @@ export default function SignInForm({
             variant="primary"
             className="relative w-full"
             disabled={isSubmitting}
+            data-testid="auth-submit"
           >
             {isSubmitting && (
               <Loader2

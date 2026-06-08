@@ -2,8 +2,8 @@
 
 import type { Client, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import { deleteCoworkersByIdApiKeysByKeyIdResponseTransformer, deleteCoworkersByIdResponseTransformer, deleteCreditCostsByIdResponseTransformer, deleteHermesMeInstanceIntegrationsByProviderResponseTransformer, deleteHermesMeInstanceResponseTransformer, deleteJobsByIdShareResponseTransformer, deleteProjectsByIdJobsByJobIdResponseTransformer, deleteProjectsByIdResponseTransformer, deleteProjectsByIdTasksByTaskIdResponseTransformer, deleteTasksByIdLinksByLinkIdResponseTransformer, deleteTasksByIdResponseTransformer, deleteTasksByIdShareResponseTransformer, getAgentsByIdInputSchemaResponseTransformer, getAgentsByIdJobsResponseTransformer, getAgentsByIdResponseTransformer, getAgentsByIdReviewsResponseTransformer, getAgentsResponseTransformer, getCategoriesResponseTransformer, getChatResponseTransformer, getConversationsByIdMessagesResponseTransformer, getConversationsByIdResponseTransformer, getConversationsResponseTransformer, getCoworkersByIdApiKeysResponseTransformer, getCoworkersByIdResponseTransformer, getCoworkersMeEventsResponseTransformer, getCoworkersMeResponseTransformer, getCoworkersResponseTransformer, getCreditCostsByIdResponseTransformer, getCreditCostsResponseTransformer, getEnterpriseContractsByIdPeriodsPreviewResponseTransformer, getEnterpriseContractsByIdResponseTransformer, getEnterpriseContractsResponseTransformer, getHermesMeInstanceIntegrationsResponseTransformer, getHermesMeInstanceOnboardingProgressResponseTransformer, getHermesMeInstanceResponseTransformer, getHermesMeInstanceSchedulesResponseTransformer, getHermesMeMessagesResponseTransformer, getHermesMeUnreadCountResponseTransformer, getHistoryResponseTransformer, getJobsByIdEventsResponseTransformer, getJobsByIdFilesResponseTransformer, getJobsByIdInputRequestResponseTransformer, getJobsByIdLinksResponseTransformer, getJobsByIdResponseTransformer, getJobsResponseTransformer, getOrganizationsByIdResponseTransformer, getProjectsByIdResponseTransformer, getProjectsResponseTransformer, getProjectsStatsResponseTransformer, getShareByTokenResponseTransformer, getTasksByIdEventsResponseTransformer, getTasksByIdJobsResponseTransformer, getTasksByIdLinksResponseTransformer, getTasksByIdResponseTransformer, getTasksResponseTransformer, getUsersByIdCreditsResponseTransformer, getUsersByIdNoticesPendingResponseTransformer, getUsersByIdOnboardingResponseTransformer, getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer, getUsersByIdOrganizationsResponseTransformer, getUsersByIdPreferencesResponseTransformer, getUsersByIdResponseTransformer, getUsersByIdUploadsResponseTransformer, getUsersRegisteredResponseTransformer, patchConversationsByIdArchiveResponseTransformer, patchConversationsByIdResponseTransformer, patchCoworkersByIdApiKeysByKeyIdResponseTransformer, patchCoworkersByIdResponseTransformer, patchCoworkersByIdWhitelistResponseTransformer, patchCreditCostsByIdResponseTransformer, patchEnterpriseContractsByIdResponseTransformer, patchHermesMeInstanceResponseTransformer, patchHermesMeInstanceSchedulesByScheduleIdResponseTransformer, patchJobsByIdResponseTransformer, patchProjectsByIdResponseTransformer, patchTasksByIdLinksByLinkIdResponseTransformer, patchTasksByIdResponseTransformer, patchUsersByIdPreferencesResponseTransformer, postAgentsByIdJobsResponseTransformer, postConversationsByIdMessagesResponseTransformer, postConversationsResponseTransformer, postCoworkersByIdApiKeysResponseTransformer, postCoworkersResponseTransformer, postCreditCostsResponseTransformer, postEnterpriseContractsByIdActivateResponseTransformer, postEnterpriseContractsByIdCancelResponseTransformer, postEnterpriseContractsResponseTransformer, postHermesChatResponseTransformer, postHermesMeInboxSeenResponseTransformer, postHermesMeInstanceConfirmationsByConfirmationIdApproveResponseTransformer, postHermesMeInstanceConfirmationsByConfirmationIdRejectResponseTransformer, postHermesMeInstanceIntegrationsFinalizeResponseTransformer, postHermesMeInstanceIntegrationsInitiateResponseTransformer, postHermesMeInstanceOnboardResponseTransformer, postHermesMeInstanceResponseTransformer, postHermesMeSecretsResponseTransformer, postJobsByIdInputsResponseTransformer, postJobsByIdRefundResponseTransformer, postProjectsByIdJobsResponseTransformer, postProjectsByIdTasksResponseTransformer, postProjectsResponseTransformer, postTasksByIdEventsResponseTransformer, postTasksByIdJobsResponseTransformer, postTasksByIdLinksResponseTransformer, postTasksResponseTransformer, postUsersByIdNoticesByNoticeIdAcknowledgeResponseTransformer, postUsersByIdOnboardingResponseTransformer, postUsersByIdUploadsResponseTransformer, putJobsByIdShareResponseTransformer, putJobsByIdWorkspaceResponseTransformer, putTasksByIdShareResponseTransformer, putTasksByIdWorkspaceResponseTransformer } from './transformers.gen';
-import type { DeleteCoworkersByIdApiKeysByKeyIdData, DeleteCoworkersByIdApiKeysByKeyIdErrors, DeleteCoworkersByIdApiKeysByKeyIdResponses, DeleteCoworkersByIdData, DeleteCoworkersByIdErrors, DeleteCoworkersByIdResponses, DeleteCreditCostsByIdData, DeleteCreditCostsByIdErrors, DeleteCreditCostsByIdResponses, DeleteHermesMeInstanceData, DeleteHermesMeInstanceErrors, DeleteHermesMeInstanceIntegrationsByProviderData, DeleteHermesMeInstanceIntegrationsByProviderErrors, DeleteHermesMeInstanceIntegrationsByProviderResponses, DeleteHermesMeInstanceResponses, DeleteJobsByIdShareData, DeleteJobsByIdShareErrors, DeleteJobsByIdShareResponses, DeleteProjectsByIdData, DeleteProjectsByIdErrors, DeleteProjectsByIdJobsByJobIdData, DeleteProjectsByIdJobsByJobIdErrors, DeleteProjectsByIdJobsByJobIdResponses, DeleteProjectsByIdResponses, DeleteProjectsByIdTasksByTaskIdData, DeleteProjectsByIdTasksByTaskIdErrors, DeleteProjectsByIdTasksByTaskIdResponses, DeleteTasksByIdData, DeleteTasksByIdErrors, DeleteTasksByIdLinksByLinkIdData, DeleteTasksByIdLinksByLinkIdErrors, DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdResponses, DeleteTasksByIdShareData, DeleteTasksByIdShareErrors, DeleteTasksByIdShareResponses, GetAgentsByIdData, GetAgentsByIdErrors, GetAgentsByIdInputSchemaData, GetAgentsByIdInputSchemaErrors, GetAgentsByIdInputSchemaResponses, GetAgentsByIdJobsData, GetAgentsByIdJobsErrors, GetAgentsByIdJobsResponses, GetAgentsByIdResponses, GetAgentsByIdReviewsData, GetAgentsByIdReviewsErrors, GetAgentsByIdReviewsResponses, GetAgentsData, GetAgentsErrors, GetAgentsResponses, GetCategoriesData, GetCategoriesErrors, GetCategoriesResponses, GetChatData, GetChatErrors, GetChatResponses, GetChatStreamByConversationIdData, GetChatStreamByConversationIdErrors, GetChatStreamByConversationIdResponse, GetChatStreamByConversationIdResponses, GetConversationsByIdData, GetConversationsByIdErrors, GetConversationsByIdMessagesData, GetConversationsByIdMessagesErrors, GetConversationsByIdMessagesResponses, GetConversationsByIdResponses, GetConversationsData, GetConversationsErrors, GetConversationsResponses, GetCoworkersByIdApiKeysData, GetCoworkersByIdApiKeysErrors, GetCoworkersByIdApiKeysResponses, GetCoworkersByIdData, GetCoworkersByIdErrors, GetCoworkersByIdResponses, GetCoworkersData, GetCoworkersErrors, GetCoworkersMeData, GetCoworkersMeErrors, GetCoworkersMeEventsData, GetCoworkersMeEventsErrors, GetCoworkersMeEventsResponses, GetCoworkersMeResponses, GetCoworkersResponses, GetCreditCostsByIdData, GetCreditCostsByIdErrors, GetCreditCostsByIdResponses, GetCreditCostsData, GetCreditCostsErrors, GetCreditCostsResponses, GetEnterpriseContractsByIdData, GetEnterpriseContractsByIdErrors, GetEnterpriseContractsByIdPeriodsPreviewData, GetEnterpriseContractsByIdPeriodsPreviewErrors, GetEnterpriseContractsByIdPeriodsPreviewResponses, GetEnterpriseContractsByIdResponses, GetEnterpriseContractsData, GetEnterpriseContractsErrors, GetEnterpriseContractsResponses, GetHermesMeInstanceData, GetHermesMeInstanceErrors, GetHermesMeInstanceIntegrationsData, GetHermesMeInstanceIntegrationsErrors, GetHermesMeInstanceIntegrationsResponses, GetHermesMeInstanceOnboardingProgressData, GetHermesMeInstanceOnboardingProgressErrors, GetHermesMeInstanceOnboardingProgressResponses, GetHermesMeInstanceResponses, GetHermesMeInstanceSchedulesData, GetHermesMeInstanceSchedulesErrors, GetHermesMeInstanceSchedulesResponses, GetHermesMeMessagesData, GetHermesMeMessagesErrors, GetHermesMeMessagesResponses, GetHermesMeUnreadCountData, GetHermesMeUnreadCountErrors, GetHermesMeUnreadCountResponses, GetHistoryData, GetHistoryErrors, GetHistoryResponses, GetJobsByIdData, GetJobsByIdErrors, GetJobsByIdEventsData, GetJobsByIdEventsErrors, GetJobsByIdEventsResponses, GetJobsByIdFilesData, GetJobsByIdFilesErrors, GetJobsByIdFilesResponses, GetJobsByIdInputRequestData, GetJobsByIdInputRequestErrors, GetJobsByIdInputRequestResponses, GetJobsByIdLinksData, GetJobsByIdLinksErrors, GetJobsByIdLinksResponses, GetJobsByIdResponses, GetJobsData, GetJobsErrors, GetJobsResponses, GetOrganizationsByIdData, GetOrganizationsByIdErrors, GetOrganizationsByIdResponses, GetProjectsByIdData, GetProjectsByIdErrors, GetProjectsByIdResponses, GetProjectsData, GetProjectsErrors, GetProjectsResponses, GetProjectsStatsData, GetProjectsStatsErrors, GetProjectsStatsResponses, GetShareByTokenData, GetShareByTokenErrors, GetShareByTokenResponses, GetTasksByIdData, GetTasksByIdErrors, GetTasksByIdEventsData, GetTasksByIdEventsErrors, GetTasksByIdEventsResponses, GetTasksByIdJobsData, GetTasksByIdJobsErrors, GetTasksByIdJobsResponses, GetTasksByIdLinksData, GetTasksByIdLinksErrors, GetTasksByIdLinksResponses, GetTasksByIdResponses, GetTasksData, GetTasksErrors, GetTasksResponses, GetUsersByIdCreditsData, GetUsersByIdCreditsErrors, GetUsersByIdCreditsResponses, GetUsersByIdData, GetUsersByIdErrors, GetUsersByIdNoticesPendingData, GetUsersByIdNoticesPendingErrors, GetUsersByIdNoticesPendingResponses, GetUsersByIdOnboardingData, GetUsersByIdOnboardingErrors, GetUsersByIdOnboardingResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsData, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsData, GetUsersByIdOrganizationsErrors, GetUsersByIdOrganizationsResponses, GetUsersByIdPreferencesData, GetUsersByIdPreferencesErrors, GetUsersByIdPreferencesResponses, GetUsersByIdResponses, GetUsersByIdUploadsData, GetUsersByIdUploadsErrors, GetUsersByIdUploadsResponses, GetUsersRegisteredData, GetUsersRegisteredErrors, GetUsersRegisteredResponses, PatchConversationsByIdArchiveData, PatchConversationsByIdArchiveErrors, PatchConversationsByIdArchiveResponses, PatchConversationsByIdData, PatchConversationsByIdErrors, PatchConversationsByIdResponses, PatchCoworkersByIdApiKeysByKeyIdData, PatchCoworkersByIdApiKeysByKeyIdErrors, PatchCoworkersByIdApiKeysByKeyIdResponses, PatchCoworkersByIdData, PatchCoworkersByIdErrors, PatchCoworkersByIdResponses, PatchCoworkersByIdWhitelistData, PatchCoworkersByIdWhitelistErrors, PatchCoworkersByIdWhitelistResponses, PatchCreditCostsByIdData, PatchCreditCostsByIdErrors, PatchCreditCostsByIdResponses, PatchEnterpriseContractsByIdData, PatchEnterpriseContractsByIdErrors, PatchEnterpriseContractsByIdResponses, PatchHermesMeInstanceData, PatchHermesMeInstanceErrors, PatchHermesMeInstanceResponses, PatchHermesMeInstanceSchedulesByScheduleIdData, PatchHermesMeInstanceSchedulesByScheduleIdErrors, PatchHermesMeInstanceSchedulesByScheduleIdResponses, PatchJobsByIdData, PatchJobsByIdErrors, PatchJobsByIdResponses, PatchProjectsByIdData, PatchProjectsByIdErrors, PatchProjectsByIdResponses, PatchTasksByIdData, PatchTasksByIdErrors, PatchTasksByIdLinksByLinkIdData, PatchTasksByIdLinksByLinkIdErrors, PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdResponses, PatchUsersByIdPreferencesData, PatchUsersByIdPreferencesErrors, PatchUsersByIdPreferencesResponses, PostAgentsByIdJobsData, PostAgentsByIdJobsErrors, PostAgentsByIdJobsResponses, PostChatData, PostChatErrors, PostChatResponse, PostChatResponses, PostConversationsByIdMessagesData, PostConversationsByIdMessagesErrors, PostConversationsByIdMessagesResponses, PostConversationsData, PostConversationsErrors, PostConversationsResponses, PostCoworkersByIdApiKeysData, PostCoworkersByIdApiKeysErrors, PostCoworkersByIdApiKeysResponses, PostCoworkersData, PostCoworkersErrors, PostCoworkersMeUsageData, PostCoworkersMeUsageErrors, PostCoworkersMeUsageResponses, PostCoworkersResponses, PostCreditCostsData, PostCreditCostsErrors, PostCreditCostsResponses, PostEnterpriseContractsByIdActivateData, PostEnterpriseContractsByIdActivateErrors, PostEnterpriseContractsByIdActivateResponses, PostEnterpriseContractsByIdCancelData, PostEnterpriseContractsByIdCancelErrors, PostEnterpriseContractsByIdCancelResponses, PostEnterpriseContractsData, PostEnterpriseContractsErrors, PostEnterpriseContractsResponses, PostHermesChatData, PostHermesChatErrors, PostHermesChatResponses, PostHermesMeInboxSeenData, PostHermesMeInboxSeenErrors, PostHermesMeInboxSeenResponses, PostHermesMeInstanceConfirmationsByConfirmationIdApproveData, PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors, PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses, PostHermesMeInstanceConfirmationsByConfirmationIdRejectData, PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors, PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses, PostHermesMeInstanceData, PostHermesMeInstanceErrors, PostHermesMeInstanceIntegrationsFinalizeData, PostHermesMeInstanceIntegrationsFinalizeErrors, PostHermesMeInstanceIntegrationsFinalizeResponses, PostHermesMeInstanceIntegrationsInitiateData, PostHermesMeInstanceIntegrationsInitiateErrors, PostHermesMeInstanceIntegrationsInitiateResponses, PostHermesMeInstanceOnboardData, PostHermesMeInstanceOnboardErrors, PostHermesMeInstanceOnboardResponses, PostHermesMeInstanceResponses, PostHermesMeSecretsData, PostHermesMeSecretsErrors, PostHermesMeSecretsResponses, PostJobsByIdInputsData, PostJobsByIdInputsErrors, PostJobsByIdInputsResponses, PostJobsByIdRefundData, PostJobsByIdRefundErrors, PostJobsByIdRefundResponses, PostProjectsByIdJobsData, PostProjectsByIdJobsErrors, PostProjectsByIdJobsResponses, PostProjectsByIdTasksData, PostProjectsByIdTasksErrors, PostProjectsByIdTasksResponses, PostProjectsData, PostProjectsErrors, PostProjectsResponses, PostTasksByIdEventsData, PostTasksByIdEventsErrors, PostTasksByIdEventsResponses, PostTasksByIdJobsData, PostTasksByIdJobsErrors, PostTasksByIdJobsResponses, PostTasksByIdLinksData, PostTasksByIdLinksErrors, PostTasksByIdLinksResponses, PostTasksData, PostTasksErrors, PostTasksResponses, PostUsersByIdNoticesByNoticeIdAcknowledgeData, PostUsersByIdNoticesByNoticeIdAcknowledgeErrors, PostUsersByIdNoticesByNoticeIdAcknowledgeResponses, PostUsersByIdOnboardingData, PostUsersByIdOnboardingErrors, PostUsersByIdOnboardingResponses, PostUsersByIdUploadsData, PostUsersByIdUploadsErrors, PostUsersByIdUploadsResponses, PutJobsByIdShareData, PutJobsByIdShareErrors, PutJobsByIdShareResponses, PutJobsByIdWorkspaceData, PutJobsByIdWorkspaceErrors, PutJobsByIdWorkspaceResponses, PutTasksByIdShareData, PutTasksByIdShareErrors, PutTasksByIdShareResponses, PutTasksByIdWorkspaceData, PutTasksByIdWorkspaceErrors, PutTasksByIdWorkspaceResponses } from './types.gen';
+import { deleteCoworkersByIdApiKeysByKeyIdResponseTransformer, deleteCoworkersByIdResponseTransformer, deleteCreditCostsByIdResponseTransformer, deleteHermesMeInstanceIntegrationsByProviderResponseTransformer, deleteHermesMeInstanceResponseTransformer, deleteJobsByIdShareResponseTransformer, deleteProjectsByIdJobsByJobIdResponseTransformer, deleteProjectsByIdResponseTransformer, deleteProjectsByIdTasksByTaskIdResponseTransformer, deleteTasksByIdLinksByLinkIdResponseTransformer, deleteTasksByIdResponseTransformer, deleteTasksByIdShareResponseTransformer, getAgentsByIdInputSchemaResponseTransformer, getAgentsByIdJobsResponseTransformer, getAgentsByIdResponseTransformer, getAgentsByIdReviewsResponseTransformer, getAgentsResponseTransformer, getCategoriesResponseTransformer, getChatResponseTransformer, getConversationsByIdMessagesResponseTransformer, getConversationsByIdResponseTransformer, getConversationsResponseTransformer, getCoworkersByIdApiKeysResponseTransformer, getCoworkersByIdResponseTransformer, getCoworkersMeEventsResponseTransformer, getCoworkersMeResponseTransformer, getCoworkersResponseTransformer, getCreditCostsByIdResponseTransformer, getCreditCostsResponseTransformer, getEnterpriseContractsByIdPeriodsPreviewResponseTransformer, getEnterpriseContractsByIdResponseTransformer, getEnterpriseContractsResponseTransformer, getHermesMeInstanceIntegrationsResponseTransformer, getHermesMeInstanceOnboardingProgressResponseTransformer, getHermesMeInstanceResponseTransformer, getHermesMeInstanceSchedulesResponseTransformer, getHermesMeMessagesResponseTransformer, getHermesMeUnreadCountResponseTransformer, getHistoryResponseTransformer, getJobsByIdEventsResponseTransformer, getJobsByIdFilesResponseTransformer, getJobsByIdInputRequestResponseTransformer, getJobsByIdLinksResponseTransformer, getJobsByIdResponseTransformer, getJobsResponseTransformer, getOrganizationsByIdMembersResponseTransformer, getOrganizationsByIdResponseTransformer, getProjectsByIdResponseTransformer, getProjectsResponseTransformer, getProjectsStatsResponseTransformer, getShareByTokenResponseTransformer, getTasksByIdEventsResponseTransformer, getTasksByIdJobsResponseTransformer, getTasksByIdLinksResponseTransformer, getTasksByIdResponseTransformer, getTasksResponseTransformer, getUsersByIdCreditsResponseTransformer, getUsersByIdNoticesPendingResponseTransformer, getUsersByIdOnboardingResponseTransformer, getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer, getUsersByIdOrganizationsResponseTransformer, getUsersByIdPreferencesResponseTransformer, getUsersByIdResponseTransformer, getUsersByIdUploadsResponseTransformer, getUsersRegisteredResponseTransformer, patchConversationsByIdArchiveResponseTransformer, patchConversationsByIdResponseTransformer, patchCoworkersByIdApiKeysByKeyIdResponseTransformer, patchCoworkersByIdResponseTransformer, patchCoworkersByIdWhitelistResponseTransformer, patchCreditCostsByIdResponseTransformer, patchEnterpriseContractsByIdResponseTransformer, patchHermesMeInstanceResponseTransformer, patchHermesMeInstanceSchedulesByScheduleIdResponseTransformer, patchJobsByIdResponseTransformer, patchProjectsByIdResponseTransformer, patchTasksByIdLinksByLinkIdResponseTransformer, patchTasksByIdResponseTransformer, patchUsersByIdPreferencesResponseTransformer, postAgentsByIdJobsResponseTransformer, postConversationsByIdMessagesResponseTransformer, postConversationsResponseTransformer, postCoworkersByIdApiKeysResponseTransformer, postCoworkersResponseTransformer, postCreditCostsResponseTransformer, postEnterpriseContractsByIdActivateResponseTransformer, postEnterpriseContractsByIdCancelResponseTransformer, postEnterpriseContractsResponseTransformer, postHermesChatResponseTransformer, postHermesMeInboxSeenResponseTransformer, postHermesMeInstanceConfirmationsByConfirmationIdApproveResponseTransformer, postHermesMeInstanceConfirmationsByConfirmationIdRejectResponseTransformer, postHermesMeInstanceIntegrationsFinalizeResponseTransformer, postHermesMeInstanceIntegrationsInitiateResponseTransformer, postHermesMeInstanceOnboardResponseTransformer, postHermesMeInstanceResponseTransformer, postHermesMeSecretsResponseTransformer, postJobsByIdInputsResponseTransformer, postJobsByIdRefundResponseTransformer, postProjectsByIdJobsResponseTransformer, postProjectsByIdTasksResponseTransformer, postProjectsResponseTransformer, postTasksByIdEventsResponseTransformer, postTasksByIdJobsResponseTransformer, postTasksByIdLinksResponseTransformer, postTasksResponseTransformer, postUsersByIdNoticesByNoticeIdAcknowledgeResponseTransformer, postUsersByIdOnboardingResponseTransformer, postUsersByIdUploadsResponseTransformer, putJobsByIdShareResponseTransformer, putJobsByIdWorkspaceResponseTransformer, putTasksByIdShareResponseTransformer, putTasksByIdWorkspaceResponseTransformer } from './transformers.gen';
+import type { DeleteCoworkersByIdApiKeysByKeyIdData, DeleteCoworkersByIdApiKeysByKeyIdErrors, DeleteCoworkersByIdApiKeysByKeyIdResponses, DeleteCoworkersByIdData, DeleteCoworkersByIdErrors, DeleteCoworkersByIdResponses, DeleteCreditCostsByIdData, DeleteCreditCostsByIdErrors, DeleteCreditCostsByIdResponses, DeleteHermesMeInstanceData, DeleteHermesMeInstanceErrors, DeleteHermesMeInstanceIntegrationsByProviderData, DeleteHermesMeInstanceIntegrationsByProviderErrors, DeleteHermesMeInstanceIntegrationsByProviderResponses, DeleteHermesMeInstanceResponses, DeleteJobsByIdShareData, DeleteJobsByIdShareErrors, DeleteJobsByIdShareResponses, DeleteProjectsByIdData, DeleteProjectsByIdErrors, DeleteProjectsByIdJobsByJobIdData, DeleteProjectsByIdJobsByJobIdErrors, DeleteProjectsByIdJobsByJobIdResponses, DeleteProjectsByIdResponses, DeleteProjectsByIdTasksByTaskIdData, DeleteProjectsByIdTasksByTaskIdErrors, DeleteProjectsByIdTasksByTaskIdResponses, DeleteTasksByIdData, DeleteTasksByIdErrors, DeleteTasksByIdLinksByLinkIdData, DeleteTasksByIdLinksByLinkIdErrors, DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdResponses, DeleteTasksByIdShareData, DeleteTasksByIdShareErrors, DeleteTasksByIdShareResponses, GetAgentsByIdData, GetAgentsByIdErrors, GetAgentsByIdInputSchemaData, GetAgentsByIdInputSchemaErrors, GetAgentsByIdInputSchemaResponses, GetAgentsByIdJobsData, GetAgentsByIdJobsErrors, GetAgentsByIdJobsResponses, GetAgentsByIdResponses, GetAgentsByIdReviewsData, GetAgentsByIdReviewsErrors, GetAgentsByIdReviewsResponses, GetAgentsData, GetAgentsErrors, GetAgentsResponses, GetCategoriesData, GetCategoriesErrors, GetCategoriesResponses, GetChatData, GetChatErrors, GetChatResponses, GetChatStreamByConversationIdData, GetChatStreamByConversationIdErrors, GetChatStreamByConversationIdResponse, GetChatStreamByConversationIdResponses, GetConversationsByIdData, GetConversationsByIdErrors, GetConversationsByIdMessagesData, GetConversationsByIdMessagesErrors, GetConversationsByIdMessagesResponses, GetConversationsByIdResponses, GetConversationsData, GetConversationsErrors, GetConversationsResponses, GetCoworkersByIdApiKeysData, GetCoworkersByIdApiKeysErrors, GetCoworkersByIdApiKeysResponses, GetCoworkersByIdData, GetCoworkersByIdErrors, GetCoworkersByIdResponses, GetCoworkersData, GetCoworkersErrors, GetCoworkersMeData, GetCoworkersMeErrors, GetCoworkersMeEventsData, GetCoworkersMeEventsErrors, GetCoworkersMeEventsResponses, GetCoworkersMeResponses, GetCoworkersResponses, GetCreditCostsByIdData, GetCreditCostsByIdErrors, GetCreditCostsByIdResponses, GetCreditCostsData, GetCreditCostsErrors, GetCreditCostsResponses, GetEnterpriseContractsByIdData, GetEnterpriseContractsByIdErrors, GetEnterpriseContractsByIdPeriodsPreviewData, GetEnterpriseContractsByIdPeriodsPreviewErrors, GetEnterpriseContractsByIdPeriodsPreviewResponses, GetEnterpriseContractsByIdResponses, GetEnterpriseContractsData, GetEnterpriseContractsErrors, GetEnterpriseContractsResponses, GetHermesMeInstanceData, GetHermesMeInstanceErrors, GetHermesMeInstanceIntegrationsData, GetHermesMeInstanceIntegrationsErrors, GetHermesMeInstanceIntegrationsResponses, GetHermesMeInstanceOnboardingProgressData, GetHermesMeInstanceOnboardingProgressErrors, GetHermesMeInstanceOnboardingProgressResponses, GetHermesMeInstanceResponses, GetHermesMeInstanceSchedulesData, GetHermesMeInstanceSchedulesErrors, GetHermesMeInstanceSchedulesResponses, GetHermesMeMessagesData, GetHermesMeMessagesErrors, GetHermesMeMessagesResponses, GetHermesMeUnreadCountData, GetHermesMeUnreadCountErrors, GetHermesMeUnreadCountResponses, GetHistoryData, GetHistoryErrors, GetHistoryResponses, GetJobsByIdData, GetJobsByIdErrors, GetJobsByIdEventsData, GetJobsByIdEventsErrors, GetJobsByIdEventsResponses, GetJobsByIdFilesData, GetJobsByIdFilesErrors, GetJobsByIdFilesResponses, GetJobsByIdInputRequestData, GetJobsByIdInputRequestErrors, GetJobsByIdInputRequestResponses, GetJobsByIdLinksData, GetJobsByIdLinksErrors, GetJobsByIdLinksResponses, GetJobsByIdResponses, GetJobsData, GetJobsErrors, GetJobsResponses, GetOrganizationsByIdData, GetOrganizationsByIdErrors, GetOrganizationsByIdMembersData, GetOrganizationsByIdMembersErrors, GetOrganizationsByIdMembersResponses, GetOrganizationsByIdResponses, GetProjectsByIdData, GetProjectsByIdErrors, GetProjectsByIdResponses, GetProjectsData, GetProjectsErrors, GetProjectsResponses, GetProjectsStatsData, GetProjectsStatsErrors, GetProjectsStatsResponses, GetShareByTokenData, GetShareByTokenErrors, GetShareByTokenResponses, GetTasksByIdData, GetTasksByIdErrors, GetTasksByIdEventsData, GetTasksByIdEventsErrors, GetTasksByIdEventsResponses, GetTasksByIdJobsData, GetTasksByIdJobsErrors, GetTasksByIdJobsResponses, GetTasksByIdLinksData, GetTasksByIdLinksErrors, GetTasksByIdLinksResponses, GetTasksByIdResponses, GetTasksData, GetTasksErrors, GetTasksResponses, GetUsersByIdCreditsData, GetUsersByIdCreditsErrors, GetUsersByIdCreditsResponses, GetUsersByIdData, GetUsersByIdErrors, GetUsersByIdNoticesPendingData, GetUsersByIdNoticesPendingErrors, GetUsersByIdNoticesPendingResponses, GetUsersByIdOnboardingData, GetUsersByIdOnboardingErrors, GetUsersByIdOnboardingResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsData, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsData, GetUsersByIdOrganizationsErrors, GetUsersByIdOrganizationsResponses, GetUsersByIdPreferencesData, GetUsersByIdPreferencesErrors, GetUsersByIdPreferencesResponses, GetUsersByIdResponses, GetUsersByIdUploadsData, GetUsersByIdUploadsErrors, GetUsersByIdUploadsResponses, GetUsersRegisteredData, GetUsersRegisteredErrors, GetUsersRegisteredResponses, PatchConversationsByIdArchiveData, PatchConversationsByIdArchiveErrors, PatchConversationsByIdArchiveResponses, PatchConversationsByIdData, PatchConversationsByIdErrors, PatchConversationsByIdResponses, PatchCoworkersByIdApiKeysByKeyIdData, PatchCoworkersByIdApiKeysByKeyIdErrors, PatchCoworkersByIdApiKeysByKeyIdResponses, PatchCoworkersByIdData, PatchCoworkersByIdErrors, PatchCoworkersByIdResponses, PatchCoworkersByIdWhitelistData, PatchCoworkersByIdWhitelistErrors, PatchCoworkersByIdWhitelistResponses, PatchCreditCostsByIdData, PatchCreditCostsByIdErrors, PatchCreditCostsByIdResponses, PatchEnterpriseContractsByIdData, PatchEnterpriseContractsByIdErrors, PatchEnterpriseContractsByIdResponses, PatchHermesMeInstanceData, PatchHermesMeInstanceErrors, PatchHermesMeInstanceResponses, PatchHermesMeInstanceSchedulesByScheduleIdData, PatchHermesMeInstanceSchedulesByScheduleIdErrors, PatchHermesMeInstanceSchedulesByScheduleIdResponses, PatchJobsByIdData, PatchJobsByIdErrors, PatchJobsByIdResponses, PatchProjectsByIdData, PatchProjectsByIdErrors, PatchProjectsByIdResponses, PatchTasksByIdData, PatchTasksByIdErrors, PatchTasksByIdLinksByLinkIdData, PatchTasksByIdLinksByLinkIdErrors, PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdResponses, PatchUsersByIdPreferencesData, PatchUsersByIdPreferencesErrors, PatchUsersByIdPreferencesResponses, PostAgentsByIdJobsData, PostAgentsByIdJobsErrors, PostAgentsByIdJobsResponses, PostChatData, PostChatErrors, PostChatResponse, PostChatResponses, PostConversationsByIdMessagesData, PostConversationsByIdMessagesErrors, PostConversationsByIdMessagesResponses, PostConversationsData, PostConversationsErrors, PostConversationsResponses, PostCoworkersByIdApiKeysData, PostCoworkersByIdApiKeysErrors, PostCoworkersByIdApiKeysResponses, PostCoworkersData, PostCoworkersErrors, PostCoworkersMeUsageData, PostCoworkersMeUsageErrors, PostCoworkersMeUsageResponses, PostCoworkersResponses, PostCreditCostsData, PostCreditCostsErrors, PostCreditCostsResponses, PostEnterpriseContractsByIdActivateData, PostEnterpriseContractsByIdActivateErrors, PostEnterpriseContractsByIdActivateResponses, PostEnterpriseContractsByIdCancelData, PostEnterpriseContractsByIdCancelErrors, PostEnterpriseContractsByIdCancelResponses, PostEnterpriseContractsData, PostEnterpriseContractsErrors, PostEnterpriseContractsResponses, PostHermesChatData, PostHermesChatErrors, PostHermesChatResponses, PostHermesMeInboxSeenData, PostHermesMeInboxSeenErrors, PostHermesMeInboxSeenResponses, PostHermesMeInstanceConfirmationsByConfirmationIdApproveData, PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors, PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses, PostHermesMeInstanceConfirmationsByConfirmationIdRejectData, PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors, PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses, PostHermesMeInstanceData, PostHermesMeInstanceErrors, PostHermesMeInstanceIntegrationsFinalizeData, PostHermesMeInstanceIntegrationsFinalizeErrors, PostHermesMeInstanceIntegrationsFinalizeResponses, PostHermesMeInstanceIntegrationsInitiateData, PostHermesMeInstanceIntegrationsInitiateErrors, PostHermesMeInstanceIntegrationsInitiateResponses, PostHermesMeInstanceOnboardData, PostHermesMeInstanceOnboardErrors, PostHermesMeInstanceOnboardResponses, PostHermesMeInstanceResponses, PostHermesMeSecretsData, PostHermesMeSecretsErrors, PostHermesMeSecretsResponses, PostJobsByIdInputsData, PostJobsByIdInputsErrors, PostJobsByIdInputsResponses, PostJobsByIdRefundData, PostJobsByIdRefundErrors, PostJobsByIdRefundResponses, PostProjectsByIdJobsData, PostProjectsByIdJobsErrors, PostProjectsByIdJobsResponses, PostProjectsByIdTasksData, PostProjectsByIdTasksErrors, PostProjectsByIdTasksResponses, PostProjectsData, PostProjectsErrors, PostProjectsResponses, PostTasksByIdEventsData, PostTasksByIdEventsErrors, PostTasksByIdEventsResponses, PostTasksByIdJobsData, PostTasksByIdJobsErrors, PostTasksByIdJobsResponses, PostTasksByIdLinksData, PostTasksByIdLinksErrors, PostTasksByIdLinksResponses, PostTasksData, PostTasksErrors, PostTasksResponses, PostUsersByIdNoticesByNoticeIdAcknowledgeData, PostUsersByIdNoticesByNoticeIdAcknowledgeErrors, PostUsersByIdNoticesByNoticeIdAcknowledgeResponses, PostUsersByIdOnboardingData, PostUsersByIdOnboardingErrors, PostUsersByIdOnboardingResponses, PostUsersByIdUploadsData, PostUsersByIdUploadsErrors, PostUsersByIdUploadsResponses, PutJobsByIdShareData, PutJobsByIdShareErrors, PutJobsByIdShareResponses, PutJobsByIdWorkspaceData, PutJobsByIdWorkspaceErrors, PutJobsByIdWorkspaceResponses, PutTasksByIdShareData, PutTasksByIdShareErrors, PutTasksByIdShareResponses, PutTasksByIdWorkspaceData, PutTasksByIdWorkspaceErrors, PutTasksByIdWorkspaceResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -24,7 +24,6 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  */
 export const getAgents = <ThrowOnError extends boolean = false>(options?: Options<GetAgentsData, ThrowOnError>): RequestResult<GetAgentsResponses, GetAgentsErrors, ThrowOnError> => (options?.client ?? client).get<GetAgentsResponses, GetAgentsErrors, ThrowOnError>({
     responseTransformer: getAgentsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents',
     ...options
 });
@@ -34,7 +33,6 @@ export const getAgents = <ThrowOnError extends boolean = false>(options?: Option
  */
 export const getAgentsById = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdData, ThrowOnError>): RequestResult<GetAgentsByIdResponses, GetAgentsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetAgentsByIdResponses, GetAgentsByIdErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents/{id}',
     ...options
 });
@@ -44,7 +42,6 @@ export const getAgentsById = <ThrowOnError extends boolean = false>(options: Opt
  */
 export const getAgentsByIdReviews = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdReviewsData, ThrowOnError>): RequestResult<GetAgentsByIdReviewsResponses, GetAgentsByIdReviewsErrors, ThrowOnError> => (options.client ?? client).get<GetAgentsByIdReviewsResponses, GetAgentsByIdReviewsErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdReviewsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents/{id}/reviews',
     ...options
 });
@@ -54,7 +51,6 @@ export const getAgentsByIdReviews = <ThrowOnError extends boolean = false>(optio
  */
 export const getAgentsByIdInputSchema = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdInputSchemaData, ThrowOnError>): RequestResult<GetAgentsByIdInputSchemaResponses, GetAgentsByIdInputSchemaErrors, ThrowOnError> => (options.client ?? client).get<GetAgentsByIdInputSchemaResponses, GetAgentsByIdInputSchemaErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdInputSchemaResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents/{id}/input-schema',
     ...options
 });
@@ -64,7 +60,6 @@ export const getAgentsByIdInputSchema = <ThrowOnError extends boolean = false>(o
  */
 export const getAgentsByIdJobs = <ThrowOnError extends boolean = false>(options: Options<GetAgentsByIdJobsData, ThrowOnError>): RequestResult<GetAgentsByIdJobsResponses, GetAgentsByIdJobsErrors, ThrowOnError> => (options.client ?? client).get<GetAgentsByIdJobsResponses, GetAgentsByIdJobsErrors, ThrowOnError>({
     responseTransformer: getAgentsByIdJobsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents/{id}/jobs',
     ...options
 });
@@ -74,7 +69,6 @@ export const getAgentsByIdJobs = <ThrowOnError extends boolean = false>(options:
  */
 export const postAgentsByIdJobs = <ThrowOnError extends boolean = false>(options: Options<PostAgentsByIdJobsData, ThrowOnError>): RequestResult<PostAgentsByIdJobsResponses, PostAgentsByIdJobsErrors, ThrowOnError> => (options.client ?? client).post<PostAgentsByIdJobsResponses, PostAgentsByIdJobsErrors, ThrowOnError>({
     responseTransformer: postAgentsByIdJobsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/agents/{id}/jobs',
     ...options,
     headers: {
@@ -88,7 +82,6 @@ export const postAgentsByIdJobs = <ThrowOnError extends boolean = false>(options
  */
 export const getCategories = <ThrowOnError extends boolean = false>(options?: Options<GetCategoriesData, ThrowOnError>): RequestResult<GetCategoriesResponses, GetCategoriesErrors, ThrowOnError> => (options?.client ?? client).get<GetCategoriesResponses, GetCategoriesErrors, ThrowOnError>({
     responseTransformer: getCategoriesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/categories',
     ...options
 });
@@ -98,7 +91,6 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
  */
 export const getChat = <ThrowOnError extends boolean = false>(options: Options<GetChatData, ThrowOnError>): RequestResult<GetChatResponses, GetChatErrors, ThrowOnError> => (options.client ?? client).get<GetChatResponses, GetChatErrors, ThrowOnError>({
     responseTransformer: getChatResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/chat',
     ...options
 });
@@ -107,7 +99,6 @@ export const getChat = <ThrowOnError extends boolean = false>(options: Options<G
  * Stream chat via Vercel AI SDK (`@sokosumi/ai-provider`) to OpenRouter or a coworker Responses endpoint.
  */
 export const postChat = <ThrowOnError extends boolean = false>(options?: Options<PostChatData, ThrowOnError, PostChatResponse>): Promise<ServerSentEventsResult<PostChatResponses, PostChatErrors | void, ThrowOnError>> => (options?.client ?? client).sse.post<PostChatResponses, PostChatErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/chat',
     ...options,
     headers: {
@@ -119,18 +110,13 @@ export const postChat = <ThrowOnError extends boolean = false>(options?: Options
 /**
  * Resume an active UI message SSE stream; 204 when none.
  */
-export const getChatStreamByConversationId = <ThrowOnError extends boolean = false>(options: Options<GetChatStreamByConversationIdData, ThrowOnError, GetChatStreamByConversationIdResponse>): Promise<ServerSentEventsResult<GetChatStreamByConversationIdResponses, GetChatStreamByConversationIdErrors | void, ThrowOnError>> => (options.client ?? client).sse.get<GetChatStreamByConversationIdResponses, GetChatStreamByConversationIdErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/chat/stream/{conversationId}',
-    ...options
-});
+export const getChatStreamByConversationId = <ThrowOnError extends boolean = false>(options: Options<GetChatStreamByConversationIdData, ThrowOnError, GetChatStreamByConversationIdResponse>): Promise<ServerSentEventsResult<GetChatStreamByConversationIdResponses, GetChatStreamByConversationIdErrors | void, ThrowOnError>> => (options.client ?? client).sse.get<GetChatStreamByConversationIdResponses, GetChatStreamByConversationIdErrors, ThrowOnError>({ url: '/chat/stream/{conversationId}', ...options });
 
 /**
  * List all conversations for the authenticated user
  */
 export const getConversations = <ThrowOnError extends boolean = false>(options?: Options<GetConversationsData, ThrowOnError>): RequestResult<GetConversationsResponses, GetConversationsErrors, ThrowOnError> => (options?.client ?? client).get<GetConversationsResponses, GetConversationsErrors, ThrowOnError>({
     responseTransformer: getConversationsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations',
     ...options
 });
@@ -140,7 +126,6 @@ export const getConversations = <ThrowOnError extends boolean = false>(options?:
  */
 export const postConversations = <ThrowOnError extends boolean = false>(options?: Options<PostConversationsData, ThrowOnError>): RequestResult<PostConversationsResponses, PostConversationsErrors, ThrowOnError> => (options?.client ?? client).post<PostConversationsResponses, PostConversationsErrors, ThrowOnError>({
     responseTransformer: postConversationsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations',
     ...options,
     headers: {
@@ -154,7 +139,6 @@ export const postConversations = <ThrowOnError extends boolean = false>(options?
  */
 export const getConversationsById = <ThrowOnError extends boolean = false>(options: Options<GetConversationsByIdData, ThrowOnError>): RequestResult<GetConversationsByIdResponses, GetConversationsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetConversationsByIdResponses, GetConversationsByIdErrors, ThrowOnError>({
     responseTransformer: getConversationsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations/{id}',
     ...options
 });
@@ -164,7 +148,6 @@ export const getConversationsById = <ThrowOnError extends boolean = false>(optio
  */
 export const patchConversationsById = <ThrowOnError extends boolean = false>(options: Options<PatchConversationsByIdData, ThrowOnError>): RequestResult<PatchConversationsByIdResponses, PatchConversationsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchConversationsByIdResponses, PatchConversationsByIdErrors, ThrowOnError>({
     responseTransformer: patchConversationsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations/{id}',
     ...options,
     headers: {
@@ -178,7 +161,6 @@ export const patchConversationsById = <ThrowOnError extends boolean = false>(opt
  */
 export const patchConversationsByIdArchive = <ThrowOnError extends boolean = false>(options: Options<PatchConversationsByIdArchiveData, ThrowOnError>): RequestResult<PatchConversationsByIdArchiveResponses, PatchConversationsByIdArchiveErrors, ThrowOnError> => (options.client ?? client).patch<PatchConversationsByIdArchiveResponses, PatchConversationsByIdArchiveErrors, ThrowOnError>({
     responseTransformer: patchConversationsByIdArchiveResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations/{id}/archive',
     ...options,
     headers: {
@@ -192,7 +174,6 @@ export const patchConversationsByIdArchive = <ThrowOnError extends boolean = fal
  */
 export const getConversationsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<GetConversationsByIdMessagesData, ThrowOnError>): RequestResult<GetConversationsByIdMessagesResponses, GetConversationsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).get<GetConversationsByIdMessagesResponses, GetConversationsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: getConversationsByIdMessagesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations/{id}/messages',
     ...options
 });
@@ -202,7 +183,6 @@ export const getConversationsByIdMessages = <ThrowOnError extends boolean = fals
  */
 export const postConversationsByIdMessages = <ThrowOnError extends boolean = false>(options: Options<PostConversationsByIdMessagesData, ThrowOnError>): RequestResult<PostConversationsByIdMessagesResponses, PostConversationsByIdMessagesErrors, ThrowOnError> => (options.client ?? client).post<PostConversationsByIdMessagesResponses, PostConversationsByIdMessagesErrors, ThrowOnError>({
     responseTransformer: postConversationsByIdMessagesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/conversations/{id}/messages',
     ...options,
     headers: {
@@ -216,7 +196,6 @@ export const postConversationsByIdMessages = <ThrowOnError extends boolean = fal
  */
 export const getCreditCosts = <ThrowOnError extends boolean = false>(options?: Options<GetCreditCostsData, ThrowOnError>): RequestResult<GetCreditCostsResponses, GetCreditCostsErrors, ThrowOnError> => (options?.client ?? client).get<GetCreditCostsResponses, GetCreditCostsErrors, ThrowOnError>({
     responseTransformer: getCreditCostsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/credit-costs',
     ...options
 });
@@ -226,7 +205,6 @@ export const getCreditCosts = <ThrowOnError extends boolean = false>(options?: O
  */
 export const postCreditCosts = <ThrowOnError extends boolean = false>(options?: Options<PostCreditCostsData, ThrowOnError>): RequestResult<PostCreditCostsResponses, PostCreditCostsErrors, ThrowOnError> => (options?.client ?? client).post<PostCreditCostsResponses, PostCreditCostsErrors, ThrowOnError>({
     responseTransformer: postCreditCostsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/credit-costs',
     ...options,
     headers: {
@@ -240,7 +218,6 @@ export const postCreditCosts = <ThrowOnError extends boolean = false>(options?: 
  */
 export const deleteCreditCostsById = <ThrowOnError extends boolean = false>(options: Options<DeleteCreditCostsByIdData, ThrowOnError>): RequestResult<DeleteCreditCostsByIdResponses, DeleteCreditCostsByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteCreditCostsByIdResponses, DeleteCreditCostsByIdErrors, ThrowOnError>({
     responseTransformer: deleteCreditCostsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/credit-costs/{id}',
     ...options
 });
@@ -250,7 +227,6 @@ export const deleteCreditCostsById = <ThrowOnError extends boolean = false>(opti
  */
 export const getCreditCostsById = <ThrowOnError extends boolean = false>(options: Options<GetCreditCostsByIdData, ThrowOnError>): RequestResult<GetCreditCostsByIdResponses, GetCreditCostsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetCreditCostsByIdResponses, GetCreditCostsByIdErrors, ThrowOnError>({
     responseTransformer: getCreditCostsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/credit-costs/{id}',
     ...options
 });
@@ -260,7 +236,6 @@ export const getCreditCostsById = <ThrowOnError extends boolean = false>(options
  */
 export const patchCreditCostsById = <ThrowOnError extends boolean = false>(options: Options<PatchCreditCostsByIdData, ThrowOnError>): RequestResult<PatchCreditCostsByIdResponses, PatchCreditCostsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchCreditCostsByIdResponses, PatchCreditCostsByIdErrors, ThrowOnError>({
     responseTransformer: patchCreditCostsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/credit-costs/{id}',
     ...options,
     headers: {
@@ -274,7 +249,6 @@ export const patchCreditCostsById = <ThrowOnError extends boolean = false>(optio
  */
 export const getEnterpriseContracts = <ThrowOnError extends boolean = false>(options?: Options<GetEnterpriseContractsData, ThrowOnError>): RequestResult<GetEnterpriseContractsResponses, GetEnterpriseContractsErrors, ThrowOnError> => (options?.client ?? client).get<GetEnterpriseContractsResponses, GetEnterpriseContractsErrors, ThrowOnError>({
     responseTransformer: getEnterpriseContractsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts',
     ...options
 });
@@ -284,7 +258,6 @@ export const getEnterpriseContracts = <ThrowOnError extends boolean = false>(opt
  */
 export const postEnterpriseContracts = <ThrowOnError extends boolean = false>(options?: Options<PostEnterpriseContractsData, ThrowOnError>): RequestResult<PostEnterpriseContractsResponses, PostEnterpriseContractsErrors, ThrowOnError> => (options?.client ?? client).post<PostEnterpriseContractsResponses, PostEnterpriseContractsErrors, ThrowOnError>({
     responseTransformer: postEnterpriseContractsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts',
     ...options,
     headers: {
@@ -298,7 +271,6 @@ export const postEnterpriseContracts = <ThrowOnError extends boolean = false>(op
  */
 export const getEnterpriseContractsByIdPeriodsPreview = <ThrowOnError extends boolean = false>(options: Options<GetEnterpriseContractsByIdPeriodsPreviewData, ThrowOnError>): RequestResult<GetEnterpriseContractsByIdPeriodsPreviewResponses, GetEnterpriseContractsByIdPeriodsPreviewErrors, ThrowOnError> => (options.client ?? client).get<GetEnterpriseContractsByIdPeriodsPreviewResponses, GetEnterpriseContractsByIdPeriodsPreviewErrors, ThrowOnError>({
     responseTransformer: getEnterpriseContractsByIdPeriodsPreviewResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts/{id}/periods/preview',
     ...options
 });
@@ -308,7 +280,6 @@ export const getEnterpriseContractsByIdPeriodsPreview = <ThrowOnError extends bo
  */
 export const getEnterpriseContractsById = <ThrowOnError extends boolean = false>(options: Options<GetEnterpriseContractsByIdData, ThrowOnError>): RequestResult<GetEnterpriseContractsByIdResponses, GetEnterpriseContractsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetEnterpriseContractsByIdResponses, GetEnterpriseContractsByIdErrors, ThrowOnError>({
     responseTransformer: getEnterpriseContractsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts/{id}',
     ...options
 });
@@ -318,7 +289,6 @@ export const getEnterpriseContractsById = <ThrowOnError extends boolean = false>
  */
 export const patchEnterpriseContractsById = <ThrowOnError extends boolean = false>(options: Options<PatchEnterpriseContractsByIdData, ThrowOnError>): RequestResult<PatchEnterpriseContractsByIdResponses, PatchEnterpriseContractsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchEnterpriseContractsByIdResponses, PatchEnterpriseContractsByIdErrors, ThrowOnError>({
     responseTransformer: patchEnterpriseContractsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts/{id}',
     ...options,
     headers: {
@@ -332,7 +302,6 @@ export const patchEnterpriseContractsById = <ThrowOnError extends boolean = fals
  */
 export const postEnterpriseContractsByIdActivate = <ThrowOnError extends boolean = false>(options: Options<PostEnterpriseContractsByIdActivateData, ThrowOnError>): RequestResult<PostEnterpriseContractsByIdActivateResponses, PostEnterpriseContractsByIdActivateErrors, ThrowOnError> => (options.client ?? client).post<PostEnterpriseContractsByIdActivateResponses, PostEnterpriseContractsByIdActivateErrors, ThrowOnError>({
     responseTransformer: postEnterpriseContractsByIdActivateResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts/{id}/activate',
     ...options,
     headers: {
@@ -346,7 +315,6 @@ export const postEnterpriseContractsByIdActivate = <ThrowOnError extends boolean
  */
 export const postEnterpriseContractsByIdCancel = <ThrowOnError extends boolean = false>(options: Options<PostEnterpriseContractsByIdCancelData, ThrowOnError>): RequestResult<PostEnterpriseContractsByIdCancelResponses, PostEnterpriseContractsByIdCancelErrors, ThrowOnError> => (options.client ?? client).post<PostEnterpriseContractsByIdCancelResponses, PostEnterpriseContractsByIdCancelErrors, ThrowOnError>({
     responseTransformer: postEnterpriseContractsByIdCancelResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/enterprise/contracts/{id}/cancel',
     ...options
 });
@@ -356,7 +324,6 @@ export const postEnterpriseContractsByIdCancel = <ThrowOnError extends boolean =
  */
 export const postHermesChat = <ThrowOnError extends boolean = false>(options?: Options<PostHermesChatData, ThrowOnError>): RequestResult<PostHermesChatResponses, PostHermesChatErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesChatResponses, PostHermesChatErrors, ThrowOnError>({
     responseTransformer: postHermesChatResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/chat',
     ...options,
     headers: {
@@ -370,7 +337,6 @@ export const postHermesChat = <ThrowOnError extends boolean = false>(options?: O
  */
 export const deleteHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<DeleteHermesMeInstanceData, ThrowOnError>): RequestResult<DeleteHermesMeInstanceResponses, DeleteHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteHermesMeInstanceResponses, DeleteHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: deleteHermesMeInstanceResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance',
     ...options
 });
@@ -380,7 +346,6 @@ export const deleteHermesMeInstance = <ThrowOnError extends boolean = false>(opt
  */
 export const getHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeInstanceData, ThrowOnError>): RequestResult<GetHermesMeInstanceResponses, GetHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeInstanceResponses, GetHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: getHermesMeInstanceResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance',
     ...options
 });
@@ -390,7 +355,6 @@ export const getHermesMeInstance = <ThrowOnError extends boolean = false>(option
  */
 export const patchHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<PatchHermesMeInstanceData, ThrowOnError>): RequestResult<PatchHermesMeInstanceResponses, PatchHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).patch<PatchHermesMeInstanceResponses, PatchHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: patchHermesMeInstanceResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance',
     ...options,
     headers: {
@@ -404,7 +368,6 @@ export const patchHermesMeInstance = <ThrowOnError extends boolean = false>(opti
  */
 export const postHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInstanceData, ThrowOnError>): RequestResult<PostHermesMeInstanceResponses, PostHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInstanceResponses, PostHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance',
     ...options
 });
@@ -414,7 +377,6 @@ export const postHermesMeInstance = <ThrowOnError extends boolean = false>(optio
  */
 export const getHermesMeMessages = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeMessagesData, ThrowOnError>): RequestResult<GetHermesMeMessagesResponses, GetHermesMeMessagesErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeMessagesResponses, GetHermesMeMessagesErrors, ThrowOnError>({
     responseTransformer: getHermesMeMessagesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/messages',
     ...options
 });
@@ -424,7 +386,6 @@ export const getHermesMeMessages = <ThrowOnError extends boolean = false>(option
  */
 export const getHermesMeUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeUnreadCountData, ThrowOnError>): RequestResult<GetHermesMeUnreadCountResponses, GetHermesMeUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeUnreadCountResponses, GetHermesMeUnreadCountErrors, ThrowOnError>({
     responseTransformer: getHermesMeUnreadCountResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/unread-count',
     ...options
 });
@@ -434,7 +395,6 @@ export const getHermesMeUnreadCount = <ThrowOnError extends boolean = false>(opt
  */
 export const postHermesMeInboxSeen = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInboxSeenData, ThrowOnError>): RequestResult<PostHermesMeInboxSeenResponses, PostHermesMeInboxSeenErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInboxSeenResponses, PostHermesMeInboxSeenErrors, ThrowOnError>({
     responseTransformer: postHermesMeInboxSeenResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/inbox/seen',
     ...options,
     headers: {
@@ -448,7 +408,6 @@ export const postHermesMeInboxSeen = <ThrowOnError extends boolean = false>(opti
  */
 export const postHermesMeSecrets = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeSecretsData, ThrowOnError>): RequestResult<PostHermesMeSecretsResponses, PostHermesMeSecretsErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeSecretsResponses, PostHermesMeSecretsErrors, ThrowOnError>({
     responseTransformer: postHermesMeSecretsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/secrets',
     ...options,
     headers: {
@@ -462,7 +421,6 @@ export const postHermesMeSecrets = <ThrowOnError extends boolean = false>(option
  */
 export const postHermesMeInstanceOnboard = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInstanceOnboardData, ThrowOnError>): RequestResult<PostHermesMeInstanceOnboardResponses, PostHermesMeInstanceOnboardErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInstanceOnboardResponses, PostHermesMeInstanceOnboardErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceOnboardResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/onboard',
     ...options,
     headers: {
@@ -476,7 +434,6 @@ export const postHermesMeInstanceOnboard = <ThrowOnError extends boolean = false
  */
 export const getHermesMeInstanceOnboardingProgress = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeInstanceOnboardingProgressData, ThrowOnError>): RequestResult<GetHermesMeInstanceOnboardingProgressResponses, GetHermesMeInstanceOnboardingProgressErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeInstanceOnboardingProgressResponses, GetHermesMeInstanceOnboardingProgressErrors, ThrowOnError>({
     responseTransformer: getHermesMeInstanceOnboardingProgressResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/onboarding-progress',
     ...options
 });
@@ -486,7 +443,6 @@ export const getHermesMeInstanceOnboardingProgress = <ThrowOnError extends boole
  */
 export const getHermesMeInstanceIntegrations = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeInstanceIntegrationsData, ThrowOnError>): RequestResult<GetHermesMeInstanceIntegrationsResponses, GetHermesMeInstanceIntegrationsErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeInstanceIntegrationsResponses, GetHermesMeInstanceIntegrationsErrors, ThrowOnError>({
     responseTransformer: getHermesMeInstanceIntegrationsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/integrations',
     ...options
 });
@@ -496,7 +452,6 @@ export const getHermesMeInstanceIntegrations = <ThrowOnError extends boolean = f
  */
 export const getHermesMeInstanceSchedules = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeInstanceSchedulesData, ThrowOnError>): RequestResult<GetHermesMeInstanceSchedulesResponses, GetHermesMeInstanceSchedulesErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeInstanceSchedulesResponses, GetHermesMeInstanceSchedulesErrors, ThrowOnError>({
     responseTransformer: getHermesMeInstanceSchedulesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/schedules',
     ...options
 });
@@ -506,7 +461,6 @@ export const getHermesMeInstanceSchedules = <ThrowOnError extends boolean = fals
  */
 export const patchHermesMeInstanceSchedulesByScheduleId = <ThrowOnError extends boolean = false>(options: Options<PatchHermesMeInstanceSchedulesByScheduleIdData, ThrowOnError>): RequestResult<PatchHermesMeInstanceSchedulesByScheduleIdResponses, PatchHermesMeInstanceSchedulesByScheduleIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchHermesMeInstanceSchedulesByScheduleIdResponses, PatchHermesMeInstanceSchedulesByScheduleIdErrors, ThrowOnError>({
     responseTransformer: patchHermesMeInstanceSchedulesByScheduleIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/schedules/{scheduleId}',
     ...options,
     headers: {
@@ -520,7 +474,6 @@ export const patchHermesMeInstanceSchedulesByScheduleId = <ThrowOnError extends 
  */
 export const postHermesMeInstanceConfirmationsByConfirmationIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostHermesMeInstanceConfirmationsByConfirmationIdApproveData, ThrowOnError>): RequestResult<PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses, PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponses, PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceConfirmationsByConfirmationIdApproveResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/confirmations/{confirmationId}/approve',
     ...options,
     headers: {
@@ -534,7 +487,6 @@ export const postHermesMeInstanceConfirmationsByConfirmationIdApprove = <ThrowOn
  */
 export const postHermesMeInstanceConfirmationsByConfirmationIdReject = <ThrowOnError extends boolean = false>(options: Options<PostHermesMeInstanceConfirmationsByConfirmationIdRejectData, ThrowOnError>): RequestResult<PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses, PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors, ThrowOnError> => (options.client ?? client).post<PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponses, PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceConfirmationsByConfirmationIdRejectResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/confirmations/{confirmationId}/reject',
     ...options,
     headers: {
@@ -548,7 +500,6 @@ export const postHermesMeInstanceConfirmationsByConfirmationIdReject = <ThrowOnE
  */
 export const deleteHermesMeInstanceIntegrationsByProvider = <ThrowOnError extends boolean = false>(options: Options<DeleteHermesMeInstanceIntegrationsByProviderData, ThrowOnError>): RequestResult<DeleteHermesMeInstanceIntegrationsByProviderResponses, DeleteHermesMeInstanceIntegrationsByProviderErrors, ThrowOnError> => (options.client ?? client).delete<DeleteHermesMeInstanceIntegrationsByProviderResponses, DeleteHermesMeInstanceIntegrationsByProviderErrors, ThrowOnError>({
     responseTransformer: deleteHermesMeInstanceIntegrationsByProviderResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/integrations/{provider}',
     ...options
 });
@@ -558,7 +509,6 @@ export const deleteHermesMeInstanceIntegrationsByProvider = <ThrowOnError extend
  */
 export const postHermesMeInstanceIntegrationsInitiate = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInstanceIntegrationsInitiateData, ThrowOnError>): RequestResult<PostHermesMeInstanceIntegrationsInitiateResponses, PostHermesMeInstanceIntegrationsInitiateErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInstanceIntegrationsInitiateResponses, PostHermesMeInstanceIntegrationsInitiateErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceIntegrationsInitiateResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/integrations/initiate',
     ...options,
     headers: {
@@ -572,7 +522,6 @@ export const postHermesMeInstanceIntegrationsInitiate = <ThrowOnError extends bo
  */
 export const postHermesMeInstanceIntegrationsFinalize = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInstanceIntegrationsFinalizeData, ThrowOnError>): RequestResult<PostHermesMeInstanceIntegrationsFinalizeResponses, PostHermesMeInstanceIntegrationsFinalizeErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInstanceIntegrationsFinalizeResponses, PostHermesMeInstanceIntegrationsFinalizeErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceIntegrationsFinalizeResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/hermes/me/instance/integrations/finalize',
     ...options,
     headers: {
@@ -586,7 +535,6 @@ export const postHermesMeInstanceIntegrationsFinalize = <ThrowOnError extends bo
  */
 export const getHistory = <ThrowOnError extends boolean = false>(options?: Options<GetHistoryData, ThrowOnError>): RequestResult<GetHistoryResponses, GetHistoryErrors, ThrowOnError> => (options?.client ?? client).get<GetHistoryResponses, GetHistoryErrors, ThrowOnError>({
     responseTransformer: getHistoryResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/history',
     ...options
 });
@@ -596,7 +544,6 @@ export const getHistory = <ThrowOnError extends boolean = false>(options?: Optio
  */
 export const getUsersRegistered = <ThrowOnError extends boolean = false>(options: Options<GetUsersRegisteredData, ThrowOnError>): RequestResult<GetUsersRegisteredResponses, GetUsersRegisteredErrors, ThrowOnError> => (options.client ?? client).get<GetUsersRegisteredResponses, GetUsersRegisteredErrors, ThrowOnError>({
     responseTransformer: getUsersRegisteredResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/registered',
     ...options
 });
@@ -606,7 +553,6 @@ export const getUsersRegistered = <ThrowOnError extends boolean = false>(options
  */
 export const getUsersByIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdCreditsData, ThrowOnError>): RequestResult<GetUsersByIdCreditsResponses, GetUsersByIdCreditsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdCreditsResponses, GetUsersByIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdCreditsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/credits',
     ...options
 });
@@ -616,7 +562,6 @@ export const getUsersByIdCredits = <ThrowOnError extends boolean = false>(option
  */
 export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/organizations',
     ...options
 });
@@ -626,7 +571,6 @@ export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(
  */
 export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsByOrganizationIdCreditsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/organizations/{organizationId}/credits',
     ...options
 });
@@ -636,7 +580,6 @@ export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError ex
  */
 export const getUsersByIdPreferences = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdPreferencesData, ThrowOnError>): RequestResult<GetUsersByIdPreferencesResponses, GetUsersByIdPreferencesErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdPreferencesResponses, GetUsersByIdPreferencesErrors, ThrowOnError>({
     responseTransformer: getUsersByIdPreferencesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/preferences',
     ...options
 });
@@ -646,7 +589,6 @@ export const getUsersByIdPreferences = <ThrowOnError extends boolean = false>(op
  */
 export const patchUsersByIdPreferences = <ThrowOnError extends boolean = false>(options: Options<PatchUsersByIdPreferencesData, ThrowOnError>): RequestResult<PatchUsersByIdPreferencesResponses, PatchUsersByIdPreferencesErrors, ThrowOnError> => (options.client ?? client).patch<PatchUsersByIdPreferencesResponses, PatchUsersByIdPreferencesErrors, ThrowOnError>({
     responseTransformer: patchUsersByIdPreferencesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/preferences',
     ...options,
     headers: {
@@ -660,7 +602,6 @@ export const patchUsersByIdPreferences = <ThrowOnError extends boolean = false>(
  */
 export const getUsersByIdOnboarding = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOnboardingData, ThrowOnError>): RequestResult<GetUsersByIdOnboardingResponses, GetUsersByIdOnboardingErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOnboardingResponses, GetUsersByIdOnboardingErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOnboardingResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/onboarding',
     ...options
 });
@@ -670,7 +611,6 @@ export const getUsersByIdOnboarding = <ThrowOnError extends boolean = false>(opt
  */
 export const postUsersByIdOnboarding = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdOnboardingData, ThrowOnError>): RequestResult<PostUsersByIdOnboardingResponses, PostUsersByIdOnboardingErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdOnboardingResponses, PostUsersByIdOnboardingErrors, ThrowOnError>({
     responseTransformer: postUsersByIdOnboardingResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/onboarding',
     ...options
 });
@@ -680,7 +620,6 @@ export const postUsersByIdOnboarding = <ThrowOnError extends boolean = false>(op
  */
 export const getUsersByIdNoticesPending = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdNoticesPendingData, ThrowOnError>): RequestResult<GetUsersByIdNoticesPendingResponses, GetUsersByIdNoticesPendingErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdNoticesPendingResponses, GetUsersByIdNoticesPendingErrors, ThrowOnError>({
     responseTransformer: getUsersByIdNoticesPendingResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/notices/pending',
     ...options
 });
@@ -690,7 +629,6 @@ export const getUsersByIdNoticesPending = <ThrowOnError extends boolean = false>
  */
 export const postUsersByIdNoticesByNoticeIdAcknowledge = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdNoticesByNoticeIdAcknowledgeData, ThrowOnError>): RequestResult<PostUsersByIdNoticesByNoticeIdAcknowledgeResponses, PostUsersByIdNoticesByNoticeIdAcknowledgeErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdNoticesByNoticeIdAcknowledgeResponses, PostUsersByIdNoticesByNoticeIdAcknowledgeErrors, ThrowOnError>({
     responseTransformer: postUsersByIdNoticesByNoticeIdAcknowledgeResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/notices/{noticeId}/acknowledge',
     ...options
 });
@@ -700,7 +638,6 @@ export const postUsersByIdNoticesByNoticeIdAcknowledge = <ThrowOnError extends b
  */
 export const getUsersByIdUploads = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdUploadsData, ThrowOnError>): RequestResult<GetUsersByIdUploadsResponses, GetUsersByIdUploadsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdUploadsResponses, GetUsersByIdUploadsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdUploadsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/uploads',
     ...options
 });
@@ -718,7 +655,6 @@ export const getUsersByIdUploads = <ThrowOnError extends boolean = false>(option
  */
 export const postUsersByIdUploads = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdUploadsData, ThrowOnError>): RequestResult<PostUsersByIdUploadsResponses, PostUsersByIdUploadsErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdUploadsResponses, PostUsersByIdUploadsErrors, ThrowOnError>({
     responseTransformer: postUsersByIdUploadsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}/uploads',
     ...options,
     headers: {
@@ -732,7 +668,6 @@ export const postUsersByIdUploads = <ThrowOnError extends boolean = false>(optio
  */
 export const getUsersById = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdData, ThrowOnError>): RequestResult<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdResponses, GetUsersByIdErrors, ThrowOnError>({
     responseTransformer: getUsersByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/users/{id}',
     ...options
 });
@@ -742,8 +677,16 @@ export const getUsersById = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const getOrganizationsById = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdData, ThrowOnError>): RequestResult<GetOrganizationsByIdResponses, GetOrganizationsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdResponses, GetOrganizationsByIdErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/organizations/{id}',
+    ...options
+});
+
+/**
+ * List members of an organization for the current member, including a session-derived last-seen timestamp per member.
+ */
+export const getOrganizationsByIdMembers = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdMembersData, ThrowOnError>): RequestResult<GetOrganizationsByIdMembersResponses, GetOrganizationsByIdMembersErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdMembersResponses, GetOrganizationsByIdMembersErrors, ThrowOnError>({
+    responseTransformer: getOrganizationsByIdMembersResponseTransformer,
+    url: '/organizations/{id}/members',
     ...options
 });
 
@@ -752,7 +695,6 @@ export const getOrganizationsById = <ThrowOnError extends boolean = false>(optio
  */
 export const getProjects = <ThrowOnError extends boolean = false>(options?: Options<GetProjectsData, ThrowOnError>): RequestResult<GetProjectsResponses, GetProjectsErrors, ThrowOnError> => (options?.client ?? client).get<GetProjectsResponses, GetProjectsErrors, ThrowOnError>({
     responseTransformer: getProjectsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects',
     ...options
 });
@@ -762,7 +704,6 @@ export const getProjects = <ThrowOnError extends boolean = false>(options?: Opti
  */
 export const postProjects = <ThrowOnError extends boolean = false>(options?: Options<PostProjectsData, ThrowOnError>): RequestResult<PostProjectsResponses, PostProjectsErrors, ThrowOnError> => (options?.client ?? client).post<PostProjectsResponses, PostProjectsErrors, ThrowOnError>({
     responseTransformer: postProjectsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects',
     ...options,
     headers: {
@@ -776,7 +717,6 @@ export const postProjects = <ThrowOnError extends boolean = false>(options?: Opt
  */
 export const getProjectsStats = <ThrowOnError extends boolean = false>(options?: Options<GetProjectsStatsData, ThrowOnError>): RequestResult<GetProjectsStatsResponses, GetProjectsStatsErrors, ThrowOnError> => (options?.client ?? client).get<GetProjectsStatsResponses, GetProjectsStatsErrors, ThrowOnError>({
     responseTransformer: getProjectsStatsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/stats',
     ...options
 });
@@ -786,7 +726,6 @@ export const getProjectsStats = <ThrowOnError extends boolean = false>(options?:
  */
 export const postProjectsByIdJobs = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdJobsData, ThrowOnError>): RequestResult<PostProjectsByIdJobsResponses, PostProjectsByIdJobsErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdJobsResponses, PostProjectsByIdJobsErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdJobsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}/jobs',
     ...options,
     headers: {
@@ -800,7 +739,6 @@ export const postProjectsByIdJobs = <ThrowOnError extends boolean = false>(optio
  */
 export const deleteProjectsByIdJobsByJobId = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdJobsByJobIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdJobsByJobIdResponses, DeleteProjectsByIdJobsByJobIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdJobsByJobIdResponses, DeleteProjectsByIdJobsByJobIdErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdJobsByJobIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}/jobs/{jobId}',
     ...options
 });
@@ -810,7 +748,6 @@ export const deleteProjectsByIdJobsByJobId = <ThrowOnError extends boolean = fal
  */
 export const postProjectsByIdTasks = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdTasksData, ThrowOnError>): RequestResult<PostProjectsByIdTasksResponses, PostProjectsByIdTasksErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdTasksResponses, PostProjectsByIdTasksErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdTasksResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}/tasks',
     ...options,
     headers: {
@@ -824,7 +761,6 @@ export const postProjectsByIdTasks = <ThrowOnError extends boolean = false>(opti
  */
 export const deleteProjectsByIdTasksByTaskId = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdTasksByTaskIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdTasksByTaskIdResponses, DeleteProjectsByIdTasksByTaskIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdTasksByTaskIdResponses, DeleteProjectsByIdTasksByTaskIdErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdTasksByTaskIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}/tasks/{taskId}',
     ...options
 });
@@ -834,7 +770,6 @@ export const deleteProjectsByIdTasksByTaskId = <ThrowOnError extends boolean = f
  */
 export const deleteProjectsById = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdResponses, DeleteProjectsByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdResponses, DeleteProjectsByIdErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}',
     ...options
 });
@@ -844,7 +779,6 @@ export const deleteProjectsById = <ThrowOnError extends boolean = false>(options
  */
 export const getProjectsById = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdData, ThrowOnError>): RequestResult<GetProjectsByIdResponses, GetProjectsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdResponses, GetProjectsByIdErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}',
     ...options
 });
@@ -854,7 +788,6 @@ export const getProjectsById = <ThrowOnError extends boolean = false>(options: O
  */
 export const patchProjectsById = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdData, ThrowOnError>): RequestResult<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/projects/{id}',
     ...options,
     headers: {
@@ -868,7 +801,6 @@ export const patchProjectsById = <ThrowOnError extends boolean = false>(options:
  */
 export const getJobs = <ThrowOnError extends boolean = false>(options?: Options<GetJobsData, ThrowOnError>): RequestResult<GetJobsResponses, GetJobsErrors, ThrowOnError> => (options?.client ?? client).get<GetJobsResponses, GetJobsErrors, ThrowOnError>({
     responseTransformer: getJobsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs',
     ...options
 });
@@ -878,7 +810,6 @@ export const getJobs = <ThrowOnError extends boolean = false>(options?: Options<
  */
 export const getJobsById = <ThrowOnError extends boolean = false>(options: Options<GetJobsByIdData, ThrowOnError>): RequestResult<GetJobsByIdResponses, GetJobsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetJobsByIdResponses, GetJobsByIdErrors, ThrowOnError>({
     responseTransformer: getJobsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}',
     ...options
 });
@@ -888,7 +819,6 @@ export const getJobsById = <ThrowOnError extends boolean = false>(options: Optio
  */
 export const patchJobsById = <ThrowOnError extends boolean = false>(options: Options<PatchJobsByIdData, ThrowOnError>): RequestResult<PatchJobsByIdResponses, PatchJobsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchJobsByIdResponses, PatchJobsByIdErrors, ThrowOnError>({
     responseTransformer: patchJobsByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}',
     ...options,
     headers: {
@@ -902,7 +832,6 @@ export const patchJobsById = <ThrowOnError extends boolean = false>(options: Opt
  */
 export const postJobsByIdRefund = <ThrowOnError extends boolean = false>(options: Options<PostJobsByIdRefundData, ThrowOnError>): RequestResult<PostJobsByIdRefundResponses, PostJobsByIdRefundErrors, ThrowOnError> => (options.client ?? client).post<PostJobsByIdRefundResponses, PostJobsByIdRefundErrors, ThrowOnError>({
     responseTransformer: postJobsByIdRefundResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/refund',
     ...options
 });
@@ -912,7 +841,6 @@ export const postJobsByIdRefund = <ThrowOnError extends boolean = false>(options
  */
 export const getJobsByIdFiles = <ThrowOnError extends boolean = false>(options: Options<GetJobsByIdFilesData, ThrowOnError>): RequestResult<GetJobsByIdFilesResponses, GetJobsByIdFilesErrors, ThrowOnError> => (options.client ?? client).get<GetJobsByIdFilesResponses, GetJobsByIdFilesErrors, ThrowOnError>({
     responseTransformer: getJobsByIdFilesResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/files',
     ...options
 });
@@ -922,7 +850,6 @@ export const getJobsByIdFiles = <ThrowOnError extends boolean = false>(options: 
  */
 export const getJobsByIdLinks = <ThrowOnError extends boolean = false>(options: Options<GetJobsByIdLinksData, ThrowOnError>): RequestResult<GetJobsByIdLinksResponses, GetJobsByIdLinksErrors, ThrowOnError> => (options.client ?? client).get<GetJobsByIdLinksResponses, GetJobsByIdLinksErrors, ThrowOnError>({
     responseTransformer: getJobsByIdLinksResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/links',
     ...options
 });
@@ -932,7 +859,6 @@ export const getJobsByIdLinks = <ThrowOnError extends boolean = false>(options: 
  */
 export const getJobsByIdInputRequest = <ThrowOnError extends boolean = false>(options: Options<GetJobsByIdInputRequestData, ThrowOnError>): RequestResult<GetJobsByIdInputRequestResponses, GetJobsByIdInputRequestErrors, ThrowOnError> => (options.client ?? client).get<GetJobsByIdInputRequestResponses, GetJobsByIdInputRequestErrors, ThrowOnError>({
     responseTransformer: getJobsByIdInputRequestResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/input-request',
     ...options
 });
@@ -942,7 +868,6 @@ export const getJobsByIdInputRequest = <ThrowOnError extends boolean = false>(op
  */
 export const postJobsByIdInputs = <ThrowOnError extends boolean = false>(options: Options<PostJobsByIdInputsData, ThrowOnError>): RequestResult<PostJobsByIdInputsResponses, PostJobsByIdInputsErrors, ThrowOnError> => (options.client ?? client).post<PostJobsByIdInputsResponses, PostJobsByIdInputsErrors, ThrowOnError>({
     responseTransformer: postJobsByIdInputsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/inputs',
     ...options,
     headers: {
@@ -956,7 +881,6 @@ export const postJobsByIdInputs = <ThrowOnError extends boolean = false>(options
  */
 export const getJobsByIdEvents = <ThrowOnError extends boolean = false>(options: Options<GetJobsByIdEventsData, ThrowOnError>): RequestResult<GetJobsByIdEventsResponses, GetJobsByIdEventsErrors, ThrowOnError> => (options.client ?? client).get<GetJobsByIdEventsResponses, GetJobsByIdEventsErrors, ThrowOnError>({
     responseTransformer: getJobsByIdEventsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/events',
     ...options
 });
@@ -966,7 +890,6 @@ export const getJobsByIdEvents = <ThrowOnError extends boolean = false>(options:
  */
 export const deleteJobsByIdShare = <ThrowOnError extends boolean = false>(options: Options<DeleteJobsByIdShareData, ThrowOnError>): RequestResult<DeleteJobsByIdShareResponses, DeleteJobsByIdShareErrors, ThrowOnError> => (options.client ?? client).delete<DeleteJobsByIdShareResponses, DeleteJobsByIdShareErrors, ThrowOnError>({
     responseTransformer: deleteJobsByIdShareResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/share',
     ...options
 });
@@ -976,7 +899,6 @@ export const deleteJobsByIdShare = <ThrowOnError extends boolean = false>(option
  */
 export const putJobsByIdShare = <ThrowOnError extends boolean = false>(options: Options<PutJobsByIdShareData, ThrowOnError>): RequestResult<PutJobsByIdShareResponses, PutJobsByIdShareErrors, ThrowOnError> => (options.client ?? client).put<PutJobsByIdShareResponses, PutJobsByIdShareErrors, ThrowOnError>({
     responseTransformer: putJobsByIdShareResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/share',
     ...options,
     headers: {
@@ -990,7 +912,6 @@ export const putJobsByIdShare = <ThrowOnError extends boolean = false>(options: 
  */
 export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(options: Options<PutJobsByIdWorkspaceData, ThrowOnError>): RequestResult<PutJobsByIdWorkspaceResponses, PutJobsByIdWorkspaceErrors, ThrowOnError> => (options.client ?? client).put<PutJobsByIdWorkspaceResponses, PutJobsByIdWorkspaceErrors, ThrowOnError>({
     responseTransformer: putJobsByIdWorkspaceResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/jobs/{id}/workspace',
     ...options,
     headers: {
@@ -1013,7 +934,6 @@ export const getShareByToken = <ThrowOnError extends boolean = false>(options: O
  */
 export const getCoworkers = <ThrowOnError extends boolean = false>(options?: Options<GetCoworkersData, ThrowOnError>): RequestResult<GetCoworkersResponses, GetCoworkersErrors, ThrowOnError> => (options?.client ?? client).get<GetCoworkersResponses, GetCoworkersErrors, ThrowOnError>({
     responseTransformer: getCoworkersResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers',
     ...options
 });
@@ -1023,7 +943,6 @@ export const getCoworkers = <ThrowOnError extends boolean = false>(options?: Opt
  */
 export const postCoworkers = <ThrowOnError extends boolean = false>(options?: Options<PostCoworkersData, ThrowOnError>): RequestResult<PostCoworkersResponses, PostCoworkersErrors, ThrowOnError> => (options?.client ?? client).post<PostCoworkersResponses, PostCoworkersErrors, ThrowOnError>({
     responseTransformer: postCoworkersResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers',
     ...options,
     headers: {
@@ -1037,7 +956,6 @@ export const postCoworkers = <ThrowOnError extends boolean = false>(options?: Op
  */
 export const getCoworkersMe = <ThrowOnError extends boolean = false>(options?: Options<GetCoworkersMeData, ThrowOnError>): RequestResult<GetCoworkersMeResponses, GetCoworkersMeErrors, ThrowOnError> => (options?.client ?? client).get<GetCoworkersMeResponses, GetCoworkersMeErrors, ThrowOnError>({
     responseTransformer: getCoworkersMeResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/me',
     ...options
 });
@@ -1047,7 +965,6 @@ export const getCoworkersMe = <ThrowOnError extends boolean = false>(options?: O
  */
 export const getCoworkersMeEvents = <ThrowOnError extends boolean = false>(options?: Options<GetCoworkersMeEventsData, ThrowOnError>): RequestResult<GetCoworkersMeEventsResponses, GetCoworkersMeEventsErrors, ThrowOnError> => (options?.client ?? client).get<GetCoworkersMeEventsResponses, GetCoworkersMeEventsErrors, ThrowOnError>({
     responseTransformer: getCoworkersMeEventsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/me/events',
     ...options
 });
@@ -1056,7 +973,6 @@ export const getCoworkersMeEvents = <ThrowOnError extends boolean = false>(optio
  * Create usage for the current coworker
  */
 export const postCoworkersMeUsage = <ThrowOnError extends boolean = false>(options?: Options<PostCoworkersMeUsageData, ThrowOnError>): RequestResult<PostCoworkersMeUsageResponses, PostCoworkersMeUsageErrors, ThrowOnError> => (options?.client ?? client).post<PostCoworkersMeUsageResponses, PostCoworkersMeUsageErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/me/usage',
     ...options,
     headers: {
@@ -1070,7 +986,6 @@ export const postCoworkersMeUsage = <ThrowOnError extends boolean = false>(optio
  */
 export const getCoworkersByIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetCoworkersByIdApiKeysData, ThrowOnError>): RequestResult<GetCoworkersByIdApiKeysResponses, GetCoworkersByIdApiKeysErrors, ThrowOnError> => (options.client ?? client).get<GetCoworkersByIdApiKeysResponses, GetCoworkersByIdApiKeysErrors, ThrowOnError>({
     responseTransformer: getCoworkersByIdApiKeysResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}/api-keys',
     ...options
 });
@@ -1080,7 +995,6 @@ export const getCoworkersByIdApiKeys = <ThrowOnError extends boolean = false>(op
  */
 export const postCoworkersByIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostCoworkersByIdApiKeysData, ThrowOnError>): RequestResult<PostCoworkersByIdApiKeysResponses, PostCoworkersByIdApiKeysErrors, ThrowOnError> => (options.client ?? client).post<PostCoworkersByIdApiKeysResponses, PostCoworkersByIdApiKeysErrors, ThrowOnError>({
     responseTransformer: postCoworkersByIdApiKeysResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}/api-keys',
     ...options,
     headers: {
@@ -1094,7 +1008,6 @@ export const postCoworkersByIdApiKeys = <ThrowOnError extends boolean = false>(o
  */
 export const deleteCoworkersByIdApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<DeleteCoworkersByIdApiKeysByKeyIdData, ThrowOnError>): RequestResult<DeleteCoworkersByIdApiKeysByKeyIdResponses, DeleteCoworkersByIdApiKeysByKeyIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteCoworkersByIdApiKeysByKeyIdResponses, DeleteCoworkersByIdApiKeysByKeyIdErrors, ThrowOnError>({
     responseTransformer: deleteCoworkersByIdApiKeysByKeyIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}/api-keys/{keyId}',
     ...options
 });
@@ -1104,7 +1017,6 @@ export const deleteCoworkersByIdApiKeysByKeyId = <ThrowOnError extends boolean =
  */
 export const patchCoworkersByIdApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<PatchCoworkersByIdApiKeysByKeyIdData, ThrowOnError>): RequestResult<PatchCoworkersByIdApiKeysByKeyIdResponses, PatchCoworkersByIdApiKeysByKeyIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchCoworkersByIdApiKeysByKeyIdResponses, PatchCoworkersByIdApiKeysByKeyIdErrors, ThrowOnError>({
     responseTransformer: patchCoworkersByIdApiKeysByKeyIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}/api-keys/{keyId}',
     ...options,
     headers: {
@@ -1118,7 +1030,6 @@ export const patchCoworkersByIdApiKeysByKeyId = <ThrowOnError extends boolean = 
  */
 export const deleteCoworkersById = <ThrowOnError extends boolean = false>(options: Options<DeleteCoworkersByIdData, ThrowOnError>): RequestResult<DeleteCoworkersByIdResponses, DeleteCoworkersByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteCoworkersByIdResponses, DeleteCoworkersByIdErrors, ThrowOnError>({
     responseTransformer: deleteCoworkersByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}',
     ...options
 });
@@ -1128,7 +1039,6 @@ export const deleteCoworkersById = <ThrowOnError extends boolean = false>(option
  */
 export const getCoworkersById = <ThrowOnError extends boolean = false>(options: Options<GetCoworkersByIdData, ThrowOnError>): RequestResult<GetCoworkersByIdResponses, GetCoworkersByIdErrors, ThrowOnError> => (options.client ?? client).get<GetCoworkersByIdResponses, GetCoworkersByIdErrors, ThrowOnError>({
     responseTransformer: getCoworkersByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}',
     ...options
 });
@@ -1138,7 +1048,6 @@ export const getCoworkersById = <ThrowOnError extends boolean = false>(options: 
  */
 export const patchCoworkersById = <ThrowOnError extends boolean = false>(options: Options<PatchCoworkersByIdData, ThrowOnError>): RequestResult<PatchCoworkersByIdResponses, PatchCoworkersByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchCoworkersByIdResponses, PatchCoworkersByIdErrors, ThrowOnError>({
     responseTransformer: patchCoworkersByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}',
     ...options,
     headers: {
@@ -1152,7 +1061,6 @@ export const patchCoworkersById = <ThrowOnError extends boolean = false>(options
  */
 export const patchCoworkersByIdWhitelist = <ThrowOnError extends boolean = false>(options: Options<PatchCoworkersByIdWhitelistData, ThrowOnError>): RequestResult<PatchCoworkersByIdWhitelistResponses, PatchCoworkersByIdWhitelistErrors, ThrowOnError> => (options.client ?? client).patch<PatchCoworkersByIdWhitelistResponses, PatchCoworkersByIdWhitelistErrors, ThrowOnError>({
     responseTransformer: patchCoworkersByIdWhitelistResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/coworkers/{id}/whitelist',
     ...options,
     headers: {
@@ -1166,7 +1074,6 @@ export const patchCoworkersByIdWhitelist = <ThrowOnError extends boolean = false
  */
 export const getTasks = <ThrowOnError extends boolean = false>(options?: Options<GetTasksData, ThrowOnError>): RequestResult<GetTasksResponses, GetTasksErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksResponses, GetTasksErrors, ThrowOnError>({
     responseTransformer: getTasksResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks',
     ...options
 });
@@ -1176,7 +1083,6 @@ export const getTasks = <ThrowOnError extends boolean = false>(options?: Options
  */
 export const postTasks = <ThrowOnError extends boolean = false>(options?: Options<PostTasksData, ThrowOnError>): RequestResult<PostTasksResponses, PostTasksErrors, ThrowOnError> => (options?.client ?? client).post<PostTasksResponses, PostTasksErrors, ThrowOnError>({
     responseTransformer: postTasksResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks',
     ...options,
     headers: {
@@ -1190,7 +1096,6 @@ export const postTasks = <ThrowOnError extends boolean = false>(options?: Option
  */
 export const getTasksByIdLinks = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdLinksData, ThrowOnError>): RequestResult<GetTasksByIdLinksResponses, GetTasksByIdLinksErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdLinksResponses, GetTasksByIdLinksErrors, ThrowOnError>({
     responseTransformer: getTasksByIdLinksResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/links',
     ...options
 });
@@ -1200,7 +1105,6 @@ export const getTasksByIdLinks = <ThrowOnError extends boolean = false>(options:
  */
 export const postTasksByIdLinks = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdLinksData, ThrowOnError>): RequestResult<PostTasksByIdLinksResponses, PostTasksByIdLinksErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdLinksResponses, PostTasksByIdLinksErrors, ThrowOnError>({
     responseTransformer: postTasksByIdLinksResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/links',
     ...options,
     headers: {
@@ -1214,7 +1118,6 @@ export const postTasksByIdLinks = <ThrowOnError extends boolean = false>(options
  */
 export const deleteTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdLinksByLinkIdData, ThrowOnError>): RequestResult<DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdLinksByLinkIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdLinksByLinkIdResponses, DeleteTasksByIdLinksByLinkIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdLinksByLinkIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/links/{linkId}',
     ...options
 });
@@ -1224,7 +1127,6 @@ export const deleteTasksByIdLinksByLinkId = <ThrowOnError extends boolean = fals
  */
 export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdLinksByLinkIdData, ThrowOnError>): RequestResult<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchTasksByIdLinksByLinkIdResponses, PatchTasksByIdLinksByLinkIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdLinksByLinkIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/links/{linkId}',
     ...options,
     headers: {
@@ -1238,7 +1140,6 @@ export const patchTasksByIdLinksByLinkId = <ThrowOnError extends boolean = false
  */
 export const deleteTasksById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdData, ThrowOnError>): RequestResult<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}',
     ...options
 });
@@ -1248,7 +1149,6 @@ export const deleteTasksById = <ThrowOnError extends boolean = false>(options: O
  */
 export const getTasksById = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdData, ThrowOnError>): RequestResult<GetTasksByIdResponses, GetTasksByIdErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdResponses, GetTasksByIdErrors, ThrowOnError>({
     responseTransformer: getTasksByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}',
     ...options
 });
@@ -1258,7 +1158,6 @@ export const getTasksById = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const patchTasksById = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdData, ThrowOnError>): RequestResult<PatchTasksByIdResponses, PatchTasksByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchTasksByIdResponses, PatchTasksByIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}',
     ...options,
     headers: {
@@ -1272,7 +1171,6 @@ export const patchTasksById = <ThrowOnError extends boolean = false>(options: Op
  */
 export const deleteTasksByIdShare = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdShareData, ThrowOnError>): RequestResult<DeleteTasksByIdShareResponses, DeleteTasksByIdShareErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdShareResponses, DeleteTasksByIdShareErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdShareResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/share',
     ...options
 });
@@ -1282,7 +1180,6 @@ export const deleteTasksByIdShare = <ThrowOnError extends boolean = false>(optio
  */
 export const putTasksByIdShare = <ThrowOnError extends boolean = false>(options: Options<PutTasksByIdShareData, ThrowOnError>): RequestResult<PutTasksByIdShareResponses, PutTasksByIdShareErrors, ThrowOnError> => (options.client ?? client).put<PutTasksByIdShareResponses, PutTasksByIdShareErrors, ThrowOnError>({
     responseTransformer: putTasksByIdShareResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/share',
     ...options,
     headers: {
@@ -1296,7 +1193,6 @@ export const putTasksByIdShare = <ThrowOnError extends boolean = false>(options:
  */
 export const putTasksByIdWorkspace = <ThrowOnError extends boolean = false>(options: Options<PutTasksByIdWorkspaceData, ThrowOnError>): RequestResult<PutTasksByIdWorkspaceResponses, PutTasksByIdWorkspaceErrors, ThrowOnError> => (options.client ?? client).put<PutTasksByIdWorkspaceResponses, PutTasksByIdWorkspaceErrors, ThrowOnError>({
     responseTransformer: putTasksByIdWorkspaceResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/workspace',
     ...options,
     headers: {
@@ -1310,7 +1206,6 @@ export const putTasksByIdWorkspace = <ThrowOnError extends boolean = false>(opti
  */
 export const getTasksByIdEvents = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdEventsData, ThrowOnError>): RequestResult<GetTasksByIdEventsResponses, GetTasksByIdEventsErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdEventsResponses, GetTasksByIdEventsErrors, ThrowOnError>({
     responseTransformer: getTasksByIdEventsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/events',
     ...options
 });
@@ -1320,7 +1215,6 @@ export const getTasksByIdEvents = <ThrowOnError extends boolean = false>(options
  */
 export const postTasksByIdEvents = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdEventsData, ThrowOnError>): RequestResult<PostTasksByIdEventsResponses, PostTasksByIdEventsErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdEventsResponses, PostTasksByIdEventsErrors, ThrowOnError>({
     responseTransformer: postTasksByIdEventsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/events',
     ...options,
     headers: {
@@ -1334,7 +1228,6 @@ export const postTasksByIdEvents = <ThrowOnError extends boolean = false>(option
  */
 export const getTasksByIdJobs = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdJobsData, ThrowOnError>): RequestResult<GetTasksByIdJobsResponses, GetTasksByIdJobsErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdJobsResponses, GetTasksByIdJobsErrors, ThrowOnError>({
     responseTransformer: getTasksByIdJobsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/jobs',
     ...options
 });
@@ -1344,7 +1237,6 @@ export const getTasksByIdJobs = <ThrowOnError extends boolean = false>(options: 
  */
 export const postTasksByIdJobs = <ThrowOnError extends boolean = false>(options: Options<PostTasksByIdJobsData, ThrowOnError>): RequestResult<PostTasksByIdJobsResponses, PostTasksByIdJobsErrors, ThrowOnError> => (options.client ?? client).post<PostTasksByIdJobsResponses, PostTasksByIdJobsErrors, ThrowOnError>({
     responseTransformer: postTasksByIdJobsResponseTransformer,
-    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/tasks/{id}/jobs',
     ...options,
     headers: {

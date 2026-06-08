@@ -5,7 +5,6 @@ import {
   InvitationStatus,
   type Member,
   MemberRole,
-  type MemberWithUser,
 } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
@@ -15,14 +14,13 @@ import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
-
 import { getMembersTableColumns } from "./members-table-columns";
 import { SeatManagementContextProvider } from "./seat-management-context";
-import type { MemberRowData } from "./types";
+import type { MemberRowData, OrganizationMember } from "./types";
 
 interface MembersTableProps {
   me: Member;
-  members: MemberWithUser[];
+  members: OrganizationMember[];
   pendingInvitations: Invitation[];
   showSeatManagement?: boolean;
   unusedSeats?: number;
@@ -72,18 +70,24 @@ function getColumns(
   me: Member,
   showSeatManagement: boolean,
 ) {
-  const { nameColumn, emailColumn, roleColumn, seatColumn, actionColumn } =
-    getMembersTableColumns(t, me);
+  const {
+    nameColumn,
+    emailColumn,
+    roleColumn,
+    lastSeenColumn,
+    seatColumn,
+    actionColumn,
+  } = getMembersTableColumns(t, me);
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
-  return [nameColumn, emailColumn, roleColumn]
+  return [nameColumn, emailColumn, roleColumn, lastSeenColumn]
     .concat(showSeatManagement ? [seatColumn] : [])
     .concat(isOwnerOrAdmin ? [actionColumn] : []);
 }
 
 function combineMembersAndPendingInvitations(
-  members: MemberWithUser[],
+  members: OrganizationMember[],
   pendingInvitations: Invitation[],
 ): MemberRowData[] {
   // Sort members by role score, then by name
@@ -116,12 +120,13 @@ function combineMembersAndPendingInvitations(
 }
 
 function convertMemberWithUserToMemberRowData(
-  member: MemberWithUser,
+  member: OrganizationMember,
 ): MemberRowData {
   return {
     email: member.user.email,
     name: member.user.name,
     role: member.role,
+    lastSeenAt: member.lastSeenAt,
     member,
   };
 }

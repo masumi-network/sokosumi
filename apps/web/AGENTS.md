@@ -270,6 +270,42 @@ Core workflow:
 3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
 4. Re-snapshot after page changes
 
+### Logging in (auth-gated pages)
+
+The sign-in form is a controlled `react-hook-form`. Programmatic value-setting
+(the auth-vault `fill`→`click` path) can race React's state flush, so the
+vault's submit **click** often no-ops while the field values look correct. The
+form itself is fine — submitting via **Enter** works because state has flushed
+by then.
+
+Each coworker stores their **own** credentials (nothing shared/committed):
+
+```bash
+# one-time, per machine — password read from stdin, never echoed
+agent-browser auth save sokosumi \
+  --url http://localhost:3000/signin \
+  --username you@nmkr.io --password-stdin
+```
+
+Reliable login recipe (fill via vault, submit via Enter — not the vault click):
+
+```bash
+agent-browser open http://localhost:3000/signin
+agent-browser auth login sokosumi      # fills email + password
+agent-browser press Enter              # submits the form
+agent-browser wait --load networkidle
+```
+
+Stable selectors exist for deterministic targeting if you fill fields yourself:
+`[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`,
+`[data-testid="auth-submit"]`.
+
+Prefer session reuse so you only log in once per machine:
+
+```bash
+export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
+```
+
 ## Additional Rules
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` / `@sokosumi/database` directly; no passthrough files

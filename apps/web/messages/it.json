@@ -181,6 +181,8 @@
         "name": "Nome",
         "email": "Email",
         "role": "Ruolo",
+        "lastSeen": "Ultimo accesso",
+        "lastSeenNever": "Mai",
         "actions": "Azioni",
         "seat": "Seat"
       },

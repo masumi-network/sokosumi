@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import {
   organizationSeatService,
@@ -85,7 +86,7 @@ export default async function OrganizationPage({
     }
   }
 
-  const members = await organizationService.getOrganizationMembersWithUser(
+  const { data: members } = await coreClient.getOrganizationMembers(
     organization.id,
   );
   const seatSummary = isOwnerOrAdmin
