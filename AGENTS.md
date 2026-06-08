@@ -246,6 +246,7 @@ docs(readme): update setup instructions
 >
 > Tip: a well-formed commit message already satisfies this — reuse the primary commit's subject as the PR title.
 
+- **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. Mark it ready for review only once CI is green and the change is complete.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Description**: Explain user-facing impact
 - **Links**: Reference Linear or GitHub issues
