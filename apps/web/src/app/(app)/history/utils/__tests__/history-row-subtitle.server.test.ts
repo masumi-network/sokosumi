@@ -12,7 +12,7 @@ vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: coworkerServiceMock,
 }));
 
-describe("buildHistorySubtitleLookups", () => {
+describe("buildHistoryBucketLookups", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -27,10 +27,10 @@ describe("buildHistorySubtitleLookups", () => {
       },
     ]);
 
-    const { buildHistorySubtitleLookups } = await import(
+    const { buildHistoryBucketLookups } = await import(
       "@/app/history/utils/history-row-subtitle.server"
     );
-    const result = await buildHistorySubtitleLookups([
+    const result = await buildHistoryBucketLookups([
       {
         kind: "job",
         id: "job-1",

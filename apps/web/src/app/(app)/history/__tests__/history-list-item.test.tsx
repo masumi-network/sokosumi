@@ -8,9 +8,9 @@ import {
   type HistoryListItemLabels,
 } from "@/app/history/components/history-list-item";
 import {
-  createEmptyHistorySubtitleLookups,
+  createEmptyHistoryBucketLookups,
   getHistoryRowSubtitle,
-  type HistorySubtitleLookups,
+  type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
 import type { HistoryItem } from "@/lib/services/history.service";
 
@@ -77,7 +77,7 @@ const labels: HistoryListItemLabels = {
   },
 };
 
-const subtitleLookups: HistorySubtitleLookups = {
+const bucketLookups: HistoryBucketLookups = {
   bucketDisplayNameBySlug: {
     hannah: "Hannah",
     "gpt-5-4": "GPT-5.4",
@@ -118,7 +118,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
       />,
     );
@@ -144,7 +144,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
       />,
     );
@@ -171,7 +171,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
       />,
     );
@@ -200,7 +200,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
       />,
     );
@@ -225,7 +225,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
       />,
     );
@@ -250,7 +250,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={createEmptyHistorySubtitleLookups()}
+        bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
       />,
     );
@@ -346,7 +346,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={subtitleLookups}
+        bucketLookups={bucketLookups}
         labels={labels}
       />,
     );
@@ -378,7 +378,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={subtitleLookups}
+        bucketLookups={bucketLookups}
         labels={labels}
       />,
     );
@@ -403,7 +403,7 @@ describe("HistoryListItem", () => {
     render(
       <HistoryListItem
         item={item}
-        subtitleLookups={subtitleLookups}
+        bucketLookups={bucketLookups}
         labels={labels}
       />,
     );
@@ -432,7 +432,7 @@ describe("HistoryListItem", () => {
       agentIcon: null,
     };
 
-    expect(getHistoryRowSubtitle(item, subtitleLookups, labels)).toBe(
+    expect(getHistoryRowSubtitle(item, bucketLookups, labels)).toBe(
       "No description",
     );
   });
@@ -456,10 +456,10 @@ describe("HistoryListItem", () => {
     };
 
     expect(
-      getHistoryRowSubtitle(taskWithDescription, subtitleLookups, labels),
+      getHistoryRowSubtitle(taskWithDescription, bucketLookups, labels),
     ).toBe("Audit copy");
     expect(
-      getHistoryRowSubtitle(taskWithoutDescription, subtitleLookups, labels),
+      getHistoryRowSubtitle(taskWithoutDescription, bucketLookups, labels),
     ).toBe("No description");
   });
 });

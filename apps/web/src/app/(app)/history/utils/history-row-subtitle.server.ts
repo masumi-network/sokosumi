@@ -4,21 +4,21 @@ import { CHAT_MODELS } from "@sokosumi/chat";
 
 import { slugify } from "@/app/chat/utils/bucket-slug";
 import {
-  createEmptyHistorySubtitleLookups,
+  createEmptyHistoryBucketLookups,
   type HistoryBucketIconPreview,
-  type HistorySubtitleLookups,
+  type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { coworkerService } from "@/lib/services/coworker.service";
 import type { HistoryItem } from "@/lib/services/history.service";
 
-export async function buildHistorySubtitleLookups(
+export async function buildHistoryBucketLookups(
   history: HistoryItem[],
-): Promise<HistorySubtitleLookups> {
+): Promise<HistoryBucketLookups> {
   const bucketSlugs = getUniqueBucketSlugs(history);
 
   if (bucketSlugs.length === 0) {
-    return createEmptyHistorySubtitleLookups();
+    return createEmptyHistoryBucketLookups();
   }
 
   return buildBucketLookup(bucketSlugs);
@@ -38,7 +38,7 @@ function getUniqueBucketSlugs(history: HistoryItem[]): string[] {
 
 async function buildBucketLookup(
   bucketSlugs: string[],
-): Promise<HistorySubtitleLookups> {
+): Promise<HistoryBucketLookups> {
   const coworkers = await coworkerService.listCoworkers().catch(() => []);
   const coworkerBySlug = new Map<
     string,
