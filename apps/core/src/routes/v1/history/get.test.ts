@@ -613,6 +613,7 @@ describe("GET /history", () => {
     ]);
     historyCountMock.mockResolvedValue(1);
     agentFindManyMock.mockRejectedValue(new Error("db down"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const app = createApp();
     const response = await app.request("http://localhost/");
@@ -630,5 +631,8 @@ describe("GET /history", () => {
       agentName: null,
       agentIcon: null,
     });
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 });

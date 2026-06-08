@@ -398,7 +398,15 @@ export async function loadAgentPreviewsByIds(
       where: { id: { in: agentIds } },
       select: { id: true, name: true, overrideName: true, icon: true },
     })
-    .catch(() => []);
+    .catch((error) => {
+      // Best-effort enrichment: degrade to null name/icon rather than failing
+      // the history request, but log so a real DB failure stays observable.
+      console.warn("Failed to load agent previews for history feed", {
+        agentIdCount: agentIds.length,
+        error,
+      });
+      return [];
+    });
 
   return new Map(
     agents.map((agent) => [
