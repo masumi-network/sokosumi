@@ -391,7 +391,6 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
             ))}
           </SelectContent>
         </Select>
-        <p className="text-muted-foreground text-xs">{t("Form.priceHelper")}</p>
       </div>
 
       <div className="flex items-start justify-between gap-4">

@@ -2644,7 +2644,6 @@
           "createSuccess": "Invoice created",
           "createError": "Failed to create invoice",
           "pricePlaceholder": "Select a price",
-          "priceHelper": "Price per credit used for the invoice amount.",
           "priceRequired": "Select a price"
         },
         "Result": {
