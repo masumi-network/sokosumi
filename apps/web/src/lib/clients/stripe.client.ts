@@ -27,6 +27,7 @@ export type CreditTopUpPriceCatalog = Record<
 
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+  let cachedStripeAccountId: string | null = null;
   const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
   const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
   const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
@@ -339,6 +340,26 @@ export const stripeClient = (() => {
 
     async getBaseCreditTopUpPrice(): Promise<Price> {
       return await this.getPriceByLookupKey(BASE_CREDIT_TOPUP_LOOKUP_KEY);
+    },
+
+    /**
+     * Returns the Stripe account id the configured API key belongs to (the
+     * sandbox account id when running against a sandbox key). Cached for the
+     * lifetime of the process. Used to build account-scoped dashboard links
+     * that resolve to the correct sandbox/live account.
+     */
+    async getAccountId(): Promise<string> {
+      if (cachedStripeAccountId) {
+        return cachedStripeAccountId;
+      }
+      // No-arg retrieve hits GET /v1/account (the account the API key belongs
+      // to); cast because the SDK types only expose the by-id overload.
+      const retrieveCurrentAccount = stripe.accounts.retrieve as () => Promise<
+        Stripe.Response<Stripe.Account>
+      >;
+      const account = await retrieveCurrentAccount();
+      cachedStripeAccountId = account.id;
+      return cachedStripeAccountId;
     },
 
     /**

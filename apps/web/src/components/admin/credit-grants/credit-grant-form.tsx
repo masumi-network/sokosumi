@@ -105,14 +105,6 @@ export function CreditGrantForm({
 
   const isPaid = invoice?.status === "paid";
 
-  function resetForm() {
-    setInvoice(null);
-    setOrganizationId("");
-    setCreditsInput("");
-    setExpiryDaysInput("");
-    setPriceId(defaultPriceId);
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -253,9 +245,6 @@ export function CreditGrantForm({
               <ExternalLink className="size-4" />
               {t("Result.openInStripe")}
             </a>
-          </Button>
-          <Button variant="outline" onClick={resetForm}>
-            {t("Result.newGrant")}
           </Button>
         </div>
       </div>

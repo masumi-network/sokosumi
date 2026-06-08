@@ -36,14 +36,16 @@ export interface CreditPriceOption {
 }
 
 /**
- * Builds the Stripe dashboard URL for an invoice (the admin-facing view), not
- * the customer hosted-invoice/payment page.
+ * Builds the account-scoped Stripe dashboard URL for an invoice (the
+ * admin-facing view), not the customer hosted-invoice/payment page. Scoping by
+ * account id makes the link resolve to the correct sandbox (or live) account
+ * — `livemode` alone can't distinguish a sandbox from legacy test mode.
  */
-function buildInvoiceDashboardUrl(invoice: Stripe.Invoice): string {
-  const base = invoice.livemode
-    ? "https://dashboard.stripe.com"
-    : "https://dashboard.stripe.com/test";
-  return `${base}/invoices/${invoice.id}`;
+function buildInvoiceDashboardUrl(
+  invoice: Stripe.Invoice,
+  accountId: string,
+): string {
+  return `https://dashboard.stripe.com/${accountId}/invoices/${invoice.id}`;
 }
 
 export class CreditGrantValidationError extends Error {
@@ -58,6 +60,7 @@ function toInvoiceSummary(
   organization: { id: string; name: string },
   credits: number,
   ttlDays: number | null,
+  accountId: string,
 ): CreditGrantInvoiceSummary {
   if (!invoice.id) {
     throw new Error("Stripe invoice is missing an id");
@@ -72,7 +75,7 @@ function toInvoiceSummary(
     currency: invoice.currency ?? "",
     amountDue: invoice.amount_due ?? 0,
     status: invoice.status ?? null,
-    dashboardUrl: buildInvoiceDashboardUrl(invoice),
+    dashboardUrl: buildInvoiceDashboardUrl(invoice, accountId),
   };
 }
 
@@ -182,11 +185,13 @@ export const creditGrantAdminService = (() => {
         ttlDays: params.ttlDays ?? undefined,
       });
 
+      const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         invoice,
         organization,
         params.credits,
         params.ttlDays,
+        accountId,
       );
     },
 
@@ -241,11 +246,13 @@ export const creditGrantAdminService = (() => {
       const ttlDaysRaw = paidInvoice.metadata?.ttl_days;
       const ttlDays = ttlDaysRaw ? Number(ttlDaysRaw) : null;
 
+      const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         paidInvoice,
         organization,
         Number.isFinite(credits) ? credits : 0,
         ttlDays !== null && Number.isFinite(ttlDays) ? ttlDays : null,
+        accountId,
       );
     },
   };
