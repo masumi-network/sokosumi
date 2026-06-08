@@ -127,6 +127,41 @@ describe("OrganizationRemoveForm", () => {
     expect(setIsLoading).toHaveBeenLastCalledWith(false);
   });
 
+  it("redirects to home after successful organization removal", async () => {
+    const user = userEvent.setup();
+    const setIsLoading = vi.fn();
+    const onOpenChange = vi.fn();
+    const { toast } = await import("sonner");
+
+    deleteOrganizationMock.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
+    const { container } = render(
+      <OrganizationRemoveForm
+        organization={createOrganization({})}
+        setIsLoading={setIsLoading}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    await user.type(screen.getByRole("textbox"), "Acme");
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(deleteOrganizationMock).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(toast.success).toHaveBeenCalledWith(
+        "Organization removed successfully",
+      );
+      expect(mockRouterPush).toHaveBeenCalledWith("/");
+      expect(mockRouterRefresh).toHaveBeenCalled();
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
   it("falls back to the generic delete error for unknown failures", async () => {
     const user = userEvent.setup();
     const { toast } = await import("sonner");

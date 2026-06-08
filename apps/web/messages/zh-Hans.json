@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "账户",
-      "organizations": "组织",
       "billing": "账单",
       "connections": "连接",
       "admin": "管理",
@@ -148,7 +147,8 @@
       "creditsConsumedProgressAria": "已消耗订阅积分",
       "creditsExpiresInDays": "积分将在 {days, plural, =1 {1 天} other {# 天}}后更新",
       "creditsExpiresToday": "积分今日更新",
-      "creditsExpired": "积分已过期"
+      "creditsExpired": "积分已过期",
+      "organizations": "组织"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "切换工作区",
@@ -252,7 +252,6 @@
       "admin": "管理",
       "edit": "编辑",
       "enterprise-contracts": "企业合同",
-      "organizations": "组织",
       "mcp": "模型上下文协议（MCP）",
       "chat": "聊天",
       "tasks": "任务",
@@ -3013,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "组织",
-        "description": "管理您的组织"
-      },
-      "newOrganization": "新建组织",
-      "organizationsNotAvailable": "未找到组织",
-      "OrganizationRow": {
-        "leave": "退出",
-        "activate": "启用",
-        "deactivate": "停用"
-      },
-      "Credits": {
-        "title": "组织积分",
-        "description": "供 {organization} 成员使用",
-        "buy": "添加积分"
-      },
-      "InvitationActions": {
-        "accept": "接受",
-        "reject": "拒绝",
-        "acceptTitle": "接受邀请",
-        "rejectTitle": "拒绝邀请",
-        "acceptDescription": "确定要接受 {email} 的邀请吗？",
-        "rejectDescription": "确定要拒绝 {email} 的邀请吗？",
-        "confirm": "确认",
-        "cancel": "取消",
-        "acceptSuccess": "邀请已成功接受",
-        "acceptError": "接受邀请失败",
-        "rejectSuccess": "邀请已成功拒绝",
-        "rejectError": "拒绝邀请失败",
-        "Errors": {
-          "unauthorizedAction": "登录"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

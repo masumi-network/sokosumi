@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "アカウント",
-      "organizations": "組織",
       "billing": "請求",
       "connections": "接続",
       "admin": "管理",
@@ -148,7 +147,8 @@
       "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
       "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に更新されます",
       "creditsExpiresToday": "クレジットは本日更新されます",
-      "creditsExpired": "クレジットが失効しました"
+      "creditsExpired": "クレジットが失効しました",
+      "organizations": "組織"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "ワークスペースを切り替える",
@@ -252,7 +252,6 @@
       "admin": "管理",
       "edit": "編集",
       "enterprise-contracts": "エンタープライズ契約",
-      "organizations": "組織",
       "mcp": "Model Context Protocol（MCP）",
       "chat": "チャット",
       "tasks": "タスク",
@@ -3013,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "組織",
-        "description": "組織を管理します"
-      },
-      "newOrganization": "新しい組織",
-      "organizationsNotAvailable": "組織が見つかりません",
-      "OrganizationRow": {
-        "leave": "退出",
-        "activate": "有効化",
-        "deactivate": "無効化"
-      },
-      "Credits": {
-        "title": "組織のクレジット",
-        "description": "{organization} のメンバーが利用できます",
-        "buy": "クレジットを追加"
-      },
-      "InvitationActions": {
-        "accept": "承諾",
-        "reject": "拒否",
-        "acceptTitle": "招待を承諾",
-        "rejectTitle": "招待を拒否",
-        "acceptDescription": "{email} 宛ての招待を承諾してよろしいですか？",
-        "rejectDescription": "{email} 宛ての招待を拒否してよろしいですか？",
-        "confirm": "確認",
-        "cancel": "キャンセル",
-        "acceptSuccess": "招待を承諾しました",
-        "acceptError": "招待の承諾に失敗しました",
-        "rejectSuccess": "招待を拒否しました",
-        "rejectError": "招待の拒否に失敗しました",
-        "Errors": {
-          "unauthorizedAction": "ログイン"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

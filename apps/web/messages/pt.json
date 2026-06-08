@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Conta",
-      "organizations": "Organizações",
       "billing": "Faturação",
       "connections": "Ligações",
       "admin": "Administração",
@@ -148,7 +147,8 @@
       "creditsConsumedProgressAria": "Créditos de subscrição consumidos",
       "creditsExpiresInDays": "Os créditos se renovam em {days, plural, =1 {1 dia} other {# dias}}",
       "creditsExpiresToday": "Os créditos se renovam hoje",
-      "creditsExpired": "Créditos expirados"
+      "creditsExpired": "Créditos expirados",
+      "organizations": "Organizações"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Mudar espaço de trabalho",
@@ -252,7 +252,6 @@
       "admin": "Administração",
       "edit": "Editar",
       "enterprise-contracts": "Contratos empresariais",
-      "organizations": "Organizations",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tarefas",
@@ -3013,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizações",
-        "description": "Gira as suas organizações"
-      },
-      "newOrganization": "Nova organização",
-      "organizationsNotAvailable": "Não foram encontradas organizações",
-      "OrganizationRow": {
-        "leave": "Sair",
-        "activate": "Ativar",
-        "deactivate": "Desativar"
-      },
-      "Credits": {
-        "title": "Créditos da organização",
-        "description": "Disponível para membros de {organization}",
-        "buy": "Adicionar créditos"
-      },
-      "InvitationActions": {
-        "accept": "Aceitar",
-        "reject": "Recusar",
-        "acceptTitle": "Aceitar convite",
-        "rejectTitle": "Recusar convite",
-        "acceptDescription": "Tem a certeza de que pretende aceitar o convite para {email}?",
-        "rejectDescription": "Tem a certeza de que pretende recusar o convite para {email}?",
-        "confirm": "Confirmar",
-        "cancel": "Cancelar",
-        "acceptSuccess": "Convite aceite com sucesso",
-        "acceptError": "Falha ao aceitar o convite",
-        "rejectSuccess": "Convite recusado com sucesso",
-        "rejectError": "Falha ao recusar o convite",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sessão"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

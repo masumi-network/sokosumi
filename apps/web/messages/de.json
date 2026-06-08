@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Konto",
-      "organizations": "Organisationen",
       "billing": "Abrechnung",
       "connections": "Verbindungen",
       "admin": "Administration",
@@ -148,7 +147,8 @@
       "extraCreditsDescription": "Laufen nie ab",
       "creditsExpiresInDays": "Credits werden in {days, plural, =1 {1 Tag} other {# Tagen}} erneuert",
       "creditsExpiresToday": "Credits werden heute erneuert",
-      "creditsExpired": "Credits verfallen"
+      "creditsExpired": "Credits verfallen",
+      "organizations": "Organisationen"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Arbeitsbereich wechseln",
@@ -252,7 +252,6 @@
       "admin": "Administration",
       "edit": "Bearbeiten",
       "enterprise-contracts": "Enterprise-Verträge",
-      "organizations": "Organisationen",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Aufgaben",
@@ -2982,39 +2981,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organisationen",
-        "description": "Deine Organisationen verwalten"
-      },
-      "newOrganization": "Neue Organisation",
-      "organizationsNotAvailable": "Keine Organisationen gefunden",
-      "OrganizationRow": {
-        "leave": "Verlassen",
-        "activate": "Aktivieren",
-        "deactivate": "Deaktivieren"
-      },
-      "Credits": {
-        "title": "Organisations-Credits",
-        "description": "Verfügbar für {organization}-Mitglieder",
-        "buy": "Credits hinzufügen"
-      },
-      "InvitationActions": {
-        "accept": "Akzeptieren",
-        "reject": "Ablehnen",
-        "acceptTitle": "Einladung akzeptieren",
-        "rejectTitle": "Einladung ablehnen",
-        "acceptDescription": "Möchtest du die Einladung für {email} wirklich akzeptieren?",
-        "rejectDescription": "Möchtest du die Einladung für {email} wirklich ablehnen?",
-        "confirm": "Bestätigen",
-        "cancel": "Abbrechen",
-        "acceptSuccess": "Einladung erfolgreich akzeptiert",
-        "acceptError": "Einladung konnte nicht akzeptiert werden",
-        "rejectSuccess": "Einladung erfolgreich abgelehnt",
-        "rejectError": "Einladung konnte nicht abgelehnt werden",
-        "Errors": {
-          "unauthorizedAction": "Anmelden"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

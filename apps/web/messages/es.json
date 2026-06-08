@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Cuenta",
-      "organizations": "Organizaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
       "admin": "Administración",
@@ -148,7 +147,8 @@
       "extraCreditsDescription": "Nunca expiran",
       "creditsExpiresInDays": "Los créditos se renuevan en {days, plural, =1 {1 día} other {# días}}",
       "creditsExpiresToday": "Los créditos se renuevan hoy",
-      "creditsExpired": "Créditos vencidos"
+      "creditsExpired": "Créditos vencidos",
+      "organizations": "Organizaciones"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
@@ -252,7 +252,6 @@
       "admin": "Administración",
       "edit": "Editar",
       "enterprise-contracts": "Contratos empresariales",
-      "organizations": "Organizaciones",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tareas",
@@ -2982,39 +2981,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizaciones",
-        "description": "Gestiona tus organizaciones"
-      },
-      "newOrganization": "Nueva organización",
-      "organizationsNotAvailable": "No se encontraron organizaciones",
-      "OrganizationRow": {
-        "leave": "Salir",
-        "activate": "Activar",
-        "deactivate": "Desactivar"
-      },
-      "Credits": {
-        "title": "Credits de organización",
-        "description": "Disponibles para los miembros de {organization}",
-        "buy": "Añadir Credits"
-      },
-      "InvitationActions": {
-        "accept": "Aceptar",
-        "reject": "Rechazar",
-        "acceptTitle": "Aceptar invitación",
-        "rejectTitle": "Rechazar invitación",
-        "acceptDescription": "¿Seguro que quieres aceptar la invitación para {email}?",
-        "rejectDescription": "¿Seguro que quieres rechazar la invitación para {email}?",
-        "confirm": "Confirmar",
-        "cancel": "Cancelar",
-        "acceptSuccess": "Invitación aceptada correctamente",
-        "acceptError": "No se pudo aceptar la invitación",
-        "rejectSuccess": "Invitación rechazada correctamente",
-        "rejectError": "No se pudo rechazar la invitación",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sesión"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {
