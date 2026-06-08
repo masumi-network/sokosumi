@@ -5,17 +5,22 @@ Use this directory as the source of truth for Sokosumi feature specs in Codex, C
 ## Load order
 
 1. Read `SKILL.md`.
-2. Use `TEMPLATE.md` for the PRD shape.
-3. Use `SUBAGENT-RUBRIC.md` to decide whether to include current/target architecture and subagent workstreams.
-4. Use `LINEAR-MCP.md` only after the user approves the spec.
+2. Read `WORKFLOW.md` for requirement vs implementation issues and the coding-agent handoff.
+3. Use `REQUIREMENT-TEMPLATE.md` when reviewing or writing high-level requirement issues.
+4. Use `TEMPLATE.md` for the implementation PRD shape.
+5. Use `SUBAGENT-RUBRIC.md` to decide whether to include current/target architecture and subagent workstreams.
+6. Use `LINEAR-MCP.md` when publishing the implementation issue and confirm sub-task (no approval gate).
+7. Use `CURSOR-AUTOMATION.md` when setting up optional Linear-triggered Cloud Agents.
 
 ## Runtime notes
 
 - Cursor can load this as a project skill.
 - Claude Code should treat `SKILL.md` as the skill body.
 - Codex should treat this `AGENTS.md` plus `SKILL.md` as task instructions.
-- If a runtime cannot access Linear MCP, stop at the approved PRD and tell the user what is missing. Do not use browser automation or raw Linear API fallback.
+- If a runtime cannot access Linear MCP, return the draft PRD in chat and tell the user what is missing. Do not use browser automation or raw Linear API fallback.
 
 ## Output rule
 
 Always keep specs concise and include a data flow diagram.
+
+Implementation PRDs are for Cursor Cloud Agent. Requirement issues are not.

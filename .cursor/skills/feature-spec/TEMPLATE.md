@@ -1,5 +1,7 @@
 # PRD Template
 
+**Implementation issue** output from the spec agent. Not for human requirement briefs — use `REQUIREMENT-TEMPLATE.md` for those.
+
 Use this skeleton. Delete sections that do not apply, except `Data flow`, which is always required.
 
 ````markdown
@@ -15,9 +17,13 @@ isProject: false
 
 # SOK-XXX: Title
 
+[repo=masumi-network/sokosumi]
+
 **Problem:** One or two sentences describing the user pain, product gap, or broken behavior.
 
 **Goal:** One or two sentences describing the user-facing outcome and why it matters.
+
+**Requirement:** SOK-YYY (parent requirement issue, when applicable)
 
 **Linear:** project Sokosumi - state Todo - label Feature
 

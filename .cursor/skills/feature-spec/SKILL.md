@@ -1,12 +1,14 @@
 ---
 name: feature-spec
-description: Draft concise Sokosumi feature PRDs and Linear-ready specs. Use when the user asks to write a PRD, feature spec, Linear task, architecture spec, implementation plan, subagent plan, or SOK feature request.
+description: Draft concise Sokosumi implementation PRDs from requirements and hand off to Cursor Cloud Agent. Use when the user asks to write a PRD, feature spec, Linear task, architecture spec, implementation plan, subagent plan, spec agent, or SOK feature request — including when intake is a high-level Linear requirement issue (not yet a final plan).
 disable-model-invocation: true
 ---
 
 # Feature Spec
 
-Create a concise, Linear-ready PRD for Sokosumi features. The spec should be useful to an implementer, not a strategy memo.
+You are the **spec agent**. Turn requirements into a concise, Linear-ready **implementation PRD** for Sokosumi. The PRD is handed to a **coding agent** (Cursor Cloud Agent). It must be useful to an implementer, not a strategy memo.
+
+A Linear issue that already lists feature and architectural decisions is usually **requirement input**, not the final plan. Read `WORKFLOW.md`.
 
 ## Runtime compatibility
 
@@ -16,7 +18,7 @@ This skill is tool-agnostic. Use the same workflow in Cursor, Claude Code, and C
 |-------|------------|
 | Cursor | Load this as a project skill from `.cursor/skills/feature-spec/SKILL.md`. |
 | Claude Code | Read this `SKILL.md` directly when asked to write a Sokosumi feature spec. Follow linked local files in this directory. |
-| Codex | Treat this directory as task instructions. Read `SKILL.md`, then `TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `LINEAR-MCP.md` when needed. |
+| Codex | Treat this directory as task instructions. Read `SKILL.md`, then `WORKFLOW.md`, `TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `LINEAR-MCP.md` when needed. |
 
 If an agent does not support Cursor skills, it must still follow this file as plain markdown instructions.
 
@@ -35,20 +37,24 @@ Do not ask for the Linear project by default. Ask only when the user explicitly 
 
 ## Workflow
 
+See `WORKFLOW.md` for the full spec → code pipeline.
+
 1. Intake
-   - Required: feature summary.
-   - Optional: priority, milestone, assignee, blockers, locked decisions, label override, project override.
-   - If the feature summary is missing, ask one question and wait.
+   - Required: feature summary **or** a Linear requirement issue id/URL (e.g. `SOK-537`).
+   - Optional: priority, milestone, assignee, blockers, locked decisions, label override, project override, `handoffToCursor` (default **true** when user wants auto coding agent).
+   - If intake is a Linear issue, call `get_issue` and treat the description as requirements only — not an approved PRD.
+   - If nothing to work from, ask one question and wait.
 
 2. Discovery
    - Search the relevant app/package areas before drafting.
    - Read nearby `AGENTS.md` files when the feature clearly touches a scoped area.
    - Find similar routes, services, schemas, actions, UI, migrations, or tests.
    - If Linear MCP is healthy, search related Linear issues and link blockers/dependencies.
+   - Resolve open architecture questions from the requirement using real code paths.
    - Keep notes short. Use bullets. Do not write a research report.
 
 3. Draft the PRD
-   - Fill `TEMPLATE.md`.
+   - Fill `TEMPLATE.md` (implementation issue shape).
    - Always include a `Data flow` mermaid diagram.
    - Include `Current state` and `Target architecture` only when the rubric in `SUBAGENT-RUBRIC.md` says to.
    - Split into subagent workstreams only when the rubric in `SUBAGENT-RUBRIC.md` says to.
@@ -58,15 +64,20 @@ Do not ask for the Linear project by default. Ask only when the user explicitly 
      **Linear:** project Sokosumi - state Todo - label Feature
      ```
 
-   - End with: `Approve this spec?`
-   - Do not create or update Linear until the user approves the spec.
+   - If intake was a requirement issue, note the parent: `**Requirement:** SOK-XXX`
+   - Do **not** wait for PRD approval. Confirmation is a non-blocking sub-task (step 4).
 
-4. After approval
+4. Publish and hand off (same run as step 3)
    - Read `LINEAR-MCP.md`.
    - Use Linear MCP only when it is available in the current agent runtime.
    - Read the relevant MCP/tool descriptors before any MCP call.
-   - Create the Linear issue in `Sokosumi`, state `Todo`, with exactly one label.
-   - Return the issue identifier, URL, and applied label.
+   - Create an **implementation** issue in `Sokosumi`, state `Todo`, with exactly one label.
+   - Set `parentId` to the requirement issue when intake came from one.
+   - Add `[repo=masumi-network/sokosumi]` near the top of the description (unless user overrides repo).
+   - When `handoffToCursor` is true (default unless user opts out): set `delegate: "Cursor"` on `save_issue`.
+   - Create a **confirm PRD** sub-task (child of the implementation issue). Non-blocking — see `LINEAR-MCP.md`.
+   - Comment on the requirement issue linking the implementation issue when both exist.
+   - Return implementation issue id/URL, confirm sub-task id/URL, label, delegate status, and parent link.
    - If the current agent cannot access Linear MCP, stop and say what must be reloaded or configured. Do not use browser automation or raw API fallback.
 
 ## Writing style
@@ -121,6 +132,9 @@ Align title prefix with label when helpful:
 
 ## Supporting files
 
-- Use `TEMPLATE.md` for the PRD skeleton.
+- Use `WORKFLOW.md` for requirement vs implementation issue types and the coding-agent handoff.
+- Use `REQUIREMENT-TEMPLATE.md` when writing or reviewing high-level requirement issues.
+- Use `TEMPLATE.md` for the implementation PRD skeleton.
 - Use `SUBAGENT-RUBRIC.md` before adding current/target architecture or subagent workstreams.
-- Use `LINEAR-MCP.md` only after the user approves the PRD.
+- Use `LINEAR-MCP.md` when publishing the implementation issue and confirm sub-task.
+- Use `CURSOR-AUTOMATION.md` for optional Linear-triggered Cloud Agent setup.

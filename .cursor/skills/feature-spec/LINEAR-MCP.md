@@ -1,6 +1,8 @@
 # Linear MCP
 
-Use this only after the user approves the PRD.
+Run immediately after the spec agent drafts the PRD. No approval gate.
+
+Creates an **implementation** issue (full PRD), a **Confirm PRD** sub-task, optionally links a **requirement** parent, and delegates to **Cursor** for Cloud Agent.
 
 ## Defaults
 
@@ -9,15 +11,19 @@ const LINEAR_TEAM = "SOK";
 const LINEAR_PROJECT = "Sokosumi";
 const LINEAR_STATE = "Todo";
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
+const LINEAR_REPO_HINT = "[repo=masumi-network/sokosumi]";
+const CURSOR_DELEGATE = "Cursor";
 ```
 
-Create exactly one Linear issue with:
+Create exactly one implementation issue with:
 
 - Team: `SOK`
 - Project: `Sokosumi`, unless the user gave an override
 - State: `Todo`
 - Label: exactly one of `Feature`, `Bug`, `Improvement`
-- Description: the approved PRD markdown
+- Description: PRD markdown, with repo hint near the top
+- `parentId`: requirement issue id when intake came from one (e.g. `SOK-537`)
+- `delegate`: `"Cursor"` when user wants Cloud Agent handoff (default unless they opt out)
 
 ## Hard rules
 
@@ -26,7 +32,7 @@ Create exactly one Linear issue with:
 - Use the Linear tool names and parameter names below only after confirming them against descriptors.
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded in the current agent.
-- Do not create the issue until the user explicitly approves the PRD.
+- Do not wait for PRD approval before creating issues or delegating to Cursor.
 
 ## Runtime notes
 
@@ -34,7 +40,7 @@ Create exactly one Linear issue with:
 |-------|---------------------|
 | Cursor | Use `CallMcpTool` with server `user-linear` when available. Read descriptors from the MCP filesystem before calls. |
 | Claude Code | Use the configured Linear MCP server if available. Inspect tool schemas before calls. |
-| Codex | Use the configured Linear MCP server if available. If Codex has no Linear MCP tools, stop after approval and report the missing MCP access. |
+| Codex | Use the configured Linear MCP server if available. If Codex has no Linear MCP tools, return the draft PRD in chat and report the missing MCP access. |
 
 ## MCP health check
 
@@ -46,7 +52,7 @@ Before creating the issue:
 4. If the runtime says the Linear server does not exist, stop and say:
 
    ```text
-   Linear MCP is configured but not loaded in this agent. Reload MCP servers in Cursor Settings, then rerun approval.
+   Linear MCP is configured but not loaded in this agent. Reload MCP servers in Cursor Settings, then rerun the spec agent.
    ```
 
 Known config in this workspace:
@@ -74,7 +80,9 @@ Expected tools after reload:
 | `list_projects` | Resolve `Sokosumi` project |
 | `list_issue_statuses` | Confirm `Todo` state |
 | `list_issue_labels` | Confirm `Feature`, `Bug`, or `Improvement` |
-| `create_issue` | Create the approved PRD issue |
+| `get_issue` | Load requirement issue for intake |
+| `save_issue` | Create implementation issue; set `parentId`, `delegate` |
+| `save_comment` | Link implementation issue back on requirement issue |
 
 ## Resolution order
 
@@ -89,7 +97,7 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
 2. Resolve project
    - Call `list_projects` with `{ "query": "Sokosumi", "team": "SOK", "limit": 10 }` when supported.
    - Default exact name: `Sokosumi`.
-   - Use override only if the approved PRD says so.
+   - Use override only if the PRD says so.
    - If multiple projects match, ask one question.
 
 3. Resolve state
@@ -105,12 +113,44 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
    - Apply exactly one label.
    - If the label is missing, stop and report the missing label.
 
-5. Create issue
-   - Use `create_issue`.
+5. Create implementation issue
+   - Use `save_issue` (do not pass `id` when creating).
    - Required fields: `title`, `team`.
-   - Supported fields include `description`, `project`, `state`, `labels`, `priority`, `assignee`, `cycle`, `dueDate`, `parentId`, `links`.
+   - Supported fields include `description`, `project`, `state`, `labels`, `priority`, `assignee`, `delegate`, `parentId`, `cycle`, `dueDate`, `links`.
    - Use names directly: `team: "SOK"`, `project: "Sokosumi"`, `state: "Todo"`, `labels: ["Feature"]`.
-   - Return identifier, URL, and applied label.
+   - Set `parentId` to the requirement issue identifier when applicable.
+   - Set `delegate: "Cursor"` when handing off to Cloud Agent.
+   - Return identifier, URL, applied label, parent link, and delegate status.
+
+6. Create Confirm PRD sub-task
+   - Use `save_issue` (do not pass `id` when creating).
+   - `title`: `chore(spec): confirm PRD`
+   - `team`: `SOK`
+   - `project`: `Sokosumi`
+   - `state`: `Todo`
+   - `labels`: `["Improvement"]`
+   - `parentId`: implementation issue identifier (e.g. `SOK-549`)
+   - Do **not** set `delegate`.
+   - `description`:
+
+     ```markdown
+     **Goal:** Confirm the implementation PRD matches the requirement intent.
+
+     **Parent:** SOK-XXX (implementation issue — link in Linear)
+
+     **Checklist:**
+     - [ ] Problem and goal match the requirement
+     - [ ] Confirmed decisions respected
+     - [ ] Out of scope is correct
+     - [ ] Key decisions look right
+
+     Non-blocking. Cursor Cloud Agent may already be running on the parent issue.
+     If the PRD is wrong, comment on the parent issue or stop the Cloud Agent.
+     ```
+
+7. Link back (when requirement parent exists)
+   - Use `save_comment` on the requirement issue:
+   - Body: short note + link to implementation issue (e.g. "Implementation PRD: SOK-549 …").
 
 ## Write-call shape
 
@@ -120,14 +160,16 @@ Use this shape after confirming the descriptor:
 {
   "runtime": "Cursor CallMcpTool example",
   "server": "user-linear",
-  "toolName": "create_issue",
+  "toolName": "save_issue",
   "arguments": {
     "title": "feat(scope): concise title",
-    "description": "Approved PRD markdown",
+    "description": "[repo=masumi-network/sokosumi]\n\nPRD markdown",
     "team": "SOK",
     "project": "Sokosumi",
     "state": "Todo",
-    "labels": ["Feature"]
+    "labels": ["Feature"],
+    "parentId": "SOK-537",
+    "delegate": "Cursor"
   }
 }
 ```
@@ -136,24 +178,34 @@ Do not send empty `arguments`.
 
 ## Description body
 
-Use the approved PRD as the issue description. Do not add process notes, MCP logs, or hidden reasoning.
+Use the PRD as the implementation issue description. Do not add process notes, MCP logs, or hidden reasoning.
 
 Keep these top fields visible near the top:
 
 ```markdown
+[repo=masumi-network/sokosumi]
+
 **Goal:** ...
+
+**Requirement:** SOK-XXX (when applicable)
 
 **Linear:** project Sokosumi - state Todo - label Feature
 ```
+
+## Cursor Cloud Agent
+
+- Prefer `delegate: "Cursor"` on `save_issue` for immediate handoff.
+- Alternative: comment `@Cursor implement per PRD. [repo=masumi-network/sokosumi]` via `save_comment`.
+- Optional team automation: see `CURSOR-AUTOMATION.md`.
 
 ## Post-create response
 
 Return:
 
-- Linear identifier, for example `SOK-123`
-- URL
+- Implementation issue identifier and URL
+- Confirm PRD sub-task identifier and URL
 - Project
 - State
 - Label
-
-Keep it short.
+- Requirement parent link (if any)
+- Delegate: Cursor yes/no
