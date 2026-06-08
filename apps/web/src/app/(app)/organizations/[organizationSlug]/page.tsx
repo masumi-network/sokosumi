@@ -88,6 +88,10 @@ export default async function OrganizationPage({
   const members = await organizationService.getOrganizationMembersWithUser(
     organization.id,
   );
+  const memberLastSeenAtByUserId =
+    await organizationService.getMemberLastSeenAtByUserIds(
+      members.map((member) => member.userId),
+    );
   const seatSummary = isOwnerOrAdmin
     ? await organizationSeatService.getSeatSummary(organization.id)
     : null;
@@ -117,6 +121,7 @@ export default async function OrganizationPage({
             me={member}
             members={members}
             pendingInvitations={pendingInvitations}
+            memberLastSeenAtByUserId={memberLastSeenAtByUserId}
             showSeatManagement={isOwnerOrAdmin && seatSummary?.paidPlan != null}
             unusedSeats={seatSummary?.unusedSeats ?? 0}
           />

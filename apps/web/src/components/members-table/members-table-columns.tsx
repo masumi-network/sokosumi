@@ -2,7 +2,7 @@
 
 import type { Member } from "@sokosumi/database";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
@@ -54,6 +54,35 @@ export function getMembersTableColumns(
       enableHiding: false,
     }) as ColumnDef<MemberRowData>,
 
+    lastSeenColumn: columnHelper.accessor(
+      (row) => row.lastSeenAt?.getTime() ?? null,
+      {
+        id: "lastSeen",
+        minSize: 140,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title={t("Header.lastSeen")} />
+        ),
+        cell: ({ row }) => (
+          <LastSeenCell lastSeenAt={row.original.lastSeenAt} />
+        ),
+        enableSorting: true,
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.lastSeenAt?.getTime() ?? 0;
+          const b = rowB.original.lastSeenAt?.getTime() ?? 0;
+          if (a === 0 && b === 0) {
+            return 0;
+          }
+          if (a === 0) {
+            return 1;
+          }
+          if (b === 0) {
+            return -1;
+          }
+          return a - b;
+        },
+      },
+    ) as ColumnDef<MemberRowData>,
+
     seatColumn: columnHelper.display({
       id: "seat",
       minSize: 120,
@@ -79,6 +108,26 @@ export function getMembersTableColumns(
       },
     }) as ColumnDef<MemberRowData>,
   };
+}
+
+function LastSeenCell({
+  lastSeenAt,
+}: {
+  lastSeenAt: MemberRowData["lastSeenAt"];
+}) {
+  const t = useTranslations("Components.MembersTable.LastSeen");
+  const formatter = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
+
+  if (lastSeenAt === undefined) {
+    return <div className="p-2" />;
+  }
+
+  if (lastSeenAt === null) {
+    return <div className="text-muted-foreground p-2">{t("never")}</div>;
+  }
+
+  return <div className="p-2">{formatter.relativeTime(lastSeenAt, now)}</div>;
 }
 
 function SeatStatusCell({ member }: { member: MemberRowData["member"] }) {

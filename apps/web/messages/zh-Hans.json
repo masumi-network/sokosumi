@@ -181,8 +181,12 @@
         "name": "名称",
         "email": "邮箱",
         "role": "角色",
+        "lastSeen": "最近活跃",
         "actions": "操作",
         "seat": "Seat"
+      },
+      "LastSeen": {
+        "never": "从未"
       },
       "Seat": {
         "assigned": "已分配",

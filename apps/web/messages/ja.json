@@ -181,8 +181,12 @@
         "name": "名前",
         "email": "メール",
         "role": "役割",
+        "lastSeen": "最終ログイン",
         "actions": "操作",
         "seat": "Seat"
+      },
+      "LastSeen": {
+        "never": "未ログイン"
       },
       "Seat": {
         "assigned": "割り当て済み",

@@ -181,8 +181,12 @@
         "name": "Nom",
         "email": "E-mail",
         "role": "Rôle",
+        "lastSeen": "Dernière connexion",
         "actions": "Actions",
         "seat": "Seat"
+      },
+      "LastSeen": {
+        "never": "Jamais"
       },
       "Seat": {
         "assigned": "Attribué",

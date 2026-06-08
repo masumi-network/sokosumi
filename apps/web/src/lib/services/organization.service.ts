@@ -9,6 +9,7 @@ import type {
 import {
   invitationRepository,
   memberRepository,
+  sessionRepository,
 } from "@sokosumi/database/repositories";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
@@ -135,6 +136,20 @@ export const organizationService = (() => {
     return members;
   }
 
+  /**
+   * Returns the latest session activity timestamp per user id.
+   */
+  async function getMemberLastSeenAtByUserIds(
+    userIds: string[],
+  ): Promise<Record<string, Date>> {
+    const lastSeenAtByUserId = await sessionRepository.getLastSeenAtByUserIds(
+      userIds,
+      prisma,
+    );
+
+    return Object.fromEntries(lastSeenAtByUserId);
+  }
+
   async function getPendingInvitations(
     organizationId: string,
   ): Promise<Invitation[]> {
@@ -221,6 +236,7 @@ export const organizationService = (() => {
     getPendingInvitation,
     getPendingInvitations,
     getOrganizationMembersWithUser,
+    getMemberLastSeenAtByUserIds,
     createOrganizationWithOwner,
     inviteMultipleMembers,
   };

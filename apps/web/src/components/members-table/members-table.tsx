@@ -24,6 +24,7 @@ interface MembersTableProps {
   me: Member;
   members: MemberWithUser[];
   pendingInvitations: Invitation[];
+  memberLastSeenAtByUserId?: Record<string, string | Date>;
   showSeatManagement?: boolean;
   unusedSeats?: number;
 }
@@ -32,6 +33,7 @@ export default function MembersTable({
   me,
   members,
   pendingInvitations,
+  memberLastSeenAtByUserId = {},
   showSeatManagement = false,
   unusedSeats = 0,
 }: MembersTableProps) {
@@ -49,6 +51,7 @@ export default function MembersTable({
             data={combineMembersAndPendingInvitations(
               members,
               pendingInvitations,
+              memberLastSeenAtByUserId,
             )}
             rowClassName={() =>
               "text-foreground active:bg-muted hover:bg-muted"
@@ -72,12 +75,18 @@ function getColumns(
   me: Member,
   showSeatManagement: boolean,
 ) {
-  const { nameColumn, emailColumn, roleColumn, seatColumn, actionColumn } =
-    getMembersTableColumns(t, me);
+  const {
+    nameColumn,
+    emailColumn,
+    roleColumn,
+    lastSeenColumn,
+    seatColumn,
+    actionColumn,
+  } = getMembersTableColumns(t, me);
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
-  return [nameColumn, emailColumn, roleColumn]
+  return [nameColumn, emailColumn, roleColumn, lastSeenColumn]
     .concat(showSeatManagement ? [seatColumn] : [])
     .concat(isOwnerOrAdmin ? [actionColumn] : []);
 }
@@ -85,6 +94,7 @@ function getColumns(
 function combineMembersAndPendingInvitations(
   members: MemberWithUser[],
   pendingInvitations: Invitation[],
+  memberLastSeenAtByUserId: Record<string, string | Date>,
 ): MemberRowData[] {
   // Sort members by role score, then by name
   const sortedMembers = [...members].sort((a, b) => {
@@ -105,7 +115,12 @@ function combineMembersAndPendingInvitations(
   );
 
   // Convert members to row data
-  const memberRows = sortedMembers.map(convertMemberWithUserToMemberRowData);
+  const memberRows = sortedMembers.map((member) =>
+    convertMemberWithUserToMemberRowData(
+      member,
+      memberLastSeenAtByUserId[member.userId],
+    ),
+  );
 
   // Convert filtered invitations to row data
   const invitationRows = filteredInvitations.map(
@@ -117,11 +132,13 @@ function combineMembersAndPendingInvitations(
 
 function convertMemberWithUserToMemberRowData(
   member: MemberWithUser,
+  lastSeenAt?: string | Date,
 ): MemberRowData {
   return {
     email: member.user.email,
     name: member.user.name,
     role: member.role,
+    lastSeenAt: lastSeenAt ? new Date(lastSeenAt) : null,
     member,
   };
 }
