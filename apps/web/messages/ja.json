@@ -1156,17 +1156,6 @@
     "delete": "削除",
     "cancel": "キャンセル",
     "save": "保存",
-    "Sidebar": {
-      "Content": {
-        "ChatLists": {
-          "title": "最近のチャット",
-          "noChats": "まだチャットがありません",
-          "untitledChat": "無題のチャット",
-          "modelAlt": "モデル",
-          "coworkerAlt": "同僚"
-        }
-      }
-    },
     "History": {
       "Metadata": {
         "title": "履歴",
@@ -2351,6 +2340,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "最近のチャット",
+          "noChats": "まだチャットがありません",
+          "untitledChat": "無題のチャット",
+          "modelAlt": "モデル",
+          "coworkerAlt": "同僚"
+        },
         "MenuItems": {
           "chat": "チャット",
           "exploreAgents": "エージェント",

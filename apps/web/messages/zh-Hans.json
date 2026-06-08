@@ -1156,17 +1156,6 @@
     "delete": "删除",
     "cancel": "取消",
     "save": "保存",
-    "Sidebar": {
-      "Content": {
-        "ChatLists": {
-          "title": "最近的对话",
-          "noChats": "还没有对话",
-          "untitledChat": "无标题对话",
-          "modelAlt": "模型",
-          "coworkerAlt": "协作者"
-        }
-      }
-    },
     "History": {
       "Metadata": {
         "title": "历史记录",
@@ -2351,6 +2340,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "最近的对话",
+          "noChats": "还没有对话",
+          "untitledChat": "无标题对话",
+          "modelAlt": "模型",
+          "coworkerAlt": "协作者"
+        },
         "MenuItems": {
           "chat": "聊天",
           "exploreAgents": "智能体",

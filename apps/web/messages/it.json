@@ -1156,17 +1156,6 @@
     "delete": "Elimina",
     "cancel": "Annulla",
     "save": "Salva",
-    "Sidebar": {
-      "Content": {
-        "ChatLists": {
-          "title": "Chat Recenti",
-          "noChats": "Nessuna chat ancora",
-          "untitledChat": "Chat Senza Titolo",
-          "modelAlt": "Modello",
-          "coworkerAlt": "Collaboratore"
-        }
-      }
-    },
     "History": {
       "Metadata": {
         "title": "Cronologia",
@@ -2351,6 +2340,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "Chat Recenti",
+          "noChats": "Nessuna chat ancora",
+          "untitledChat": "Chat Senza Titolo",
+          "modelAlt": "Modello",
+          "coworkerAlt": "Collaboratore"
+        },
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agenti",
