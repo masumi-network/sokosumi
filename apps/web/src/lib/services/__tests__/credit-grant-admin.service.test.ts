@@ -184,6 +184,13 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
       stripeCustomerId: "cus_org",
       metadata: null,
     });
+    createCreditGrantInvoiceMock.mockResolvedValue({
+      id: "in_free",
+      currency: "usd",
+      amount_due: 0,
+      status: "paid",
+    });
+    creditBucketFindFirstMock.mockResolvedValue({ id: "cb_free" });
 
     await creditGrantAdminService.createGrantInvoice({
       target: { targetType: "organization", targetId: "org_1" },
@@ -273,6 +280,35 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
         markFree: true,
       }),
     ).rejects.toThrow(CreditGrantValidationError);
+  });
+
+  it("throws when a free grant is not fully discounted to $0 (coupon misconfigured)", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      stripeCustomerId: "cus_org",
+      metadata: null,
+    });
+    // Coupon didn't zero the invoice: it stays open with a balance due.
+    createCreditGrantInvoiceMock.mockResolvedValue({
+      id: "in_partial",
+      currency: "usd",
+      amount_due: 500,
+      status: "open",
+    });
+
+    await expect(
+      creditGrantAdminService.createGrantInvoice({
+        target: { targetType: "organization", targetId: "org_1" },
+        credits: 10,
+        ttlDays: null,
+        priceId: null,
+        markFree: true,
+      }),
+    ).rejects.toThrow(CreditGrantValidationError);
+    // No credits should be granted for a non-free "free" invoice.
+    expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
   });
 });
 

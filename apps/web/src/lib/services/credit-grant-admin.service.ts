@@ -299,6 +299,16 @@ export const creditGrantAdminService = (() => {
           : {}),
       });
 
+      // A free grant must be fully discounted to $0 by the support coupon. If
+      // it isn't (e.g. the coupon is misconfigured as fixed-amount or <100%),
+      // the invoice stays payable and would silently become a normal open
+      // invoice — fail loudly instead so the misconfiguration is obvious.
+      if (params.markFree && (invoice.amount_due ?? 0) !== 0) {
+        throw new CreditGrantValidationError(
+          "Free grant invoice was not fully discounted to $0. Check that STRIPE_SUPPORT_COUPON is a 100%-off coupon that applies to the credit product.",
+        );
+      }
+
       // A free ($0) grant finalizes as paid immediately, so grant the credits
       // now instead of waiting on the invoice.paid webhook. Non-free grants
       // stay open until an admin marks them paid (no "Mark as paid" step is
