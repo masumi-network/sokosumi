@@ -5,6 +5,7 @@ import { useFormatter } from "next-intl";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+import { HYDRATION_STABLE_TIME_ZONE } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
@@ -46,6 +47,7 @@ export function TaskMetadata({ task, project, labels }: TaskMetadataProps) {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: HYDRATION_STABLE_TIME_ZONE,
   } as const;
 
   return (
