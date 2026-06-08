@@ -135,6 +135,7 @@ function FormInput<T extends FieldValues>({
   if (type === "password") {
     return (
       <PasswordInput
+        data-testid={`auth-field-${name.toString()}`}
         autoComplete={autoComplete}
         placeholder={placeholderKey && t(placeholderKey)}
         showLabel={authT("PasswordToggle.show")}
@@ -148,6 +149,7 @@ function FormInput<T extends FieldValues>({
 
   return (
     <Input
+      data-testid={`auth-field-${name.toString()}`}
       autoComplete={autoComplete}
       placeholder={placeholderKey && t(placeholderKey)}
       type={type ?? "text"}

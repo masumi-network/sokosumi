@@ -82,6 +82,7 @@ import {
   getHistory as coreGetHistory,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -530,6 +531,19 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to create project",
+    );
+  }
+
+  async function getOrganizationMembers(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdMembers({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization members",
     );
   }
 
@@ -1547,6 +1561,7 @@ export function createCoreClient(getClient: GetClient) {
     getJobs,
     getMyCredits,
     getMyOrganizations,
+    getOrganizationMembers,
     getPendingNotices,
     getProjects,
     getProjectsById,
