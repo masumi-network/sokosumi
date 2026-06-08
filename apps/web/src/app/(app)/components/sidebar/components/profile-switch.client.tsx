@@ -221,6 +221,99 @@ function getOrderedWorkspaces(
   ];
 }
 
+function WorkspaceMenuItem({
+  sessionUser,
+  workspace,
+  isSelected,
+  isPending,
+  itemClassName,
+  onSelect,
+}: {
+  sessionUser: SessionUser;
+  workspace: WorkspaceItem;
+  isSelected: boolean;
+  isPending: boolean;
+  itemClassName: string;
+  onSelect: (workspaceId: string | null) => void;
+}) {
+  return (
+    <DropdownMenuItem
+      className={itemClassName}
+      disabled={isPending}
+      onClick={() => onSelect(workspace.id)}
+    >
+      <WorkspaceAvatar sessionUser={sessionUser} workspace={workspace} />
+      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+      <Check
+        className={cn("size-4", isSelected ? "opacity-100" : "opacity-0")}
+      />
+    </DropdownMenuItem>
+  );
+}
+
+function WorkspaceSwitcherOptions({
+  sessionUser,
+  personalWorkspace,
+  organizationWorkspaces,
+  activeOrganizationId,
+  isPending,
+  itemClassName,
+  organizationsHeading,
+  addOrganizationLabel,
+  onSelectWorkspace,
+  onAddOrganization,
+}: {
+  sessionUser: SessionUser;
+  personalWorkspace: WorkspaceItem;
+  organizationWorkspaces: WorkspaceItem[];
+  activeOrganizationId: string | null;
+  isPending: boolean;
+  itemClassName: string;
+  organizationsHeading: string;
+  addOrganizationLabel: string;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onAddOrganization: () => void;
+}) {
+  return (
+    <>
+      <WorkspaceMenuItem
+        sessionUser={sessionUser}
+        workspace={personalWorkspace}
+        isSelected={activeOrganizationId === null}
+        isPending={isPending}
+        itemClassName={itemClassName}
+        onSelect={onSelectWorkspace}
+      />
+      {organizationWorkspaces.length > 0 ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+            {organizationsHeading}
+          </DropdownMenuLabel>
+          {organizationWorkspaces.map((workspace) => (
+            <WorkspaceMenuItem
+              key={getWorkspaceKey(workspace)}
+              sessionUser={sessionUser}
+              workspace={workspace}
+              isSelected={workspace.id === activeOrganizationId}
+              isPending={isPending}
+              itemClassName={itemClassName}
+              onSelect={onSelectWorkspace}
+            />
+          ))}
+        </>
+      ) : null}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className={itemClassName} onClick={onAddOrganization}>
+        <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
+          <Plus className="text-primary size-4" />
+        </Avatar>
+        <span>{addOrganizationLabel}</span>
+      </DropdownMenuItem>
+    </>
+  );
+}
+
 function WorkspaceAvatar({
   sessionUser,
   workspace,
@@ -317,37 +410,36 @@ export default function ProfileSwitchClient({
     }
   }, [isMobile, state]);
 
-  const workspaces = useMemo(
+  const personalWorkspace = useMemo<WorkspaceItem>(
+    () => ({
+      id: null,
+      name:
+        sessionUser.name ??
+        sessionUser.email ??
+        tOrganizationSwitcher("personalAccount"),
+    }),
+    [sessionUser.email, sessionUser.name, tOrganizationSwitcher],
+  );
+
+  const organizationWorkspaces = useMemo(
     () =>
       getOrderedWorkspaces(
-        [
-          {
-            id: null,
-            name:
-              sessionUser.name ??
-              sessionUser.email ??
-              tOrganizationSwitcher("personalAccount"),
-          },
-          ...members.map((member) => ({
-            id: member.organization.id,
-            name: member.organization.name,
-            organization: member.organization,
-          })),
-        ],
+        members.map((member) => ({
+          id: member.organization.id,
+          name: member.organization.name,
+          organization: member.organization,
+        })),
         activeOrganizationId,
       ),
-    [
-      activeOrganizationId,
-      members,
-      sessionUser.email,
-      sessionUser.name,
-      tOrganizationSwitcher,
-    ],
+    [activeOrganizationId, members],
   );
 
   const activeWorkspace =
-    workspaces.find((workspace) => workspace.id === activeOrganizationId) ??
-    workspaces[0];
+    activeOrganizationId === null
+      ? personalWorkspace
+      : (organizationWorkspaces.find(
+          (workspace) => workspace.id === activeOrganizationId,
+        ) ?? personalWorkspace);
   const router = useRouter();
 
   const closeMenu = () => {
@@ -463,48 +555,22 @@ export default function ProfileSwitchClient({
                         />
                       </DropdownMenuItem>
                       {isWorkspaceSectionOpen ? (
-                        <>
-                          {workspaces.map((workspace) => {
-                            const isSelected =
-                              workspace.id === activeOrganizationId;
-
-                            return (
-                              <DropdownMenuItem
-                                key={getWorkspaceKey(workspace)}
-                                className="flex cursor-pointer items-center gap-2 py-2 pl-8"
-                                disabled={isPending}
-                                onClick={() =>
-                                  handleWorkspaceSelect(workspace.id)
-                                }
-                              >
-                                <WorkspaceAvatar
-                                  sessionUser={sessionUser}
-                                  workspace={workspace}
-                                />
-                                <span className="min-w-0 flex-1 truncate">
-                                  {workspace.name}
-                                </span>
-                                <Check
-                                  className={cn(
-                                    "size-4",
-                                    isSelected ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                              </DropdownMenuItem>
-                            );
-                          })}
-                          <DropdownMenuItem
-                            className="flex cursor-pointer items-center gap-2 py-2 pl-8"
-                            onClick={handleAddOrganization}
-                          >
-                            <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
-                              <Plus className="text-primary size-4" />
-                            </Avatar>
-                            <span>
-                              {tOrganizationSwitcher("addOrganization")}
-                            </span>
-                          </DropdownMenuItem>
-                        </>
+                        <WorkspaceSwitcherOptions
+                          sessionUser={sessionUser}
+                          personalWorkspace={personalWorkspace}
+                          organizationWorkspaces={organizationWorkspaces}
+                          activeOrganizationId={activeOrganizationId}
+                          isPending={isPending}
+                          itemClassName="flex cursor-pointer items-center gap-2 py-2 pl-8"
+                          organizationsHeading={tOrganizationSwitcher(
+                            "organizationsHeading",
+                          )}
+                          addOrganizationLabel={tOrganizationSwitcher(
+                            "addOrganization",
+                          )}
+                          onSelectWorkspace={handleWorkspaceSelect}
+                          onAddOrganization={handleAddOrganization}
+                        />
                       ) : null}
                     </>
                   ) : (
@@ -515,48 +581,23 @@ export default function ProfileSwitchClient({
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-72">
                         <DropdownMenuGroup>
-                          {workspaces.map((workspace) => {
-                            const isSelected =
-                              workspace.id === activeOrganizationId;
-
-                            return (
-                              <DropdownMenuItem
-                                key={getWorkspaceKey(workspace)}
-                                className="flex cursor-pointer items-center gap-2 py-2"
-                                disabled={isPending}
-                                onClick={() =>
-                                  handleWorkspaceSelect(workspace.id)
-                                }
-                              >
-                                <WorkspaceAvatar
-                                  sessionUser={sessionUser}
-                                  workspace={workspace}
-                                />
-                                <span className="min-w-0 flex-1 truncate">
-                                  {workspace.name}
-                                </span>
-                                <Check
-                                  className={cn(
-                                    "size-4",
-                                    isSelected ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                              </DropdownMenuItem>
-                            );
-                          })}
+                          <WorkspaceSwitcherOptions
+                            sessionUser={sessionUser}
+                            personalWorkspace={personalWorkspace}
+                            organizationWorkspaces={organizationWorkspaces}
+                            activeOrganizationId={activeOrganizationId}
+                            isPending={isPending}
+                            itemClassName="flex cursor-pointer items-center gap-2 py-2"
+                            organizationsHeading={tOrganizationSwitcher(
+                              "organizationsHeading",
+                            )}
+                            addOrganizationLabel={tOrganizationSwitcher(
+                              "addOrganization",
+                            )}
+                            onSelectWorkspace={handleWorkspaceSelect}
+                            onAddOrganization={handleAddOrganization}
+                          />
                         </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="flex cursor-pointer items-center gap-2 py-2"
-                          onClick={handleAddOrganization}
-                        >
-                          <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
-                            <Plus className="text-primary size-4" />
-                          </Avatar>
-                          <span>
-                            {tOrganizationSwitcher("addOrganization")}
-                          </span>
-                        </DropdownMenuItem>
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   )}

@@ -238,7 +238,7 @@ vi.mock("@/components/ui/dropdown-menu", () => {
   }
 
   function DropdownMenuSeparator() {
-    return <div />;
+    return <div role="separator" />;
   }
 
   function DropdownMenuGroup({ children }: { children: ReactNode }) {
@@ -378,6 +378,54 @@ describe("ProfileSwitchClient", () => {
     await user.click(screen.getByRole("menuitem", { name: "Organizations" }));
 
     expect(pushMock).toHaveBeenCalledWith("/organizations/acme-corp");
+  });
+
+  it("separates personal and organization workspaces in the switcher", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ProfileSwitchClient
+        adminMenuEnabled={false}
+        sessionUser={sessionUser}
+        members={[
+          createMember(),
+          createMember({
+            id: "member-2",
+            organizationId: "org-2",
+            organization: {
+              id: "org-2",
+              name: "Beta Inc",
+              slug: "beta-inc",
+              logo: null,
+              metadata: null,
+              createdAt: new Date(),
+            },
+          }),
+        ]}
+        activeOrganizationId="org-1"
+      />,
+    );
+
+    await openProfileMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", { name: "Switch workspace" }),
+    );
+
+    const personalItem = screen.getByRole("menuitem", { name: /Test User/i });
+    const acmeItem = screen.getByRole("menuitem", { name: /Acme Corp/i });
+    const betaItem = screen.getByRole("menuitem", { name: /Beta Inc/i });
+    const organizationsHeading = screen.getAllByText("Organizations")[0];
+
+    expect(personalItem.compareDocumentPosition(acmeItem)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(organizationsHeading.compareDocumentPosition(acmeItem)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(acmeItem.compareDocumentPosition(betaItem)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getAllByRole("separator").length).toBeGreaterThanOrEqual(2);
   });
 
   it("opens the create organization modal from add organization", async () => {
