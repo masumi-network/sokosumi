@@ -2543,7 +2543,6 @@
         },
         "Form": {
           "Sections": {
-            "organization": "Organizzazione",
             "subscription": "Abbonamento",
             "oneTime": "Una tantum",
             "references": "Riferimenti"

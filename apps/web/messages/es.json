@@ -2512,7 +2512,6 @@
         },
         "Form": {
           "Sections": {
-            "organization": "Organización",
             "subscription": "Suscripción",
             "oneTime": "Puntual",
             "references": "Referencias"

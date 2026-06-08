@@ -2543,7 +2543,6 @@
         },
         "Form": {
           "Sections": {
-            "organization": "組織",
             "subscription": "サブスクリプション",
             "oneTime": "一回限り",
             "references": "参照"

@@ -2543,7 +2543,6 @@
         },
         "Form": {
           "Sections": {
-            "organization": "组织",
             "subscription": "订阅",
             "oneTime": "一次性",
             "references": "参考"
