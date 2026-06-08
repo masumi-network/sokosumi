@@ -124,8 +124,6 @@
       "account": "账户",
       "billing": "账单",
       "connections": "连接",
-      "admin": "管理",
-      "enterpriseContracts": "企业合同",
       "help": "帮助",
       "legal": "法律",
       "support": "支持",
@@ -261,7 +259,8 @@
       "hermes": "Hermes",
       "history": "历史记录",
       "new": "新建",
-      "projects": "项目"
+      "projects": "项目",
+      "credit-grants": "授予积分"
     },
     "Jobs": {
       "StatusBadge": {
@@ -662,6 +661,11 @@
       "copy": "复制",
       "copySuccess": "已复制到剪贴板",
       "copyError": "复制失败"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "选择组织",
+      "search": "搜索组织…",
+      "empty": "未找到组织。"
     }
   },
   "AcceptInvitation": {
@@ -2347,7 +2351,8 @@
           "taskManager": "任务",
           "projects": "项目",
           "hermes": "Hermes",
-          "history": "历史记录"
+          "history": "历史记录",
+          "admin": "管理"
         }
       }
     },
@@ -2513,11 +2518,12 @@
         "loading": "加载中…",
         "loadFailed": "无法加载企业合同。",
         "Filters": {
-          "organizationSlug": "组织 slug",
+          "organizationSlug": "组织",
           "organizationSlugPlaceholder": "acme-corp",
           "status": "状态",
           "statusAll": "全部",
-          "apply": "应用筛选"
+          "apply": "应用筛选",
+          "organizationAll": "所有组织"
         },
         "Status": {
           "draft": "草稿",
@@ -2545,7 +2551,7 @@
           "optionalSection": "可选",
           "Fields": {
             "organizationSlug": {
-              "label": "Slug",
+              "label": "组织",
               "placeholder": "acme-corp"
             },
             "creditsPerMonth": {
@@ -2587,6 +2593,62 @@
         },
         "Detail": {
           "noExpiry": "无到期日"
+        }
+      },
+      "Overview": {
+        "title": "管理",
+        "description": "用于管理组织和计费的内部工具。",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "企业合同",
+            "description": "创建和管理草稿、生效中以及已取消的企业合同。"
+          },
+          "creditGrants": {
+            "title": "授予积分",
+            "description": "通过 Stripe 发票向组织授予一次性积分。"
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "授予积分",
+        "description": "通过 Stripe 发票向组织授予一次性积分。将发票标记为已支付后，积分将立即授予。",
+        "cardTitle": "新建积分授予",
+        "Form": {
+          "Fields": {
+            "organization": "组织",
+            "credits": "积分",
+            "expiryDays": "有效期（天）"
+          },
+          "organizationRequired": "请选择一个组织",
+          "creditsRequired": "请输入正整数的积分数量",
+          "creditsHelper": "授予该组织的积分数量。",
+          "expiryDays": "有效期（天）",
+          "expiryHelper": "可选。积分到期前的天数。留空表示永不过期。",
+          "expiryPlaceholder": "永不过期",
+          "expiryInvalid": "有效期必须为正整数天数",
+          "submit": "创建发票",
+          "submitting": "正在创建发票…",
+          "createSuccess": "发票已创建",
+          "createError": "创建发票失败"
+        },
+        "Result": {
+          "heading": "积分授予发票",
+          "pendingHelper": "将发票标记为已支付即可立即授予积分，或留待在 Stripe 中支付。",
+          "paidHelper": "发票已支付，积分已授予该组织。",
+          "organization": "组织",
+          "credits": "积分",
+          "expiry": "有效期",
+          "expiryDays": "{days, number} 天",
+          "noExpiry": "永不过期",
+          "amount": "金额",
+          "status": "状态",
+          "invoiceId": "发票 ID",
+          "markPaid": "标记为已支付",
+          "marking": "正在授予积分…",
+          "paidSuccess": "积分已授予",
+          "paidError": "无法将发票标记为已支付",
+          "openInStripe": "在 Stripe 中打开",
+          "newGrant": "新建授予"
         }
       }
     },

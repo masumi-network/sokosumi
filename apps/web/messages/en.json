@@ -124,9 +124,6 @@
       "account": "Account",
       "billing": "Billing",
       "connections": "Connections",
-      "admin": "Admin",
-      "enterpriseContracts": "Enterprise contracts",
-      "creditGrants": "Grant credits",
       "help": "Help",
       "legal": "Legal",
       "support": "Support",
@@ -2354,7 +2351,8 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "hermes": "Hermes",
-          "history": "History"
+          "history": "History",
+          "admin": "Admin"
         }
       }
     },
@@ -2637,6 +2635,20 @@
           "paidError": "Failed to mark invoice as paid",
           "openInStripe": "Open in Stripe",
           "newGrant": "New grant"
+        }
+      },
+      "Overview": {
+        "title": "Admin",
+        "description": "Internal tools for managing organizations and billing.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Enterprise contracts",
+            "description": "Create and manage draft, active, and canceled enterprise contracts."
+          },
+          "creditGrants": {
+            "title": "Grant credits",
+            "description": "Grant one-time credits to an organization via a Stripe invoice."
+          }
         }
       }
     },

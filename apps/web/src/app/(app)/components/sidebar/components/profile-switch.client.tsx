@@ -11,7 +11,6 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
-  Coins,
   Landmark,
   LifeBuoy,
   ListChecks,
@@ -22,7 +21,6 @@ import {
   Scale,
   ScrollText,
   Shield,
-  ShieldCheck,
   User as UserIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -68,7 +66,6 @@ import type { SessionUser } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 interface ProfileSwitchClientProps {
-  adminMenuEnabled: boolean;
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
@@ -346,7 +343,6 @@ function WorkspaceAvatar({
 }
 
 export default function ProfileSwitchClient({
-  adminMenuEnabled,
   sessionUser,
   members,
   activeOrganizationId,
@@ -376,7 +372,6 @@ export default function ProfileSwitchClient({
     : null;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceSectionOpen, setIsWorkspaceSectionOpen] = useState(false);
-  const [isAdminSectionOpen, setIsAdminSectionOpen] = useState(false);
   const [isHelpSectionOpen, setIsHelpSectionOpen] = useState(false);
   const [isLegalSectionOpen, setIsLegalSectionOpen] = useState(false);
   const { isMobile, state, toggleSidebar } = useSidebar();
@@ -391,7 +386,6 @@ export default function ProfileSwitchClient({
     setIsDropdownOpen(open);
     if (!open) {
       setIsWorkspaceSectionOpen(false);
-      setIsAdminSectionOpen(false);
       setIsHelpSectionOpen(false);
       setIsLegalSectionOpen(false);
     }
@@ -403,7 +397,6 @@ export default function ProfileSwitchClient({
       const timer = setTimeout(() => {
         setIsDropdownOpen(false);
         setIsWorkspaceSectionOpen(false);
-        setIsAdminSectionOpen(false);
         setIsHelpSectionOpen(false);
         setIsLegalSectionOpen(false);
       }, 100);
@@ -446,7 +439,6 @@ export default function ProfileSwitchClient({
   const closeMenu = () => {
     setIsDropdownOpen(false);
     setIsWorkspaceSectionOpen(false);
-    setIsAdminSectionOpen(false);
     setIsHelpSectionOpen(false);
     setIsLegalSectionOpen(false);
   };
@@ -640,83 +632,6 @@ export default function ProfileSwitchClient({
                       <Cable className="text-muted-foreground size-4" />
                       <span>{tUserAvatar("connections")}</span>
                     </DropdownMenuItem>
-                    {adminMenuEnabled ? (
-                      isMobile ? (
-                        <>
-                          <DropdownMenuItem
-                            className="cursor-pointer"
-                            onSelect={(event) => {
-                              event.preventDefault();
-                              setIsAdminSectionOpen((previous) => !previous);
-                            }}
-                          >
-                            <ShieldCheck className="text-muted-foreground size-4" />
-                            <span>{tUserAvatar("admin")}</span>
-                            <ChevronDown
-                              className={cn(
-                                "text-muted-foreground ml-auto size-4 transition-transform",
-                                isAdminSectionOpen ? "rotate-180" : "",
-                              )}
-                            />
-                          </DropdownMenuItem>
-                          {isAdminSectionOpen ? (
-                            <>
-                              <DropdownMenuItem
-                                className="cursor-pointer pl-8"
-                                onClick={() =>
-                                  handleRouteNavigation(
-                                    "/admin/enterprise-contracts",
-                                  )
-                                }
-                              >
-                                <Building2 className="text-muted-foreground size-4" />
-                                <span>
-                                  {tUserAvatar("enterpriseContracts")}
-                                </span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="cursor-pointer pl-8"
-                                onClick={() =>
-                                  handleRouteNavigation("/admin/credit-grants")
-                                }
-                              >
-                                <Coins className="text-muted-foreground size-4" />
-                                <span>{tUserAvatar("creditGrants")}</span>
-                              </DropdownMenuItem>
-                            </>
-                          ) : null}
-                        </>
-                      ) : (
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger className="gap-2">
-                            <ShieldCheck className="text-muted-foreground size-4" />
-                            <span>{tUserAvatar("admin")}</span>
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-64">
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() =>
-                                handleRouteNavigation(
-                                  "/admin/enterprise-contracts",
-                                )
-                              }
-                            >
-                              <Building2 className="text-muted-foreground size-4" />
-                              <span>{tUserAvatar("enterpriseContracts")}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() =>
-                                handleRouteNavigation("/admin/credit-grants")
-                              }
-                            >
-                              <Coins className="text-muted-foreground size-4" />
-                              <span>{tUserAvatar("creditGrants")}</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      )
-                    ) : null}
                     {isMobile ? (
                       <>
                         <DropdownMenuItem
