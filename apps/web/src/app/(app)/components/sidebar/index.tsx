@@ -55,7 +55,7 @@ export default function Sidebar({
               <AdminMenu />
             </>
           ) : null}
-          <SidebarSeparator className="mx-0 mt-2" />
+          <SidebarSeparator className="mx-0" />
           <ChatListsClient />
         </div>
       </SidebarContent>
