@@ -6,6 +6,7 @@ import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 
+import { FALLBACK_BUCKET_SEGMENT } from "@/app/(app)/chat-ui/utils/chat-route-base";
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
@@ -24,6 +25,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { cn } from "@/lib/utils";
@@ -31,7 +33,8 @@ import { cn } from "@/lib/utils";
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const pathname = usePathname();
-  const { conversations, refreshConversations } = useConversationsContext();
+  const { conversations, refreshConversations, isLoading } =
+    useConversationsContext();
   const { coworkers } = useCoworkersContext();
   const params = useParams<{ bucketSlug?: string }>();
   const bucketSlug = params?.bucketSlug;
@@ -102,12 +105,22 @@ export default function ChatListsClient() {
         </span>
         <CollapsibleContent>
           <SidebarGroupContent>
-            {hasAnyChats ? (
+            {isLoading ? (
+              <div className="space-y-2 px-4 py-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ) : hasAnyChats ? (
               <SidebarMenu className="pt-2">
                 {chatGroups.map((group) => {
                   const slug = group.displaySlug;
                   const mostRecentConversation = group.conversations[0];
-                  const isActive = isChatRoute && bucketSlug === slug;
+                  const isActive =
+                    isChatRoute &&
+                    (bucketSlug === slug ||
+                      (bucketSlug === FALLBACK_BUCKET_SEGMENT &&
+                        !slug.includes("/")));
                   const chatHref =
                     mostRecentConversation != null
                       ? `/chat/${slug}/conversation/${mostRecentConversation.id}`
