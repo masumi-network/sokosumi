@@ -255,6 +255,14 @@ export type AgentReviewAuthor = {
     image: string | null;
 };
 
+export type AgentMyReview = {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+} | null;
+
 export type JobSummary = {
     id: string;
     createdAt: Date;
@@ -1916,7 +1924,16 @@ export type GetAgentsByIdReviewsData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of commented reviews to return
+         */
+        limit?: number;
+        /**
+         * Number of commented reviews to skip
+         */
+        offset?: number | null;
+    };
     url: '/agents/{id}/reviews';
 };
 
@@ -1966,6 +1983,76 @@ export type GetAgentsByIdReviewsResponses = {
 };
 
 export type GetAgentsByIdReviewsResponse = GetAgentsByIdReviewsResponses[keyof GetAgentsByIdReviewsResponses];
+
+export type GetAgentsByIdReviewsMeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{id}/reviews/me';
+};
+
+export type GetAgentsByIdReviewsMeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAgentsByIdReviewsMeError = GetAgentsByIdReviewsMeErrors[keyof GetAgentsByIdReviewsMeErrors];
+
+export type GetAgentsByIdReviewsMeResponses = {
+    /**
+     * The caller's own review for the agent, or null if they have not rated it
+     */
+    200: {
+        data: AgentMyReview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAgentsByIdReviewsMeResponse = GetAgentsByIdReviewsMeResponses[keyof GetAgentsByIdReviewsMeResponses];
 
 export type GetAgentsByIdInputSchemaData = {
     body?: never;

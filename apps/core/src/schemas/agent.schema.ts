@@ -255,4 +255,18 @@ export const agentReviewsSchema = z
 
 export type AgentReviews = z.infer<typeof agentReviewsSchema>;
 
+export const agentMyReviewSchema = z
+  .object({
+    id: z.string().openapi({ example: "rating_123" }),
+    rating: z.number().min(1).max(5).openapi({ example: 5 }),
+    comment: z.string().nullable().openapi({ example: "Great results." }),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("AgentMyReview");
+
+export type AgentMyReview = z.infer<typeof agentMyReviewSchema>;
+
+export const agentMyReviewResponseSchema = agentMyReviewSchema.nullable();
+
 export const agentsSummarySchema = z.array(agentSummarySchema);

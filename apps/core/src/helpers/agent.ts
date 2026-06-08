@@ -10,7 +10,9 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import {
+  type AgentMyReview,
   type AgentReview,
+  agentMyReviewSchema,
   agentReviewSchema,
   type RatingDistribution,
   type RatingMetrics,
@@ -428,6 +430,7 @@ export const getRecentAgentReviews = async (
   agentId: string,
   limit: number,
   tx: Prisma.TransactionClient,
+  offset: number = 0,
 ): Promise<AgentReview[]> => {
   const ratings = await tx.userAgentRating.findMany({
     where: {
@@ -446,6 +449,7 @@ export const getRecentAgentReviews = async (
     },
     orderBy: { createdAt: "desc" },
     take: limit,
+    skip: offset,
   });
 
   return ratings.map((rating) =>
@@ -464,4 +468,36 @@ export const getRecentAgentReviews = async (
       },
     }),
   );
+};
+
+/**
+ * Returns the authenticated caller's own rating for an agent, or null when they
+ * have not rated it. Unlike the public review reads, this is not filtered by
+ * `isHidden` — the caller may always see their own rating.
+ */
+export const getUserAgentReview = async (
+  agentId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<AgentMyReview | null> => {
+  const rating = await tx.userAgentRating.findUnique({
+    where: {
+      userId_agentId: {
+        userId,
+        agentId,
+      },
+    },
+  });
+
+  if (!rating) {
+    return null;
+  }
+
+  return agentMyReviewSchema.parse({
+    id: rating.id,
+    rating: rating.rating,
+    comment: rating.comment,
+    createdAt: rating.createdAt,
+    updatedAt: rating.updatedAt,
+  });
 };

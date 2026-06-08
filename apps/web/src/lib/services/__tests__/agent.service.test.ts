@@ -12,6 +12,22 @@ const getAllCoreAgentsMock = vi.fn();
 const getCoreAgentByIdMock = vi.fn();
 const mapCoreAgentsToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreAgentToAgentWithCreditsPriceMock = vi.fn();
+const mapCoreAgentMetricsToRatingStatsMock = vi.fn();
+const mapCoreAgentReviewsMock = vi.fn();
+const mapCoreMyAgentReviewMock = vi.fn();
+
+const getMyAgentReviewMock = vi.fn();
+const getAgentReviewsMock = vi.fn();
+
+class CoreApiRequestErrorMock extends Error {
+  status?: number;
+
+  constructor(message: string, options?: { status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.status = options?.status;
+  }
+}
 
 vi.mock("@/lib/agents/core-loaders", () => ({
   getAllCoreAgents: (...args: unknown[]) => getAllCoreAgentsMock(...args),
@@ -23,6 +39,19 @@ vi.mock("@/lib/agents/core-dto-mappers", () => ({
     mapCoreAgentsToAgentWithCreditsPriceMock(...args),
   mapCoreAgentToAgentWithCreditsPrice: (...args: unknown[]) =>
     mapCoreAgentToAgentWithCreditsPriceMock(...args),
+  mapCoreAgentMetricsToRatingStats: (...args: unknown[]) =>
+    mapCoreAgentMetricsToRatingStatsMock(...args),
+  mapCoreAgentReviews: (...args: unknown[]) => mapCoreAgentReviewsMock(...args),
+  mapCoreMyAgentReview: (...args: unknown[]) =>
+    mapCoreMyAgentReviewMock(...args),
+}));
+
+vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: CoreApiRequestErrorMock,
+  coreClient: {
+    getMyAgentReview: (...args: unknown[]) => getMyAgentReviewMock(...args),
+    getAgentReviews: (...args: unknown[]) => getAgentReviewsMock(...args),
+  },
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -30,9 +59,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
     upsertAgentListForUserId: vi.fn(),
   },
   agentRatingRepository: {
-    getAgentRatingStats: vi.fn(),
-    getRatingsByAgentId: vi.fn(),
-    getUserRatingForAgent: vi.fn(),
     upsertRating: vi.fn(),
   },
   agentRepository: {
@@ -165,5 +191,72 @@ describe("agent.service", () => {
       "11111111-1111-7111-8111-111111111111",
       expect.any(Object),
     );
+  });
+
+  it("serves the caller's own rating from core", async () => {
+    getMyAgentReviewMock.mockResolvedValue({
+      data: { rating: 4, comment: "Solid." },
+    });
+    mapCoreMyAgentReviewMock.mockReturnValue({ rating: 4, comment: "Solid." });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getUserRatingForAgent("agent-1");
+
+    expect(getMyAgentReviewMock).toHaveBeenCalledWith("agent-1");
+    expect(result).toEqual({ rating: 4, comment: "Solid." });
+  });
+
+  it("returns null when core reports the agent is unavailable (404)", async () => {
+    getMyAgentReviewMock.mockRejectedValue(
+      new CoreApiRequestErrorMock("not found", { status: 404 }),
+    );
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getUserRatingForAgent("agent-1");
+
+    expect(result).toBeNull();
+    expect(mapCoreMyAgentReviewMock).not.toHaveBeenCalled();
+  });
+
+  it("serves agent ratings-with-comments from core", async () => {
+    getAgentReviewsMock.mockResolvedValue({
+      data: { distribution: {}, ratingsWithComments: [] },
+    });
+    mapCoreAgentReviewsMock.mockReturnValue({
+      ratingDistribution: {},
+      ratingsWithComments: [{ id: "rating-1" }],
+    });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getAgentRatings("agent-1", 5, 10);
+
+    expect(getAgentReviewsMock).toHaveBeenCalledWith("agent-1", {
+      limit: 5,
+      offset: 10,
+    });
+    expect(result).toEqual([{ id: "rating-1" }]);
+  });
+
+  it("reads aggregate rating stats from core metrics", async () => {
+    getCoreAgentByIdMock.mockResolvedValue({ id: "agent-1", metrics: {} });
+    mapCoreAgentMetricsToRatingStatsMock.mockReturnValue({
+      totalRatings: 3,
+      averageRating: 4.2,
+    });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getAgentRatingStats("agent-1");
+
+    expect(result).toEqual({ totalRatings: 3, averageRating: 4.2 });
+  });
+
+  it("returns zeroed rating stats when the agent is unavailable", async () => {
+    getCoreAgentByIdMock.mockResolvedValue(null);
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getAgentRatingStats("missing");
+
+    expect(result).toEqual({ totalRatings: 0, averageRating: 0 });
+    expect(mapCoreAgentMetricsToRatingStatsMock).not.toHaveBeenCalled();
   });
 });

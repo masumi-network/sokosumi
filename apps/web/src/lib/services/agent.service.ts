@@ -19,11 +19,15 @@ import {
 } from "@sokosumi/database/repositories";
 
 import {
+  mapCoreAgentMetricsToRatingStats,
+  mapCoreAgentReviews,
   mapCoreAgentsToAgentWithCreditsPrice,
   mapCoreAgentToAgentWithCreditsPrice,
+  mapCoreMyAgentReview,
 } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents, getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 
 export const agentService = (() => {
@@ -285,38 +289,52 @@ export const agentService = (() => {
     },
 
     /**
-     * Get user's existing rating for an agent
+     * Get the authenticated caller's existing rating for an agent.
+     *
+     * Served by Core's `GET /v1/agents/{id}/reviews/me`, which scopes the read
+     * to the session user. Returns null when the agent is unavailable (Core 404)
+     * or the caller has not rated it.
      */
-    async getUserRatingForAgent(userId: string, agentId: string) {
-      return await agentRatingRepository.getUserRatingForAgent(
-        userId,
-        agentId,
-        prisma,
-      );
+    async getUserRatingForAgent(agentId: string) {
+      try {
+        const response = await coreClient.getMyAgentReview(agentId);
+        return mapCoreMyAgentReview(response.data);
+      } catch (error) {
+        if (error instanceof CoreApiRequestError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
     },
 
     /**
-     * Get paginated ratings for an agent
+     * Get paginated ratings-with-comments for an agent.
+     *
+     * Served by Core's `GET /v1/agents/{id}/reviews` (comment-bearing ratings).
      */
     async getAgentRatings(
       agentId: string,
       limit: number = 10,
       offset: number = 0,
     ) {
-      return await agentRatingRepository.getRatingsByAgentId(
-        agentId,
+      const response = await coreClient.getAgentReviews(agentId, {
         limit,
         offset,
-        false,
-        prisma,
-      );
+      });
+      return mapCoreAgentReviews(response.data).ratingsWithComments;
     },
 
     /**
-     * Get aggregate rating statistics for an agent
+     * Get aggregate rating statistics for an agent.
+     *
+     * Reuses the rating metrics Core already returns on the agent detail.
      */
     async getAgentRatingStats(agentId: string) {
-      return await agentRatingRepository.getAgentRatingStats(agentId, prisma);
+      const coreAgent = await getCoreAgentById(agentId);
+      if (!coreAgent) {
+        return { totalRatings: 0, averageRating: 0 };
+      }
+      return mapCoreAgentMetricsToRatingStats(coreAgent);
     },
   };
 })();
