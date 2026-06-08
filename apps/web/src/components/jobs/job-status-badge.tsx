@@ -1,6 +1,7 @@
 "use client";
 
-import { JobType, SokosumiJobStatus } from "@sokosumi/database";
+import { JobType } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";

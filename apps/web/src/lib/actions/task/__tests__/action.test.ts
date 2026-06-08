@@ -1,4 +1,5 @@
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskLinkType } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";

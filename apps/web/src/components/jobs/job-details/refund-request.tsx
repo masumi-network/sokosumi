@@ -4,8 +4,8 @@ import {
   JobType,
   type JobWithSokosumiStatus,
   type PaidJobWithStatus,
-  SokosumiJobStatus,
 } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import {
   ExternalLink,
   HandCoins,

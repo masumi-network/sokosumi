@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 

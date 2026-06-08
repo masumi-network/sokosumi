@@ -1,3 +1,5 @@
+import type { SokosumiJobStatus } from "@sokosumi/utils";
+
 import {
   AgentJobStatus,
   OnChainJobStatus,
@@ -233,24 +235,6 @@ export type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
 export enum JobErrorNoteKeys {
   StatusMismatch = "Job.StatusMismatch",
   Unknown = "Job.UnknownState",
-}
-
-export enum SokosumiJobStatus {
-  STARTED = "started",
-  COMPLETED = "completed",
-  PROCESSING = "processing",
-  INPUT_REQUIRED = "input_required",
-  RESULT_PENDING = "result_pending",
-  FAILED = "failed",
-
-  PAYMENT_PENDING = "payment_pending",
-  PAYMENT_FAILED = "payment_failed",
-
-  REFUND_PENDING = "refund_pending",
-  REFUND_RESOLVED = "refund_resolved",
-
-  DISPUTE_PENDING = "dispute_pending",
-  DISPUTE_RESOLVED = "dispute_resolved",
 }
 
 export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [

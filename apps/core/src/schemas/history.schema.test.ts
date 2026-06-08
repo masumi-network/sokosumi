@@ -1,5 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {

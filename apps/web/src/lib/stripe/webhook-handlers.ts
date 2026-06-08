@@ -5,7 +5,6 @@ import {
   MemberRole,
   type Prisma,
   TaskEventOrigin,
-  TaskStatus,
 } from "@sokosumi/database";
 import {
   buildOrganizationInvoiceCreditReferenceId,
@@ -31,6 +30,7 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   getOrganizationMetadata,
+  TaskStatus,
 } from "@sokosumi/utils";
 import Stripe from "stripe";
 

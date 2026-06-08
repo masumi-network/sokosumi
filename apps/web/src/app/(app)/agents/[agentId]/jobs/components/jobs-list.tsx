@@ -1,9 +1,7 @@
 "use client";
 
-import {
-  type JobWithSokosumiStatus,
-  SokosumiJobStatus,
-} from "@sokosumi/database";
+import { type JobWithSokosumiStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

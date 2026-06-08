@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import type { TasksScope } from "@/app/tasks/utils/tasks-filters";
 import type { Coworker } from "@/lib/clients/generated/core";

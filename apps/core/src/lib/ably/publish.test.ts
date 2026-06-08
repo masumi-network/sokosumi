@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 import { publishJobStatusData, publishTaskEventData } from "./publish";

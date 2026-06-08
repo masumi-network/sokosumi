@@ -4,7 +4,6 @@ import {
   CreditBucketReferenceType,
   type Prisma,
   TaskEventOrigin,
-  TaskStatus,
 } from "@sokosumi/database";
 import {
   buildOrganizationSeatAssignmentSubscriptionReferenceId,
@@ -16,7 +15,7 @@ import {
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
-import { convertCreditsToCents } from "@sokosumi/utils";
+import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";

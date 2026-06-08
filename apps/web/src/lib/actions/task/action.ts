@@ -1,6 +1,7 @@
 "use server";
 
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskLinkType } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import { toCoreApiActionError } from "@/lib/clients/core.client";
