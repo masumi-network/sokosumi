@@ -55,25 +55,30 @@ function formatCurrency(minorUnits: number, currency: string): string {
   }
 }
 
+function countDecimals(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  const text = String(value);
+  const dotIndex = text.indexOf(".");
+  return dotIndex === -1 ? 0 : text.length - dotIndex - 1;
+}
+
 function formatPricePerCredit(
   amountPerCredit: number,
   currency: string,
+  fractionDigits: number,
 ): string {
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency.toUpperCase(),
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
     }).format(amountPerCredit / 100);
   } catch {
-    return `${(amountPerCredit / 100).toFixed(4)} ${currency.toUpperCase()}`;
+    return `${(amountPerCredit / 100).toFixed(fractionDigits)} ${currency.toUpperCase()}`;
   }
-}
-
-function formatPriceOption(price: CreditPriceOption): string {
-  const base = formatPricePerCredit(price.amountPerCredit, price.currency);
-  return price.nickname ? `${base} · ${price.nickname}` : base;
 }
 
 export function CreditGrantForm({
@@ -82,6 +87,12 @@ export function CreditGrantForm({
 }: CreditGrantFormProps) {
   const t = useTranslations("App.Admin.CreditGrants");
   const defaultPriceId = prices[0]?.id ?? "";
+  // Pad every price to the same number of decimals so the values line up in
+  // the dropdown (combined with tabular-nums on render).
+  const priceFractionDigits = Math.max(
+    2,
+    ...prices.map((price) => countDecimals(price.amountPerCredit) + 2),
+  );
   const [organizationId, setOrganizationId] = useState("");
   const [creditsInput, setCreditsInput] = useState("");
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
@@ -274,7 +285,18 @@ export function CreditGrantForm({
           <SelectContent>
             {prices.map((price) => (
               <SelectItem key={price.id} value={price.id}>
-                {formatPriceOption(price)}
+                <span className="tabular-nums">
+                  {formatPricePerCredit(
+                    price.amountPerCredit,
+                    price.currency,
+                    priceFractionDigits,
+                  )}
+                </span>
+                {price.nickname ? (
+                  <span className="text-muted-foreground">
+                    {price.nickname}
+                  </span>
+                ) : null}
               </SelectItem>
             ))}
           </SelectContent>
