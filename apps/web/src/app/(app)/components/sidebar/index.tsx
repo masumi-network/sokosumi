@@ -18,6 +18,7 @@ import NewChatTaskActions from "./components/new-chat-task-actions";
 import ProfileSwitch from "./components/profile-switch";
 
 interface SidebarProps {
+  adminMenuEnabled: boolean;
   creditsData: UserCreditsData | null;
   currentTimestampMs: number;
   hermesMenuEnabled: boolean;
@@ -26,6 +27,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
+  adminMenuEnabled,
   creditsData,
   currentTimestampMs,
   hermesMenuEnabled,
@@ -36,7 +38,10 @@ export default function Sidebar({
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
         <div className="flex items-center gap-2 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:pt-1! group-data-[collapsible=icon]:pl-0!">
-          <ProfileSwitch session={session} />
+          <ProfileSwitch
+            adminMenuEnabled={adminMenuEnabled}
+            session={session}
+          />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarHeader>

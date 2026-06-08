@@ -125,6 +125,8 @@
       "organizations": "Organisationen",
       "billing": "Abrechnung",
       "connections": "Verbindungen",
+      "admin": "Administration",
+      "enterpriseContracts": "Enterprise-Verträge",
       "support": "Support",
       "logout": "Abmelden",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits verwendet",
@@ -247,6 +249,9 @@
       "subscriptions": "Abonnements",
       "billing": "Abrechnung",
       "account": "Konto",
+      "admin": "Administration",
+      "edit": "Bearbeiten",
+      "enterprise-contracts": "Enterprise-Verträge",
       "organizations": "Organisationen",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
@@ -2466,6 +2471,91 @@
         "title": "Etwas ist schiefgelaufen",
         "message": "Beim Laden der Abonnements ist ein Problem aufgetreten. Bitte versuche es später erneut.",
         "retryButton": "Erneut versuchen"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Enterprise-Verträge",
+        "description": "Interne Admin-Konsole für Entwürfe, Aktivierung und Kündigung.",
+        "newContract": "Neuer Vertrag",
+        "loading": "Wird geladen…",
+        "loadFailed": "Enterprise-Verträge konnten nicht geladen werden.",
+        "Filters": {
+          "organizationSlug": "Organisations-Slug",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Status",
+          "statusAll": "Alle",
+          "apply": "Filter anwenden"
+        },
+        "Status": {
+          "draft": "Entwurf",
+          "active": "Aktiv",
+          "completed": "Abgeschlossen",
+          "canceled": "Gekündigt"
+        },
+        "Table": {
+          "organization": "Organisation",
+          "status": "Status",
+          "seats": "Seats",
+          "creditsPerMonth": "Credits pro Monat",
+          "periods": "Perioden",
+          "ends": "Endet",
+          "actions": "Aktionen",
+          "view": "Ansehen"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "Organisation",
+            "subscription": "Abonnement",
+            "oneTime": "Einmalig",
+            "references": "Referenzen"
+          },
+          "optionalSection": "Optional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Credits / Monat",
+              "min": "Min. {min, number}"
+            },
+            "periods": {
+              "label": "Perioden",
+              "helper": "1 Periode = 1 Monat"
+            },
+            "seats": {
+              "label": "Seats"
+            },
+            "oneTimeCredits": {
+              "label": "Betrag"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Läuft ab",
+              "helper": "Leer = kein Ablauf"
+            },
+            "paymentReference": {
+              "label": "Zahlung"
+            },
+            "externalReference": {
+              "label": "Extern"
+            },
+            "notes": {
+              "label": "Notizen"
+            }
+          },
+          "createDraft": "Entwurf erstellen",
+          "saveChanges": "Speichern",
+          "cancel": "Abbrechen",
+          "createSuccess": "Entwurf erstellt",
+          "updateSuccess": "Vertrag aktualisiert",
+          "createError": "Vertrag konnte nicht erstellt werden",
+          "updateError": "Vertrag konnte nicht aktualisiert werden",
+          "missingContract": "Vertrag fehlt"
+        },
+        "Detail": {
+          "noExpiry": "Kein Ablauf"
+        }
       }
     },
     "Billing": {

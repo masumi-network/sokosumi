@@ -125,6 +125,8 @@
       "organizations": "Organisations",
       "billing": "Facturation",
       "connections": "Connexions",
+      "admin": "Administration",
+      "enterpriseContracts": "Contrats entreprise",
       "help": "Aide",
       "legal": "Mentions légales",
       "support": "Support",
@@ -247,6 +249,9 @@
       "subscriptions": "Abonnements",
       "billing": "Facturation",
       "account": "Compte",
+      "admin": "Administration",
+      "edit": "Modifier",
+      "enterprise-contracts": "Contrats entreprise",
       "organizations": "Organisations",
       "mcp": "Protocole de contexte de modèle (MCP)",
       "chat": "Chat",
@@ -2497,6 +2502,91 @@
         "title": "Une erreur est survenue",
         "message": "Nous avons rencontré un problème lors du chargement des abonnements. Veuillez réessayer plus tard.",
         "retryButton": "Réessayer"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contrats entreprise",
+        "description": "Console d'administration interne pour les brouillons, l'activation et l'annulation.",
+        "newContract": "Nouveau contrat",
+        "loading": "Chargement…",
+        "loadFailed": "Impossible de charger les contrats entreprise.",
+        "Filters": {
+          "organizationSlug": "Slug de l'organisation",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Statut",
+          "statusAll": "Tous",
+          "apply": "Appliquer les filtres"
+        },
+        "Status": {
+          "draft": "Brouillon",
+          "active": "Actif",
+          "completed": "Terminé",
+          "canceled": "Annulé"
+        },
+        "Table": {
+          "organization": "Organisation",
+          "status": "Statut",
+          "seats": "Sièges",
+          "creditsPerMonth": "Crédits par mois",
+          "periods": "Périodes",
+          "ends": "Se termine",
+          "actions": "Actions",
+          "view": "Voir"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "Organisation",
+            "subscription": "Abonnement",
+            "oneTime": "Ponctuel",
+            "references": "Références"
+          },
+          "optionalSection": "Facultatif",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Crédits / mois",
+              "min": "Min. {min, number}"
+            },
+            "periods": {
+              "label": "Périodes",
+              "helper": "1 période = 1 mois"
+            },
+            "seats": {
+              "label": "Sièges"
+            },
+            "oneTimeCredits": {
+              "label": "Montant"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expire",
+              "helper": "Vide = sans expiration"
+            },
+            "paymentReference": {
+              "label": "Paiement"
+            },
+            "externalReference": {
+              "label": "Externe"
+            },
+            "notes": {
+              "label": "Notes"
+            }
+          },
+          "createDraft": "Créer le brouillon",
+          "saveChanges": "Enregistrer",
+          "cancel": "Annuler",
+          "createSuccess": "Brouillon créé",
+          "updateSuccess": "Contrat mis à jour",
+          "createError": "Impossible de créer le contrat",
+          "updateError": "Impossible de mettre à jour le contrat",
+          "missingContract": "Contrat introuvable"
+        },
+        "Detail": {
+          "noExpiry": "Sans expiration"
+        }
       }
     },
     "Billing": {

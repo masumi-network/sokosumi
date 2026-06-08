@@ -13,6 +13,7 @@ import { userService } from "@/lib/services";
 import ProfileSwitchClient from "./profile-switch.client";
 
 interface ProfileSwitchProps {
+  adminMenuEnabled: boolean;
   session: Session;
 }
 
@@ -24,15 +25,24 @@ function ProfileSwitchSkeleton() {
   );
 }
 
-export default function ProfileSwitch({ session }: ProfileSwitchProps) {
+export default function ProfileSwitch({
+  adminMenuEnabled,
+  session,
+}: ProfileSwitchProps) {
   return (
     <Suspense fallback={<ProfileSwitchSkeleton />}>
-      <ProfileSwitchInner session={session} />
+      <ProfileSwitchInner
+        adminMenuEnabled={adminMenuEnabled}
+        session={session}
+      />
     </Suspense>
   );
 }
 
-async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
+async function ProfileSwitchInner({
+  adminMenuEnabled,
+  session,
+}: ProfileSwitchProps) {
   const tCredit = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
@@ -99,6 +109,7 @@ async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
 
   return (
     <ProfileSwitchClient
+      adminMenuEnabled={adminMenuEnabled}
       sessionUser={session.user}
       members={members}
       activeOrganizationId={activeOrganizationId}
