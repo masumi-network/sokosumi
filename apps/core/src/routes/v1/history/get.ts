@@ -5,6 +5,7 @@ import { badRequest } from "@/helpers/error";
 import {
   buildHistoryWhere,
   createHistoryPaginationMeta,
+  loadAgentPreviewsByIds,
   loadComputedJobStatusByEntityId,
   mapHistoryRow,
 } from "@/helpers/history";
@@ -191,15 +192,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = rows.length === takePlusOne;
     const pagedRows = rows.slice(0, take);
-    const jobEntityIds = pagedRows
-      .filter((row) => row.kind === HistoryKind.JOB)
-      .map((row) => row.entityId);
-    const jobStatusByEntityId = await loadComputedJobStatusByEntityId(
-      jobEntityIds,
-      prisma,
-    );
+    const jobRows = pagedRows.filter((row) => row.kind === HistoryKind.JOB);
+    const jobEntityIds = jobRows.map((row) => row.entityId);
+    const jobAgentIds = [
+      ...new Set(
+        jobRows
+          .map((row) => row.agentId)
+          .filter((agentId): agentId is string => agentId != null),
+      ),
+    ];
+    const [jobStatusByEntityId, agentPreviewById] = await Promise.all([
+      loadComputedJobStatusByEntityId(jobEntityIds, prisma),
+      loadAgentPreviewsByIds(jobAgentIds, prisma),
+    ]);
     const historyItems = pagedRows.map((row) =>
-      mapHistoryRow(row, { jobStatusByEntityId }),
+      mapHistoryRow(row, { jobStatusByEntityId, agentPreviewById }),
     );
     const paginationMeta = createHistoryPaginationMeta(
       historyItems,

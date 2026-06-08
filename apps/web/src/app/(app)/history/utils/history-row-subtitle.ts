@@ -5,7 +5,6 @@ export type HistoryBucketIconPreview =
   | { kind: "coworker"; name: string; imageUrl: string | null };
 
 export interface HistorySubtitleLookups {
-  agentPreviewById: Record<string, { name: string; icon: string | null }>;
   bucketDisplayNameBySlug: Record<string, string>;
   bucketIconBySlug: Record<string, HistoryBucketIconPreview>;
 }
@@ -16,7 +15,6 @@ export interface HistorySubtitleLabels {
 
 export function createEmptyHistorySubtitleLookups(): HistorySubtitleLookups {
   return {
-    agentPreviewById: {},
     bucketDisplayNameBySlug: {},
     bucketIconBySlug: {},
   };
@@ -27,10 +25,6 @@ export function mergeHistorySubtitleLookups(
   next: HistorySubtitleLookups,
 ): HistorySubtitleLookups {
   return {
-    agentPreviewById: {
-      ...current.agentPreviewById,
-      ...next.agentPreviewById,
-    },
     bucketDisplayNameBySlug: {
       ...current.bucketDisplayNameBySlug,
       ...next.bucketDisplayNameBySlug,
@@ -62,7 +56,7 @@ function getHistoryRowSubtitleFallback(
 ): string | null {
   switch (item.kind) {
     case "job":
-      return lookups.agentPreviewById[item.agentId]?.name.trim() || null;
+      return item.agentName?.trim() || null;
     case "conversation":
       return item.bucketSlug
         ? lookups.bucketDisplayNameBySlug[item.bucketSlug]?.trim() || null

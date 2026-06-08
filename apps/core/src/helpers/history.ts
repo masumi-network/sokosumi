@@ -4,7 +4,7 @@ import {
   jobForStatusComputeSelect,
   SokosumiJobStatus,
 } from "@sokosumi/database/types/job";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { convertCentsToCredits, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { createPaginationMeta } from "@/helpers/pagination";
 import type prisma from "@/lib/db/prisma";
@@ -356,10 +356,66 @@ export async function loadComputedJobStatusByEntityId(
   return new Map(jobs.map((job) => [job.id, computeJobStatus(job)]));
 }
 
+export interface AgentPreview {
+  name: string;
+  icon: string | null;
+}
+
+/**
+ * Resolves an agent icon to a renderable URL, mirroring the web client's
+ * previous behavior: null when missing, and null when the resolved value is
+ * not a valid URL.
+ */
+function resolveAgentIcon(icon: string | null): string | null {
+  if (!icon) {
+    return null;
+  }
+  const resolvedUrl = resolveIpfsOrHttpUrl(icon);
+  try {
+    new URL(resolvedUrl);
+    return resolvedUrl;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Batch-loads display name and resolved icon for the given agent ids. Used to
+ * enrich job history rows so the web client no longer needs direct DB access.
+ * Failures degrade to an empty map so callers can render null fields instead
+ * of failing the request.
+ */
+export async function loadAgentPreviewsByIds(
+  agentIds: string[],
+  prismaClient: Pick<typeof prisma, "agent">,
+): Promise<Map<string, AgentPreview>> {
+  if (agentIds.length === 0) {
+    return new Map();
+  }
+
+  const agents = await prismaClient.agent
+    .findMany({
+      where: { id: { in: agentIds } },
+      select: { id: true, name: true, overrideName: true, icon: true },
+    })
+    .catch(() => []);
+
+  return new Map(
+    agents.map((agent) => [
+      agent.id,
+      {
+        name: agent.overrideName ?? agent.name,
+        icon: resolveAgentIcon(agent.icon),
+      },
+    ]),
+  );
+}
+
 export function mapHistoryRow(
   row: HistoryRowForApi,
   options?: {
     jobStatusByEntityId?: Map<string, SokosumiJobStatus>;
+    agentPreviewById?: Map<string, AgentPreview>;
   },
 ): HistoryItem {
   const jobStatus =
@@ -387,15 +443,22 @@ export function mapHistoryRow(
         projectId: row.projectId,
         coworkerId: row.coworkerId,
       };
-    case HistoryKind.JOB:
+    case HistoryKind.JOB: {
+      const agentId = row.agentId ?? "";
+      const agentPreview = row.agentId
+        ? options?.agentPreviewById?.get(row.agentId)
+        : undefined;
       return {
         ...baseItem,
         kind: "job",
         status: status as SokosumiJobStatus,
         credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
-        agentId: row.agentId ?? "",
+        agentId,
+        agentName: agentPreview?.name ?? null,
+        agentIcon: agentPreview?.icon ?? null,
       };
+    }
     case HistoryKind.CONVERSATION:
       return {
         ...baseItem,

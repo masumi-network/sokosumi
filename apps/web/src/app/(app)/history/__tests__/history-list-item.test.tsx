@@ -78,12 +78,6 @@ const labels: HistoryListItemLabels = {
 };
 
 const subtitleLookups: HistorySubtitleLookups = {
-  agentPreviewById: {
-    "agent-1": {
-      name: "Research Agent",
-      icon: "https://example.com/research.svg",
-    },
-  },
   bucketDisplayNameBySlug: {
     hannah: "Hannah",
     "gpt-5-4": "GPT-5.4",
@@ -289,6 +283,8 @@ describe("HistoryListItem", () => {
       credits: 2,
       projectId: null,
       agentId: "agent-1",
+      agentName: null,
+      agentIcon: null,
     };
 
     expect(getHistoryItemHref(task)).toBe("/tasks/task-1");
@@ -343,6 +339,8 @@ describe("HistoryListItem", () => {
       credits: 2,
       projectId: null,
       agentId: "agent-1",
+      agentName: "Research Agent",
+      agentIcon: "https://example.com/research.svg",
     };
 
     render(
@@ -430,6 +428,8 @@ describe("HistoryListItem", () => {
       credits: 2,
       projectId: null,
       agentId: "agent-1",
+      agentName: "Research Agent",
+      agentIcon: null,
     };
 
     expect(getHistoryRowSubtitle(item, subtitleLookups, labels)).toBe(

@@ -1026,6 +1026,14 @@ export type HistoryJobItem = {
      * Agent ID for deep-linking to the job
      */
     agentId: string;
+    /**
+     * Resolved display name of the job's agent (override name when set). Null when the agent could not be resolved.
+     */
+    agentName: string | null;
+    /**
+     * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
+     */
+    agentIcon: string | null;
 };
 
 export type HistoryConversationItem = {

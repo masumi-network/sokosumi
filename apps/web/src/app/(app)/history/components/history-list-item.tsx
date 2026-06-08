@@ -191,13 +191,11 @@ function HistoryTypeIcon({
   }
 
   if (item.kind === "job") {
-    const agentPreview = subtitleLookups.agentPreviewById[item.agentId];
-
     return (
       <AgentIcon
         agent={{
-          name: agentPreview?.name ?? item.title,
-          icon: agentPreview?.icon ?? null,
+          name: item.agentName ?? item.title,
+          icon: item.agentIcon ?? null,
         }}
         className="size-4"
       />

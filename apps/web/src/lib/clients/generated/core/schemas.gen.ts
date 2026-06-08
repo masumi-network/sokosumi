@@ -3440,6 +3440,22 @@ export const HistoryJobItemSchema = {
             type: 'string',
             description: 'Agent ID for deep-linking to the job',
             example: 'agent_123'
+        },
+        agentName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Resolved display name of the job\'s agent (override name when set). Null when the agent could not be resolved.',
+            example: 'Research Agent'
+        },
+        agentIcon: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Resolved icon URL for the job\'s agent. Null when the agent has no valid icon or could not be resolved.',
+            example: 'https://example.com/research.svg'
         }
     },
     required: [
@@ -3452,7 +3468,9 @@ export const HistoryJobItemSchema = {
         'kind',
         'status',
         'projectId',
-        'agentId'
+        'agentId',
+        'agentName',
+        'agentIcon'
     ]
 } as const;
 
