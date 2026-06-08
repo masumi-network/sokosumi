@@ -193,6 +193,35 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
       expect.objectContaining({ couponId: "coupon_support" }),
     );
   });
+
+  it("grants credits immediately when the invoice finalizes as paid (free grant)", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      stripeCustomerId: "cus_org",
+      metadata: null,
+    });
+    createCreditGrantInvoiceMock.mockResolvedValue({
+      id: "in_free",
+      currency: "usd",
+      amount_due: 0,
+      status: "paid",
+    });
+    creditBucketFindFirstMock.mockResolvedValue({ id: "cb_free" });
+
+    const summary = await creditGrantAdminService.createGrantInvoice({
+      target: { targetType: "organization", targetId: "org_1" },
+      credits: 10,
+      ttlDays: null,
+      priceId: null,
+      markFree: true,
+    });
+
+    expect(handleInvoicePaidEventMock).toHaveBeenCalledTimes(1);
+    expect(creditBucketFindFirstMock).toHaveBeenCalled();
+    expect(summary.targetType).toBe("organization");
+  });
 });
 
 describe("creditGrantAdminService.markGrantInvoicePaid", () => {

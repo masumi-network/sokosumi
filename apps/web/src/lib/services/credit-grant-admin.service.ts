@@ -202,6 +202,54 @@ export const creditGrantAdminService = (() => {
     }
   }
 
+  /**
+   * Grants the credits for an already-paid invoice via the shared invoice-paid
+   * automation and verifies the grant landed. Idempotent against the
+   * `invoice.paid` webhook Stripe also fires (shared reference-id dedup).
+   */
+  async function grantCreditsForPaidInvoice(
+    paidInvoice: Stripe.Invoice,
+    target: { targetType: CreditGrantTargetType; id: string; name: string },
+  ): Promise<void> {
+    if (!paidInvoice.id) {
+      throw new Error("Stripe invoice is missing an id");
+    }
+
+    await handleInvoicePaidEvent(paidInvoice);
+
+    const expectedReferenceId =
+      target.targetType === "user"
+        ? buildUserInvoiceCreditReferenceId(target.id, paidInvoice.id, "topup")
+        : buildOrganizationInvoiceCreditReferenceId(
+            target.id,
+            paidInvoice.id,
+            "topup",
+          );
+    const grantedBucketWhere =
+      target.targetType === "user"
+        ? {
+            userId: target.id,
+            organizationId: null,
+            referenceId: expectedReferenceId,
+          }
+        : { organizationId: target.id, referenceId: expectedReferenceId };
+
+    // handleInvoicePaidEvent can return early without granting (e.g. the
+    // organization has no owner/members), leaving the invoice paid but no
+    // credits issued. Verify the grant landed instead of reporting false
+    // success; granting is idempotent, so a retry after fixing the cause
+    // completes it.
+    const grantedBucket = await prisma.creditBucket.findFirst({
+      where: grantedBucketWhere,
+      select: { id: true },
+    });
+    if (!grantedBucket) {
+      throw new CreditGrantValidationError(
+        "Invoice was paid but credits were not granted (the organization may have no owner). Resolve the issue and mark it paid again to retry.",
+      );
+    }
+  }
+
   return {
     async listPrices(): Promise<CreditPriceOption[]> {
       const prices = await stripeClient.listCreditTopUpPrices();
@@ -258,6 +306,14 @@ export const creditGrantAdminService = (() => {
           : {}),
       });
 
+      // A free ($0) grant finalizes as paid immediately, so grant the credits
+      // now instead of waiting on the invoice.paid webhook. Non-free grants
+      // stay open until an admin marks them paid (no "Mark as paid" step is
+      // shown for an already-paid free grant).
+      if (invoice.status === "paid") {
+        await grantCreditsForPaidInvoice(invoice, target);
+      }
+
       const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         invoice,
@@ -307,25 +363,9 @@ export const creditGrantAdminService = (() => {
         id: string;
         name: string;
       };
-      let expectedReferenceId: string;
-      let grantedBucketWhere: {
-        userId?: string;
-        organizationId: string | null;
-        referenceId: string;
-      };
 
       if (user) {
-        expectedReferenceId = buildUserInvoiceCreditReferenceId(
-          user.id,
-          invoiceId,
-          "topup",
-        );
         target = { targetType: "user", id: user.id, name: user.name };
-        grantedBucketWhere = {
-          userId: user.id,
-          organizationId: null,
-          referenceId: expectedReferenceId,
-        };
       } else {
         const organization =
           await organizationRepository.getOrganizationByStripeCustomerId(
@@ -337,19 +377,10 @@ export const creditGrantAdminService = (() => {
             "Invoice does not belong to a user or organization",
           );
         }
-        expectedReferenceId = buildOrganizationInvoiceCreditReferenceId(
-          organization.id,
-          invoiceId,
-          "topup",
-        );
         target = {
           targetType: "organization",
           id: organization.id,
           name: organization.name,
-        };
-        grantedBucketWhere = {
-          organizationId: organization.id,
-          referenceId: expectedReferenceId,
         };
       }
 
@@ -360,24 +391,7 @@ export const creditGrantAdminService = (() => {
           ? existing
           : await stripeClient.payInvoiceOutOfBand(invoiceId);
 
-      // Grant instantly via the shared automation. Idempotent against the
-      // webhook that Stripe also fires for this invoice.
-      await handleInvoicePaidEvent(paidInvoice);
-
-      // handleInvoicePaidEvent can return early without granting (e.g. the
-      // organization has no owner/members), leaving the invoice paid but no
-      // credits issued. Verify the grant landed instead of reporting false
-      // success; the invoice is already paid, so a re-run (after fixing
-      // membership) is idempotent and will complete the grant.
-      const grantedBucket = await prisma.creditBucket.findFirst({
-        where: grantedBucketWhere,
-        select: { id: true },
-      });
-      if (!grantedBucket) {
-        throw new CreditGrantValidationError(
-          "Invoice was marked paid but credits were not granted (the organization may have no owner). Resolve the issue and mark it paid again to retry.",
-        );
-      }
+      await grantCreditsForPaidInvoice(paidInvoice, target);
 
       const credits = Number(paidInvoice.metadata?.credits ?? 0);
       const ttlDaysRaw = paidInvoice.metadata?.ttl_days;
