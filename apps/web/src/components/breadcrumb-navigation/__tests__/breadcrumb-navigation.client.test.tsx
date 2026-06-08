@@ -23,14 +23,13 @@ vi.mock("next/link", () => ({
   }) => <a href={href}>{children}</a>,
 }));
 
-const organizations = [
+const organizations: OrganizationWithLimitedInfo[] = [
   {
     id: "org-1",
     name: "Acme Corp",
     slug: "acme-corp",
-    logo: null,
   },
-] as OrganizationWithLimitedInfo[];
+];
 
 const breadcrumbMessages = {
   organizations: "Organizations",
