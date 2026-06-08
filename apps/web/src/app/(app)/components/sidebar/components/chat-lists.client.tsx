@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-
-import { FALLBACK_BUCKET_SEGMENT } from "@/app/(app)/chat-ui/utils/chat-route-base";
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
+import { FALLBACK_BUCKET_SEGMENT } from "@/app/chat-ui/utils/chat-route-base";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
