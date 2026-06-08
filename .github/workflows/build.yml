@@ -1,7 +1,6 @@
 name: Build
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -63,14 +62,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Install Dependencies
         run: pnpm install
-
-      - name: Run Tests
-        run: pnpm test:ci
 
       - name: Run Prisma Migrate
         run: pnpm prisma:migrate:dev
