@@ -2,7 +2,7 @@
 
 import type { Member } from "@sokosumi/database";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNowStrict } from "date-fns";
 import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
@@ -76,7 +76,7 @@ export function getMembersTableColumns(
         }
         return (
           <div className="p-2 whitespace-nowrap">
-            {formatDistanceToNow(lastSeenAt, { addSuffix: true })}
+            {formatDistanceToNowStrict(lastSeenAt, { addSuffix: true })}
           </div>
         );
       },
