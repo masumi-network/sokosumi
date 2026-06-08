@@ -230,6 +230,7 @@ docs(readme): update setup instructions
 
 ### Pull Requests
 
+- **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Description**: Explain user-facing impact
 - **Links**: Reference Linear or GitHub issues
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
