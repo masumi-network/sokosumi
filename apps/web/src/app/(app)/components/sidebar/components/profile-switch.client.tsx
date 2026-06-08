@@ -11,6 +11,7 @@ import {
   Check,
   ChevronDown,
   CircleHelp,
+  Coins,
   Landmark,
   LifeBuoy,
   ListChecks,
@@ -659,17 +660,30 @@ export default function ProfileSwitchClient({
                             />
                           </DropdownMenuItem>
                           {isAdminSectionOpen ? (
-                            <DropdownMenuItem
-                              className="cursor-pointer pl-8"
-                              onClick={() =>
-                                handleRouteNavigation(
-                                  "/admin/enterprise-contracts",
-                                )
-                              }
-                            >
-                              <Building2 className="text-muted-foreground size-4" />
-                              <span>{tUserAvatar("enterpriseContracts")}</span>
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuItem
+                                className="cursor-pointer pl-8"
+                                onClick={() =>
+                                  handleRouteNavigation(
+                                    "/admin/enterprise-contracts",
+                                  )
+                                }
+                              >
+                                <Building2 className="text-muted-foreground size-4" />
+                                <span>
+                                  {tUserAvatar("enterpriseContracts")}
+                                </span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="cursor-pointer pl-8"
+                                onClick={() =>
+                                  handleRouteNavigation("/admin/credit-grants")
+                                }
+                              >
+                                <Coins className="text-muted-foreground size-4" />
+                                <span>{tUserAvatar("creditGrants")}</span>
+                              </DropdownMenuItem>
+                            </>
                           ) : null}
                         </>
                       ) : (
@@ -689,6 +703,15 @@ export default function ProfileSwitchClient({
                             >
                               <Building2 className="text-muted-foreground size-4" />
                               <span>{tUserAvatar("enterpriseContracts")}</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() =>
+                                handleRouteNavigation("/admin/credit-grants")
+                              }
+                            >
+                              <Coins className="text-muted-foreground size-4" />
+                              <span>{tUserAvatar("creditGrants")}</span>
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
                         </DropdownMenuSub>

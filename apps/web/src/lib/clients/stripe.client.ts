@@ -494,6 +494,73 @@ export const stripeClient = (() => {
       return session;
     },
 
+    /**
+     * Creates and finalizes a one-time credit-grant invoice for a customer.
+     *
+     * The invoice is tagged with the `credits` (and optional `ttl_days`)
+     * metadata that the existing invoice-paid automation reads to grant
+     * credits. It is created with `collection_method: "send_invoice"` so that
+     * finalizing it does not attempt to auto-charge a payment method; the
+     * invoice can then either be marked paid directly (see
+     * {@link payInvoiceOutOfBand}) or paid through the normal Stripe flow.
+     */
+    async createCreditGrantInvoice(params: {
+      customerId: string;
+      credits: number;
+      totalMinorUnits: number;
+      currency: string;
+      ttlDays?: number;
+      daysUntilDue?: number;
+      description?: string;
+    }): Promise<Stripe.Invoice> {
+      const metadata: Record<string, string> = {
+        credits: String(params.credits),
+        grant_source: "admin_one_time_credit",
+        ...(params.ttlDays ? { ttl_days: String(params.ttlDays) } : {}),
+      };
+
+      await stripe.invoiceItems.create({
+        customer: params.customerId,
+        currency: params.currency,
+        amount: params.totalMinorUnits,
+        description:
+          params.description ??
+          `One-time credit grant (${params.credits.toLocaleString("en-US")} credits)`,
+        metadata,
+      });
+
+      const invoice = await stripe.invoices.create({
+        customer: params.customerId,
+        currency: params.currency,
+        collection_method: "send_invoice",
+        days_until_due: params.daysUntilDue ?? 30,
+        pending_invoice_items_behavior: "include",
+        auto_advance: false,
+        metadata,
+        expand: ["lines.data.price.product"],
+      });
+
+      if (!invoice.id) {
+        throw new Error("Failed to create credit grant invoice");
+      }
+
+      return await stripe.invoices.finalizeInvoice(invoice.id, {
+        expand: ["lines.data.price.product"],
+      });
+    },
+
+    /**
+     * Marks an invoice as paid out of band (i.e. payment recorded outside of
+     * Stripe). Returns the updated invoice with line items expanded so callers
+     * can run the invoice-paid automation directly.
+     */
+    async payInvoiceOutOfBand(invoiceId: string): Promise<Stripe.Invoice> {
+      return await stripe.invoices.pay(invoiceId, {
+        paid_out_of_band: true,
+        expand: ["lines.data.price.product"],
+      });
+    },
+
     async applyInvoiceCreditsToCustomer(
       customerId: string,
       couponId: string,

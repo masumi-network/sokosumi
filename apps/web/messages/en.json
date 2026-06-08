@@ -126,6 +126,7 @@
       "connections": "Connections",
       "admin": "Admin",
       "enterpriseContracts": "Enterprise contracts",
+      "creditGrants": "Grant credits",
       "help": "Help",
       "legal": "Legal",
       "support": "Support",
@@ -2585,6 +2586,51 @@
         },
         "Detail": {
           "noExpiry": "No expiry"
+        }
+      },
+      "CreditGrants": {
+        "title": "Grant credits",
+        "description": "Grant one-time credits to an organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
+        "cardTitle": "New credit grant",
+        "Form": {
+          "Fields": {
+            "organization": "Organization",
+            "credits": "Credits",
+            "expiryDays": "Expiry (days)"
+          },
+          "organizationPlaceholder": "Select an organization",
+          "organizationSearch": "Search organizations…",
+          "organizationEmpty": "No organizations found.",
+          "organizationRequired": "Select an organization",
+          "creditsRequired": "Enter a positive number of credits",
+          "creditsHelper": "Number of credits to grant to the organization.",
+          "expiryDays": "Expiry (days)",
+          "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
+          "expiryPlaceholder": "No expiry",
+          "expiryInvalid": "Expiry must be a positive whole number of days",
+          "submit": "Create invoice",
+          "submitting": "Creating invoice…",
+          "createSuccess": "Invoice created",
+          "createError": "Failed to create invoice"
+        },
+        "Result": {
+          "heading": "Credit grant invoice",
+          "pendingHelper": "Mark the invoice paid to grant the credits instantly, or leave it to be paid in Stripe.",
+          "paidHelper": "The invoice is paid and the credits have been granted to the organization.",
+          "organization": "Organization",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "invoiceId": "Invoice ID",
+          "markPaid": "Mark as paid",
+          "marking": "Granting credits…",
+          "paidSuccess": "Credits granted",
+          "paidError": "Failed to mark invoice as paid",
+          "openInStripe": "Open in Stripe",
+          "newGrant": "New grant"
         }
       }
     },
