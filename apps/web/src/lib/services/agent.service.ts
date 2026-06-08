@@ -136,19 +136,6 @@ export const agentService = (() => {
     },
 
     /**
-     * Retrieves all online agents available to the current user with valid pricing.
-     *
-     * @param tx - Optional Prisma transaction client.
-     * @returns Array of available agents with valid pricing.
-     */
-    getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
-      // Catalog reads are served by the core API, which already filters to
-      // available agents (ONLINE + shown + valid pricing) and computes credits.
-      const coreAgents = await getAllCoreAgents();
-      return mapCoreAgentsToAgentWithCreditsPrice(coreAgents);
-    },
-
-    /**
      * Retrieves an available agent by ID, validating access control for the current user.
      *
      * - Returns null if the agent doesn't exist, is not shown, or the user lacks access.

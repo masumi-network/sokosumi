@@ -78,20 +78,6 @@ describe("agent.service", () => {
     );
   });
 
-  it("serves the available-agents catalog from core via the mapper", async () => {
-    const coreAgents = [{ id: "agent-1" }, { id: "agent-2" }];
-    getAllCoreAgentsMock.mockResolvedValue(coreAgents);
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getAvailableAgents();
-
-    expect(getAllCoreAgentsMock).toHaveBeenCalledTimes(1);
-    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
-      coreAgents,
-    );
-    expect(result.map((agent) => agent.id)).toEqual(["agent-1", "agent-2"]);
-  });
-
   it("serves priced available agents from core (credits already computed)", async () => {
     const coreAgents = [{ id: "agent-1" }];
     getAllCoreAgentsMock.mockResolvedValue(coreAgents);
