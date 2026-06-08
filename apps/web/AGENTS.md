@@ -173,6 +173,30 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Never access Prisma directly from components
 - Use server actions for mutations
 
+### Core API reads & caching (performance)
+
+We are migrating web data access from direct DB reads to the Core API
+(`coreClient` in `src/lib/clients/core.client.ts`). Two performance rules:
+
+- **Never blindly cache Core responses across requests.** Every `coreClient`
+  call attaches the caller's cookies (`buildAuthHeaders`) and defaults to
+  `cache: "no-store"`, because most responses are **user/workspace-scoped** —
+  caching them in Next's shared fetch cache would leak one user's data to
+  another. Keep `no-store` for anything user-specific.
+- **Do cross-request cache _global_ catalog reads.** The agent catalog
+  (`GET /v1/agents`) is global — it carries no per-user fields and is not
+  user-scoped — so it is safe to share. `getAllCoreAgents`
+  (`src/lib/agents/core-loaders.ts`) loads every page of the catalog; without
+  caching, **every page that needs agents re-paginates the whole catalog over
+  HTTP on every request** (React `cache()` only dedupes within one request).
+  It opts into fetch-level revalidation via `coreClient.getAgents(query,
+  { revalidate, tags: [AGENTS_CACHE_TAG] })`, so the catalog is fetched at most
+  once per TTL across all users. Invalidate on demand with
+  `revalidateTag(AGENTS_CACHE_TAG)`. The proper long-term fix is a Core
+  endpoint that returns the filtered catalog in one call (see the
+  `TODO(core-api)` in `core-loaders.ts`); until then, do not add new
+  per-request all-pages loops.
+
 ### Better Auth ID generation
 
 - `src/lib/auth/auth.ts` sets `advanced.database.generateId: "uuid"` so Better Auth–managed rows get UUID-shaped primary keys, consistent with `@sokosumi/database` Prisma models. Do not remove this without aligning the shared schema and any database migrations.
