@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "アカウント",
-      "organizations": "組織",
       "billing": "請求",
       "connections": "接続",
       "admin": "管理",
@@ -148,7 +147,8 @@
       "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
       "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に更新されます",
       "creditsExpiresToday": "クレジットは本日更新されます",
-      "creditsExpired": "クレジットが失効しました"
+      "creditsExpired": "クレジットが失効しました",
+      "organizations": "組織"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "ワークスペースを切り替える",
@@ -252,7 +252,6 @@
       "admin": "管理",
       "edit": "編集",
       "enterprise-contracts": "エンタープライズ契約",
-      "organizations": "組織",
       "mcp": "Model Context Protocol（MCP）",
       "chat": "チャット",
       "tasks": "タスク",

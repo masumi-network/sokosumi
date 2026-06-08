@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "organizations": "Organizations",
       "billing": "Billing",
       "connections": "Connections",
       "admin": "Admin",
@@ -148,7 +147,8 @@
       "creditsConsumedProgressAria": "Subscription credits consumed",
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
-      "creditsExpired": "Credits expired"
+      "creditsExpired": "Credits expired",
+      "organizations": "Organizations"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -252,7 +252,6 @@
       "admin": "Admin",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
-      "organizations": "Organizations",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",

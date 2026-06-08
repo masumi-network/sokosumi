@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "organizations": "Organizzazioni",
       "billing": "Fatturazione",
       "connections": "Connessioni",
       "admin": "Amministrazione",
@@ -148,7 +147,8 @@
       "creditsConsumedProgressAria": "Crediti di abbonamento consumati",
       "creditsExpiresInDays": "I crediti si rinnovano tra {days, plural, =1 {1 giorno} other {# giorni}}",
       "creditsExpiresToday": "I crediti si rinnovano oggi",
-      "creditsExpired": "Crediti scaduti"
+      "creditsExpired": "Crediti scaduti",
+      "organizations": "Organizzazioni"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambia spazio di lavoro",
@@ -252,7 +252,6 @@
       "admin": "Amministrazione",
       "edit": "Modifica",
       "enterprise-contracts": "Contratti enterprise",
-      "organizations": "Organizzazioni",
       "mcp": "Protocollo Model Context (MCP)",
       "chat": "Chat",
       "tasks": "Attività",

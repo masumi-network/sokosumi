@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Cuenta",
-      "organizations": "Organizaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
       "admin": "Administración",
@@ -148,7 +147,8 @@
       "extraCreditsDescription": "Nunca expiran",
       "creditsExpiresInDays": "Los créditos se renuevan en {days, plural, =1 {1 día} other {# días}}",
       "creditsExpiresToday": "Los créditos se renuevan hoy",
-      "creditsExpired": "Créditos vencidos"
+      "creditsExpired": "Créditos vencidos",
+      "organizations": "Organizaciones"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
@@ -252,7 +252,6 @@
       "admin": "Administración",
       "edit": "Editar",
       "enterprise-contracts": "Contratos empresariales",
-      "organizations": "Organizaciones",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tareas",
