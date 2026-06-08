@@ -1,13 +1,10 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { Badge } from "@/components/ui/badge";
 import type { EnterpriseContractStatus } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
-
-const STATUS_LABELS: Record<EnterpriseContractStatus, string> = {
-  draft: "Draft",
-  active: "Active",
-  completed: "Completed",
-  canceled: "Canceled",
-};
 
 const STATUS_VARIANTS: Record<
   EnterpriseContractStatus,
@@ -28,9 +25,11 @@ export function ContractStatusBadge({
   status,
   className,
 }: ContractStatusBadgeProps) {
+  const t = useTranslations("App.Admin.EnterpriseContracts");
+
   return (
     <Badge variant={STATUS_VARIANTS[status]} className={cn(className)}>
-      {STATUS_LABELS[status]}
+      {t(`Status.${status}`)}
     </Badge>
   );
 }
