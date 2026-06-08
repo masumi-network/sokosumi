@@ -2344,6 +2344,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "最近的对话",
+          "noChats": "还没有对话",
+          "untitledChat": "无标题对话",
+          "modelAlt": "模型",
+          "coworkerAlt": "协作者"
+        },
         "MenuItems": {
           "chat": "聊天",
           "exploreAgents": "智能体",

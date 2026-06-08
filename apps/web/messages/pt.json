@@ -2344,6 +2344,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "Chats Recentes",
+          "noChats": "Ainda sem chats",
+          "untitledChat": "Chat Sem Título",
+          "modelAlt": "Modelo",
+          "coworkerAlt": "Colaborador"
+        },
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agentes",
