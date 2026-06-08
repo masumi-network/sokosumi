@@ -3013,39 +3013,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "組織",
-        "description": "組織を管理します"
-      },
-      "newOrganization": "新しい組織",
-      "organizationsNotAvailable": "組織が見つかりません",
-      "OrganizationRow": {
-        "leave": "退出",
-        "activate": "有効化",
-        "deactivate": "無効化"
-      },
-      "Credits": {
-        "title": "組織のクレジット",
-        "description": "{organization} のメンバーが利用できます",
-        "buy": "クレジットを追加"
-      },
-      "InvitationActions": {
-        "accept": "承諾",
-        "reject": "拒否",
-        "acceptTitle": "招待を承諾",
-        "rejectTitle": "招待を拒否",
-        "acceptDescription": "{email} 宛ての招待を承諾してよろしいですか？",
-        "rejectDescription": "{email} 宛ての招待を拒否してよろしいですか？",
-        "confirm": "確認",
-        "cancel": "キャンセル",
-        "acceptSuccess": "招待を承諾しました",
-        "acceptError": "招待の承諾に失敗しました",
-        "rejectSuccess": "招待を拒否しました",
-        "rejectError": "招待の拒否に失敗しました",
-        "Errors": {
-          "unauthorizedAction": "ログイン"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

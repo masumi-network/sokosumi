@@ -3013,39 +3013,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organisations",
-        "description": "Gérez vos organisations"
-      },
-      "newOrganization": "Nouvelle organisation",
-      "organizationsNotAvailable": "Aucune organisation trouvée",
-      "OrganizationRow": {
-        "leave": "Quitter",
-        "activate": "Activer",
-        "deactivate": "Désactiver"
-      },
-      "Credits": {
-        "title": "Crédits de l’organisation",
-        "description": "Disponibles pour les membres de {organization}",
-        "buy": "Ajouter des crédits"
-      },
-      "InvitationActions": {
-        "accept": "Accepter",
-        "reject": "Refuser",
-        "acceptTitle": "Accepter l’invitation",
-        "rejectTitle": "Refuser l’invitation",
-        "acceptDescription": "Êtes-vous sûr de vouloir accepter l’invitation pour {email} ?",
-        "rejectDescription": "Êtes-vous sûr de vouloir refuser l’invitation pour {email} ?",
-        "confirm": "Confirmer",
-        "cancel": "Annuler",
-        "acceptSuccess": "Invitation acceptée avec succès",
-        "acceptError": "Échec de l’acceptation de l’invitation",
-        "rejectSuccess": "Invitation refusée avec succès",
-        "rejectError": "Échec du refus de l’invitation",
-        "Errors": {
-          "unauthorizedAction": "Se connecter"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

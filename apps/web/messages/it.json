@@ -3013,39 +3013,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizzazioni",
-        "description": "Gestisci le tue organizzazioni"
-      },
-      "newOrganization": "Nuova organizzazione",
-      "organizationsNotAvailable": "Nessuna organizzazione trovata",
-      "OrganizationRow": {
-        "leave": "Esci",
-        "activate": "Attiva",
-        "deactivate": "Disattiva"
-      },
-      "Credits": {
-        "title": "Crediti dell’organizzazione",
-        "description": "Disponibili per i membri di {organization}",
-        "buy": "Aggiungi crediti"
-      },
-      "InvitationActions": {
-        "accept": "Accetta",
-        "reject": "Rifiuta",
-        "acceptTitle": "Accetta invito",
-        "rejectTitle": "Rifiuta invito",
-        "acceptDescription": "Vuoi davvero accettare l’invito per {email}?",
-        "rejectDescription": "Vuoi davvero rifiutare l’invito per {email}?",
-        "confirm": "Conferma",
-        "cancel": "Annulla",
-        "acceptSuccess": "Invito accettato correttamente",
-        "acceptError": "Impossibile accettare l’invito",
-        "rejectSuccess": "Invito rifiutato correttamente",
-        "rejectError": "Impossibile rifiutare l’invito",
-        "Errors": {
-          "unauthorizedAction": "Accedi"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {
