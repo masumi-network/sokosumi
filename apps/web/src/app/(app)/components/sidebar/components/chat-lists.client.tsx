@@ -5,10 +5,16 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import { getBucketKeyFromMetadata } from "@/app/chat/utils/bucket-slug";
+import {
+  getBucketKeyFromMetadata,
+  resolveBucketKeyFromDisplaySlug,
+} from "@/app/chat/utils/bucket-slug";
 import { buildChatGroups, type ChatGroup } from "@/app/chat/utils/chat-groups";
 import type { Coworker } from "@/app/chat/utils/types";
-import { getConversationIdFromChatPathname } from "@/app/chat-ui/utils/chat-route-base";
+import {
+  getBucketSlugFromChatPathname,
+  getConversationIdFromChatPathname,
+} from "@/app/chat-ui/utils/chat-route-base";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -45,6 +51,10 @@ export default function ChatListsClient() {
   );
   const conversationId =
     params?.conversationId ?? conversationIdFromPath ?? null;
+  const bucketSlug = useMemo(
+    () => params?.bucketSlug ?? getBucketSlugFromChatPathname(pathname ?? ""),
+    [params?.bucketSlug, pathname],
+  );
   const isChatRoute = pathname.startsWith("/chat");
 
   const chatGroups = useMemo(
@@ -56,15 +66,22 @@ export default function ChatListsClient() {
     [conversations, t],
   );
 
-  // Find the bucket key for the currently viewed conversation
   const currentBucketKey = useMemo(() => {
-    if (!conversationId || !conversations.length) return null;
-    const conv = conversations.find((c) => c.id === conversationId);
-    if (!conv) return null;
-    return getBucketKeyFromMetadata(
-      (conv.metadata as Record<string, unknown>) || null,
+    if (conversationId && conversations.length) {
+      const conv = conversations.find((c) => c.id === conversationId);
+      if (conv) {
+        return getBucketKeyFromMetadata(
+          (conv.metadata as Record<string, unknown>) || null,
+        );
+      }
+    }
+
+    return resolveBucketKeyFromDisplaySlug(
+      conversations,
+      coworkers,
+      bucketSlug,
     );
-  }, [conversationId, conversations]);
+  }, [bucketSlug, conversationId, conversations, coworkers]);
 
   const hasAnyChats = conversations.length > 0;
   const showInitialLoading = isLoading && !hasAnyChats;
