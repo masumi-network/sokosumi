@@ -10,17 +10,40 @@ export interface AdminOrganizationOption {
   slug: string;
 }
 
-export const adminOrganizationService = {
-  async listOrganizations(): Promise<AdminOrganizationOption[]> {
-    const organizations =
-      await organizationRepository.listOrganizationsWithLimitedInfo(prisma);
+const SEARCH_LIMIT = 20;
 
-    return organizations
-      .map((organization) => ({
-        id: organization.id,
-        name: organization.name,
-        slug: organization.slug,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+export const adminOrganizationService = {
+  async searchOrganizations(query: string): Promise<AdminOrganizationOption[]> {
+    const organizations = await organizationRepository.searchOrganizations(
+      query,
+      SEARCH_LIMIT,
+      prisma,
+    );
+
+    return organizations.map((organization) => ({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+    }));
+  },
+
+  async getOrganizationOptionBySlug(
+    slug: string,
+  ): Promise<AdminOrganizationOption | null> {
+    const organization =
+      await organizationRepository.getOrganizationLimitedInfoBySlug(
+        slug,
+        prisma,
+      );
+
+    if (!organization) {
+      return null;
+    }
+
+    return {
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+    };
   },
 };

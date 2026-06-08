@@ -244,7 +244,18 @@
     "OrganizationCombobox": {
       "placeholder": "Select an organization",
       "search": "Search organizations…",
-      "empty": "No organizations found."
+      "empty": "No organizations found.",
+      "loading": "Searching…",
+      "error": "Search failed. Try again.",
+      "idle": "Type to search organizations."
+    },
+    "UserCombobox": {
+      "placeholder": "Select a user",
+      "search": "Search users by name or email…",
+      "empty": "No users found.",
+      "loading": "Searching…",
+      "error": "Search failed. Try again.",
+      "idle": "Type to search users."
     },
     "Breadcrumb": {
       "jobs": "Jobs",
@@ -2604,18 +2615,26 @@
       },
       "CreditGrants": {
         "title": "Grant credits",
-        "description": "Grant one-time credits to an organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
+        "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
         "cardTitle": "New credit grant",
         "Form": {
           "Fields": {
+            "target": "Recipient",
             "organization": "Organization",
             "credits": "Credits",
             "expiryDays": "Expiry (days)",
-            "price": "Price per credit"
+            "price": "Price per credit",
+            "markFree": "Mark as free"
           },
+          "Tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "markFreeHelper": "Applies the support coupon so the invoice is $0. The recipient still receives the full credits.",
+          "targetRequired": "Select a recipient",
           "organizationRequired": "Select an organization",
           "creditsRequired": "Enter a positive number of credits",
-          "creditsHelper": "Number of credits to grant to the organization.",
+          "creditsHelper": "Number of credits to grant to the recipient.",
           "expiryDays": "Expiry (days)",
           "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
           "expiryPlaceholder": "No expiry",
@@ -2625,14 +2644,14 @@
           "createSuccess": "Invoice created",
           "createError": "Failed to create invoice",
           "pricePlaceholder": "Select a price",
-          "priceHelper": "Price per credit used for the invoice amount.",
           "priceRequired": "Select a price"
         },
         "Result": {
           "heading": "Credit grant invoice",
           "pendingHelper": "Mark the invoice paid to grant the credits instantly, or leave it to be paid in Stripe.",
-          "paidHelper": "The invoice is paid and the credits have been granted to the organization.",
+          "paidHelper": "The invoice is paid and the credits have been granted to the recipient.",
           "organization": "Organization",
+          "user": "User",
           "credits": "Credits",
           "expiry": "Expiry",
           "expiryDays": "{days, number} day(s)",

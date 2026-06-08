@@ -7,6 +7,7 @@ import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import {
   type CreditGrantInvoiceSummary,
+  type CreditGrantTargetType,
   CreditGrantValidationError,
   creditGrantAdminService,
 } from "@/lib/services/credit-grant-admin.service";
@@ -39,30 +40,43 @@ function mapError(error: unknown): ActionError {
 }
 
 interface CreateCreditGrantInvoiceParameters extends AuthenticatedRequest {
-  organizationId: string;
+  targetType: CreditGrantTargetType;
+  targetId: string;
   credits: number;
   ttlDays: number | null;
   priceId: string | null;
+  markFree: boolean;
 }
 
 export const createCreditGrantInvoiceAction = withSession<
   CreateCreditGrantInvoiceParameters,
   Result<CreditGrantInvoiceSummary, ActionError>
->(async ({ session, organizationId, credits, ttlDays, priceId }) => {
-  try {
-    assertAdminSession(session);
-    const summary = await creditGrantAdminService.createGrantInvoice({
-      organizationId,
-      credits,
-      ttlDays,
-      priceId,
-    });
-    revalidatePath("/admin/credit-grants");
-    return Ok(summary);
-  } catch (error) {
-    return Err(mapError(error));
-  }
-});
+>(
+  async ({
+    session,
+    targetType,
+    targetId,
+    credits,
+    ttlDays,
+    priceId,
+    markFree,
+  }) => {
+    try {
+      assertAdminSession(session);
+      const summary = await creditGrantAdminService.createGrantInvoice({
+        target: { targetType, targetId },
+        credits,
+        ttlDays,
+        priceId,
+        markFree,
+      });
+      revalidatePath("/admin/credit-grants");
+      return Ok(summary);
+    } catch (error) {
+      return Err(mapError(error));
+    }
+  },
+);
 
 interface MarkCreditGrantInvoicePaidParameters extends AuthenticatedRequest {
   invoiceId: string;

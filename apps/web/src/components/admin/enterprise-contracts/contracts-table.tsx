@@ -6,8 +6,11 @@ import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import {
+  AsyncSearchCombobox,
+  buildComboboxLabels,
+} from "@/components/admin/async-search-combobox";
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
-import { OrganizationCombobox } from "@/components/admin/organization-combobox";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { searchOrganizationsClient } from "@/lib/actions/admin-search/client";
 import type {
   EnterpriseContract,
   EnterpriseContractStatus,
@@ -167,14 +171,16 @@ function getColumns(
 
 interface ContractsTableProps {
   contracts: EnterpriseContract[];
-  organizations: AdminOrganizationOption[];
+  /** Seeds the filter combobox with the organization from the active URL slug. */
+  initialFilterOrganization: AdminOrganizationOption | null;
 }
 
 export function ContractsTable({
   contracts,
-  organizations,
+  initialFilterOrganization,
 }: ContractsTableProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts");
+  const tOrg = useTranslations("Components.OrganizationCombobox");
   const formatter = useFormatter();
   const [isPending, startTransition] = useTransition();
   const [appliedFilters, setAppliedFilters] = useQueryStates(
@@ -183,6 +189,8 @@ export function ContractsTable({
   const [organizationSlug, setOrganizationSlug] = useState(
     appliedFilters.organizationSlug,
   );
+  const [selectedFilterOrganization, setSelectedFilterOrganization] =
+    useState<AdminOrganizationOption | null>(initialFilterOrganization);
   const [status, setStatus] = useState<EnterpriseContractStatus | "all">(
     appliedFilters.status ?? "all",
   );
@@ -192,8 +200,20 @@ export function ContractsTable({
     setStatus(appliedFilters.status ?? "all");
   }, [appliedFilters.organizationSlug, appliedFilters.status]);
 
-  const selectedFilterOrganizationId =
-    organizations.find((org) => org.slug === organizationSlug)?.id ?? "";
+  // Keep the combobox selection in sync with the server-resolved organization
+  // for the active URL slug. The server component re-runs on navigation (filter
+  // apply, browser back/forward) and provides the matching option, so the
+  // trigger never shows a stale org or an empty placeholder while a slug filter
+  // is active. Local (unapplied) selections are preserved because this prop
+  // only changes on a server render.
+  useEffect(() => {
+    setSelectedFilterOrganization(initialFilterOrganization);
+  }, [initialFilterOrganization]);
+
+  const orgLabels = buildComboboxLabels(tOrg, {
+    placeholder: t("Filters.organizationAll"),
+    clear: t("Filters.organizationAll"),
+  });
 
   const columns = useMemo(() => getColumns(t, formatter), [t, formatter]);
 
@@ -220,12 +240,25 @@ export function ContractsTable({
           <Label htmlFor="filter-organizationSlug">
             {t("Filters.organizationSlug")}
           </Label>
-          <OrganizationCombobox
+          <AsyncSearchCombobox<AdminOrganizationOption>
             id="filter-organizationSlug"
-            organizations={organizations}
-            value={selectedFilterOrganizationId}
-            onChange={(org) => setOrganizationSlug(org?.slug ?? "")}
-            placeholder={t("Filters.organizationAll")}
+            value={selectedFilterOrganization}
+            onChange={(org) => {
+              setSelectedFilterOrganization(org);
+              setOrganizationSlug(org?.slug ?? "");
+            }}
+            search={searchOrganizationsClient}
+            getKey={(org) => org.id}
+            getTriggerLabel={(org) => org.name}
+            renderOption={(org) => (
+              <span className="flex flex-col">
+                <span>{org.name}</span>
+                <span className="text-muted-foreground text-xs">
+                  {org.slug}
+                </span>
+              </span>
+            )}
+            labels={orgLabels}
             allowClear
           />
         </div>

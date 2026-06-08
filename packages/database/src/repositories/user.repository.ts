@@ -66,6 +66,37 @@ export const userRepository = {
   },
 
   /**
+   * Searches users by name or email using a case-insensitive partial match.
+   *
+   * @param query - The search term to match against user name and email.
+   * @param limit - The maximum number of users to return.
+   * @param tx - The Prisma transaction client to use.
+   * @returns A promise that resolves to matching users (id, name, email). An
+   *   empty or whitespace-only query resolves to an empty array without querying.
+   */
+  searchUsers: async (
+    query: string,
+    limit: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<Array<Pick<User, "id" | "name" | "email">>> => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return [];
+    }
+    return tx.user.findMany({
+      where: {
+        OR: [
+          { name: { contains: trimmed, mode: "insensitive" } },
+          { email: { contains: trimmed, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: limit,
+    });
+  },
+
+  /**
    * Retrieves a page of user IDs ordered by ID, starting after an optional cursor.
    *
    * @param cursorId - The last processed user ID, or null to start from the beginning.

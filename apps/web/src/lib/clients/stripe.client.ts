@@ -568,11 +568,17 @@ export const stripeClient = (() => {
     async createCreditGrantInvoice(params: {
       customerId: string;
       credits: number;
-      totalMinorUnits: number;
+      /** Credit-product price the line item is billed against. Tying the item to
+       * the product (rather than a raw amount) lets a product-scoped coupon
+       * apply. */
+      priceId: string;
       currency: string;
       ttlDays?: number;
       daysUntilDue?: number;
       description?: string;
+      /** When set, applies this coupon as a discount on the credit-grant line
+       * item. A 100%-off coupon makes the grant free ($0 due). */
+      couponId?: string;
     }): Promise<Stripe.Invoice> {
       const metadata: Record<string, string> = {
         credits: String(params.credits),
@@ -597,14 +603,22 @@ export const stripeClient = (() => {
         throw new Error("Failed to create credit grant invoice");
       }
 
+      // Bill the line item against the credit product's price (not a raw
+      // amount) and discount the item itself. A product-scoped coupon only
+      // applies to a line tied to that product; an invoice-level discount or a
+      // raw-amount line leaves a 100%-off coupon with a €0 effect.
       await stripe.invoiceItems.create({
         customer: params.customerId,
         invoice: invoice.id,
+        pricing: { price: params.priceId },
         currency: params.currency,
-        amount: params.totalMinorUnits,
+        quantity: params.credits,
         description:
           params.description ??
           `One-time credit grant (${params.credits.toLocaleString("en-US")} credits)`,
+        ...(params.couponId
+          ? { discounts: [{ coupon: params.couponId }] }
+          : {}),
         metadata,
       });
 

@@ -6,12 +6,16 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
-import { OrganizationCombobox } from "@/components/admin/organization-combobox";
+import {
+  AsyncSearchCombobox,
+  buildComboboxLabels,
+} from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { searchOrganizationsClient } from "@/lib/actions/admin-search/client";
 import {
   createEnterpriseContractAction,
   updateEnterpriseContractAction,
@@ -164,7 +168,8 @@ function buildPatchBody(
 interface ContractFormProps {
   mode: "create" | "edit";
   contract?: EnterpriseContract;
-  organizations: AdminOrganizationOption[];
+  /** Seeds the combobox with the already-selected organization (edit mode). */
+  initialOrganization: AdminOrganizationOption | null;
 }
 
 interface FormSectionProps {
@@ -198,17 +203,19 @@ function FormSection({
 export function ContractForm({
   mode,
   contract,
-  organizations,
+  initialOrganization,
 }: ContractFormProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts.Form");
+  const tOrg = useTranslations("Components.OrganizationCombobox");
   const router = useRouter();
   const [values, setValues] = useState<ContractFormValues>(() =>
     toFormValues(contract),
   );
+  const [selectedOrganization, setSelectedOrganization] =
+    useState<AdminOrganizationOption | null>(initialOrganization);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedOrganizationId =
-    organizations.find((org) => org.slug === values.organizationSlug)?.id ?? "";
+  const orgLabels = buildComboboxLabels(tOrg);
 
   function updateValue<K extends keyof ContractFormValues>(
     key: K,
@@ -271,11 +278,25 @@ export function ContractForm({
           <Label htmlFor="organizationSlug">
             {t("Fields.organizationSlug.label")}
           </Label>
-          <OrganizationCombobox
+          <AsyncSearchCombobox<AdminOrganizationOption>
             id="organizationSlug"
-            organizations={organizations}
-            value={selectedOrganizationId}
-            onChange={(org) => updateValue("organizationSlug", org?.slug ?? "")}
+            value={selectedOrganization}
+            onChange={(org) => {
+              setSelectedOrganization(org);
+              updateValue("organizationSlug", org?.slug ?? "");
+            }}
+            search={searchOrganizationsClient}
+            getKey={(org) => org.id}
+            getTriggerLabel={(org) => org.name}
+            renderOption={(org) => (
+              <span className="flex flex-col">
+                <span>{org.name}</span>
+                <span className="text-muted-foreground text-xs">
+                  {org.slug}
+                </span>
+              </span>
+            )}
+            labels={orgLabels}
             disabled={mode === "edit"}
           />
         </div>
