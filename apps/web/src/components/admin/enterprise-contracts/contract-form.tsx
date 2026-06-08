@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { searchOrganizationsAction } from "@/lib/actions/admin-search/action";
+import { searchOrganizationsClient } from "@/lib/actions/admin-search/client";
 import {
   createEnterpriseContractAction,
   updateEnterpriseContractAction,
@@ -172,16 +172,6 @@ interface ContractFormProps {
   initialOrganization: AdminOrganizationOption | null;
 }
 
-async function searchOrganizations(
-  query: string,
-): Promise<AdminOrganizationOption[]> {
-  const result = await searchOrganizationsAction({ query });
-  if (!result.ok) {
-    throw new Error(result.error.message ?? "Failed to search organizations");
-  }
-  return result.data;
-}
-
 interface FormSectionProps {
   title?: string;
   description?: string;
@@ -302,7 +292,7 @@ export function ContractForm({
               setSelectedOrganization(org);
               updateValue("organizationSlug", org?.slug ?? "");
             }}
-            search={searchOrganizations}
+            search={searchOrganizationsClient}
             getKey={(org) => org.id}
             getTriggerLabel={(org) => org.name}
             renderOption={(org) => (

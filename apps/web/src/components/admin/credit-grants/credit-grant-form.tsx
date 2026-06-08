@@ -23,9 +23,9 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  searchOrganizationsAction,
-  searchUsersAction,
-} from "@/lib/actions/admin-search/action";
+  searchOrganizationsClient,
+  searchUsersClient,
+} from "@/lib/actions/admin-search/client";
 import {
   createCreditGrantInvoiceAction,
   markCreditGrantInvoicePaidAction,
@@ -89,24 +89,6 @@ function formatPricePerCredit(
   } catch {
     return `${(amountPerCredit / 100).toFixed(fractionDigits)} ${currency.toUpperCase()}`;
   }
-}
-
-async function searchOrganizations(
-  query: string,
-): Promise<AdminOrganizationOption[]> {
-  const result = await searchOrganizationsAction({ query });
-  if (!result.ok) {
-    throw new Error(result.error.message ?? "Failed to search organizations");
-  }
-  return result.data;
-}
-
-async function searchUsers(query: string): Promise<AdminUserOption[]> {
-  const result = await searchUsersAction({ query });
-  if (!result.ok) {
-    throw new Error(result.error.message ?? "Failed to search users");
-  }
-  return result.data;
 }
 
 export function CreditGrantForm({ prices }: CreditGrantFormProps) {
@@ -330,7 +312,7 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
             id="target"
             value={selectedOrg}
             onChange={setSelectedOrg}
-            search={searchOrganizations}
+            search={searchOrganizationsClient}
             getKey={(org) => org.id}
             getTriggerLabel={(org) => org.name}
             renderOption={(org) => (
@@ -348,7 +330,7 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
             id="target"
             value={selectedUser}
             onChange={setSelectedUser}
-            search={searchUsers}
+            search={searchUsersClient}
             getKey={(user) => user.id}
             getTriggerLabel={(user) => user.name}
             renderOption={(user) => (

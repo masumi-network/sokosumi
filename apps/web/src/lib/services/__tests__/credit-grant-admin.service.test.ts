@@ -96,7 +96,10 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => ({ STRIPE_SUPPORT_COUPON: "coupon_support" }),
 }));
 
-import { creditGrantAdminService } from "../credit-grant-admin.service";
+import {
+  CreditGrantValidationError,
+  creditGrantAdminService,
+} from "../credit-grant-admin.service";
 
 describe("creditGrantAdminService.createGrantInvoice", () => {
   beforeEach(() => {
@@ -222,6 +225,54 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     expect(handleInvoicePaidEventMock).toHaveBeenCalledTimes(1);
     expect(creditBucketFindFirstMock).toHaveBeenCalled();
     expect(summary.targetType).toBe("organization");
+  });
+
+  it("does NOT grant immediately for a non-free invoice that stays open", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      stripeCustomerId: "cus_org",
+      metadata: null,
+    });
+    // Default mock returns status "open".
+    await creditGrantAdminService.createGrantInvoice({
+      target: { targetType: "organization", targetId: "org_1" },
+      credits: 10,
+      ttlDays: null,
+      priceId: null,
+      markFree: false,
+    });
+
+    expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
+    expect(creditBucketFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when a free grant finalizes paid but no credits land", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      stripeCustomerId: "cus_org",
+      metadata: null,
+    });
+    createCreditGrantInvoiceMock.mockResolvedValue({
+      id: "in_free",
+      currency: "usd",
+      amount_due: 0,
+      status: "paid",
+    });
+    creditBucketFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      creditGrantAdminService.createGrantInvoice({
+        target: { targetType: "organization", targetId: "org_1" },
+        credits: 10,
+        ttlDays: null,
+        priceId: null,
+        markFree: true,
+      }),
+    ).rejects.toThrow(CreditGrantValidationError);
   });
 });
 

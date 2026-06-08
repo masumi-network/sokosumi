@@ -21,23 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { searchOrganizationsAction } from "@/lib/actions/admin-search/action";
+import { searchOrganizationsClient } from "@/lib/actions/admin-search/client";
 import type {
   EnterpriseContract,
   EnterpriseContractStatus,
 } from "@/lib/clients/generated/core/types.gen";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
-
-async function searchOrganizations(
-  query: string,
-): Promise<AdminOrganizationOption[]> {
-  const result = await searchOrganizationsAction({ query });
-  if (!result.ok) {
-    throw new Error(result.error.message ?? "Failed to search organizations");
-  }
-  return result.data;
-}
 
 const ENTERPRISE_CONTRACT_STATUSES = [
   "draft",
@@ -208,6 +198,14 @@ export function ContractsTable({
   useEffect(() => {
     setOrganizationSlug(appliedFilters.organizationSlug);
     setStatus(appliedFilters.status ?? "all");
+    // Drop the seeded combobox selection when the applied slug no longer matches
+    // it (e.g. browser back/forward navigation), so the trigger can't show a
+    // stale organization that isn't the active filter.
+    setSelectedFilterOrganization((current) =>
+      current && current.slug === appliedFilters.organizationSlug
+        ? current
+        : null,
+    );
   }, [appliedFilters.organizationSlug, appliedFilters.status]);
 
   const orgLabels: AsyncSearchComboboxLabels = {
@@ -252,7 +250,7 @@ export function ContractsTable({
               setSelectedFilterOrganization(org);
               setOrganizationSlug(org?.slug ?? "");
             }}
-            search={searchOrganizations}
+            search={searchOrganizationsClient}
             getKey={(org) => org.id}
             getTriggerLabel={(org) => org.name}
             renderOption={(org) => (
