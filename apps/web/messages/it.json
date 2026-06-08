@@ -2652,8 +2652,7 @@
           "marking": "Assegnazione crediti…",
           "paidSuccess": "Crediti assegnati",
           "paidError": "Impossibile contrassegnare la fattura come pagata",
-          "openInStripe": "Apri in Stripe",
-          "back": "Indietro"
+          "openInStripe": "Apri in Stripe"
         }
       }
     },

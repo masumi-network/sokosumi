@@ -105,14 +105,6 @@ export function CreditGrantForm({
 
   const isPaid = invoice?.status === "paid";
 
-  function handleBack() {
-    setInvoice(null);
-    setOrganizationId("");
-    setCreditsInput("");
-    setExpiryDaysInput("");
-    setPriceId(defaultPriceId);
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -239,9 +231,6 @@ export function CreditGrantForm({
         <Separator />
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={handleBack}>
-            {t("Result.back")}
-          </Button>
           {!isPaid ? (
             <Button onClick={handleMarkPaid} disabled={isMarkingPaid}>
               {isMarkingPaid ? t("Result.marking") : t("Result.markPaid")}

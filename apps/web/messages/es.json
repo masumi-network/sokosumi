@@ -2621,8 +2621,7 @@
           "marking": "Otorgando créditos…",
           "paidSuccess": "Créditos otorgados",
           "paidError": "No se pudo marcar la factura como pagada",
-          "openInStripe": "Abrir en Stripe",
-          "back": "Volver"
+          "openInStripe": "Abrir en Stripe"
         }
       }
     },

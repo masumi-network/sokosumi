@@ -2652,8 +2652,7 @@
           "marking": "Attribution des crédits…",
           "paidSuccess": "Crédits accordés",
           "paidError": "Échec du marquage de la facture comme payée",
-          "openInStripe": "Ouvrir dans Stripe",
-          "back": "Retour"
+          "openInStripe": "Ouvrir dans Stripe"
         }
       }
     },

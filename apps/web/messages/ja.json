@@ -2652,8 +2652,7 @@
           "marking": "クレジットを付与中…",
           "paidSuccess": "クレジットを付与しました",
           "paidError": "請求書を支払い済みにできませんでした",
-          "openInStripe": "Stripe で開く",
-          "back": "戻る"
+          "openInStripe": "Stripe で開く"
         }
       }
     },

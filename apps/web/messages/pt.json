@@ -2652,8 +2652,7 @@
           "marking": "A conceder créditos…",
           "paidSuccess": "Créditos concedidos",
           "paidError": "Falha ao marcar a fatura como paga",
-          "openInStripe": "Abrir no Stripe",
-          "back": "Voltar"
+          "openInStripe": "Abrir no Stripe"
         }
       }
     },

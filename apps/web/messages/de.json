@@ -2621,8 +2621,7 @@
           "marking": "Credits werden gewährt…",
           "paidSuccess": "Credits gewährt",
           "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
-          "openInStripe": "In Stripe öffnen",
-          "back": "Zurück"
+          "openInStripe": "In Stripe öffnen"
         }
       }
     },

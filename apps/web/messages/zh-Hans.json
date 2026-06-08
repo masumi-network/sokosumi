@@ -2652,8 +2652,7 @@
           "marking": "正在授予积分…",
           "paidSuccess": "积分已授予",
           "paidError": "无法将发票标记为已支付",
-          "openInStripe": "在 Stripe 中打开",
-          "back": "返回"
+          "openInStripe": "在 Stripe 中打开"
         }
       }
     },
