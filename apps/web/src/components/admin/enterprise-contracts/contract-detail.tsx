@@ -50,6 +50,7 @@ export async function ContractDetail({ contract }: ContractDetailProps) {
   const formatter = await getFormatter();
   const isDraft = contract.status === "draft";
   const isActive = contract.status === "active";
+  const hasActions = isDraft || isActive;
 
   return (
     <div className="space-y-6">
@@ -65,24 +66,25 @@ export async function ContractDetail({ contract }: ContractDetailProps) {
             {contract.id}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {isDraft ? (
-            <>
-              <Button variant="outline" asChild>
-                <Link href={`/admin/enterprise-contracts/${contract.id}/edit`}>
-                  Edit draft
-                </Link>
-              </Button>
-              <ActivateContractDialog contractId={contract.id} />
-            </>
-          ) : null}
-          {isActive ? <CancelContractDialog contractId={contract.id} /> : null}
-          <Button variant="outline" asChild>
-            <Link href={`/organizations/${contract.organizationSlug}`}>
-              View organization
-            </Link>
-          </Button>
-        </div>
+        {hasActions ? (
+          <div className="flex flex-wrap gap-2">
+            {isDraft ? (
+              <>
+                <Button variant="outline" asChild>
+                  <Link
+                    href={`/admin/enterprise-contracts/${contract.id}/edit`}
+                  >
+                    Edit draft
+                  </Link>
+                </Button>
+                <ActivateContractDialog contractId={contract.id} />
+              </>
+            ) : null}
+            {isActive ? (
+              <CancelContractDialog contractId={contract.id} />
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <Card>
