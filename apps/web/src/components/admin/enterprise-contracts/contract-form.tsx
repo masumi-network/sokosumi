@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,26 @@ export interface ContractFormValues {
   externalReference: string;
 }
 
+function toContractDate(value: Date | string | null | undefined): Date | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatOneTimeExpiresAtField(
+  value: Date | string | null | undefined,
+): string {
+  const date = toContractDate(value);
+  return date ? formatDatetimeLocalValue(date) : "";
+}
+
 function toFormValues(contract?: EnterpriseContract): ContractFormValues {
   return {
     organizationSlug: contract?.organizationSlug ?? "",
@@ -47,7 +67,7 @@ function toFormValues(contract?: EnterpriseContract): ContractFormValues {
     periods: contract?.periods ?? MIN_PERIODS,
     seats: contract?.seats ?? MIN_SEATS,
     oneTimeCredits: contract?.oneTimeCredits ?? null,
-    oneTimeExpiresAt: "",
+    oneTimeExpiresAt: formatOneTimeExpiresAtField(contract?.oneTimeExpiresAt),
     paymentReference: contract?.paymentReference ?? "",
     notes: contract?.notes ?? "",
     externalReference: contract?.externalReference ?? "",
@@ -71,7 +91,7 @@ function resolveOneTimeCredits(values: ContractFormValues): number | null {
 
 function resolveOneTimeExpiresAt(
   values: ContractFormValues,
-  originalOneTimeExpiresAt?: Date | null,
+  originalOneTimeExpiresAt?: Date | string | null,
 ): Date | null {
   if (
     resolveOneTimeCredits(values) == null ||
@@ -81,12 +101,10 @@ function resolveOneTimeExpiresAt(
   }
 
   const trimmed = values.oneTimeExpiresAt.trim();
+  const originalDate = toContractDate(originalOneTimeExpiresAt);
 
-  if (
-    originalOneTimeExpiresAt &&
-    trimmed === formatDatetimeLocalValue(originalOneTimeExpiresAt)
-  ) {
-    return originalOneTimeExpiresAt;
+  if (originalDate && trimmed === formatDatetimeLocalValue(originalDate)) {
+    return originalDate;
   }
 
   return parseDatetimeLocalValue(trimmed) ?? null;
@@ -126,7 +144,7 @@ function buildCreateBody(
 
 function buildPatchBody(
   values: ContractFormValues,
-  originalOneTimeExpiresAt?: Date | null,
+  originalOneTimeExpiresAt?: Date | string | null,
 ): PatchEnterpriseContractRequest {
   return {
     creditsPerMonth: values.creditsPerMonth,
@@ -153,18 +171,6 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
     toFormValues(contract),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const oneTimeExpiresAt = contract?.oneTimeExpiresAt;
-    if (!oneTimeExpiresAt) {
-      return;
-    }
-
-    setValues((current) => ({
-      ...current,
-      oneTimeExpiresAt: formatDatetimeLocalValue(oneTimeExpiresAt),
-    }));
-  }, [contract?.oneTimeExpiresAt]);
 
   function updateValue<K extends keyof ContractFormValues>(
     key: K,
