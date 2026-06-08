@@ -2535,7 +2535,54 @@
           "view": "Voir"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "Laissez vide si les crédits ponctuels ne doivent pas expirer."
+          "Sections": {
+            "organization": "Organisation",
+            "subscription": "Abonnement",
+            "oneTime": "Ponctuel",
+            "references": "Références"
+          },
+          "optionalSection": "Facultatif",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Crédits / mois",
+              "min": "Min. {min, number}"
+            },
+            "periods": {
+              "label": "Périodes",
+              "helper": "1 période = 1 mois"
+            },
+            "seats": {
+              "label": "Sièges"
+            },
+            "oneTimeCredits": {
+              "label": "Montant"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expire",
+              "helper": "Vide = sans expiration"
+            },
+            "paymentReference": {
+              "label": "Paiement"
+            },
+            "externalReference": {
+              "label": "Externe"
+            },
+            "notes": {
+              "label": "Notes"
+            }
+          },
+          "createDraft": "Créer le brouillon",
+          "saveChanges": "Enregistrer",
+          "cancel": "Annuler",
+          "createSuccess": "Brouillon créé",
+          "updateSuccess": "Contrat mis à jour",
+          "createError": "Impossible de créer le contrat",
+          "updateError": "Impossible de mettre à jour le contrat",
+          "missingContract": "Contrat introuvable"
         },
         "Detail": {
           "noExpiry": "Sans expiration"

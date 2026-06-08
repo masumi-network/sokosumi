@@ -2535,7 +2535,54 @@
           "view": "Visualizza"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "Lascia vuoto se i crediti una tantum non devono scadere."
+          "Sections": {
+            "organization": "Organizzazione",
+            "subscription": "Abbonamento",
+            "oneTime": "Una tantum",
+            "references": "Riferimenti"
+          },
+          "optionalSection": "Facoltativo",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Crediti / mese",
+              "min": "Min. {min, number}"
+            },
+            "periods": {
+              "label": "Periodi",
+              "helper": "1 periodo = 1 mese"
+            },
+            "seats": {
+              "label": "Posti"
+            },
+            "oneTimeCredits": {
+              "label": "Importo"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Scade",
+              "helper": "Vuoto = nessuna scadenza"
+            },
+            "paymentReference": {
+              "label": "Pagamento"
+            },
+            "externalReference": {
+              "label": "Esterno"
+            },
+            "notes": {
+              "label": "Note"
+            }
+          },
+          "createDraft": "Crea bozza",
+          "saveChanges": "Salva",
+          "cancel": "Annulla",
+          "createSuccess": "Bozza creata",
+          "updateSuccess": "Contratto aggiornato",
+          "createError": "Impossibile creare il contratto",
+          "updateError": "Impossibile aggiornare il contratto",
+          "missingContract": "Contratto mancante"
         },
         "Detail": {
           "noExpiry": "Nessuna scadenza"

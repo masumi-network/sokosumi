@@ -2504,7 +2504,54 @@
           "view": "Ver"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "Déjelo en blanco si los créditos únicos no deben caducar."
+          "Sections": {
+            "organization": "Organización",
+            "subscription": "Suscripción",
+            "oneTime": "Puntual",
+            "references": "Referencias"
+          },
+          "optionalSection": "Opcional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Créditos / mes",
+              "min": "Mín. {min, number}"
+            },
+            "periods": {
+              "label": "Períodos",
+              "helper": "1 período = 1 mes"
+            },
+            "seats": {
+              "label": "Plazas"
+            },
+            "oneTimeCredits": {
+              "label": "Importe"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Caduca",
+              "helper": "Vacío = sin caducidad"
+            },
+            "paymentReference": {
+              "label": "Pago"
+            },
+            "externalReference": {
+              "label": "Externo"
+            },
+            "notes": {
+              "label": "Notas"
+            }
+          },
+          "createDraft": "Crear borrador",
+          "saveChanges": "Guardar",
+          "cancel": "Cancelar",
+          "createSuccess": "Borrador creado",
+          "updateSuccess": "Contrato actualizado",
+          "createError": "No se pudo crear el contrato",
+          "updateError": "No se pudo actualizar el contrato",
+          "missingContract": "Contrato no encontrado"
         },
         "Detail": {
           "noExpiry": "Sin caducidad"

@@ -2535,7 +2535,54 @@
           "view": "表示"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "一回限りのクレジットを期限なしにする場合は空欄のままにしてください。"
+          "Sections": {
+            "organization": "組織",
+            "subscription": "サブスクリプション",
+            "oneTime": "一回限り",
+            "references": "参照"
+          },
+          "optionalSection": "任意",
+          "Fields": {
+            "organizationSlug": {
+              "label": "スラッグ",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "クレジット / 月",
+              "min": "最小 {min, number}"
+            },
+            "periods": {
+              "label": "期間",
+              "helper": "1期間 = 1か月"
+            },
+            "seats": {
+              "label": "シート"
+            },
+            "oneTimeCredits": {
+              "label": "金額"
+            },
+            "oneTimeExpiresAt": {
+              "label": "期限",
+              "helper": "空欄 = 期限なし"
+            },
+            "paymentReference": {
+              "label": "支払い"
+            },
+            "externalReference": {
+              "label": "外部"
+            },
+            "notes": {
+              "label": "メモ"
+            }
+          },
+          "createDraft": "下書きを作成",
+          "saveChanges": "保存",
+          "cancel": "キャンセル",
+          "createSuccess": "下書きを作成しました",
+          "updateSuccess": "契約を更新しました",
+          "createError": "契約を作成できませんでした",
+          "updateError": "契約を更新できませんでした",
+          "missingContract": "契約が見つかりません"
         },
         "Detail": {
           "noExpiry": "期限なし"

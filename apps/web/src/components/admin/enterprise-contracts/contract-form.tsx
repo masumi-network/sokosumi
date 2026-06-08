@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { useTranslations } from "next-intl";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createEnterpriseContractAction,
@@ -163,9 +164,34 @@ interface ContractFormProps {
   contract?: EnterpriseContract;
 }
 
+interface FormSectionProps {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}
+
+function FormSection({
+  title,
+  description,
+  children,
+  className,
+}: FormSectionProps) {
+  return (
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description ? (
+          <p className="text-muted-foreground text-xs">{description}</p>
+        ) : null}
+      </div>
+      <div className={className ?? "grid gap-4 sm:grid-cols-2"}>{children}</div>
+    </section>
+  );
+}
+
 export function ContractForm({ mode, contract }: ContractFormProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts.Form");
-  const formatter = useFormatter();
   const router = useRouter();
   const [values, setValues] = useState<ContractFormValues>(() =>
     toFormValues(contract),
@@ -189,17 +215,17 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
           body: buildCreateBody(values),
         });
         if (!result.ok) {
-          toast.error(result.error.message ?? "Failed to create contract");
+          toast.error(result.error.message ?? t("createError"));
           return;
         }
-        toast.success("Draft contract created");
+        toast.success(t("createSuccess"));
         router.push(`/admin/enterprise-contracts/${result.data.id}`);
         router.refresh();
         return;
       }
 
       if (!contract) {
-        toast.error("Missing contract");
+        toast.error(t("missingContract"));
         return;
       }
 
@@ -208,11 +234,11 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
         body: buildPatchBody(values, contract.oneTimeExpiresAt),
       });
       if (!result.ok) {
-        toast.error(result.error.message ?? "Failed to update contract");
+        toast.error(result.error.message ?? t("updateError"));
         return;
       }
 
-      toast.success("Contract updated");
+      toast.success(t("updateSuccess"));
       router.push(`/admin/enterprise-contracts/${contract.id}`);
       router.refresh();
     } finally {
@@ -221,12 +247,15 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="organizationSlug">Organization slug</Label>
+    <form onSubmit={handleSubmit} className="space-y-8">
+      <FormSection title={t("Sections.organization")} className="grid gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="organizationSlug">
+            {t("Fields.organizationSlug.label")}
+          </Label>
           <Input
             id="organizationSlug"
+            placeholder={t("Fields.organizationSlug.placeholder")}
             value={values.organizationSlug}
             onChange={(event) =>
               updateValue("organizationSlug", event.target.value)
@@ -235,8 +264,18 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             disabled={mode === "edit"}
           />
         </div>
+      </FormSection>
+
+      <Separator />
+
+      <FormSection
+        title={t("Sections.subscription")}
+        className="grid gap-4 sm:grid-cols-3"
+      >
         <div className="space-y-2">
-          <Label htmlFor="creditsPerMonth">Credits per month</Label>
+          <Label htmlFor="creditsPerMonth">
+            {t("Fields.creditsPerMonth.label")}
+          </Label>
           <Input
             id="creditsPerMonth"
             type="number"
@@ -252,11 +291,11 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             required
           />
           <p className="text-muted-foreground text-xs">
-            Minimum {formatter.number(MIN_CREDITS_PER_MONTH)} credits.
+            {t("Fields.creditsPerMonth.min", { min: MIN_CREDITS_PER_MONTH })}
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="periods">Periods</Label>
+          <Label htmlFor="periods">{t("Fields.periods.label")}</Label>
           <Input
             id="periods"
             type="number"
@@ -268,9 +307,12 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             }
             required
           />
+          <p className="text-muted-foreground text-xs">
+            {t("Fields.periods.helper")}
+          </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="seats">Seats</Label>
+          <Label htmlFor="seats">{t("Fields.seats.label")}</Label>
           <Input
             id="seats"
             type="number"
@@ -283,8 +325,18 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             required
           />
         </div>
+      </FormSection>
+
+      <Separator />
+
+      <FormSection
+        title={t("Sections.oneTime")}
+        description={t("optionalSection")}
+      >
         <div className="space-y-2">
-          <Label htmlFor="oneTimeCredits">One-time credits (optional)</Label>
+          <Label htmlFor="oneTimeCredits">
+            {t("Fields.oneTimeCredits.label")}
+          </Label>
           <Input
             id="oneTimeCredits"
             type="number"
@@ -300,7 +352,9 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="oneTimeExpiresAt">One-time expiry (optional)</Label>
+          <Label htmlFor="oneTimeExpiresAt">
+            {t("Fields.oneTimeExpiresAt.label")}
+          </Label>
           <Input
             id="oneTimeExpiresAt"
             type="datetime-local"
@@ -310,11 +364,22 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             }
           />
           <p className="text-muted-foreground text-xs">
-            {t("oneTimeExpiresAtHelper")}
+            {t("Fields.oneTimeExpiresAt.helper")}
           </p>
         </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="paymentReference">Payment reference (optional)</Label>
+      </FormSection>
+
+      <Separator />
+
+      <FormSection
+        title={t("Sections.references")}
+        description={t("optionalSection")}
+        className="grid gap-4"
+      >
+        <div className="space-y-2">
+          <Label htmlFor="paymentReference">
+            {t("Fields.paymentReference.label")}
+          </Label>
           <Input
             id="paymentReference"
             value={values.paymentReference}
@@ -323,9 +388,9 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             }
           />
         </div>
-        <div className="space-y-2 sm:col-span-2">
+        <div className="space-y-2">
           <Label htmlFor="externalReference">
-            External reference (optional)
+            {t("Fields.externalReference.label")}
           </Label>
           <Input
             id="externalReference"
@@ -335,8 +400,8 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             }
           />
         </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="notes">Notes (optional)</Label>
+        <div className="space-y-2">
+          <Label htmlFor="notes">{t("Fields.notes.label")}</Label>
           <Textarea
             id="notes"
             value={values.notes}
@@ -344,11 +409,11 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
             rows={4}
           />
         </div>
-      </div>
+      </FormSection>
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={isSubmitting}>
-          {mode === "create" ? "Create draft" : "Save changes"}
+          {mode === "create" ? t("createDraft") : t("saveChanges")}
         </Button>
         <Button type="button" variant="outline" asChild>
           <Link
@@ -358,7 +423,7 @@ export function ContractForm({ mode, contract }: ContractFormProps) {
                 : "/admin/enterprise-contracts"
             }
           >
-            Cancel
+            {t("cancel")}
           </Link>
         </Button>
       </div>

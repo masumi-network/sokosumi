@@ -2535,7 +2535,54 @@
           "view": "查看"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "若一次性积分不过期，请留空。"
+          "Sections": {
+            "organization": "组织",
+            "subscription": "订阅",
+            "oneTime": "一次性",
+            "references": "参考"
+          },
+          "optionalSection": "可选",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "积分 / 月",
+              "min": "最低 {min, number}"
+            },
+            "periods": {
+              "label": "周期",
+              "helper": "1 周期 = 1 个月"
+            },
+            "seats": {
+              "label": "席位"
+            },
+            "oneTimeCredits": {
+              "label": "金额"
+            },
+            "oneTimeExpiresAt": {
+              "label": "到期",
+              "helper": "留空 = 无到期日"
+            },
+            "paymentReference": {
+              "label": "付款"
+            },
+            "externalReference": {
+              "label": "外部"
+            },
+            "notes": {
+              "label": "备注"
+            }
+          },
+          "createDraft": "创建草稿",
+          "saveChanges": "保存",
+          "cancel": "取消",
+          "createSuccess": "草稿已创建",
+          "updateSuccess": "合同已更新",
+          "createError": "无法创建合同",
+          "updateError": "无法更新合同",
+          "missingContract": "缺少合同"
         },
         "Detail": {
           "noExpiry": "无到期日"

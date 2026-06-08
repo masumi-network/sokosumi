@@ -2535,7 +2535,54 @@
           "view": "View"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "Leave blank if one-time credits should not expire."
+          "Sections": {
+            "organization": "Organization",
+            "subscription": "Subscription",
+            "oneTime": "One-time",
+            "references": "References"
+          },
+          "optionalSection": "Optional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Credits / month",
+              "min": "Min {min, number}"
+            },
+            "periods": {
+              "label": "Periods",
+              "helper": "1 period = 1 month"
+            },
+            "seats": {
+              "label": "Seats"
+            },
+            "oneTimeCredits": {
+              "label": "Amount"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expires",
+              "helper": "Blank = no expiry"
+            },
+            "paymentReference": {
+              "label": "Payment"
+            },
+            "externalReference": {
+              "label": "External"
+            },
+            "notes": {
+              "label": "Notes"
+            }
+          },
+          "createDraft": "Create draft",
+          "saveChanges": "Save changes",
+          "cancel": "Cancel",
+          "createSuccess": "Draft contract created",
+          "updateSuccess": "Contract updated",
+          "createError": "Failed to create contract",
+          "updateError": "Failed to update contract",
+          "missingContract": "Missing contract"
         },
         "Detail": {
           "noExpiry": "No expiry"

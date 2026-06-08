@@ -2535,7 +2535,54 @@
           "view": "Ver"
         },
         "Form": {
-          "oneTimeExpiresAtHelper": "Deixe em branco se os créditos únicos não devem expirar."
+          "Sections": {
+            "organization": "Organização",
+            "subscription": "Subscrição",
+            "oneTime": "Único",
+            "references": "Referências"
+          },
+          "optionalSection": "Opcional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Créditos / mês",
+              "min": "Mín. {min, number}"
+            },
+            "periods": {
+              "label": "Períodos",
+              "helper": "1 período = 1 mês"
+            },
+            "seats": {
+              "label": "Lugares"
+            },
+            "oneTimeCredits": {
+              "label": "Valor"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expira",
+              "helper": "Vazio = sem expiração"
+            },
+            "paymentReference": {
+              "label": "Pagamento"
+            },
+            "externalReference": {
+              "label": "Externo"
+            },
+            "notes": {
+              "label": "Notas"
+            }
+          },
+          "createDraft": "Criar rascunho",
+          "saveChanges": "Guardar",
+          "cancel": "Cancelar",
+          "createSuccess": "Rascunho criado",
+          "updateSuccess": "Contrato atualizado",
+          "createError": "Não foi possível criar o contrato",
+          "updateError": "Não foi possível atualizar o contrato",
+          "missingContract": "Contrato em falta"
         },
         "Detail": {
           "noExpiry": "Sem expiração"
