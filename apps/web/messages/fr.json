@@ -2543,7 +2543,6 @@
         },
         "Form": {
           "Sections": {
-            "organization": "Organisation",
             "subscription": "Abonnement",
             "oneTime": "Ponctuel",
             "references": "Références"

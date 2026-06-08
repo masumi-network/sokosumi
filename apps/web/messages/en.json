@@ -2543,7 +2543,6 @@
         },
         "Form": {
           "Sections": {
-            "organization": "Organization",
             "subscription": "Subscription",
             "oneTime": "One-time",
             "references": "References"
