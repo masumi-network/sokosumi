@@ -352,12 +352,8 @@ export const stripeClient = (() => {
       if (cachedStripeAccountId) {
         return cachedStripeAccountId;
       }
-      // No-arg retrieve hits GET /v1/account (the account the API key belongs
-      // to); cast because the SDK types only expose the by-id overload.
-      const retrieveCurrentAccount = stripe.accounts.retrieve as () => Promise<
-        Stripe.Response<Stripe.Account>
-      >;
-      const account = await retrieveCurrentAccount();
+      // GET /v1/account — the account the configured API key belongs to.
+      const account = await stripe.accounts.retrieveCurrent();
       cachedStripeAccountId = account.id;
       return cachedStripeAccountId;
     },
