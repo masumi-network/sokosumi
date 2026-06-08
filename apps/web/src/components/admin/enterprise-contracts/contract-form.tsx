@@ -6,12 +6,16 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 
-import { OrganizationCombobox } from "@/components/admin/organization-combobox";
+import {
+  AsyncSearchCombobox,
+  type AsyncSearchComboboxLabels,
+} from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { searchOrganizationsAction } from "@/lib/actions/admin-search/action";
 import {
   createEnterpriseContractAction,
   updateEnterpriseContractAction,
@@ -164,7 +168,18 @@ function buildPatchBody(
 interface ContractFormProps {
   mode: "create" | "edit";
   contract?: EnterpriseContract;
-  organizations: AdminOrganizationOption[];
+  /** Seeds the combobox with the already-selected organization (edit mode). */
+  initialOrganization: AdminOrganizationOption | null;
+}
+
+async function searchOrganizations(
+  query: string,
+): Promise<AdminOrganizationOption[]> {
+  const result = await searchOrganizationsAction({ query });
+  if (!result.ok) {
+    throw new Error(result.error.message ?? "Failed to search organizations");
+  }
+  return result.data;
 }
 
 interface FormSectionProps {
@@ -196,17 +211,26 @@ function FormSection({
 export function ContractForm({
   mode,
   contract,
-  organizations,
+  initialOrganization,
 }: ContractFormProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts.Form");
+  const tOrg = useTranslations("Components.OrganizationCombobox");
   const router = useRouter();
   const [values, setValues] = useState<ContractFormValues>(() =>
     toFormValues(contract),
   );
+  const [selectedOrganization, setSelectedOrganization] =
+    useState<AdminOrganizationOption | null>(initialOrganization);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedOrganizationId =
-    organizations.find((org) => org.slug === values.organizationSlug)?.id ?? "";
+  const orgLabels: AsyncSearchComboboxLabels = {
+    placeholder: tOrg("placeholder"),
+    searchPlaceholder: tOrg("search"),
+    empty: tOrg("empty"),
+    loading: tOrg("loading"),
+    error: tOrg("error"),
+    idle: tOrg("idle"),
+  };
 
   function updateValue<K extends keyof ContractFormValues>(
     key: K,
@@ -269,11 +293,23 @@ export function ContractForm({
           <Label htmlFor="organizationSlug">
             {t("Fields.organizationSlug.label")}
           </Label>
-          <OrganizationCombobox
+          <AsyncSearchCombobox<AdminOrganizationOption>
             id="organizationSlug"
-            organizations={organizations}
-            value={selectedOrganizationId}
-            onChange={(org) => updateValue("organizationSlug", org?.slug ?? "")}
+            value={selectedOrganization}
+            onChange={(org) => {
+              setSelectedOrganization(org);
+              updateValue("organizationSlug", org?.slug ?? "");
+            }}
+            search={searchOrganizations}
+            getKey={(org) => org.id}
+            getTriggerLabel={(org) => org.name}
+            renderOption={(org) => (
+              <span className="flex flex-col">
+                <span>{org.name}</span>
+                <span className="text-muted-foreground text-xs">{org.slug}</span>
+              </span>
+            )}
+            labels={orgLabels}
             disabled={mode === "edit"}
           />
         </div>

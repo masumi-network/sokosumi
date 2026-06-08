@@ -1,7 +1,13 @@
 import "server-only";
 
-import { buildOrganizationInvoiceCreditReferenceId } from "@sokosumi/database/helpers";
-import { organizationRepository } from "@sokosumi/database/repositories";
+import {
+  buildOrganizationInvoiceCreditReferenceId,
+  buildUserInvoiceCreditReferenceId,
+} from "@sokosumi/database/helpers";
+import {
+  organizationRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
@@ -16,10 +22,18 @@ import { handleInvoicePaidEvent } from "@/lib/stripe/webhook-handlers";
 const ADMIN_CREDIT_GRANT_SOURCE = "admin_one_time_credit";
 const MAX_TTL_DAYS = 3650;
 
+export type CreditGrantTargetType = "user" | "organization";
+
+export interface CreditGrantTarget {
+  targetType: CreditGrantTargetType;
+  targetId: string;
+}
+
 export interface CreditGrantInvoiceSummary {
   invoiceId: string;
-  organizationId: string;
-  organizationName: string;
+  targetType: CreditGrantTargetType;
+  targetId: string;
+  targetName: string;
   credits: number;
   ttlDays: number | null;
   currency: string;
@@ -34,6 +48,13 @@ export interface CreditPriceOption {
   amountPerCredit: number;
   currency: string;
   nickname: string | null;
+}
+
+interface ResolvedTarget {
+  targetType: CreditGrantTargetType;
+  id: string;
+  name: string;
+  stripeCustomerId: string;
 }
 
 /**
@@ -58,7 +79,7 @@ export class CreditGrantValidationError extends Error {
 
 function toInvoiceSummary(
   invoice: Stripe.Invoice,
-  organization: { id: string; name: string },
+  target: { targetType: CreditGrantTargetType; id: string; name: string },
   credits: number,
   ttlDays: number | null,
   accountId: string,
@@ -69,8 +90,9 @@ function toInvoiceSummary(
 
   return {
     invoiceId: invoice.id,
-    organizationId: organization.id,
-    organizationName: organization.name,
+    targetType: target.targetType,
+    targetId: target.id,
+    targetName: target.name,
     credits,
     ttlDays,
     currency: invoice.currency ?? "",
@@ -83,7 +105,7 @@ function toInvoiceSummary(
 export const creditGrantAdminService = (() => {
   async function ensureOrganizationStripeCustomerId(
     organizationId: string,
-  ): Promise<{ id: string; name: string; stripeCustomerId: string }> {
+  ): Promise<ResolvedTarget> {
     const organization =
       await organizationRepository.getOrganizationWithRelationsById(
         organizationId,
@@ -96,6 +118,7 @@ export const creditGrantAdminService = (() => {
 
     if (organization.stripeCustomerId) {
       return {
+        targetType: "organization",
         id: organization.id,
         name: organization.name,
         stripeCustomerId: organization.stripeCustomerId,
@@ -116,10 +139,54 @@ export const creditGrantAdminService = (() => {
     });
 
     return {
+      targetType: "organization",
       id: organization.id,
       name: organization.name,
       stripeCustomerId: customer.id,
     };
+  }
+
+  async function ensureUserStripeCustomerId(
+    userId: string,
+  ): Promise<ResolvedTarget> {
+    const user = await userRepository.getUserById(userId, prisma);
+
+    if (!user) {
+      throw new CreditGrantValidationError("User not found");
+    }
+
+    if (user.stripeCustomerId) {
+      return {
+        targetType: "user",
+        id: user.id,
+        name: user.name,
+        stripeCustomerId: user.stripeCustomerId,
+      };
+    }
+
+    const customer = await stripeClient.createUserCustomer(
+      user.id,
+      user.name,
+      user.email,
+    );
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { stripeCustomerId: customer.id },
+    });
+
+    return {
+      targetType: "user",
+      id: user.id,
+      name: user.name,
+      stripeCustomerId: customer.id,
+    };
+  }
+
+  async function resolveTarget(target: CreditGrantTarget): Promise<ResolvedTarget> {
+    return target.targetType === "user"
+      ? ensureUserStripeCustomerId(target.targetId)
+      : ensureOrganizationStripeCustomerId(target.targetId);
   }
 
   async function resolvePrice(priceId: string | null) {
@@ -145,7 +212,7 @@ export const creditGrantAdminService = (() => {
     },
 
     async createGrantInvoice(params: {
-      organizationId: string;
+      target: CreditGrantTarget;
       credits: number;
       ttlDays: number | null;
       priceId: string | null;
@@ -168,9 +235,7 @@ export const creditGrantAdminService = (() => {
         }
       }
 
-      const organization = await ensureOrganizationStripeCustomerId(
-        params.organizationId,
-      );
+      const target = await resolveTarget(params.target);
 
       const price = await resolvePrice(params.priceId);
       const totalMinorUnits = getCreditTopUpTotalMinorUnits(
@@ -179,7 +244,7 @@ export const creditGrantAdminService = (() => {
       );
 
       const invoice = await stripeClient.createCreditGrantInvoice({
-        customerId: organization.stripeCustomerId,
+        customerId: target.stripeCustomerId,
         credits: params.credits,
         totalMinorUnits,
         currency: price.currency,
@@ -189,7 +254,7 @@ export const creditGrantAdminService = (() => {
       const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         invoice,
-        organization,
+        target,
         params.credits,
         params.ttlDays,
         accountId,
@@ -221,15 +286,60 @@ export const creditGrantAdminService = (() => {
         throw new CreditGrantValidationError("Invoice has no customer");
       }
 
-      const organization =
-        await organizationRepository.getOrganizationByStripeCustomerId(
-          stripeCustomerId,
-          prisma,
+      // Resolve the target user-first to mirror the webhook
+      // (`handleInvoicePaidEvent` resolves a user customer before falling back
+      // to an organization). An org-first lookup would never resolve a user
+      // customer.
+      const user = await userRepository.getUserByStripeCustomerId(
+        stripeCustomerId,
+        prisma,
+      );
+
+      let target: { targetType: CreditGrantTargetType; id: string; name: string };
+      let expectedReferenceId: string;
+      let grantedBucketWhere: {
+        userId?: string;
+        organizationId: string | null;
+        referenceId: string;
+      };
+
+      if (user) {
+        expectedReferenceId = buildUserInvoiceCreditReferenceId(
+          user.id,
+          invoiceId,
+          "topup",
         );
-      if (!organization) {
-        throw new CreditGrantValidationError(
-          "Invoice does not belong to an organization",
+        target = { targetType: "user", id: user.id, name: user.name };
+        grantedBucketWhere = {
+          userId: user.id,
+          organizationId: null,
+          referenceId: expectedReferenceId,
+        };
+      } else {
+        const organization =
+          await organizationRepository.getOrganizationByStripeCustomerId(
+            stripeCustomerId,
+            prisma,
+          );
+        if (!organization) {
+          throw new CreditGrantValidationError(
+            "Invoice does not belong to a user or organization",
+          );
+        }
+        expectedReferenceId = buildOrganizationInvoiceCreditReferenceId(
+          organization.id,
+          invoiceId,
+          "topup",
         );
+        target = {
+          targetType: "organization",
+          id: organization.id,
+          name: organization.name,
+        };
+        grantedBucketWhere = {
+          organizationId: organization.id,
+          referenceId: expectedReferenceId,
+        };
       }
 
       // A non-zero invoice still open is marked paid out of band; a $0 invoice
@@ -248,16 +358,8 @@ export const creditGrantAdminService = (() => {
       // credits issued. Verify the grant landed instead of reporting false
       // success; the invoice is already paid, so a re-run (after fixing
       // membership) is idempotent and will complete the grant.
-      const expectedReferenceId = buildOrganizationInvoiceCreditReferenceId(
-        organization.id,
-        invoiceId,
-        "topup",
-      );
       const grantedBucket = await prisma.creditBucket.findFirst({
-        where: {
-          organizationId: organization.id,
-          referenceId: expectedReferenceId,
-        },
+        where: grantedBucketWhere,
         select: { id: true },
       });
       if (!grantedBucket) {
@@ -273,7 +375,7 @@ export const creditGrantAdminService = (() => {
       const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         paidInvoice,
-        organization,
+        target,
         Number.isFinite(credits) ? credits : 0,
         ttlDays !== null && Number.isFinite(ttlDays) ? ttlDays : null,
         accountId,

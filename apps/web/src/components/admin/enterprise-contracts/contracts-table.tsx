@@ -6,8 +6,11 @@ import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
+import {
+  AsyncSearchCombobox,
+  type AsyncSearchComboboxLabels,
+} from "@/components/admin/async-search-combobox";
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
-import { OrganizationCombobox } from "@/components/admin/organization-combobox";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,12 +21,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { searchOrganizationsAction } from "@/lib/actions/admin-search/action";
 import type {
   EnterpriseContract,
   EnterpriseContractStatus,
 } from "@/lib/clients/generated/core/types.gen";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
+
+async function searchOrganizations(
+  query: string,
+): Promise<AdminOrganizationOption[]> {
+  const result = await searchOrganizationsAction({ query });
+  if (!result.ok) {
+    throw new Error(result.error.message ?? "Failed to search organizations");
+  }
+  return result.data;
+}
 
 const ENTERPRISE_CONTRACT_STATUSES = [
   "draft",
@@ -167,14 +181,16 @@ function getColumns(
 
 interface ContractsTableProps {
   contracts: EnterpriseContract[];
-  organizations: AdminOrganizationOption[];
+  /** Seeds the filter combobox with the organization from the active URL slug. */
+  initialFilterOrganization: AdminOrganizationOption | null;
 }
 
 export function ContractsTable({
   contracts,
-  organizations,
+  initialFilterOrganization,
 }: ContractsTableProps) {
   const t = useTranslations("App.Admin.EnterpriseContracts");
+  const tOrg = useTranslations("Components.OrganizationCombobox");
   const formatter = useFormatter();
   const [isPending, startTransition] = useTransition();
   const [appliedFilters, setAppliedFilters] = useQueryStates(
@@ -183,6 +199,8 @@ export function ContractsTable({
   const [organizationSlug, setOrganizationSlug] = useState(
     appliedFilters.organizationSlug,
   );
+  const [selectedFilterOrganization, setSelectedFilterOrganization] =
+    useState<AdminOrganizationOption | null>(initialFilterOrganization);
   const [status, setStatus] = useState<EnterpriseContractStatus | "all">(
     appliedFilters.status ?? "all",
   );
@@ -192,8 +210,15 @@ export function ContractsTable({
     setStatus(appliedFilters.status ?? "all");
   }, [appliedFilters.organizationSlug, appliedFilters.status]);
 
-  const selectedFilterOrganizationId =
-    organizations.find((org) => org.slug === organizationSlug)?.id ?? "";
+  const orgLabels: AsyncSearchComboboxLabels = {
+    placeholder: t("Filters.organizationAll"),
+    searchPlaceholder: tOrg("search"),
+    empty: tOrg("empty"),
+    loading: tOrg("loading"),
+    error: tOrg("error"),
+    idle: tOrg("idle"),
+    clear: t("Filters.organizationAll"),
+  };
 
   const columns = useMemo(() => getColumns(t, formatter), [t, formatter]);
 
@@ -220,12 +245,23 @@ export function ContractsTable({
           <Label htmlFor="filter-organizationSlug">
             {t("Filters.organizationSlug")}
           </Label>
-          <OrganizationCombobox
+          <AsyncSearchCombobox<AdminOrganizationOption>
             id="filter-organizationSlug"
-            organizations={organizations}
-            value={selectedFilterOrganizationId}
-            onChange={(org) => setOrganizationSlug(org?.slug ?? "")}
-            placeholder={t("Filters.organizationAll")}
+            value={selectedFilterOrganization}
+            onChange={(org) => {
+              setSelectedFilterOrganization(org);
+              setOrganizationSlug(org?.slug ?? "");
+            }}
+            search={searchOrganizations}
+            getKey={(org) => org.id}
+            getTriggerLabel={(org) => org.name}
+            renderOption={(org) => (
+              <span className="flex flex-col">
+                <span>{org.name}</span>
+                <span className="text-muted-foreground text-xs">{org.slug}</span>
+              </span>
+            )}
+            labels={orgLabels}
             allowClear
           />
         </div>

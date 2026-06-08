@@ -46,7 +46,10 @@ export default async function EditEnterpriseContractPage({
     redirect(`/admin/enterprise-contracts/${id}`);
   }
 
-  const organizations = await adminOrganizationService.listOrganizations();
+  const initialOrganization =
+    await adminOrganizationService.getOrganizationOptionBySlug(
+      result.data.organizationSlug,
+    );
 
   return (
     <div className="min-h-full w-full">
@@ -75,7 +78,7 @@ export default async function EditEnterpriseContractPage({
             <ContractForm
               mode="edit"
               contract={result.data}
-              organizations={organizations}
+              initialOrganization={initialOrganization}
             />
           </CardContent>
         </Card>

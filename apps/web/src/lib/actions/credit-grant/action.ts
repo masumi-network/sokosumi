@@ -7,6 +7,7 @@ import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import {
   type CreditGrantInvoiceSummary,
+  type CreditGrantTargetType,
   CreditGrantValidationError,
   creditGrantAdminService,
 } from "@/lib/services/credit-grant-admin.service";
@@ -39,7 +40,8 @@ function mapError(error: unknown): ActionError {
 }
 
 interface CreateCreditGrantInvoiceParameters extends AuthenticatedRequest {
-  organizationId: string;
+  targetType: CreditGrantTargetType;
+  targetId: string;
   credits: number;
   ttlDays: number | null;
   priceId: string | null;
@@ -48,11 +50,11 @@ interface CreateCreditGrantInvoiceParameters extends AuthenticatedRequest {
 export const createCreditGrantInvoiceAction = withSession<
   CreateCreditGrantInvoiceParameters,
   Result<CreditGrantInvoiceSummary, ActionError>
->(async ({ session, organizationId, credits, ttlDays, priceId }) => {
+>(async ({ session, targetType, targetId, credits, ttlDays, priceId }) => {
   try {
     assertAdminSession(session);
     const summary = await creditGrantAdminService.createGrantInvoice({
-      organizationId,
+      target: { targetType, targetId },
       credits,
       ttlDays,
       priceId,

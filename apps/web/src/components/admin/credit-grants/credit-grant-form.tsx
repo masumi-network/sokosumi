@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
-import { OrganizationCombobox } from "@/components/admin/organization-combobox";
+import {
+  AsyncSearchCombobox,
+  type AsyncSearchComboboxLabels,
+} from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,18 +20,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  searchOrganizationsAction,
+  searchUsersAction,
+} from "@/lib/actions/admin-search/action";
 import {
   createCreditGrantInvoiceAction,
   markCreditGrantInvoicePaidAction,
 } from "@/lib/actions/credit-grant/action";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
+import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
   CreditGrantInvoiceSummary,
+  CreditGrantTargetType,
   CreditPriceOption,
 } from "@/lib/services/credit-grant-admin.service";
 
 interface CreditGrantFormProps {
-  organizations: AdminOrganizationOption[];
   prices: CreditPriceOption[];
 }
 
@@ -81,11 +90,28 @@ function formatPricePerCredit(
   }
 }
 
-export function CreditGrantForm({
-  organizations,
-  prices,
-}: CreditGrantFormProps) {
+async function searchOrganizations(
+  query: string,
+): Promise<AdminOrganizationOption[]> {
+  const result = await searchOrganizationsAction({ query });
+  if (!result.ok) {
+    throw new Error(result.error.message ?? "Failed to search organizations");
+  }
+  return result.data;
+}
+
+async function searchUsers(query: string): Promise<AdminUserOption[]> {
+  const result = await searchUsersAction({ query });
+  if (!result.ok) {
+    throw new Error(result.error.message ?? "Failed to search users");
+  }
+  return result.data;
+}
+
+export function CreditGrantForm({ prices }: CreditGrantFormProps) {
   const t = useTranslations("App.Admin.CreditGrants");
+  const tOrg = useTranslations("Components.OrganizationCombobox");
+  const tUser = useTranslations("Components.UserCombobox");
   const defaultPriceId = prices[0]?.id ?? "";
   // Pad every price to the same number of decimals so the values line up in
   // the dropdown (combined with tabular-nums on render).
@@ -93,7 +119,11 @@ export function CreditGrantForm({
     2,
     ...prices.map((price) => countDecimals(price.amountPerCredit) + 2),
   );
-  const [organizationId, setOrganizationId] = useState("");
+  const [targetType, setTargetType] =
+    useState<CreditGrantTargetType>("organization");
+  const [selectedOrg, setSelectedOrg] =
+    useState<AdminOrganizationOption | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(null);
   const [creditsInput, setCreditsInput] = useState("");
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
   const [priceId, setPriceId] = useState(defaultPriceId);
@@ -105,14 +135,34 @@ export function CreditGrantForm({
 
   const isPaid = invoice?.status === "paid";
 
+  const orgLabels: AsyncSearchComboboxLabels = {
+    placeholder: tOrg("placeholder"),
+    searchPlaceholder: tOrg("search"),
+    empty: tOrg("empty"),
+    loading: tOrg("loading"),
+    error: tOrg("error"),
+    idle: tOrg("idle"),
+  };
+  const userLabels: AsyncSearchComboboxLabels = {
+    placeholder: tUser("placeholder"),
+    searchPlaceholder: tUser("search"),
+    empty: tUser("empty"),
+    loading: tUser("loading"),
+    error: tUser("error"),
+    idle: tUser("idle"),
+  };
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const credits = parseOptionalPositiveInteger(creditsInput);
-    if (!organizationId) {
-      toast.error(t("Form.organizationRequired"));
+    const targetId =
+      targetType === "user" ? selectedUser?.id : selectedOrg?.id;
+    if (!targetId) {
+      toast.error(t("Form.targetRequired"));
       return;
     }
+
+    const credits = parseOptionalPositiveInteger(creditsInput);
     if (credits === null) {
       toast.error(t("Form.creditsRequired"));
       return;
@@ -133,7 +183,8 @@ export function CreditGrantForm({
     setIsSubmitting(true);
     try {
       const result = await createCreditGrantInvoiceAction({
-        organizationId,
+        targetType,
+        targetId,
         credits,
         ttlDays,
         priceId: priceId || null,
@@ -170,6 +221,8 @@ export function CreditGrantForm({
   }
 
   if (invoice) {
+    const targetLabel =
+      invoice.targetType === "user" ? t("Result.user") : t("Result.organization");
     return (
       <div className="space-y-6">
         <div className="space-y-1">
@@ -181,10 +234,8 @@ export function CreditGrantForm({
 
         <dl className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">
-              {t("Result.organization")}
-            </dt>
-            <dd className="text-sm font-medium">{invoice.organizationName}</dd>
+            <dt className="text-muted-foreground text-xs">{targetLabel}</dt>
+            <dd className="text-sm font-medium">{invoice.targetName}</dd>
           </div>
           <div className="space-y-1">
             <dt className="text-muted-foreground text-xs">
@@ -254,13 +305,55 @@ export function CreditGrantForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="organization">{t("Form.Fields.organization")}</Label>
-        <OrganizationCombobox
-          id="organization"
-          organizations={organizations}
-          value={organizationId}
-          onChange={(org) => setOrganizationId(org?.id ?? "")}
-        />
+        <Label htmlFor="target">{t("Form.Fields.target")}</Label>
+        <Tabs
+          value={targetType}
+          onValueChange={(value) =>
+            setTargetType(value as CreditGrantTargetType)
+          }
+        >
+          <TabsList>
+            <TabsTrigger value="organization">
+              {t("Form.Tabs.organization")}
+            </TabsTrigger>
+            <TabsTrigger value="user">{t("Form.Tabs.user")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {targetType === "organization" ? (
+          <AsyncSearchCombobox<AdminOrganizationOption>
+            id="target"
+            value={selectedOrg}
+            onChange={setSelectedOrg}
+            search={searchOrganizations}
+            getKey={(org) => org.id}
+            getTriggerLabel={(org) => org.name}
+            renderOption={(org) => (
+              <span className="flex flex-col">
+                <span>{org.name}</span>
+                <span className="text-muted-foreground text-xs">{org.slug}</span>
+              </span>
+            )}
+            labels={orgLabels}
+          />
+        ) : (
+          <AsyncSearchCombobox<AdminUserOption>
+            id="target"
+            value={selectedUser}
+            onChange={setSelectedUser}
+            search={searchUsers}
+            getKey={(user) => user.id}
+            getTriggerLabel={(user) => user.name}
+            renderOption={(user) => (
+              <span className="flex flex-col">
+                <span>{user.name}</span>
+                <span className="text-muted-foreground text-xs">
+                  {user.email}
+                </span>
+              </span>
+            )}
+            labels={userLabels}
+          />
+        )}
       </div>
 
       <Separator />

@@ -42,12 +42,14 @@ async function EnterpriseContractsContent({
     ? params.status
     : undefined;
 
-  const [result, organizations] = await Promise.all([
+  const [result, initialFilterOrganization] = await Promise.all([
     listEnterpriseContractsAction({
       organizationSlug: organizationSlug || undefined,
       status,
     }),
-    adminOrganizationService.listOrganizations(),
+    organizationSlug
+      ? adminOrganizationService.getOrganizationOptionBySlug(organizationSlug)
+      : Promise.resolve(null),
   ]);
 
   if (!result.ok) {
@@ -59,7 +61,10 @@ async function EnterpriseContractsContent({
   }
 
   return (
-    <ContractsTable contracts={result.data} organizations={organizations} />
+    <ContractsTable
+      contracts={result.data}
+      initialFilterOrganization={initialFilterOrganization}
+    />
   );
 }
 
