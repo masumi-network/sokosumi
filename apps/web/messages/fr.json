@@ -122,9 +122,10 @@
     },
     "UserAvatar": {
       "account": "Compte",
-      "organizations": "Organisations",
       "billing": "Facturation",
       "connections": "Connexions",
+      "admin": "Administration",
+      "enterpriseContracts": "Contrats entreprise",
       "help": "Aide",
       "legal": "Mentions légales",
       "support": "Support",
@@ -146,7 +147,8 @@
       "creditsConsumedProgressAria": "Crédits d’abonnement consommés",
       "creditsExpiresInDays": "Les crédits se renouvellent dans {days, plural, =1 {1 jour} other {# jours}}",
       "creditsExpiresToday": "Les crédits se renouvellent aujourd’hui",
-      "creditsExpired": "Crédits expirés"
+      "creditsExpired": "Crédits expirés",
+      "organizations": "Organisations"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Changer d’espace de travail",
@@ -247,7 +249,9 @@
       "subscriptions": "Abonnements",
       "billing": "Facturation",
       "account": "Compte",
-      "organizations": "Organisations",
+      "admin": "Administration",
+      "edit": "Modifier",
+      "enterprise-contracts": "Contrats entreprise",
       "mcp": "Protocole de contexte de modèle (MCP)",
       "chat": "Chat",
       "tasks": "Tâches",
@@ -2499,6 +2503,91 @@
         "retryButton": "Réessayer"
       }
     },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contrats entreprise",
+        "description": "Console d'administration interne pour les brouillons, l'activation et l'annulation.",
+        "newContract": "Nouveau contrat",
+        "loading": "Chargement…",
+        "loadFailed": "Impossible de charger les contrats entreprise.",
+        "Filters": {
+          "organizationSlug": "Slug de l'organisation",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Statut",
+          "statusAll": "Tous",
+          "apply": "Appliquer les filtres"
+        },
+        "Status": {
+          "draft": "Brouillon",
+          "active": "Actif",
+          "completed": "Terminé",
+          "canceled": "Annulé"
+        },
+        "Table": {
+          "organization": "Organisation",
+          "status": "Statut",
+          "seats": "Sièges",
+          "creditsPerMonth": "Crédits par mois",
+          "periods": "Périodes",
+          "ends": "Se termine",
+          "actions": "Actions",
+          "view": "Voir"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "Organisation",
+            "subscription": "Abonnement",
+            "oneTime": "Ponctuel",
+            "references": "Références"
+          },
+          "optionalSection": "Facultatif",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Crédits / mois",
+              "min": "Min. {min, number}"
+            },
+            "periods": {
+              "label": "Périodes",
+              "helper": "1 période = 1 mois"
+            },
+            "seats": {
+              "label": "Sièges"
+            },
+            "oneTimeCredits": {
+              "label": "Montant"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expire",
+              "helper": "Vide = sans expiration"
+            },
+            "paymentReference": {
+              "label": "Paiement"
+            },
+            "externalReference": {
+              "label": "Externe"
+            },
+            "notes": {
+              "label": "Notes"
+            }
+          },
+          "createDraft": "Créer le brouillon",
+          "saveChanges": "Enregistrer",
+          "cancel": "Annuler",
+          "createSuccess": "Brouillon créé",
+          "updateSuccess": "Contrat mis à jour",
+          "createError": "Impossible de créer le contrat",
+          "updateError": "Impossible de mettre à jour le contrat",
+          "missingContract": "Contrat introuvable"
+        },
+        "Detail": {
+          "noExpiry": "Sans expiration"
+        }
+      }
+    },
     "Billing": {
       "balanceTitle": "Solde",
       "balanceDescriptionPersonal": "Vos crédits actuels sur votre compte personnel.",
@@ -2923,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organisations",
-        "description": "Gérez vos organisations"
-      },
-      "newOrganization": "Nouvelle organisation",
-      "organizationsNotAvailable": "Aucune organisation trouvée",
-      "OrganizationRow": {
-        "leave": "Quitter",
-        "activate": "Activer",
-        "deactivate": "Désactiver"
-      },
-      "Credits": {
-        "title": "Crédits de l’organisation",
-        "description": "Disponibles pour les membres de {organization}",
-        "buy": "Ajouter des crédits"
-      },
-      "InvitationActions": {
-        "accept": "Accepter",
-        "reject": "Refuser",
-        "acceptTitle": "Accepter l’invitation",
-        "rejectTitle": "Refuser l’invitation",
-        "acceptDescription": "Êtes-vous sûr de vouloir accepter l’invitation pour {email} ?",
-        "rejectDescription": "Êtes-vous sûr de vouloir refuser l’invitation pour {email} ?",
-        "confirm": "Confirmer",
-        "cancel": "Annuler",
-        "acceptSuccess": "Invitation acceptée avec succès",
-        "acceptError": "Échec de l’acceptation de l’invitation",
-        "rejectSuccess": "Invitation refusée avec succès",
-        "rejectError": "Échec du refus de l’invitation",
-        "Errors": {
-          "unauthorizedAction": "Se connecter"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

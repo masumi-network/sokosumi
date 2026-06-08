@@ -1865,6 +1865,493 @@ export const PatchCreditCostRequestSchema = {
     ]
 } as const;
 
+export const EnterpriseContractSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        organizationSlug: {
+            type: 'string',
+            example: 'acme-corp'
+        },
+        status: {
+            $ref: '#/components/schemas/EnterpriseContractStatus'
+        },
+        periods: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Commercial term length in monthly grant periods',
+            example: 12
+        },
+        activatedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        canceledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        seats: {
+            type: 'integer',
+            minimum: 1
+        },
+        creditsPerMonth: {
+            type: 'number',
+            minimum: 60000,
+            description: 'Monthly shared pool grant (credits)',
+            example: 60000
+        },
+        oneTimeCredits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Optional lump-sum org grant on activation (credits)'
+        },
+        oneTimeExpiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        paymentReference: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        externalReference: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        endsAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Derived end of the commercial term (not stored on the contract)'
+        },
+        contractPeriods: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EnterpriseContractPeriod'
+            },
+            description: 'Materialized periods (detail responses only)'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'organizationSlug',
+        'status',
+        'periods',
+        'activatedAt',
+        'canceledAt',
+        'seats',
+        'creditsPerMonth',
+        'oneTimeCredits',
+        'oneTimeExpiresAt',
+        'paymentReference',
+        'notes',
+        'externalReference',
+        'endsAt'
+    ]
+} as const;
+
+export const EnterpriseContractStatusSchema = {
+    type: 'string',
+    enum: [
+        'draft',
+        'active',
+        'completed',
+        'canceled'
+    ]
+} as const;
+
+export const EnterpriseContractPeriodSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        periodStart: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        periodEnd: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        creditsToGrant: {
+            type: 'number',
+            description: 'Monthly grant for this period (credits)',
+            example: 60000
+        },
+        purchasedSeats: {
+            type: 'integer',
+            minimum: 1
+        },
+        status: {
+            $ref: '#/components/schemas/EnterpriseContractPeriodStatus'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'periodStart',
+        'periodEnd',
+        'creditsToGrant',
+        'purchasedSeats',
+        'status'
+    ]
+} as const;
+
+export const EnterpriseContractPeriodStatusSchema = {
+    type: 'string',
+    enum: [
+        'scheduled',
+        'active',
+        'expired',
+        'void'
+    ]
+} as const;
+
+export const CreateEnterpriseContractRequestSchema = {
+    type: 'object',
+    properties: {
+        organizationSlug: {
+            type: 'string',
+            minLength: 1,
+            example: 'acme-corp'
+        },
+        creditsPerMonth: {
+            type: 'number',
+            minimum: 60000,
+            example: 60000,
+            description: 'Minimum 60000 credits'
+        },
+        periods: {
+            type: 'integer',
+            minimum: 1,
+            example: 12,
+            description: 'Number of full monthly grant periods'
+        },
+        seats: {
+            type: 'integer',
+            minimum: 1,
+            example: 10
+        },
+        oneTimeCredits: {
+            type: 'number',
+            minimum: 0
+        },
+        oneTimeExpiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        paymentReference: {
+            type: 'string',
+            minLength: 1,
+            description: 'Non-empty payment reference'
+        },
+        notes: {
+            type: 'string'
+        },
+        externalReference: {
+            type: 'string'
+        }
+    },
+    required: [
+        'organizationSlug',
+        'creditsPerMonth',
+        'periods',
+        'seats'
+    ]
+} as const;
+
+export const EnterpriseContractPreviewSchema = {
+    type: 'object',
+    properties: {
+        activatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        periods: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/EnterpriseContractPreviewPeriod'
+            }
+        }
+    },
+    required: [
+        'activatedAt',
+        'endsAt',
+        'periods'
+    ]
+} as const;
+
+export const EnterpriseContractPreviewPeriodSchema = {
+    type: 'object',
+    properties: {
+        periodStart: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        periodEnd: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        creditsToGrant: {
+            type: 'number'
+        },
+        purchasedSeats: {
+            type: 'integer',
+            minimum: 1
+        }
+    },
+    required: [
+        'periodStart',
+        'periodEnd',
+        'creditsToGrant',
+        'purchasedSeats'
+    ]
+} as const;
+
+export const PatchEnterpriseContractRequestSchema = {
+    type: 'object',
+    properties: {
+        creditsPerMonth: {
+            type: 'number',
+            minimum: 60000
+        },
+        periods: {
+            type: 'integer',
+            minimum: 1
+        },
+        seats: {
+            type: 'integer',
+            minimum: 1
+        },
+        oneTimeCredits: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0
+        },
+        oneTimeExpiresAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        paymentReference: {
+            anyOf: [
+                {
+                    type: 'string',
+                    minLength: 1,
+                    description: 'Non-empty payment reference'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        notes: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        externalReference: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    }
+} as const;
+
+export const ActivateEnterpriseContractResponseSchema = {
+    type: 'object',
+    properties: {
+        contractId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        periodBucketCreated: {
+            type: 'boolean'
+        },
+        periodsCreated: {
+            type: 'integer'
+        },
+        topUpBucketCreated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'contractId',
+        'periodBucketCreated',
+        'periodsCreated',
+        'topUpBucketCreated'
+    ]
+} as const;
+
+export const EnterpriseContractActivationConflictResponseSchema = {
+    type: 'object',
+    properties: {
+        error: {
+            type: 'string',
+            example: 'Unauthorized'
+        },
+        message: {
+            type: 'string',
+            example: 'Authentication required'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'enterprise_activation_blocked'
+            ],
+            description: 'Machine-readable conflict reason for activation guards'
+        },
+        blocker: {
+            $ref: '#/components/schemas/EnterpriseContractActivationBlocker'
+        },
+        meta: {
+            type: 'object',
+            properties: {
+                timestamp: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                requestId: {
+                    type: 'string',
+                    example: '5091b3ea-994f-4417-8e04-2efc05dd8673'
+                },
+                path: {
+                    type: 'string',
+                    example: '/v1/agents'
+                },
+                method: {
+                    type: 'string',
+                    example: 'GET'
+                }
+            },
+            required: [
+                'timestamp',
+                'requestId',
+                'path',
+                'method'
+            ]
+        }
+    },
+    required: [
+        'error',
+        'message',
+        'kind',
+        'blocker',
+        'meta'
+    ]
+} as const;
+
+export const EnterpriseContractActivationBlockerSchema = {
+    type: 'object',
+    properties: {
+        subscriptionId: {
+            type: 'string'
+        },
+        stripeSubscriptionId: {
+            type: 'string'
+        },
+        plan: {
+            type: 'string'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'organization'
+            ]
+        }
+    },
+    required: [
+        'subscriptionId',
+        'stripeSubscriptionId',
+        'plan',
+        'scope'
+    ]
+} as const;
+
+export const ActivateEnterpriseContractRequestSchema = {
+    type: 'object',
+    properties: {
+        paymentReference: {
+            type: 'string',
+            minLength: 1,
+            description: 'Non-empty payment reference'
+        }
+    }
+} as const;
+
 export const HermesChatResponseSchema = {
     type: 'object',
     properties: {
@@ -3057,12 +3544,16 @@ export const CreditsResponseExtraSchema = {
             items: {
                 $ref: '#/components/schemas/CreditBucketBreakdown'
             },
-            description: 'Non-subscription buckets with remaining balance (subscription-period buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+            description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
+        },
+        enterprise: {
+            $ref: '#/components/schemas/CreditsResponseEnterprise'
         }
     },
     required: [
         'credits',
-        'buckets'
+        'buckets',
+        'enterprise'
     ],
     description: '`extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.'
 } as const;
@@ -3091,7 +3582,7 @@ export const CreditsResponseExtraCreditsSchema = {
         'remaining',
         'used'
     ],
-    description: 'Non-subscription credit rollup; subscription-period wallet stays on top-level `subscription`'
+    description: 'Non-subscription credit rollup excluding subscription-period and enterprise pool buckets'
 } as const;
 
 export const CreditBucketBreakdownSchema = {
@@ -3122,6 +3613,37 @@ export const CreditBucketBreakdownSchema = {
         'remaining',
         'expiresAt'
     ]
+} as const;
+
+export const CreditsResponseEnterpriseSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        credits: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/CreditsResponseExtraCredits'
+                },
+                {
+                    description: 'Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)'
+                }
+            ]
+        },
+        buckets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CreditBucketBreakdown'
+            },
+            description: 'Enterprise pool buckets with remaining balance for the assigned member'
+        }
+    },
+    required: [
+        'credits',
+        'buckets'
+    ],
+    description: 'Enterprise contract shared pool for assigned members; null when not applicable'
 } as const;
 
 export const OrganizationSchema = {

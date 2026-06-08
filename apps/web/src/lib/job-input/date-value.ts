@@ -142,6 +142,28 @@ export function formatDatetimeLocalValue(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+export function parseDatetimeLocalValue(value: string): Date | undefined {
+  if (!isDatetimeLocalValue(value)) {
+    return undefined;
+  }
+
+  const [datePart, timePart] = value.split("T");
+  if (!parseDateValue(datePart)) {
+    return undefined;
+  }
+
+  const [yearStr, monthStr, dayStr] = datePart.split("-");
+  const [hoursStr, minutesStr] = timePart.split(":");
+
+  return new Date(
+    Number(yearStr),
+    Number(monthStr) - 1,
+    Number(dayStr),
+    Number(hoursStr),
+    Number(minutesStr),
+  );
+}
+
 export function isDateValueOutOfBounds(
   dateValue: string,
   bounds: DateBounds,

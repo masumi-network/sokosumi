@@ -122,9 +122,10 @@
     },
     "UserAvatar": {
       "account": "Conta",
-      "organizations": "Organizações",
       "billing": "Cobrança",
       "connections": "Conexões",
+      "admin": "Administração",
+      "enterpriseContracts": "Contratos empresariais",
       "help": "Ajuda",
       "legal": "Jurídico",
       "support": "Suporte",
@@ -146,7 +147,8 @@
       "creditsConsumedProgressAria": "Créditos de assinatura consumidos",
       "creditsExpiresInDays": "Os créditos se renovam em {days, plural, =1 {1 dia} other {# dias}}",
       "creditsExpiresToday": "Os créditos se renovam hoje",
-      "creditsExpired": "Créditos expirados"
+      "creditsExpired": "Créditos expirados",
+      "organizations": "Organizações"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Trocar espaço de trabalho",
@@ -247,7 +249,9 @@
       "subscriptions": "Assinaturas",
       "billing": "Cobrança",
       "account": "Conta",
-      "organizations": "Organizações",
+      "admin": "Administração",
+      "edit": "Editar",
+      "enterprise-contracts": "Contratos empresariais",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tarefas",
@@ -2499,6 +2503,91 @@
         "retryButton": "Tentar novamente"
       }
     },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contratos empresariais",
+        "description": "Console de administração interna para rascunhos, ativação e cancelamento.",
+        "newContract": "Novo contrato",
+        "loading": "Carregando…",
+        "loadFailed": "Não foi possível carregar os contratos empresariais.",
+        "Filters": {
+          "organizationSlug": "Slug da organização",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Status",
+          "statusAll": "Todos",
+          "apply": "Aplicar filtros"
+        },
+        "Status": {
+          "draft": "Rascunho",
+          "active": "Ativo",
+          "completed": "Concluído",
+          "canceled": "Cancelado"
+        },
+        "Table": {
+          "organization": "Organização",
+          "status": "Status",
+          "seats": "Assentos",
+          "creditsPerMonth": "Créditos por mês",
+          "periods": "Períodos",
+          "ends": "Termina",
+          "actions": "Ações",
+          "view": "Ver"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "Organização",
+            "subscription": "Assinatura",
+            "oneTime": "Único",
+            "references": "Referências"
+          },
+          "optionalSection": "Opcional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Créditos / mês",
+              "min": "Mín. {min, number}"
+            },
+            "periods": {
+              "label": "Períodos",
+              "helper": "1 período = 1 mês"
+            },
+            "seats": {
+              "label": "Assentos"
+            },
+            "oneTimeCredits": {
+              "label": "Valor"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expira",
+              "helper": "Vazio = sem expiração"
+            },
+            "paymentReference": {
+              "label": "Pagamento"
+            },
+            "externalReference": {
+              "label": "Externo"
+            },
+            "notes": {
+              "label": "Notas"
+            }
+          },
+          "createDraft": "Criar rascunho",
+          "saveChanges": "Salvar",
+          "cancel": "Cancelar",
+          "createSuccess": "Rascunho criado",
+          "updateSuccess": "Contrato atualizado",
+          "createError": "Não foi possível criar o contrato",
+          "updateError": "Não foi possível atualizar o contrato",
+          "missingContract": "Contrato não encontrado"
+        },
+        "Detail": {
+          "noExpiry": "Sem expiração"
+        }
+      }
+    },
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Seus créditos atuais na conta pessoal.",
@@ -2923,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizações",
-        "description": "Gerencie suas organizações"
-      },
-      "newOrganization": "Nova organização",
-      "organizationsNotAvailable": "Nenhuma organização encontrada",
-      "OrganizationRow": {
-        "leave": "Sair",
-        "activate": "Ativar",
-        "deactivate": "Desativar"
-      },
-      "Credits": {
-        "title": "Créditos da organização",
-        "description": "Disponível para membros de {organization}",
-        "buy": "Adicionar créditos"
-      },
-      "InvitationActions": {
-        "accept": "Aceitar",
-        "reject": "Recusar",
-        "acceptTitle": "Aceitar convite",
-        "rejectTitle": "Recusar convite",
-        "acceptDescription": "Tem certeza de que quer aceitar o convite para {email}?",
-        "rejectDescription": "Tem certeza de que quer recusar o convite para {email}?",
-        "confirm": "Confirmar",
-        "cancel": "Cancelar",
-        "acceptSuccess": "Convite aceito com sucesso",
-        "acceptError": "Falha ao aceitar convite",
-        "rejectSuccess": "Convite recusado com sucesso",
-        "rejectError": "Falha ao recusar convite",
-        "Errors": {
-          "unauthorizedAction": "Entrar"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

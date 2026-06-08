@@ -122,9 +122,10 @@
     },
     "UserAvatar": {
       "account": "Cuenta",
-      "organizations": "Organizaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
+      "admin": "Administración",
+      "enterpriseContracts": "Contratos empresariales",
       "support": "Soporte",
       "logout": "Cerrar sesión",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits usados",
@@ -146,7 +147,8 @@
       "extraCreditsDescription": "Nunca expiran",
       "creditsExpiresInDays": "Los créditos se renuevan en {days, plural, =1 {1 día} other {# días}}",
       "creditsExpiresToday": "Los créditos se renuevan hoy",
-      "creditsExpired": "Créditos vencidos"
+      "creditsExpired": "Créditos vencidos",
+      "organizations": "Organizaciones"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
@@ -247,7 +249,9 @@
       "subscriptions": "Suscripciones",
       "billing": "Billing",
       "account": "Cuenta",
-      "organizations": "Organizaciones",
+      "admin": "Administración",
+      "edit": "Editar",
+      "enterprise-contracts": "Contratos empresariales",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tareas",
@@ -2468,6 +2472,91 @@
         "retryButton": "Intentar de nuevo"
       }
     },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contratos empresariales",
+        "description": "Consola de administración interna para borradores, activación y cancelación.",
+        "newContract": "Nuevo contrato",
+        "loading": "Cargando…",
+        "loadFailed": "No se pudieron cargar los contratos empresariales.",
+        "Filters": {
+          "organizationSlug": "Slug de la organización",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Estado",
+          "statusAll": "Todos",
+          "apply": "Aplicar filtros"
+        },
+        "Status": {
+          "draft": "Borrador",
+          "active": "Activo",
+          "completed": "Completado",
+          "canceled": "Cancelado"
+        },
+        "Table": {
+          "organization": "Organización",
+          "status": "Estado",
+          "seats": "Plazas",
+          "creditsPerMonth": "Créditos por mes",
+          "periods": "Períodos",
+          "ends": "Finaliza",
+          "actions": "Acciones",
+          "view": "Ver"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "Organización",
+            "subscription": "Suscripción",
+            "oneTime": "Puntual",
+            "references": "Referencias"
+          },
+          "optionalSection": "Opcional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Créditos / mes",
+              "min": "Mín. {min, number}"
+            },
+            "periods": {
+              "label": "Períodos",
+              "helper": "1 período = 1 mes"
+            },
+            "seats": {
+              "label": "Plazas"
+            },
+            "oneTimeCredits": {
+              "label": "Importe"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Caduca",
+              "helper": "Vacío = sin caducidad"
+            },
+            "paymentReference": {
+              "label": "Pago"
+            },
+            "externalReference": {
+              "label": "Externo"
+            },
+            "notes": {
+              "label": "Notas"
+            }
+          },
+          "createDraft": "Crear borrador",
+          "saveChanges": "Guardar",
+          "cancel": "Cancelar",
+          "createSuccess": "Borrador creado",
+          "updateSuccess": "Contrato actualizado",
+          "createError": "No se pudo crear el contrato",
+          "updateError": "No se pudo actualizar el contrato",
+          "missingContract": "Contrato no encontrado"
+        },
+        "Detail": {
+          "noExpiry": "Sin caducidad"
+        }
+      }
+    },
     "Billing": {
       "balanceTitle": "Saldo",
       "balanceDescriptionPersonal": "Tus Credits actuales en la cuenta personal.",
@@ -2892,39 +2981,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizaciones",
-        "description": "Gestiona tus organizaciones"
-      },
-      "newOrganization": "Nueva organización",
-      "organizationsNotAvailable": "No se encontraron organizaciones",
-      "OrganizationRow": {
-        "leave": "Salir",
-        "activate": "Activar",
-        "deactivate": "Desactivar"
-      },
-      "Credits": {
-        "title": "Credits de organización",
-        "description": "Disponibles para los miembros de {organization}",
-        "buy": "Añadir Credits"
-      },
-      "InvitationActions": {
-        "accept": "Aceptar",
-        "reject": "Rechazar",
-        "acceptTitle": "Aceptar invitación",
-        "rejectTitle": "Rechazar invitación",
-        "acceptDescription": "¿Seguro que quieres aceptar la invitación para {email}?",
-        "rejectDescription": "¿Seguro que quieres rechazar la invitación para {email}?",
-        "confirm": "Confirmar",
-        "cancel": "Cancelar",
-        "acceptSuccess": "Invitación aceptada correctamente",
-        "acceptError": "No se pudo aceptar la invitación",
-        "rejectSuccess": "Invitación rechazada correctamente",
-        "rejectError": "No se pudo rechazar la invitación",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sesión"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

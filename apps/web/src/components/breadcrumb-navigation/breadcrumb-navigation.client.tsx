@@ -53,12 +53,14 @@ export default function BreadcrumbNavigationClient({
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
 
-  const segments = generateSegments(
-    pathname,
-    segmentLabels,
-    agents,
-    organizations,
-    breadcrumbMessages,
+  const segments = resolveCurrentSegment(
+    generateSegments(
+      pathname,
+      segmentLabels,
+      agents,
+      organizations,
+      breadcrumbMessages,
+    ),
   );
 
   return (
@@ -83,6 +85,19 @@ export default function BreadcrumbNavigationClient({
   );
 }
 
+function resolveCurrentSegment(
+  segments: BreadcrumbSegment[],
+): BreadcrumbSegment[] {
+  if (segments.length === 0 || segments.some((segment) => segment.isCurrent)) {
+    return segments;
+  }
+
+  return segments.map((segment, index) => ({
+    ...segment,
+    isCurrent: index === segments.length - 1,
+  }));
+}
+
 function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
@@ -102,6 +117,9 @@ function generateSegments(
       if (href.startsWith("/accept-invitation")) return;
 
       if (segment === "conversation") return;
+
+      // No org overview page — /organizations redirects home (SOK-546).
+      if (segment === "organizations") return;
 
       // Skip UUIDs and long IDs in breadcrumbs (they're not user-friendly)
       // UUIDs are typically 36 characters with dashes, or 32 hex characters

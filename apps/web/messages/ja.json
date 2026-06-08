@@ -122,9 +122,10 @@
     },
     "UserAvatar": {
       "account": "アカウント",
-      "organizations": "組織",
       "billing": "請求",
       "connections": "接続",
+      "admin": "管理",
+      "enterpriseContracts": "エンタープライズ契約",
       "help": "ヘルプ",
       "legal": "法務",
       "support": "サポート",
@@ -146,7 +147,8 @@
       "creditsConsumedProgressAria": "サブスクリプションクレジットの消費",
       "creditsExpiresInDays": "クレジットは{days, plural, =1 {1日} other {#日}}後に更新されます",
       "creditsExpiresToday": "クレジットは本日更新されます",
-      "creditsExpired": "クレジットが失効しました"
+      "creditsExpired": "クレジットが失効しました",
+      "organizations": "組織"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "ワークスペースを切り替える",
@@ -247,7 +249,9 @@
       "subscriptions": "サブスクリプション",
       "billing": "請求",
       "account": "アカウント",
-      "organizations": "組織",
+      "admin": "管理",
+      "edit": "編集",
+      "enterprise-contracts": "エンタープライズ契約",
       "mcp": "Model Context Protocol（MCP）",
       "chat": "チャット",
       "tasks": "タスク",
@@ -2499,6 +2503,91 @@
         "retryButton": "再試行"
       }
     },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "エンタープライズ契約",
+        "description": "下書き、有効化、解約フロー用の内部管理コンソール。",
+        "newContract": "新規契約",
+        "loading": "読み込み中…",
+        "loadFailed": "エンタープライズ契約を読み込めませんでした。",
+        "Filters": {
+          "organizationSlug": "組織スラッグ",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "ステータス",
+          "statusAll": "すべて",
+          "apply": "フィルターを適用"
+        },
+        "Status": {
+          "draft": "下書き",
+          "active": "有効",
+          "completed": "完了",
+          "canceled": "解約済み"
+        },
+        "Table": {
+          "organization": "組織",
+          "status": "ステータス",
+          "seats": "シート",
+          "creditsPerMonth": "月間クレジット",
+          "periods": "期間",
+          "ends": "終了",
+          "actions": "操作",
+          "view": "表示"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "組織",
+            "subscription": "サブスクリプション",
+            "oneTime": "一回限り",
+            "references": "参照"
+          },
+          "optionalSection": "任意",
+          "Fields": {
+            "organizationSlug": {
+              "label": "スラッグ",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "クレジット / 月",
+              "min": "最小 {min, number}"
+            },
+            "periods": {
+              "label": "期間",
+              "helper": "1期間 = 1か月"
+            },
+            "seats": {
+              "label": "シート"
+            },
+            "oneTimeCredits": {
+              "label": "金額"
+            },
+            "oneTimeExpiresAt": {
+              "label": "期限",
+              "helper": "空欄 = 期限なし"
+            },
+            "paymentReference": {
+              "label": "支払い"
+            },
+            "externalReference": {
+              "label": "外部"
+            },
+            "notes": {
+              "label": "メモ"
+            }
+          },
+          "createDraft": "下書きを作成",
+          "saveChanges": "保存",
+          "cancel": "キャンセル",
+          "createSuccess": "下書きを作成しました",
+          "updateSuccess": "契約を更新しました",
+          "createError": "契約を作成できませんでした",
+          "updateError": "契約を更新できませんでした",
+          "missingContract": "契約が見つかりません"
+        },
+        "Detail": {
+          "noExpiry": "期限なし"
+        }
+      }
+    },
     "Billing": {
       "balanceTitle": "残高",
       "balanceDescriptionPersonal": "個人アカウントの現在のクレジットです。",
@@ -2923,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "組織",
-        "description": "組織を管理します"
-      },
-      "newOrganization": "新しい組織",
-      "organizationsNotAvailable": "組織が見つかりません",
-      "OrganizationRow": {
-        "leave": "退出",
-        "activate": "有効化",
-        "deactivate": "無効化"
-      },
-      "Credits": {
-        "title": "組織のクレジット",
-        "description": "{organization} のメンバーが利用できます",
-        "buy": "クレジットを追加"
-      },
-      "InvitationActions": {
-        "accept": "承諾",
-        "reject": "拒否",
-        "acceptTitle": "招待を承諾",
-        "rejectTitle": "招待を拒否",
-        "acceptDescription": "{email} 宛ての招待を承諾してよろしいですか？",
-        "rejectDescription": "{email} 宛ての招待を拒否してよろしいですか？",
-        "confirm": "確認",
-        "cancel": "キャンセル",
-        "acceptSuccess": "招待を承諾しました",
-        "acceptError": "招待の承諾に失敗しました",
-        "rejectSuccess": "招待を拒否しました",
-        "rejectError": "招待の拒否に失敗しました",
-        "Errors": {
-          "unauthorizedAction": "ログイン"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

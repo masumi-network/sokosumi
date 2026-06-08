@@ -4,6 +4,7 @@ import {
   isDateValueOutOfBounds,
   normalizeDatetimeLocalValidationBound,
   normalizeDateValidationBound,
+  parseDatetimeLocalValue,
 } from "@/lib/job-input/date-value";
 
 describe("normalizeDateValidationBound", () => {
@@ -61,6 +62,27 @@ describe("normalizeDatetimeLocalValidationBound", () => {
     expect(normalizeDatetimeLocalValidationBound(value.getTime())).toBe(
       formatDatetimeLocalValue(value),
     );
+  });
+});
+
+describe("parseDatetimeLocalValue", () => {
+  it("parses YYYY-MM-DDTHH:mm as local wall-clock time", () => {
+    const parsed = parseDatetimeLocalValue("2026-06-05T14:30");
+    expect(parsed).toEqual(new Date(2026, 5, 5, 14, 30));
+  });
+
+  it("roundtrips with formatDatetimeLocalValue", () => {
+    const original = new Date(2026, 5, 5, 14, 30, 45, 500);
+    const formatted = formatDatetimeLocalValue(original);
+    const parsed = parseDatetimeLocalValue(formatted);
+
+    expect(parsed).toEqual(new Date(2026, 5, 5, 14, 30));
+    expect(formatted).toBe("2026-06-05T14:30");
+  });
+
+  it("returns undefined for invalid values", () => {
+    expect(parseDatetimeLocalValue("2026-06-05T14:30:00Z")).toBeUndefined();
+    expect(parseDatetimeLocalValue("not-a-datetime")).toBeUndefined();
   });
 });
 

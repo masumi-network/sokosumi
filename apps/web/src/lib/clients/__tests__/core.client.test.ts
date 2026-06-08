@@ -271,7 +271,7 @@ describe("core.client", () => {
       CommonErrorCode.UNAUTHORIZED,
     );
     expect(mapCoreApiStatusToCommonErrorCode(404)).toBe(
-      CommonErrorCode.BAD_INPUT,
+      CommonErrorCode.NOT_FOUND,
     );
     expect(mapCoreApiStatusToCommonErrorCode(503)).toBe(
       CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -282,7 +282,7 @@ describe("core.client", () => {
         new CoreApiRequestError("Conversation missing", { status: 404 }),
       ),
     ).toEqual({
-      code: CommonErrorCode.BAD_INPUT,
+      code: CommonErrorCode.NOT_FOUND,
       message: "Conversation missing",
     });
 

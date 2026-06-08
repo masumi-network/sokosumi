@@ -68,7 +68,7 @@ export default async function OrganizationPage({
 
   const member = await userService.getMyMemberInOrganization(organization.id);
   if (!member) {
-    redirect("/organizations");
+    redirect("/");
   }
 
   const isOwnerOrAdmin =

@@ -122,9 +122,10 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "organizations": "Organizations",
       "billing": "Billing",
       "connections": "Connections",
+      "admin": "Admin",
+      "enterpriseContracts": "Enterprise contracts",
       "help": "Help",
       "legal": "Legal",
       "support": "Support",
@@ -146,7 +147,8 @@
       "creditsConsumedProgressAria": "Subscription credits consumed",
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
-      "creditsExpired": "Credits expired"
+      "creditsExpired": "Credits expired",
+      "organizations": "Organizations"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -247,7 +249,9 @@
       "subscriptions": "Subscriptions",
       "billing": "Billing",
       "account": "Account",
-      "organizations": "Organizations",
+      "admin": "Admin",
+      "edit": "Edit",
+      "enterprise-contracts": "Enterprise contracts",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",
@@ -2499,6 +2503,91 @@
         "retryButton": "Try Again"
       }
     },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Enterprise contracts",
+        "description": "Internal admin console for draft, activation, and cancellation flows.",
+        "newContract": "New contract",
+        "loading": "Loading…",
+        "loadFailed": "Failed to load enterprise contracts.",
+        "Filters": {
+          "organizationSlug": "Organization slug",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Status",
+          "statusAll": "All",
+          "apply": "Apply filters"
+        },
+        "Status": {
+          "draft": "Draft",
+          "active": "Active",
+          "completed": "Completed",
+          "canceled": "Canceled"
+        },
+        "Table": {
+          "organization": "Organization",
+          "status": "Status",
+          "seats": "Seats",
+          "creditsPerMonth": "Credits per month",
+          "periods": "Periods",
+          "ends": "Ends",
+          "actions": "Actions",
+          "view": "View"
+        },
+        "Form": {
+          "Sections": {
+            "organization": "Organization",
+            "subscription": "Subscription",
+            "oneTime": "One-time",
+            "references": "References"
+          },
+          "optionalSection": "Optional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Slug",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Credits / month",
+              "min": "Min {min, number}"
+            },
+            "periods": {
+              "label": "Periods",
+              "helper": "1 period = 1 month"
+            },
+            "seats": {
+              "label": "Seats"
+            },
+            "oneTimeCredits": {
+              "label": "Amount"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expires",
+              "helper": "Blank = no expiry"
+            },
+            "paymentReference": {
+              "label": "Payment"
+            },
+            "externalReference": {
+              "label": "External"
+            },
+            "notes": {
+              "label": "Notes"
+            }
+          },
+          "createDraft": "Create draft",
+          "saveChanges": "Save changes",
+          "cancel": "Cancel",
+          "createSuccess": "Draft contract created",
+          "updateSuccess": "Contract updated",
+          "createError": "Failed to create contract",
+          "updateError": "Failed to update contract",
+          "missingContract": "Missing contract"
+        },
+        "Detail": {
+          "noExpiry": "No expiry"
+        }
+      }
+    },
     "Billing": {
       "balanceTitle": "Balance",
       "balanceDescriptionPersonal": "Your current credits in personal account.",
@@ -2923,39 +3012,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizations",
-        "description": "Manage your organizations"
-      },
-      "newOrganization": "New Organization",
-      "organizationsNotAvailable": "No Organizations found",
-      "OrganizationRow": {
-        "leave": "Leave",
-        "activate": "Activate",
-        "deactivate": "Deactivate"
-      },
-      "Credits": {
-        "title": "Organization credits",
-        "description": "Available for {organization} members",
-        "buy": "Add credits"
-      },
-      "InvitationActions": {
-        "accept": "Accept",
-        "reject": "Reject",
-        "acceptTitle": "Accept Invitation",
-        "rejectTitle": "Reject Invitation",
-        "acceptDescription": "Are you sure you want to accept the invitation for {email}?",
-        "rejectDescription": "Are you sure you want to reject the invitation for {email}?",
-        "confirm": "Confirm",
-        "cancel": "Cancel",
-        "acceptSuccess": "Invitation accepted successfully",
-        "acceptError": "Failed to accept invitation",
-        "rejectSuccess": "Invitation rejected successfully",
-        "rejectError": "Failed to reject invitation",
-        "Errors": {
-          "unauthorizedAction": "Login"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {
