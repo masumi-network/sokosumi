@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberRole, type MemberWithUser } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/database";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -15,6 +15,7 @@ import { unassignOrganizationSeat } from "@/lib/actions/organization/seat-action
 import { authClient } from "@/lib/auth/auth.client";
 
 import { useSeatManagementContext } from "./seat-management-context";
+import type { OrganizationMember } from "./types";
 
 export enum MemberAction {
   CHANGE_TO_OWNER = "CHANGE_TO_OWNER",
@@ -27,7 +28,7 @@ export enum MemberAction {
 const {
   Provider: MemberActionsModalContextProviderBase,
   useModalContext: useMemberActionsModalContextBase,
-} = createModalContext<MemberWithUser, MemberAction>();
+} = createModalContext<OrganizationMember, MemberAction>();
 
 export function MemberActionsModalContextProvider({
   children,
@@ -39,7 +40,7 @@ export function MemberActionsModalContextProvider({
   const { notifySeatUnassigned } = useSeatManagementContext();
 
   async function onAction(
-    member: MemberWithUser,
+    member: OrganizationMember,
     action: MemberAction,
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {

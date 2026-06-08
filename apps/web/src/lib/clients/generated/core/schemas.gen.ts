@@ -3974,6 +3974,85 @@ export const UserSchema = {
     ]
 } as const;
 
+export const MemberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'member_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        role: {
+            type: 'string',
+            example: 'member'
+        },
+        seatAssignedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Jane Doe'
+                },
+                email: {
+                    type: 'string',
+                    example: 'jane@example.com'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email',
+                'image'
+            ]
+        },
+        lastSeenAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Most recent session activity for the member (max Session.updatedAt); null if the member has never had a session.'
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'role',
+        'seatAssignedAt',
+        'createdAt',
+        'user',
+        'lastSeenAt'
+    ]
+} as const;
+
 export const ProjectListItemSchema = {
     allOf: [
         {

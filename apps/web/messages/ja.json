@@ -181,6 +181,8 @@
         "name": "名前",
         "email": "メール",
         "role": "役割",
+        "lastSeen": "最終アクセス",
+        "lastSeenNever": "なし",
         "actions": "操作",
         "seat": "Seat"
       },
