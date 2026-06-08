@@ -183,7 +183,7 @@ async function searchOrganizations(
 }
 
 interface FormSectionProps {
-  title: string;
+  title?: string;
   description?: string;
   children: ReactNode;
   className?: string;
@@ -197,12 +197,14 @@ function FormSection({
 }: FormSectionProps) {
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {description ? (
-          <p className="text-muted-foreground text-xs">{description}</p>
-        ) : null}
-      </div>
+      {title || description ? (
+        <div className="space-y-1">
+          {title ? <h3 className="text-sm font-semibold">{title}</h3> : null}
+          {description ? (
+            <p className="text-muted-foreground text-xs">{description}</p>
+          ) : null}
+        </div>
+      ) : null}
       <div className={className ?? "grid gap-4 sm:grid-cols-2"}>{children}</div>
     </section>
   );
@@ -288,7 +290,7 @@ export function ContractForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <FormSection title={t("Sections.organization")} className="grid gap-4">
+      <FormSection className="grid gap-4">
         <div className="space-y-2">
           <Label htmlFor="organizationSlug">
             {t("Fields.organizationSlug.label")}

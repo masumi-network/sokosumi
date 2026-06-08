@@ -334,7 +334,6 @@ export function useConversations(): UseConversationsReturn {
    */
   const selectConversation = useCallback(
     async (id: string): Promise<ConversationWithMessages | null> => {
-      setIsLoading(true);
       setError(null);
 
       try {
@@ -349,13 +348,11 @@ export function useConversations(): UseConversationsReturn {
 
         if (result.isErr) {
           setError(result.error);
-          setIsLoading(false);
           return null;
         }
 
         const conversation = result.value;
         if (conversation == null) {
-          setIsLoading(false);
           return null;
         }
 
@@ -365,7 +362,6 @@ export function useConversations(): UseConversationsReturn {
             ? prev
             : [conversation, ...prev],
         );
-        setIsLoading(false);
         return conversation;
       } catch (error) {
         const errorMessage =
@@ -387,7 +383,6 @@ export function useConversations(): UseConversationsReturn {
             : undefined,
         });
 
-        setIsLoading(false);
         return null;
       }
     },
