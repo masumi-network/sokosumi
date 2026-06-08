@@ -51,28 +51,21 @@ export default function ChatListsClient() {
   );
 
   const hasAnyChats = conversations.length > 0;
-  const [isOpen, setIsOpen] = useState(hasAnyChats);
-  const prevHasAnyChats = useRef(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const prevHasAnyChats = useRef(hasAnyChats);
 
   useEffect(() => {
     if (hasAnyChats && !prevHasAnyChats.current) {
       startTransition(() => setIsOpen(true));
     }
-    if (!hasAnyChats) {
-      startTransition(() => setIsOpen(false));
-    }
     prevHasAnyChats.current = hasAnyChats;
   }, [hasAnyChats]);
-
-  const effectiveOpen = hasAnyChats ? isOpen : false;
 
   return (
     <Collapsible
       key="chat-lists-collapsible-1"
-      open={effectiveOpen}
-      onOpenChange={(open) => {
-        if (hasAnyChats) setIsOpen(open);
-      }}
+      open={isOpen}
+      onOpenChange={setIsOpen}
       className="group/collapsible"
     >
       <SidebarGroup
