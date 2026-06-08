@@ -568,7 +568,10 @@ export const stripeClient = (() => {
     async createCreditGrantInvoice(params: {
       customerId: string;
       credits: number;
-      totalMinorUnits: number;
+      /** Credit-product price the line item is billed against. Tying the item to
+       * the product (rather than a raw amount) lets a product-scoped coupon
+       * apply. */
+      priceId: string;
       currency: string;
       ttlDays?: number;
       daysUntilDue?: number;
@@ -600,15 +603,16 @@ export const stripeClient = (() => {
         throw new Error("Failed to create credit grant invoice");
       }
 
-      // Discount the line item itself (not the invoice) so the coupon applies to
-      // this specific charge. An invoice-level discount set at create time is
-      // computed against the still-empty invoice and is not re-applied to a line
-      // item added afterward, leaving a 100%-off coupon with a €0 effect.
+      // Bill the line item against the credit product's price (not a raw
+      // amount) and discount the item itself. A product-scoped coupon only
+      // applies to a line tied to that product; an invoice-level discount or a
+      // raw-amount line leaves a 100%-off coupon with a €0 effect.
       await stripe.invoiceItems.create({
         customer: params.customerId,
         invoice: invoice.id,
+        pricing: { price: params.priceId },
         currency: params.currency,
-        amount: params.totalMinorUnits,
+        quantity: params.credits,
         description:
           params.description ??
           `One-time credit grant (${params.credits.toLocaleString("en-US")} credits)`,

@@ -619,25 +619,27 @@ describe("stripe.client createCreditGrantInvoice", () => {
     });
   });
 
-  it("applies the coupon to the line item (not the empty invoice)", async () => {
+  it("bills the line item against the product price and discounts the item", async () => {
     const { stripeClient } = await import("../stripe.client");
     await stripeClient.createCreditGrantInvoice({
       customerId: "cus_1",
       credits: 1000,
-      totalMinorUnits: 1049,
+      priceId: "price_credit",
       currency: "eur",
       couponId: "coupon_support",
     });
 
     // The invoice is created empty, so the discount must NOT sit on the invoice
-    // (it would compute against €0); it belongs on the line item.
+    // (it would compute against €0); it belongs on the product-priced line item
+    // so a product-scoped coupon applies.
     expect(invoicesCreateMock).toHaveBeenCalledWith(
       expect.not.objectContaining({ discounts: expect.anything() }),
     );
     expect(invoiceItemsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         invoice: "in_1",
-        amount: 1049,
+        pricing: { price: "price_credit" },
+        quantity: 1000,
         discounts: [{ coupon: "coupon_support" }],
       }),
     );
@@ -648,7 +650,7 @@ describe("stripe.client createCreditGrantInvoice", () => {
     await stripeClient.createCreditGrantInvoice({
       customerId: "cus_1",
       credits: 1000,
-      totalMinorUnits: 1049,
+      priceId: "price_credit",
       currency: "eur",
     });
 

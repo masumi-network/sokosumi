@@ -13,10 +13,7 @@ import type Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
-import {
-  getCreditTopUpTotalMinorUnits,
-  isPositiveIntegerCredits,
-} from "@/lib/stripe/credit-topup-pricing";
+import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
 import { handleInvoicePaidEvent } from "@/lib/stripe/webhook-handlers";
 
 const ADMIN_CREDIT_GRANT_SOURCE = "admin_one_time_credit";
@@ -290,15 +287,11 @@ export const creditGrantAdminService = (() => {
       const target = await resolveTarget(params.target);
 
       const price = await resolvePrice(params.priceId);
-      const totalMinorUnits = getCreditTopUpTotalMinorUnits(
-        params.credits,
-        price.amountPerCredit,
-      );
 
       const invoice = await stripeClient.createCreditGrantInvoice({
         customerId: target.stripeCustomerId,
         credits: params.credits,
-        totalMinorUnits,
+        priceId: price.id,
         currency: price.currency,
         ttlDays: params.ttlDays ?? undefined,
         ...(params.markFree

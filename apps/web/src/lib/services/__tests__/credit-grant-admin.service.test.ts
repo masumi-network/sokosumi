@@ -102,6 +102,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getBaseCreditTopUpPriceMock.mockResolvedValue({
+      id: "price_base",
       amountPerCredit: 100,
       currency: "usd",
     });
