@@ -152,6 +152,10 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
    - Use `save_comment` on the requirement issue:
    - Body: short note + link to implementation issue (e.g. "Implementation PRD: SOK-549 …").
 
+8. Hand off to Cursor (when `handoffToCursor` is true)
+   - Use `save_comment` on the **implementation** issue with the handoff body from **Cursor Cloud Agent → Handoff** above.
+   - Run after step 5 so the issue id exists.
+
 ## Write-call shape
 
 Use this shape after confirming the descriptor:
@@ -194,9 +198,30 @@ Keep these top fields visible near the top:
 
 ## Cursor Cloud Agent
 
+### Handoff
+
 - Prefer `delegate: "Cursor"` on `save_issue` for immediate handoff.
-- Alternative: comment `@Cursor implement per PRD. [repo=masumi-network/sokosumi]` via `save_comment`.
+- Add `save_comment` on the implementation issue:
+
+  ```markdown
+  @Cursor implement per the PRD above.
+
+  [repo=masumi-network/sokosumi]
+
+  When the PR is open: set this issue to In Review via Linear MCP and comment with the PR link. Do not mark Done.
+  ```
+
 - Optional team automation: see `CURSOR-AUTOMATION.md`.
+
+### Completion (coding agent)
+
+When Cursor finishes and the PR is open:
+
+1. `save_issue` with `id` = implementation issue, `state: "In Review"`.
+2. `save_comment` with PR URL and summary.
+3. Do not mark Done.
+
+The PRD **Agent completion** section repeats this for issues created before the handoff comment exists.
 
 ## Post-create response
 

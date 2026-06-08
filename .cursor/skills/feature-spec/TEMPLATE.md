@@ -106,6 +106,15 @@ flowchart LR
 - Command or manual check.
 - Another check.
 
+## Agent completion
+
+When the PR is ready:
+
+1. Open a PR (default base: `main`).
+2. Use Linear MCP `save_issue` on **this issue**: `state: "In Review"`.
+3. Comment on this issue with the PR URL and a one-line summary.
+4. Do **not** mark Done — human review follows the PR.
+
 ## Out of scope
 
 - Follow-up not included in v1.
@@ -117,5 +126,5 @@ flowchart LR
 - Remove empty optional sections.
 - If there are no subagents, remove frontmatter `todos`.
 - Keep `Data flow`.
-- Keep `Verification` and `Out of scope`.
+- Keep `Verification`, `Agent completion`, and `Out of scope`.
 - Keep the Linear line with the inferred label.

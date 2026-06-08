@@ -75,6 +75,7 @@ See `WORKFLOW.md` for the full spec → code pipeline.
    - Set `parentId` to the requirement issue when intake came from one.
    - Add `[repo=masumi-network/sokosumi]` near the top of the description (unless user overrides repo).
    - When `handoffToCursor` is true (default unless user opts out): set `delegate: "Cursor"` on `save_issue`.
+   - Add a `@Cursor` handoff comment on the implementation issue with repo hint and **In Review on completion** — see `LINEAR-MCP.md`.
    - Create a **confirm PRD** sub-task (child of the implementation issue). Non-blocking — see `LINEAR-MCP.md`.
    - Comment on the requirement issue linking the implementation issue when both exist.
    - Return implementation issue id/URL, confirm sub-task id/URL, label, delegate status, and parent link.

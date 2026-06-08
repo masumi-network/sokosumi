@@ -9,6 +9,8 @@ flowchart LR
   specAgent --> confirm["Confirm PRD sub-task\n(non-blocking)"]
   impl --> cursor["Cursor Cloud Agent\ndelegate Cursor"]
   cursor --> pr["Pull request"]
+  cursor --> review["In Review\n(implementation issue)"]
+  pr --> review
 ```
 
 ## Issue types
@@ -64,6 +66,17 @@ If wrong: comment on the implementation issue or stop the Cloud Agent; do not wa
 ## Coding agent (Cursor Cloud Agent)
 
 Cursor reads the **implementation** issue only.
+
+### Status lifecycle
+
+| State | Set by | When |
+|-------|--------|------|
+| `Todo` | Spec agent | Issue created with PRD |
+| `In Progress` | Cursor | Optional, when work starts |
+| `In Review` | **Cursor (required)** | PR opened |
+| `Done` | Human | After PR merge |
+
+On completion, Cursor must set the **implementation issue** to `In Review` via Linear MCP — not Done. See `CURSOR-AUTOMATION.md` and the **Agent completion** section in `TEMPLATE.md`.
 
 Trigger options (pick one per team):
 
