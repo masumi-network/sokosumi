@@ -689,14 +689,25 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getAgents(query?: GetAgentsData["query"]) {
+  async function getAgents(
+    query?: GetAgentsData["query"],
+    cacheOptions?: { revalidate: number; tags?: string[] },
+  ) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetAgents({
           client,
           query,
-          cache: "no-store",
+          // The agent catalog (GET /v1/agents) is global — it carries no
+          // per-user fields and is not user/workspace-scoped — so callers may
+          // opt into cross-request revalidation caching. Next keys the fetch
+          // cache by URL (not auth headers), so the cached payload is safely
+          // shared across users. Without `cacheOptions` this stays `no-store`,
+          // which every other (user-scoped) Core call must keep.
+          ...(cacheOptions
+            ? { next: cacheOptions }
+            : { cache: "no-store" as const }),
         }),
       "Failed to fetch agents",
     );
