@@ -600,3 +600,60 @@ describe("stripe.client lookup-key pricing", () => {
     );
   });
 });
+
+describe("stripe.client createCreditGrantInvoice", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    getEnvSecretsMock.mockReturnValue({
+      STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
+      STRIPE_SECRET_KEY: "sk_test_mock",
+      STRIPE_WEBHOOK_SECRET: "whsec_test_mock",
+      VERCEL_URL: "https://app.test",
+    });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "open",
+    });
+  });
+
+  it("applies the coupon to the line item (not the empty invoice)", async () => {
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.createCreditGrantInvoice({
+      customerId: "cus_1",
+      credits: 1000,
+      totalMinorUnits: 1049,
+      currency: "eur",
+      couponId: "coupon_support",
+    });
+
+    // The invoice is created empty, so the discount must NOT sit on the invoice
+    // (it would compute against €0); it belongs on the line item.
+    expect(invoicesCreateMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ discounts: expect.anything() }),
+    );
+    expect(invoiceItemsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoice: "in_1",
+        amount: 1049,
+        discounts: [{ coupon: "coupon_support" }],
+      }),
+    );
+  });
+
+  it("omits the discount when no coupon is provided", async () => {
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.createCreditGrantInvoice({
+      customerId: "cus_1",
+      credits: 1000,
+      totalMinorUnits: 1049,
+      currency: "eur",
+    });
+
+    expect(invoiceItemsCreateMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "discounts",
+    );
+  });
+});

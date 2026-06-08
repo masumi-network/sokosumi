@@ -573,8 +573,8 @@ export const stripeClient = (() => {
       ttlDays?: number;
       daysUntilDue?: number;
       description?: string;
-      /** When set, applies this coupon as an invoice-level discount. A 100%-off
-       * coupon makes the grant free ($0 due). */
+      /** When set, applies this coupon as a discount on the credit-grant line
+       * item. A 100%-off coupon makes the grant free ($0 due). */
       couponId?: string;
     }): Promise<Stripe.Invoice> {
       const metadata: Record<string, string> = {
@@ -593,9 +593,6 @@ export const stripeClient = (() => {
         collection_method: "send_invoice",
         days_until_due: params.daysUntilDue ?? 30,
         auto_advance: false,
-        ...(params.couponId
-          ? { discounts: [{ coupon: params.couponId }] }
-          : {}),
         metadata,
       });
 
@@ -603,6 +600,10 @@ export const stripeClient = (() => {
         throw new Error("Failed to create credit grant invoice");
       }
 
+      // Discount the line item itself (not the invoice) so the coupon applies to
+      // this specific charge. An invoice-level discount set at create time is
+      // computed against the still-empty invoice and is not re-applied to a line
+      // item added afterward, leaving a 100%-off coupon with a €0 effect.
       await stripe.invoiceItems.create({
         customer: params.customerId,
         invoice: invoice.id,
@@ -611,6 +612,9 @@ export const stripeClient = (() => {
         description:
           params.description ??
           `One-time credit grant (${params.credits.toLocaleString("en-US")} credits)`,
+        ...(params.couponId
+          ? { discounts: [{ coupon: params.couponId }] }
+          : {}),
         metadata,
       });
 
