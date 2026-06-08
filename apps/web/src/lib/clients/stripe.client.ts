@@ -357,7 +357,9 @@ export const stripeClient = (() => {
       });
 
       return prices.data
-        .filter((price) => price.recurring === null && isValidCreditPrice(price))
+        .filter(
+          (price) => price.recurring === null && isValidCreditPrice(price),
+        )
         .map((price) => ({
           ...validatePrice(price),
           nickname: price.nickname ?? null,
