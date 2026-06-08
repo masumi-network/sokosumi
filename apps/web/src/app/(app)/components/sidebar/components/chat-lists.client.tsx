@@ -32,8 +32,7 @@ import { cn } from "@/lib/utils";
 export default function ChatListsClient() {
   const t = useTranslations("App.Sidebar.Content.ChatLists");
   const pathname = usePathname();
-  const { conversations, refreshConversations, isLoading } =
-    useConversationsContext();
+  const { conversations, isLoading } = useConversationsContext();
   const { coworkers } = useCoworkersContext();
   const params = useParams<{
     bucketSlug?: string;
@@ -41,10 +40,6 @@ export default function ChatListsClient() {
   }>();
   const conversationId = params?.conversationId;
   const isChatRoute = pathname.startsWith("/chat");
-
-  useEffect(() => {
-    void refreshConversations();
-  }, [refreshConversations]);
 
   const chatGroups = useMemo(
     () =>
@@ -66,6 +61,7 @@ export default function ChatListsClient() {
   }, [conversationId, conversations]);
 
   const hasAnyChats = conversations.length > 0;
+  const showInitialLoading = isLoading && !hasAnyChats;
   const [isOpen, setIsOpen] = useState(true);
   const prevHasAnyChats = useRef(hasAnyChats);
 
@@ -117,7 +113,7 @@ export default function ChatListsClient() {
         </span>
         <CollapsibleContent>
           <SidebarGroupContent>
-            {isLoading ? (
+            {showInitialLoading ? (
               <div className="space-y-2 px-4 py-2">
                 <Skeleton className="h-8 w-full" />
                 <Skeleton className="h-8 w-full" />
