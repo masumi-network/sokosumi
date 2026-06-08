@@ -88,8 +88,8 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       ably:
-        specifier: 2.21.0
-        version: 2.21.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 2.22.0
+        version: 2.22.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: 6.0.197
         version: 6.0.197(zod@4.4.3)
@@ -245,8 +245,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(vue@3.5.34(typescript@6.0.3))
       ably:
-        specifier: 2.21.0
-        version: 2.21.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 2.22.0
+        version: 2.22.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ai:
         specifier: 6.0.197
         version: 6.0.197(zod@4.4.3)
@@ -284,8 +284,8 @@ importers:
         specifier: 6.2.5
         version: 6.2.5
       flags:
-        specifier: 4.0.6
-        version: 4.0.6(@opentelemetry/api@1.9.1)(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 4.1.0
+        version: 4.1.0(@opentelemetry/api@1.9.1)(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       gravatar-url:
         specifier: 4.0.2
         version: 4.0.2
@@ -4856,8 +4856,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  ably@2.21.0:
-    resolution: {integrity: sha512-Zgs3O/hqhnTEoXeV1WxoQeLaww58JbnDVFbVeEDj2kCHeuLPeavTbyf2NQBkxAM3jooN5mILaP0PDm79NOcpKw==}
+  ably@2.22.0:
+    resolution: {integrity: sha512-0hXNIkC5irjRZ2Q6Pks0xNCc9Aw33g1OFEylXzzyTMXBblT1eF0OJlicVe5aKCevaDY2I62qHfU95/OfkO5WQg==}
     engines: {node: '>=16'}
     peerDependencies:
       react: '>=16.8.0'
@@ -6113,8 +6113,8 @@ packages:
   fix-dts-default-cjs-exports@1.0.1:
     resolution: {integrity: sha512-pVIECanWFC61Hzl2+oOCtoJ3F17kglZC/6N94eRWycFgBH35hHx0Li604ZIzhseh97mf2p0cv7vVrOZGoqhlEg==}
 
-  flags@4.0.6:
-    resolution: {integrity: sha512-8Rz/5L8Gkl2+LmlV2gOXx3iJNTYDooa8eGvshFev9nrXtrcvsXa5z/DXdtElHvN15psnSHg+r51lYHge2rCASw==}
+  flags@4.1.0:
+    resolution: {integrity: sha512-vuZFkcyLHs59PQaPhSr+XplS/8Pl+W3f2myAAcS1Z8MA12laUeBSjJbh9d20CevixMaRVoifHF1c5+8hTR0zRA==}
     peerDependencies:
       '@opentelemetry/api': ^1.7.0
       '@sveltejs/kit': '*'
@@ -10430,7 +10430,7 @@ snapshots:
       '@mdx-js/mdx': 3.1.1
       '@mdx-js/react': 3.1.1(@types/react@19.2.17)(react@19.2.7)
       '@pierre/diffs': 1.2.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@radix-ui/react-slot': 1.2.4(@types/react@19.2.17)(react@19.2.7)
+      '@radix-ui/react-slot': 1.2.5(@types/react@19.2.17)(react@19.2.7)
       '@shikijs/core': 4.2.0
       '@shikijs/transformers': 4.2.0
       '@splinetool/runtime': 0.9.526
@@ -13834,7 +13834,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  ably@2.21.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  ably@2.22.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       '@ably/msgpack-js': 0.4.1
       dequal: 2.0.3
@@ -15178,7 +15178,7 @@ snapshots:
       mlly: 1.8.2
       rollup: 4.60.4
 
-  flags@4.0.6(@opentelemetry/api@1.9.1)(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  flags@4.1.0(@opentelemetry/api@1.9.1)(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       '@edge-runtime/cookies': 5.0.2
       jose: 5.10.0
