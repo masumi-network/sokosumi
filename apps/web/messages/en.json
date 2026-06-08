@@ -2520,8 +2520,9 @@
         "loading": "Loading…",
         "loadFailed": "Failed to load enterprise contracts.",
         "Filters": {
-          "organizationSlug": "Organization slug",
+          "organizationSlug": "Organization",
           "organizationSlugPlaceholder": "acme-corp",
+          "organizationAll": "All organizations",
           "status": "Status",
           "statusAll": "All",
           "apply": "Apply filters"

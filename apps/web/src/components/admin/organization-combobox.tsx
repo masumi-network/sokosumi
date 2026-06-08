@@ -28,6 +28,10 @@ interface OrganizationComboboxProps {
   onChange: (organization: AdminOrganizationOption | null) => void;
   disabled?: boolean;
   id?: string;
+  /** Overrides the trigger text shown when no organization is selected. */
+  placeholder?: string;
+  /** When true, renders an option that clears the current selection. */
+  allowClear?: boolean;
 }
 
 export function OrganizationCombobox({
@@ -36,9 +40,13 @@ export function OrganizationCombobox({
   onChange,
   disabled,
   id,
+  placeholder,
+  allowClear,
 }: OrganizationComboboxProps) {
   const t = useTranslations("Components.OrganizationCombobox");
   const [open, setOpen] = useState(false);
+
+  const emptyLabel = placeholder ?? t("placeholder");
 
   const selected = useMemo(
     () => organizations.find((org) => org.id === value) ?? null,
@@ -58,7 +66,7 @@ export function OrganizationCombobox({
           className="w-full justify-between font-normal"
         >
           <span className={cn(!selected && "text-muted-foreground")}>
-            {selected ? selected.name : t("placeholder")}
+            {selected ? selected.name : emptyLabel}
           </span>
           <ChevronsUpDown className="size-4 opacity-50" />
         </Button>
@@ -75,6 +83,25 @@ export function OrganizationCombobox({
           <CommandInput placeholder={t("search")} />
           <CommandList>
             <CommandEmpty>{t("empty")}</CommandEmpty>
+            {allowClear ? (
+              <CommandGroup>
+                <CommandItem
+                  value={emptyLabel}
+                  onSelect={() => {
+                    onChange(null);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "size-4",
+                      value === "" ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <span className="text-muted-foreground">{emptyLabel}</span>
+                </CommandItem>
+              </CommandGroup>
+            ) : null}
             <CommandGroup>
               {organizations.map((org) => (
                 <CommandItem

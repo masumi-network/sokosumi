@@ -7,6 +7,7 @@ import { ContractsTable } from "@/components/admin/enterprise-contracts/contract
 import { Button } from "@/components/ui/button";
 import { listEnterpriseContractsAction } from "@/lib/actions/enterprise-contract/action";
 import type { EnterpriseContractStatus } from "@/lib/clients/generated/core/types.gen";
+import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
 export const metadata: Metadata = {
   title: "Enterprise contracts",
@@ -41,10 +42,13 @@ async function EnterpriseContractsContent({
     ? params.status
     : undefined;
 
-  const result = await listEnterpriseContractsAction({
-    organizationSlug: organizationSlug || undefined,
-    status,
-  });
+  const [result, organizations] = await Promise.all([
+    listEnterpriseContractsAction({
+      organizationSlug: organizationSlug || undefined,
+      status,
+    }),
+    adminOrganizationService.listOrganizations(),
+  ]);
 
   if (!result.ok) {
     return (
@@ -54,7 +58,9 @@ async function EnterpriseContractsContent({
     );
   }
 
-  return <ContractsTable contracts={result.data} />;
+  return (
+    <ContractsTable contracts={result.data} organizations={organizations} />
+  );
 }
 
 export default async function EnterpriseContractsPage(
