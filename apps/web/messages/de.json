@@ -2558,7 +2558,8 @@
           "updateSuccess": "Vertrag aktualisiert",
           "createError": "Vertrag konnte nicht erstellt werden",
           "updateError": "Vertrag konnte nicht aktualisiert werden",
-          "missingContract": "Vertrag fehlt"
+          "missingContract": "Vertrag fehlt",
+          "organizationRequired": "Wählen Sie eine Organisation aus"
         },
         "Detail": {
           "noExpiry": "Kein Ablauf"
@@ -2621,7 +2622,7 @@
           "paidSuccess": "Credits gewährt",
           "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
           "openInStripe": "In Stripe öffnen",
-          "newGrant": "Neue Gewährung"
+          "back": "Zurück"
         }
       }
     },

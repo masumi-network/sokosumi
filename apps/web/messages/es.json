@@ -2558,7 +2558,8 @@
           "updateSuccess": "Contrato actualizado",
           "createError": "No se pudo crear el contrato",
           "updateError": "No se pudo actualizar el contrato",
-          "missingContract": "Contrato no encontrado"
+          "missingContract": "Contrato no encontrado",
+          "organizationRequired": "Selecciona una organización"
         },
         "Detail": {
           "noExpiry": "Sin caducidad"
@@ -2621,7 +2622,7 @@
           "paidSuccess": "Créditos otorgados",
           "paidError": "No se pudo marcar la factura como pagada",
           "openInStripe": "Abrir en Stripe",
-          "newGrant": "Nueva concesión"
+          "back": "Volver"
         }
       }
     },

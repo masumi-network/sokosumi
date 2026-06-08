@@ -217,6 +217,12 @@ export function ContractForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (mode === "create" && !values.organizationSlug.trim()) {
+      toast.error(t("organizationRequired"));
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {

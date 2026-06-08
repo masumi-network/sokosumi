@@ -2589,7 +2589,8 @@
           "updateSuccess": "契約を更新しました",
           "createError": "契約を作成できませんでした",
           "updateError": "契約を更新できませんでした",
-          "missingContract": "契約が見つかりません"
+          "missingContract": "契約が見つかりません",
+          "organizationRequired": "組織を選択してください"
         },
         "Detail": {
           "noExpiry": "期限なし"
@@ -2652,7 +2653,7 @@
           "paidSuccess": "クレジットを付与しました",
           "paidError": "請求書を支払い済みにできませんでした",
           "openInStripe": "Stripe で開く",
-          "newGrant": "新しい付与"
+          "back": "戻る"
         }
       }
     },

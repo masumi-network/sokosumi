@@ -580,8 +580,26 @@ export const stripeClient = (() => {
         ...(params.ttlDays ? { ttl_days: String(params.ttlDays) } : {}),
       };
 
+      // Create the (empty) invoice first, then attach the line item to *this*
+      // invoice rather than leaving a pending customer item. That way a failure
+      // before finalize can't orphan a pending item that later rolls into the
+      // next grant invoice for the same customer.
+      const invoice = await stripe.invoices.create({
+        customer: params.customerId,
+        currency: params.currency,
+        collection_method: "send_invoice",
+        days_until_due: params.daysUntilDue ?? 30,
+        auto_advance: false,
+        metadata,
+      });
+
+      if (!invoice.id) {
+        throw new Error("Failed to create credit grant invoice");
+      }
+
       await stripe.invoiceItems.create({
         customer: params.customerId,
+        invoice: invoice.id,
         currency: params.currency,
         amount: params.totalMinorUnits,
         description:
@@ -589,21 +607,6 @@ export const stripeClient = (() => {
           `One-time credit grant (${params.credits.toLocaleString("en-US")} credits)`,
         metadata,
       });
-
-      const invoice = await stripe.invoices.create({
-        customer: params.customerId,
-        currency: params.currency,
-        collection_method: "send_invoice",
-        days_until_due: params.daysUntilDue ?? 30,
-        pending_invoice_items_behavior: "include",
-        auto_advance: false,
-        metadata,
-        expand: ["lines.data.price.product"],
-      });
-
-      if (!invoice.id) {
-        throw new Error("Failed to create credit grant invoice");
-      }
 
       return await stripe.invoices.finalizeInvoice(invoice.id, {
         expand: ["lines.data.price.product"],

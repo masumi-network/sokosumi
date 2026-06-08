@@ -2589,7 +2589,8 @@
           "updateSuccess": "Contratto aggiornato",
           "createError": "Impossibile creare il contratto",
           "updateError": "Impossibile aggiornare il contratto",
-          "missingContract": "Contratto mancante"
+          "missingContract": "Contratto mancante",
+          "organizationRequired": "Seleziona un'organizzazione"
         },
         "Detail": {
           "noExpiry": "Nessuna scadenza"
@@ -2652,7 +2653,7 @@
           "paidSuccess": "Crediti assegnati",
           "paidError": "Impossibile contrassegnare la fattura come pagata",
           "openInStripe": "Apri in Stripe",
-          "newGrant": "Nuova assegnazione"
+          "back": "Indietro"
         }
       }
     },

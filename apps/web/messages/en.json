@@ -2589,7 +2589,8 @@
           "updateSuccess": "Contract updated",
           "createError": "Failed to create contract",
           "updateError": "Failed to update contract",
-          "missingContract": "Missing contract"
+          "missingContract": "Missing contract",
+          "organizationRequired": "Select an organization"
         },
         "Detail": {
           "noExpiry": "No expiry"
@@ -2638,7 +2639,7 @@
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
           "openInStripe": "Open in Stripe",
-          "newGrant": "New grant"
+          "back": "Back"
         }
       },
       "Overview": {
