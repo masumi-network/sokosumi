@@ -23,6 +23,15 @@ const HERMES_INBOX_MESSAGE_UUID_NAMESPACE =
   "3ed84820-2c89-4546-9a58-96b20f8b4980";
 
 /**
+ * Outage-alert thresholds for the batch poll. We only escalate transient
+ * orchestrator failures to Sentry when they dominate a non-trivial batch —
+ * the signature of an actual orchestrator outage. A single 502 among
+ * otherwise-healthy polls self-heals on the next cycle and must not alert.
+ */
+const OUTAGE_MIN_POLLED_FOR_ALERT = 5;
+const OUTAGE_TRANSIENT_RATIO = 0.5;
+
+/**
  * Returns true for errors that represent transient external-service failures
  * (Hermes orchestrator 5xx responses, network connect timeouts, etc.) that are
  * expected to self-resolve on the next poll cycle. These should NOT be reported
@@ -416,12 +425,33 @@ async function pollInboxes(
     }
   }
 
-  // Report one aggregate event for all transient orchestrator errors so the
-  // team sees one Sentry alert per outage window, not one per affected user.
-  if (transientErrorCount > 0) {
-    Sentry.captureException(firstTransientError, {
+  // Escalate to Sentry only when transient orchestrator failures dominate a
+  // non-trivial batch — the signature of an actual orchestrator outage rather
+  // than the occasional self-healing 502. Reporting every batch that had a
+  // single failed poll kept SOKOSUMI-CORE-1M perpetually "regressed" (the cron
+  // runs each minute and one 502 among healthy polls recovers next cycle).
+  //
+  // Use captureMessage with a dedicated fingerprint so this forms its own
+  // outage issue instead of re-grouping under the raw HermesOrchestratorError —
+  // re-capturing that exception would revive the per-request 502 issue we are
+  // deliberately muting. The representative error rides along in `extra`.
+  const isLikelyOutage =
+    polled >= OUTAGE_MIN_POLLED_FOR_ALERT &&
+    transientErrorCount >= Math.ceil(polled * OUTAGE_TRANSIENT_RATIO);
+
+  if (isLikelyOutage) {
+    Sentry.captureMessage("hermes_inbox_orchestrator_outage", {
+      level: "error",
+      fingerprint: ["hermes-inbox-orchestrator-outage"],
       tags: { context: "hermes_inbox_poll_batch" },
-      extra: { transientErrorCount, polled },
+      extra: {
+        transientErrorCount,
+        polled,
+        sampleError:
+          firstTransientError instanceof Error
+            ? firstTransientError.message
+            : String(firstTransientError),
+      },
     });
   }
 
