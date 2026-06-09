@@ -2,7 +2,7 @@
 
 Run immediately after the spec agent drafts the PRD. No approval gate.
 
-Creates an **implementation** issue (full PRD), a **Confirm PRD** sub-task, optionally links a **requirement** parent, and delegates to **Cursor** for Cloud Agent.
+Creates an **implementation** issue (full PRD), a **Confirm PRD** sub-task, a **Verify implementation** sub-task, optionally links a **requirement** parent, and delegates to **Cursor** for Cloud Agent.
 
 ## Defaults
 
@@ -148,11 +148,41 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
      If the PRD is wrong, comment on the parent issue or stop the Cloud Agent.
      ```
 
-7. Link back (when requirement parent exists)
+7. Create Verify implementation sub-task
+   - Use `save_issue` (do not pass `id` when creating).
+   - `title`: `chore(review): verify implementation against PRD`
+   - `team`: `SOK`
+   - `project`: `Sokosumi`
+   - `state`: `Todo`
+   - `labels`: `["Improvement"]`
+   - `parentId`: implementation issue identifier
+   - Do **not** set `delegate` — coding agent delegates after PR is open.
+   - `description`:
+
+     ```markdown
+     **Goal:** Verify the PR matches the parent PRD. Loop with `/goal` until all criteria pass.
+
+     **Parent PRD:** SOK-XXX (implementation issue — read description)
+
+     **Runs when:** Parent is In Review and a PR exists.
+
+     **Done when:**
+     - [ ] Code matches PRD Contract/behavior, Verification, and Out of scope
+     - [ ] Lint/check passes
+     - [ ] Tests pass
+     - [ ] Build passes
+     - [ ] Screenshot or screen recording attached (user-facing PRDs)
+
+     Full protocol: repo `.cursor/skills/feature-spec/PRD-REVIEWER.md`
+
+     Blocks human merge until this sub-task is Done.
+     ```
+
+8. Link back (when requirement parent exists)
    - Use `save_comment` on the requirement issue:
    - Body: short note + link to implementation issue (e.g. "Implementation PRD: SOK-549 …").
 
-8. Hand off to Cursor (when `handoffToCursor` is true)
+9. Hand off to Cursor (when `handoffToCursor` is true)
    - Use `save_comment` on the **implementation** issue with the handoff body from **Cursor Cloud Agent → Handoff** above.
    - Run after step 5 so the issue id exists.
 
@@ -208,7 +238,10 @@ Keep these top fields visible near the top:
 
   [repo=masumi-network/sokosumi]
 
-  When the PR is open: set this issue to In Review via Linear MCP and comment with the PR link. Do not mark Done.
+  When the PR is open:
+  1. Set this issue to In Review via Linear MCP and comment with the PR link.
+  2. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff from `PRD-REVIEWER.md`.
+  Do not mark Done.
   ```
 
 - Optional team automation: see `CURSOR-AUTOMATION.md`.
@@ -218,8 +251,10 @@ Keep these top fields visible near the top:
 When Cursor finishes and the PR is open:
 
 1. `save_issue` with `id` = implementation issue, `state: "In Review"`.
-2. `save_comment` with PR URL and summary.
-3. Do not mark Done.
+2. `save_comment` with PR URL and summary on the implementation issue.
+3. `save_issue` on the **Verify implementation** sub-task: `delegate: "Cursor"`.
+4. `save_comment` on the verify sub-task with the `/goal` handoff body from `PRD-REVIEWER.md` (parent id, PR URL, branch).
+5. Do not mark the implementation issue Done.
 
 The PRD **Agent completion** section repeats this for issues created before the handoff comment exists.
 
@@ -229,6 +264,7 @@ Return:
 
 - Implementation issue identifier and URL
 - Confirm PRD sub-task identifier and URL
+- Verify implementation sub-task identifier and URL
 - Project
 - State
 - Label

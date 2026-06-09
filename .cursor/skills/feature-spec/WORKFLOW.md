@@ -1,16 +1,23 @@
 # Spec → Code Pipeline
 
-Two agents. Two Linear issue shapes. One handoff. No blocking PRD approval.
+Three agents. Four Linear issue shapes. PRD confirm is non-blocking. **Implementation review blocks merge.**
 
 ```mermaid
 flowchart LR
   req["Requirement issue\n(high level)"] --> specAgent["Spec agent\nfeature-spec skill"]
   specAgent --> impl["Implementation issue\n(full PRD)"]
-  specAgent --> confirm["Confirm PRD sub-task\n(non-blocking)"]
-  impl --> cursor["Cursor Cloud Agent\ndelegate Cursor"]
+  specAgent --> confirm["Confirm PRD sub-task\n(human, non-blocking)"]
+  specAgent --> verifyTask["Verify implementation\nsub-task"]
+  impl --> cursor["Coding agent\nCursor Cloud Agent"]
   cursor --> pr["Pull request"]
-  cursor --> review["In Review\n(implementation issue)"]
-  pr --> review
+  cursor --> inReview["In Review\n(parent issue)"]
+  pr --> inReview
+  inReview --> reviewer["Reviewer agent\n/goal loop"]
+  verifyTask --> reviewer
+  reviewer --> pass{"All criteria\npass?"}
+  pass -->|no| fix["Fix on PR branch\nrerun checks"]
+  fix --> reviewer
+  pass -->|yes| human["Human PR merge\nparent stays In Review"]
 ```
 
 ## Issue types
@@ -20,6 +27,7 @@ flowchart LR
 | **Requirement** | Human, PM, or triage | Problem, goal, locked decisions, rough architecture ideas | No |
 | **Implementation** | Spec agent (auto) | Full PRD from `TEMPLATE.md` — contracts, files, verification | Yes — Cursor starts immediately |
 | **Confirm PRD** | Spec agent (auto sub-task) | Human sanity-check of the PRD against intent | No — does not block coding |
+| **Verify implementation** | Spec agent (auto sub-task) | Reviewer agent: PRD vs code, lint/test/build, screenshots | Yes — blocks human merge until Done |
 
 A requirement issue with feature and architectural notes is **input**, not the final plan.
 
@@ -49,6 +57,7 @@ A requirement issue with feature and architectural notes is **input**, not the f
    - Set `parentId` to the requirement issue when one exists.
    - Add `[repo=masumi-network/sokosumi]` and `delegate: "Cursor"` (unless user opts out).
    - Create **Confirm PRD** sub-task under the implementation issue.
+   - Create **Verify implementation** sub-task under the implementation issue — see `PRD-REVIEWER.md`.
    - Comment on the requirement issue with a link to the implementation issue.
 
 ## Confirm PRD sub-task
@@ -76,7 +85,12 @@ Cursor reads the **implementation** issue only.
 | `In Review` | **Cursor (required)** | PR opened |
 | `Done` | Human | After PR merge |
 
-On completion, Cursor must set the **implementation issue** to `In Review` via Linear MCP — not Done. See `CURSOR-AUTOMATION.md` and the **Agent completion** section in `TEMPLATE.md`.
+On completion, Cursor must:
+
+1. Set the **implementation issue** to `In Review` via Linear MCP — not Done.
+2. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff — see `PRD-REVIEWER.md`.
+
+See `CURSOR-AUTOMATION.md` and the **Agent completion** section in `TEMPLATE.md`.
 
 Trigger options (pick one per team):
 
@@ -93,6 +107,29 @@ Cloud Agent repo resolution (priority order):
 2. Issue label under Linear label group `repo` (e.g. `masumi-network/sokosumi`)
 3. Project repo label
 4. Default repo in Cursor Dashboard → Cloud Agents
+
+## Reviewer agent (verify implementation)
+
+Runs on the **Verify implementation** sub-task after the coding agent opens a PR.
+
+### Responsibilities
+
+- Compare PR and code to the parent PRD (and requirement issue when linked)
+- Run lint/check, test, and build from the PRD **Verification** section
+- Capture screenshot or screen recording for user-facing changes
+- Loop with **`/goal`** until all criteria pass — fix on the PR branch, push, rerun
+
+Full protocol: `PRD-REVIEWER.md`.
+
+### Status lifecycle (review sub-task)
+
+| State | Set by | When |
+|-------|--------|------|
+| `Todo` | Spec agent | Sub-task created with implementation issue |
+| `In Progress` | Reviewer agent | `/goal` handoff received |
+| `Done` | Reviewer agent | All criteria pass — evidence attached |
+
+Parent implementation issue stays **In Review** until a human merges the PR and marks **Done**.
 
 ## Requirement issue template
 

@@ -103,8 +103,12 @@ flowchart LR
 
 ## Verification
 
-- Command or manual check.
-- Another check.
+List exact commands the coding and reviewer agents must run. Example:
+
+- `pnpm web:check`
+- `pnpm web:test`
+- `pnpm web:build`
+- Manual: open `/path` and confirm behavior X
 
 ## Agent completion
 
@@ -113,7 +117,17 @@ When the PR is ready:
 1. Open a PR (default base: `main`).
 2. Use Linear MCP `save_issue` on **this issue**: `state: "In Review"`.
 3. Comment on this issue with the PR URL and a one-line summary.
-4. Do **not** mark Done — human review follows the PR.
+4. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff — see `PRD-REVIEWER.md`.
+5. Do **not** mark this issue Done — human review follows the PR after reviewer passes.
+
+## Reviewer completion
+
+On the **Verify implementation** sub-task only — see `PRD-REVIEWER.md`:
+
+1. Compare PR to this PRD; loop with `/goal` until lint, test, build, and visual evidence pass.
+2. Attach screenshot or screen recording for user-facing changes.
+3. Mark the verify sub-task **Done**; comment on this issue with evidence links.
+4. Do **not** mark this parent issue Done.
 
 ## Out of scope
 
@@ -126,5 +140,5 @@ When the PR is ready:
 - Remove empty optional sections.
 - If there are no subagents, remove frontmatter `todos`.
 - Keep `Data flow`.
-- Keep `Verification`, `Agent completion`, and `Out of scope`.
+- Keep `Verification`, `Agent completion`, `Reviewer completion`, and `Out of scope`.
 - Keep the Linear line with the inferred label.

@@ -10,17 +10,19 @@ This is optional. The spec agent can also delegate in the same MCP call via `del
 flowchart LR
   todo["Todo\n(PRD published)"] --> progress["In Progress\n(Cursor working)"]
   progress --> review["In Review\n(PR opened)"]
-  review --> done["Done\n(after human merge)"]
+  review --> verify["Verify sub-task\n/goal loop"]
+  verify --> pass["Review Done\n(evidence attached)"]
+  pass --> human["Human merge\nparent Done"]
 ```
 
 | State | Who sets it | When |
 |-------|-------------|------|
 | `Todo` | Spec agent | Implementation issue created |
 | `In Progress` | Cursor (optional) | Agent starts work |
-| `In Review` | **Cursor (required)** | PR opened — see completion protocol below |
-| `Done` | Human | After PR review and merge |
+| `In Review` | **Coding agent (required)** | PR opened — see completion protocol below |
+| `Done` | Human | After PR merge **and** verify sub-task is Done |
 
-The implementation issue (PRD task) must land in **In Review** when Cursor finishes — not Done.
+The implementation issue (PRD task) must land in **In Review** when the coding agent finishes — not Done. Human merge waits for the **Verify implementation** sub-task to reach **Done**.
 
 ## Completion protocol (Cursor Cloud Agent)
 
@@ -37,9 +39,24 @@ Every coding run must end with this, whether triggered by delegate, `@Cursor`, o
    ```
 
 3. `save_comment` on the same issue with PR URL and short summary.
-4. Do **not** mark Done or close the confirm PRD sub-task.
+4. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff — see `PRD-REVIEWER.md`.
+5. Do **not** mark the implementation issue Done or close sub-tasks.
 
-The PRD template includes an **Agent completion** section so delegated issues carry these instructions in the description.
+The PRD template includes **Agent completion** and **Reviewer completion** sections so delegated issues carry these instructions in the description.
+
+## Reviewer automation (optional)
+
+Create a second Cursor Automation if you want the reviewer to start without the coding agent posting the handoff comment:
+
+| Field | Value |
+|-------|--------|
+| Name | SOK verify implementation → reviewer |
+| Trigger | Linear — Status changed → `In Review` |
+| Filter | Team SOK; issue has child titled `chore(review): verify implementation against PRD` |
+| Tools | GitHub, Linear, browser (for screenshots) |
+| Instructions | Read parent issue as PRD. Read `PRD-REVIEWER.md` in repo. Run `/goal` until lint, test, build, and visual evidence pass. Fix on PR branch. Mark verify sub-task Done when complete. |
+
+Prefer the coding agent handoff in `PRD-REVIEWER.md` so PR URL and branch are always in the first comment.
 
 ## Recommended automation setup
 
@@ -51,7 +68,7 @@ Create one Cursor Automation in the Agents Window:
 | Trigger | Linear — Issue created |
 | Filter | Team: Sokosumi (SOK). Optional: label is one of Feature, Improvement, Bug |
 | Tools | GitHub, Linear |
-| Instructions | Read the issue description as the implementation PRD. Follow verification and out-of-scope sections. Open a PR when done. Repo: `[repo=masumi-network/sokosumi]` unless the issue specifies otherwise. **When the PR is open:** use Linear MCP to set this issue to `In Review`, comment with the PR link, and do not mark Done. |
+| Instructions | Read the issue description as the implementation PRD. Follow verification and out-of-scope sections. Open a PR when done. Repo: `[repo=masumi-network/sokosumi]` unless the issue specifies otherwise. **When the PR is open:** set this issue to `In Review`, comment with the PR link, delegate the Verify implementation sub-task with `/goal` per `PRD-REVIEWER.md`, and do not mark Done. |
 
 ### Optional: status-changed automation
 
@@ -102,5 +119,5 @@ On any implementation issue:
 
    [repo=masumi-network/sokosumi]
 
-   When the PR is open: set this issue to In Review via Linear MCP and comment with the PR link. Do not mark Done.
+   When the PR is open: set this issue to In Review, comment with the PR link, delegate Verify implementation with `/goal` per PRD-REVIEWER.md. Do not mark Done.
    ```
