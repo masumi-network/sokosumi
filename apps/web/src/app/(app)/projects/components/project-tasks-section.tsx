@@ -4,11 +4,13 @@ import { TaskStatus } from "@sokosumi/utils";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ProjectTaskPickerDialog } from "@/app/projects/components/project-task-picker-dialog";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { TimeAgo } from "@/components/time-ago";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +27,6 @@ import {
   removeProjectTask,
 } from "@/lib/actions/project/action";
 import type { TaskListItem } from "@/lib/clients/generated/core/types.gen";
-import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface ProjectTasksSectionLabels {
   title: string;
@@ -58,7 +59,7 @@ export function ProjectTasksSection({
   labels,
 }: ProjectTasksSectionProps) {
   const router = useRouter();
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const locale = useLocale();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [taskToRemove, setTaskToRemove] = useState<TaskListItem | null>(null);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
@@ -142,7 +143,7 @@ export function ProjectTasksSection({
                   className="shrink-0"
                 />
                 <p className="text-muted-foreground shrink-0 text-xs sm:text-right">
-                  {formatTimeAgo(task.createdAt)}
+                  <TimeAgo date={task.createdAt} locale={locale} />
                 </p>
               </Link>
               <Button
