@@ -269,6 +269,7 @@ describe("getUserAgentReview", () => {
       comment: "Mine",
       createdAt: new Date("2026-03-17T10:00:00.000Z"),
       updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+      isHidden: true,
     });
     const tx = {
       userAgentRating: {
@@ -286,12 +287,12 @@ describe("getUserAgentReview", () => {
         },
       },
     });
+    // createdAt/updatedAt are intentionally dropped from the my-review payload
+    // (see agentMyReviewSchema); the schema parse strips them.
     expect(result).toEqual({
       id: "rating-1",
       rating: 4,
       comment: "Mine",
-      createdAt: "2026-03-17T10:00:00.000Z",
-      updatedAt: "2026-03-17T10:00:00.000Z",
     });
   });
 

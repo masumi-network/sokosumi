@@ -259,8 +259,6 @@ export type AgentMyReview = {
     id: string;
     rating: number;
     comment: string | null;
-    createdAt: Date;
-    updatedAt: Date;
 } | null;
 
 export type JobSummary = {

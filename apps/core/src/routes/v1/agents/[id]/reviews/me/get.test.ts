@@ -83,8 +83,6 @@ describe("GET /agents/{id}/reviews/me", () => {
       id: "rating_123",
       rating: 4,
       comment: "Solid output.",
-      createdAt: new Date("2026-03-17T10:00:00.000Z"),
-      updatedAt: new Date("2026-03-17T10:00:00.000Z"),
     });
 
     const app = createApp();
@@ -101,8 +99,6 @@ describe("GET /agents/{id}/reviews/me", () => {
       id: "rating_123",
       rating: 4,
       comment: "Solid output.",
-      createdAt: "2026-03-17T10:00:00.000Z",
-      updatedAt: "2026-03-17T10:00:00.000Z",
     });
   });
 

@@ -43,14 +43,7 @@ export const getAgentsByIdReviewsResponseTransformer = async (data: any): Promis
     return data;
 };
 
-const agentMyReviewSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    return data;
-};
-
 export const getAgentsByIdReviewsMeResponseTransformer = async (data: any): Promise<GetAgentsByIdReviewsMeResponse> => {
-    data.data = agentMyReviewSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
