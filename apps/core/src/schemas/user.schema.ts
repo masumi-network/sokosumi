@@ -133,6 +133,54 @@ export const userOnboardingResponseSchema = z.object({
   }),
 });
 
+export const utmAttributionRequestSchema = z
+  .object({
+    utm_source: z.string().min(1).max(255).openapi({
+      description: "Campaign source (e.g. utm_source)",
+      example: "google",
+    }),
+    utm_medium: z.string().max(255).optional().openapi({
+      description: "Campaign medium (e.g. utm_medium)",
+      example: "cpc",
+    }),
+    utm_campaign: z.string().max(255).optional().openapi({
+      description: "Campaign name (e.g. utm_campaign)",
+      example: "spring_launch",
+    }),
+    utm_term: z.string().max(255).optional().openapi({
+      description: "Paid keyword term (e.g. utm_term)",
+      example: "ai agents",
+    }),
+    utm_content: z.string().max(255).optional().openapi({
+      description: "Content/creative variant (e.g. utm_content)",
+      example: "hero_cta",
+    }),
+    referrer: z.string().max(255).optional().openapi({
+      description: "Referring URL captured on landing",
+      example: "https://example.com",
+    }),
+    landingPage: z.string().max(255).optional().openapi({
+      description: "First page the visitor landed on",
+      example: "https://sokosumi.com/",
+    }),
+    capturedAt: dateTimeSchema.openapi({
+      description: "When the UTM data was captured on the client",
+    }),
+  })
+  .openapi("UtmAttributionRequest");
+
+export const utmAttributionResponseSchema = z
+  .object({
+    id: z.string().openapi({
+      description: "Identifier of the created UTM attribution record",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    convertedAt: dateTimeSchema.openapi({
+      description: "When the attribution was recorded against the user",
+    }),
+  })
+  .openapi("UtmAttributionResponse");
+
 export const creditsResponseSchema = z.object({
   subscription: subscriptionSchema.nullable().openapi({
     description:

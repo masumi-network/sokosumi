@@ -10,7 +10,7 @@ import {
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   type ReactNode,
   useCallback,
@@ -27,6 +27,7 @@ import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
+import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +45,6 @@ import {
 } from "@/lib/constants/task-event-origin-icons";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
-import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
 import {
   extractTaskAttachmentUrls,
@@ -182,7 +182,7 @@ export function TaskActivitySection({
   canComment = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const locale = useLocale();
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
     [agentNameById],
@@ -576,9 +576,11 @@ export function TaskActivitySection({
                           </>
                         ) : null}
                       </div>
-                      <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
-                        {formatTimeAgo(event.createdAt)}
-                      </span>
+                      <TimeAgo
+                        date={event.createdAt}
+                        locale={locale}
+                        className="text-muted-foreground/40 text-xs whitespace-nowrap"
+                      />
                     </div>
                     {formattedComment ? (
                       <ExpandableMarkdown

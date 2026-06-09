@@ -15,6 +15,7 @@ import mountGetUserPreferences from "./preferences/get.js";
 import mountPatchUserPreferences from "./preferences/patch.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
+import mountPostUserUtmAttribution from "./utm-attribution/post.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
@@ -31,6 +32,7 @@ mountGetUserPendingNotices(app);
 mountPostUserNoticeAcknowledge(app);
 mountGetUserUploads(app);
 mountPostUserUploads(app);
+mountPostUserUtmAttribution(app);
 mountGetUserById(app);
 
 export default app;

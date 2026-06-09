@@ -116,7 +116,7 @@ export async function signUpEmail(
     // create utm attribution (after main db transaction is committed)
     // without throwing error if it fails
     try {
-      await utmService.handleUTMConversion(user.id);
+      await utmService.handleUTMConversion();
     } catch (error) {
       console.error("Failed to create utm attribution", error);
     }
