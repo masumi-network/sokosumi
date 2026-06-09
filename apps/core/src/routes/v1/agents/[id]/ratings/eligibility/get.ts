@@ -1,11 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
-import {
-  buildAvailableAgentWhereClause,
-  getCreditCostsOrThrow,
-} from "@/helpers/agent";
-import { notFound } from "@/helpers/error";
+import { requireAvailableAgentOrThrow } from "@/helpers/agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -50,19 +46,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const eligible = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-
-      const agent = await tx.agent.findFirst({
-        where: {
-          id,
-          ...buildAvailableAgentWhereClause(creditCosts),
-        },
-        select: { id: true },
-      });
-
-      if (!agent) {
-        throw notFound("Agent not found");
-      }
+      await requireAvailableAgentOrThrow(id, tx);
 
       return await jobRepository.doesUserHaveFinishedJobWithAgent(
         userContext.userId,

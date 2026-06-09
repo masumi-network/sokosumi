@@ -1,29 +1,28 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import {
+  formatZodErrorMessage,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetAgentRatingEligibility from "./get";
 
 const {
-  agentFindFirstMock,
-  buildAvailableAgentWhereClauseMock,
   doesUserHaveFinishedJobWithAgentMock,
-  getCreditCostsOrThrowMock,
   prismaTransactionMock,
+  requireAvailableAgentOrThrowMock,
 } = vi.hoisted(() => ({
-  agentFindFirstMock: vi.fn(),
-  buildAvailableAgentWhereClauseMock: vi.fn(),
   doesUserHaveFinishedJobWithAgentMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  requireAvailableAgentOrThrowMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/agent", () => ({
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -69,15 +68,9 @@ describe("GET /agents/{id}/ratings/eligibility", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
-    agentFindFirstMock.mockResolvedValue({ id: "agent_123" });
+    requireAvailableAgentOrThrowMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findFirst: agentFindFirstMock,
-        },
-      });
+      return await callback({});
     });
   });
 
@@ -108,7 +101,9 @@ describe("GET /agents/{id}/ratings/eligibility", () => {
   });
 
   it("returns 404 when the agent is not available", async () => {
-    agentFindFirstMock.mockResolvedValue(null);
+    requireAvailableAgentOrThrowMock.mockRejectedValue(
+      notFound("Agent not found"),
+    );
 
     const app = createApp();
     const response = await app.request(

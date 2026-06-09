@@ -1,7 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import {
+  formatZodErrorMessage,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -9,22 +13,17 @@ import mountPostFavoriteAgent from "./post";
 
 const {
   addAgentToFavoritesMock,
-  agentFindFirstMock,
-  buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrowMock,
+  requireAvailableAgentOrThrowMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   addAgentToFavoritesMock: vi.fn(),
-  agentFindFirstMock: vi.fn(),
-  buildAvailableAgentWhereClauseMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
+  requireAvailableAgentOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/agent", () => ({
   addAgentToFavorites: addAgentToFavoritesMock,
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -72,16 +71,10 @@ describe("POST /agents/favorites", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
-    agentFindFirstMock.mockResolvedValue({ id: "agent_123" });
+    requireAvailableAgentOrThrowMock.mockResolvedValue(undefined);
     addAgentToFavoritesMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findFirst: agentFindFirstMock,
-        },
-      });
+      return await callback({});
     });
   });
 
@@ -91,6 +84,10 @@ describe("POST /agents/favorites", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
+    expect(requireAvailableAgentOrThrowMock).toHaveBeenCalledWith(
+      "agent_123",
+      expect.anything(),
+    );
     expect(addAgentToFavoritesMock).toHaveBeenCalledWith(
       "user_123",
       "agent_123",
@@ -100,7 +97,9 @@ describe("POST /agents/favorites", () => {
   });
 
   it("returns 404 when the agent is not available", async () => {
-    agentFindFirstMock.mockResolvedValue(null);
+    requireAvailableAgentOrThrowMock.mockRejectedValue(
+      notFound("Agent not found"),
+    );
 
     const app = createApp();
     const response = await app.request(postFavorite("agent_123"));

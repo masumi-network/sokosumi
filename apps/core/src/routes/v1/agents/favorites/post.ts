@@ -2,10 +2,8 @@ import { createRoute } from "@hono/zod-openapi";
 
 import {
   addAgentToFavorites,
-  buildAvailableAgentWhereClause,
-  getCreditCostsOrThrow,
+  requireAvailableAgentOrThrow,
 } from "@/helpers/agent";
-import { notFound } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { created, successResponseSchema } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -52,20 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId } = c.req.valid("json");
 
     await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-
-      const agent = await tx.agent.findFirst({
-        where: {
-          id: agentId,
-          ...buildAvailableAgentWhereClause(creditCosts),
-        },
-        select: { id: true },
-      });
-
-      if (!agent) {
-        throw notFound("Agent not found");
-      }
-
+      await requireAvailableAgentOrThrow(agentId, tx);
       await addAgentToFavorites(userContext.userId, agentId, tx);
     });
 

@@ -20,7 +20,7 @@ import {
 } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
-import { internalServerError, unprocessableEntity } from "./error";
+import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 export const getAgentImage = (agent: Agent): string | null => {
   const image = agent.overrideImage ?? agent.image;
@@ -111,6 +111,29 @@ export const buildAvailableAgentWhereClause = (
     isShown: true,
     pricing: pricingFilter,
   };
+};
+
+/**
+ * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
+ * throwing a 404 otherwise. Centralizes the availability existence check shared
+ * by the agent sub-resource write/read handlers (favorites, ratings, etc.).
+ */
+export const requireAvailableAgentOrThrow = async (
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  const creditCosts = await getCreditCostsOrThrow(tx);
+  const agent = await tx.agent.findFirst({
+    where: {
+      id: agentId,
+      ...buildAvailableAgentWhereClause(creditCosts),
+    },
+    select: { id: true },
+  });
+
+  if (!agent) {
+    throw notFound("Agent not found");
+  }
 };
 
 export interface AgentCost {

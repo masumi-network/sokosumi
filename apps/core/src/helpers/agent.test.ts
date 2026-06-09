@@ -15,6 +15,7 @@ import {
   getRecentAgentReviews,
   getUserAgentReview,
   removeAgentFromFavorites,
+  requireAvailableAgentOrThrow,
   upsertUserAgentReview,
 } from "./agent";
 
@@ -310,6 +311,41 @@ describe("getUserAgentReview", () => {
     const result = await getUserAgentReview("agent-1", "user-1", tx);
 
     expect(result).toBeNull();
+  });
+});
+
+describe("requireAvailableAgentOrThrow", () => {
+  it("resolves when an available agent exists", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: "agent-1" });
+    const tx = {
+      creditCost: {
+        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
+      },
+      agent: { findFirst },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireAvailableAgentOrThrow("agent-1", tx),
+    ).resolves.toBeUndefined();
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "agent-1" }),
+        select: { id: true },
+      }),
+    );
+  });
+
+  it("throws a 404 when no available agent matches", async () => {
+    const tx = {
+      creditCost: {
+        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
+      },
+      agent: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireAvailableAgentOrThrow("missing", tx),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });
 

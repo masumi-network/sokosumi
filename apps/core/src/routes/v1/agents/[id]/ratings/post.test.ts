@@ -1,31 +1,30 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
+import {
+  formatZodErrorMessage,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountPostAgentRating from "./post";
 
 const {
-  agentFindFirstMock,
-  buildAvailableAgentWhereClauseMock,
   doesUserHaveFinishedJobWithAgentMock,
-  getCreditCostsOrThrowMock,
   prismaTransactionMock,
+  requireAvailableAgentOrThrowMock,
   upsertUserAgentReviewMock,
 } = vi.hoisted(() => ({
-  agentFindFirstMock: vi.fn(),
-  buildAvailableAgentWhereClauseMock: vi.fn(),
   doesUserHaveFinishedJobWithAgentMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  requireAvailableAgentOrThrowMock: vi.fn(),
   upsertUserAgentReviewMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/agent", () => ({
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
   upsertUserAgentReview: upsertUserAgentReviewMock,
 }));
 
@@ -80,9 +79,7 @@ describe("POST /agents/{id}/ratings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
-    agentFindFirstMock.mockResolvedValue({ id: "agent_123" });
+    requireAvailableAgentOrThrowMock.mockResolvedValue(undefined);
     doesUserHaveFinishedJobWithAgentMock.mockResolvedValue(true);
     upsertUserAgentReviewMock.mockResolvedValue({
       id: "rating_123",
@@ -90,11 +87,7 @@ describe("POST /agents/{id}/ratings", () => {
       comment: "Great results.",
     });
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findFirst: agentFindFirstMock,
-        },
-      });
+      return await callback({});
     });
   });
 
@@ -136,7 +129,9 @@ describe("POST /agents/{id}/ratings", () => {
   });
 
   it("returns 404 when the agent is not available", async () => {
-    agentFindFirstMock.mockResolvedValue(null);
+    requireAvailableAgentOrThrowMock.mockRejectedValue(
+      notFound("Agent not found"),
+    );
 
     const app = createApp();
     const response = await app.request(postRating({ rating: 5 }));
@@ -150,6 +145,6 @@ describe("POST /agents/{id}/ratings", () => {
     const response = await app.request(postRating({ rating: 6 }));
 
     expect(response.status).toBe(422);
-    expect(agentFindFirstMock).not.toHaveBeenCalled();
+    expect(requireAvailableAgentOrThrowMock).not.toHaveBeenCalled();
   });
 });

@@ -2,11 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jobRepository } from "@sokosumi/database/repositories";
 
 import {
-  buildAvailableAgentWhereClause,
-  getCreditCostsOrThrow,
+  requireAvailableAgentOrThrow,
   upsertUserAgentReview,
 } from "@/helpers/agent";
-import { forbidden, notFound } from "@/helpers/error";
+import { forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { created, successResponseSchema } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -64,19 +63,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { rating, comment } = c.req.valid("json");
 
     const review = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-
-      const agent = await tx.agent.findFirst({
-        where: {
-          id,
-          ...buildAvailableAgentWhereClause(creditCosts),
-        },
-        select: { id: true },
-      });
-
-      if (!agent) {
-        throw notFound("Agent not found");
-      }
+      await requireAvailableAgentOrThrow(id, tx);
 
       const hasFinishedJob =
         await jobRepository.doesUserHaveFinishedJobWithAgent(
