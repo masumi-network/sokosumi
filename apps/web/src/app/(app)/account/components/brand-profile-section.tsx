@@ -97,6 +97,10 @@ export function BrandProfileSection({
     control: form.control,
     name: "logo",
   });
+  const formWebsiteUrl = useWatch({
+    control: form.control,
+    name: "websiteUrl",
+  });
 
   const isBusy =
     form.formState.isSubmitting || isUploadingLogo || isRemovingLogo;
@@ -305,7 +309,7 @@ export function BrandProfileSection({
       <DesignMdProfileSection
         owner={{ type: "user" }}
         value={designMdValue}
-        websiteUrl={websiteUrl}
+        websiteUrl={formWebsiteUrl}
         onValueChange={handleDesignMdChange}
       />
     </div>

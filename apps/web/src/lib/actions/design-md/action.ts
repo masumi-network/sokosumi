@@ -4,6 +4,7 @@ import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
 import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import prisma from "@/lib/db/prisma";
 import {
   type DesignMdOwnerSchemaType,
   type FinalizeDesignMdGenerationSchemaType,
@@ -79,11 +80,18 @@ function toActionError(error: unknown): ActionError {
   };
 }
 
-function revalidateOwner(owner: DesignMdOwnerSchemaType): void {
+async function revalidateOwner(owner: DesignMdOwnerSchemaType): Promise<void> {
   revalidatePath("/account");
 
   if (owner.type === "organization") {
-    revalidatePath("/organizations");
+    const organization = await prisma.organization.findUnique({
+      where: { id: owner.organizationId },
+      select: { slug: true },
+    });
+
+    if (organization?.slug) {
+      revalidatePath(`/organizations/${organization.slug}`);
+    }
   }
 }
 
@@ -108,7 +116,7 @@ export const startDesignMdGeneration = withSession<
     );
 
     if (result.kind === "completed") {
-      revalidateOwner(parsedResult.data.owner);
+      await revalidateOwner(parsedResult.data.owner);
     }
 
     return Ok(result);
@@ -165,7 +173,7 @@ export const finalizeDesignMdGeneration = withSession<
       parsedResult.data.jobToken,
     );
 
-    revalidateOwner(parsedResult.data.owner);
+    await revalidateOwner(parsedResult.data.owner);
     return Ok(persisted);
   } catch (error) {
     console.error("Failed to finalize DESIGN.md generation", error);
@@ -192,7 +200,7 @@ export const saveDesignMdUpload = withSession<
       parsedResult.data.url,
     );
 
-    revalidateOwner(parsedResult.data.owner);
+    await revalidateOwner(parsedResult.data.owner);
     return Ok(persisted);
   } catch (error) {
     console.error("Failed to save DESIGN.md upload", error);
@@ -217,7 +225,7 @@ export const removeDesignMd = withSession<
       parameters.session,
       parsedResult.data.owner,
     );
-    revalidateOwner(parsedResult.data.owner);
+    await revalidateOwner(parsedResult.data.owner);
     return Ok({ removed: true });
   } catch (error) {
     console.error("Failed to remove DESIGN.md", error);
