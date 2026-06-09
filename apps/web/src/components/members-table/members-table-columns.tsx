@@ -2,10 +2,10 @@
 
 import type { Member } from "@sokosumi/database";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { formatDistanceToNowStrict } from "date-fns";
 import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { TimeAgo } from "@/components/time-ago";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
 import { useSeatManagementContext } from "./seat-management-context";
@@ -76,7 +76,7 @@ export function getMembersTableColumns(
         }
         return (
           <div className="p-2 whitespace-nowrap">
-            {formatDistanceToNowStrict(lastSeenAt, { addSuffix: true })}
+            <TimeAgo date={lastSeenAt} strict />
           </div>
         );
       },
