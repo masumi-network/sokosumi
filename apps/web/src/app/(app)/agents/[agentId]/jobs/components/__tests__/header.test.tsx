@@ -9,10 +9,6 @@ vi.mock("next-intl", () => ({
     values?.price ? `${key}:${String(values.price)}` : key,
 }));
 
-vi.mock("@/components/agents", () => ({
-  AgentBookmarkButton: () => <div data-testid="bookmark-button" />,
-}));
-
 vi.mock("@/components/agents/agent-action-buttons", () => ({
   AgentActionButtons: ({
     trailingActions,
@@ -43,7 +39,6 @@ describe("Header", () => {
     render(
       <Header
         agent={agent}
-        favoriteAgents={[]}
         ratingStats={{ averageRating: 0, ratingCount: 0 } as never}
         canRate={false}
         existingRating={null}

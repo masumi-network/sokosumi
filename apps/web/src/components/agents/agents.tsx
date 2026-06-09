@@ -3,7 +3,6 @@
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
-  AgentWithRelations,
 } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
@@ -71,7 +70,6 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
 
 interface AgentsProps {
   agents: AgentWithCreditsPrice[];
-  favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStatsMap: Record<string, AgentRatingStats>;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
@@ -81,7 +79,6 @@ interface AgentsProps {
 
 function Agents({
   agents,
-  favoriteAgents,
   ratingStatsMap,
   className,
   agentCardClassName,
@@ -103,7 +100,6 @@ function Agents({
         >
           <AgentCard
             agent={agent}
-            favoriteAgents={favoriteAgents}
             ratingStats={ratingStatsMap[agent.id]}
             className={agentCardClassName}
           />

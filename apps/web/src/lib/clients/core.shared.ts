@@ -41,6 +41,7 @@ import type {
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
+  PostAgentsByIdRatingsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -64,6 +65,7 @@ import {
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getAgentsByIdJobs as coreGetAgentsByIdJobs,
+  getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
@@ -103,6 +105,7 @@ import {
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
+  postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -758,6 +761,35 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch your agent review",
+    );
+  }
+
+  async function getAgentRatingEligibility(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdRatingsEligibility({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch agent rating eligibility",
+    );
+  }
+
+  async function createAgentRating(
+    id: string,
+    body: NonNullable<PostAgentsByIdRatingsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostAgentsByIdRatings({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to submit agent rating",
     );
   }
 
@@ -1578,9 +1610,11 @@ export function createCoreClient(getClient: GetClient) {
     getAgentById,
     getAgentJobs,
     getAgentInputSchema,
+    getAgentRatingEligibility,
     getAgentReviews,
     getMyAgentReview,
     getAgents,
+    createAgentRating,
     getCategories,
     getCoworkers,
     getJobById,

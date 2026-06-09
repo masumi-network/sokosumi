@@ -31,7 +31,6 @@ model User {
   passkeys      Passkey[]
 
   userAgentRatings UserAgentRating[]
-  agentLists       AgentList[]
   transactions     Transaction[]
   jobs             Job[]
 
@@ -524,7 +523,6 @@ model Agent {
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
 
   userAgentRating UserAgentRating[]
-  agentLists      AgentList[]
   jobs            Job[]
 
   tags         Tag[]      @relation("AgentTag")
@@ -607,20 +605,6 @@ enum AgentStatus {
   OFFLINE
   DEREGISTERED
   INVALID
-}
-
-model AgentList {
-  id     String        @id @default(uuid(7))
-  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-  type   AgentListType
-  agents Agent[]
-
-  @@unique([userId, type])
-}
-
-enum AgentListType {
-  FAVORITE
 }
 
 model Transaction {

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useSyncExternalStore } from "react";
 
-import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -15,7 +14,6 @@ import { cn } from "@/lib/utils";
 
 interface AgentActionButtonsProps {
   agent: AgentWithRelations;
-  favoriteAgents?: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
   showShareButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
@@ -26,7 +24,6 @@ interface AgentActionButtonsProps {
 
 function AgentActionButtons({
   agent,
-  favoriteAgents,
   showBackButton = true,
   showShareButton = true,
   showCloseButton = false,
@@ -48,10 +45,6 @@ function AgentActionButtons({
   const url = isClient
     ? new URL(`${window.location.origin}/agents/${agent.id}`)
     : undefined;
-
-  const isFavorite = favoriteAgents?.some(
-    (favoriteAgent) => favoriteAgent.id === agent.id,
-  );
 
   const onBack = () => {
     // Check if we're inside of jobs/<id> and if it's mobile, redirect to /agents
@@ -97,14 +90,6 @@ function AgentActionButtons({
         )}
       </div>
       <div className="flex items-center gap-1.5">
-        {favoriteAgents && (
-          <AgentBookmarkButton
-            agentId={agent.id}
-            isFavorite={isFavorite ?? false}
-            variant="ghost"
-            className="size-8 md:size-7"
-          />
-        )}
         {trailingActions}
         {showShareButton && url ? (
           <ShareButton url={url} className="size-8 md:size-7" />

@@ -1,53 +1,21 @@
 "use client";
 
-import type {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
-import { useTranslations } from "next-intl";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
-import { AgentBookmarkButton, AgentHireButton } from "@/components/agents";
-import { BottomNavigation } from "@/components/ui/bottom-navigation";
-import VerticalDivider from "@/components/vertical-divider";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
+import { AgentHireButton } from "@/components/agents";
+import { AgentPriceBottomNavigation } from "@/components/agents/agent-price-bottom-navigation";
 
 interface AgentBottomNavigationProps {
   agent: AgentWithCreditsPrice;
-  favoriteAgents: AgentWithRelations[];
-  disabled?: boolean;
 }
 
 export default function AgentBottomNavigation({
   agent,
-  favoriteAgents,
-  disabled,
 }: AgentBottomNavigationProps) {
-  const t = useTranslations("App.Agents.Jobs.Header");
-
-  const isFavorite = favoriteAgents.some(
-    (favoriteAgent) => favoriteAgent.id === agent.id,
-  );
-
   return (
-    <BottomNavigation>
-      <div className="flex flex-1 flex-row items-center justify-center gap-2">
-        <AgentBookmarkButton
-          agentId={agent.id}
-          isFavorite={isFavorite}
-          disabled={disabled}
-        />
-        <VerticalDivider />
-        <div className="w-full text-center text-sm font-semibold">
-          {t("price", {
-            price: formatCreditsForDisplay(
-              convertCentsToCredits(agent.creditsPrice.cents),
-            ),
-          })}
-        </div>
-        <VerticalDivider />
-        <AgentHireButton agentId={agent.id} />
-      </div>
-    </BottomNavigation>
+    <AgentPriceBottomNavigation
+      agent={agent}
+      action={<AgentHireButton agentId={agent.id} />}
+    />
   );
 }

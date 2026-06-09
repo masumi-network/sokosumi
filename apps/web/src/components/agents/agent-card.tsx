@@ -1,7 +1,6 @@
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
-  AgentWithRelations,
 } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -201,7 +200,6 @@ function AgentCardSkeleton({
 interface AgentCardProps {
   agent: AgentWithCreditsPrice;
   showHireButton?: boolean | undefined;
-  favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStats?: AgentRatingStats | undefined;
   className?: string | undefined;
 }

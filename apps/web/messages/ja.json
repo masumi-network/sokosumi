@@ -83,10 +83,7 @@
       "freeDemo": "無料デモ",
       "AgentCard": {
         "view": "詳細を見る",
-        "pricing": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}",
-        "addedToBookmarks": "エージェントをピン留めに追加しました",
-        "removedFromBookmarks": "エージェントをピン留めから削除しました",
-        "bookmarkError": "ピン留めの更新に失敗しました"
+        "pricing": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}"
       },
       "AgentDetail": {
         "Header": {

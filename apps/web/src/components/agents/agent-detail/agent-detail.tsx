@@ -1,7 +1,6 @@
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
-  AgentWithRelations,
   UserAgentRatingWithUser,
 } from "@sokosumi/database";
 
@@ -23,7 +22,6 @@ interface AgentDetailProps {
   agent: AgentWithCreditsPrice;
   executedJobsCount: number;
   averageExecutionDuration: number | null;
-  favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStats: AgentRatingStats;
   ratingDistribution?: Record<number, number> | undefined;
   ratingsWithComments?: UserAgentRatingWithUser[] | undefined;
@@ -45,7 +43,6 @@ export function AgentDetail({
   agent,
   executedJobsCount,
   averageExecutionDuration,
-  favoriteAgents,
   ratingStats,
   ratingDistribution,
   ratingsWithComments,
@@ -69,7 +66,6 @@ export function AgentDetail({
       <section className="space-y-4">
         <AgentDetailHeader
           agent={agent}
-          favoriteAgents={favoriteAgents}
           showBackButton={showBackButton}
           showCloseButton={showCloseButton}
           onClose={onClose}
