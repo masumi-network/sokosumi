@@ -1,11 +1,15 @@
 import "server-only";
 
-import type { UTMAttribution, UTMData } from "@sokosumi/database";
-import { utmAttributionRepository } from "@sokosumi/database/repositories";
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
-import prisma from "@/lib/db/prisma";
+import type { z } from "zod";
+
+import { postUsersByIdUtmAttribution } from "@/lib/clients/generated/core";
+import { createClient } from "@/lib/clients/generated/core/client";
+import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { UTM_COOKIE_NAME, utmDataSchema } from "@/lib/utils/utm";
+
+type UTMData = z.infer<typeof utmDataSchema>;
 
 /**
  * Service for handling UTM attribution logic and cookie management.
@@ -37,32 +41,39 @@ export const utmService = (() => {
 
   return {
     /**
-     * Handles the conversion of UTM data for a given user.
+     * Handles the conversion of UTM data for the current session user.
      *
      * This method:
      * - Retrieves UTM data from the user's cookies.
-     * - If valid UTM data is found, creates a UTM attribution record in the database for the specified user.
+     * - If valid UTM data is found, records a UTM attribution in the core API for the session user.
      * - Removes the UTM cookie after processing, regardless of success or failure.
      *
-     * @param userId - The unique identifier of the user for whom to create the UTM attribution.
-     * @returns A promise that resolves to the created UTMAttribution object if successful, or null otherwise.
+     * The core endpoint resolves the user from the session via the `me` path, so
+     * no user id is passed. The call sources its auth cookie from the cookie store
+     * (not the incoming request headers) because this runs right after sign-up: the
+     * freshly issued Better Auth session cookie has been set on `cookies()` for this
+     * request but is not yet present on the original request headers.
      */
-    async handleUTMConversion(userId: string): Promise<UTMAttribution | null> {
+    async handleUTMConversion(): Promise<void> {
       const cookieStore = await cookies();
       try {
         const utmData = getUTMDataFromCookie(cookieStore);
-        if (utmData) {
-          return await utmAttributionRepository.createUTMAttribution(
-            userId,
-            utmData,
-            prisma,
-          );
-        }
+        if (!utmData) return;
 
-        return null;
+        const client = createClient({
+          baseUrl: getServerCoreApiBaseUrl(),
+          headers: { cookie: cookieStore.toString() },
+        });
+
+        await postUsersByIdUtmAttribution({
+          client,
+          path: { id: "me" },
+          body: { ...utmData, capturedAt: new Date(utmData.capturedAt) },
+          cache: "no-store",
+          throwOnError: true,
+        });
       } catch (error) {
         console.error("Failed to create utm attribution", error);
-        return null;
       } finally {
         cookieStore.delete(UTM_COOKIE_NAME);
       }
