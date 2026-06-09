@@ -83,10 +83,7 @@
       "freeDemo": "免费演示",
       "AgentCard": {
         "view": "查看详情",
-        "pricing": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}}",
-        "addedToBookmarks": "已将智能体添加到置顶列表",
-        "removedFromBookmarks": "已将智能体从置顶列表移除",
-        "bookmarkError": "更新置顶智能体失败"
+        "pricing": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}}"
       },
       "AgentDetail": {
         "Header": {

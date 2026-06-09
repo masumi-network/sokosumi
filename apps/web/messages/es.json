@@ -83,10 +83,7 @@
       "freeDemo": "Demo gratuita",
       "AgentCard": {
         "view": "Ver detalles",
-        "pricing": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}",
-        "addedToBookmarks": "Agent añadido a tus Agents anclados",
-        "removedFromBookmarks": "Agent eliminado de tus Agents anclados",
-        "bookmarkError": "No se pudieron actualizar los Agents anclados"
+        "pricing": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
       },
       "AgentDetail": {
         "Header": {

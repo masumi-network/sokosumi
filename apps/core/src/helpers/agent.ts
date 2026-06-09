@@ -115,7 +115,7 @@ export const buildAvailableAgentWhereClause = (
 /**
  * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
  * throwing a 404 otherwise. Centralizes the availability existence check shared
- * by the agent sub-resource write/read handlers (favorites, ratings, etc.).
+ * by the agent rating sub-resource handlers (rating upsert and eligibility).
  */
 export const requireAvailableAgentOrThrow = async (
   agentId: string,

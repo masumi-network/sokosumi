@@ -83,10 +83,7 @@
       "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "addedToBookmarks": "Agent added to pinned agents",
-        "removedFromBookmarks": "Agent removed from pinned agents",
-        "bookmarkError": "Failed to update pinned agents"
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       },
       "AgentDetail": {
         "Header": {
