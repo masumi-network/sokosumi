@@ -3,15 +3,13 @@
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
-  AgentWithRelations,
 } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
-import { ArrowLeft, Bookmark, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { AgentBookmarkButton } from "@/components/agents";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
@@ -41,9 +39,6 @@ export function HeaderSkeleton() {
         </div>
         <div className="flex items-center gap-1.5">
           <Skeleton className="h-5 w-20" />
-          <Button variant="secondary" size="icon" disabled>
-            <Bookmark className="animate-pulse" />
-          </Button>
           <Button className="h-7 gap-2 px-2.5 text-xs" disabled>
             <Plus />
             {t("newJob")}
@@ -56,7 +51,6 @@ export function HeaderSkeleton() {
 
 export interface HeaderProps {
   agent: AgentWithCreditsPrice;
-  favoriteAgents: AgentWithRelations[];
   ratingStats: AgentRatingStats;
   canRate: boolean;
   existingRating: {
@@ -69,7 +63,6 @@ export interface HeaderProps {
 
 export default function Header({
   agent,
-  favoriteAgents,
   ratingStats,
   canRate,
   existingRating,
@@ -77,9 +70,6 @@ export default function Header({
   detailActions,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
-  const isFavorite = favoriteAgents.some(
-    (favoriteAgent) => favoriteAgent.id === agent.id,
-  );
 
   return (
     <div className="flex flex-col gap-4 pt-14 md:pt-0 lg:gap-6 xl:gap-8">
@@ -118,13 +108,6 @@ export default function Header({
                 className="size-7"
               />
             )}
-            <AgentBookmarkButton
-              agentId={agent.id}
-              isFavorite={isFavorite}
-              disabled={disabled}
-              variant="ghost"
-              className="size-7"
-            />
             {detailActions}
             <CreateJobModalTrigger
               agentId={agent.id}

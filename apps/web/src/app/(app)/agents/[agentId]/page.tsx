@@ -34,9 +34,8 @@ export default async function AgentDetailPage({
   const session = await getSession();
   const userId = session?.user.id ?? null;
 
-  const [reviewsResponse, favoriteAgents, projectOptions] = await Promise.all([
+  const [reviewsResponse, projectOptions] = await Promise.all([
     coreClient.getAgentReviews(agentId),
-    agentService.getFavoriteAgents(),
     session ? getProjectFilterOptions() : Promise.resolve(undefined),
   ]);
   const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
@@ -67,7 +66,6 @@ export default async function AgentDetailPage({
             agent={agentWithCreditsPrice}
             executedJobsCount={executedJobsCount}
             averageExecutionDuration={averageExecutionDuration}
-            favoriteAgents={favoriteAgents}
             ratingStats={ratingStats}
             ratingDistribution={ratingDistribution}
             ratingsWithComments={ratingsWithComments}
@@ -77,10 +75,7 @@ export default async function AgentDetailPage({
           />
         </div>
       </div>
-      <AgentBottomNavigation
-        agent={agentWithCreditsPrice}
-        favoriteAgents={favoriteAgents}
-      />
+      <AgentBottomNavigation agent={agentWithCreditsPrice} />
       {/* Create Job Modal */}
       <CreateJobModal />
     </CreateJobModalContextProvider>

@@ -505,33 +505,6 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
-export const AgentFavoriteSchema = {
-    type: 'object',
-    properties: {
-        agentId: {
-            type: 'string',
-            example: 'cmaeygqwa000e8i0s9s7wif8i'
-        }
-    },
-    required: [
-        'agentId'
-    ]
-} as const;
-
-export const AgentFavoriteRequestSchema = {
-    type: 'object',
-    properties: {
-        agentId: {
-            type: 'string',
-            example: 'cmaeygqwa000e8i0s9s7wif8i',
-            description: 'The id of the agent to add to favorites'
-        }
-    },
-    required: [
-        'agentId'
-    ]
-} as const;
-
 export const AgentDetailSchema = {
     type: 'object',
     properties: {

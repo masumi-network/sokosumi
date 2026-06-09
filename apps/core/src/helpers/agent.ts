@@ -1,6 +1,5 @@
 import {
   type Agent,
-  AgentListType,
   AgentStatus,
   type CreditCost,
   PricingType,
@@ -559,53 +558,5 @@ export const upsertUserAgentReview = async (
     id: upserted.id,
     rating: upserted.rating,
     comment: upserted.comment,
-  });
-};
-
-/**
- * Adds an agent to the caller's FAVORITE list, creating the list on first use.
- * Idempotent: connecting an already-favorited agent is a no-op.
- */
-export const addAgentToFavorites = async (
-  userId: string,
-  agentId: string,
-  tx: Prisma.TransactionClient,
-): Promise<void> => {
-  await tx.agentList.upsert({
-    where: { userId_type: { userId, type: AgentListType.FAVORITE } },
-    create: {
-      userId,
-      type: AgentListType.FAVORITE,
-      agents: { connect: { id: agentId } },
-    },
-    update: {
-      agents: { connect: { id: agentId } },
-    },
-  });
-};
-
-/**
- * Removes an agent from the caller's FAVORITE list. Idempotent: a no-op when
- * the list or membership does not exist.
- */
-export const removeAgentFromFavorites = async (
-  userId: string,
-  agentId: string,
-  tx: Prisma.TransactionClient,
-): Promise<void> => {
-  const list = await tx.agentList.findUnique({
-    where: { userId_type: { userId, type: AgentListType.FAVORITE } },
-    select: { id: true },
-  });
-
-  if (!list) {
-    return;
-  }
-
-  await tx.agentList.update({
-    where: { userId_type: { userId, type: AgentListType.FAVORITE } },
-    data: {
-      agents: { disconnect: { id: agentId } },
-    },
   });
 };

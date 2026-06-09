@@ -17,27 +17,6 @@ export const agentService = (() => {
   // Public API
   return {
     /**
-     * Retrieves all agents marked as favorites for the current user.
-     *
-     * Served by Core's `GET /v1/agents/favorites`, which returns the
-     * availability-filtered favorites with computed credits. Favorites are a
-     * nice-to-have on the pages that load them, so transient Core failures
-     * degrade to an empty list rather than throwing into the React tree.
-     */
-    getFavoriteAgents: async (): Promise<AgentWithRelations[]> => {
-      try {
-        const response = await coreClient.getFavoriteAgents();
-        return mapCoreAgentsToAgentWithCreditsPrice(response.data);
-      } catch (error) {
-        console.warn(
-          "[agent.service] getFavoriteAgents failed, using empty fallback",
-          { message: (error as Error)?.message },
-        );
-        return [];
-      }
-    },
-
-    /**
      * Retrieves an available agent by ID, validating access control for the current user.
      *
      * - Returns null if the agent doesn't exist, is not shown, or the user lacks access.
@@ -99,9 +78,9 @@ export const agentService = (() => {
      * ordered by the most recent job activity (newest first).
      *
      * Served by Core's `GET /v1/agents/hired`, which resolves the active
-     * workspace from the request context. Like `getFavoriteAgents`, this is a
-     * secondary list view, so transient Core failures degrade to an empty list
-     * rather than throwing into the React tree.
+     * workspace from the request context. This is a secondary list view, so
+     * transient Core failures degrade to an empty list rather than throwing
+     * into the React tree.
      */
     getHiredAgents: async (): Promise<AgentWithCreditsPrice[]> => {
       try {

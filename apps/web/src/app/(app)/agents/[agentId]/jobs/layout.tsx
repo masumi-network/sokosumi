@@ -80,10 +80,9 @@ async function JobLayoutInner({
     coreAgent?.metrics.executions.averageTime ?? null;
   const disabled = !coreAgent;
 
-  const [agentJobs, favoriteAgents, canRate, existingRating, projectOptions] =
+  const [agentJobs, canRate, existingRating, projectOptions] =
     await Promise.all([
       getCachedMyJobs(agentId),
-      agentService.getFavoriteAgents(),
       coreAgent
         ? agentService.canUserRateAgent(agentId)
         : Promise.resolve(false),
@@ -102,7 +101,6 @@ async function JobLayoutInner({
       <JobsHeaderProvider
         value={{
           agent: agentWithCreditsPrice,
-          favoriteAgents,
           ratingStats,
           canRate,
           existingRating,
@@ -132,7 +130,6 @@ async function JobLayoutInner({
           {modal}
           <JobBottomNavigation
             agent={agentWithCreditsPrice}
-            favoriteAgents={favoriteAgents}
             disabled={disabled}
           />
           {/* Create Job Modal */}

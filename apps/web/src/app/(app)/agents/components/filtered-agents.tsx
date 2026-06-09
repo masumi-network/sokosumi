@@ -3,7 +3,6 @@
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
-  AgentWithRelations,
 } from "@sokosumi/database";
 import { Suspense, useMemo } from "react";
 
@@ -22,7 +21,6 @@ import type { Category } from "@/lib/types/category";
 
 interface FilteredAgentsProps {
   agents: AgentWithCreditsPrice[];
-  favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStatsMap: Record<string, AgentRatingStats>;
   categories: Category[];
 }
@@ -37,7 +35,6 @@ export default function FilteredAgents(props: FilteredAgentsProps) {
 
 function FilteredAgentsInner({
   agents,
-  favoriteAgents,
   ratingStatsMap,
   categories,
 }: FilteredAgentsProps) {
@@ -70,7 +67,6 @@ function FilteredAgentsInner({
         <Agents
           key={group.categorySlug}
           agents={group.agents}
-          favoriteAgents={favoriteAgents}
           icon={group.categoryIcon}
           ratingStatsMap={ratingStatsMap}
           title={group.categoryName}

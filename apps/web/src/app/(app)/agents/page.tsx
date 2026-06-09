@@ -10,7 +10,6 @@ import {
 } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents } from "@/lib/agents/core-loaders";
 import { coreClient } from "@/lib/clients/core.client";
-import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 import FilterSection from "./components/filter-section";
@@ -26,13 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const [coreAgents, categoriesResponse, favoriteAgents, coworkers] =
-    await Promise.all([
-      getAllCoreAgents(),
-      coreClient.getCategories(),
-      agentService.getFavoriteAgents(),
-      coworkerService.listCoworkers(),
-    ]);
+  const [coreAgents, categoriesResponse, coworkers] = await Promise.all([
+    getAllCoreAgents(),
+    coreClient.getCategories(),
+    coworkerService.listCoworkers(),
+  ]);
   const agentsWithPrice = mapCoreAgentsToAgentWithCreditsPrice(coreAgents);
 
   if (!agentsWithPrice.length) {
@@ -52,7 +49,6 @@ export default async function GalleryPage() {
         <div className="space-y-6">
           <FilteredAgents
             agents={agentsWithPrice}
-            favoriteAgents={favoriteAgents}
             ratingStatsMap={ratingStatsMap}
             categories={categories}
           />

@@ -7,14 +7,12 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  addAgentToFavorites,
   buildAvailableAgentWhereClause,
   calculateAgentRating,
   calculateAgentRatings,
   getCreditCostsOrThrow,
   getRecentAgentReviews,
   getUserAgentReview,
-  removeAgentFromFavorites,
   requireAvailableAgentOrThrow,
   upsertUserAgentReview,
 } from "./agent";
@@ -384,63 +382,5 @@ describe("upsertUserAgentReview", () => {
     });
     // createdAt/updatedAt are stripped by agentMyReviewSchema.
     expect(result).toEqual({ id: "rating-1", rating: 5, comment: "Great" });
-  });
-});
-
-describe("addAgentToFavorites", () => {
-  it("upserts the FAVORITE list and connects the agent", async () => {
-    const upsert = vi.fn().mockResolvedValue({ id: "list-1" });
-    const tx = {
-      agentList: {
-        upsert,
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await addAgentToFavorites("user-1", "agent-1", tx);
-
-    expect(upsert).toHaveBeenCalledWith({
-      where: { userId_type: { userId: "user-1", type: "FAVORITE" } },
-      create: {
-        userId: "user-1",
-        type: "FAVORITE",
-        agents: { connect: { id: "agent-1" } },
-      },
-      update: { agents: { connect: { id: "agent-1" } } },
-    });
-  });
-});
-
-describe("removeAgentFromFavorites", () => {
-  it("disconnects the agent when the FAVORITE list exists", async () => {
-    const findUnique = vi.fn().mockResolvedValue({ id: "list-1" });
-    const update = vi.fn().mockResolvedValue({ id: "list-1" });
-    const tx = {
-      agentList: {
-        findUnique,
-        update,
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await removeAgentFromFavorites("user-1", "agent-1", tx);
-
-    expect(update).toHaveBeenCalledWith({
-      where: { userId_type: { userId: "user-1", type: "FAVORITE" } },
-      data: { agents: { disconnect: { id: "agent-1" } } },
-    });
-  });
-
-  it("is a no-op when the caller has no FAVORITE list", async () => {
-    const findUnique = vi.fn().mockResolvedValue(null);
-    const update = vi.fn();
-    const tx = {
-      agentList: {
-        findUnique,
-        update,
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await removeAgentFromFavorites("user-1", "agent-1", tx);
-
-    expect(update).not.toHaveBeenCalled();
   });
 });

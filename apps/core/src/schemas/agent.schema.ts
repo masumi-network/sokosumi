@@ -306,22 +306,3 @@ export const agentRatingEligibilitySchema = z
 export type AgentRatingEligibility = z.infer<
   typeof agentRatingEligibilitySchema
 >;
-
-export const agentFavoriteRequestSchema = z
-  .object({
-    agentId: z.string().openapi({
-      example: "cmaeygqwa000e8i0s9s7wif8i",
-      description: "The id of the agent to add to favorites",
-    }),
-  })
-  .openapi("AgentFavoriteRequest");
-
-export type AgentFavoriteRequest = z.infer<typeof agentFavoriteRequestSchema>;
-
-export const agentFavoriteSchema = z
-  .object({
-    agentId: z.string().openapi({ example: "cmaeygqwa000e8i0s9s7wif8i" }),
-  })
-  .openapi("AgentFavorite");
-
-export type AgentFavorite = z.infer<typeof agentFavoriteSchema>;

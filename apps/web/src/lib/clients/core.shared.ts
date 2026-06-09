@@ -42,7 +42,6 @@ import type {
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
-  PostAgentsFavoritesData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -53,7 +52,6 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
-  deleteAgentsFavoritesByAgentId as coreDeleteAgentsFavoritesByAgentId,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -70,7 +68,6 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
-  getAgentsFavorites as coreGetAgentsFavorites,
   getAgentsHired as coreGetAgentsHired,
   getCategories as coreGetCategories,
   getConversations as coreGetConversations,
@@ -110,7 +107,6 @@ import {
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
-  postAgentsFavorites as corePostAgentsFavorites,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -766,44 +762,6 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch your agent review",
-    );
-  }
-
-  async function getFavoriteAgents() {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetAgentsFavorites({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch favorite agents",
-    );
-  }
-
-  async function addFavoriteAgent(
-    body: NonNullable<PostAgentsFavoritesData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostAgentsFavorites({
-          client,
-          body,
-        }),
-      "Failed to add favorite agent",
-    );
-  }
-
-  async function removeFavoriteAgent(agentId: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreDeleteAgentsFavoritesByAgentId({
-          client,
-          path: { agentId },
-        }),
-      "Failed to remove favorite agent",
     );
   }
 
@@ -1669,9 +1627,6 @@ export function createCoreClient(getClient: GetClient) {
     getAgentReviews,
     getMyAgentReview,
     getAgents,
-    getFavoriteAgents,
-    addFavoriteAgent,
-    removeFavoriteAgent,
     getHiredAgents,
     createAgentRating,
     getCategories,

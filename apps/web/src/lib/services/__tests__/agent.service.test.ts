@@ -10,7 +10,6 @@ const mapCoreAgentsToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreAgentToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreMyAgentReviewMock = vi.fn();
 
-const getFavoriteAgentsMock = vi.fn();
 const getHiredAgentsMock = vi.fn();
 const getAgentRatingEligibilityMock = vi.fn();
 const getMyAgentReviewMock = vi.fn();
@@ -42,7 +41,6 @@ vi.mock("@/lib/agents/core-dto-mappers", () => ({
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: CoreApiRequestErrorMock,
   coreClient: {
-    getFavoriteAgents: (...args: unknown[]) => getFavoriteAgentsMock(...args),
     getHiredAgents: (...args: unknown[]) => getHiredAgentsMock(...args),
     getAgentRatingEligibility: (...args: unknown[]) =>
       getAgentRatingEligibilityMock(...args),
@@ -121,30 +119,6 @@ describe("agent.service", () => {
     const result = await agentService.getRandomAvailableAgentData();
 
     expect(result).toBeNull();
-  });
-
-  it("serves favorite agents from core", async () => {
-    const coreAgents = [{ id: "fav-1" }];
-    getFavoriteAgentsMock.mockResolvedValue({ data: coreAgents });
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getFavoriteAgents();
-
-    expect(getFavoriteAgentsMock).toHaveBeenCalledTimes(1);
-    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
-      coreAgents,
-    );
-    expect(result.map((agent) => agent.id)).toEqual(["fav-1"]);
-  });
-
-  it("degrades to an empty favorites list when core fails", async () => {
-    getFavoriteAgentsMock.mockRejectedValue(new Error("boom"));
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getFavoriteAgents();
-
-    expect(result).toEqual([]);
-    expect(mapCoreAgentsToAgentWithCreditsPriceMock).not.toHaveBeenCalled();
   });
 
   it("serves hired agents from core", async () => {

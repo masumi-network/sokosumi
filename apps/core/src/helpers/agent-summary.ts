@@ -36,8 +36,8 @@ export type AgentSummaryRow = Prisma.AgentGetPayload<{
  * `GET /v1/agents`: resolves overrides, computes per-agent credits from the
  * credit cost table, and attaches execution + rating metrics.
  *
- * Shared by the agent catalog, favorites and hired endpoints so the summary
- * computation lives in a single place.
+ * Shared by the agent catalog and hired endpoints so the summary computation
+ * lives in a single place.
  */
 export async function buildAgentSummaries(
   agents: AgentSummaryRow[],
