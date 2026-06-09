@@ -1,6 +1,6 @@
 "use client";
 
-import { SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { useEffect, useMemo, useState } from "react";
 
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";

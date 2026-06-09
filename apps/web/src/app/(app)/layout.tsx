@@ -13,6 +13,7 @@ import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
+import { hasAdminRole } from "@/lib/auth/admin-access";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
@@ -92,6 +93,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       size: 80,
       default: "404",
     });
+  const adminMenuEnabled = hasAdminRole(
+    (session.user as typeof session.user & { role?: string | null }).role,
+  );
   const creditsData = creditsResult?.data.credits ?? null;
   // Do not default to "free" when credits failed to load — that would show the
   // subscription-only onboarding gate (and Stripe/org work) for paid users.
@@ -133,6 +137,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       >
         <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
           <Sidebar
+            adminMenuEnabled={adminMenuEnabled}
             creditsData={creditsData}
             currentTimestampMs={currentTimestampMs}
             hermesMenuEnabled={hermesMenuEnabled}

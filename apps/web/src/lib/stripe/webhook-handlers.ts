@@ -5,7 +5,6 @@ import {
   MemberRole,
   type Prisma,
   TaskEventOrigin,
-  TaskStatus,
 } from "@sokosumi/database";
 import {
   buildOrganizationInvoiceCreditReferenceId,
@@ -31,6 +30,7 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
   getOrganizationMetadata,
+  TaskStatus,
 } from "@sokosumi/utils";
 import Stripe from "stripe";
 
@@ -166,7 +166,7 @@ function getTopUpCreditsFromInvoiceMetadata(
 }
 
 /**
- * Reads `ttl_days` from invoice metadata for free (zero-amount) credit grants.
+ * Reads `ttl_days` from invoice metadata for credit grants.
  * - Missing, empty, invalid, negative, or zero → no expiry (`expiresAt` null).
  * - Positive integer → expiry after that many days from the invoice time.
  */
@@ -203,21 +203,23 @@ function resolveTopUpGrantPolicy(invoice: Stripe.Invoice): {
   expiresAt: Date | null;
   referenceType: CreditBucketReferenceType;
 } {
-  if (invoice.amount_paid > 0) {
-    return {
-      expiresAt: null,
-      referenceType: CreditBucketReferenceType.STRIPE_TOPUP,
-    };
-  }
-
+  // Honor an explicit `ttl_days` expiry whenever it is present, regardless of
+  // the paid amount. Standard paid top-ups never set `ttl_days`, so they keep
+  // their non-expiring behavior; admin-granted credits can opt into an expiry
+  // even on non-zero invoices.
   const invoiceCreatedAt = resolveInvoiceCreatedAt(invoice);
-  const freeTopUpExpiryDays = getTopUpExpiryDaysFromInvoiceMetadata(invoice);
+  const topUpExpiryDays = getTopUpExpiryDaysFromInvoiceMetadata(invoice);
+  const expiresAt =
+    topUpExpiryDays === null
+      ? null
+      : getCreditExpiryDate(invoiceCreatedAt, topUpExpiryDays);
+
   return {
-    expiresAt:
-      freeTopUpExpiryDays === null
-        ? null
-        : getCreditExpiryDate(invoiceCreatedAt, freeTopUpExpiryDays),
-    referenceType: CreditBucketReferenceType.STRIPE_FREE,
+    expiresAt,
+    referenceType:
+      invoice.amount_paid > 0
+        ? CreditBucketReferenceType.STRIPE_TOPUP
+        : CreditBucketReferenceType.STRIPE_FREE,
   };
 }
 

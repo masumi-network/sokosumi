@@ -1,9 +1,14 @@
-import type { Invitation, MemberWithUser } from "@sokosumi/database";
+import type { Invitation } from "@sokosumi/database";
+
+import type { Member as OrganizationMember } from "@/lib/clients/generated/core";
+
+export type { OrganizationMember };
 
 export interface MemberRowData {
   name?: string | undefined;
   email: string;
   role: string;
-  member?: MemberWithUser | undefined;
+  lastSeenAt?: Date | null | undefined;
+  member?: OrganizationMember | undefined;
   invitation?: Invitation | undefined;
 }

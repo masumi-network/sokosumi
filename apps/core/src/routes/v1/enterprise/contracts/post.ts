@@ -8,7 +8,7 @@ import {
   mapEnterpriseContractForApi,
   optionalOneTimeCreditsToCents,
 } from "@/helpers/enterprise-contract-api.js";
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import {
   jsonEnterpriseErrorResponse,
   jsonEnterpriseSuccessResponse,
@@ -64,12 +64,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const centsPerMonth = creditsPerMonthToCents(body.creditsPerMonth);
     const oneTimeCents = optionalOneTimeCreditsToCents(body.oneTimeCredits);
-
-    if (oneTimeCents != null && oneTimeCents > 0n && !body.oneTimeExpiresAt) {
-      throw unprocessableEntity(
-        "oneTimeExpiresAt is required when oneTimeCredits is set",
-      );
-    }
 
     const record = await prisma.enterpriseContract.create({
       data: {

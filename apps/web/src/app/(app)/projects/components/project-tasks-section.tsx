@@ -1,6 +1,6 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

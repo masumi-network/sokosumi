@@ -2,40 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { HistoryItem } from "@/lib/services/history.service";
 
-const prismaMock = vi.hoisted(() => ({
-  agent: {
-    findMany: vi.fn(),
-  },
-}));
-
 const coworkerServiceMock = vi.hoisted(() => ({
   listCoworkers: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: prismaMock,
-}));
-
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: coworkerServiceMock,
 }));
 
-describe("buildHistorySubtitleLookups", () => {
+describe("buildHistoryBucketLookups", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("resolves agent icons, coworker bucket icons, and model bucket icons", async () => {
-    prismaMock.agent.findMany.mockResolvedValue([
-      {
-        id: "agent-1",
-        name: "Research Agent",
-        overrideName: null,
-        icon: "https://example.com/research.svg",
-      },
-    ]);
+  it("resolves coworker bucket icons and model bucket icons", async () => {
     coworkerServiceMock.listCoworkers.mockResolvedValue([
       {
         id: "coworker-1",
@@ -45,10 +27,10 @@ describe("buildHistorySubtitleLookups", () => {
       },
     ]);
 
-    const { buildHistorySubtitleLookups } = await import(
+    const { buildHistoryBucketLookups } = await import(
       "@/app/history/utils/history-row-subtitle.server"
     );
-    const result = await buildHistorySubtitleLookups([
+    const result = await buildHistoryBucketLookups([
       {
         kind: "job",
         id: "job-1",
@@ -60,6 +42,8 @@ describe("buildHistorySubtitleLookups", () => {
         credits: 2,
         projectId: null,
         agentId: "agent-1",
+        agentName: "Research Agent",
+        agentIcon: "https://example.com/research.svg",
       },
       {
         kind: "conversation",
@@ -85,12 +69,6 @@ describe("buildHistorySubtitleLookups", () => {
       },
     ] satisfies HistoryItem[]);
 
-    expect(result.agentPreviewById).toEqual({
-      "agent-1": {
-        name: "Research Agent",
-        icon: "https://example.com/research.svg",
-      },
-    });
     expect(result.bucketIconBySlug.hannah).toEqual({
       kind: "coworker",
       name: "Hannah",

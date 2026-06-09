@@ -91,7 +91,7 @@ async function JobLayoutInner({
         ? agentService.canUserRateAgent(userId, agentId)
         : Promise.resolve(false),
       coreAgent
-        ? agentService.getUserRatingForAgent(userId, agentId)
+        ? agentService.getUserRatingForAgent(agentId)
         : Promise.resolve(null),
       getProjectFilterOptions(),
     ]);

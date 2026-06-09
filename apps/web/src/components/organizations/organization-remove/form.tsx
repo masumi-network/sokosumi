@@ -80,7 +80,7 @@ export default function OrganizationRemoveForm({
       }
     } else {
       toast.success(t("success"));
-      router.push("/organizations");
+      router.push("/");
       router.refresh();
       onOpenChange(false);
     }

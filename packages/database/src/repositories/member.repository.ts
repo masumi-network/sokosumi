@@ -7,6 +7,7 @@ import { fetchOrganizationMemberUserIds } from "../helpers/organization-subscrip
 import {
   type MemberWithOrganization,
   type MemberWithUser,
+  type MemberWithUserAndLastSeen,
   memberOrderBy,
   memberOrganizationInclude,
   memberRoleOrderBy,
@@ -130,6 +131,44 @@ export const memberRepository = (() => {
       include: memberUserInclude,
       orderBy: [...memberOrderBy],
     });
+  }
+
+  /**
+   * Retrieves all members of an organization, including user details and a
+   * session-derived `lastSeenAt` timestamp (the most recent
+   * `Session.updatedAt` per user, or `null` if the user has no sessions).
+   *
+   * @param organizationId - The ID of the organization.
+   * @param tx - Prisma transaction client.
+   * @returns An array of MemberWithUserAndLastSeen objects.
+   */
+  async function getMembersWithUserAndLastSeen(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<MemberWithUserAndLastSeen[]> {
+    const members = await getMembersWithUser({ organizationId }, tx);
+
+    const userIds = members.map((member) => member.userId);
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    const lastSessionByUser = await tx.session.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds } },
+      _max: { updatedAt: true },
+    });
+
+    const lastSeenByUserId = new Map<string, Date>(
+      lastSessionByUser.flatMap((group) =>
+        group._max.updatedAt ? [[group.userId, group._max.updatedAt]] : [],
+      ),
+    );
+
+    return members.map((member) => ({
+      ...member,
+      lastSeenAt: lastSeenByUserId.get(member.userId) ?? null,
+    }));
   }
 
   /**
@@ -336,6 +375,7 @@ export const memberRepository = (() => {
     getMembersOrganizationIdsByUserId,
     getMemberByUserIdAndOrganizationId,
     getMembersWithUser,
+    getMembersWithUserAndLastSeen,
     getMembersByOrganizationId,
     getPerRoleCountByOrganizationId,
     unassignSeat,

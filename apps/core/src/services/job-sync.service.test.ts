@@ -1,9 +1,5 @@
-import {
-  AgentJobStatus,
-  AgentStatus,
-  JobType,
-  SokosumiJobStatus,
-} from "@sokosumi/database";
+import { AgentJobStatus, AgentStatus, JobType } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

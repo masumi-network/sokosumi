@@ -4,8 +4,7 @@ export type HistoryBucketIconPreview =
   | { kind: "model"; modelId: string; modelName: string }
   | { kind: "coworker"; name: string; imageUrl: string | null };
 
-export interface HistorySubtitleLookups {
-  agentPreviewById: Record<string, { name: string; icon: string | null }>;
+export interface HistoryBucketLookups {
   bucketDisplayNameBySlug: Record<string, string>;
   bucketIconBySlug: Record<string, HistoryBucketIconPreview>;
 }
@@ -14,23 +13,18 @@ export interface HistorySubtitleLabels {
   noDescription: string;
 }
 
-export function createEmptyHistorySubtitleLookups(): HistorySubtitleLookups {
+export function createEmptyHistoryBucketLookups(): HistoryBucketLookups {
   return {
-    agentPreviewById: {},
     bucketDisplayNameBySlug: {},
     bucketIconBySlug: {},
   };
 }
 
-export function mergeHistorySubtitleLookups(
-  current: HistorySubtitleLookups,
-  next: HistorySubtitleLookups,
-): HistorySubtitleLookups {
+export function mergeHistoryBucketLookups(
+  current: HistoryBucketLookups,
+  next: HistoryBucketLookups,
+): HistoryBucketLookups {
   return {
-    agentPreviewById: {
-      ...current.agentPreviewById,
-      ...next.agentPreviewById,
-    },
     bucketDisplayNameBySlug: {
       ...current.bucketDisplayNameBySlug,
       ...next.bucketDisplayNameBySlug,
@@ -44,7 +38,7 @@ export function mergeHistorySubtitleLookups(
 
 export function getHistoryRowSubtitle(
   item: HistoryItem,
-  lookups: HistorySubtitleLookups,
+  lookups: HistoryBucketLookups,
   labels: HistorySubtitleLabels,
 ): string {
   const description = item.description?.trim();
@@ -58,11 +52,11 @@ export function getHistoryRowSubtitle(
 
 function getHistoryRowSubtitleFallback(
   item: HistoryItem,
-  lookups: HistorySubtitleLookups,
+  lookups: HistoryBucketLookups,
 ): string | null {
   switch (item.kind) {
     case "job":
-      return lookups.agentPreviewById[item.agentId]?.name.trim() || null;
+      return item.agentName?.trim() || null;
     case "conversation":
       return item.bucketSlug
         ? lookups.bucketDisplayNameBySlug[item.bucketSlug]?.trim() || null

@@ -11,13 +11,16 @@ import {
 } from "@/components/ui/sidebar";
 import type { Session } from "@/lib/auth/auth";
 
+import AdminMenu from "./components/admin-menu";
 import AnnouncementCards from "./components/announcement-cards";
+import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
 import ProfileSwitch from "./components/profile-switch";
 
 interface SidebarProps {
+  adminMenuEnabled: boolean;
   creditsData: UserCreditsData | null;
   currentTimestampMs: number;
   hermesMenuEnabled: boolean;
@@ -26,6 +29,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
+  adminMenuEnabled,
   creditsData,
   currentTimestampMs,
   hermesMenuEnabled,
@@ -45,6 +49,14 @@ export default function Sidebar({
           <NewChatTaskActions />
           <SidebarSeparator className="mx-0 mt-2" />
           <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
+          {adminMenuEnabled ? (
+            <>
+              <SidebarSeparator className="mx-0" />
+              <AdminMenu />
+            </>
+          ) : null}
+          <SidebarSeparator className="mx-0" />
+          <ChatListsClient />
         </div>
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">

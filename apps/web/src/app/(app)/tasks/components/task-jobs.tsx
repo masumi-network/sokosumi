@@ -1,7 +1,5 @@
-import type {
-  AgentWithCreditsPrice,
-  SokosumiJobStatus,
-} from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { AgentIcon } from "@/components/agents/agent-icon";

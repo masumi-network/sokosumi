@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
@@ -60,6 +59,16 @@ export const historyJobItemSchema = historyBaseItemSchema
       description: "Agent ID for deep-linking to the job",
       example: "agent_123",
     }),
+    agentName: z.string().nullable().openapi({
+      description:
+        "Resolved display name of the job's agent (override name when set). Null when the agent could not be resolved.",
+      example: "Research Agent",
+    }),
+    agentIcon: z.string().nullable().openapi({
+      description:
+        "Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.",
+      example: "https://example.com/research.svg",
+    }),
   })
   .openapi("HistoryJobItem");
 
@@ -115,6 +124,8 @@ export const historyListResponseExample = {
       credits: 5,
       projectId: null,
       agentId: "agent_123",
+      agentName: "Research Agent",
+      agentIcon: "https://example.com/research.svg",
     },
     {
       kind: "conversation",

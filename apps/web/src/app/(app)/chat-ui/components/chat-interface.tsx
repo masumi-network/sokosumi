@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";

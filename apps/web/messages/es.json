@@ -122,7 +122,6 @@
     },
     "UserAvatar": {
       "account": "Cuenta",
-      "organizations": "Organizaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
       "support": "Soporte",
@@ -146,7 +145,8 @@
       "extraCreditsDescription": "Nunca expiran",
       "creditsExpiresInDays": "Los créditos se renuevan en {days, plural, =1 {1 día} other {# días}}",
       "creditsExpiresToday": "Los créditos se renuevan hoy",
-      "creditsExpired": "Créditos vencidos"
+      "creditsExpired": "Créditos vencidos",
+      "organizations": "Organizaciones"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
@@ -179,6 +179,8 @@
         "name": "Nombre",
         "email": "Email",
         "role": "Rol",
+        "lastSeen": "Última conexión",
+        "lastSeenNever": "Nunca",
         "actions": "Acciones",
         "seat": "Seat"
       },
@@ -247,7 +249,9 @@
       "subscriptions": "Suscripciones",
       "billing": "Billing",
       "account": "Cuenta",
-      "organizations": "Organizaciones",
+      "admin": "Administración",
+      "edit": "Editar",
+      "enterprise-contracts": "Contratos empresariales",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tareas",
@@ -255,7 +259,8 @@
       "hermes": "Hermes",
       "history": "Historial",
       "new": "Nuevo",
-      "projects": "Proyectos"
+      "projects": "Proyectos",
+      "credit-grants": "Otorgar créditos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -656,6 +661,11 @@
       "copy": "Copiar",
       "copySuccess": "Copiado al portapapeles",
       "copyError": "Error al copiar"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "Selecciona una organización",
+      "search": "Buscar organizaciones…",
+      "empty": "No se encontraron organizaciones."
     }
   },
   "AcceptInvitation": {
@@ -2334,6 +2344,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "Chats Recientes",
+          "noChats": "Aún no hay chats",
+          "untitledChat": "Chat sin título",
+          "modelAlt": "Modelo",
+          "coworkerAlt": "Colaborador"
+        },
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agentes",
@@ -2341,7 +2358,8 @@
           "taskManager": "Tareas",
           "projects": "Proyectos",
           "hermes": "Hermes",
-          "history": "Historial"
+          "history": "Historial",
+          "admin": "Administración"
         }
       }
     },
@@ -2466,6 +2484,151 @@
         "title": "Algo salió mal",
         "message": "Hubo un problema al cargar las suscripciones. Por favor, inténtalo más tarde.",
         "retryButton": "Intentar de nuevo"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contratos empresariales",
+        "description": "Consola de administración interna para borradores, activación y cancelación.",
+        "newContract": "Nuevo contrato",
+        "loading": "Cargando…",
+        "loadFailed": "No se pudieron cargar los contratos empresariales.",
+        "Filters": {
+          "organizationSlug": "Organización",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Estado",
+          "statusAll": "Todos",
+          "apply": "Aplicar filtros",
+          "organizationAll": "Todas las organizaciones"
+        },
+        "Status": {
+          "draft": "Borrador",
+          "active": "Activo",
+          "completed": "Completado",
+          "canceled": "Cancelado"
+        },
+        "Table": {
+          "organization": "Organización",
+          "status": "Estado",
+          "seats": "Plazas",
+          "creditsPerMonth": "Créditos por mes",
+          "periods": "Períodos",
+          "ends": "Finaliza",
+          "actions": "Acciones",
+          "view": "Ver"
+        },
+        "Form": {
+          "Sections": {
+            "subscription": "Suscripción",
+            "oneTime": "Puntual",
+            "references": "Referencias"
+          },
+          "optionalSection": "Opcional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Organización",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Créditos / mes",
+              "min": "Mín. {min, number}"
+            },
+            "periods": {
+              "label": "Períodos",
+              "helper": "1 período = 1 mes"
+            },
+            "seats": {
+              "label": "Plazas"
+            },
+            "oneTimeCredits": {
+              "label": "Importe"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Caduca",
+              "helper": "Vacío = sin caducidad"
+            },
+            "paymentReference": {
+              "label": "Pago"
+            },
+            "externalReference": {
+              "label": "Externo"
+            },
+            "notes": {
+              "label": "Notas"
+            }
+          },
+          "createDraft": "Crear borrador",
+          "saveChanges": "Guardar",
+          "cancel": "Cancelar",
+          "createSuccess": "Borrador creado",
+          "updateSuccess": "Contrato actualizado",
+          "createError": "No se pudo crear el contrato",
+          "updateError": "No se pudo actualizar el contrato",
+          "missingContract": "Contrato no encontrado",
+          "organizationRequired": "Selecciona una organización"
+        },
+        "Detail": {
+          "noExpiry": "Sin caducidad"
+        }
+      },
+      "Overview": {
+        "title": "Administración",
+        "description": "Herramientas internas para gestionar organizaciones y facturación.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Contratos empresariales",
+            "description": "Crea y gestiona contratos empresariales en borrador, activos y cancelados."
+          },
+          "creditGrants": {
+            "title": "Otorgar créditos",
+            "description": "Otorga créditos únicos a una organización mediante una factura de Stripe."
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "Otorgar créditos",
+        "description": "Otorga créditos únicos a una organización mediante una factura de Stripe. Al marcar la factura como pagada, los créditos se otorgan al instante.",
+        "cardTitle": "Nueva concesión de créditos",
+        "Form": {
+          "Fields": {
+            "organization": "Organización",
+            "credits": "Créditos",
+            "expiryDays": "Caducidad (días)",
+            "price": "Precio por crédito"
+          },
+          "organizationRequired": "Selecciona una organización",
+          "creditsRequired": "Introduce un número positivo de créditos",
+          "creditsHelper": "Número de créditos que se otorgarán a la organización.",
+          "expiryDays": "Caducidad (días)",
+          "expiryHelper": "Opcional. Días hasta que caduquen los créditos. Déjalo en blanco para que no caduquen.",
+          "expiryPlaceholder": "Sin caducidad",
+          "expiryInvalid": "La caducidad debe ser un número entero positivo de días",
+          "submit": "Crear factura",
+          "submitting": "Creando factura…",
+          "createSuccess": "Factura creada",
+          "createError": "No se pudo crear la factura",
+          "pricePlaceholder": "Selecciona un precio",
+          "priceHelper": "Precio por crédito utilizado para el importe de la factura.",
+          "priceRequired": "Selecciona un precio"
+        },
+        "Result": {
+          "heading": "Factura de concesión de créditos",
+          "pendingHelper": "Marca la factura como pagada para otorgar los créditos al instante, o déjala para pagarla en Stripe.",
+          "paidHelper": "La factura está pagada y los créditos se han otorgado a la organización.",
+          "organization": "Organización",
+          "credits": "Créditos",
+          "expiry": "Caducidad",
+          "expiryDays": "{days, number} día(s)",
+          "noExpiry": "Sin caducidad",
+          "amount": "Importe",
+          "status": "Estado",
+          "invoiceId": "ID de factura",
+          "markPaid": "Marcar como pagada",
+          "marking": "Otorgando créditos…",
+          "paidSuccess": "Créditos otorgados",
+          "paidError": "No se pudo marcar la factura como pagada",
+          "openInStripe": "Abrir en Stripe"
+        }
       }
     },
     "Billing": {
@@ -2892,39 +3055,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizaciones",
-        "description": "Gestiona tus organizaciones"
-      },
-      "newOrganization": "Nueva organización",
-      "organizationsNotAvailable": "No se encontraron organizaciones",
-      "OrganizationRow": {
-        "leave": "Salir",
-        "activate": "Activar",
-        "deactivate": "Desactivar"
-      },
-      "Credits": {
-        "title": "Credits de organización",
-        "description": "Disponibles para los miembros de {organization}",
-        "buy": "Añadir Credits"
-      },
-      "InvitationActions": {
-        "accept": "Aceptar",
-        "reject": "Rechazar",
-        "acceptTitle": "Aceptar invitación",
-        "rejectTitle": "Rechazar invitación",
-        "acceptDescription": "¿Seguro que quieres aceptar la invitación para {email}?",
-        "rejectDescription": "¿Seguro que quieres rechazar la invitación para {email}?",
-        "confirm": "Confirmar",
-        "cancel": "Cancelar",
-        "acceptSuccess": "Invitación aceptada correctamente",
-        "acceptError": "No se pudo aceptar la invitación",
-        "rejectSuccess": "Invitación rechazada correctamente",
-        "rejectError": "No se pudo rechazar la invitación",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sesión"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { AgentJobStatus, TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 const coreClientMock = {
   createTaskLink: vi.fn(),

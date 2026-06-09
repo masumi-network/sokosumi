@@ -36,7 +36,10 @@ import {
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import { OrganizationLogo } from "@/components/organizations";
+import {
+  OrganizationInformationModal,
+  OrganizationLogo,
+} from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -58,6 +61,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import useModal from "@/hooks/use-modal";
 import type { SessionUser } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
@@ -215,6 +219,99 @@ function getOrderedWorkspaces(
   ];
 }
 
+function WorkspaceMenuItem({
+  sessionUser,
+  workspace,
+  isSelected,
+  isPending,
+  itemClassName,
+  onSelect,
+}: {
+  sessionUser: SessionUser;
+  workspace: WorkspaceItem;
+  isSelected: boolean;
+  isPending: boolean;
+  itemClassName: string;
+  onSelect: (workspaceId: string | null) => void;
+}) {
+  return (
+    <DropdownMenuItem
+      className={itemClassName}
+      disabled={isPending}
+      onClick={() => onSelect(workspace.id)}
+    >
+      <WorkspaceAvatar sessionUser={sessionUser} workspace={workspace} />
+      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+      <Check
+        className={cn("size-4", isSelected ? "opacity-100" : "opacity-0")}
+      />
+    </DropdownMenuItem>
+  );
+}
+
+function WorkspaceSwitcherOptions({
+  sessionUser,
+  personalWorkspace,
+  organizationWorkspaces,
+  activeOrganizationId,
+  isPending,
+  itemClassName,
+  organizationsHeading,
+  addOrganizationLabel,
+  onSelectWorkspace,
+  onAddOrganization,
+}: {
+  sessionUser: SessionUser;
+  personalWorkspace: WorkspaceItem;
+  organizationWorkspaces: WorkspaceItem[];
+  activeOrganizationId: string | null;
+  isPending: boolean;
+  itemClassName: string;
+  organizationsHeading: string;
+  addOrganizationLabel: string;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onAddOrganization: () => void;
+}) {
+  return (
+    <>
+      <WorkspaceMenuItem
+        sessionUser={sessionUser}
+        workspace={personalWorkspace}
+        isSelected={activeOrganizationId === null}
+        isPending={isPending}
+        itemClassName={itemClassName}
+        onSelect={onSelectWorkspace}
+      />
+      {organizationWorkspaces.length > 0 ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+            {organizationsHeading}
+          </DropdownMenuLabel>
+          {organizationWorkspaces.map((workspace) => (
+            <WorkspaceMenuItem
+              key={getWorkspaceKey(workspace)}
+              sessionUser={sessionUser}
+              workspace={workspace}
+              isSelected={workspace.id === activeOrganizationId}
+              isPending={isPending}
+              itemClassName={itemClassName}
+              onSelect={onSelectWorkspace}
+            />
+          ))}
+        </>
+      ) : null}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className={itemClassName} onClick={onAddOrganization}>
+        <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
+          <Plus className="text-primary size-4" />
+        </Avatar>
+        <span>{addOrganizationLabel}</span>
+      </DropdownMenuItem>
+    </>
+  );
+}
+
 function WorkspaceAvatar({
   sessionUser,
   workspace,
@@ -264,6 +361,15 @@ export default function ProfileSwitchClient({
     activeOrganizationMember?.role === MemberRole.OWNER ||
     activeOrganizationMember?.role === MemberRole.ADMIN;
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+  const {
+    Component: CreateOrganizationModal,
+    showModal: showCreateOrganizationModal,
+  } = useModal(OrganizationInformationModal, {
+    organization: null,
+  });
+  const activeOrganizationPath = activeOrganizationMember
+    ? `/organizations/${activeOrganizationMember.organization.slug}`
+    : null;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isWorkspaceSectionOpen, setIsWorkspaceSectionOpen] = useState(false);
   const [isHelpSectionOpen, setIsHelpSectionOpen] = useState(false);
@@ -298,37 +404,36 @@ export default function ProfileSwitchClient({
     }
   }, [isMobile, state]);
 
-  const workspaces = useMemo(
+  const personalWorkspace = useMemo<WorkspaceItem>(
+    () => ({
+      id: null,
+      name:
+        sessionUser.name ??
+        sessionUser.email ??
+        tOrganizationSwitcher("personalAccount"),
+    }),
+    [sessionUser.email, sessionUser.name, tOrganizationSwitcher],
+  );
+
+  const organizationWorkspaces = useMemo(
     () =>
       getOrderedWorkspaces(
-        [
-          {
-            id: null,
-            name:
-              sessionUser.name ??
-              sessionUser.email ??
-              tOrganizationSwitcher("personalAccount"),
-          },
-          ...members.map((member) => ({
-            id: member.organization.id,
-            name: member.organization.name,
-            organization: member.organization,
-          })),
-        ],
+        members.map((member) => ({
+          id: member.organization.id,
+          name: member.organization.name,
+          organization: member.organization,
+        })),
         activeOrganizationId,
       ),
-    [
-      activeOrganizationId,
-      members,
-      sessionUser.email,
-      sessionUser.name,
-      tOrganizationSwitcher,
-    ],
+    [activeOrganizationId, members],
   );
 
   const activeWorkspace =
-    workspaces.find((workspace) => workspace.id === activeOrganizationId) ??
-    workspaces[0];
+    activeOrganizationId === null
+      ? personalWorkspace
+      : (organizationWorkspaces.find(
+          (workspace) => workspace.id === activeOrganizationId,
+        ) ?? personalWorkspace);
   const router = useRouter();
 
   const closeMenu = () => {
@@ -348,7 +453,7 @@ export default function ProfileSwitchClient({
 
   const handleAddOrganization = () => {
     closeMenu();
-    router.push("/organizations/");
+    showCreateOrganizationModal();
     if (isMobile) {
       toggleSidebar();
     }
@@ -379,302 +484,262 @@ export default function ProfileSwitchClient({
   };
 
   return (
-    <SidebarGroup className="w-full p-0">
-      <SidebarGroupContent>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu
-              open={isDropdownVisible}
-              onOpenChange={handleDropdownOpenChange}
-            >
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  className="min-h-10 cursor-pointer items-center md:p-2"
-                  aria-label={tUserAvatar("settings")}
-                  tooltip={sessionUser.email}
-                  disabled={isPending}
-                >
-                  <div className="text-primary flex w-full items-center gap-2">
-                    <span className="group-data-[collapsible=icon]:-ml-1 group-data-[collapsible=icon]:size-6">
-                      <WorkspaceAvatar
-                        sessionUser={sessionUser}
-                        workspace={activeWorkspace}
-                      />
-                    </span>
-                    <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-                      <div className="truncate text-sm font-semibold text-current">
-                        {activeWorkspace?.name}
+    <>
+      {CreateOrganizationModal}
+      <SidebarGroup className="w-full p-0">
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu
+                open={isDropdownVisible}
+                onOpenChange={handleDropdownOpenChange}
+              >
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    className="min-h-10 cursor-pointer items-center md:p-2"
+                    aria-label={tUserAvatar("settings")}
+                    tooltip={sessionUser.email}
+                    disabled={isPending}
+                  >
+                    <div className="text-primary flex w-full items-center gap-2">
+                      <span className="group-data-[collapsible=icon]:-ml-1 group-data-[collapsible=icon]:size-6">
+                        <WorkspaceAvatar
+                          sessionUser={sessionUser}
+                          workspace={activeWorkspace}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                        <div className="truncate text-sm font-semibold text-current">
+                          {activeWorkspace?.name}
+                        </div>
                       </div>
+                      <ChevronDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
                     </div>
-                    <ChevronDown className="text-muted-foreground size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
-                  </div>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-72" align="start">
-                <DropdownMenuLabel className="truncate">
-                  <span className="block truncate text-sm font-medium">
-                    {sessionUser.email}
-                  </span>
-                  {secondaryLabel ? (
-                    <span className="text-muted-foreground mt-0.5 block truncate text-xs font-normal">
-                      {secondaryLabel}
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-72" align="start">
+                  <DropdownMenuLabel className="truncate">
+                    <span className="block truncate text-sm font-medium">
+                      {sessionUser.email}
                     </span>
-                  ) : null}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {isMobile ? (
-                  <>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        setIsWorkspaceSectionOpen((previous) => !previous);
-                      }}
-                    >
-                      <ArrowLeftRight className="text-muted-foreground size-4" />
-                      <span>{tOrganizationSwitcher("switchWorkspace")}</span>
-                      <ChevronDown
-                        className={cn(
-                          "text-muted-foreground ml-auto size-4 transition-transform",
-                          isWorkspaceSectionOpen ? "rotate-180" : "",
-                        )}
-                      />
-                    </DropdownMenuItem>
-                    {isWorkspaceSectionOpen ? (
-                      <>
-                        {workspaces.map((workspace) => {
-                          const isSelected =
-                            workspace.id === activeOrganizationId;
-
-                          return (
-                            <DropdownMenuItem
-                              key={getWorkspaceKey(workspace)}
-                              className="flex cursor-pointer items-center gap-2 py-2 pl-8"
-                              disabled={isPending}
-                              onClick={() =>
-                                handleWorkspaceSelect(workspace.id)
-                              }
-                            >
-                              <WorkspaceAvatar
-                                sessionUser={sessionUser}
-                                workspace={workspace}
-                              />
-                              <span className="min-w-0 flex-1 truncate">
-                                {workspace.name}
-                              </span>
-                              <Check
-                                className={cn(
-                                  "size-4",
-                                  isSelected ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                            </DropdownMenuItem>
-                          );
-                        })}
-                        <DropdownMenuItem
-                          className="flex cursor-pointer items-center gap-2 py-2 pl-8"
-                          onClick={handleAddOrganization}
-                        >
-                          <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
-                            <Plus className="text-primary size-4" />
-                          </Avatar>
-                          <span>
-                            {tOrganizationSwitcher("addOrganization")}
-                          </span>
-                        </DropdownMenuItem>
-                      </>
+                    {secondaryLabel ? (
+                      <span className="text-muted-foreground mt-0.5 block truncate text-xs font-normal">
+                        {secondaryLabel}
+                      </span>
                     ) : null}
-                  </>
-                ) : (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="gap-2">
-                      <ArrowLeftRight className="text-muted-foreground size-4" />
-                      <span>{tOrganizationSwitcher("switchWorkspace")}</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-72">
-                      <DropdownMenuGroup>
-                        {workspaces.map((workspace) => {
-                          const isSelected =
-                            workspace.id === activeOrganizationId;
-
-                          return (
-                            <DropdownMenuItem
-                              key={getWorkspaceKey(workspace)}
-                              className="flex cursor-pointer items-center gap-2 py-2"
-                              disabled={isPending}
-                              onClick={() =>
-                                handleWorkspaceSelect(workspace.id)
-                              }
-                            >
-                              <WorkspaceAvatar
-                                sessionUser={sessionUser}
-                                workspace={workspace}
-                              />
-                              <span className="min-w-0 flex-1 truncate">
-                                {workspace.name}
-                              </span>
-                              <Check
-                                className={cn(
-                                  "size-4",
-                                  isSelected ? "opacity-100" : "opacity-0",
-                                )}
-                              />
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="flex cursor-pointer items-center gap-2 py-2"
-                        onClick={handleAddOrganization}
-                      >
-                        <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
-                          <Plus className="text-primary size-4" />
-                        </Avatar>
-                        <span>{tOrganizationSwitcher("addOrganization")}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => handleRouteNavigation("/account")}
-                  >
-                    <UserIcon className="text-muted-foreground size-4" />
-                    <span>{tUserAvatar("account")}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => handleRouteNavigation("/organizations")}
-                  >
-                    <Building2 className="text-muted-foreground size-4" />
-                    <span>{tOrganizationSwitcher("organizationsHeading")}</span>
-                  </DropdownMenuItem>
-                  {canViewBilling ? (
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      onClick={() => handleRouteNavigation("/billing")}
-                    >
-                      <ReceiptText className="text-muted-foreground size-4" />
-                      <span>{tUserAvatar("billing")}</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => handleRouteNavigation("/connections")}
-                  >
-                    <Cable className="text-muted-foreground size-4" />
-                    <span>{tUserAvatar("connections")}</span>
-                  </DropdownMenuItem>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   {isMobile ? (
                     <>
                       <DropdownMenuItem
                         className="cursor-pointer"
                         onSelect={(event) => {
                           event.preventDefault();
-                          setIsHelpSectionOpen((previous) => !previous);
+                          setIsWorkspaceSectionOpen((previous) => !previous);
                         }}
                       >
-                        <LifeBuoy className="text-muted-foreground size-4" />
-                        <span>{tUserAvatar("help")}</span>
+                        <ArrowLeftRight className="text-muted-foreground size-4" />
+                        <span>{tOrganizationSwitcher("switchWorkspace")}</span>
                         <ChevronDown
                           className={cn(
                             "text-muted-foreground ml-auto size-4 transition-transform",
-                            isHelpSectionOpen ? "rotate-180" : "",
+                            isWorkspaceSectionOpen ? "rotate-180" : "",
                           )}
                         />
                       </DropdownMenuItem>
-                      {isHelpSectionOpen ? (
-                        <HelpLinks
-                          handleOpenExternalLink={handleOpenExternalLink}
-                          itemClassName="cursor-pointer pl-8"
-                          tUserAvatar={tUserAvatar}
-                        />
-                      ) : null}
-                      <DropdownMenuItem
-                        className="cursor-pointer"
-                        onSelect={(event) => {
-                          event.preventDefault();
-                          setIsLegalSectionOpen((previous) => !previous);
-                        }}
-                      >
-                        <Scale className="text-muted-foreground size-4" />
-                        <span>{tUserAvatar("legal")}</span>
-                        <ChevronDown
-                          className={cn(
-                            "text-muted-foreground ml-auto size-4 transition-transform",
-                            isLegalSectionOpen ? "rotate-180" : "",
+                      {isWorkspaceSectionOpen ? (
+                        <WorkspaceSwitcherOptions
+                          sessionUser={sessionUser}
+                          personalWorkspace={personalWorkspace}
+                          organizationWorkspaces={organizationWorkspaces}
+                          activeOrganizationId={activeOrganizationId}
+                          isPending={isPending}
+                          itemClassName="flex cursor-pointer items-center gap-2 py-2 pl-8"
+                          organizationsHeading={tOrganizationSwitcher(
+                            "organizationsHeading",
                           )}
-                        />
-                      </DropdownMenuItem>
-                      {isLegalSectionOpen ? (
-                        <LegalLinks
-                          handleOpenExternalLink={handleOpenExternalLink}
-                          itemClassName="cursor-pointer pl-8"
-                          tUserAvatar={tUserAvatar}
+                          addOrganizationLabel={tOrganizationSwitcher(
+                            "addOrganization",
+                          )}
+                          onSelectWorkspace={handleWorkspaceSelect}
+                          onAddOrganization={handleAddOrganization}
                         />
                       ) : null}
                     </>
                   ) : (
-                    <>
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger className="gap-2">
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2">
+                        <ArrowLeftRight className="text-muted-foreground size-4" />
+                        <span>{tOrganizationSwitcher("switchWorkspace")}</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-72">
+                        <DropdownMenuGroup>
+                          <WorkspaceSwitcherOptions
+                            sessionUser={sessionUser}
+                            personalWorkspace={personalWorkspace}
+                            organizationWorkspaces={organizationWorkspaces}
+                            activeOrganizationId={activeOrganizationId}
+                            isPending={isPending}
+                            itemClassName="flex cursor-pointer items-center gap-2 py-2"
+                            organizationsHeading={tOrganizationSwitcher(
+                              "organizationsHeading",
+                            )}
+                            addOrganizationLabel={tOrganizationSwitcher(
+                              "addOrganization",
+                            )}
+                            onSelectWorkspace={handleWorkspaceSelect}
+                            onAddOrganization={handleAddOrganization}
+                          />
+                        </DropdownMenuGroup>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => handleRouteNavigation("/account")}
+                    >
+                      <UserIcon className="text-muted-foreground size-4" />
+                      <span>{tUserAvatar("account")}</span>
+                    </DropdownMenuItem>
+                    {activeOrganizationPath ? (
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() =>
+                          handleRouteNavigation(activeOrganizationPath)
+                        }
+                      >
+                        <Building2 className="text-muted-foreground size-4" />
+                        <span>
+                          {tOrganizationSwitcher("organizationsHeading")}
+                        </span>
+                      </DropdownMenuItem>
+                    ) : null}
+                    {canViewBilling ? (
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={() => handleRouteNavigation("/billing")}
+                      >
+                        <ReceiptText className="text-muted-foreground size-4" />
+                        <span>{tUserAvatar("billing")}</span>
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => handleRouteNavigation("/connections")}
+                    >
+                      <Cable className="text-muted-foreground size-4" />
+                      <span>{tUserAvatar("connections")}</span>
+                    </DropdownMenuItem>
+                    {isMobile ? (
+                      <>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            setIsHelpSectionOpen((previous) => !previous);
+                          }}
+                        >
                           <LifeBuoy className="text-muted-foreground size-4" />
                           <span>{tUserAvatar("help")}</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-64">
+                          <ChevronDown
+                            className={cn(
+                              "text-muted-foreground ml-auto size-4 transition-transform",
+                              isHelpSectionOpen ? "rotate-180" : "",
+                            )}
+                          />
+                        </DropdownMenuItem>
+                        {isHelpSectionOpen ? (
                           <HelpLinks
                             handleOpenExternalLink={handleOpenExternalLink}
-                            itemClassName="cursor-pointer"
+                            itemClassName="cursor-pointer pl-8"
                             tUserAvatar={tUserAvatar}
                           />
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                      <DropdownMenuSub>
-                        <DropdownMenuSubTrigger className="gap-2">
+                        ) : null}
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            setIsLegalSectionOpen((previous) => !previous);
+                          }}
+                        >
                           <Scale className="text-muted-foreground size-4" />
                           <span>{tUserAvatar("legal")}</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-64">
+                          <ChevronDown
+                            className={cn(
+                              "text-muted-foreground ml-auto size-4 transition-transform",
+                              isLegalSectionOpen ? "rotate-180" : "",
+                            )}
+                          />
+                        </DropdownMenuItem>
+                        {isLegalSectionOpen ? (
                           <LegalLinks
                             handleOpenExternalLink={handleOpenExternalLink}
-                            itemClassName="cursor-pointer"
+                            itemClassName="cursor-pointer pl-8"
                             tUserAvatar={tUserAvatar}
                           />
-                        </DropdownMenuSubContent>
-                      </DropdownMenuSub>
-                    </>
-                  )}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={() => {
-                    closeMenu();
-                    showLogoutModal(sessionUser.email);
-                  }}
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="gap-2">
+                            <LifeBuoy className="text-muted-foreground size-4" />
+                            <span>{tUserAvatar("help")}</span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-64">
+                            <HelpLinks
+                              handleOpenExternalLink={handleOpenExternalLink}
+                              itemClassName="cursor-pointer"
+                              tUserAvatar={tUserAvatar}
+                            />
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="gap-2">
+                            <Scale className="text-muted-foreground size-4" />
+                            <span>{tUserAvatar("legal")}</span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-64">
+                            <LegalLinks
+                              handleOpenExternalLink={handleOpenExternalLink}
+                              itemClassName="cursor-pointer"
+                              tUserAvatar={tUserAvatar}
+                            />
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </>
+                    )}
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => {
+                      closeMenu();
+                      showLogoutModal(sessionUser.email);
+                    }}
+                  >
+                    <LogOut className="text-muted-foreground size-4" />
+                    <span>{tUserAvatar("logout")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {isCollapsedDesktop ? (
+                <button
+                  type="button"
+                  aria-label={tUserAvatar("expandSidebar")}
+                  title={tUserAvatar("expandSidebar")}
+                  onClick={handleExpandSidebar}
+                  className="text-muted-foreground hover:text-sidebar-accent-foreground group-hover/menu-item:bg-sidebar-accent group-focus-within/menu-item:bg-sidebar-accent pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md bg-transparent opacity-0 transition-all duration-150 group-focus-within/menu-item:pointer-events-auto group-focus-within/menu-item:opacity-100 group-hover/menu-item:pointer-events-auto group-hover/menu-item:opacity-100"
                 >
-                  <LogOut className="text-muted-foreground size-4" />
-                  <span>{tUserAvatar("logout")}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {isCollapsedDesktop ? (
-              <button
-                type="button"
-                aria-label={tUserAvatar("expandSidebar")}
-                title={tUserAvatar("expandSidebar")}
-                onClick={handleExpandSidebar}
-                className="text-muted-foreground hover:text-sidebar-accent-foreground group-hover/menu-item:bg-sidebar-accent group-focus-within/menu-item:bg-sidebar-accent pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md bg-transparent opacity-0 transition-all duration-150 group-focus-within/menu-item:pointer-events-auto group-focus-within/menu-item:opacity-100 group-hover/menu-item:pointer-events-auto group-hover/menu-item:opacity-100"
-              >
-                <PanelLeft className="size-4" />
-              </button>
-            ) : null}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+                  <PanelLeft className="size-4" />
+                </button>
+              ) : null}
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </>
   );
 }

@@ -14,3 +14,17 @@ export function isUnAuthenticatedError(
 ): error is UnAuthenticatedError {
   return error instanceof UnAuthenticatedError;
 }
+
+export class AdminAccessRequiredError extends Error {
+  constructor(message = "Admin access required") {
+    super(message);
+    this.name = "AdminAccessRequiredError";
+    this.cause = "UNAUTHORIZED";
+  }
+}
+
+export function isAdminAccessRequiredError(
+  error: unknown,
+): error is AdminAccessRequiredError {
+  return error instanceof AdminAccessRequiredError;
+}

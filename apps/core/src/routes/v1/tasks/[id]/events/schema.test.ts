@@ -1,4 +1,5 @@
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "@/config/constants";

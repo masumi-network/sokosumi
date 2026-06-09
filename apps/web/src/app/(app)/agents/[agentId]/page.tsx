@@ -54,7 +54,7 @@ export default async function AgentDetailPage({
 
   const existingRating =
     userId && canRate
-      ? await agentService.getUserRatingForAgent(userId, agentId)
+      ? await agentService.getUserRatingForAgent(agentId)
       : null;
 
   return (

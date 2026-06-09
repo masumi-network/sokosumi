@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import { buildVisibleTaskLinksInclude } from "./task-link";

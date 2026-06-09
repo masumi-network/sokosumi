@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { getRestClient } from "./client";
 import { makeAgentJobsChannelName, makeUserTasksChannelName } from "./utils";

@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import * as z from "zod";
 
 export const jobStatusDataSchema = z.object({

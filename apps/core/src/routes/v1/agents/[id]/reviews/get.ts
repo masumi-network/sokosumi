@@ -25,6 +25,30 @@ const params = z.object({
   }),
 });
 
+const query = z.object({
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(RECENT_REVIEW_LIMIT)
+    .openapi({
+      param: { name: "limit", in: "query" },
+      description: "Maximum number of commented reviews to return",
+      example: RECENT_REVIEW_LIMIT,
+    }),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(0)
+    .openapi({
+      param: { name: "offset", in: "query" },
+      description: "Number of commented reviews to skip",
+      example: 0,
+    }),
+});
+
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
@@ -33,6 +57,7 @@ const route = withGlobalHeaderParameters(
     tags: ["Agents"],
     request: {
       params,
+      query,
     },
     responses: {
       200: jsonSuccessResponse(
@@ -48,6 +73,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
+    const { limit, offset } = c.req.valid("query");
 
     const reviews = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
@@ -68,7 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const [distribution, ratingsWithComments] = await Promise.all([
         getAgentRatingDistribution(id, tx),
-        getRecentAgentReviews(id, RECENT_REVIEW_LIMIT, tx),
+        getRecentAgentReviews(id, limit, tx, offset),
       ]);
 
       return {

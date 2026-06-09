@@ -4,7 +4,6 @@ import type {
   Invitation,
   InvitationWithRelations,
   MemberRole,
-  MemberWithUser,
 } from "@sokosumi/database";
 import {
   invitationRepository,
@@ -15,7 +14,6 @@ import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth } from "@/lib/auth/auth";
-import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
 export type BulkInviteResultRow = {
@@ -91,48 +89,6 @@ export const organizationService = (() => {
     return {
       invitation,
     };
-  }
-
-  /**
-   * Retrieves members of an organization along with their associated user data.
-   *
-   * - Requires the current session to be valid.
-   * - Checks if the current user is a member of the specified organization.
-   * - Supports pagination via the `params` argument.
-   *
-   * @param organizationId - The ID of the organization whose members are to be retrieved.
-   * @returns A promise that resolves to an array of MemberWithUser objects.
-   * @throws Error with code "NOT_AUTHORIZED" if the user is not a member of the organization.
-   */
-  async function getOrganizationMembersWithUser(
-    organizationId: string,
-  ): Promise<MemberWithUser[]> {
-    const session = await getSession();
-    if (!session) {
-      return [];
-    }
-    const userId = session.user.id;
-
-    // Check if the user is a member of the organization
-    const myMemberInOrganization =
-      await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId,
-        prisma,
-      );
-    if (!myMemberInOrganization) {
-      console.error("You are not the member of the organization");
-      throw new Error("NOT_AUTHORIZED");
-    }
-
-    const members = await memberRepository.getMembersWithUser(
-      {
-        organizationId,
-      },
-      prisma,
-    );
-
-    return members;
   }
 
   async function getPendingInvitations(
@@ -220,7 +176,6 @@ export const organizationService = (() => {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
-    getOrganizationMembersWithUser,
     createOrganizationWithOwner,
     inviteMultipleMembers,
   };

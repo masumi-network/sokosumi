@@ -12,6 +12,7 @@ import {
   calculateAgentRatings,
   getCreditCostsOrThrow,
   getRecentAgentReviews,
+  getUserAgentReview,
 } from "./agent";
 
 function createCreditCost(unit: string): CreditCost {
@@ -226,6 +227,7 @@ describe("getRecentAgentReviews", () => {
       },
       orderBy: { createdAt: "desc" },
       take: 10,
+      skip: 0,
     });
     expect(result).toEqual([
       {
@@ -241,5 +243,69 @@ describe("getRecentAgentReviews", () => {
         },
       },
     ]);
+  });
+
+  it("forwards the offset as a skip", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const tx = {
+      userAgentRating: {
+        findMany,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await getRecentAgentReviews("agent-1", 5, tx, 10);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 5, skip: 10 }),
+    );
+  });
+});
+
+describe("getUserAgentReview", () => {
+  it("returns the caller's own rating, ignoring the hidden filter", async () => {
+    const findUnique = vi.fn().mockResolvedValue({
+      id: "rating-1",
+      rating: 4,
+      comment: "Mine",
+      createdAt: new Date("2026-03-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+      isHidden: true,
+    });
+    const tx = {
+      userAgentRating: {
+        findUnique,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result = await getUserAgentReview("agent-1", "user-1", tx);
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: {
+        userId_agentId: {
+          userId: "user-1",
+          agentId: "agent-1",
+        },
+      },
+    });
+    // createdAt/updatedAt are intentionally dropped from the my-review payload
+    // (see agentMyReviewSchema); the schema parse strips them.
+    expect(result).toEqual({
+      id: "rating-1",
+      rating: 4,
+      comment: "Mine",
+    });
+  });
+
+  it("returns null when the caller has not rated the agent", async () => {
+    const findUnique = vi.fn().mockResolvedValue(null);
+    const tx = {
+      userAgentRating: {
+        findUnique,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result = await getUserAgentReview("agent-1", "user-1", tx);
+
+    expect(result).toBeNull();
   });
 });

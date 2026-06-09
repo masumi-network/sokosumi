@@ -1,4 +1,5 @@
-import type { JobType, SokosumiJobStatus } from "@sokosumi/database";
+import type { JobType } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 export interface TasksViewJob {
   id: string;

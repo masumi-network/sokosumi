@@ -10,10 +10,10 @@ export function withSession<T extends AuthenticatedRequest, R>(
   handler: (params: T & { session: Session }) => Promise<R>,
 ) {
   return async (params: T): Promise<R> => {
-    if (params.session) {
-      return handler(params as T & { session: Session });
-    }
-
+    // Always resolve the session server-side. Any client-supplied `session` on
+    // the params (these wrappers back `"use server"` actions whose argument is
+    // attacker-controllable) is ignored — the trusted session below is spread
+    // last so it overrides a forged one, preventing privilege escalation.
     const session = await getSession();
     if (!session) {
       throw new UnAuthenticatedError();

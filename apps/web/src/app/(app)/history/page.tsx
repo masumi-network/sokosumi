@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
@@ -11,7 +11,7 @@ import {
   HISTORY_JOB_ONLY_STATUS_VALUES,
   parseHistoryFilters,
 } from "@/app/history/utils/history-filters";
-import { buildHistorySubtitleLookups } from "@/app/history/utils/history-row-subtitle.server";
+import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getSession } from "@/lib/auth/utils";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
@@ -58,9 +58,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     status: filters.status ? [filters.status] : undefined,
     types: filters.type ? [filters.type] : undefined,
   });
-  const subtitleLookups = await buildHistorySubtitleLookups(
-    historyPage.history,
-  );
+  const bucketLookups = await buildHistoryBucketLookups(historyPage.history);
   const filterResetKey = getHistoryFiltersResetKey(
     filters,
     activeOrganizationId,
@@ -133,7 +131,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           key={filterResetKey}
           history={historyPage.history}
           nextCursor={historyPage.pagination?.nextCursor ?? null}
-          subtitleLookups={subtitleLookups}
+          bucketLookups={bucketLookups}
           filterResetKey={filterResetKey}
           filters={filters}
           labels={{

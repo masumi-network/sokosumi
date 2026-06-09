@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskLinkType } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";

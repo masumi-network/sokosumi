@@ -1,4 +1,5 @@
-import type { AgentWithCreditsPrice, TaskStatus } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {

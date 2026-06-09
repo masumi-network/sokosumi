@@ -36,6 +36,15 @@ export type MemberWithUser = Prisma.MemberGetPayload<{
   include: typeof memberUserInclude;
 }>;
 
+/**
+ * A member with its user relation plus a session-derived `lastSeenAt`
+ * timestamp (the most recent `Session.updatedAt` for the user, or `null`
+ * if the user has never had a session).
+ */
+export type MemberWithUserAndLastSeen = MemberWithUser & {
+  lastSeenAt: Date | null;
+};
+
 export type MemberWithRelations = Prisma.MemberGetPayload<{
   include: typeof memberInclude;
 }>;

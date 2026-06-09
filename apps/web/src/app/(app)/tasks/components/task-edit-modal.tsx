@@ -1,6 +1,6 @@
 "use client";
 
-import type { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 

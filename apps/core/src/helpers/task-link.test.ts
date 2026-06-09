@@ -1,4 +1,5 @@
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskLinkType } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { TaskLinkRow } from "@/types/task-link";

@@ -1,11 +1,11 @@
 "use client";
 
 import type { UserAgentRatingWithUser } from "@sokosumi/database";
-import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { StarRating } from "@/components/agents/star-rating";
+import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
@@ -45,9 +45,10 @@ export function RatingListItem({ rating }: RatingListItemProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-medium">{rating.user.name}</span>
-            <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
-              {formatDistanceToNow(rating.createdAt, { addSuffix: true })}
-            </span>
+            <TimeAgo
+              date={rating.createdAt}
+              className="text-muted-foreground/40 text-xs whitespace-nowrap"
+            />
           </div>
           <div className="mt-1">
             <StarRating averageRating={rating.rating} size="sm" />

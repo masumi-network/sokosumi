@@ -109,6 +109,58 @@ export const organizationRepository = {
   },
 
   /**
+   * Searches organizations by name or slug using a case-insensitive partial
+   * match.
+   *
+   * @param query - The search term to match against organization name and slug.
+   * @param limit - The maximum number of organizations to return.
+   * @param tx - The Prisma transaction client to use.
+   * @returns A promise that resolves to matching organizations (limited info).
+   *   An empty or whitespace-only query resolves to an empty array without
+   *   querying.
+   */
+  async searchOrganizations(
+    query: string,
+    limit: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<OrganizationWithLimitedInfo[]> {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return [];
+    }
+    return await tx.organization.findMany({
+      where: {
+        OR: [
+          { name: { contains: trimmed, mode: "insensitive" } },
+          { slug: { contains: trimmed, mode: "insensitive" } },
+        ],
+      },
+      select: organizationLimitedInfoInclude,
+      orderBy: { name: "asc" },
+      take: limit,
+    });
+  },
+
+  /**
+   * Retrieves a single organization's limited info by slug. Used to seed a
+   * combobox with an already-selected organization without loading the full
+   * list.
+   *
+   * @param slug - The slug of the organization.
+   * @param tx - The Prisma transaction client to use.
+   * @returns The organization's limited info if found, otherwise null.
+   */
+  async getOrganizationLimitedInfoBySlug(
+    slug: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<OrganizationWithLimitedInfo | null> {
+    return await tx.organization.findUnique({
+      where: { slug },
+      select: organizationLimitedInfoInclude,
+    });
+  },
+
+  /**
    * Updates the invoice email for an organization.
    *
    * @param organizationId - The ID of the organization to update.

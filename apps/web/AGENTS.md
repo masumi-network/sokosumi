@@ -160,6 +160,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - All user-facing text must use `next-intl`
 - Translation keys in `messages/en.json`
 - Use `useTranslations` hook in components
+- **Locale-safe formatting in client components**: never use bare `.toLocaleString()` or default-locale `Intl.*` for numbers/dates in `'use client'` code — Node and the browser can format differently and cause hydration errors. Use `useFormatter().number()` / `useFormatter().dateTime()` in client components and `getFormatter()` in server components. See [.cursor/rules/i18n-formatting.mdc](.cursor/rules/i18n-formatting.mdc).
 - `messages/en.json` is the source-of-truth catalog for the web app
 - Every supported locale file in `messages/*.json` must keep the exact same key paths as `messages/en.json`
 - When a key is added, removed, renamed, or moved in `messages/en.json`, apply the same path change to every supported locale file in the same change
@@ -171,6 +172,30 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Create Prisma client instance at `@/lib/db/prisma`
 - Never access Prisma directly from components
 - Use server actions for mutations
+
+### Core API reads & caching (performance)
+
+We are migrating web data access from direct DB reads to the Core API
+(`coreClient` in `src/lib/clients/core.client.ts`). Two performance rules:
+
+- **Never blindly cache Core responses across requests.** Every `coreClient`
+  call attaches the caller's cookies (`buildAuthHeaders`) and defaults to
+  `cache: "no-store"`, because most responses are **user/workspace-scoped** —
+  caching them in Next's shared fetch cache would leak one user's data to
+  another. Keep `no-store` for anything user-specific.
+- **Do cross-request cache _global_ catalog reads.** The agent catalog
+  (`GET /v1/agents`) is global — it carries no per-user fields and is not
+  user-scoped — so it is safe to share. `getAllCoreAgents`
+  (`src/lib/agents/core-loaders.ts`) loads every page of the catalog; without
+  caching, **every page that needs agents re-paginates the whole catalog over
+  HTTP on every request** (React `cache()` only dedupes within one request).
+  It opts into fetch-level revalidation via `coreClient.getAgents(query,
+  { revalidate, tags: [AGENTS_CACHE_TAG] })`, so the catalog is fetched at most
+  once per TTL across all users. Invalidate on demand with
+  `revalidateTag(AGENTS_CACHE_TAG)`. The proper long-term fix is a Core
+  endpoint that returns the filtered catalog in one call (see the
+  `TODO(core-api)` in `core-loaders.ts`); until then, do not add new
+  per-request all-pages loops.
 
 ### Better Auth ID generation
 
@@ -269,6 +294,42 @@ Core workflow:
 3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
 4. Re-snapshot after page changes
 
+### Logging in (auth-gated pages)
+
+The sign-in form is a controlled `react-hook-form`. Programmatic value-setting
+(the auth-vault `fill`→`click` path) can race React's state flush, so the
+vault's submit **click** often no-ops while the field values look correct. The
+form itself is fine — submitting via **Enter** works because state has flushed
+by then.
+
+Each coworker stores their **own** credentials (nothing shared/committed):
+
+```bash
+# one-time, per machine — password read from stdin, never echoed
+agent-browser auth save sokosumi \
+  --url http://localhost:3000/signin \
+  --username you@nmkr.io --password-stdin
+```
+
+Reliable login recipe (fill via vault, submit via Enter — not the vault click):
+
+```bash
+agent-browser open http://localhost:3000/signin
+agent-browser auth login sokosumi      # fills email + password
+agent-browser press Enter              # submits the form
+agent-browser wait --load networkidle
+```
+
+Stable selectors exist for deterministic targeting if you fill fields yourself:
+`[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`,
+`[data-testid="auth-submit"]`.
+
+Prefer session reuse so you only log in once per machine:
+
+```bash
+export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
+```
+
 ## Additional Rules
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` / `@sokosumi/database` directly; no passthrough files
@@ -282,6 +343,7 @@ Core workflow:
 - [Naming Convention](.cursor/rules/naming-convention.mdc)
 - [Optimization](.cursor/rules/optimization.mdc)
 - [Translations](.cursor/rules/translations.mdc)
+- [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components
 - [TypeScript](.cursor/rules/typescript.mdc)
 
 ## References

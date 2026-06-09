@@ -2,14 +2,12 @@ import "server-only";
 
 import {
   AgentListType,
-  AgentStatus,
   type AgentWithCreditsPrice,
   type AgentWithJobs,
   type AgentWithPricing,
   type AgentWithRelations,
   type CreditCost,
   PricingType,
-  type Prisma,
 } from "@sokosumi/database";
 import {
   agentListRepository,
@@ -20,10 +18,15 @@ import {
   workspaceRepository,
 } from "@sokosumi/database/repositories";
 
+import {
+  mapCoreAgentsToAgentWithCreditsPrice,
+  mapCoreAgentToAgentWithCreditsPrice,
+  mapCoreMyAgentReview,
+} from "@/lib/agents/core-dto-mappers";
+import { getAllCoreAgents, getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
-import { getAgentPricingAmounts } from "@/lib/helpers/agent";
-import { pricingAmountsSchema } from "@/lib/schemas";
 
 export const agentService = (() => {
   /**
@@ -85,77 +88,6 @@ export const agentService = (() => {
   }
 
   /**
-   * Retrieves online agents and their credit costs, then applies shared availability filtering.
-   */
-  async function getAvailableOnlineAgentsAndCreditCosts(
-    tx: Prisma.TransactionClient,
-  ): Promise<{
-    availableAgents: AgentWithRelations[];
-    creditCosts: CreditCost[];
-  }> {
-    const creditCosts = await creditCostRepository.getCreditCosts(tx);
-    const onlineAgents =
-      await agentRepository.getShownAgentsWithRelationsByStatus(
-        AgentStatus.ONLINE,
-        tx,
-      );
-    const availableAgents = onlineAgents.filter((agent) =>
-      isAgentAvailable(agent, creditCosts),
-    );
-
-    return {
-      availableAgents,
-      creditCosts,
-    };
-  }
-
-  /**
-   * Builds a fast lookup map for credit costs by unit.
-   */
-  function buildCreditCostByUnitMap(
-    creditCosts: CreditCost[],
-  ): Map<string, bigint> {
-    return new Map(
-      creditCosts.map((creditCost) => [
-        creditCost.unit,
-        creditCost.centsPerUnit,
-      ]),
-    );
-  }
-
-  /**
-   * Computes the total credits price for an agent from preloaded credit costs.
-   */
-  function computeAgentCreditsPriceCents(
-    agent: AgentWithRelations,
-    creditCostByUnit: Map<string, bigint>,
-  ): bigint {
-    const amounts = getAgentPricingAmounts(agent);
-    if (!amounts) {
-      throw new Error("Agent has invalid or unknown pricing");
-    }
-
-    // if amounts is empty (in case of free agent)
-    if (amounts.length === 0) {
-      return BigInt(0);
-    }
-
-    const amountsParsed = pricingAmountsSchema.parse(amounts);
-
-    let totalCents = BigInt(0);
-    for (const amount of amountsParsed) {
-      const centsPerUnit = creditCostByUnit.get(amount.unit);
-      if (centsPerUnit === undefined) {
-        throw new Error(`Credit cost not found for unit ${amount.unit}`);
-      }
-      const cents = amount.amount * centsPerUnit;
-      totalCents += cents;
-    }
-
-    return totalCents;
-  }
-
-  /**
    * Retrieves agents by list type for the current user with access control applied.
    *
    * @param type - The type of agent list to retrieve (e.g., FAVORITE).
@@ -206,22 +138,6 @@ export const agentService = (() => {
     },
 
     /**
-     * Retrieves all online agents available to the current user with valid pricing.
-     *
-     * @param tx - Optional Prisma transaction client.
-     * @returns Array of available agents with valid pricing.
-     */
-    getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
-      // Reads only — no need for an interactive transaction. Neon pooled
-      // connections frequently time out on `prisma.$transaction(async (tx) => ...)`
-      // for read-only work because each interactive transaction reserves a
-      // dedicated session from a small pool. Plain reads sidestep that.
-      const { availableAgents } =
-        await getAvailableOnlineAgentsAndCreditCosts(prisma);
-      return availableAgents;
-    },
-
-    /**
      * Retrieves an available agent by ID, validating access control for the current user.
      *
      * - Returns null if the agent doesn't exist, is not shown, or the user lacks access.
@@ -232,17 +148,12 @@ export const agentService = (() => {
      */
     getAvailableAgentById: async (
       agentId: string,
-      tx: Prisma.TransactionClient = prisma,
     ): Promise<AgentWithRelations | null> => {
-      const agent = await agentRepository.getShownAgentWithRelationById(
-        agentId,
-        AgentStatus.ONLINE,
-        tx,
-      );
-      if (!agent) return null;
-      const creditCosts = await creditCostRepository.getCreditCosts(tx);
-      if (!isAgentAvailable(agent, creditCosts)) return null;
-      return agent;
+      // Core returns 404 (→ null) for agents that are not available, matching
+      // the previous DB-side availability gate.
+      const coreAgent = await getCoreAgentById(agentId);
+      if (!coreAgent) return null;
+      return mapCoreAgentToAgentWithCreditsPrice(coreAgent);
     },
 
     /**
@@ -256,29 +167,10 @@ export const agentService = (() => {
     getAvailableAgentsWithCreditsPrice: async (): Promise<
       AgentWithCreditsPrice[]
     > => {
-      // Reads only — see note on getAvailableAgents above. Plain reads avoid
-      // Neon pooled-connection transaction-acquisition timeouts.
-      const { availableAgents, creditCosts } =
-        await getAvailableOnlineAgentsAndCreditCosts(prisma);
-      const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
-
-      const agentsWithCreditsPrice: AgentWithCreditsPrice[] = [];
-      for (const agent of availableAgents) {
-        try {
-          const creditsPriceCents = computeAgentCreditsPriceCents(
-            agent,
-            creditCostByUnit,
-          );
-          agentsWithCreditsPrice.push({
-            ...agent,
-            creditsPrice: {
-              cents: creditsPriceCents,
-            },
-          });
-        } catch {}
-      }
-
-      return agentsWithCreditsPrice;
+      // Core already computes per-agent credits; the mapper carries them onto
+      // the AgentWithCreditsPrice shape consumers expect.
+      const coreAgents = await getAllCoreAgents();
+      return mapCoreAgentsToAgentWithCreditsPrice(coreAgents);
     },
 
     /**
@@ -291,20 +183,16 @@ export const agentService = (() => {
       agent: AgentWithCreditsPrice;
       averageExecutionDuration: number | null;
     } | null> => {
-      const agents = await agentService.getAvailableAgents();
-      if (agents.length === 0) {
+      const coreAgents = await getAllCoreAgents();
+      if (coreAgents.length === 0) {
         return null;
       }
-      const randomIndex = Math.floor(Math.random() * agents.length);
-      const agent = agents[randomIndex];
-      const agentWithCreditsPrice =
-        await agentService.getAgentCreditsPrice(agent);
-      const averageExecutionDuration =
-        await jobRepository.getAverageExecutionDurationByAgentId(
-          agent.id,
-          prisma,
-        );
-      return { agent: agentWithCreditsPrice, averageExecutionDuration };
+      const randomIndex = Math.floor(Math.random() * coreAgents.length);
+      const coreAgent = coreAgents[randomIndex];
+      return {
+        agent: mapCoreAgentToAgentWithCreditsPrice(coreAgent),
+        averageExecutionDuration: coreAgent.metrics.executions.averageTime,
+      };
     },
 
     /**
@@ -340,33 +228,6 @@ export const agentService = (() => {
         if (!bLatestJob) return -1;
         return bLatestJob.createdAt.getTime() - aLatestJob.createdAt.getTime();
       });
-    },
-
-    /**
-     * Calculates the total credit price (in cents) for an agent.
-     *
-     * - Sums the cost of all fixed pricing units for the agent, using the current credit cost per unit.
-     * - Returns the agent object extended with a `creditsPrice` field containing the total price.
-     *
-     * @param agent - The agent with pricing and relations data.
-     * @param tx - Optional Prisma transaction client for DB operations (defaults to main Prisma client).
-     * @returns The agent object with an added `creditsPrice` property.
-     * @throws If a credit cost for a unit is not found or if the agent has invalid or unknown pricing.
-     */
-    getAgentCreditsPrice: async (
-      agent: AgentWithRelations,
-      tx: Prisma.TransactionClient = prisma,
-    ): Promise<AgentWithCreditsPrice> => {
-      const creditCosts = await creditCostRepository.getCreditCosts(tx);
-      const creditCostByUnit = buildCreditCostByUnitMap(creditCosts);
-      const totalCents = computeAgentCreditsPriceCents(agent, creditCostByUnit);
-
-      return {
-        ...agent,
-        creditsPrice: {
-          cents: totalCents,
-        },
-      };
     },
 
     /**
@@ -426,38 +287,22 @@ export const agentService = (() => {
     },
 
     /**
-     * Get user's existing rating for an agent
+     * Get the authenticated caller's existing rating for an agent.
+     *
+     * Served by Core's `GET /v1/agents/{id}/reviews/me`, which scopes the read
+     * to the session user. Returns null when the agent is unavailable (Core 404)
+     * or the caller has not rated it.
      */
-    async getUserRatingForAgent(userId: string, agentId: string) {
-      return await agentRatingRepository.getUserRatingForAgent(
-        userId,
-        agentId,
-        prisma,
-      );
-    },
-
-    /**
-     * Get paginated ratings for an agent
-     */
-    async getAgentRatings(
-      agentId: string,
-      limit: number = 10,
-      offset: number = 0,
-    ) {
-      return await agentRatingRepository.getRatingsByAgentId(
-        agentId,
-        limit,
-        offset,
-        false,
-        prisma,
-      );
-    },
-
-    /**
-     * Get aggregate rating statistics for an agent
-     */
-    async getAgentRatingStats(agentId: string) {
-      return await agentRatingRepository.getAgentRatingStats(agentId, prisma);
+    async getUserRatingForAgent(agentId: string) {
+      try {
+        const response = await coreClient.getMyAgentReview(agentId);
+        return mapCoreMyAgentReview(response.data);
+      } catch (error) {
+        if (error instanceof CoreApiRequestError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
     },
   };
 })();
