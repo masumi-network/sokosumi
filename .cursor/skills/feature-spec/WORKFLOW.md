@@ -57,11 +57,12 @@ A requirement issue with feature and architectural notes is **input**, not the f
    - Fill `TEMPLATE.md`.
    - Apply `SUBAGENT-RUBRIC.md`.
    - Follow `LINEAR-MCP.md` immediately — no approval gate.
-   - Create **implementation** issue with full PRD.
+   - Create **implementation** issue with full PRD — **without** `delegate` on create.
    - Set `parentId` to the requirement issue when one exists.
-   - Add `[repo=masumi-network/sokosumi]` and `delegate: "Cursor"` (unless user opts out).
+   - Add `[repo=masumi-network/sokosumi]`.
    - Create **Confirm PRD** sub-task under the implementation issue.
    - Create **Verify implementation** sub-task under the implementation issue — see `PRD-REVIEWER.md`.
+   - Set `delegate: "Cursor"` on the implementation issue (unless user opts out) — **after** verify sub-task exists, so completion can delegate the reviewer.
    - Comment on the requirement issue with a link to the implementation issue.
 
 ## Confirm PRD sub-task
@@ -87,7 +88,9 @@ Cursor reads the **implementation** issue only.
 | `Todo` | Spec agent | Issue created with PRD |
 | `In Progress` | Cursor | Optional, when work starts |
 | `In Review` | **Cursor (required)** | PR opened |
-| `Done` | Human | After PR merge |
+| `Done` | Human | After PR merge **and** verify sub-task is Done |
+
+The implementation issue must land in **In Review** when the coding agent finishes — not Done. Human merge waits for the **Verify implementation** sub-task to reach **Done**.
 
 On completion, Cursor must:
 
@@ -100,13 +103,15 @@ Trigger options (pick one per stage):
 
 | Stage | Method | When to use |
 |-------|--------|-------------|
-| **Spec agent** | `_task` handoff | Default — Write PRD sub-task + `@Cursor` comment per `../_task/HANDOFF.md` |
+| **Spec agent** | `_task` handoff | Default — Write PRD sub-task with `delegate: "Cursor"` only per `../_task/HANDOFF.md` (no `@Cursor` when delegate is set) |
 | **Spec agent** | Cursor Automation | Optional — issue title `chore(spec): write implementation PRD` — see `CURSOR-AUTOMATION.md` |
-| **Coding agent** | **MCP delegate on create** | Spec agent sets `delegate: "Cursor"` on implementation `save_issue` (default) |
+| **Coding agent** | **MCP delegate after sub-tasks** | Spec agent sets `delegate: "Cursor"` on implementation `save_issue` with `id` after verify sub-task exists (default) |
 | **Coding agent** | Manual | Assign implementation issue to Cursor, or comment `@Cursor implement per PRD` |
 | **Coding agent** | Linear triage / Automation | Optional — description contains `[repo=masumi-network/sokosumi]`, not a Write PRD sub-task — see `CURSOR-AUTOMATION.md` |
 
-Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD handoff comment.
+Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD sub-task handoff; use **one** spec-agent trigger (delegate, automation, or manual `@Cursor` — not combined).
+
+Before publishing an implementation issue, if the requirement already has a child whose description contains `[repo=…]` (and title is not `chore(spec): write implementation PRD`), stop and link that issue — do not create a second PRD.
 
 Cloud Agent repo resolution (priority order):
 
@@ -136,7 +141,7 @@ Full protocol: `PRD-REVIEWER.md`.
 | `In Progress` | Reviewer agent | `/goal` handoff received |
 | `Done` | Reviewer agent | All criteria pass — evidence attached |
 
-Parent implementation issue stays **In Review** until a human merges the PR and marks **Done**.
+Human merge requires verify sub-task **Done**. Parent stays **In Review** through merge; human marks parent **Done** after PR merge.
 
 ## Requirement issue template
 

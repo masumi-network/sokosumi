@@ -52,7 +52,7 @@ flowchart LR
 
 After the requirement is posted:
 
-- Default: create **Write implementation PRD** sub-task, delegate to Cursor, `@Cursor` comment on requirement + sub-task per `HANDOFF.md` (feature-spec runs next — **not** the coding agent on the requirement).
+- Default: create **Write implementation PRD** sub-task with `delegate: "Cursor"` only, plus informational comment on requirement per `HANDOFF.md` — **one** trigger; no `@Cursor` on requirement or sub-task (feature-spec runs next — **not** the coding agent on the requirement).
 - User can opt out of auto handoff and run `feature-spec` manually with the issue id.
 
 Optional Cursor Automations must match Write PRD title or `[repo=…]` on implementation issues — not team/label alone. See `../feature-spec/CURSOR-AUTOMATION.md`.
@@ -65,3 +65,5 @@ Full spec → code pipeline (implementation issue, confirm, verify, coding agent
 - Do not write a full PRD in the requirement draft.
 - Do not run feature-spec in the same turn as the initial draft.
 - Do not delegate the coding agent on the requirement issue — only the PRD sub-task or spec handoff.
+- Do not `@Cursor` on the requirement issue or Write PRD sub-task when `delegate: "Cursor"` is set — duplicate triggers publish multiple implementation PRDs.
+- Do not combine MCP `delegate`, `@Cursor` comments, and Write PRD Cursor Automation on the same sub-task.

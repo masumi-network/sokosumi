@@ -2,7 +2,7 @@
 
 Run immediately after the spec agent drafts the PRD. No approval gate.
 
-Creates an **implementation** issue (full PRD), a **Confirm PRD** sub-task, a **Verify implementation** sub-task, optionally links a **requirement** parent, and delegates to **Cursor** for Cloud Agent.
+Creates an **implementation** issue (full PRD), a **Confirm PRD** sub-task, a **Verify implementation** sub-task, optionally links a **requirement** parent, then delegates to **Cursor** for Cloud Agent. **Delegate last** — the coding agent must find the verify sub-task when it finishes.
 
 ## Defaults
 
@@ -23,7 +23,7 @@ Create exactly one implementation issue with:
 - Label: exactly one of `Feature`, `Bug`, `Improvement`
 - Description: PRD markdown, with repo hint near the top
 - `parentId`: requirement issue id when intake came from one (e.g. `SOK-537`)
-- `delegate`: `"Cursor"` when user wants Cloud Agent handoff (default unless they opt out)
+- `delegate`: set on the implementation issue **after** Confirm and Verify sub-tasks exist — not on initial `save_issue` create
 
 ## Hard rules
 
@@ -81,7 +81,7 @@ Expected tools after reload:
 | `list_issue_statuses` | Confirm `Todo` state |
 | `list_issue_labels` | Confirm `Feature`, `Bug`, or `Improvement` |
 | `get_issue` | Load requirement issue for intake |
-| `save_issue` | Create implementation issue; set `parentId`, `delegate` |
+| `save_issue` | Create implementation issue (`parentId`); update with `id` + `delegate` after sub-tasks exist |
 | `save_comment` | Link implementation issue back on requirement issue |
 
 ## Resolution order
@@ -113,16 +113,20 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
    - Apply exactly one label.
    - If the label is missing, stop and report the missing label.
 
-5. Create implementation issue
+5. Idempotency (when `parentId` is a requirement issue)
+   - Load the requirement issue and inspect existing children (or search siblings under the same parent).
+   - If a child already exists whose description contains `[repo=…]` and title is **not** `chore(spec): write implementation PRD`, treat it as the implementation issue — comment on the triggering Write PRD sub-task with its link and **stop**; do not create another implementation issue or sub-tasks.
+
+6. Create implementation issue
    - Use `save_issue` (do not pass `id` when creating).
    - Required fields: `title`, `team`.
-   - Supported fields include `description`, `project`, `state`, `labels`, `priority`, `assignee`, `delegate`, `parentId`, `cycle`, `dueDate`, `links`.
+   - Supported fields include `description`, `project`, `state`, `labels`, `priority`, `assignee`, `parentId`, `cycle`, `dueDate`, `links`.
    - Use names directly: `team: "SOK"`, `project: "Sokosumi"`, `state: "Todo"`, `labels: ["Feature"]`.
    - Set `parentId` to the requirement issue identifier when applicable.
-   - Set `delegate: "Cursor"` when handing off to Cloud Agent.
-   - Return identifier, URL, applied label, parent link, and delegate status.
+   - Do **not** set `delegate` on create — a fast Cloud Agent could finish before step 7 creates the verify sub-task.
+   - Return identifier, URL, applied label, and parent link.
 
-6. Create Confirm PRD sub-task
+7. Create Confirm PRD sub-task
    - Use `save_issue` (do not pass `id` when creating).
    - `title`: `chore(spec): confirm PRD`
    - `team`: `SOK`
@@ -148,7 +152,7 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
      If the PRD is wrong, comment on the parent issue or stop the Cloud Agent.
      ```
 
-7. Create Verify implementation sub-task
+8. Create Verify implementation sub-task
    - Use `save_issue` (do not pass `id` when creating).
    - `title`: `chore(review): verify implementation against PRD`
    - `team`: `SOK`
@@ -178,13 +182,14 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
      Blocks human merge until this sub-task is Done.
      ```
 
-8. Link back (when requirement parent exists)
+9. Link back (when requirement parent exists)
    - Use `save_comment` on the requirement issue:
    - Body: short note + link to implementation issue (e.g. "Implementation PRD: SOK-549 …").
 
-9. Hand off to Cursor (when `handoffToCursor` is true)
-   - Use `save_comment` on the **implementation** issue with the handoff body from **Cursor Cloud Agent → Handoff** above.
-   - Run after step 5 so the issue id exists.
+10. Hand off to Cursor (when `handoffToCursor` is true)
+   - Run **after** steps 7–8 so Confirm and Verify sub-tasks exist.
+   - Use `save_issue` with `id` = implementation issue identifier and `delegate: "Cursor"`.
+   - Use `save_comment` on the **implementation** issue with the handoff body from **Cursor Cloud Agent → Handoff** below.
 
 ## Write-call shape
 
@@ -192,7 +197,7 @@ Use this shape after confirming the descriptor:
 
 ```json
 {
-  "runtime": "Cursor CallMcpTool example",
+  "runtime": "Cursor CallMcpTool example — create (step 6, no delegate)",
   "server": "user-linear",
   "toolName": "save_issue",
   "arguments": {
@@ -202,7 +207,20 @@ Use this shape after confirming the descriptor:
     "project": "Sokosumi",
     "state": "Todo",
     "labels": ["Feature"],
-    "parentId": "SOK-537",
+    "parentId": "SOK-537"
+  }
+}
+```
+
+After steps 7–8 (sub-tasks created), delegate (step 10):
+
+```json
+{
+  "runtime": "Cursor CallMcpTool example — delegate (step 10, after verify sub-task exists)",
+  "server": "user-linear",
+  "toolName": "save_issue",
+  "arguments": {
+    "id": "SOK-549",
     "delegate": "Cursor"
   }
 }
@@ -230,7 +248,7 @@ Keep these top fields visible near the top:
 
 ### Handoff
 
-- Prefer `delegate: "Cursor"` on `save_issue` for immediate handoff.
+- Set `delegate: "Cursor"` via `save_issue` with `id` **after** Verify sub-task exists (step 9) — not on create.
 - Add `save_comment` on the implementation issue:
 
   ```markdown

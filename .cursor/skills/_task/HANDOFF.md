@@ -13,6 +13,18 @@ Trigger the **feature-spec** skill on the new requirement so it:
 
 The _task agent does **not** write the PRD.
 
+## One trigger rule
+
+Start Cloud Agent for feature-spec **once** on the Write PRD sub-task.
+
+| Path | Trigger | Do not also |
+|------|---------|-------------|
+| **Default (MCP)** | `delegate: "Cursor"` on Write PRD `save_issue` | `@Cursor` on requirement or sub-task |
+| **Cursor Automation** | Issue-created automation on title `chore(spec): write implementation PRD` | `delegate` or `@Cursor` — see `../feature-spec/CURSOR-AUTOMATION.md` |
+| **Manual fallback** | `@Cursor` comment on Write PRD sub-task only | `delegate` on the same sub-task |
+
+Each extra trigger (delegate + comment, requirement + sub-task, MCP + automation) can start a separate agent and publish duplicate implementation issues for the same requirement.
+
 ## Steps
 
 ### 1. Create Write PRD sub-task
@@ -27,7 +39,7 @@ Use `save_issue` (no `id`):
 | `state` | `Todo` |
 | `labels` | `["Improvement"]` |
 | `parentId` | requirement issue identifier (e.g. `SOK-XXX`) |
-| `delegate` | `"Cursor"` |
+| `delegate` | `"Cursor"` — **omit** when the team uses Write PRD Cursor Automation instead |
 
 **Description:**
 
@@ -41,29 +53,30 @@ Use `save_issue` (no `id`):
 2. Intake requirement SOK-XXX via Linear MCP `get_issue`.
 3. Follow feature-spec workflow: discovery → PRD → publish implementation issue with `parentId` → delegate Cursor.
 4. Do not wait for PRD approval (feature-spec default).
+5. If an implementation issue already exists under the requirement (description contains `[repo=…]`), stop — do not publish a second PRD.
 
 **Done when:** Implementation issue exists, linked as child, with PRD in description and Cursor delegated.
 ```
 
-### 2. Comment on requirement issue
+### 2. Comment on requirement issue (informational only)
 
-Use `save_comment` on the **requirement** issue:
+Use `save_comment` on the **requirement** issue. **Do not** mention `@Cursor` — that can start Cloud Agent on the requirement and publish a duplicate implementation PRD.
 
 ```markdown
 Requirement approved and filed. PRD agent handoff: SOK-YYY (Write implementation PRD).
-
-@Cursor Read `.cursor/skills/feature-spec/SKILL.md`. Intake requirement **SOK-XXX** and run the full spec workflow (implementation issue, confirm sub-task, verify sub-task, delegate coding agent).
 ```
 
-Replace `SOK-XXX` with requirement id and `SOK-YYY` with Write PRD sub-task id when known.
+Replace `SOK-YYY` with Write PRD sub-task id when known.
 
-### 3. Comment on Write PRD sub-task
+### 3. Manual fallback only (no `delegate` on step 1)
 
-Use `save_comment` on the sub-task:
+When `delegate: "Cursor"` is unavailable or the team does not use automation, post **one** `@Cursor` comment on the Write PRD sub-task — and do **not** set `delegate` on step 1:
 
 ```markdown
-@Cursor Run feature-spec skill. Intake parent requirement SOK-XXX. Publish implementation PRD per `.cursor/skills/feature-spec/WORKFLOW.md` and `LINEAR-MCP.md`.
+@Cursor Run feature-spec skill. Intake parent requirement SOK-XXX. Publish implementation PRD per `.cursor/skills/feature-spec/WORKFLOW.md` and `LINEAR-MCP.md`. If an implementation issue already exists under the requirement, stop.
 ```
+
+Replace `SOK-XXX` with requirement id.
 
 ## In-session handoff (same Cursor chat)
 
@@ -94,3 +107,4 @@ Return:
 - Write PRD sub-task id and URL
 - Label and project
 - Delegate: Cursor yes/no on sub-task
+- Trigger path used: MCP delegate / automation / manual `@Cursor`
