@@ -2,39 +2,37 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  buildOrganizationMetadataWithDesignMd,
-  buildOrganizationMetadataWithUrl,
-  getOrganizationMetadata,
-  parseOrganizationMetadata,
-} from "../organization-metadata.js";
+  buildUserMetadataWithDesignMd,
+  buildUserMetadataWithUrl,
+  getUserMetadata,
+  parseUserMetadata,
+} from "../user-metadata.js";
 
-describe("parseOrganizationMetadata", () => {
+describe("parseUserMetadata", () => {
   it("returns null for empty values", () => {
-    assert.equal(parseOrganizationMetadata(null), null);
-    assert.equal(parseOrganizationMetadata(""), null);
-    assert.equal(parseOrganizationMetadata("   "), null);
+    assert.equal(parseUserMetadata(null), null);
+    assert.equal(parseUserMetadata(""), null);
+    assert.equal(parseUserMetadata("   "), null);
   });
 
   it("returns parsed object from JSON string", () => {
-    assert.deepEqual(
-      parseOrganizationMetadata(JSON.stringify({ url: "https://acme.com" })),
-      { url: "https://acme.com" },
-    );
+    assert.deepEqual(parseUserMetadata(JSON.stringify({ url: "x" })), {
+      url: "x",
+    });
   });
 
   it("returns null for invalid JSON or non-object JSON", () => {
-    assert.equal(parseOrganizationMetadata("{"), null);
-    assert.equal(parseOrganizationMetadata(JSON.stringify("value")), null);
-    assert.equal(parseOrganizationMetadata(JSON.stringify(["a"])), null);
+    assert.equal(parseUserMetadata("{"), null);
+    assert.equal(parseUserMetadata(JSON.stringify("value")), null);
+    assert.equal(parseUserMetadata(JSON.stringify(["a"])), null);
   });
 });
 
-describe("getOrganizationMetadata", () => {
+describe("getUserMetadata", () => {
   it("returns normalized supported fields from metadata", () => {
     assert.deepEqual(
-      getOrganizationMetadata(
+      getUserMetadata(
         JSON.stringify({
-          invoiceEmail: "  billing@example.com  ",
           designMdExtractionId: "  42  ",
           designMdUrl: "  https://blob.example/design.md  ",
           other: true,
@@ -44,47 +42,43 @@ describe("getOrganizationMetadata", () => {
       {
         designMdExtractionId: "42",
         designMdUrl: "https://blob.example/design.md",
-        invoiceEmail: "billing@example.com",
         url: "https://acme.com",
       },
     );
   });
 
   it("returns null supported fields when values are missing or empty", () => {
-    assert.deepEqual(getOrganizationMetadata(JSON.stringify({})), {
+    assert.deepEqual(getUserMetadata(JSON.stringify({})), {
       designMdExtractionId: null,
       designMdUrl: null,
-      invoiceEmail: null,
       url: null,
     });
     assert.deepEqual(
-      getOrganizationMetadata(
+      getUserMetadata(
         JSON.stringify({
           designMdExtractionId: "   ",
           designMdUrl: "   ",
-          invoiceEmail: "   ",
           url: "   ",
         }),
       ),
       {
         designMdExtractionId: null,
         designMdUrl: null,
-        invoiceEmail: null,
         url: null,
       },
     );
   });
 });
 
-describe("buildOrganizationMetadataWithUrl", () => {
+describe("buildUserMetadataWithUrl", () => {
   it("sets a normalized url and preserves other metadata", () => {
     assert.deepEqual(
-      buildOrganizationMetadataWithUrl(
-        { invoiceEmail: "billing@example.com" },
+      buildUserMetadataWithUrl(
+        { designMdUrl: "https://blob.example/design.md" },
         "  https://acme.com  ",
       ),
       {
-        invoiceEmail: "billing@example.com",
+        designMdUrl: "https://blob.example/design.md",
         url: "https://acme.com",
       },
     );
@@ -92,23 +86,23 @@ describe("buildOrganizationMetadataWithUrl", () => {
 
   it("removes empty url and returns null for empty metadata", () => {
     assert.deepEqual(
-      buildOrganizationMetadataWithUrl(
-        { invoiceEmail: "billing@example.com", url: "https://acme.com" },
+      buildUserMetadataWithUrl(
+        { designMdUrl: "https://blob.example/design.md", url: "x" },
         "   ",
       ),
       {
-        invoiceEmail: "billing@example.com",
+        designMdUrl: "https://blob.example/design.md",
       },
     );
-    assert.equal(buildOrganizationMetadataWithUrl({ url: "x" }, ""), null);
+    assert.equal(buildUserMetadataWithUrl({ url: "x" }, ""), null);
   });
 });
 
-describe("buildOrganizationMetadataWithDesignMd", () => {
+describe("buildUserMetadataWithDesignMd", () => {
   it("sets normalized design.md fields and preserves other metadata", () => {
     assert.deepEqual(
-      buildOrganizationMetadataWithDesignMd(
-        { invoiceEmail: "billing@example.com", url: "https://acme.com" },
+      buildUserMetadataWithDesignMd(
+        { url: "https://acme.com" },
         {
           extractionId: "  42  ",
           url: "  https://blob.example/design.md  ",
@@ -117,7 +111,6 @@ describe("buildOrganizationMetadataWithDesignMd", () => {
       {
         designMdExtractionId: "42",
         designMdUrl: "https://blob.example/design.md",
-        invoiceEmail: "billing@example.com",
         url: "https://acme.com",
       },
     );
@@ -125,7 +118,7 @@ describe("buildOrganizationMetadataWithDesignMd", () => {
 
   it("clears design.md fields when values are explicitly empty", () => {
     assert.deepEqual(
-      buildOrganizationMetadataWithDesignMd(
+      buildUserMetadataWithDesignMd(
         {
           designMdExtractionId: "42",
           designMdUrl: "https://blob.example/design.md",
@@ -138,7 +131,7 @@ describe("buildOrganizationMetadataWithDesignMd", () => {
       },
     );
     assert.deepEqual(
-      buildOrganizationMetadataWithDesignMd(
+      buildUserMetadataWithDesignMd(
         {
           designMdExtractionId: "42",
           designMdUrl: "https://blob.example/design.md",
@@ -151,7 +144,7 @@ describe("buildOrganizationMetadataWithDesignMd", () => {
 
   it("updates only provided design.md fields", () => {
     assert.deepEqual(
-      buildOrganizationMetadataWithDesignMd(
+      buildUserMetadataWithDesignMd(
         {
           designMdExtractionId: "42",
           designMdUrl: "https://blob.example/design.md",
@@ -163,19 +156,6 @@ describe("buildOrganizationMetadataWithDesignMd", () => {
         designMdExtractionId: "42",
         designMdUrl: "https://blob.example/new-design.md",
         url: "https://acme.com",
-      },
-    );
-    assert.deepEqual(
-      buildOrganizationMetadataWithDesignMd(
-        {
-          designMdExtractionId: "42",
-          designMdUrl: "https://blob.example/design.md",
-        },
-        {},
-      ),
-      {
-        designMdExtractionId: "42",
-        designMdUrl: "https://blob.example/design.md",
       },
     );
   });

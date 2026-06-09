@@ -5,7 +5,7 @@
 ## Package Overview
 
 **Package Name**: `@sokosumi/masumi`
-**Purpose**: Masumi protocol utilities including agent client, hash functions, schemas, and types
+**Purpose**: Masumi protocol utilities including agent client, hash functions, schemas, types, and Masumi-hosted tool clients
 **Runtime**: Node.js 24.x
 **Location**: `packages/masumi/` within the pnpm workspace
 
@@ -38,6 +38,9 @@ packages/masumi/
 │   ├── types/                 # TypeScript types
 │   │   ├── agent.ts           # Agent type definitions
 │   │   ├── input-types.ts     # Input type definitions
+│   │   └── index.ts
+│   ├── tools/                 # Masumi-hosted tool clients
+│   │   ├── design-md/         # DESIGN.md generator client
 │   │   └── index.ts
 │   └── utils/                 # Utility functions
 │       ├── result.ts          # Result type (Ok/Err)
@@ -102,6 +105,18 @@ import {
 
 ```typescript
 import type { Agent, InputSchemaType } from "@sokosumi/masumi/types";
+```
+
+### Tools Export (`@sokosumi/masumi/tools`)
+
+- **Purpose**: Clients and helpers for Masumi-hosted tools outside the Masumi protocol APIs
+- **Includes**: DESIGN.md generator client, schemas, types, and preview URL helper
+
+```typescript
+import {
+  buildDesignMdPreviewUrl,
+  createDesignMdClient,
+} from "@sokosumi/masumi/tools";
 ```
 
 ## Key Features

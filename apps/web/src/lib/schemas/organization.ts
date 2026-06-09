@@ -15,6 +15,8 @@ export const organizationInformationFormSchema = (
       .object({
         url: z.string().nullable().optional(),
         invoiceEmail: z.string().nullable().optional(),
+        designMdUrl: z.string().nullable().optional(),
+        designMdExtractionId: z.string().nullable().optional(),
       })
       .catchall(z.unknown())
       .nullable()

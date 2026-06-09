@@ -6,25 +6,22 @@ import {
   parseMetadataRecord,
 } from "./metadata-record.js";
 
-interface OrganizationMetadataRecord extends MetadataRecord {}
+interface UserMetadataRecord extends MetadataRecord {}
 
-export interface OrganizationMetadata {
+export interface UserMetadata {
   designMdExtractionId: null | string;
   designMdUrl: null | string;
-  invoiceEmail: null | string;
   url: null | string;
 }
 
-export function parseOrganizationMetadata(
+export function parseUserMetadata(
   metadata: unknown,
-): OrganizationMetadataRecord | null {
+): UserMetadataRecord | null {
   return parseMetadataRecord(metadata);
 }
 
-export function getOrganizationMetadata(
-  metadata: unknown,
-): OrganizationMetadata {
-  const parsedMetadata = parseOrganizationMetadata(metadata);
+export function getUserMetadata(metadata: unknown): UserMetadata {
+  const parsedMetadata = parseUserMetadata(metadata);
 
   return {
     designMdExtractionId: getNormalizedStringField(
@@ -32,24 +29,23 @@ export function getOrganizationMetadata(
       "designMdExtractionId",
     ),
     designMdUrl: getNormalizedStringField(parsedMetadata, "designMdUrl"),
-    invoiceEmail: getNormalizedStringField(parsedMetadata, "invoiceEmail"),
     url: getNormalizedStringField(parsedMetadata, "url"),
   };
 }
 
-export function buildOrganizationMetadataWithUrl(
-  metadata: OrganizationMetadataRecord | null | undefined,
+export function buildUserMetadataWithUrl(
+  metadata: UserMetadataRecord | null | undefined,
   rawUrl: string | null | undefined,
-): OrganizationMetadataRecord | null {
+): UserMetadataRecord | null {
   return buildMetadataWithUrl(metadata, rawUrl);
 }
 
-export function buildOrganizationMetadataWithDesignMd(
-  metadata: OrganizationMetadataRecord | null | undefined,
+export function buildUserMetadataWithDesignMd(
+  metadata: UserMetadataRecord | null | undefined,
   designMd: {
     extractionId?: null | string;
     url?: null | string;
   },
-): OrganizationMetadataRecord | null {
+): UserMetadataRecord | null {
   return buildMetadataWithDesignMd(metadata, designMd);
 }

@@ -69,6 +69,8 @@ export {
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
 } from "./organization-logo-upload.js";
 export {
+  buildOrganizationMetadataWithDesignMd,
+  buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
   type OrganizationMetadata,
   parseOrganizationMetadata,
@@ -79,6 +81,13 @@ export {
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
+export {
+  buildUserMetadataWithDesignMd,
+  buildUserMetadataWithUrl,
+  getUserMetadata,
+  parseUserMetadata,
+  type UserMetadata,
+} from "./user-metadata.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,

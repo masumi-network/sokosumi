@@ -181,6 +181,16 @@ export const auth = betterAuth({
         required: false,
         defaultValue: true,
       },
+      logo: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      metadata: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
       stripeCustomerId: {
         type: "string",
         required: false,

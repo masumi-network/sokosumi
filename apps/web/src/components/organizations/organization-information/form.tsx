@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Organization } from "@sokosumi/database";
 import {
+  buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
   normalizeOrganizationLogo,
   parseOrganizationMetadata,
@@ -76,26 +77,6 @@ function raceWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     }),
     timeoutPromise,
   ]);
-}
-
-function buildOrganizationMetadataWithUrl(
-  metadata: Record<string, unknown> | null | undefined,
-  rawUrl: string,
-): Record<string, unknown> | null {
-  const normalizedUrl = rawUrl.trim();
-  const metadataRecord = metadata ?? {};
-
-  if (normalizedUrl.length === 0) {
-    const { url: _url, ...metadataWithoutUrl } = metadataRecord;
-    return Object.keys(metadataWithoutUrl).length > 0
-      ? metadataWithoutUrl
-      : null;
-  }
-
-  return {
-    ...metadataRecord,
-    url: normalizedUrl,
-  };
 }
 
 interface OrganizationInformationFormProps {
