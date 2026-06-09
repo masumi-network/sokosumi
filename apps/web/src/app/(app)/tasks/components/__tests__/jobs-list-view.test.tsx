@@ -17,9 +17,10 @@ vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
 }));
 
-vi.mock("@/lib/utils/datetime", () => ({
-  formatTimeAgo: (value: string | Date) =>
-    `ago:${value instanceof Date ? value.toISOString() : value}`,
+vi.mock("@/components/time-ago", () => ({
+  TimeAgo: ({ date }: { date: string | Date }) => (
+    <span>{`ago:${date instanceof Date ? date.toISOString() : date}`}</span>
+  ),
 }));
 
 function createJob(overrides: Partial<TasksViewJob>): TasksViewJob {

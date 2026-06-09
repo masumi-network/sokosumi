@@ -30,9 +30,10 @@ vi.mock("../task-jobs-realtime-provider.client", () => ({
   ),
 }));
 
-vi.mock("@/lib/utils/datetime", () => ({
-  formatTimeAgo: (value: string | Date) =>
-    `ago:${value instanceof Date ? value.toISOString() : value}`,
+vi.mock("@/components/time-ago", () => ({
+  TimeAgo: ({ date }: { date: string | Date }) => (
+    <span>{`ago:${date instanceof Date ? date.toISOString() : date}`}</span>
+  ),
 }));
 
 function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
