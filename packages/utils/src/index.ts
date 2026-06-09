@@ -89,7 +89,7 @@ export {
   parseUserMetadata,
   type UserMetadata,
 } from "./user-metadata.js";
-
+export { TaskStatus } from "./task-status.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,
