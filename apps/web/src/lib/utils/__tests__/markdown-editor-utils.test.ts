@@ -36,6 +36,13 @@ describe("formatMarkdownLink", () => {
     expect(result).toContain("link \\]text");
     expect(result).toContain("path\\)");
   });
+
+  it("escapes a trailing backslash in the label before the bracket escape", () => {
+    // Backslash escaped first so it cannot merge with the `]` escape and
+    // break out of the link text.
+    const result = formatMarkdownLink("trail\\]", "https://example.com/p)q");
+    expect(result).toBe("[trail\\\\\\]](https://example.com/p\\)q)");
+  });
 });
 
 describe("formatHeading", () => {

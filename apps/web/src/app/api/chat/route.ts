@@ -144,10 +144,11 @@ export async function POST(req: NextRequest) {
         context: "chat_api",
       },
     });
+    // Do not leak error/stack details to the client (js/stack-trace-exposure);
+    // the full error is already reported to Sentry above.
     return new Response(
       JSON.stringify({
         error: "Internal Server Error",
-        message: error instanceof Error ? error.message : String(error),
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
