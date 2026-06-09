@@ -36,8 +36,10 @@ export {
   resolveIpfsOrHttpUrl,
 } from "./ipfs-url.js";
 export {
-  createMarkdownLinkRegex,
   escapeMarkdownLinkUrl,
+  findMarkdownLinks,
+  type MarkdownLinkMatch,
+  replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "./markdown-links.js";
 export {

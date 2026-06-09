@@ -1,6 +1,6 @@
 import { isFileLikeUrl } from "./file-url.js";
 import {
-  createMarkdownLinkRegex,
+  findMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "./markdown-links.js";
 
@@ -16,10 +16,8 @@ const AUTO_LINKS = /<((?:https?:)\/\/[^>\s]+)>/gi;
  */
 export function extractLinks(markdown: string): ExtractedLink[] {
   const results: ExtractedLink[] = [];
-  const linkRegex = createMarkdownLinkRegex();
 
-  for (const match of markdown.matchAll(linkRegex)) {
-    const [, text, rawUrl] = match;
+  for (const { text, rawUrl } of findMarkdownLinks(markdown)) {
     results.push({ url: unescapeMarkdownLinkUrl(rawUrl), text });
   }
   for (const match of markdown.matchAll(AUTO_LINKS)) {

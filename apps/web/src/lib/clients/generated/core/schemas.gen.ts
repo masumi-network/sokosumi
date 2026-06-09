@@ -4005,6 +4005,86 @@ export const CreateUserFileUploadRequestSchema = {
     ]
 } as const;
 
+export const UtmAttributionResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Identifier of the created UTM attribution record',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        convertedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the attribution was recorded against the user'
+        }
+    },
+    required: [
+        'id',
+        'convertedAt'
+    ]
+} as const;
+
+export const UtmAttributionRequestSchema = {
+    type: 'object',
+    properties: {
+        utm_source: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            description: 'Campaign source (e.g. utm_source)',
+            example: 'google'
+        },
+        utm_medium: {
+            type: 'string',
+            maxLength: 255,
+            description: 'Campaign medium (e.g. utm_medium)',
+            example: 'cpc'
+        },
+        utm_campaign: {
+            type: 'string',
+            maxLength: 255,
+            description: 'Campaign name (e.g. utm_campaign)',
+            example: 'spring_launch'
+        },
+        utm_term: {
+            type: 'string',
+            maxLength: 255,
+            description: 'Paid keyword term (e.g. utm_term)',
+            example: 'ai agents'
+        },
+        utm_content: {
+            type: 'string',
+            maxLength: 255,
+            description: 'Content/creative variant (e.g. utm_content)',
+            example: 'hero_cta'
+        },
+        referrer: {
+            type: 'string',
+            maxLength: 255,
+            description: 'Referring URL captured on landing',
+            example: 'https://example.com'
+        },
+        landingPage: {
+            type: 'string',
+            maxLength: 255,
+            description: 'First page the visitor landed on',
+            example: 'https://sokosumi.com/'
+        },
+        capturedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the UTM data was captured on the client'
+        }
+    },
+    required: [
+        'utm_source',
+        'capturedAt'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {

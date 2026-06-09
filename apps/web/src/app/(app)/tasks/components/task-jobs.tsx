@@ -4,10 +4,10 @@ import Link from "next/link";
 
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { TimeAgo } from "@/components/time-ago";
 import { makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
-import { formatTimeAgo } from "@/lib/utils/datetime";
 
 import { TaskJobStatusBadge } from "./task-job-status-badge.client";
 import {
@@ -95,7 +95,7 @@ export function TaskJobs({
                 </div>
 
                 <p className="text-muted-foreground shrink-0 text-xs sm:w-[96px] sm:text-right">
-                  {formatTimeAgo(job.createdAt, locale)}
+                  <TimeAgo date={job.createdAt} locale={locale} />
                 </p>
               </div>
             </Link>
