@@ -58,8 +58,10 @@ export function formatMarkdownLink(
   if (!normalizedUrl) return null;
 
   const text = selectionText.trim() || DEFAULT_LINK_TEXT;
-  const escapedText = text.replace(/]/g, "\\]");
-  const escapedUrl = normalizedUrl.replace(/\)/g, "\\)");
+  // Escape backslashes first so they can't merge with the following escape
+  // and break out of the link/text (js/incomplete-sanitization).
+  const escapedText = text.replace(/\\/g, "\\\\").replace(/]/g, "\\]");
+  const escapedUrl = normalizedUrl.replace(/\\/g, "\\\\").replace(/\)/g, "\\)");
   return `[${escapedText}](${escapedUrl})`;
 }
 

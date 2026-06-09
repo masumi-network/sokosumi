@@ -127,8 +127,11 @@ function wrapHtmlDocument(html: string, origin: string): string {
   if (hasHtmlTag && hasHeadTag && hasBodyTag) {
     // Ensure a <base> tag exists to resolve relative assets
     if (!/<base[\s>]/i.test(html)) {
+      // `\b` enforces the original "head followed by whitespace or >" rule
+      // while keeping a single, non-overlapping char class to avoid polynomial
+      // backtracking (js/polynomial-redos).
       return html.replace(
-        /<head(\s[^>]*)?>/i,
+        /<head\b([^>]*)>/i,
         `<head$1><base href="${origin}">`,
       );
     }
