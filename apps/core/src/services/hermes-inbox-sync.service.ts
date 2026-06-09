@@ -6,6 +6,7 @@ import {
   ackInstanceInbox,
   getInstanceInbox,
   type HermesInboxMessage,
+  HermesOrchestratorError,
 } from "@/clients/hermes-orchestrator.client";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -20,6 +21,29 @@ const INBOX_FETCH_LIMIT = 50;
 const INBOX_SINCE_OVERLAP_MS = 5 * 60_000;
 const HERMES_INBOX_MESSAGE_UUID_NAMESPACE =
   "3ed84820-2c89-4546-9a58-96b20f8b4980";
+
+/**
+ * Returns true for errors that represent transient external-service failures
+ * (Hermes orchestrator 5xx responses, network connect timeouts, etc.) that are
+ * expected to self-resolve on the next poll cycle. These should NOT be reported
+ * to Sentry per-user — doing so creates one event per affected user per minute
+ * when the orchestrator is down, which drowns out actionable signal.
+ */
+export function isTransientOrchestratorError(error: unknown): boolean {
+  if (error instanceof HermesOrchestratorError && error.httpStatus >= 500) {
+    return true;
+  }
+  // Node's undici raises TypeError("fetch failed") wrapping a ConnectTimeoutError,
+  // ResetConnectionError, etc. when the upstream host is unreachable.
+  if (
+    error instanceof TypeError &&
+    error.message === "fetch failed" &&
+    error.cause instanceof Error
+  ) {
+    return true;
+  }
+  return false;
+}
 
 interface SyncOptions {
   abortSignal: AbortSignal;
@@ -38,6 +62,8 @@ interface PollOutcome {
     | "error";
   count?: number;
   status?: string;
+  /** Set when outcome is "error" due to a transient external-service failure (5xx, network timeout). */
+  transientError?: unknown;
 }
 
 export interface HermesInboxSyncSummary {
@@ -204,14 +230,23 @@ async function pollOne(
       signal: options.abortSignal,
     });
   } catch (error) {
-    Sentry.captureException(error, {
-      tags: { context: "hermes_inbox_poll" },
-      extra: { userId: instance.userId },
-    });
+    const transient = isTransientOrchestratorError(error);
+    // Transient external-service failures (5xx, network timeout) are reported
+    // once per batch by pollInboxes rather than once per affected user.
+    if (!transient) {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_inbox_poll" },
+        extra: { userId: instance.userId },
+      });
+    }
     await markPolled({ userId: instance.userId, incrementErrors: true }).catch(
       () => undefined,
     );
-    return { userId: instance.userId, outcome: "error" };
+    return {
+      userId: instance.userId,
+      outcome: "error",
+      ...(transient && { transientError: error }),
+    };
   }
 
   if (result.kind === "not_implemented") {
@@ -352,6 +387,8 @@ async function pollInboxes(
 
   let totalMessages = 0;
   let polled = 0;
+  let firstTransientError: unknown = null;
+  let transientErrorCount = 0;
 
   for (const instance of due) {
     if (!shouldContinueSync(options)) {
@@ -365,6 +402,10 @@ async function pollInboxes(
       if (outcome.outcome === "messages") {
         totalMessages += outcome.count ?? 0;
       }
+      if (outcome.transientError !== undefined) {
+        transientErrorCount++;
+        if (!firstTransientError) firstTransientError = outcome.transientError;
+      }
     } catch (error) {
       polled += 1;
       breakdown.error += 1;
@@ -373,6 +414,15 @@ async function pollInboxes(
         extra: { userId: instance.userId },
       });
     }
+  }
+
+  // Report one aggregate event for all transient orchestrator errors so the
+  // team sees one Sentry alert per outage window, not one per affected user.
+  if (transientErrorCount > 0) {
+    Sentry.captureException(firstTransientError, {
+      tags: { context: "hermes_inbox_poll_batch" },
+      extra: { transientErrorCount, polled },
+    });
   }
 
   return {
