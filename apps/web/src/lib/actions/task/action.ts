@@ -14,6 +14,7 @@ import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
+import { removeDesignMdAttachmentLinks } from "@/lib/utils/task-attachments";
 import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
@@ -139,9 +140,16 @@ async function createTaskFromDescription(input: {
     throw new Error("Description required");
   }
 
-  const generatedName =
-    await openrouterClient.generateTaskName(trimmedDescription);
-  const candidate = generatedName ?? buildFallbackName(input.description);
+  const descriptionForNaming =
+    removeDesignMdAttachmentLinks(trimmedDescription).trim();
+  const generatedName = descriptionForNaming
+    ? await openrouterClient.generateTaskName(descriptionForNaming)
+    : null;
+  const candidate =
+    generatedName ??
+    (descriptionForNaming
+      ? buildFallbackName(descriptionForNaming)
+      : "Untitled Task");
   const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
   const descriptionWithDesignMd =

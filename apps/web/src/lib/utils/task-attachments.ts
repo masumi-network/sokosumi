@@ -23,6 +23,21 @@ export function sanitizeTaskAttachmentLabel(
   return sanitized || fallbackLabel;
 }
 
+const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
+
+export function removeDesignMdAttachmentLinks(markdown: string): string {
+  const escapedLabel = escapeRegExp(DESIGN_MD_ATTACHMENT_LABEL);
+  const designMdLinkPattern = new RegExp(
+    `\\[${escapedLabel}\\]\\([^)]*(?:\\s+"[^"]*")?\\)\\n?`,
+    "g",
+  );
+
+  return markdown
+    .replace(designMdLinkPattern, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function removeTaskAttachmentLinks(
   markdown: string,
   urlsToRemove: string[],

@@ -218,6 +218,32 @@ describe("task link actions", () => {
     expect(generateTaskNameMock).toHaveBeenCalledWith("Created related task");
   });
 
+  it("generates task names from user instructions when DESIGN.md is pre-seeded", async () => {
+    generateTaskNameMock.mockResolvedValue("Build landing page");
+    appendDesignMdToDescriptionMock.mockImplementation(
+      async (description: string) => description,
+    );
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description:
+        "[DESIGN.md](https://blob.example/design.md)\n\nBuild landing page",
+      coworkerId: null,
+      status: TaskStatus.READY,
+    });
+
+    expect(generateTaskNameMock).toHaveBeenCalledWith("Build landing page");
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Build landing page",
+        description:
+          "[DESIGN.md](https://blob.example/design.md)\n\nBuild landing page",
+      }),
+    );
+  });
+
   it("keeps the existing parent when creating the new link fails", async () => {
     taskServiceMock.listTaskLinks.mockResolvedValue([buildTaskLink()]);
     taskServiceMock.createTaskLink.mockRejectedValue(new Error("link failed"));

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
 } from "@/lib/utils/task-attachments";
@@ -76,5 +77,15 @@ describe("task-attachments", () => {
     expect(sanitizeTaskAttachmentLabel("[]", "fallback-file")).toBe(
       "fallback-file",
     );
+  });
+
+  it("removes DESIGN.md attachment links from task descriptions", () => {
+    const markdown = [
+      "[DESIGN.md](https://blob.example/design.md)",
+      "",
+      "Build landing page",
+    ].join("\n");
+
+    expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
   });
 });
