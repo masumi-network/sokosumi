@@ -42,18 +42,16 @@ const creditsResponseExtraCreditsSchema = z
   })
   .openapi("CreditsResponseExtraCredits");
 
-const creditsResponseEnterpriseSchema = z
-  .object({
-    credits: creditsResponseExtraCreditsSchema.openapi({
-      description:
-        "Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)",
-    }),
-    buckets: z.array(creditBucketBreakdownItemSchema).openapi({
-      description:
-        "Enterprise pool buckets with remaining balance for the assigned member",
-    }),
-  })
-  .openapi("CreditsResponseEnterprise");
+const creditsResponseEnterpriseSchema = z.object({
+  credits: creditsResponseExtraCreditsSchema.openapi({
+    description:
+      "Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)",
+  }),
+  buckets: z.array(creditBucketBreakdownItemSchema).openapi({
+    description:
+      "Enterprise pool buckets with remaining balance for the assigned member",
+  }),
+});
 
 const creditsResponseExtraSchema = z
   .object({
