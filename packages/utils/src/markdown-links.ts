@@ -55,7 +55,9 @@ export function findMarkdownLinks(input: string): MarkdownLinkMatch[] {
 
     const text = input.slice(open + 1, labelEnd);
 
-    // Scan the url: escaped pairs (`\x`) or any char except `[`, `)`, whitespace.
+    // Scan the url: escaped pairs (`\x`) or any char except `)` and whitespace.
+    // `[` is allowed so bracketed destinations (e.g. IPv6 literals such as
+    // http://[::1]/path) still parse.
     const urlStart = labelEnd + 2;
     let j = urlStart;
     while (j < len) {
@@ -65,7 +67,7 @@ export function findMarkdownLinks(input: string): MarkdownLinkMatch[] {
         j += 2;
         continue;
       }
-      if (c === ")" || c === "[" || WHITESPACE.has(c)) break;
+      if (c === ")" || WHITESPACE.has(c)) break;
       j += 1;
     }
 
@@ -75,20 +77,27 @@ export function findMarkdownLinks(input: string): MarkdownLinkMatch[] {
       continue;
     }
 
-    // Optional ` "title"` between the url and the closing paren.
+    // From here a failed candidate resumes scanning *past* the consumed url
+    // rather than at open+1. Because a url may now contain `[`, restarting
+    // inside it could re-scan the same span on every bracket (quadratic).
+    // Advancing keeps the whole pass linear; the only thing skipped is a link
+    // nested inside the destination of a malformed (unterminated) link — a
+    // degenerate case the greedy match never recovered anyway.
     let close = j;
     if (close < len && WHITESPACE.has(input[close])) {
+      // Optional ` "title"` between the url and the closing paren.
       let w = close;
       while (w < len && WHITESPACE.has(input[w])) w += 1;
       if (w < len && input[w] === '"') {
-        const titleEnd = input.indexOf('"', w + 1);
-        if (titleEnd === -1) {
-          cursor = open + 1;
+        let q = w + 1;
+        while (q < len && input[q] !== '"') q += 1;
+        if (q >= len) {
+          cursor = q; // no closing quote before EOF
           continue;
         }
-        close = titleEnd + 1;
+        close = q + 1;
       } else {
-        cursor = open + 1;
+        cursor = Math.max(open + 1, w);
         continue;
       }
     }
@@ -103,7 +112,7 @@ export function findMarkdownLinks(input: string): MarkdownLinkMatch[] {
       });
       cursor = end;
     } else {
-      cursor = open + 1;
+      cursor = Math.max(open + 1, j);
     }
   }
 

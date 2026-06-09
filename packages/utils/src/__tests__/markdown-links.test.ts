@@ -49,7 +49,17 @@ describe("findMarkdownLinks", () => {
     assert.deepEqual(findMarkdownLinks("[]() [x]( ) [y](https://z [w]"), []);
   });
 
-  it("stops the url at a nested bracket without backtracking", () => {
+  it("keeps brackets inside the url (e.g. IPv6 literals)", () => {
+    const matches = findMarkdownLinks(
+      "[a](http://[::1]/x) and [b](http://[fe80::1]/y)",
+    );
+    assert.deepEqual(
+      matches.map((m) => m.rawUrl),
+      ["http://[::1]/x", "http://[fe80::1]/y"],
+    );
+  });
+
+  it("recovers a valid link after a malformed one without backtracking", () => {
     const matches = findMarkdownLinks("[bad](https://z [c](https://w.dev/p)");
     assert.deepEqual(
       matches.map((m) => ({ text: m.text, rawUrl: m.rawUrl })),
@@ -94,6 +104,8 @@ describe("extractLinks", () => {
       `[t](${"\\".repeat(50000)}`, // unterminated escaped url
       `[${"[\\".repeat(50000)}`, // many nested '[' in link text
       `[\\](${"[!](!".repeat(40000)}`, // many nested link-like sequences
+      `[x](${"a[".repeat(50000)}`, // unterminated url full of '[' (no close)
+      `${"[a](b".repeat(50000)}`, // many unterminated link prefixes
     ];
     for (const evil of inputs) {
       const start = process.hrtime.bigint();
