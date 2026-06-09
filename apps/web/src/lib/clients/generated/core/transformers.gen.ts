@@ -444,7 +444,9 @@ const creditsResponseEnterpriseSchemaResponseTransformer = (data: any) => {
 
 const creditsResponseExtraSchemaResponseTransformer = (data: any) => {
     data.buckets = data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
-    data.enterprise = creditsResponseEnterpriseSchemaResponseTransformer(data.enterprise);
+    if (data.enterprise) {
+        data.enterprise = creditsResponseEnterpriseSchemaResponseTransformer(data.enterprise);
+    }
     return data;
 };
 

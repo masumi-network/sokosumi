@@ -1078,7 +1078,7 @@ export type CreditsResponseExtra = {
      * Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id
      */
     buckets: Array<CreditBucketBreakdown>;
-    enterprise: CreditsResponseEnterprise;
+    enterprise: CreditsResponseEnterprise | null;
 };
 
 /**
