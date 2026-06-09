@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authClient } from "@/lib/auth/auth.client";
 import { uploadUserFileDirect } from "@/lib/utils/user-file-upload.client";
 import OrganizationEditButton from "../organization-edit-button";
+import { OrganizationMetadataProvider } from "../organization-metadata-context";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -77,16 +78,18 @@ function OrganizationEditButtonHarness({
   } as Organization;
 
   return (
-    <div>
-      <button
-        type="button"
-        aria-label="Simulate parent rerender"
-        onClick={() => setTick((value) => value + 1)}
-      >
-        rerender-parent
-      </button>
-      <OrganizationEditButton organization={organization} />
-    </div>
+    <OrganizationMetadataProvider organization={organization}>
+      <div>
+        <button
+          type="button"
+          aria-label="Simulate parent rerender"
+          onClick={() => setTick((value) => value + 1)}
+        >
+          rerender-parent
+        </button>
+        <OrganizationEditButton organization={organization} />
+      </div>
+    </OrganizationMetadataProvider>
   );
 }
 

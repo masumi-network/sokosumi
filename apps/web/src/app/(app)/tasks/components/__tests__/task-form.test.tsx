@@ -845,6 +845,7 @@ describe("TaskForm", () => {
       description: "Write docs",
       coworkerId: "coworker-2",
       status: TaskStatus.READY,
+      skipDesignMdAttachment: false,
     });
     expect(createTaskMock).not.toHaveBeenCalled();
   });
