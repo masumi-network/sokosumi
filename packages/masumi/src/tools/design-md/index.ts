@@ -9,12 +9,15 @@ export {
   type DesignMdFailedPayload,
   type DesignMdJobPayload,
   type DesignMdQueuedPayload,
+  type DesignMdRunningPayload,
   type DesignMdSubmitInput,
   designMdApiResponseSchema,
   designMdDonePayloadSchema,
   designMdFailedPayloadSchema,
   designMdQueuedPayloadSchema,
+  designMdRunningPayloadSchema,
   designMdSubmitInputSchema,
+  isDesignMdJobInProgress,
 } from "./schemas.js";
 export type {
   DesignMdClient,

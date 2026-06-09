@@ -42,6 +42,18 @@ describe("designMdApiResponseSchema", () => {
     expect(direct.status).toBe("done");
     expect(wrapped).toEqual({ status: "queued", jobId: "job_1" });
   });
+
+  it("parses running job payloads", () => {
+    const running = designMdApiResponseSchema.parse({
+      status: "running",
+      jobId: "job_1",
+      url: "https://example.com",
+      createdAt: 1_781_011_305_765,
+      startedAt: 1_781_011_305_765,
+    });
+
+    expect(running).toEqual({ status: "running", jobId: "job_1" });
+  });
 });
 
 describe("createDesignMdClient", () => {
@@ -87,6 +99,12 @@ describe("createDesignMdClient", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           status: "queued",
+          jobId: "job_1",
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "running",
           jobId: "job_1",
         }),
       )

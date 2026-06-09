@@ -5,7 +5,10 @@ import {
   DEFAULT_DESIGN_MD_POLL_INTERVAL_MS,
 } from "./constants.js";
 import type { DesignMdJobPayload, DesignMdSubmitInput } from "./schemas.js";
-import { designMdApiResponseSchema } from "./schemas.js";
+import {
+  designMdApiResponseSchema,
+  isDesignMdJobInProgress,
+} from "./schemas.js";
 import type {
   DesignMdClient,
   DesignMdClientConfig,
@@ -169,7 +172,7 @@ export function createDesignMdClient({
       const pollIntervalMs =
         input.pollIntervalMs ?? DEFAULT_DESIGN_MD_POLL_INTERVAL_MS;
 
-      while (payload.status === "queued") {
+      while (isDesignMdJobInProgress(payload)) {
         try {
           await wait(pollIntervalMs, input.signal);
         } catch (error) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { isDesignMdJobInProgress } from "@sokosumi/masumi/tools";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -118,7 +119,7 @@ export function useDesignMdGeneration({
             return;
           }
 
-          if (pollResult.data.status === "queued") {
+          if (isDesignMdJobInProgress(pollResult.data)) {
             pollUntilDone(jobId, jobToken);
             return;
           }
