@@ -74,28 +74,6 @@ export const agentService = (() => {
     },
 
     /**
-     * Retrieves all agents hired by the current user in the active workspace,
-     * ordered by the most recent job activity (newest first).
-     *
-     * Served by Core's `GET /v1/agents/hired`, which resolves the active
-     * workspace from the request context. This is a secondary list view, so
-     * transient Core failures degrade to an empty list rather than throwing
-     * into the React tree.
-     */
-    getHiredAgents: async (): Promise<AgentWithCreditsPrice[]> => {
-      try {
-        const response = await coreClient.getHiredAgents();
-        return mapCoreAgentsToAgentWithCreditsPrice(response.data);
-      } catch (error) {
-        console.warn(
-          "[agent.service] getHiredAgents failed, using empty fallback",
-          { message: (error as Error)?.message },
-        );
-        return [];
-      }
-    },
-
-    /**
      * Check if the authenticated caller is eligible to rate an agent (has
      * finished at least one job with it).
      *

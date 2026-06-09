@@ -10,7 +10,6 @@ const mapCoreAgentsToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreAgentToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreMyAgentReviewMock = vi.fn();
 
-const getHiredAgentsMock = vi.fn();
 const getAgentRatingEligibilityMock = vi.fn();
 const getMyAgentReviewMock = vi.fn();
 
@@ -41,7 +40,6 @@ vi.mock("@/lib/agents/core-dto-mappers", () => ({
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: CoreApiRequestErrorMock,
   coreClient: {
-    getHiredAgents: (...args: unknown[]) => getHiredAgentsMock(...args),
     getAgentRatingEligibility: (...args: unknown[]) =>
       getAgentRatingEligibilityMock(...args),
     getMyAgentReview: (...args: unknown[]) => getMyAgentReviewMock(...args),
@@ -119,20 +117,6 @@ describe("agent.service", () => {
     const result = await agentService.getRandomAvailableAgentData();
 
     expect(result).toBeNull();
-  });
-
-  it("serves hired agents from core", async () => {
-    const coreAgents = [{ id: "hired-1" }];
-    getHiredAgentsMock.mockResolvedValue({ data: coreAgents });
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getHiredAgents();
-
-    expect(getHiredAgentsMock).toHaveBeenCalledTimes(1);
-    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
-      coreAgents,
-    );
-    expect(result.map((agent) => agent.id)).toEqual(["hired-1"]);
   });
 
   it("reports rating eligibility from core", async () => {

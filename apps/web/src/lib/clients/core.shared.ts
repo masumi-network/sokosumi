@@ -68,7 +68,6 @@ import {
   getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
-  getAgentsHired as coreGetAgentsHired,
   getCategories as coreGetCategories,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
@@ -762,18 +761,6 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch your agent review",
-    );
-  }
-
-  async function getHiredAgents() {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetAgentsHired({
-          client,
-          cache: "no-store",
-        }),
-      "Failed to fetch hired agents",
     );
   }
 
@@ -1627,7 +1614,6 @@ export function createCoreClient(getClient: GetClient) {
     getAgentReviews,
     getMyAgentReview,
     getAgents,
-    getHiredAgents,
     createAgentRating,
     getCategories,
     getCoworkers,

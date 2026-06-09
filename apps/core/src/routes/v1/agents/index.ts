@@ -9,16 +9,12 @@ import mountPostAgentRating from "./[id]/ratings/post.js";
 import mountGetAgentReviews from "./[id]/reviews/get.js";
 import mountGetMyAgentReview from "./[id]/reviews/me/get.js";
 import mountGetAgents from "./get.js";
-import mountGetHiredAgents from "./hired/get.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
 mountGetAgents(app);
-// Static routes are mounted before the parametric `/{id}` route so they take
-// precedence in the OpenAPI document and routing.
-mountGetHiredAgents(app);
 mountGetAgentById(app);
 mountGetAgentReviews(app);
 mountGetMyAgentReview(app);
