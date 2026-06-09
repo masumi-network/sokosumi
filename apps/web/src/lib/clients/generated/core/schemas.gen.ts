@@ -932,6 +932,45 @@ export const AgentMyReviewSchema = {
     ]
 } as const;
 
+export const AgentRatingEligibilitySchema = {
+    type: 'object',
+    properties: {
+        eligible: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether the caller has finished at least one job with the agent and may rate it'
+        }
+    },
+    required: [
+        'eligible'
+    ]
+} as const;
+
+export const AgentRatingRequestSchema = {
+    type: 'object',
+    properties: {
+        rating: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5,
+            example: 5,
+            description: 'Rating between 1 and 5 stars'
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 1000,
+            example: 'Great results.',
+            description: 'Optional comment'
+        }
+    },
+    required: [
+        'rating'
+    ]
+} as const;
+
 export const JobSummarySchema = {
     type: 'object',
     properties: {

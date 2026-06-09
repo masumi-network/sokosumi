@@ -83,10 +83,7 @@
       "freeDemo": "Kostenlose Demo",
       "AgentCard": {
         "view": "Details anzeigen",
-        "pricing": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}",
-        "addedToBookmarks": "Agent angeheftet",
-        "removedFromBookmarks": "Agent losgeheftet",
-        "bookmarkError": "Angeheftete Agents konnten nicht aktualisiert werden"
+        "pricing": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
       },
       "AgentDetail": {
         "Header": {

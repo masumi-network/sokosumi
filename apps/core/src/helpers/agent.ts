@@ -19,7 +19,7 @@ import {
 } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
-import { internalServerError, unprocessableEntity } from "./error";
+import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 export const getAgentImage = (agent: Agent): string | null => {
   const image = agent.overrideImage ?? agent.image;
@@ -110,6 +110,29 @@ export const buildAvailableAgentWhereClause = (
     isShown: true,
     pricing: pricingFilter,
   };
+};
+
+/**
+ * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
+ * throwing a 404 otherwise. Centralizes the availability existence check shared
+ * by the agent rating sub-resource handlers (rating upsert and eligibility).
+ */
+export const requireAvailableAgentOrThrow = async (
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  const creditCosts = await getCreditCostsOrThrow(tx);
+  const agent = await tx.agent.findFirst({
+    where: {
+      id: agentId,
+      ...buildAvailableAgentWhereClause(creditCosts),
+    },
+    select: { id: true },
+  });
+
+  if (!agent) {
+    throw notFound("Agent not found");
+  }
 };
 
 export interface AgentCost {
@@ -497,5 +520,43 @@ export const getUserAgentReview = async (
     id: rating.id,
     rating: rating.rating,
     comment: rating.comment,
+  });
+};
+
+/**
+ * Creates or updates the caller's rating for an agent. Callers are responsible
+ * for enforcing the eligibility gate (a finished job with the agent) before
+ * invoking this helper.
+ */
+export const upsertUserAgentReview = async (
+  agentId: string,
+  userId: string,
+  rating: number,
+  comment: string | null,
+  tx: Prisma.TransactionClient,
+): Promise<AgentMyReview> => {
+  const upserted = await tx.userAgentRating.upsert({
+    where: {
+      userId_agentId: {
+        userId,
+        agentId,
+      },
+    },
+    update: {
+      rating,
+      comment,
+    },
+    create: {
+      userId,
+      agentId,
+      rating,
+      comment,
+    },
+  });
+
+  return agentMyReviewSchema.parse({
+    id: upserted.id,
+    rating: upserted.rating,
+    comment: upserted.comment,
   });
 };

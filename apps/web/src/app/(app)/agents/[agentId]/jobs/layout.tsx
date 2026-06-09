@@ -70,7 +70,6 @@ async function JobLayoutInner({
   const { agentId } = await params;
   const coreAgent = await getCoreAgentById(agentId);
 
-  const userId = session.user.id;
   const agentWithCreditsPrice = coreAgent
     ? mapCoreAgentToAgentWithCreditsPrice(coreAgent)
     : createUnavailableAgentWithCreditsPrice(agentId);
@@ -81,14 +80,11 @@ async function JobLayoutInner({
     coreAgent?.metrics.executions.averageTime ?? null;
   const disabled = !coreAgent;
 
-  const [agentJobs, favoriteAgents, canRate, existingRating, projectOptions] =
+  const [agentJobs, canRate, existingRating, projectOptions] =
     await Promise.all([
       getCachedMyJobs(agentId),
-      // TODO(core-api): replace with a Core favorites API when available.
-      agentService.getFavoriteAgents(),
-      // TODO(core-api): replace with Core user rating read/eligibility APIs.
       coreAgent
-        ? agentService.canUserRateAgent(userId, agentId)
+        ? agentService.canUserRateAgent(agentId)
         : Promise.resolve(false),
       coreAgent
         ? agentService.getUserRatingForAgent(agentId)
@@ -105,7 +101,6 @@ async function JobLayoutInner({
       <JobsHeaderProvider
         value={{
           agent: agentWithCreditsPrice,
-          favoriteAgents,
           ratingStats,
           canRate,
           existingRating,
@@ -135,7 +130,6 @@ async function JobLayoutInner({
           {modal}
           <JobBottomNavigation
             agent={agentWithCreditsPrice}
-            favoriteAgents={favoriteAgents}
             disabled={disabled}
           />
           {/* Create Job Modal */}

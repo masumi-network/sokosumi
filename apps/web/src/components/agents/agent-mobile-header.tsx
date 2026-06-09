@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
@@ -28,7 +25,6 @@ export function HeaderSkeleton() {
 
 interface HeaderProps {
   agent: AgentWithCreditsPrice;
-  favoriteAgents?: AgentWithRelations[] | undefined;
 }
 
 export default function AgentMobileHeader({ agent }: HeaderProps) {

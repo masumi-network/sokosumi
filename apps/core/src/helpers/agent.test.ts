@@ -13,6 +13,8 @@ import {
   getCreditCostsOrThrow,
   getRecentAgentReviews,
   getUserAgentReview,
+  requireAvailableAgentOrThrow,
+  upsertUserAgentReview,
 } from "./agent";
 
 function createCreditCost(unit: string): CreditCost {
@@ -307,5 +309,78 @@ describe("getUserAgentReview", () => {
     const result = await getUserAgentReview("agent-1", "user-1", tx);
 
     expect(result).toBeNull();
+  });
+});
+
+describe("requireAvailableAgentOrThrow", () => {
+  it("resolves when an available agent exists", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: "agent-1" });
+    const tx = {
+      creditCost: {
+        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
+      },
+      agent: { findFirst },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireAvailableAgentOrThrow("agent-1", tx),
+    ).resolves.toBeUndefined();
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "agent-1" }),
+        select: { id: true },
+      }),
+    );
+  });
+
+  it("throws a 404 when no available agent matches", async () => {
+    const tx = {
+      creditCost: {
+        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
+      },
+      agent: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      requireAvailableAgentOrThrow("missing", tx),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("upsertUserAgentReview", () => {
+  it("upserts the caller's rating and returns the my-review payload", async () => {
+    const upsert = vi.fn().mockResolvedValue({
+      id: "rating-1",
+      rating: 5,
+      comment: "Great",
+      createdAt: new Date("2026-03-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-17T10:00:00.000Z"),
+    });
+    const tx = {
+      userAgentRating: {
+        upsert,
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result = await upsertUserAgentReview(
+      "agent-1",
+      "user-1",
+      5,
+      "Great",
+      tx,
+    );
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { userId_agentId: { userId: "user-1", agentId: "agent-1" } },
+      update: { rating: 5, comment: "Great" },
+      create: {
+        userId: "user-1",
+        agentId: "agent-1",
+        rating: 5,
+        comment: "Great",
+      },
+    });
+    // createdAt/updatedAt are stripped by agentMyReviewSchema.
+    expect(result).toEqual({ id: "rating-1", rating: 5, comment: "Great" });
   });
 });
