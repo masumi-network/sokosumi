@@ -8,9 +8,9 @@ Compares **code + PR** against the parent PRD. Loops with **`/goal`** until ever
 
 | Trigger | Who |
 |---------|-----|
-| Parent implementation issue → `In Review` | Coding agent (required handoff step) |
-| Review sub-task started | Coding agent — `delegate: "Cursor"` **or** `@Cursor` + `/goal` comment, not both |
-| Reviewer agent starts | Cursor Cloud Agent on the review sub-task |
+| Parent implementation issue → `In Review` | Coding agent (required) — also fires optional reviewer automation when enabled |
+| Review sub-task started | Coding agent — **one** trigger only (see **One trigger rule** below) |
+| Reviewer agent starts | Cursor Cloud Agent on the review sub-task (via MCP delegate, `@Cursor`, or reviewer automation) |
 
 The spec agent creates the review sub-task at publish time. It stays idle until the coding agent triggers it.
 
@@ -111,9 +111,21 @@ Created by spec agent — see `LINEAR-MCP.md` step 8.
 | Label | `Improvement` |
 | Delegate | **None** until coding agent handoff |
 
+## One trigger rule
+
+Start the reviewer on the verify sub-task **once**. Same rule as `../_task/HANDOFF.md` and `CURSOR-AUTOMATION.md`:
+
+| Path | Trigger | Do not also |
+|------|---------|-------------|
+| **Default (MCP)** | `save_issue` on verify sub-task with `delegate: "Cursor"` + non-`@Cursor` comment with `/goal` body | `@Cursor` on verify sub-task; rely on reviewer automation |
+| **Reviewer automation** | Parent implementation issue → `In Review` (Cursor Automation) | `delegate` or `@Cursor` on verify sub-task — coding agent comments PR URL and branch on parent only |
+| **Manual fallback** | `@Cursor` + `/goal` comment on verify sub-task only | `delegate` on verify sub-task |
+
+Parent → **In Review** plus MCP `delegate` on the verify sub-task starts **two** reviewer runs when reviewer automation is enabled. When that automation is on, omit `delegate` and `@Cursor` on the verify sub-task.
+
 ## Coding agent handoff (required)
 
-When the coding agent sets the parent to **In Review**, it must start the reviewer on the review sub-task with **one** trigger — `delegate: "Cursor"` via Linear MCP **or** the `@Cursor` comment below, not both.
+When the coding agent sets the parent to **In Review**, it must start the reviewer with **one** path from the table above — not delegate and `@Cursor` on the verify sub-task, and not delegate when reviewer automation handles the trigger.
 
 **Manual / comment-only path:**
 
@@ -139,6 +151,8 @@ Do not mark parent Done.
 ```
 
 **Default (MCP):** `save_issue` on the review sub-task with `delegate: "Cursor"` and a comment **without** `@Cursor` that includes the same `/goal` body (PR URL, branch, criteria). Do not also post the `@Cursor` block above.
+
+**Reviewer automation:** When the team uses the optional third automation in `CURSOR-AUTOMATION.md`, comment on the **parent** implementation issue with PR URL, branch, and summary only. Do **not** set `delegate` or post `@Cursor` on the verify sub-task.
 
 Replace `SOK-XXX` with the implementation issue identifier.
 
@@ -173,3 +187,4 @@ When all criteria pass:
 - Do not skip visual evidence for UI PRDs
 - Do not stop after a single failed verification run when fixes are possible
 - Do not expand scope beyond the PRD to "make review pass"
+- Do not set `delegate` or `@Cursor` on the verify sub-task when reviewer automation is enabled — duplicate reviewer runs

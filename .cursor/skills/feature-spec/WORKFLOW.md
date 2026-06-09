@@ -95,7 +95,7 @@ The implementation issue must land in **In Review** when the coding agent finish
 On completion, Cursor must:
 
 1. Set the **implementation issue** to `In Review` via Linear MCP — not Done.
-2. Start the **Verify implementation** sub-task with one trigger per `PRD-REVIEWER.md` — not delegate and `@Cursor` on that sub-task.
+2. Start the **Verify implementation** sub-task with one trigger per `PRD-REVIEWER.md` — not delegate and `@Cursor` on that sub-task, and not MCP delegate when reviewer automation is enabled (parent **In Review** is the trigger).
 
 See `CURSOR-AUTOMATION.md` and the **Agent completion** section in `TEMPLATE.md`.
 
@@ -108,6 +108,9 @@ Trigger options (pick one per stage):
 | **Coding agent** | **MCP delegate after sub-tasks** | Spec agent sets `delegate: "Cursor"` on implementation `save_issue` with `id` after verify sub-task exists (default) |
 | **Coding agent** | Manual | Assign implementation issue to Cursor, or comment `@Cursor implement per PRD` |
 | **Coding agent** | Linear triage / Automation | Optional — description contains `[repo=masumi-network/sokosumi]`, not a Write PRD sub-task — see `CURSOR-AUTOMATION.md` |
+| **Reviewer agent** | **MCP delegate on verify sub-task** | Coding agent sets `delegate: "Cursor"` on verify sub-task after PR opens (default) |
+| **Reviewer agent** | Reviewer automation | Optional — parent → `In Review`; coding agent omits delegate and `@Cursor` on verify sub-task — see `CURSOR-AUTOMATION.md` |
+| **Reviewer agent** | Manual | `@Cursor` + `/goal` on verify sub-task only — no delegate on that sub-task |
 
 Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD sub-task handoff; use **one** trigger per stage (delegate, automation, or manual `@Cursor` — not combined). Spec agent default: `delegate` on implementation issue only — no `@Cursor` when delegate is set.
 

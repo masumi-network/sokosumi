@@ -6,6 +6,7 @@ This is optional. Prefer MCP handoffs in the pipeline:
 
 1. **`_task`** — posts the **requirement** issue, creates **Write PRD** sub-task with `delegate: "Cursor"` **or** relies on Write PRD automation — never both, and no `@Cursor` comments on the default MCP path → feature-spec (not coding).
 2. **`feature-spec`** — posts the **implementation** issue with full PRD, creates sub-tasks, then `delegate: "Cursor"` **or** relies on coding automation — never both, and no `@Cursor` on the default MCP path → coding agent.
+3. **Coding agent completion** — starts the **Verify implementation** sub-task with `delegate: "Cursor"` **or** `@Cursor` + `/goal` **or** relies on reviewer automation (parent → `In Review`) — never more than one. Parent PR comment with PR URL and branch is still required on every path.
 
 Do **not** trigger a coding automation on bare SOK issues with Feature/Bug/Improvement labels. Requirement issues and Write PRD sub-tasks use the same team, project, state, and labels but are **not** implementation PRDs.
 
@@ -44,24 +45,26 @@ Every coding run must end with this, whether triggered by delegate, `@Cursor`, o
    ```
 
 3. `save_comment` on the same issue with PR URL and short summary.
-4. Start the **Verify implementation** sub-task with **one** trigger — `delegate: "Cursor"` **or** `@Cursor` + `/goal` comment per `PRD-REVIEWER.md`, not both.
+4. Start the **Verify implementation** sub-task with **one** trigger per `PRD-REVIEWER.md` — default MCP `delegate: "Cursor"` on the verify sub-task, **or** reviewer automation (omit delegate and `@Cursor` on that sub-task), **or** manual `@Cursor` + `/goal` — not delegate + automation, not delegate + `@Cursor`.
 5. Do **not** mark the implementation issue Done or close sub-tasks.
 
 The PRD template includes **Agent completion** and **Reviewer completion** sections so delegated issues carry these instructions in the description.
 
 ## Reviewer automation (optional, third)
 
-Create a third Cursor Automation if you want the reviewer to start without the coding agent posting the handoff comment:
+Create a third Cursor Automation if you want the reviewer to start when the parent moves to **In Review** without MCP `delegate` or `@Cursor` on the verify sub-task:
 
 | Field | Value |
 |-------|--------|
 | Name | SOK verify implementation → reviewer |
 | Trigger | Linear — Status changed → `In Review` |
-| Filter | Team SOK; issue has child titled `chore(review): verify implementation against PRD` |
+| Filter | Team SOK; description contains `[repo=masumi-network/sokosumi]`; issue has child titled `chore(review): verify implementation against PRD` |
 | Tools | GitHub, Linear, browser (for screenshots) |
-| Instructions | Read parent issue as PRD. Read `PRD-REVIEWER.md` in repo. Run `/goal` until lint, test, build, and visual evidence pass. Fix on PR branch. Mark verify sub-task Done when complete. |
+| Instructions | Read parent issue as PRD and the latest parent comment for PR URL and branch. Read `PRD-REVIEWER.md` in repo. Run `/goal` on the verify sub-task until lint, test, build, and visual evidence pass. Fix on PR branch. Mark verify sub-task Done when complete. |
 
-Prefer the coding agent handoff in `PRD-REVIEWER.md` so PR URL and branch are always in the first comment.
+When this automation is enabled, the coding agent must **omit** `delegate: "Cursor"` and **omit** `@Cursor` on the verify sub-task — the status change to **In Review** is the only trigger. The coding agent still **must** comment on the parent implementation issue with PR URL, branch, and summary (reviewer automation reads that comment; it does not replace it).
+
+Default path (no reviewer automation): MCP `delegate: "Cursor"` on the verify sub-task plus a non-`@Cursor` comment with `/goal` body per `PRD-REVIEWER.md`.
 
 ## Pipeline (required order)
 
@@ -79,12 +82,13 @@ flowchart LR
 | Requirement | High-level brief, no `[repo=…]`, no Verification section | None — informational comment only; no `@Cursor` | — |
 | Write PRD | Title `chore(spec): write implementation PRD`, child of requirement | `_task` via `delegate: "Cursor"` on create (default), **or** optional automation below — not delegate + automation + `@Cursor` | Optional spec automation below |
 | Implementation | Full PRD, `[repo=masumi-network/sokosumi]`, Data flow / Verification | `feature-spec` via `delegate: "Cursor"` on `save_issue` **after** verify sub-task exists (default), **or** optional coding automation below — not delegate + automation + `@Cursor` | Optional coding automation below |
+| Verify implementation | Title `chore(review): verify implementation against PRD`, child of implementation | Coding agent via `delegate: "Cursor"` on verify sub-task (default), **or** optional reviewer automation below — not delegate + automation + `@Cursor` on verify sub-task | Optional reviewer automation below |
 
-Default path: MCP `delegate` only in `_task/HANDOFF.md` and `LINEAR-MCP.md` (informational comments without `@Cursor`). Automations and manual `@Cursor` are mutually exclusive fallbacks.
+Default path: MCP `delegate` only in `_task/HANDOFF.md` and `LINEAR-MCP.md` (informational comments without `@Cursor`). Automations and manual `@Cursor` are mutually exclusive fallbacks per stage.
 
 ## Recommended automation setup
 
-Create **two** Cursor Automations (or rely on MCP only and skip both).
+Create **two** Cursor Automations for spec and coding (or rely on MCP only and skip both). Add a **third** optional reviewer automation — when enabled, coding agent omits `delegate` and `@Cursor` on the verify sub-task (see **Reviewer automation** above).
 
 ### 1. Spec agent — Write PRD sub-task
 
@@ -106,7 +110,7 @@ Matches `_task/HANDOFF.md`. Fires only on the PRD handoff sub-task, not on requi
 | Trigger | Linear — Delegate assigned → `Cursor` (or Issue updated when delegate becomes Cursor) |
 | Filter | Team SOK; description contains `[repo=masumi-network/sokosumi]`; title does **not** start with `chore(spec):` or `chore(review):` |
 | Tools | GitHub, Linear |
-| Instructions | Read the issue description as the implementation PRD. Follow verification and out-of-scope sections. Open a PR when done. Repo from `[repo=…]` in the description. **When the PR is open:** set this issue to `In Review`, comment with the PR link, start the Verify implementation sub-task with one trigger per `PRD-REVIEWER.md`, and do not mark Done. |
+| Instructions | Read the issue description as the implementation PRD. Follow verification and out-of-scope sections. Open a PR when done. Repo from `[repo=…]` in the description. **When the PR is open:** set this issue to `In Review`, comment with PR URL and branch, start the Verify implementation sub-task with **one** trigger per `PRD-REVIEWER.md` (default: `delegate: "Cursor"` on verify sub-task; when reviewer automation is enabled: omit delegate and `@Cursor` on verify sub-task), and do not mark Done. |
 
 The `[repo=…]` line is spec-agent output only (`TEMPLATE.md` / `LINEAR-MCP.md`). Requirement issues from `_task` must not include it.
 
@@ -170,5 +174,5 @@ On any implementation issue, use **one** trigger — not delegate and `@Cursor` 
 
    [repo=masumi-network/sokosumi]
 
-   When the PR is open: set this issue to In Review, comment with the PR link, start Verify implementation with `/goal` per `PRD-REVIEWER.md` (one trigger only). Do not mark Done.
+   When the PR is open: set this issue to In Review, comment with PR URL and branch, start Verify implementation with one trigger per `PRD-REVIEWER.md` (default: delegate on verify sub-task; when reviewer automation is enabled: omit delegate and `@Cursor` on verify sub-task). Do not mark Done.
    ```

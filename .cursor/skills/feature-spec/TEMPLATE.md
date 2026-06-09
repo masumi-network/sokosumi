@@ -4,6 +4,8 @@
 
 Use this skeleton. Delete sections that do not apply, except `Data flow`, which is always required.
 
+The YAML frontmatter below (`name`, `overview`, `todos`, `isProject`) is optional **in-session draft** scaffolding (Cursor plan shape). It is **not** part of the Linear PRD — remove the entire frontmatter block before `save_issue`.
+
 ````markdown
 ---
 name: SOK-XXX Short Title
@@ -117,7 +119,7 @@ When the PR is ready:
 1. Open a PR (default base: `main`).
 2. Use Linear MCP `save_issue` on **this issue**: `state: "In Review"`.
 3. Comment on this issue with the PR URL and a one-line summary.
-4. Start the **Verify implementation** sub-task with **one** trigger — delegate to Cursor via Linear MCP **or** post the `/goal` handoff from `PRD-REVIEWER.md`, not both.
+4. Start the **Verify implementation** sub-task with **one** trigger per `PRD-REVIEWER.md` — default: delegate to Cursor on the verify sub-task via Linear MCP; when reviewer automation is enabled: omit delegate and `@Cursor` on that sub-task (parent comment with PR URL and branch only); manual fallback: `/goal` handoff from `PRD-REVIEWER.md` without delegate.
 5. Do **not** mark this issue Done — human review follows the PR after reviewer passes.
 
 ## Reviewer completion
@@ -137,8 +139,10 @@ On the **Verify implementation** sub-task only — see `PRD-REVIEWER.md`:
 
 ## Required cleanup before sending
 
-- Remove empty optional sections.
-- If there are no subagents, remove frontmatter `todos`.
+Apply before `save_issue` — the implementation issue description must be PRD markdown only (see `LINEAR-MCP.md`).
+
+- Remove the entire YAML frontmatter block (`---` through `---`), including `name`, `overview`, `todos`, and `isProject`. Do not leave plan metadata in Linear.
+- Remove empty optional sections (including `Subagent breakdown` and `Execution order` when there are no subagents).
 - Keep `Data flow`.
 - Keep `Verification`, `Agent completion`, `Reviewer completion`, and `Out of scope`.
 - Keep the Linear line with the inferred label.

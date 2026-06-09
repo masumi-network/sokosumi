@@ -68,6 +68,7 @@ See `WORKFLOW.md` for the full spec → code pipeline.
    - Do **not** wait for PRD approval. Confirmation is a non-blocking sub-task (step 4).
 
 4. Publish and hand off (same run as step 3)
+   - Apply **Required cleanup before sending** from `TEMPLATE.md` (strip plan YAML frontmatter; PRD markdown only).
    - Read `LINEAR-MCP.md`.
    - Use Linear MCP only when it is available in the current agent runtime.
    - Read the relevant MCP/tool descriptors before any MCP call.

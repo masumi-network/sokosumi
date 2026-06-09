@@ -241,6 +241,8 @@ Do not send empty `arguments`.
 
 Use the PRD as the implementation issue description. Do not add process notes, MCP logs, or hidden reasoning.
 
+Do **not** include Cursor plan YAML frontmatter (`name`, `overview`, `todos`, `isProject`) — strip the entire frontmatter block per `TEMPLATE.md` **Required cleanup before sending**. The description starts with `[repo=…]` or the PRD title, not `---`.
+
 Keep these top fields visible near the top:
 
 ```markdown
@@ -268,7 +270,7 @@ Keep these top fields visible near the top:
 
 When the PR is open:
 1. Set this issue to In Review via Linear MCP and comment with the PR link.
-2. Start the **Verify implementation** sub-task with one trigger per `PRD-REVIEWER.md` (delegate **or** `@Cursor` + `/goal`, not both).
+2. Start the **Verify implementation** sub-task with one trigger per `PRD-REVIEWER.md` (default: delegate on verify sub-task; when reviewer automation is enabled: omit delegate and `@Cursor` on verify sub-task; manual: `@Cursor` + `/goal` only).
 Do not mark Done.
 ```
 
@@ -280,8 +282,10 @@ When Cursor finishes and the PR is open:
 
 1. `save_issue` with `id` = implementation issue, `state: "In Review"`.
 2. `save_comment` with PR URL and summary on the implementation issue.
-3. Start the **Verify implementation** sub-task with **one** trigger — `delegate: "Cursor"` via `save_issue` **or** `@Cursor` + `/goal` comment per `PRD-REVIEWER.md`, not both.
+3. Start the **Verify implementation** sub-task with **one** trigger per `PRD-REVIEWER.md` — default: `delegate: "Cursor"` via `save_issue` on the verify sub-task; when reviewer automation is enabled (`CURSOR-AUTOMATION.md`): omit `delegate` and `@Cursor` on the verify sub-task (parent **In Review** is the trigger); manual fallback: `@Cursor` + `/goal` only.
 4. Do not mark the implementation issue Done.
+
+Optional reviewer automation: see `CURSOR-AUTOMATION.md`. When enabled, **omit** `delegate: "Cursor"` and `@Cursor` on the verify sub-task — parent comment with PR URL and branch is still required.
 
 The PRD **Agent completion** section repeats this for issues delegated before completion runs.
 
