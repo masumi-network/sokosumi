@@ -88,6 +88,11 @@ interface TaskFormInitialValues {
   status?: TaskStatus;
 }
 
+export interface TaskFormInitialDesignMdAttachment {
+  label: string;
+  url: string;
+}
+
 interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
@@ -95,6 +100,7 @@ interface TaskFormProps {
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
   defaultProjectId?: string | null;
   variant?: "page" | "modal";
@@ -117,6 +123,7 @@ export function TaskForm({
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
+  initialDesignMdAttachment,
   projectOptions,
   defaultProjectId = null,
   variant = "page",
@@ -131,8 +138,12 @@ export function TaskForm({
   const shouldShowProjectSelect = isModal && projectOptions !== undefined;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const [description, setDescription] = useState(
-    initialValues?.description ?? "",
+  const [description, setDescription] = useState(() =>
+    getInitialDescription({
+      attachment: initialDesignMdAttachment,
+      description: initialValues?.description,
+      mode,
+    }),
   );
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
@@ -636,4 +647,20 @@ export function TaskForm({
       </section>
     </div>
   );
+}
+
+function getInitialDescription({
+  attachment,
+  description,
+  mode,
+}: {
+  attachment?: TaskFormInitialDesignMdAttachment | null;
+  description?: string;
+  mode: "create" | "edit";
+}): string {
+  if (description?.trim() || mode !== "create" || !attachment) {
+    return description ?? "";
+  }
+
+  return formatTaskAttachmentMarkdown(attachment.label, attachment.url);
 }

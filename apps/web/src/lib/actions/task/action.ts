@@ -11,6 +11,7 @@ import type {
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
+import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
@@ -126,10 +127,12 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
 }
 
 async function createTaskFromDescription(input: {
+  activeOrganizationId?: string | null;
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
+  userId: string;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
@@ -141,10 +144,16 @@ async function createTaskFromDescription(input: {
   const candidate = generatedName ?? buildFallbackName(input.description);
   const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
+  const descriptionWithDesignMd =
+    await designMdService.appendDesignMdToDescription(
+      trimmedDescription,
+      input.userId,
+      input.activeOrganizationId,
+    );
 
   return taskService.createTask({
     name,
-    description: trimmedDescription,
+    description: descriptionWithDesignMd,
     coworkerId: input.coworkerId ? input.coworkerId : null,
     projectId: normalizedProjectId ?? null,
     status: input.status,
@@ -269,13 +278,15 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 }
 
 export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
-  async ({ description, coworkerId, projectId, status }) => {
+  async ({ description, coworkerId, projectId, session, status }) => {
     try {
       const task = await createTaskFromDescription({
+        activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,
         status,
+        userId: session.user.id,
       });
 
       revalidatePath("/tasks");
@@ -504,6 +515,7 @@ export const createTaskAndLink = withSession<
     description,
     coworkerId,
     projectId,
+    session,
     status,
     type,
     direction,
@@ -525,10 +537,12 @@ export const createTaskAndLink = withSession<
 
     try {
       createdTask = await createTaskFromDescription({
+        activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,
         status,
+        userId: session.user.id,
       });
 
       const parentLinksToReplace = await collectParentLinksToReplace({

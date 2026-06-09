@@ -340,6 +340,50 @@ describe("TaskForm", () => {
     );
   });
 
+  it("seeds empty create descriptions with the initial design.md attachment", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-editor")).toHaveValue(
+      "[DESIGN.md](https://blob.example/design.md)\n",
+    );
+    expect(
+      screen.getByText("https://blob.example/design.md"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not seed design.md over an existing create description", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ description: "Write docs" }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-editor")).toHaveValue("Write docs");
+  });
+
   it("passes projectId when creating a task from the project picker", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);

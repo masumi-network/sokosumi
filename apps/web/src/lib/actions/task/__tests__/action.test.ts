@@ -14,10 +14,21 @@ vi.mock("@/middleware/auth-middleware", () => ({
       handler: (params: TParams) => Promise<TResult>,
     ) =>
     async (params: TParams) =>
-      handler(params),
+      handler({
+        ...params,
+        session: {
+          session: {
+            activeOrganizationId: "org-1",
+          },
+          user: {
+            id: "user-1",
+          },
+        },
+      }),
 }));
 
 const generateTaskNameMock = vi.fn();
+const appendDesignMdToDescriptionMock = vi.fn();
 const taskServiceMock = {
   listTaskLinks: vi.fn(),
   deleteTaskLink: vi.fn(),
@@ -34,6 +45,13 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/clients/openrouter.client", () => ({
   openrouterClient: {
     generateTaskName: generateTaskNameMock,
+  },
+}));
+
+vi.mock("@/lib/services/design-md.service", () => ({
+  designMdService: {
+    appendDesignMdToDescription: (...args: unknown[]) =>
+      appendDesignMdToDescriptionMock(...args),
   },
 }));
 
@@ -88,6 +106,10 @@ describe("task link actions", () => {
     taskServiceMock.createTask.mockReset();
     taskServiceMock.deleteTask.mockReset();
     generateTaskNameMock.mockReset();
+    appendDesignMdToDescriptionMock.mockReset();
+    appendDesignMdToDescriptionMock.mockImplementation(
+      async (description: string) => description,
+    );
     toCoreApiActionErrorMock.mockReset();
     toCoreApiActionErrorMock.mockImplementation((error: unknown) => ({
       message:
@@ -165,6 +187,35 @@ describe("task link actions", () => {
       projectId: null,
       status: TaskStatus.READY,
     });
+  });
+
+  it("prepends the effective design.md attachment before creating a task", async () => {
+    generateTaskNameMock.mockResolvedValue("Generated task name");
+    appendDesignMdToDescriptionMock.mockResolvedValue(
+      "[DESIGN.md](https://blob.example/design.md)\n\nCreated related task",
+    );
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      coworkerId: null,
+      status: TaskStatus.READY,
+    });
+
+    expect(appendDesignMdToDescriptionMock).toHaveBeenCalledWith(
+      "Created related task",
+      "user-1",
+      "org-1",
+    );
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description:
+          "[DESIGN.md](https://blob.example/design.md)\n\nCreated related task",
+      }),
+    );
+    expect(generateTaskNameMock).toHaveBeenCalledWith("Created related task");
   });
 
   it("keeps the existing parent when creating the new link fails", async () => {

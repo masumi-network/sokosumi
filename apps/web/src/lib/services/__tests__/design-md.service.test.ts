@@ -317,4 +317,60 @@ describe("designMdService", () => {
       message: "upstream failed",
     });
   });
+
+  it("resolves organization design.md before user fallback", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.MEMBER,
+    });
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org-1",
+      metadata: JSON.stringify({
+        designMdUrl: "https://blob.example/org-design.md",
+      }),
+    });
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      metadata: JSON.stringify({
+        designMdUrl: "https://blob.example/user-design.md",
+      }),
+    });
+
+    const { designMdService } = await import("../design-md.service");
+    const designMd = await designMdService.resolveEffectiveDesignMd({
+      activeOrganizationId: "org-1",
+      userId: "user-1",
+    });
+
+    expect(designMd).toEqual({
+      label: "DESIGN.md",
+      url: "https://blob.example/org-design.md",
+    });
+    expect(getUserByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("prepends design.md to descriptions without duplicating existing links", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      metadata: JSON.stringify({
+        designMdUrl: "https://blob.example/user-design.md",
+      }),
+    });
+
+    const { designMdService } = await import("../design-md.service");
+    const description = await designMdService.appendDesignMdToDescription(
+      "Build landing page",
+      "user-1",
+      null,
+    );
+    const duplicate = await designMdService.appendDesignMdToDescription(
+      description,
+      "user-1",
+      null,
+    );
+
+    expect(description).toBe(
+      "[DESIGN.md](https://blob.example/user-design.md)\n\nBuild landing page",
+    );
+    expect(duplicate).toBe(description);
+  });
 });

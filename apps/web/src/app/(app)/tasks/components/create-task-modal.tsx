@@ -8,7 +8,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import { TaskForm } from "./task-form";
+import { TaskForm, type TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
 // --- Context ---
@@ -97,6 +97,7 @@ interface CreateTaskModalProps {
   projectOptions: ProjectFilterOption[];
   defaultProjectId?: string | null;
   agentNameById: Map<string, string>;
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
 }
 
 export function CreateTaskModal({
@@ -104,6 +105,7 @@ export function CreateTaskModal({
   projectOptions,
   defaultProjectId = null,
   agentNameById,
+  initialDesignMdAttachment = null,
 }: CreateTaskModalProps) {
   const {
     open,
@@ -188,6 +190,7 @@ export function CreateTaskModal({
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
         agentNameById={agentNameById}
+        initialDesignMdAttachment={initialDesignMdAttachment}
         initialValues={{
           ...(coworkerOverrideId ? { coworkerId: coworkerOverrideId } : {}),
           projectId: selectedProjectId,
