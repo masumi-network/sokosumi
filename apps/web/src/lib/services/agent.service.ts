@@ -19,8 +19,6 @@ import {
 } from "@sokosumi/database/repositories";
 
 import {
-  mapCoreAgentMetricsToRatingStats,
-  mapCoreAgentReviews,
   mapCoreAgentsToAgentWithCreditsPrice,
   mapCoreAgentToAgentWithCreditsPrice,
   mapCoreMyAgentReview,
@@ -305,36 +303,6 @@ export const agentService = (() => {
         }
         throw error;
       }
-    },
-
-    /**
-     * Get paginated ratings-with-comments for an agent.
-     *
-     * Served by Core's `GET /v1/agents/{id}/reviews` (comment-bearing ratings).
-     */
-    async getAgentRatings(
-      agentId: string,
-      limit: number = 10,
-      offset: number = 0,
-    ) {
-      const response = await coreClient.getAgentReviews(agentId, {
-        limit,
-        offset,
-      });
-      return mapCoreAgentReviews(response.data).ratingsWithComments;
-    },
-
-    /**
-     * Get aggregate rating statistics for an agent.
-     *
-     * Reuses the rating metrics Core already returns on the agent detail.
-     */
-    async getAgentRatingStats(agentId: string) {
-      const coreAgent = await getCoreAgentById(agentId);
-      if (!coreAgent) {
-        return { totalRatings: 0, averageRating: 0 };
-      }
-      return mapCoreAgentMetricsToRatingStats(coreAgent);
     },
   };
 })();
