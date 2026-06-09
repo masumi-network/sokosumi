@@ -115,7 +115,18 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
 
 5. Idempotency (when `parentId` is a requirement issue)
    - Load the requirement issue and inspect existing children (or search siblings under the same parent).
-   - If a child already exists whose description contains `[repo=…]` and title is **not** `chore(spec): write implementation PRD`, treat it as the implementation issue — comment on the triggering Write PRD sub-task with its link and **stop**; do not create another implementation issue or sub-tasks.
+   - If a child already exists whose description contains `[repo=…]` and title is **not** `chore(spec): write implementation PRD`, treat it as the implementation issue — **stop**; do not create another implementation issue or sub-tasks.
+   - **Where to comment** (one target only — pick by intake path):
+     - **Write PRD sub-task path:** Intake was a Write PRD sub-task (`chore(spec): write implementation PRD`, child of the requirement). Use `save_comment` on **that sub-task** with the existing implementation issue link.
+     - **Manual requirement intake:** Intake was the requirement issue directly (e.g. user said `run feature-spec for SOK-XXX`, or `handoffToPrd: false` with no Write PRD sub-task). Use `save_comment` on the **requirement** issue with the same link.
+   - Comment body (either target):
+
+     ```markdown
+     Implementation PRD already exists: SOK-YYY (link). Idempotency check skipped duplicate publish.
+     ```
+
+     Replace `SOK-YYY` with the existing implementation issue identifier.
+   - Return early per **Post-idempotency response** below — do not run steps 6–10.
 
 6. Create implementation issue
    - Use `save_issue` (do not pass `id` when creating).
@@ -288,6 +299,15 @@ When Cursor finishes and the PR is open:
 Optional reviewer automation: see `CURSOR-AUTOMATION.md`. When enabled, **omit** `delegate: "Cursor"` and `@Cursor` on the verify sub-task — parent comment with PR URL and branch is still required.
 
 The PRD **Agent completion** section repeats this for issues delegated before completion runs.
+
+## Post-idempotency response
+
+When step 5 finds an existing implementation issue, return:
+
+- Existing implementation issue identifier and URL
+- Requirement parent link
+- Comment target: Write PRD sub-task **or** requirement issue (which path was used)
+- Idempotency: skipped duplicate publish — no new issues, no delegate
 
 ## Post-create response
 

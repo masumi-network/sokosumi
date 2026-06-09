@@ -114,7 +114,7 @@ Trigger options (pick one per stage):
 
 Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD sub-task handoff; use **one** trigger per stage (delegate, automation, or manual `@Cursor` — not combined). Spec agent default: `delegate` on implementation issue only — no `@Cursor` when delegate is set.
 
-Before publishing an implementation issue, if the requirement already has a child whose description contains `[repo=…]` (and title is not `chore(spec): write implementation PRD`), stop and link that issue — do not create a second PRD.
+Before publishing an implementation issue, if the requirement already has a child whose description contains `[repo=…]` (and title is not `chore(spec): write implementation PRD`), stop and link that issue — comment on the Write PRD sub-task when intake came from one, otherwise on the requirement issue (`LINEAR-MCP.md` step 5). Do not create a second PRD.
 
 Cloud Agent repo resolution (priority order):
 

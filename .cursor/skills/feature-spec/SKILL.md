@@ -72,7 +72,7 @@ See `WORKFLOW.md` for the full spec → code pipeline.
    - Read `LINEAR-MCP.md`.
    - Use Linear MCP only when it is available in the current agent runtime.
    - Read the relevant MCP/tool descriptors before any MCP call.
-   - If intake was a requirement issue, run the idempotency check in `LINEAR-MCP.md` before creating issues.
+   - If intake was a requirement issue, run the idempotency check in `LINEAR-MCP.md` before creating issues. When an implementation child already exists, comment on the Write PRD sub-task if intake came from one; otherwise comment on the requirement issue — then stop.
    - Create an **implementation** issue in `Sokosumi`, state `Todo`, with exactly one label — **without** `delegate` on create.
    - Set `parentId` to the requirement issue when intake came from one.
    - Add `[repo=masumi-network/sokosumi]` near the top of the description (unless user overrides repo).

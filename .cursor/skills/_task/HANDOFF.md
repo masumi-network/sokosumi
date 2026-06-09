@@ -9,7 +9,8 @@ Trigger the **feature-spec** skill on the new requirement so it:
 1. Discovers codebase context
 2. Writes the full implementation PRD
 3. Creates the implementation issue (child of requirement)
-4. Delegates to Cursor Cloud Agent for coding
+4. Creates **Confirm PRD** and **Verify implementation** sub-tasks under the implementation issue
+5. Delegates to Cursor Cloud Agent for coding — **after** both sub-tasks exist
 
 The _task agent does **not** write the PRD.
 
@@ -49,13 +50,13 @@ Use `save_issue` (no `id`):
 **Requirement:** SOK-XXX (parent — read description)
 
 **Agent instructions:**
-1. Read repo `.cursor/skills/feature-spec/SKILL.md` and linked files.
+1. Read repo `.cursor/skills/feature-spec/SKILL.md` and linked files (especially `LINEAR-MCP.md`).
 2. Intake requirement SOK-XXX via Linear MCP `get_issue`.
-3. Follow feature-spec workflow: discovery → PRD → publish implementation issue with `parentId` → delegate Cursor.
+3. Follow feature-spec workflow per `LINEAR-MCP.md`: discovery → PRD → publish implementation issue with `parentId` (no `delegate` on create) → create Confirm PRD sub-task → create Verify implementation sub-task → delegate Cursor on implementation issue.
 4. Do not wait for PRD approval (feature-spec default).
 5. If an implementation issue already exists under the requirement (description contains `[repo=…]`), stop — do not publish a second PRD.
 
-**Done when:** Implementation issue exists, linked as child, with PRD in description and Cursor delegated.
+**Done when:** Implementation issue exists (child of requirement, PRD in description), Confirm PRD and Verify implementation sub-tasks exist under it, and Cursor is delegated on the implementation issue.
 ```
 
 ### 2. Comment on requirement issue (informational only)
@@ -73,7 +74,7 @@ Replace `SOK-YYY` with Write PRD sub-task id when known.
 When `delegate: "Cursor"` is unavailable or the team does not use automation, post **one** `@Cursor` comment on the Write PRD sub-task — and do **not** set `delegate` on step 1:
 
 ```markdown
-@Cursor Run feature-spec skill. Intake parent requirement SOK-XXX. Publish implementation PRD per `.cursor/skills/feature-spec/WORKFLOW.md` and `LINEAR-MCP.md`. If an implementation issue already exists under the requirement, stop.
+@Cursor Run feature-spec skill. Intake parent requirement SOK-XXX. Publish implementation PRD per `.cursor/skills/feature-spec/WORKFLOW.md` and `LINEAR-MCP.md` — create Confirm PRD and Verify implementation sub-tasks before delegating Cursor on the implementation issue. If an implementation issue already exists under the requirement, stop.
 ```
 
 Replace `SOK-XXX` with requirement id.
