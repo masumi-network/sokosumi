@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
@@ -35,7 +32,6 @@ import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
-  favoriteAgents: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -43,7 +39,6 @@ interface AgentDetailHeaderProps {
 
 function AgentDetailHeader({
   agent,
-  favoriteAgents,
   showBackButton,
   showCloseButton,
   onClose,
@@ -90,7 +85,6 @@ function AgentDetailHeader({
           )}
           <AgentActionButtons
             agent={agent}
-            favoriteAgents={favoriteAgents}
             showBackButton={false}
             showCloseButton={showCloseButton}
             onClose={onClose}

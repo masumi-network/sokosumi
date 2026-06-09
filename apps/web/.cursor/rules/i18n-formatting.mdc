@@ -1,0 +1,65 @@
+---
+description: Locale-safe number and date formatting in client components (hydration)
+globs:
+  - "*.tsx"
+alwaysApply: true
+---
+
+# Locale-safe formatting (next-intl)
+
+Client components are **pre-rendered on the server** and then hydrated in the browser. Formatting that depends on the **runtime default locale** (`toLocaleString()`, `Intl.*` without an explicit locale) often differs between Node and the user's browser and causes hydration mismatches.
+
+## Do not
+
+- Call `.toLocaleString()` on numbers in `'use client'` components (including after `formatCreditsForDisplay()`).
+- Use `new Intl.NumberFormat()` or `new Intl.DateTimeFormat()` without a fixed locale in client components that render user-facing values during SSR.
+
+```tsx
+// ❌ Hydration mismatch: server may render "60,000", browser "60.000"
+<span>{formatCreditsForDisplay(credits).toLocaleString()}</span>
+```
+
+## Do
+
+**Client components** — use `useFormatter()` from `next-intl` so server and client share the app locale:
+
+```tsx
+"use client";
+
+import { useFormatter } from "next-intl";
+
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
+
+function CreditsCell({ credits }: { credits: number }) {
+  const formatter = useFormatter();
+
+  return (
+    <span className="tabular-nums">
+      {formatter.number(formatCreditsForDisplay(credits))}
+    </span>
+  );
+}
+```
+
+For dates in client components, prefer `formatter.dateTime(value, options)` (see `jobs-table.tsx`, `job-meta-details.tsx`).
+
+**Server components** — use `getFormatter()` from `next-intl/server`:
+
+```tsx
+import { getFormatter } from "next-intl/server";
+
+const formatter = await getFormatter();
+formatter.number(formatCreditsForDisplay(credits));
+```
+
+**ICU in translations** — prefer `{count, number}` in `messages/*.json` via `t('key', { count })` when the formatted value is part of a sentence.
+
+## When server-only output is acceptable
+
+Pure server components (no `'use client'`) that never hydrate the formatted node are not affected. Still prefer `getFormatter()` for locale-consistent copy.
+
+## References
+
+- [next-intl `useFormatter`](https://next-intl-docs.vercel.app/docs/usage/numbers)
+- `apps/web/src/app/(app)/agents/[agentId]/jobs/components/jobs-table.tsx`
+- `apps/web/src/components/jobs/job-details/job-meta-details.tsx`

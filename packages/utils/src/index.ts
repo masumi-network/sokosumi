@@ -73,12 +73,14 @@ export {
   type OrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
+export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export {
   getTaskCannotArchiveMessage,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
+export { TaskStatus } from "./task-status.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,

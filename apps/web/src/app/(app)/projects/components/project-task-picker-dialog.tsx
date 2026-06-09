@@ -1,6 +1,6 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { ListTodo, Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { unassignedWorkspaceTasksQuery } from "@/app/projects/constants";

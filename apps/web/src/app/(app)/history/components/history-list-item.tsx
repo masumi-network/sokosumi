@@ -1,6 +1,6 @@
 "use client";
 
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import {
@@ -9,7 +9,7 @@ import {
 } from "@/app/chat-ui/utils/chat-route-base";
 import {
   getHistoryRowSubtitle,
-  type HistorySubtitleLookups,
+  type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { AgentIcon } from "@/components/agents/agent-icon";
@@ -41,17 +41,17 @@ export interface HistoryListItemLabels {
 
 interface HistoryListItemProps {
   item: HistoryItem;
-  subtitleLookups: HistorySubtitleLookups;
+  bucketLookups: HistoryBucketLookups;
   labels: HistoryListItemLabels;
 }
 
 export function HistoryListItem({
   item,
-  subtitleLookups,
+  bucketLookups,
   labels,
 }: HistoryListItemProps) {
   const { formatTimeAgo } = useLocalizedDateTime();
-  const description = getHistoryRowSubtitle(item, subtitleLookups, labels);
+  const description = getHistoryRowSubtitle(item, bucketLookups, labels);
   const credits = formatHistoryCredits(item.credits, labels);
   const rowClassName = cn(
     "group -mx-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
@@ -67,7 +67,7 @@ export function HistoryListItem({
       formatTimeAgo={formatTimeAgo}
       item={item}
       labels={labels}
-      subtitleLookups={subtitleLookups}
+      bucketLookups={bucketLookups}
     />
   );
 
@@ -88,21 +88,21 @@ function HistoryListItemContent({
   formatTimeAgo,
   item,
   labels,
-  subtitleLookups,
+  bucketLookups,
 }: {
   credits: string;
   description: string;
   formatTimeAgo: (date: string | Date) => string;
   item: HistoryItem;
   labels: HistoryListItemLabels;
-  subtitleLookups: HistorySubtitleLookups;
+  bucketLookups: HistoryBucketLookups;
 }) {
   return (
     <>
       <HistoryTypeColumn
         item={item}
         labels={labels}
-        subtitleLookups={subtitleLookups}
+        bucketLookups={bucketLookups}
       />
 
       <div className="min-w-0">
@@ -152,11 +152,11 @@ export function getHistoryItemHref(item: HistoryItem): string {
 function HistoryTypeColumn({
   item,
   labels,
-  subtitleLookups,
+  bucketLookups,
 }: {
   item: HistoryItem;
   labels: HistoryListItemLabels;
-  subtitleLookups: HistorySubtitleLookups;
+  bucketLookups: HistoryBucketLookups;
 }) {
   return (
     <div className="flex w-9 shrink-0 items-center gap-1.5 sm:w-30">
@@ -167,7 +167,7 @@ function HistoryTypeColumn({
         <HistoryTypeIcon
           item={item}
           labels={labels}
-          subtitleLookups={subtitleLookups}
+          bucketLookups={bucketLookups}
         />
       </span>
       <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase hidden sm:block">
@@ -180,24 +180,22 @@ function HistoryTypeColumn({
 function HistoryTypeIcon({
   item,
   labels,
-  subtitleLookups,
+  bucketLookups,
 }: {
   item: HistoryItem;
   labels: HistoryListItemLabels;
-  subtitleLookups: HistorySubtitleLookups;
+  bucketLookups: HistoryBucketLookups;
 }) {
   if (item.kind === "task") {
     return <ListTodo className="size-4" />;
   }
 
   if (item.kind === "job") {
-    const agentPreview = subtitleLookups.agentPreviewById[item.agentId];
-
     return (
       <AgentIcon
         agent={{
-          name: agentPreview?.name ?? item.title,
-          icon: agentPreview?.icon ?? null,
+          name: item.agentName ?? item.title,
+          icon: item.agentIcon ?? null,
         }}
         className="size-4"
       />
@@ -205,7 +203,7 @@ function HistoryTypeIcon({
   }
 
   const bucketIcon = item.bucketSlug
-    ? subtitleLookups.bucketIconBySlug[item.bucketSlug]
+    ? bucketLookups.bucketIconBySlug[item.bucketSlug]
     : undefined;
 
   return (
@@ -220,7 +218,7 @@ function HistoryConversationIcon({
   bucketIcon,
   fallbackLabel,
 }: {
-  bucketIcon: HistorySubtitleLookups["bucketIconBySlug"][string] | undefined;
+  bucketIcon: HistoryBucketLookups["bucketIconBySlug"][string] | undefined;
   fallbackLabel: string;
 }) {
   if (bucketIcon?.kind === "model") {

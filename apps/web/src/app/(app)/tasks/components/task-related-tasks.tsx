@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 
 import type { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
 

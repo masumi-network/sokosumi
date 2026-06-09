@@ -34,10 +34,8 @@ export default async function AgentDetailPage({
   const session = await getSession();
   const userId = session?.user.id ?? null;
 
-  const [reviewsResponse, favoriteAgents, projectOptions] = await Promise.all([
+  const [reviewsResponse, projectOptions] = await Promise.all([
     coreClient.getAgentReviews(agentId),
-    // TODO(core-api): replace with a Core favorites API when available.
-    agentService.getFavoriteAgents(),
     session ? getProjectFilterOptions() : Promise.resolve(undefined),
   ]);
   const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
@@ -47,14 +45,11 @@ export default async function AgentDetailPage({
   const averageExecutionDuration = coreAgent.metrics.executions.averageTime;
   const ratingStats = mapCoreAgentMetricsToRatingStats(coreAgent);
 
-  // TODO(core-api): replace with Core user rating read/eligibility APIs.
-  const canRate = userId
-    ? await agentService.canUserRateAgent(userId, agentId)
-    : false;
+  const canRate = userId ? await agentService.canUserRateAgent(agentId) : false;
 
   const existingRating =
     userId && canRate
-      ? await agentService.getUserRatingForAgent(userId, agentId)
+      ? await agentService.getUserRatingForAgent(agentId)
       : null;
 
   return (
@@ -71,7 +66,6 @@ export default async function AgentDetailPage({
             agent={agentWithCreditsPrice}
             executedJobsCount={executedJobsCount}
             averageExecutionDuration={averageExecutionDuration}
-            favoriteAgents={favoriteAgents}
             ratingStats={ratingStats}
             ratingDistribution={ratingDistribution}
             ratingsWithComments={ratingsWithComments}
@@ -81,10 +75,7 @@ export default async function AgentDetailPage({
           />
         </div>
       </div>
-      <AgentBottomNavigation
-        agent={agentWithCreditsPrice}
-        favoriteAgents={favoriteAgents}
-      />
+      <AgentBottomNavigation agent={agentWithCreditsPrice} />
       {/* Create Job Modal */}
       <CreateJobModal />
     </CreateJobModalContextProvider>

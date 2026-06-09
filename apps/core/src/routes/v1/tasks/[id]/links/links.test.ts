@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { Prisma, TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { Prisma, TaskLinkType } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

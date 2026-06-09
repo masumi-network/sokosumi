@@ -1,4 +1,5 @@
-import { AgentJobStatus, SokosumiJobStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import {
   firstQueryString,

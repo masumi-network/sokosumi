@@ -43,7 +43,6 @@ export * from "./generated/prisma/models.js";
 
 // Export shared types
 export * from "./types/agent.js";
-export * from "./types/agentList.js";
 export * from "./types/agentRating.js";
 export * from "./types/invitation.js";
 export * from "./types/job.js";

@@ -164,15 +164,20 @@ export default function UserAvatarClient({
               <UserIcon className="text-muted-foreground" />
               {t("account")}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={(e: React.MouseEvent) =>
-                handleClick(e, "/organizations")
-              }
-            >
-              <Building2 className="text-muted-foreground" />
-              {t("organizations")}
-            </DropdownMenuItem>
+            {activeOrganizationMember ? (
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2"
+                onClick={(e: React.MouseEvent) =>
+                  handleClick(
+                    e,
+                    `/organizations/${activeOrganizationMember.organization.slug}`,
+                  )
+                }
+              >
+                <Building2 className="text-muted-foreground" />
+                {t("organizations")}
+              </DropdownMenuItem>
+            ) : null}
             {canViewBilling ? (
               <DropdownMenuItem
                 className="flex cursor-pointer items-center gap-2"

@@ -1,5 +1,4 @@
-import { TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -33,6 +32,8 @@ const jobItem = {
   credits: 5,
   projectId: null,
   agentId: "agent_123",
+  agentName: "Research Agent",
+  agentIcon: "https://example.com/research.svg",
 };
 
 const conversationItem = {

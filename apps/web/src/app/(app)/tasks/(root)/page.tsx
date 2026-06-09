@@ -1,4 +1,5 @@
-import { AgentJobStatus, TaskStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 

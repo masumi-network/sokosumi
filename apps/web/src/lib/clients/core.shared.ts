@@ -6,7 +6,9 @@ import {
   mapCorePublicSharedResourceResponse,
 } from "@/lib/clients/core.job-share";
 import type {
+  ActivateEnterpriseContractRequest,
   CreateConversationMessageRequest,
+  CreateEnterpriseContractRequest,
   DeleteHermesMeInstanceIntegrationsByProviderData,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
@@ -17,6 +19,7 @@ import type {
   GetAgentsData,
   GetCategoriesData,
   GetCoworkersData,
+  GetEnterpriseContractsData,
   GetHermesMeMessagesData,
   GetHistoryData,
   GetJobsData,
@@ -33,10 +36,12 @@ import type {
   HermesUpdateInstanceRequest,
   MarkHermesInboxSeenRequest,
   PaginationMetadata,
+  PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
+  PostAgentsByIdRatingsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -60,12 +65,17 @@ import {
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getAgentsByIdJobs as coreGetAgentsByIdJobs,
+  getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
+  getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
   getCoworkers as coreGetCoworkers,
+  getEnterpriseContracts as coreGetEnterpriseContracts,
+  getEnterpriseContractsById as coreGetEnterpriseContractsById,
+  getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHermesMeInstance as coreGetHermesMeInstance,
   getHermesMeInstanceIntegrations as coreGetHermesMeInstanceIntegrations,
   getHermesMeInstanceOnboardingProgress as coreGetHermesMeInstanceOnboardingProgress,
@@ -75,6 +85,7 @@ import {
   getHistory as coreGetHistory,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -87,14 +98,19 @@ import {
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
+  postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
+  postEnterpriseContracts as corePostEnterpriseContracts,
+  postEnterpriseContractsByIdActivate as corePostEnterpriseContractsByIdActivate,
+  postEnterpriseContractsByIdCancel as corePostEnterpriseContractsByIdCancel,
   postHermesMeInboxSeen as corePostHermesMeInboxSeen,
   postHermesMeInstance as corePostHermesMeInstance,
   postHermesMeInstanceConfirmationsByConfirmationIdApprove as corePostHermesMeInstanceConfirmationsByConfirmationIdApprove,
@@ -273,6 +289,7 @@ export function mapCoreApiStatusToCommonErrorCode(
     case 403:
       return CommonErrorCode.UNAUTHORIZED;
     case 404:
+      return CommonErrorCode.NOT_FOUND;
     case 409:
     case 422:
       return CommonErrorCode.BAD_INPUT;
@@ -521,6 +538,19 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationMembers(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdMembers({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization members",
+    );
+  }
+
   async function getProjectsById(id: string) {
     return executeOperation(
       getClient,
@@ -663,14 +693,25 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getAgents(query?: GetAgentsData["query"]) {
+  async function getAgents(
+    query?: GetAgentsData["query"],
+    cacheOptions?: { revalidate: number; tags?: string[] },
+  ) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetAgents({
           client,
           query,
-          cache: "no-store",
+          // The agent catalog (GET /v1/agents) is global — it carries no
+          // per-user fields and is not user/workspace-scoped — so callers may
+          // opt into cross-request revalidation caching. Next keys the fetch
+          // cache by URL (not auth headers), so the cached payload is safely
+          // shared across users. Without `cacheOptions` this stays `no-store`,
+          // which every other (user-scoped) Core call must keep.
+          ...(cacheOptions
+            ? { next: cacheOptions }
+            : { cache: "no-store" as const }),
         }),
       "Failed to fetch agents",
     );
@@ -707,6 +748,48 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch agent reviews",
+    );
+  }
+
+  async function getMyAgentReview(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdReviewsMe({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch your agent review",
+    );
+  }
+
+  async function getAgentRatingEligibility(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdRatingsEligibility({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch agent rating eligibility",
+    );
+  }
+
+  async function createAgentRating(
+    id: string,
+    body: NonNullable<PostAgentsByIdRatingsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostAgentsByIdRatings({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to submit agent rating",
     );
   }
 
@@ -1380,7 +1463,117 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listEnterpriseContracts(
+    query?: GetEnterpriseContractsData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetEnterpriseContracts({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list enterprise contracts",
+    );
+  }
+
+  async function createEnterpriseContract(
+    body: CreateEnterpriseContractRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostEnterpriseContracts({
+          client,
+          body,
+        }),
+      "Failed to create enterprise contract",
+    );
+  }
+
+  async function getEnterpriseContract(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetEnterpriseContractsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch enterprise contract",
+    );
+  }
+
+  async function patchEnterpriseContract(
+    id: string,
+    body: PatchEnterpriseContractRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchEnterpriseContractsById({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to update enterprise contract",
+    );
+  }
+
+  async function previewEnterpriseContractPeriods(
+    id: string,
+    activatedAt: Date,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetEnterpriseContractsByIdPeriodsPreview({
+          client,
+          path: { id },
+          query: { activatedAt },
+          cache: "no-store",
+        }),
+      "Failed to preview enterprise contract periods",
+    );
+  }
+
+  async function activateEnterpriseContract(
+    id: string,
+    body?: ActivateEnterpriseContractRequest,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostEnterpriseContractsByIdActivate({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to activate enterprise contract",
+    );
+  }
+
+  async function cancelEnterpriseContract(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostEnterpriseContractsByIdCancel({
+          client,
+          path: { id },
+        }),
+      "Failed to cancel enterprise contract",
+    );
+  }
+
   return {
+    activateEnterpriseContract,
+    cancelEnterpriseContract,
+    createEnterpriseContract,
+    getEnterpriseContract,
+    listEnterpriseContracts,
+    patchEnterpriseContract,
+    previewEnterpriseContractPeriods,
     acknowledgeNotice,
     addConversationMessage,
     archiveConversation,
@@ -1417,14 +1610,18 @@ export function createCoreClient(getClient: GetClient) {
     getAgentById,
     getAgentJobs,
     getAgentInputSchema,
+    getAgentRatingEligibility,
     getAgentReviews,
+    getMyAgentReview,
     getAgents,
+    createAgentRating,
     getCategories,
     getCoworkers,
     getJobById,
     getJobs,
     getMyCredits,
     getMyOrganizations,
+    getOrganizationMembers,
     getPendingNotices,
     getProjects,
     getProjectsById,

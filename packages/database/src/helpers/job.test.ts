@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
-
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, it } from "vitest";
-
 import { JobType } from "../generated/prisma/client.js";
-import { SokosumiJobStatus } from "../types/job.js";
 import { computeJobStatus } from "./job.js";
 
 function createPaidJob(overrides: Record<string, unknown> = {}) {

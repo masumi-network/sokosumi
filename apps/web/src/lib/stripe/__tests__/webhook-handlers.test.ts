@@ -1378,6 +1378,40 @@ describe("handleInvoicePaidEvent", () => {
     );
   });
 
+  it("applies ttl_days expiry to paid (non-zero) top-ups while keeping STRIPE_TOPUP", async () => {
+    const { handleInvoicePaidEvent } = await import("../webhook-handlers");
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        amountPaid: 5000,
+        billingReason: "manual",
+        id: "in_admin_grant_paid_ttl_30",
+        lines: [{ productId: "prod_credit", quantity: 1 }],
+        metadata: { credits: "500", ttl_days: "30" },
+      }) as never,
+    );
+
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+
+    const createCall = createTransactionMock.mock.calls[0][0] as {
+      data: {
+        sourceCreditBucket: {
+          create: {
+            expiresAt: Date | null;
+            referenceType: string;
+          };
+        };
+      };
+    };
+
+    expect(createCall.data.sourceCreditBucket.create.referenceType).toBe(
+      "STRIPE_TOPUP",
+    );
+    expect(createCall.data.sourceCreditBucket.create.expiresAt).toEqual(
+      getCreditExpiryDate(new Date(DEFAULT_INVOICE_CREATED_UNIX * 1000), 30),
+    );
+  });
+
   it.each([
     "0",
   ])("sets no expiry for free top-up when ttl_days is %s", async (ttlDaysValue) => {

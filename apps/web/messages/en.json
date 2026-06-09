@@ -83,10 +83,7 @@
       "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "addedToBookmarks": "Agent added to pinned agents",
-        "removedFromBookmarks": "Agent removed from pinned agents",
-        "bookmarkError": "Failed to update pinned agents"
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       },
       "AgentDetail": {
         "Header": {
@@ -122,7 +119,6 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "organizations": "Organizations",
       "billing": "Billing",
       "connections": "Connections",
       "help": "Help",
@@ -146,7 +142,8 @@
       "creditsConsumedProgressAria": "Subscription credits consumed",
       "creditsExpiresInDays": "Credits renew in {days, plural, =1 {1 day} other {# days}}",
       "creditsExpiresToday": "Credits renew today",
-      "creditsExpired": "Credits expired"
+      "creditsExpired": "Credits expired",
+      "organizations": "Organizations"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
@@ -179,6 +176,8 @@
         "name": "Name",
         "email": "Email",
         "role": "Role",
+        "lastSeen": "Last seen",
+        "lastSeenNever": "Never",
         "seat": "Seat",
         "actions": "Actions"
       },
@@ -239,6 +238,22 @@
         "resendError": "Failed to resend invitation"
       }
     },
+    "OrganizationCombobox": {
+      "placeholder": "Select an organization",
+      "search": "Search organizations…",
+      "empty": "No organizations found.",
+      "loading": "Searching…",
+      "error": "Search failed. Try again.",
+      "idle": "Type to search organizations."
+    },
+    "UserCombobox": {
+      "placeholder": "Select a user",
+      "search": "Search users by name or email…",
+      "empty": "No users found.",
+      "loading": "Searching…",
+      "error": "Search failed. Try again.",
+      "idle": "Type to search users."
+    },
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Agents",
@@ -247,7 +262,10 @@
       "subscriptions": "Subscriptions",
       "billing": "Billing",
       "account": "Account",
-      "organizations": "Organizations",
+      "admin": "Admin",
+      "edit": "Edit",
+      "enterprise-contracts": "Enterprise contracts",
+      "credit-grants": "Grant credits",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",
@@ -2334,6 +2352,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "Recent Chats",
+          "noChats": "No chats yet",
+          "untitledChat": "Untitled Chat",
+          "modelAlt": "Model",
+          "coworkerAlt": "Coworker"
+        },
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agents",
@@ -2341,7 +2366,8 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "hermes": "Hermes",
-          "history": "History"
+          "history": "History",
+          "admin": "Admin"
         }
       }
     },
@@ -2497,6 +2523,159 @@
         "title": "Something Went Wrong",
         "message": "We encountered an issue loading subscriptions. Please try again later.",
         "retryButton": "Try Again"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Enterprise contracts",
+        "description": "Internal admin console for draft, activation, and cancellation flows.",
+        "newContract": "New contract",
+        "loading": "Loading…",
+        "loadFailed": "Failed to load enterprise contracts.",
+        "Filters": {
+          "organizationSlug": "Organization",
+          "organizationSlugPlaceholder": "acme-corp",
+          "organizationAll": "All organizations",
+          "status": "Status",
+          "statusAll": "All",
+          "apply": "Apply filters"
+        },
+        "Status": {
+          "draft": "Draft",
+          "active": "Active",
+          "completed": "Completed",
+          "canceled": "Canceled"
+        },
+        "Table": {
+          "organization": "Organization",
+          "status": "Status",
+          "seats": "Seats",
+          "creditsPerMonth": "Credits per month",
+          "periods": "Periods",
+          "ends": "Ends",
+          "actions": "Actions",
+          "view": "View"
+        },
+        "Form": {
+          "Sections": {
+            "subscription": "Subscription",
+            "oneTime": "One-time",
+            "references": "References"
+          },
+          "optionalSection": "Optional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Organization",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Credits / month",
+              "min": "Min {min, number}"
+            },
+            "periods": {
+              "label": "Periods",
+              "helper": "1 period = 1 month"
+            },
+            "seats": {
+              "label": "Seats"
+            },
+            "oneTimeCredits": {
+              "label": "Amount"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expires",
+              "helper": "Blank = no expiry"
+            },
+            "paymentReference": {
+              "label": "Payment"
+            },
+            "externalReference": {
+              "label": "External"
+            },
+            "notes": {
+              "label": "Notes"
+            }
+          },
+          "createDraft": "Create draft",
+          "saveChanges": "Save changes",
+          "cancel": "Cancel",
+          "createSuccess": "Draft contract created",
+          "updateSuccess": "Contract updated",
+          "createError": "Failed to create contract",
+          "updateError": "Failed to update contract",
+          "missingContract": "Missing contract",
+          "organizationRequired": "Select an organization"
+        },
+        "Detail": {
+          "noExpiry": "No expiry"
+        }
+      },
+      "CreditGrants": {
+        "title": "Grant credits",
+        "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
+        "cardTitle": "New credit grant",
+        "Form": {
+          "Fields": {
+            "target": "Recipient",
+            "organization": "Organization",
+            "credits": "Credits",
+            "expiryDays": "Expiry (days)",
+            "price": "Price per credit",
+            "markFree": "Mark as free"
+          },
+          "Tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "markFreeHelper": "Applies the support coupon so the invoice is $0. The recipient still receives the full credits.",
+          "targetRequired": "Select a recipient",
+          "organizationRequired": "Select an organization",
+          "creditsRequired": "Enter a positive number of credits",
+          "creditsHelper": "Number of credits to grant to the recipient.",
+          "expiryDays": "Expiry (days)",
+          "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
+          "expiryPlaceholder": "No expiry",
+          "expiryInvalid": "Expiry must be a positive whole number of days",
+          "submit": "Create invoice",
+          "submitting": "Creating invoice…",
+          "createSuccess": "Invoice created",
+          "createError": "Failed to create invoice",
+          "pricePlaceholder": "Select a price",
+          "priceRequired": "Select a price"
+        },
+        "Result": {
+          "heading": "Credit grant invoice",
+          "pendingHelper": "Mark the invoice paid to grant the credits instantly, or leave it to be paid in Stripe.",
+          "paidHelper": "The invoice is paid and the credits have been granted to the recipient.",
+          "organization": "Organization",
+          "user": "User",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "invoiceId": "Invoice ID",
+          "markPaid": "Mark as paid",
+          "marking": "Granting credits…",
+          "paidSuccess": "Credits granted",
+          "paidError": "Failed to mark invoice as paid",
+          "openInStripe": "Open in Stripe"
+        }
+      },
+      "Overview": {
+        "title": "Admin",
+        "description": "Internal tools for managing organizations and billing.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Enterprise contracts",
+            "description": "Create and manage draft, active, and canceled enterprise contracts."
+          },
+          "creditGrants": {
+            "title": "Grant credits",
+            "description": "Grant one-time credits to an organization via a Stripe invoice."
+          }
+        }
       }
     },
     "Billing": {
@@ -2923,39 +3102,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizations",
-        "description": "Manage your organizations"
-      },
-      "newOrganization": "New Organization",
-      "organizationsNotAvailable": "No Organizations found",
-      "OrganizationRow": {
-        "leave": "Leave",
-        "activate": "Activate",
-        "deactivate": "Deactivate"
-      },
-      "Credits": {
-        "title": "Organization credits",
-        "description": "Available for {organization} members",
-        "buy": "Add credits"
-      },
-      "InvitationActions": {
-        "accept": "Accept",
-        "reject": "Reject",
-        "acceptTitle": "Accept Invitation",
-        "rejectTitle": "Reject Invitation",
-        "acceptDescription": "Are you sure you want to accept the invitation for {email}?",
-        "rejectDescription": "Are you sure you want to reject the invitation for {email}?",
-        "confirm": "Confirm",
-        "cancel": "Cancel",
-        "acceptSuccess": "Invitation accepted successfully",
-        "acceptError": "Failed to accept invitation",
-        "rejectSuccess": "Invitation rejected successfully",
-        "rejectError": "Failed to reject invitation",
-        "Errors": {
-          "unauthorizedAction": "Login"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

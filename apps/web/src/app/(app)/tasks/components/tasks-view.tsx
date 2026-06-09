@@ -9,11 +9,8 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  AgentJobStatus,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";

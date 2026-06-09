@@ -10,6 +10,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import type {
   Agent as CoreAgent,
   AgentDetail as CoreAgentDetail,
+  AgentMyReview as CoreAgentMyReview,
   AgentRatingDistribution as CoreAgentRatingDistribution,
   AgentReview as CoreAgentReview,
   AgentReviews as CoreAgentReviews,
@@ -255,6 +256,25 @@ export function mapCoreAgentReview(
   };
 }
 
+/** The caller's own rating for an agent; consumers only need rating + comment. */
+export interface UserAgentRatingSummary {
+  rating: number;
+  comment: string | null;
+}
+
+export function mapCoreMyAgentReview(
+  review: CoreAgentMyReview,
+): UserAgentRatingSummary | null {
+  if (!review) {
+    return null;
+  }
+
+  return {
+    rating: review.rating,
+    comment: review.comment ?? null,
+  };
+}
+
 export function mapCoreAgentReviews(
   reviews: CoreAgentReviews,
 ): MappedAgentReviews {
@@ -362,7 +382,6 @@ export function mapCoreAgentToAgentWithCreditsPrice(
     exampleOutput: mapCoreAgentExampleOutputs(agent),
     overrideExampleOutput: [],
     userAgentRating: [],
-    agentLists: [],
     jobs: [],
     tags: mapCoreAgentTags(agent),
     overrideTags: [],
@@ -440,7 +459,6 @@ export function createUnavailableAgentWithCreditsPrice(
     exampleOutput: [],
     overrideExampleOutput: [],
     userAgentRating: [],
-    agentLists: [],
     jobs: [],
     tags: [],
     overrideTags: [],

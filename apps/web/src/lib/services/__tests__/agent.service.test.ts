@@ -4,278 +4,166 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
-import {
-  AgentStatus,
-  AgentWithRelations,
-  PricingType,
-} from "@sokosumi/database";
+const getAllCoreAgentsMock = vi.fn();
+const getCoreAgentByIdMock = vi.fn();
+const mapCoreAgentsToAgentWithCreditsPriceMock = vi.fn();
+const mapCoreAgentToAgentWithCreditsPriceMock = vi.fn();
+const mapCoreMyAgentReviewMock = vi.fn();
 
-const upsertWorkspaceForContextMock = vi.fn();
+const getAgentRatingEligibilityMock = vi.fn();
+const getMyAgentReviewMock = vi.fn();
 
-const getShownAgentsWithRelationsByStatusMock = vi.fn();
-const getCreditCostsMock = vi.fn();
-const getCreditCostByUnitMock = vi.fn();
-const transactionMock = vi.fn();
-const getSessionMock = vi.fn();
-const getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock = vi.fn();
+class CoreApiRequestErrorMock extends Error {
+  status?: number;
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  agentListRepository: {
-    upsertAgentListForUserId: vi.fn(),
-  },
-  agentRatingRepository: {
-    getAgentRatingStats: vi.fn(),
-    getRatingsByAgentId: vi.fn(),
-    getUserRatingForAgent: vi.fn(),
-    upsertRating: vi.fn(),
-  },
-  agentRepository: {
-    getHiredAgentsWithLatestJobByUserIdAndWorkspace: (...args: unknown[]) =>
-      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock(...args),
-    getShownAgentWithRelationById: vi.fn(),
-    getShownAgentsWithRelationsByStatus: (...args: unknown[]) =>
-      getShownAgentsWithRelationsByStatusMock(...args),
-  },
-  creditCostRepository: {
-    getCreditCostByUnit: (...args: unknown[]) =>
-      getCreditCostByUnitMock(...args),
-    getCreditCosts: (...args: unknown[]) => getCreditCostsMock(...args),
-  },
-  jobRepository: {
-    doesUserHaveFinishedJobWithAgent: vi.fn(),
-    getAverageExecutionDurationByAgentId: vi.fn(),
-  },
-  workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
-  },
-}));
-
-vi.mock("@/lib/auth/utils", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  __esModule: true,
-  default: {
-    $transaction: (...args: unknown[]) => transactionMock(...args),
-  },
-}));
-
-function buildFixedAgent({
-  id,
-  amounts,
-  isShown = true,
-}: {
-  id: string;
-  amounts: Array<{ unit: string; amount: bigint }>;
-  isShown?: boolean;
-}): AgentWithRelations {
-  return {
-    id,
-    isShown,
-    pricing: {
-      pricingType: PricingType.FIXED,
-      fixedPricing: {
-        amounts,
-      },
-    },
-  } as unknown as AgentWithRelations;
+  constructor(message: string, options?: { status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.status = options?.status;
+  }
 }
 
-function buildFreeAgent(id: string): AgentWithRelations {
-  return {
-    id,
-    isShown: true,
-    pricing: {
-      pricingType: PricingType.FREE,
-      fixedPricing: null,
-    },
-  } as unknown as AgentWithRelations;
-}
+vi.mock("@/lib/agents/core-loaders", () => ({
+  getAllCoreAgents: (...args: unknown[]) => getAllCoreAgentsMock(...args),
+  getCoreAgentById: (...args: unknown[]) => getCoreAgentByIdMock(...args),
+}));
 
-function buildUnknownAgent(id: string): AgentWithRelations {
-  return {
-    id,
-    isShown: true,
-    pricing: {
-      pricingType: PricingType.UNKNOWN,
-      fixedPricing: null,
-    },
-  } as unknown as AgentWithRelations;
-}
+vi.mock("@/lib/agents/core-dto-mappers", () => ({
+  mapCoreAgentsToAgentWithCreditsPrice: (...args: unknown[]) =>
+    mapCoreAgentsToAgentWithCreditsPriceMock(...args),
+  mapCoreAgentToAgentWithCreditsPrice: (...args: unknown[]) =>
+    mapCoreAgentToAgentWithCreditsPriceMock(...args),
+  mapCoreMyAgentReview: (...args: unknown[]) =>
+    mapCoreMyAgentReviewMock(...args),
+}));
+
+vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: CoreApiRequestErrorMock,
+  coreClient: {
+    getAgentRatingEligibility: (...args: unknown[]) =>
+      getAgentRatingEligibilityMock(...args),
+    getMyAgentReview: (...args: unknown[]) => getMyAgentReviewMock(...args),
+  },
+}));
 
 describe("agent.service", () => {
-  const txMock = { tx: "mock" };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    upsertWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
-    transactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback(txMock),
+    // Default mapper behavior: tag mapped agents so wiring is observable.
+    mapCoreAgentsToAgentWithCreditsPriceMock.mockImplementation(
+      (agents: Array<{ id: string }>) =>
+        agents.map((agent) => ({ id: agent.id, mapped: true })),
+    );
+    mapCoreAgentToAgentWithCreditsPriceMock.mockImplementation(
+      (agent: { id: string }) => ({ id: agent.id, mapped: true }),
     );
   });
 
-  it("keeps availability filtering consistent between list and priced methods", async () => {
-    getShownAgentsWithRelationsByStatusMock.mockResolvedValue([
-      buildFixedAgent({
-        id: "agent-valid",
-        amounts: [{ unit: "token", amount: BigInt(2) }],
-      }),
-      buildFixedAgent({
-        id: "agent-hidden",
-        amounts: [{ unit: "token", amount: BigInt(1) }],
-        isShown: false,
-      }),
-      buildUnknownAgent("agent-unknown"),
-      buildFreeAgent("agent-free"),
-    ]);
-    getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: BigInt(10) },
-    ]);
+  it("serves priced available agents from core (credits already computed)", async () => {
+    const coreAgents = [{ id: "agent-1" }];
+    getAllCoreAgentsMock.mockResolvedValue(coreAgents);
 
     const { agentService } = await import("../agent.service");
-    const availableAgents = await agentService.getAvailableAgents();
-    const agentsWithCreditsPrice =
-      await agentService.getAvailableAgentsWithCreditsPrice();
+    const result = await agentService.getAvailableAgentsWithCreditsPrice();
 
-    const availableAgentIds = availableAgents.map((agent) => agent.id).sort();
-    const pricedAgentIds = agentsWithCreditsPrice
-      .map((agent) => agent.id)
-      .sort();
-
-    expect(availableAgentIds).toEqual(["agent-free", "agent-valid"]);
-    expect(pricedAgentIds).toEqual(availableAgentIds);
+    expect(getAllCoreAgentsMock).toHaveBeenCalledTimes(1);
+    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
+      coreAgents,
+    );
+    expect(result.map((agent) => agent.id)).toEqual(["agent-1"]);
   });
 
-  it("gets credit costs once and computes prices for all available agents", async () => {
-    getShownAgentsWithRelationsByStatusMock.mockResolvedValue([
-      buildFixedAgent({
+  it("returns null for an unavailable agent by id (core 404)", async () => {
+    getCoreAgentByIdMock.mockResolvedValue(null);
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getAvailableAgentById("missing");
+
+    expect(getCoreAgentByIdMock).toHaveBeenCalledWith("missing");
+    expect(mapCoreAgentToAgentWithCreditsPriceMock).not.toHaveBeenCalled();
+    expect(result).toBeNull();
+  });
+
+  it("maps an available agent fetched by id from core", async () => {
+    getCoreAgentByIdMock.mockResolvedValue({ id: "agent-1" });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getAvailableAgentById("agent-1");
+
+    expect(result).toEqual({ id: "agent-1", mapped: true });
+  });
+
+  it("reads the random agent's average execution time from core metrics", async () => {
+    getAllCoreAgentsMock.mockResolvedValue([
+      {
         id: "agent-1",
-        amounts: [
-          { unit: "token", amount: BigInt(2) },
-          { unit: "second", amount: BigInt(3) },
-        ],
-      }),
-      buildFreeAgent("agent-2"),
-    ]);
-    getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: BigInt(10) },
-      { unit: "second", centsPerUnit: BigInt(5) },
-    ]);
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getAvailableAgentsWithCreditsPrice();
-
-    // `getAvailableAgentsWithCreditsPrice` no longer wraps its two reads in
-    // `prisma.$transaction` (the wrapper was timing out on Neon's pooled
-    // endpoint — see agent.service.ts comment). Both repo calls now hit
-    // `prisma` directly, so the mock receives the prisma stub itself rather
-    // than the interactive-transaction `tx` object.
-    expect(getShownAgentsWithRelationsByStatusMock).toHaveBeenCalledWith(
-      AgentStatus.ONLINE,
-      expect.objectContaining({ $transaction: expect.any(Function) }),
-    );
-    expect(getCreditCostsMock).toHaveBeenCalledTimes(1);
-    expect(getCreditCostsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ $transaction: expect.any(Function) }),
-    );
-    expect(getCreditCostByUnitMock).not.toHaveBeenCalled();
-    expect(result).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "agent-1",
-          creditsPrice: { cents: BigInt(35) },
-        }),
-        expect.objectContaining({
-          id: "agent-2",
-          creditsPrice: { cents: BigInt(0) },
-        }),
-      ]),
-    );
-  });
-
-  it("skips agents when pricing cannot be computed and continues with others", async () => {
-    getShownAgentsWithRelationsByStatusMock.mockResolvedValue([
-      buildFixedAgent({
-        id: "agent-valid",
-        amounts: [{ unit: "token", amount: BigInt(2) }],
-      }),
-      buildFixedAgent({
-        id: "agent-invalid",
-        amounts: [],
-      }),
-    ]);
-    getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: BigInt(10) },
-    ]);
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getAvailableAgentsWithCreditsPrice();
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toEqual(
-      expect.objectContaining({
-        id: "agent-valid",
-        creditsPrice: { cents: BigInt(20) },
-      }),
-    );
-  });
-
-  it("computes single-agent price from batched credit costs", async () => {
-    const agent = buildFixedAgent({
-      id: "agent-1",
-      amounts: [
-        { unit: "token", amount: BigInt(2) },
-        { unit: "second", amount: BigInt(3) },
-      ],
-    });
-    const tx = { tx: "single" };
-    getCreditCostsMock.mockResolvedValue([
-      { unit: "token", centsPerUnit: BigInt(10) },
-      { unit: "second", centsPerUnit: BigInt(5) },
-    ]);
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getAgentCreditsPrice(
-      agent,
-      tx as unknown as never,
-    );
-
-    expect(getCreditCostsMock).toHaveBeenCalledWith(tx);
-    expect(getCreditCostByUnitMock).not.toHaveBeenCalled();
-    expect(result.creditsPrice.cents).toBe(BigInt(35));
-  });
-
-  it("resolves the active workspace before loading hired agents", async () => {
-    getSessionMock.mockResolvedValue({
-      user: {
-        id: "user_123",
+        metrics: { executions: { averageTime: 42 } },
       },
-      session: {
-        activeOrganizationId: "org_123",
-      },
-    });
-    getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock.mockResolvedValue([]);
+    ]);
 
     const { agentService } = await import("../agent.service");
+    const result = await agentService.getRandomAvailableAgentData();
 
-    await agentService.getHiredAgents();
+    expect(result).toEqual({
+      agent: { id: "agent-1", mapped: true },
+      averageExecutionDuration: 42,
+    });
+  });
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
+  it("returns null random agent data when core has no agents", async () => {
+    getAllCoreAgentsMock.mockResolvedValue([]);
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getRandomAvailableAgentData();
+
+    expect(result).toBeNull();
+  });
+
+  it("reports rating eligibility from core", async () => {
+    getAgentRatingEligibilityMock.mockResolvedValue({
+      data: { eligible: true },
+    });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.canUserRateAgent("agent-1");
+
+    expect(getAgentRatingEligibilityMock).toHaveBeenCalledWith("agent-1");
+    expect(result).toBe(true);
+  });
+
+  it("treats an unavailable agent (core 404) as not rateable", async () => {
+    getAgentRatingEligibilityMock.mockRejectedValue(
+      new CoreApiRequestErrorMock("not found", { status: 404 }),
     );
-    expect(
-      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock,
-    ).toHaveBeenCalledWith(
-      "user_123",
-      "11111111-1111-7111-8111-111111111111",
-      expect.any(Object),
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.canUserRateAgent("agent-1");
+
+    expect(result).toBe(false);
+  });
+
+  it("serves the caller's own rating from core", async () => {
+    getMyAgentReviewMock.mockResolvedValue({
+      data: { rating: 4, comment: "Solid." },
+    });
+    mapCoreMyAgentReviewMock.mockReturnValue({ rating: 4, comment: "Solid." });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getUserRatingForAgent("agent-1");
+
+    expect(getMyAgentReviewMock).toHaveBeenCalledWith("agent-1");
+    expect(result).toEqual({ rating: 4, comment: "Solid." });
+  });
+
+  it("returns null when core reports the agent is unavailable (404)", async () => {
+    getMyAgentReviewMock.mockRejectedValue(
+      new CoreApiRequestErrorMock("not found", { status: 404 }),
     );
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getUserRatingForAgent("agent-1");
+
+    expect(result).toBeNull();
+    expect(mapCoreMyAgentReviewMock).not.toHaveBeenCalled();
   });
 });

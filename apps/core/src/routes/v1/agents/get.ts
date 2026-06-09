@@ -1,18 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
-
 import {
   buildAvailableAgentWhereClause,
-  calculateAgentRatings,
-  calculateAverageExecutionTimes,
-  getAgentCost,
-  getAgentDescription,
-  getAgentIcon,
-  getAgentImage,
-  getAgentName,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
+import { buildAgentSummaries } from "@/helpers/agent-summary";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -31,12 +23,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import {
-  agentsSummarySchema,
-  getAgentLegalFromAgent,
-  getAuthorFromAgent,
-} from "@/schemas/agent.schema";
-import { mapCategoryForApi } from "@/schemas/category.schema";
+import { agentsSummarySchema } from "@/schemas/agent.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   agentCategoriesInclude,
@@ -172,53 +159,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       const count = await tx.agent.count({ where });
 
-      const agentsWithCredits = agents
-        .slice(0, take)
-        .map((agent) => {
-          const cost = getAgentCost(agent, creditCosts);
-          return {
-            ...agent,
-            credits: convertCentsToCredits(cost.cents),
-          };
-        })
-        .map((agent) => {
-          return {
-            ...agent,
-            name: getAgentName(agent),
-            description: getAgentDescription(agent),
-            image: getAgentImage(agent),
-            icon: getAgentIcon(agent),
-            author: getAuthorFromAgent(agent),
-            legal: getAgentLegalFromAgent(agent),
-            categories: (agent.categories ?? []).map(mapCategoryForApi),
-          };
-        });
-
-      const agentIds = agentsWithCredits.map((agent) => agent.id);
-
-      const averageExecutionTimes = await calculateAverageExecutionTimes(
-        agentIds,
+      const agentsWithMetrics = await buildAgentSummaries(
+        agents.slice(0, take),
+        creditCosts,
         tx,
       );
-
-      const ratingsMap = await calculateAgentRatings(agentIds, tx);
-
-      const agentsWithMetrics = agentsWithCredits.map((agent) => {
-        const ratingMetrics = ratingsMap.get(agent.id);
-        return {
-          ...agent,
-          metrics: {
-            executions: {
-              count: agent._count.jobs,
-              averageTime: averageExecutionTimes.get(agent.id) ?? null,
-            },
-            ratings: {
-              total: ratingMetrics?.total ?? 0,
-              average: ratingMetrics?.average ?? null,
-            },
-          },
-        };
-      });
 
       return {
         agents: agentsWithMetrics,

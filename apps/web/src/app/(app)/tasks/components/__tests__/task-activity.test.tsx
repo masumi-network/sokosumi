@@ -1,4 +1,5 @@
-import { TaskEventOrigin, TaskStatus } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";

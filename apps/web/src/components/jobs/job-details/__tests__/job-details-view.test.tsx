@@ -1,4 +1,5 @@
-import { JobWithSokosumiStatus, SokosumiJobStatus } from "@sokosumi/database";
+import { JobWithSokosumiStatus } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -237,7 +238,6 @@ describe("JobDetailsView", () => {
         id: "agent-1",
         creditsPrice: { cents: BigInt(100) },
       },
-      favoriteAgents: [],
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
       existingRating: null,
@@ -258,7 +258,6 @@ describe("JobDetailsView", () => {
         id: "agent-1",
         creditsPrice: { cents: BigInt(100) },
       },
-      favoriteAgents: [],
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
       existingRating: null,
@@ -300,7 +299,6 @@ describe("JobDetailsView", () => {
         id: "agent-1",
         creditsPrice: { cents: BigInt(100) },
       },
-      favoriteAgents: [],
       ratingStats: { averageRating: 0, ratingCount: 0 },
       canRate: false,
       existingRating: null,

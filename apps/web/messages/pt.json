@@ -83,10 +83,7 @@
       "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "addedToBookmarks": "Agent added to pinned agents",
-        "removedFromBookmarks": "Agent removed from pinned agents",
-        "bookmarkError": "Failed to update pinned agents"
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       },
       "AgentDetail": {
         "Header": {
@@ -122,7 +119,6 @@
     },
     "UserAvatar": {
       "account": "Conta",
-      "organizations": "Organizações",
       "billing": "Faturação",
       "connections": "Ligações",
       "help": "Ajuda",
@@ -146,7 +142,8 @@
       "creditsConsumedProgressAria": "Créditos de subscrição consumidos",
       "creditsExpiresInDays": "Os créditos se renovam em {days, plural, =1 {1 dia} other {# dias}}",
       "creditsExpiresToday": "Os créditos se renovam hoje",
-      "creditsExpired": "Créditos expirados"
+      "creditsExpired": "Créditos expirados",
+      "organizations": "Organizações"
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Mudar espaço de trabalho",
@@ -179,6 +176,8 @@
         "name": "Nome",
         "email": "E-mail",
         "role": "Função",
+        "lastSeen": "Visto pela última vez",
+        "lastSeenNever": "Nunca",
         "actions": "Ações",
         "seat": "Seat"
       },
@@ -247,7 +246,9 @@
       "subscriptions": "Subscriptions",
       "billing": "Billing",
       "account": "Account",
-      "organizations": "Organizations",
+      "admin": "Administração",
+      "edit": "Editar",
+      "enterprise-contracts": "Contratos empresariais",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tarefas",
@@ -255,7 +256,8 @@
       "hermes": "Hermes",
       "history": "Histórico",
       "new": "Novo",
-      "projects": "Projetos"
+      "projects": "Projetos",
+      "credit-grants": "Conceder créditos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -656,6 +658,11 @@
       "copy": "Copy",
       "copySuccess": "Copied to clipboard",
       "copyError": "Failed to copy"
+    },
+    "OrganizationCombobox": {
+      "placeholder": "Selecione uma organização",
+      "search": "Pesquisar organizações…",
+      "empty": "Nenhuma organização encontrada."
     }
   },
   "AcceptInvitation": {
@@ -2334,6 +2341,13 @@
     },
     "Sidebar": {
       "Content": {
+        "ChatLists": {
+          "title": "Chats Recentes",
+          "noChats": "Ainda sem chats",
+          "untitledChat": "Chat Sem Título",
+          "modelAlt": "Modelo",
+          "coworkerAlt": "Colaborador"
+        },
         "MenuItems": {
           "chat": "Chat",
           "exploreAgents": "Agentes",
@@ -2341,7 +2355,8 @@
           "taskManager": "Tarefas",
           "projects": "Projetos",
           "hermes": "Hermes",
-          "history": "Histórico"
+          "history": "Histórico",
+          "admin": "Administração"
         }
       }
     },
@@ -2497,6 +2512,151 @@
         "title": "Algo correu mal",
         "message": "Encontrámos um problema ao carregar as subscrições. Tente novamente mais tarde.",
         "retryButton": "Tentar novamente"
+      }
+    },
+    "Admin": {
+      "EnterpriseContracts": {
+        "title": "Contratos empresariais",
+        "description": "Consola de administração interna para rascunhos, ativação e cancelamento.",
+        "newContract": "Novo contrato",
+        "loading": "A carregar…",
+        "loadFailed": "Não foi possível carregar os contratos empresariais.",
+        "Filters": {
+          "organizationSlug": "Organização",
+          "organizationSlugPlaceholder": "acme-corp",
+          "status": "Estado",
+          "statusAll": "Todos",
+          "apply": "Aplicar filtros",
+          "organizationAll": "Todas as organizações"
+        },
+        "Status": {
+          "draft": "Rascunho",
+          "active": "Ativo",
+          "completed": "Concluído",
+          "canceled": "Cancelado"
+        },
+        "Table": {
+          "organization": "Organização",
+          "status": "Estado",
+          "seats": "Lugares",
+          "creditsPerMonth": "Créditos por mês",
+          "periods": "Períodos",
+          "ends": "Termina",
+          "actions": "Ações",
+          "view": "Ver"
+        },
+        "Form": {
+          "Sections": {
+            "subscription": "Subscrição",
+            "oneTime": "Único",
+            "references": "Referências"
+          },
+          "optionalSection": "Opcional",
+          "Fields": {
+            "organizationSlug": {
+              "label": "Organização",
+              "placeholder": "acme-corp"
+            },
+            "creditsPerMonth": {
+              "label": "Créditos / mês",
+              "min": "Mín. {min, number}"
+            },
+            "periods": {
+              "label": "Períodos",
+              "helper": "1 período = 1 mês"
+            },
+            "seats": {
+              "label": "Lugares"
+            },
+            "oneTimeCredits": {
+              "label": "Valor"
+            },
+            "oneTimeExpiresAt": {
+              "label": "Expira",
+              "helper": "Vazio = sem expiração"
+            },
+            "paymentReference": {
+              "label": "Pagamento"
+            },
+            "externalReference": {
+              "label": "Externo"
+            },
+            "notes": {
+              "label": "Notas"
+            }
+          },
+          "createDraft": "Criar rascunho",
+          "saveChanges": "Guardar",
+          "cancel": "Cancelar",
+          "createSuccess": "Rascunho criado",
+          "updateSuccess": "Contrato atualizado",
+          "createError": "Não foi possível criar o contrato",
+          "updateError": "Não foi possível atualizar o contrato",
+          "missingContract": "Contrato em falta",
+          "organizationRequired": "Selecione uma organização"
+        },
+        "Detail": {
+          "noExpiry": "Sem expiração"
+        }
+      },
+      "Overview": {
+        "title": "Administração",
+        "description": "Ferramentas internas para gerir organizações e faturação.",
+        "Sections": {
+          "enterpriseContracts": {
+            "title": "Contratos empresariais",
+            "description": "Crie e faça a gestão de contratos empresariais em rascunho, ativos e cancelados."
+          },
+          "creditGrants": {
+            "title": "Conceder créditos",
+            "description": "Conceda créditos únicos a uma organização através de uma fatura Stripe."
+          }
+        }
+      },
+      "CreditGrants": {
+        "title": "Conceder créditos",
+        "description": "Conceda créditos únicos a uma organização através de uma fatura Stripe. Ao marcar a fatura como paga, os créditos são concedidos instantaneamente.",
+        "cardTitle": "Nova concessão de créditos",
+        "Form": {
+          "Fields": {
+            "organization": "Organização",
+            "credits": "Créditos",
+            "expiryDays": "Validade (dias)",
+            "price": "Preço por crédito"
+          },
+          "organizationRequired": "Selecione uma organização",
+          "creditsRequired": "Introduza um número positivo de créditos",
+          "creditsHelper": "Número de créditos a conceder à organização.",
+          "expiryDays": "Validade (dias)",
+          "expiryHelper": "Opcional. Dias até os créditos expirarem. Deixe em branco para não expirar.",
+          "expiryPlaceholder": "Sem validade",
+          "expiryInvalid": "A validade deve ser um número inteiro positivo de dias",
+          "submit": "Criar fatura",
+          "submitting": "A criar fatura…",
+          "createSuccess": "Fatura criada",
+          "createError": "Falha ao criar a fatura",
+          "pricePlaceholder": "Selecione um preço",
+          "priceHelper": "Preço por crédito usado para o valor da fatura.",
+          "priceRequired": "Selecione um preço"
+        },
+        "Result": {
+          "heading": "Fatura de concessão de créditos",
+          "pendingHelper": "Marque a fatura como paga para conceder os créditos instantaneamente, ou deixe-a para ser paga no Stripe.",
+          "paidHelper": "A fatura está paga e os créditos foram concedidos à organização.",
+          "organization": "Organização",
+          "credits": "Créditos",
+          "expiry": "Validade",
+          "expiryDays": "{days, number} dia(s)",
+          "noExpiry": "Sem validade",
+          "amount": "Valor",
+          "status": "Estado",
+          "invoiceId": "ID da fatura",
+          "markPaid": "Marcar como paga",
+          "marking": "A conceder créditos…",
+          "paidSuccess": "Créditos concedidos",
+          "paidError": "Falha ao marcar a fatura como paga",
+          "openInStripe": "Abrir no Stripe"
+        }
       }
     },
     "Billing": {
@@ -2923,39 +3083,6 @@
       }
     },
     "Organizations": {
-      "Metadata": {
-        "title": "Organizações",
-        "description": "Gira as suas organizações"
-      },
-      "newOrganization": "Nova organização",
-      "organizationsNotAvailable": "Não foram encontradas organizações",
-      "OrganizationRow": {
-        "leave": "Sair",
-        "activate": "Ativar",
-        "deactivate": "Desativar"
-      },
-      "Credits": {
-        "title": "Créditos da organização",
-        "description": "Disponível para membros de {organization}",
-        "buy": "Adicionar créditos"
-      },
-      "InvitationActions": {
-        "accept": "Aceitar",
-        "reject": "Recusar",
-        "acceptTitle": "Aceitar convite",
-        "rejectTitle": "Recusar convite",
-        "acceptDescription": "Tem a certeza de que pretende aceitar o convite para {email}?",
-        "rejectDescription": "Tem a certeza de que pretende recusar o convite para {email}?",
-        "confirm": "Confirmar",
-        "cancel": "Cancelar",
-        "acceptSuccess": "Convite aceite com sucesso",
-        "acceptError": "Falha ao aceitar o convite",
-        "rejectSuccess": "Convite recusado com sucesso",
-        "rejectError": "Falha ao recusar o convite",
-        "Errors": {
-          "unauthorizedAction": "Iniciar sessão"
-        }
-      },
       "OrganizationDetail": {
         "Metadata": {
           "Title": {

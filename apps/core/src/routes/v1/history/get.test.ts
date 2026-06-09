@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { HistoryKind, TaskStatus } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/database/types/job";
+import { HistoryKind } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
@@ -12,6 +12,7 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 import mountGetHistory from "./get";
 
 const {
+  agentFindManyMock,
   historyCountMock,
   historyFindFirstMock,
   historyFindManyMock,
@@ -19,6 +20,7 @@ const {
   prismaQueryRawMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
+  agentFindManyMock: vi.fn(),
   historyCountMock: vi.fn(),
   historyFindFirstMock: vi.fn(),
   historyFindManyMock: vi.fn(),
@@ -31,6 +33,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $queryRaw: prismaQueryRawMock,
     $transaction: prismaTransactionMock,
+    agent: {
+      findMany: agentFindManyMock,
+    },
     history: {
       count: historyCountMock,
       findFirst: historyFindFirstMock,
@@ -103,6 +108,7 @@ describe("GET /history", () => {
     historyFindManyMock.mockResolvedValue([]);
     historyCountMock.mockResolvedValue(0);
     jobFindManyMock.mockResolvedValue([]);
+    agentFindManyMock.mockResolvedValue([]);
     prismaQueryRawMock.mockResolvedValue([]);
     prismaTransactionMock.mockImplementation(
       async (operations: Array<Promise<unknown>>) =>
@@ -544,5 +550,89 @@ describe("GET /history", () => {
       }),
     ]);
     expect(body.meta.pagination.nextCursor).toBe(visibleRow.entityId);
+  });
+
+  it("enriches job rows with resolved agent name and icon", async () => {
+    historyFindManyMock.mockResolvedValue([
+      createHistoryRow({
+        agentId: "agent_123",
+        entityId: "job_1",
+        kind: HistoryKind.JOB,
+        status: SokosumiJobStatus.COMPLETED,
+      }),
+      createHistoryRow({
+        agentId: "agent_123",
+        entityId: "job_2",
+        kind: HistoryKind.JOB,
+        status: SokosumiJobStatus.COMPLETED,
+      }),
+    ]);
+    historyCountMock.mockResolvedValue(2);
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent_123",
+        name: "Base Name",
+        overrideName: "Research Agent",
+        icon: "https://example.com/research.svg",
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["agent_123"] } },
+      select: { id: true, name: true, overrideName: true, icon: true },
+    });
+
+    const body = (await response.json()) as {
+      data: Array<{
+        agentIcon: string | null;
+        agentName: string | null;
+        id: string;
+        kind: string;
+      }>;
+    };
+    expect(body.data[0]).toMatchObject({
+      id: "job_1",
+      kind: "job",
+      agentName: "Research Agent",
+      agentIcon: "https://example.com/research.svg",
+    });
+  });
+
+  it("degrades job agent fields to null when agent lookup fails", async () => {
+    historyFindManyMock.mockResolvedValue([
+      createHistoryRow({
+        agentId: "agent_123",
+        entityId: "job_1",
+        kind: HistoryKind.JOB,
+        status: SokosumiJobStatus.COMPLETED,
+      }),
+    ]);
+    historyCountMock.mockResolvedValue(1);
+    agentFindManyMock.mockRejectedValue(new Error("db down"));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: Array<{
+        agentIcon: string | null;
+        agentName: string | null;
+        kind: string;
+      }>;
+    };
+    expect(body.data[0]).toMatchObject({
+      kind: "job",
+      agentName: null,
+      agentIcon: null,
+    });
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 });

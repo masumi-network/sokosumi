@@ -290,7 +290,12 @@ describe("enterprise contract admin routes", () => {
       expect(enterpriseContractCreateMock).not.toHaveBeenCalled();
     });
 
-    it("returns 422 when one-time credits are set without expiry", async () => {
+    it("creates a draft when one-time credits are set without expiry", async () => {
+      const record = createContractRecord({
+        oneTimeCents: convertCreditsToCents(5_000),
+        oneTimeExpiresAt: null,
+      });
+      enterpriseContractCreateMock.mockResolvedValue(record);
       const app = createContractsApp();
 
       const response = await app.request("http://localhost/", {
@@ -305,8 +310,15 @@ describe("enterprise contract admin routes", () => {
         }),
       });
 
-      expect(response.status).toBe(422);
-      expect(enterpriseContractCreateMock).not.toHaveBeenCalled();
+      expect(response.status).toBe(201);
+      expect(enterpriseContractCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            oneTimeCents: convertCreditsToCents(5_000),
+            oneTimeExpiresAt: undefined,
+          }),
+        }),
+      );
     });
   });
 

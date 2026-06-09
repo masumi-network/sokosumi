@@ -1,4 +1,4 @@
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/database";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
 export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;

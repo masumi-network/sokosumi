@@ -1,8 +1,4 @@
-import {
-  type Member,
-  MemberRole,
-  type MemberWithUser,
-} from "@sokosumi/database";
+import { type Member, MemberRole } from "@sokosumi/database";
 import { Ellipsis } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -23,10 +19,11 @@ import {
   useMemberActionsModalContext,
 } from "./member-actions-modal-context";
 import { useSeatManagementContext } from "./seat-management-context";
+import type { OrganizationMember } from "./types";
 
 interface MemberActionsDropdownProps {
   me: Member;
-  member: MemberWithUser;
+  member: OrganizationMember;
   className?: string;
 }
 
@@ -170,7 +167,7 @@ export default function MemberActionsDropdown({
   );
 }
 
-function checkPermission(me: Member, member: MemberWithUser) {
+function checkPermission(me: Member, member: OrganizationMember) {
   switch (me.role) {
     case MemberRole.OWNER:
       return true;
@@ -181,7 +178,7 @@ function checkPermission(me: Member, member: MemberWithUser) {
   }
 }
 
-function checkCanChangeToOwner(me: Member, member: MemberWithUser) {
+function checkCanChangeToOwner(me: Member, member: OrganizationMember) {
   switch (me.role) {
     case MemberRole.OWNER:
       return member.role !== MemberRole.OWNER;
@@ -190,7 +187,7 @@ function checkCanChangeToOwner(me: Member, member: MemberWithUser) {
   }
 }
 
-function checkCanChangeToAdmin(me: Member, member: MemberWithUser) {
+function checkCanChangeToAdmin(me: Member, member: OrganizationMember) {
   switch (me.role) {
     case MemberRole.OWNER:
       return member.role !== MemberRole.ADMIN;
@@ -201,7 +198,7 @@ function checkCanChangeToAdmin(me: Member, member: MemberWithUser) {
   }
 }
 
-function checkCanChangeToMember(me: Member, member: MemberWithUser) {
+function checkCanChangeToMember(me: Member, member: OrganizationMember) {
   switch (me.role) {
     case MemberRole.OWNER:
       return member.role !== MemberRole.MEMBER;

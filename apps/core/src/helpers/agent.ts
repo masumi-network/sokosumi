@@ -10,14 +10,16 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { TIME } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import {
+  type AgentMyReview,
   type AgentReview,
+  agentMyReviewSchema,
   agentReviewSchema,
   type RatingDistribution,
   type RatingMetrics,
 } from "@/schemas/agent.schema";
 import type { AgentWithPricing } from "@/types/agent";
 
-import { internalServerError, unprocessableEntity } from "./error";
+import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 export const getAgentImage = (agent: Agent): string | null => {
   const image = agent.overrideImage ?? agent.image;
@@ -27,14 +29,16 @@ export const getAgentImage = (agent: Agent): string | null => {
   return resolveIpfsOrHttpUrl(image);
 };
 
-export const getAgentIcon = (agent: Agent): string | null => {
+export const getAgentIcon = (agent: Pick<Agent, "icon">): string | null => {
   if (!agent.icon) {
     return null;
   }
   return resolveIpfsOrHttpUrl(agent.icon);
 };
 
-export const getAgentName = (agent: Agent): string => {
+export const getAgentName = (
+  agent: Pick<Agent, "name" | "overrideName">,
+): string => {
   return agent.overrideName ?? agent.name;
 };
 
@@ -106,6 +110,29 @@ export const buildAvailableAgentWhereClause = (
     isShown: true,
     pricing: pricingFilter,
   };
+};
+
+/**
+ * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
+ * throwing a 404 otherwise. Centralizes the availability existence check shared
+ * by the agent rating sub-resource handlers (rating upsert and eligibility).
+ */
+export const requireAvailableAgentOrThrow = async (
+  agentId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  const creditCosts = await getCreditCostsOrThrow(tx);
+  const agent = await tx.agent.findFirst({
+    where: {
+      id: agentId,
+      ...buildAvailableAgentWhereClause(creditCosts),
+    },
+    select: { id: true },
+  });
+
+  if (!agent) {
+    throw notFound("Agent not found");
+  }
 };
 
 export interface AgentCost {
@@ -426,6 +453,7 @@ export const getRecentAgentReviews = async (
   agentId: string,
   limit: number,
   tx: Prisma.TransactionClient,
+  offset: number = 0,
 ): Promise<AgentReview[]> => {
   const ratings = await tx.userAgentRating.findMany({
     where: {
@@ -444,6 +472,7 @@ export const getRecentAgentReviews = async (
     },
     orderBy: { createdAt: "desc" },
     take: limit,
+    skip: offset,
   });
 
   return ratings.map((rating) =>
@@ -462,4 +491,72 @@ export const getRecentAgentReviews = async (
       },
     }),
   );
+};
+
+/**
+ * Returns the authenticated caller's own rating for an agent, or null when they
+ * have not rated it. Unlike the public review reads, this is not filtered by
+ * `isHidden` — the caller may always see their own rating.
+ */
+export const getUserAgentReview = async (
+  agentId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<AgentMyReview | null> => {
+  const rating = await tx.userAgentRating.findUnique({
+    where: {
+      userId_agentId: {
+        userId,
+        agentId,
+      },
+    },
+  });
+
+  if (!rating) {
+    return null;
+  }
+
+  return agentMyReviewSchema.parse({
+    id: rating.id,
+    rating: rating.rating,
+    comment: rating.comment,
+  });
+};
+
+/**
+ * Creates or updates the caller's rating for an agent. Callers are responsible
+ * for enforcing the eligibility gate (a finished job with the agent) before
+ * invoking this helper.
+ */
+export const upsertUserAgentReview = async (
+  agentId: string,
+  userId: string,
+  rating: number,
+  comment: string | null,
+  tx: Prisma.TransactionClient,
+): Promise<AgentMyReview> => {
+  const upserted = await tx.userAgentRating.upsert({
+    where: {
+      userId_agentId: {
+        userId,
+        agentId,
+      },
+    },
+    update: {
+      rating,
+      comment,
+    },
+    create: {
+      userId,
+      agentId,
+      rating,
+      comment,
+    },
+  });
+
+  return agentMyReviewSchema.parse({
+    id: upserted.id,
+    rating: upserted.rating,
+    comment: upserted.comment,
+  });
 };

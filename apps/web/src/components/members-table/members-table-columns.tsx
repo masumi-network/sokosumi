@@ -5,6 +5,7 @@ import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { TimeAgo } from "@/components/time-ago";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
 import { useSeatManagementContext } from "./seat-management-context";
@@ -52,6 +53,34 @@ export function getMembersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
+    }) as ColumnDef<MemberRowData>,
+
+    lastSeenColumn: columnHelper.accessor("lastSeenAt", {
+      id: "lastSeen",
+      minSize: 140,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Header.lastSeen")} />
+      ),
+      cell: ({ row }) => {
+        const { lastSeenAt, member } = row.original;
+        // Pending invitations (no member) have no last-seen value.
+        if (!member) {
+          return <div className="text-muted-foreground p-2">—</div>;
+        }
+        if (!lastSeenAt) {
+          return (
+            <div className="text-muted-foreground p-2">
+              {t("Header.lastSeenNever")}
+            </div>
+          );
+        }
+        return (
+          <div className="p-2 whitespace-nowrap">
+            <TimeAgo date={lastSeenAt} strict />
+          </div>
+        );
+      },
+      enableSorting: true,
     }) as ColumnDef<MemberRowData>,
 
     seatColumn: columnHelper.display({

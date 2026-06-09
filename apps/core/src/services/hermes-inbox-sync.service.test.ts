@@ -25,6 +25,7 @@ const HERMES_INBOX_MESSAGE_UUID_NAMESPACE =
 
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
+  captureMessage: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -307,5 +308,80 @@ describe("hermesInboxSyncService", () => {
         extra: { userId: "user-unhandled" },
       }),
     );
+  });
+
+  it("escalates a single aggregate outage event when transient failures dominate the batch", async () => {
+    const instances = Array.from({ length: 6 }, (_, i) => ({
+      userId: `user-outage-${i}`,
+      lastInboxMessageAt: null,
+      lastPolledAt: null,
+    }));
+    hermesInstanceFindManyMock.mockResolvedValue(instances);
+
+    const transientError = Object.assign(new TypeError("fetch failed"), {
+      cause: new Error("connect timeout"),
+    });
+    getInstanceInboxMock.mockRejectedValue(transientError);
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.breakdown.error).toBe(6);
+    // Per-user transient failures stay muted — they're aggregated, not paged
+    // once per affected user.
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    // One aggregate outage event, on its own fingerprint so it never re-groups
+    // under the raw HermesOrchestratorError (SOKOSUMI-CORE-1M).
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      "hermes_inbox_orchestrator_outage",
+      expect.objectContaining({
+        level: "error",
+        fingerprint: ["hermes-inbox-orchestrator-outage"],
+        tags: { context: "hermes_inbox_poll_batch" },
+        extra: expect.objectContaining({
+          transientErrorCount: 6,
+          polled: 6,
+          sampleError: "fetch failed",
+        }),
+      }),
+    );
+  });
+
+  it("does not alert when a transient failure is isolated among healthy polls", async () => {
+    const instances = Array.from({ length: 6 }, (_, i) => ({
+      userId: `user-blip-${i}`,
+      lastInboxMessageAt: null,
+      lastPolledAt: null,
+    }));
+    hermesInstanceFindManyMock.mockResolvedValue(instances);
+
+    const transientError = Object.assign(new TypeError("fetch failed"), {
+      cause: new Error("connect timeout"),
+    });
+    let call = 0;
+    getInstanceInboxMock.mockImplementation(async () => {
+      call += 1;
+      if (call === 1) throw transientError;
+      return {
+        kind: "messages" as const,
+        data: { messages: [], hasMore: false },
+      };
+    });
+
+    const summary = await hermesInboxSyncService.pollInboxes({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(summary.breakdown.error).toBe(1);
+    expect(summary.breakdown.no_messages).toBe(5);
+    // A lone self-healing 502/timeout must not page anyone.
+    expect(Sentry.captureMessage).not.toHaveBeenCalled();
+    expect(Sentry.captureException).not.toHaveBeenCalled();
   });
 });

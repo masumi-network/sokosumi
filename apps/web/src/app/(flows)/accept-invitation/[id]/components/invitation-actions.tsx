@@ -141,7 +141,7 @@ export default function InvitationActions({
       }
     } else {
       toast.success(t("Success.decline"));
-      router.push("/organizations");
+      router.push("/");
     }
 
     setLoading(false);
@@ -159,7 +159,7 @@ export default function InvitationActions({
   };
 
   const handleIgnore = async () => {
-    router.push("/organizations");
+    router.push("/");
   };
 
   if (user) {

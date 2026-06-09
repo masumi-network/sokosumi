@@ -2,8 +2,8 @@ import {
   AgentJobStatus,
   type JobEventWithRelations,
   type JobWithSokosumiStatus,
-  SokosumiJobStatus,
 } from "@sokosumi/database";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 

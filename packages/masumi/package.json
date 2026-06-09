@@ -67,8 +67,8 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.98.1",
-    "@types/node": "24.13.0",
+    "@hey-api/openapi-ts": "0.98.2",
+    "@types/node": "24.13.1",
     "typescript": "6.0.3",
     "vitest": "4.1.8"
   }
