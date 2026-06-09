@@ -3565,7 +3565,34 @@ export const CreditsResponseExtraSchema = {
             description: 'Non-subscription buckets with remaining balance (subscription-period and enterprise pool buckets omitted). Order: earliest expiresAt (non-expiring last), then smallest original allocation, then oldest createdAt, then id'
         },
         enterprise: {
-            $ref: '#/components/schemas/CreditsResponseEnterprise'
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                credits: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/CreditsResponseExtraCredits'
+                        },
+                        {
+                            description: 'Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)'
+                        }
+                    ]
+                },
+                buckets: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/CreditBucketBreakdown'
+                    },
+                    description: 'Enterprise pool buckets with remaining balance for the assigned member'
+                }
+            },
+            required: [
+                'credits',
+                'buckets'
+            ],
+            description: 'Enterprise contract shared pool for assigned members; null when not applicable'
         }
     },
     required: [
@@ -3631,37 +3658,6 @@ export const CreditBucketBreakdownSchema = {
         'remaining',
         'expiresAt'
     ]
-} as const;
-
-export const CreditsResponseEnterpriseSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        credits: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/CreditsResponseExtraCredits'
-                },
-                {
-                    description: 'Enterprise contract pool rollup (ENTERPRISE_PERIOD and ENTERPRISE_TOP_UP buckets)'
-                }
-            ]
-        },
-        buckets: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/CreditBucketBreakdown'
-            },
-            description: 'Enterprise pool buckets with remaining balance for the assigned member'
-        }
-    },
-    required: [
-        'credits',
-        'buckets'
-    ],
-    description: 'Enterprise contract shared pool for assigned members; null when not applicable'
 } as const;
 
 export const OrganizationSchema = {

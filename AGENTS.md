@@ -270,6 +270,12 @@ docs(readme): update setup instructions
 - Minimize `'use client'` usage; prefer Server Components and server actions
 - At the end of every sequence of changes, run a review pass, fix any issues found, and repeat until no issues remain
 
+### Generated Files
+
+- **Never hand-edit generated files.** Auto-generated artifacts (files marked `This file is auto-generated`, anything under `src/lib/clients/generated/`, Prisma client output, etc.) must remain exactly as their generator produces them. Hand-applied edits silently regress on the next regeneration.
+- **Fix the source, then regenerate.** To change generated output, edit the upstream source of truth (e.g. the Core Zod/OpenAPI schemas under `apps/core/src/schemas/`) and re-run the generator (e.g. `pnpm --filter web generate:core:snapshot` for the Core API client). Commit the regenerated files as-is.
+- If a generated file looks wrong, the bug is in the generator input or config — chase it there, not in the output.
+
 ### Shared Packages and Deduplication
 
 - **When logic is duplicated across apps** (e.g. core and web): move the implementation to a shared package (e.g. `packages/utils`) so there is a single source of truth; fix bugs and add features in one place.
