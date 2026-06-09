@@ -25,7 +25,10 @@ import {
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { Session } from "@/lib/auth/auth";
-import { uploadDesignMdToBlob } from "@/lib/blob/design-md";
+import {
+  isAllowedDesignMdBlobUrl,
+  uploadDesignMdToBlob,
+} from "@/lib/blob/design-md";
 import prisma from "@/lib/db/prisma";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
@@ -378,6 +381,13 @@ export const designMdService = (() => {
     owner: DesignMdOwnerSchemaType,
     url: string,
   ): Promise<PersistedDesignMd> {
+    if (!isAllowedDesignMdBlobUrl(url, session.user.id)) {
+      throw new DesignMdServiceError(
+        "bad_input",
+        "DESIGN.md upload URL must come from Sokosumi blob storage",
+      );
+    }
+
     const persisted = await persistDesignMdToProfile(session, owner, {
       extractionId: null,
       url,

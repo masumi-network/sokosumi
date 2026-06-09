@@ -3,9 +3,42 @@ import "server-only";
 import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/nextjs";
+import { buildUserUploadPrefix } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 
 const DESIGN_MD_UPLOAD_DIR = "design-md";
+const VERCEL_BLOB_HOST_SUFFIX = ".public.blob.vercel-storage.com";
+
+function decodeBlobPathname(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
+}
+
+export function isAllowedDesignMdBlobUrl(url: string, userId: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+
+    if (!parsed.hostname.endsWith(VERCEL_BLOB_HOST_SUFFIX)) {
+      return false;
+    }
+
+    const pathname = decodeBlobPathname(parsed.pathname);
+    const userUploadPrefix = `/${buildUserUploadPrefix(userId)}`;
+
+    return (
+      pathname.startsWith(`/${DESIGN_MD_UPLOAD_DIR}/`) ||
+      pathname.startsWith(userUploadPrefix)
+    );
+  } catch {
+    return false;
+  }
+}
 
 export interface UploadDesignMdToBlobInput {
   designMd: string;

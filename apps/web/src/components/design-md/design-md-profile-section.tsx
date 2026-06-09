@@ -64,6 +64,13 @@ export function DesignMdProfileSection({
   const [designMd, setDesignMd] = useState<DesignMdProfileValue | undefined>(
     value,
   );
+  const [prevValue, setPrevValue] = useState(value);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDesignMd(value);
+  }
+
   const [isRemoving, setIsRemoving] = useState(false);
 
   const designMdUrl = designMd?.url ?? null;

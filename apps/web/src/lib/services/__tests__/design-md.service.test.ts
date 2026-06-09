@@ -67,10 +67,14 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 const uploadDesignMdToBlobMock = vi.fn();
 
-vi.mock("@/lib/blob/design-md", () => ({
-  uploadDesignMdToBlob: (...args: unknown[]) =>
-    uploadDesignMdToBlobMock(...args),
-}));
+vi.mock("@/lib/blob/design-md", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/blob/design-md")>();
+  return {
+    ...actual,
+    uploadDesignMdToBlob: (...args: unknown[]) =>
+      uploadDesignMdToBlobMock(...args),
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
@@ -251,29 +255,47 @@ describe("designMdService", () => {
       id: "org-1",
       metadata: JSON.stringify({
         designMdExtractionId: "42",
-        designMdUrl: "https://blob.example/old-design.md",
+        designMdUrl:
+          "https://store.public.blob.vercel-storage.com/design-md/old-design.md",
       }),
     });
     updateOrganizationByIdMock.mockResolvedValue(undefined);
 
     const { designMdService } = await import("../design-md.service");
+    const uploadedUrl =
+      "https://store.public.blob.vercel-storage.com/users/user-1/manual-design.md";
     const persisted = await designMdService.persistUploadedDesignMd(
       session,
       { type: "organization", organizationId: "org-1" },
-      "https://blob.example/manual-design.md",
+      uploadedUrl,
     );
 
     expect(updateOrganizationByIdMock).toHaveBeenCalledWith(
       "org-1",
       {
         metadata: JSON.stringify({
-          designMdUrl: "https://blob.example/manual-design.md",
+          designMdUrl: uploadedUrl,
         }),
       },
       {},
     );
-    expect(persisted.url).toBe("https://blob.example/manual-design.md");
+    expect(persisted.url).toBe(uploadedUrl);
     expect(persisted.extractionId).toBeNull();
+  });
+
+  it("rejects manual upload URLs outside Sokosumi blob storage", async () => {
+    const { designMdService } = await import("../design-md.service");
+
+    await expect(
+      designMdService.persistUploadedDesignMd(
+        session,
+        { type: "user" },
+        "https://evil.example/design.md",
+      ),
+    ).rejects.toMatchObject({
+      code: "bad_input",
+      message: "DESIGN.md upload URL must come from Sokosumi blob storage",
+    });
   });
 
   it("throws unconfigured when the Masumi API key is missing", async () => {
