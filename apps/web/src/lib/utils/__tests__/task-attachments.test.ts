@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  descriptionIncludesTaskAttachmentLink,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
   removeDesignMdAttachmentLinks,
@@ -54,6 +55,31 @@ describe("task-attachments", () => {
         "https://example.com/invoice.pdf",
       ),
     ).toBe("[invoice.pdf](https://example.com/invoice.pdf)\n");
+  });
+
+  it("detects attachment links with escaped markdown url characters", () => {
+    const urlWithParen = "https://example.com/design).md";
+    const markdown = [
+      formatTaskAttachmentMarkdown("DESIGN.md", urlWithParen).trimEnd(),
+      "",
+      "Build landing page",
+    ].join("\n");
+
+    expect(
+      descriptionIncludesTaskAttachmentLink(
+        markdown,
+        "DESIGN.md",
+        urlWithParen,
+      ),
+    ).toBe(true);
+    expect(
+      descriptionIncludesTaskAttachmentLink(
+        markdown,
+        "DESIGN.md",
+        "https://example.com/other.md",
+      ),
+    ).toBe(false);
+    expect(markdown.includes(urlWithParen)).toBe(false);
   });
 
   it("formats and removes links when url contains closing parenthesis", () => {

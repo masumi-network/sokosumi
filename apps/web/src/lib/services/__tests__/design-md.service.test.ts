@@ -395,4 +395,29 @@ describe("designMdService", () => {
     );
     expect(duplicate).toBe(description);
   });
+
+  it("does not duplicate design.md links when the url needs markdown escaping", async () => {
+    const designMdUrl = "https://blob.example/user-design).md";
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      metadata: JSON.stringify({ designMdUrl }),
+    });
+
+    const { designMdService } = await import("../design-md.service");
+    const { formatTaskAttachmentMarkdown } = await import(
+      "@/lib/utils/task-attachments"
+    );
+    const seededDescription = [
+      formatTaskAttachmentMarkdown("DESIGN.md", designMdUrl).trimEnd(),
+      "",
+      "Build landing page",
+    ].join("\n");
+    const description = await designMdService.appendDesignMdToDescription(
+      seededDescription,
+      "user-1",
+      null,
+    );
+
+    expect(description).toBe(seededDescription);
+  });
 });

@@ -36,7 +36,10 @@ import {
   createDesignMdJobToken,
   verifyDesignMdJobToken,
 } from "@/lib/services/design-md-job-token";
-import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
+import {
+  descriptionIncludesTaskAttachmentLink,
+  formatTaskAttachmentMarkdown,
+} from "@/lib/utils/task-attachments";
 
 const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
 
@@ -464,7 +467,14 @@ export const designMdService = (() => {
       userId,
     });
 
-    if (!designMd || description.includes(designMd.url)) {
+    if (
+      !designMd ||
+      descriptionIncludesTaskAttachmentLink(
+        description,
+        designMd.label,
+        designMd.url,
+      )
+    ) {
       return description;
     }
 
