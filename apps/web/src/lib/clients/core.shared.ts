@@ -41,6 +41,8 @@ import type {
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
+  PostAgentsByIdRatingsData,
+  PostAgentsFavoritesData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -51,6 +53,7 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  deleteAgentsFavoritesByAgentId as coreDeleteAgentsFavoritesByAgentId,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -64,8 +67,11 @@ import {
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getAgentsByIdJobs as coreGetAgentsByIdJobs,
+  getAgentsByIdRatingsEligibility as coreGetAgentsByIdRatingsEligibility,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
+  getAgentsFavorites as coreGetAgentsFavorites,
+  getAgentsHired as coreGetAgentsHired,
   getCategories as coreGetCategories,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
@@ -103,6 +109,8 @@ import {
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
+  postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postAgentsFavorites as corePostAgentsFavorites,
   postConversations as corePostConversations,
   postConversationsByIdMessages as corePostConversationsByIdMessages,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -758,6 +766,85 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch your agent review",
+    );
+  }
+
+  async function getFavoriteAgents() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsFavorites({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch favorite agents",
+    );
+  }
+
+  async function addFavoriteAgent(
+    body: NonNullable<PostAgentsFavoritesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostAgentsFavorites({
+          client,
+          body,
+        }),
+      "Failed to add favorite agent",
+    );
+  }
+
+  async function removeFavoriteAgent(agentId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteAgentsFavoritesByAgentId({
+          client,
+          path: { agentId },
+        }),
+      "Failed to remove favorite agent",
+    );
+  }
+
+  async function getHiredAgents() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsHired({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch hired agents",
+    );
+  }
+
+  async function getAgentRatingEligibility(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdRatingsEligibility({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch agent rating eligibility",
+    );
+  }
+
+  async function createAgentRating(
+    id: string,
+    body: NonNullable<PostAgentsByIdRatingsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostAgentsByIdRatings({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to submit agent rating",
     );
   }
 
@@ -1578,9 +1665,15 @@ export function createCoreClient(getClient: GetClient) {
     getAgentById,
     getAgentJobs,
     getAgentInputSchema,
+    getAgentRatingEligibility,
     getAgentReviews,
     getMyAgentReview,
     getAgents,
+    getFavoriteAgents,
+    addFavoriteAgent,
+    removeFavoriteAgent,
+    getHiredAgents,
+    createAgentRating,
     getCategories,
     getCoworkers,
     getJobById,

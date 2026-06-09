@@ -1,6 +1,5 @@
 "use client";
 
-import { AgentListType } from "@sokosumi/database";
 import { Bookmark } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -34,7 +33,6 @@ export function AgentBookmarkButton({
     setIsLoading(true);
     const result = await toggleAgentInAgentList({
       agentId,
-      listType: AgentListType.FAVORITE,
       isBookmarked,
     });
 

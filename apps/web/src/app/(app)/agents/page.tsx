@@ -30,7 +30,6 @@ export default async function GalleryPage() {
     await Promise.all([
       getAllCoreAgents(),
       coreClient.getCategories(),
-      // TODO(core-api): replace with a Core favorites API when available.
       agentService.getFavoriteAgents(),
       coworkerService.listCoworkers(),
     ]);

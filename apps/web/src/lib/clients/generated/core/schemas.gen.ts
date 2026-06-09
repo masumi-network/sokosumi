@@ -505,6 +505,33 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
+export const AgentFavoriteSchema = {
+    type: 'object',
+    properties: {
+        agentId: {
+            type: 'string',
+            example: 'cmaeygqwa000e8i0s9s7wif8i'
+        }
+    },
+    required: [
+        'agentId'
+    ]
+} as const;
+
+export const AgentFavoriteRequestSchema = {
+    type: 'object',
+    properties: {
+        agentId: {
+            type: 'string',
+            example: 'cmaeygqwa000e8i0s9s7wif8i',
+            description: 'The id of the agent to add to favorites'
+        }
+    },
+    required: [
+        'agentId'
+    ]
+} as const;
+
 export const AgentDetailSchema = {
     type: 'object',
     properties: {
@@ -929,6 +956,45 @@ export const AgentMyReviewSchema = {
         'id',
         'rating',
         'comment'
+    ]
+} as const;
+
+export const AgentRatingEligibilitySchema = {
+    type: 'object',
+    properties: {
+        eligible: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether the caller has finished at least one job with the agent and may rate it'
+        }
+    },
+    required: [
+        'eligible'
+    ]
+} as const;
+
+export const AgentRatingRequestSchema = {
+    type: 'object',
+    properties: {
+        rating: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5,
+            example: 5,
+            description: 'Rating between 1 and 5 stars'
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 1000,
+            example: 'Great results.',
+            description: 'Optional comment'
+        }
+    },
+    required: [
+        'rating'
     ]
 } as const;
 

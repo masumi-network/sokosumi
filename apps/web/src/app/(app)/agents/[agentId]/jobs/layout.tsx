@@ -70,7 +70,6 @@ async function JobLayoutInner({
   const { agentId } = await params;
   const coreAgent = await getCoreAgentById(agentId);
 
-  const userId = session.user.id;
   const agentWithCreditsPrice = coreAgent
     ? mapCoreAgentToAgentWithCreditsPrice(coreAgent)
     : createUnavailableAgentWithCreditsPrice(agentId);
@@ -84,11 +83,9 @@ async function JobLayoutInner({
   const [agentJobs, favoriteAgents, canRate, existingRating, projectOptions] =
     await Promise.all([
       getCachedMyJobs(agentId),
-      // TODO(core-api): replace with a Core favorites API when available.
       agentService.getFavoriteAgents(),
-      // TODO(core-api): replace with Core user rating read/eligibility APIs.
       coreAgent
-        ? agentService.canUserRateAgent(userId, agentId)
+        ? agentService.canUserRateAgent(agentId)
         : Promise.resolve(false),
       coreAgent
         ? agentService.getUserRatingForAgent(agentId)

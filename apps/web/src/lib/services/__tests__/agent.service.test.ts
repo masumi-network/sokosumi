@@ -4,16 +4,15 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
-const upsertWorkspaceForContextMock = vi.fn();
-const getSessionMock = vi.fn();
-const getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock = vi.fn();
-
 const getAllCoreAgentsMock = vi.fn();
 const getCoreAgentByIdMock = vi.fn();
 const mapCoreAgentsToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreAgentToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreMyAgentReviewMock = vi.fn();
 
+const getFavoriteAgentsMock = vi.fn();
+const getHiredAgentsMock = vi.fn();
+const getAgentRatingEligibilityMock = vi.fn();
 const getMyAgentReviewMock = vi.fn();
 
 class CoreApiRequestErrorMock extends Error {
@@ -43,50 +42,17 @@ vi.mock("@/lib/agents/core-dto-mappers", () => ({
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: CoreApiRequestErrorMock,
   coreClient: {
+    getFavoriteAgents: (...args: unknown[]) => getFavoriteAgentsMock(...args),
+    getHiredAgents: (...args: unknown[]) => getHiredAgentsMock(...args),
+    getAgentRatingEligibility: (...args: unknown[]) =>
+      getAgentRatingEligibilityMock(...args),
     getMyAgentReview: (...args: unknown[]) => getMyAgentReviewMock(...args),
-  },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  agentListRepository: {
-    upsertAgentListForUserId: vi.fn(),
-  },
-  agentRatingRepository: {
-    upsertRating: vi.fn(),
-  },
-  agentRepository: {
-    getHiredAgentsWithLatestJobByUserIdAndWorkspace: (...args: unknown[]) =>
-      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock(...args),
-  },
-  creditCostRepository: {
-    getCreditCosts: vi.fn(),
-  },
-  jobRepository: {
-    doesUserHaveFinishedJobWithAgent: vi.fn(),
-  },
-  workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
-  },
-}));
-
-vi.mock("@/lib/auth/utils", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  __esModule: true,
-  default: {
-    $transaction: vi.fn(),
   },
 }));
 
 describe("agent.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    upsertWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
     // Default mapper behavior: tag mapped agents so wiring is observable.
     mapCoreAgentsToAgentWithCreditsPriceMock.mockImplementation(
       (agents: Array<{ id: string }>) =>
@@ -157,33 +123,65 @@ describe("agent.service", () => {
     expect(result).toBeNull();
   });
 
-  it("resolves the active workspace before loading hired agents", async () => {
-    getSessionMock.mockResolvedValue({
-      user: {
-        id: "user_123",
-      },
-      session: {
-        activeOrganizationId: "org_123",
-      },
-    });
-    getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock.mockResolvedValue([]);
+  it("serves favorite agents from core", async () => {
+    const coreAgents = [{ id: "fav-1" }];
+    getFavoriteAgentsMock.mockResolvedValue({ data: coreAgents });
 
     const { agentService } = await import("../agent.service");
+    const result = await agentService.getFavoriteAgents();
 
-    await agentService.getHiredAgents();
+    expect(getFavoriteAgentsMock).toHaveBeenCalledTimes(1);
+    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
+      coreAgents,
+    );
+    expect(result.map((agent) => agent.id)).toEqual(["fav-1"]);
+  });
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
+  it("degrades to an empty favorites list when core fails", async () => {
+    getFavoriteAgentsMock.mockRejectedValue(new Error("boom"));
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getFavoriteAgents();
+
+    expect(result).toEqual([]);
+    expect(mapCoreAgentsToAgentWithCreditsPriceMock).not.toHaveBeenCalled();
+  });
+
+  it("serves hired agents from core", async () => {
+    const coreAgents = [{ id: "hired-1" }];
+    getHiredAgentsMock.mockResolvedValue({ data: coreAgents });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.getHiredAgents();
+
+    expect(getHiredAgentsMock).toHaveBeenCalledTimes(1);
+    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
+      coreAgents,
     );
-    expect(
-      getHiredAgentsWithLatestJobByUserIdAndWorkspaceMock,
-    ).toHaveBeenCalledWith(
-      "user_123",
-      "11111111-1111-7111-8111-111111111111",
-      expect.any(Object),
+    expect(result.map((agent) => agent.id)).toEqual(["hired-1"]);
+  });
+
+  it("reports rating eligibility from core", async () => {
+    getAgentRatingEligibilityMock.mockResolvedValue({
+      data: { eligible: true },
+    });
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.canUserRateAgent("agent-1");
+
+    expect(getAgentRatingEligibilityMock).toHaveBeenCalledWith("agent-1");
+    expect(result).toBe(true);
+  });
+
+  it("treats an unavailable agent (core 404) as not rateable", async () => {
+    getAgentRatingEligibilityMock.mockRejectedValue(
+      new CoreApiRequestErrorMock("not found", { status: 404 }),
     );
+
+    const { agentService } = await import("../agent.service");
+    const result = await agentService.canUserRateAgent("agent-1");
+
+    expect(result).toBe(false);
   });
 
   it("serves the caller's own rating from core", async () => {

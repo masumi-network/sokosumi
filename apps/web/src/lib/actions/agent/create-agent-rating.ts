@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSession } from "@/lib/auth/utils";
-import { agentService } from "@/lib/services";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 
 export interface AgentRatingError {
@@ -15,6 +15,36 @@ export interface AgentRatingError {
     | "AGENT_NOT_FOUND"
     | "UNKNOWN";
   message: string;
+}
+
+function mapCoreErrorToRatingError(
+  error: CoreApiRequestError,
+): AgentRatingError {
+  switch (error.status) {
+    case 401:
+      return {
+        code: "UNAUTHORIZED",
+        message: "You must be logged in to rate an agent",
+      };
+    case 403:
+      return {
+        code: "NOT_ELIGIBLE",
+        message:
+          "You must complete at least one job with this agent before rating",
+      };
+    case 404:
+      return { code: "AGENT_NOT_FOUND", message: "Agent not found" };
+    case 422:
+      return {
+        code: "INVALID_RATING",
+        message: "Rating must be an integer between 1 and 5",
+      };
+    default:
+      return {
+        code: "UNKNOWN",
+        message: "An unexpected error occurred while submitting your rating",
+      };
+  }
 }
 
 export async function createAgentRating(
@@ -31,7 +61,6 @@ export async function createAgentRating(
         message: "You must be logged in to rate an agent",
       });
     }
-    const userId = session.user.id;
 
     // Validate rating
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -49,27 +78,12 @@ export async function createAgentRating(
       });
     }
 
-    // Validate agent exists
-    const agent = await agentService.getAvailableAgentById(agentId);
-    if (!agent) {
-      return Err({
-        code: "AGENT_NOT_FOUND",
-        message: "Agent not found",
-      });
-    }
-
-    // Check eligibility
-    const canRate = await agentService.canUserRateAgent(userId, agentId);
-    if (!canRate) {
-      return Err({
-        code: "NOT_ELIGIBLE",
-        message:
-          "You must complete at least one job with this agent before rating",
-      });
-    }
-
-    // Submit the rating
-    await agentService.submitAgentRating(agentId, rating, comment ?? null);
+    // Core enforces the eligibility gate (a finished job with the agent) and
+    // upserts the rating server-side.
+    await coreClient.createAgentRating(agentId, {
+      rating,
+      comment: comment ?? null,
+    });
 
     // Revalidate relevant paths
     revalidatePath(`/agents/${agentId}`, "layout");
@@ -77,6 +91,9 @@ export async function createAgentRating(
 
     return Ok(undefined);
   } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      return Err(mapCoreErrorToRatingError(error));
+    }
     console.error("Error creating agent rating:", error);
     return Err({
       code: "UNKNOWN",

@@ -274,3 +274,54 @@ export type AgentMyReview = z.infer<typeof agentMyReviewSchema>;
 export const agentMyReviewResponseSchema = agentMyReviewSchema.nullable();
 
 export const agentsSummarySchema = z.array(agentSummarySchema);
+
+export const agentRatingRequestSchema = z
+  .object({
+    rating: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .openapi({ example: 5, description: "Rating between 1 and 5 stars" }),
+    comment: z
+      .string()
+      .max(1000)
+      .nullish()
+      .openapi({ example: "Great results.", description: "Optional comment" }),
+  })
+  .openapi("AgentRatingRequest");
+
+export type AgentRatingRequest = z.infer<typeof agentRatingRequestSchema>;
+
+export const agentRatingEligibilitySchema = z
+  .object({
+    eligible: z.boolean().openapi({
+      example: true,
+      description:
+        "Whether the caller has finished at least one job with the agent and may rate it",
+    }),
+  })
+  .openapi("AgentRatingEligibility");
+
+export type AgentRatingEligibility = z.infer<
+  typeof agentRatingEligibilitySchema
+>;
+
+export const agentFavoriteRequestSchema = z
+  .object({
+    agentId: z.string().openapi({
+      example: "cmaeygqwa000e8i0s9s7wif8i",
+      description: "The id of the agent to add to favorites",
+    }),
+  })
+  .openapi("AgentFavoriteRequest");
+
+export type AgentFavoriteRequest = z.infer<typeof agentFavoriteRequestSchema>;
+
+export const agentFavoriteSchema = z
+  .object({
+    agentId: z.string().openapi({ example: "cmaeygqwa000e8i0s9s7wif8i" }),
+  })
+  .openapi("AgentFavorite");
+
+export type AgentFavorite = z.infer<typeof agentFavoriteSchema>;

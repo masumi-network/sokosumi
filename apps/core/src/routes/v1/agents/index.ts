@@ -4,18 +4,32 @@ import mountGetAgentById from "./[id]/get.js";
 import mountGetAgentInputSchema from "./[id]/input-schema/get.js";
 import mountGetJobsByAgentId from "./[id]/jobs/get.js";
 import mountPostAgentJob from "./[id]/jobs/post.js";
+import mountGetAgentRatingEligibility from "./[id]/ratings/eligibility/get.js";
+import mountPostAgentRating from "./[id]/ratings/post.js";
 import mountGetAgentReviews from "./[id]/reviews/get.js";
 import mountGetMyAgentReview from "./[id]/reviews/me/get.js";
+import mountDeleteFavoriteAgent from "./favorites/[agentId]/delete.js";
+import mountGetFavoriteAgents from "./favorites/get.js";
+import mountPostFavoriteAgent from "./favorites/post.js";
 import mountGetAgents from "./get.js";
+import mountGetHiredAgents from "./hired/get.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
 mountGetAgents(app);
+// Static routes are mounted before the parametric `/{id}` route so they take
+// precedence in the OpenAPI document and routing.
+mountGetFavoriteAgents(app);
+mountPostFavoriteAgent(app);
+mountDeleteFavoriteAgent(app);
+mountGetHiredAgents(app);
 mountGetAgentById(app);
 mountGetAgentReviews(app);
 mountGetMyAgentReview(app);
+mountGetAgentRatingEligibility(app);
+mountPostAgentRating(app);
 mountGetAgentInputSchema(app);
 mountGetJobsByAgentId(app);
 mountPostAgentJob(app);

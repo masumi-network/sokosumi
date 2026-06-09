@@ -36,7 +36,6 @@ export default async function AgentDetailPage({
 
   const [reviewsResponse, favoriteAgents, projectOptions] = await Promise.all([
     coreClient.getAgentReviews(agentId),
-    // TODO(core-api): replace with a Core favorites API when available.
     agentService.getFavoriteAgents(),
     session ? getProjectFilterOptions() : Promise.resolve(undefined),
   ]);
@@ -47,10 +46,7 @@ export default async function AgentDetailPage({
   const averageExecutionDuration = coreAgent.metrics.executions.averageTime;
   const ratingStats = mapCoreAgentMetricsToRatingStats(coreAgent);
 
-  // TODO(core-api): replace with Core user rating read/eligibility APIs.
-  const canRate = userId
-    ? await agentService.canUserRateAgent(userId, agentId)
-    : false;
+  const canRate = userId ? await agentService.canUserRateAgent(agentId) : false;
 
   const existingRating =
     userId && canRate
