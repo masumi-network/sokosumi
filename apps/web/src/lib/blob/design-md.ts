@@ -31,10 +31,7 @@ export function isAllowedDesignMdBlobUrl(url: string, userId: string): boolean {
     const pathname = decodeBlobPathname(parsed.pathname);
     const userUploadPrefix = `/${buildUserUploadPrefix(userId)}`;
 
-    return (
-      pathname.startsWith(`/${DESIGN_MD_UPLOAD_DIR}/`) ||
-      pathname.startsWith(userUploadPrefix)
-    );
+    return pathname.startsWith(userUploadPrefix);
   } catch {
     return false;
   }

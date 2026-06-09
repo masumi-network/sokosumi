@@ -7,7 +7,6 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { CopyableValue } from "@/components/copyable-value";
-import { DesignMdProfileSection } from "@/components/design-md";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -19,7 +18,9 @@ import {
 } from "@/components/ui/card";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
+import { OrganizationDesignMdSection } from "./organization-design-md-section";
 import OrganizationEditButton from "./organization-edit-button";
+import { OrganizationMetadataProvider } from "./organization-metadata-context";
 import OrganizationRemoveButton from "./organization-remove-button";
 
 interface OrganizationInformationProps {
@@ -71,7 +72,7 @@ export default async function OrganizationInformation({
   ].filter((card) => card !== null);
 
   return (
-    <>
+    <OrganizationMetadataProvider organization={organization}>
       <Card className="shadow-none">
         <CardHeader className="gap-6">
           <div className="flex items-center gap-4 sm:gap-5">
@@ -135,12 +136,12 @@ export default async function OrganizationInformation({
           </CardContent>
         ) : null}
       </Card>
-      <DesignMdProfileSection
+      <OrganizationDesignMdSection
         owner={{ type: "organization", organizationId: organization.id }}
         canManage={isOwnerOrAdmin}
         value={designMdValue}
         websiteUrl={websiteUrl}
       />
-    </>
+    </OrganizationMetadataProvider>
   );
 }

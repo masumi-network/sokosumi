@@ -109,6 +109,7 @@ interface TaskFormProps {
     description: string;
     coworkerId: string | null;
     projectId?: string | null;
+    skipDesignMdAttachment?: boolean;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
   }) => Promise<{ taskId: string }>;
   showCancel?: boolean;
@@ -188,6 +189,7 @@ export function TaskForm({
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
+  const designMdDismissedRef = useRef(false);
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
@@ -252,6 +254,7 @@ export function TaskForm({
           const result = await createTaskHandler({
             description: trimmedDescription,
             coworkerId,
+            skipDesignMdAttachment: designMdDismissedRef.current,
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
           });
@@ -382,9 +385,15 @@ export function TaskForm({
     [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
   );
 
-  const handleRemoveAttachment = useCallback((url: string) => {
-    setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
-  }, []);
+  const handleRemoveAttachment = useCallback(
+    (url: string) => {
+      if (initialDesignMdAttachment?.url === url) {
+        designMdDismissedRef.current = true;
+      }
+      setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
+    },
+    [initialDesignMdAttachment?.url],
+  );
 
   const handleCancel = () => {
     abortActiveUploads();

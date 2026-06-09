@@ -50,6 +50,17 @@ export function seedTaskDescriptionWithDesignMd(
     return description;
   }
 
+  return ensureDesignMdInDescription(description, attachment);
+}
+
+export function ensureDesignMdInDescription(
+  description: string,
+  attachment?: TaskDesignMdAttachmentSeed | null,
+): string {
+  if (!attachment) {
+    return description;
+  }
+
   if (
     descriptionIncludesTaskAttachmentLink(
       description,
@@ -60,7 +71,15 @@ export function seedTaskDescriptionWithDesignMd(
     return description;
   }
 
-  return formatTaskAttachmentMarkdown(attachment.label, attachment.url);
+  const attachmentMarkdown = formatTaskAttachmentMarkdown(
+    attachment.label,
+    attachment.url,
+  );
+  const trimmedDescription = description.trimStart();
+
+  return trimmedDescription
+    ? `${attachmentMarkdown}\n${trimmedDescription}`
+    : attachmentMarkdown;
 }
 
 const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";

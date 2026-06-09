@@ -289,6 +289,41 @@ describe("MultimodalInput", () => {
     });
   });
 
+  it("restores DESIGN.md when switching back to task mode with existing text", async () => {
+    render(
+      <WelcomeMultimodalInput
+        initialComposeKind="task"
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.change(screen.getByTestId("markdown-editor"), {
+      target: { value: "Build landing page" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "composeChat" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("Build landing page");
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeTask" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n\nBuild landing page",
+      );
+    });
+  });
+
   it("keeps persistent image generation enabled and sends it with the message", async () => {
     const onSendMessage = vi.fn().mockResolvedValue(true);
     render(

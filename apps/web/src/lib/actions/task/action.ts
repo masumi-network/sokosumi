@@ -25,6 +25,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
+  skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 
@@ -76,6 +77,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
+  skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   type: TaskLinkType;
   direction?: "outgoing" | "incoming";
@@ -132,6 +134,7 @@ async function createTaskFromDescription(input: {
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
+  skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   userId: string;
 }): Promise<Task> {
@@ -152,12 +155,13 @@ async function createTaskFromDescription(input: {
       : "Untitled Task");
   const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
-  const descriptionWithDesignMd =
-    await designMdService.appendDesignMdToDescription(
-      trimmedDescription,
-      input.userId,
-      input.activeOrganizationId,
-    );
+  const descriptionWithDesignMd = input.skipDesignMdAttachment
+    ? trimmedDescription
+    : await designMdService.appendDesignMdToDescription(
+        trimmedDescription,
+        input.userId,
+        input.activeOrganizationId,
+      );
 
   return taskService.createTask({
     name,
@@ -286,13 +290,21 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 }
 
 export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
-  async ({ description, coworkerId, projectId, session, status }) => {
+  async ({
+    description,
+    coworkerId,
+    projectId,
+    session,
+    skipDesignMdAttachment,
+    status,
+  }) => {
     try {
       const task = await createTaskFromDescription({
         activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,
+        skipDesignMdAttachment,
         status,
         userId: session.user.id,
       });
@@ -525,6 +537,7 @@ export const createTaskAndLink = withSession<
     projectId,
     session,
     status,
+    skipDesignMdAttachment,
     type,
     direction,
     note,
@@ -549,6 +562,7 @@ export const createTaskAndLink = withSession<
         description,
         coworkerId,
         projectId,
+        skipDesignMdAttachment,
         status,
         userId: session.user.id,
       });

@@ -15,6 +15,7 @@ export interface ChatComposeSubmitOptions {
   kind: ChatComposeKind;
   taskStatus?: TaskSubmitStatus;
   imageGeneration?: boolean;
+  skipDesignMdAttachment?: boolean;
 }
 
 export interface Coworker {

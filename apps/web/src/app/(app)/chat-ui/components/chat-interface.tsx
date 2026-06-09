@@ -1477,6 +1477,7 @@ export default function ChatInterface({
             const result = await createTask({
               description: messageText,
               coworkerId: selectedTaskCoworker.id,
+              skipDesignMdAttachment: options?.skipDesignMdAttachment,
               status:
                 options?.taskStatus === "DRAFT"
                   ? TaskStatus.DRAFT

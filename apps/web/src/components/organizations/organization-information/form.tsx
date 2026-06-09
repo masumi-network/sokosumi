@@ -58,6 +58,7 @@ import { FormFields } from "./form-fields";
 
 interface OrganizationInformationFormProps {
   organization: Organization | null;
+  organizationMetadata?: string | null;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onLogoUploadBusyChange?: (busy: boolean) => void;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
@@ -65,6 +66,7 @@ interface OrganizationInformationFormProps {
 
 export default function OrganizationInformationForm({
   organization,
+  organizationMetadata,
   setIsLoading,
   onLogoUploadBusyChange,
   onOpenChange,
@@ -143,8 +145,10 @@ export default function OrganizationInformationForm({
       let result;
       const isCreating = !organization;
       const logoForApi = normalizeOrganizationLogo(values.logo);
+      const metadataSource =
+        organizationMetadata ?? organization?.metadata ?? values.metadata;
       const metadataForApi = buildOrganizationMetadataWithUrl(
-        values.metadata,
+        parseOrganizationMetadata(metadataSource),
         values.url ?? "",
       );
 

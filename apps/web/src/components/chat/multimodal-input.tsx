@@ -62,6 +62,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
 import {
+  ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
   removeDesignMdAttachmentLinks,
@@ -588,6 +589,8 @@ function PureMultimodalInput({
           kind: composeKind,
           taskStatus,
           imageGeneration: effectiveImageGenerationEnabled,
+          skipDesignMdAttachment:
+            composeKind === "task" ? designMdDismissedRef.current : undefined,
         },
       );
       if (sendResult !== true) {
@@ -692,6 +695,11 @@ function PureMultimodalInput({
           setPreferredCoworker(defaultTaskCoworker);
           onCoworkerChange?.(defaultTaskCoworker);
         }
+        if (initialDesignMdAttachment && !designMdDismissedRef.current) {
+          setInput((prev) =>
+            ensureDesignMdInDescription(prev, initialDesignMdAttachment),
+          );
+        }
         return;
       }
 
@@ -705,13 +713,13 @@ function PureMultimodalInput({
         onCoworkerChange?.(defaultChatCoworker);
       }
 
-      designMdDismissedRef.current = false;
       setInput((prev) => removeDesignMdAttachmentLinks(prev));
     },
     [
       composeKind,
       coworkers,
       focusTaskEditor,
+      initialDesignMdAttachment,
       isComposeKindControlled,
       onComposeKindChange,
       onCoworkerChange,

@@ -5,13 +5,13 @@ import { isAllowedDesignMdBlobUrl } from "../design-md";
 describe("isAllowedDesignMdBlobUrl", () => {
   const userId = "user-123";
 
-  it("accepts generated design-md blob URLs", () => {
+  it("rejects shared design-md blob URLs from other workspaces", () => {
     expect(
       isAllowedDesignMdBlobUrl(
         "https://store.public.blob.vercel-storage.com/design-md/42-hash.md",
         userId,
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("accepts user upload blob URLs for the authenticated user", () => {

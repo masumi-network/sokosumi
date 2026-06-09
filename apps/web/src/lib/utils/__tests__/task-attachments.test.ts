@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   descriptionIncludesTaskAttachmentLink,
+  ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
   removeDesignMdAttachmentLinks,
@@ -143,5 +144,14 @@ describe("task-attachments", () => {
         url: "https://blob.example/design.md",
       }),
     ).toBe("Write docs");
+  });
+
+  it("prepends DESIGN.md to non-empty descriptions when ensuring attachment", () => {
+    expect(
+      ensureDesignMdInDescription("Write docs", {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+      }),
+    ).toBe("[DESIGN.md](https://blob.example/design.md)\n\nWrite docs");
   });
 });

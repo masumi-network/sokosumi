@@ -218,6 +218,27 @@ describe("task link actions", () => {
     expect(generateTaskNameMock).toHaveBeenCalledWith("Created related task");
   });
 
+  it("skips design.md attachment when the composer removed it", async () => {
+    generateTaskNameMock.mockResolvedValue("Generated task name");
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      coworkerId: null,
+      skipDesignMdAttachment: true,
+      status: TaskStatus.READY,
+    });
+
+    expect(appendDesignMdToDescriptionMock).not.toHaveBeenCalled();
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Created related task",
+      }),
+    );
+  });
+
   it("generates task names from user instructions when DESIGN.md is pre-seeded", async () => {
     generateTaskNameMock.mockResolvedValue("Build landing page");
     appendDesignMdToDescriptionMock.mockImplementation(
