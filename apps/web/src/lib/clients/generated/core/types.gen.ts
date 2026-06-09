@@ -1245,6 +1245,52 @@ export type CreateUserFileUploadRequest = {
     allowedContentTypes?: Array<string>;
 };
 
+export type UtmAttributionResponse = {
+    /**
+     * Identifier of the created UTM attribution record
+     */
+    id: string;
+    /**
+     * When the attribution was recorded against the user
+     */
+    convertedAt: Date;
+};
+
+export type UtmAttributionRequest = {
+    /**
+     * Campaign source (e.g. utm_source)
+     */
+    utm_source: string;
+    /**
+     * Campaign medium (e.g. utm_medium)
+     */
+    utm_medium?: string;
+    /**
+     * Campaign name (e.g. utm_campaign)
+     */
+    utm_campaign?: string;
+    /**
+     * Paid keyword term (e.g. utm_term)
+     */
+    utm_term?: string;
+    /**
+     * Content/creative variant (e.g. utm_content)
+     */
+    utm_content?: string;
+    /**
+     * Referring URL captured on landing
+     */
+    referrer?: string;
+    /**
+     * First page the visitor landed on
+     */
+    landingPage?: string;
+    /**
+     * When the UTM data was captured on the client
+     */
+    capturedAt: Date;
+};
+
 export type User = {
     id: string;
     createdAt: Date;
@@ -9631,6 +9677,91 @@ export type PostUsersByIdUploadsResponses = {
 };
 
 export type PostUsersByIdUploadsResponse = PostUsersByIdUploadsResponses[keyof PostUsersByIdUploadsResponses];
+
+export type PostUsersByIdUtmAttributionData = {
+    body?: UtmAttributionRequest;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/utm-attribution';
+};
+
+export type PostUsersByIdUtmAttributionErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdUtmAttributionError = PostUsersByIdUtmAttributionErrors[keyof PostUsersByIdUtmAttributionErrors];
+
+export type PostUsersByIdUtmAttributionResponses = {
+    /**
+     * Record a UTM attribution for the user
+     */
+    200: {
+        data: UtmAttributionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
 export type GetUsersByIdData = {
     body?: never;
