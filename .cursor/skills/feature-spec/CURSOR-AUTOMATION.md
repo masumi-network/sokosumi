@@ -5,7 +5,7 @@ Use when you want Cloud Agents to start without manual assign **after the right 
 This is optional. Prefer MCP handoffs in the pipeline:
 
 1. **`_task`** — posts the **requirement** issue, creates **Write PRD** sub-task with `delegate: "Cursor"` **or** relies on Write PRD automation — never both, and no `@Cursor` comments on the default MCP path → feature-spec (not coding).
-2. **`feature-spec`** — posts the **implementation** issue with full PRD, creates sub-tasks, then `delegate: "Cursor"` → coding agent.
+2. **`feature-spec`** — posts the **implementation** issue with full PRD, creates sub-tasks, then `delegate: "Cursor"` **or** relies on coding automation — never both, and no `@Cursor` on the default MCP path → coding agent.
 
 Do **not** trigger a coding automation on bare SOK issues with Feature/Bug/Improvement labels. Requirement issues and Write PRD sub-tasks use the same team, project, state, and labels but are **not** implementation PRDs.
 
@@ -44,7 +44,7 @@ Every coding run must end with this, whether triggered by delegate, `@Cursor`, o
    ```
 
 3. `save_comment` on the same issue with PR URL and short summary.
-4. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff — see `PRD-REVIEWER.md`.
+4. Start the **Verify implementation** sub-task with **one** trigger — `delegate: "Cursor"` **or** `@Cursor` + `/goal` comment per `PRD-REVIEWER.md`, not both.
 5. Do **not** mark the implementation issue Done or close sub-tasks.
 
 The PRD template includes **Agent completion** and **Reviewer completion** sections so delegated issues carry these instructions in the description.
@@ -78,9 +78,9 @@ flowchart LR
 |-------|-------------|---------------------|-------------|
 | Requirement | High-level brief, no `[repo=…]`, no Verification section | None — informational comment only; no `@Cursor` | — |
 | Write PRD | Title `chore(spec): write implementation PRD`, child of requirement | `_task` via `delegate: "Cursor"` on create (default), **or** optional automation below — not delegate + automation + `@Cursor` | Optional spec automation below |
-| Implementation | Full PRD, `[repo=masumi-network/sokosumi]`, Data flow / Verification | `feature-spec` via `delegate: "Cursor"` on `save_issue` **after** verify sub-task exists | Optional coding automation below |
+| Implementation | Full PRD, `[repo=masumi-network/sokosumi]`, Data flow / Verification | `feature-spec` via `delegate: "Cursor"` on `save_issue` **after** verify sub-task exists (default), **or** optional coding automation below — not delegate + automation + `@Cursor` | Optional coding automation below |
 
-Default path: MCP delegate + handoff comments in `_task/HANDOFF.md` and `LINEAR-MCP.md`. Automations are fallbacks only.
+Default path: MCP `delegate` only in `_task/HANDOFF.md` and `LINEAR-MCP.md` (informational comments without `@Cursor`). Automations and manual `@Cursor` are mutually exclusive fallbacks.
 
 ## Recommended automation setup
 
@@ -106,7 +106,7 @@ Matches `_task/HANDOFF.md`. Fires only on the PRD handoff sub-task, not on requi
 | Trigger | Linear — Delegate assigned → `Cursor` (or Issue updated when delegate becomes Cursor) |
 | Filter | Team SOK; description contains `[repo=masumi-network/sokosumi]`; title does **not** start with `chore(spec):` or `chore(review):` |
 | Tools | GitHub, Linear |
-| Instructions | Read the issue description as the implementation PRD. Follow verification and out-of-scope sections. Open a PR when done. Repo from `[repo=…]` in the description. **When the PR is open:** set this issue to `In Review`, comment with the PR link, delegate the Verify implementation sub-task with `/goal` per `PRD-REVIEWER.md`, and do not mark Done. |
+| Instructions | Read the issue description as the implementation PRD. Follow verification and out-of-scope sections. Open a PR when done. Repo from `[repo=…]` in the description. **When the PR is open:** set this issue to `In Review`, comment with the PR link, start the Verify implementation sub-task with one trigger per `PRD-REVIEWER.md`, and do not mark Done. |
 
 The `[repo=…]` line is spec-agent output only (`TEMPLATE.md` / `LINEAR-MCP.md`). Requirement issues from `_task` must not include it.
 
@@ -141,7 +141,7 @@ Prefer MCP handoffs. If you use triage, match **issue role**, not team label alo
 
 Do **not** use `**Linear:**` as a filter — `_task` shows that line in chat drafts and implementation PRDs both use metadata lines; it does not distinguish requirement vs PRD.
 
-Note: Linear triage may require a human assignee on some plans. MCP `delegate: "Cursor"` on the implementation issue (step 9, after sub-tasks) avoids that.
+Note: Linear triage may require a human assignee on some plans. MCP `delegate: "Cursor"` on the implementation issue (step 10, after sub-tasks) avoids that.
 
 ## Repo labels in Linear
 
@@ -160,9 +160,9 @@ So Cloud Agent picks the repo without repeating `[repo=...]` every time:
 
 ## Manual fallback
 
-On any implementation issue:
+On any implementation issue, use **one** trigger — not delegate and `@Cursor` on the same issue:
 
-1. Assign **Cursor** as delegate, or
+1. Assign **Cursor** as delegate, **or**
 2. Comment:
 
    ```markdown
@@ -170,5 +170,5 @@ On any implementation issue:
 
    [repo=masumi-network/sokosumi]
 
-   When the PR is open: set this issue to In Review, comment with the PR link, delegate Verify implementation with `/goal` per PRD-REVIEWER.md. Do not mark Done.
+   When the PR is open: set this issue to In Review, comment with the PR link, start Verify implementation with `/goal` per `PRD-REVIEWER.md` (one trigger only). Do not mark Done.
    ```

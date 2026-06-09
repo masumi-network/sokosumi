@@ -9,7 +9,7 @@ Compares **code + PR** against the parent PRD. Loops with **`/goal`** until ever
 | Trigger | Who |
 |---------|-----|
 | Parent implementation issue → `In Review` | Coding agent (required handoff step) |
-| Review sub-task delegated to Cursor | Coding agent via `@Cursor` + `/goal` comment |
+| Review sub-task started | Coding agent — `delegate: "Cursor"` **or** `@Cursor` + `/goal` comment, not both |
 | Reviewer agent starts | Cursor Cloud Agent on the review sub-task |
 
 The spec agent creates the review sub-task at publish time. It stays idle until the coding agent triggers it.
@@ -101,7 +101,7 @@ Prefer **screenshot** for static UI; **short screen recording** for flows (navig
 
 ## Linear sub-task shape
 
-Created by spec agent — see `LINEAR-MCP.md` step 7.
+Created by spec agent — see `LINEAR-MCP.md` step 8.
 
 | Field | Value |
 |-------|--------|
@@ -113,7 +113,9 @@ Created by spec agent — see `LINEAR-MCP.md` step 7.
 
 ## Coding agent handoff (required)
 
-When the coding agent sets the parent to **In Review**, it must **also** start the reviewer on the review sub-task:
+When the coding agent sets the parent to **In Review**, it must start the reviewer on the review sub-task with **one** trigger — `delegate: "Cursor"` via Linear MCP **or** the `@Cursor` comment below, not both.
+
+**Manual / comment-only path:**
 
 ```markdown
 @Cursor
@@ -135,6 +137,8 @@ Loop: fix failures on the PR branch, push, rerun all checks. Do not mark this su
 On pass: mark this sub-task Done and comment on parent SOK-XXX with evidence links.
 Do not mark parent Done.
 ```
+
+**Default (MCP):** `save_issue` on the review sub-task with `delegate: "Cursor"` and a comment **without** `@Cursor` that includes the same `/goal` body (PR URL, branch, criteria). Do not also post the `@Cursor` block above.
 
 Replace `SOK-XXX` with the implementation issue identifier.
 

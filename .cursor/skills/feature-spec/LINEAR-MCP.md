@@ -123,7 +123,7 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
    - Supported fields include `description`, `project`, `state`, `labels`, `priority`, `assignee`, `parentId`, `cycle`, `dueDate`, `links`.
    - Use names directly: `team: "SOK"`, `project: "Sokosumi"`, `state: "Todo"`, `labels: ["Feature"]`.
    - Set `parentId` to the requirement issue identifier when applicable.
-   - Do **not** set `delegate` on create — a fast Cloud Agent could finish before step 7 creates the verify sub-task.
+   - Do **not** set `delegate` on create — a fast Cloud Agent could finish before step 8 creates the verify sub-task.
    - Return identifier, URL, applied label, and parent link.
 
 7. Create Confirm PRD sub-task
@@ -188,8 +188,17 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
 
 10. Hand off to Cursor (when `handoffToCursor` is true)
    - Run **after** steps 7–8 so Confirm and Verify sub-tasks exist.
-   - Use `save_issue` with `id` = implementation issue identifier and `delegate: "Cursor"`.
-   - Use `save_comment` on the **implementation** issue with the handoff body from **Cursor Cloud Agent → Handoff** below.
+   - **One trigger only** — same rule as `../_task/HANDOFF.md`:
+
+     | Path | Trigger | Do not also |
+     |------|---------|-------------|
+     | **Default (MCP)** | `save_issue` with `id` + `delegate: "Cursor"` | `@Cursor` comment on implementation issue |
+     | **Cursor Automation** | Delegate-assigned automation on `[repo=…]` issues — see `CURSOR-AUTOMATION.md` | `delegate` or `@Cursor` on the same issue |
+     | **Manual fallback** | `@Cursor` comment on implementation issue only — see **Cursor Cloud Agent → Handoff** below | `delegate` on the same issue |
+
+   - Default path: `save_issue` with `id` = implementation issue identifier and `delegate: "Cursor"`.
+   - Do **not** post `@Cursor` on the implementation issue when `delegate` is set — duplicate Cloud Agents on one PRD.
+   - The PRD description includes **Agent completion** (`TEMPLATE.md`); delegate alone carries coding instructions.
 
 ## Write-call shape
 
@@ -248,21 +257,22 @@ Keep these top fields visible near the top:
 
 ### Handoff
 
-- Set `delegate: "Cursor"` via `save_issue` with `id` **after** Verify sub-task exists (step 9) — not on create.
-- Add `save_comment` on the implementation issue:
+**Default (MCP):** Set `delegate: "Cursor"` via `save_issue` with `id` **after** Verify sub-task exists (step 10) — not on create. Do **not** add an `@Cursor` comment on the same issue.
 
-  ```markdown
-  @Cursor implement per the PRD above.
+**Manual fallback** (when MCP `delegate` is unavailable): post **one** `@Cursor` comment on the implementation issue — do **not** set `delegate`:
 
-  [repo=masumi-network/sokosumi]
+```markdown
+@Cursor implement per the PRD above.
 
-  When the PR is open:
-  1. Set this issue to In Review via Linear MCP and comment with the PR link.
-  2. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff from `PRD-REVIEWER.md`.
-  Do not mark Done.
-  ```
+[repo=masumi-network/sokosumi]
 
-- Optional team automation: see `CURSOR-AUTOMATION.md`.
+When the PR is open:
+1. Set this issue to In Review via Linear MCP and comment with the PR link.
+2. Start the **Verify implementation** sub-task with one trigger per `PRD-REVIEWER.md` (delegate **or** `@Cursor` + `/goal`, not both).
+Do not mark Done.
+```
+
+Optional team automation: see `CURSOR-AUTOMATION.md`. When coding automation is enabled, **omit** `delegate: "Cursor"` on step 10.
 
 ### Completion (coding agent)
 
@@ -270,11 +280,10 @@ When Cursor finishes and the PR is open:
 
 1. `save_issue` with `id` = implementation issue, `state: "In Review"`.
 2. `save_comment` with PR URL and summary on the implementation issue.
-3. `save_issue` on the **Verify implementation** sub-task: `delegate: "Cursor"`.
-4. `save_comment` on the verify sub-task with the `/goal` handoff body from `PRD-REVIEWER.md` (parent id, PR URL, branch).
-5. Do not mark the implementation issue Done.
+3. Start the **Verify implementation** sub-task with **one** trigger — `delegate: "Cursor"` via `save_issue` **or** `@Cursor` + `/goal` comment per `PRD-REVIEWER.md`, not both.
+4. Do not mark the implementation issue Done.
 
-The PRD **Agent completion** section repeats this for issues created before the handoff comment exists.
+The PRD **Agent completion** section repeats this for issues delegated before completion runs.
 
 ## Post-create response
 
@@ -288,3 +297,4 @@ Return:
 - Label
 - Requirement parent link (if any)
 - Delegate: Cursor yes/no
+- Trigger path used: MCP delegate / automation / manual `@Cursor`

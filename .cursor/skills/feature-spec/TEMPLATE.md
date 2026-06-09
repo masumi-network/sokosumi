@@ -117,7 +117,7 @@ When the PR is ready:
 1. Open a PR (default base: `main`).
 2. Use Linear MCP `save_issue` on **this issue**: `state: "In Review"`.
 3. Comment on this issue with the PR URL and a one-line summary.
-4. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff — see `PRD-REVIEWER.md`.
+4. Start the **Verify implementation** sub-task with **one** trigger — delegate to Cursor via Linear MCP **or** post the `/goal` handoff from `PRD-REVIEWER.md`, not both.
 5. Do **not** mark this issue Done — human review follows the PR after reviewer passes.
 
 ## Reviewer completion

@@ -95,7 +95,7 @@ The implementation issue must land in **In Review** when the coding agent finish
 On completion, Cursor must:
 
 1. Set the **implementation issue** to `In Review` via Linear MCP — not Done.
-2. Delegate the **Verify implementation** sub-task to Cursor and post the `/goal` handoff — see `PRD-REVIEWER.md`.
+2. Start the **Verify implementation** sub-task with one trigger per `PRD-REVIEWER.md` — not delegate and `@Cursor` on that sub-task.
 
 See `CURSOR-AUTOMATION.md` and the **Agent completion** section in `TEMPLATE.md`.
 
@@ -109,7 +109,7 @@ Trigger options (pick one per stage):
 | **Coding agent** | Manual | Assign implementation issue to Cursor, or comment `@Cursor implement per PRD` |
 | **Coding agent** | Linear triage / Automation | Optional — description contains `[repo=masumi-network/sokosumi]`, not a Write PRD sub-task — see `CURSOR-AUTOMATION.md` |
 
-Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD sub-task handoff; use **one** spec-agent trigger (delegate, automation, or manual `@Cursor` — not combined).
+Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD sub-task handoff; use **one** trigger per stage (delegate, automation, or manual `@Cursor` — not combined). Spec agent default: `delegate` on implementation issue only — no `@Cursor` when delegate is set.
 
 Before publishing an implementation issue, if the requirement already has a child whose description contains `[repo=…]` (and title is not `chore(spec): write implementation PRD`), stop and link that issue — do not create a second PRD.
 

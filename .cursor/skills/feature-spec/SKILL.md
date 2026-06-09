@@ -77,8 +77,7 @@ See `WORKFLOW.md` for the full spec → code pipeline.
    - Add `[repo=masumi-network/sokosumi]` near the top of the description (unless user overrides repo).
    - Create a **confirm PRD** sub-task (child of the implementation issue). Non-blocking — see `LINEAR-MCP.md`.
    - Create a **verify implementation** sub-task (child of the implementation issue). Reviewer runs after PR — see `PRD-REVIEWER.md` and `LINEAR-MCP.md`.
-   - When `handoffToCursor` is true (default unless user opts out): set `delegate: "Cursor"` on the implementation issue via `save_issue` with `id`, **after** both sub-tasks exist.
-   - Add a `@Cursor` handoff comment on the implementation issue with repo hint and **In Review on completion** — see `LINEAR-MCP.md`.
+   - When `handoffToCursor` is true (default unless user opts out): hand off with **one** trigger per `LINEAR-MCP.md` — default is `delegate: "Cursor"` via `save_issue` with `id` **after** both sub-tasks exist; do **not** also post `@Cursor` on the same issue. Manual fallback: `@Cursor` comment only when MCP `delegate` is unavailable.
    - Comment on the requirement issue linking the implementation issue when both exist.
    - Return implementation issue id/URL, confirm sub-task id/URL, verify sub-task id/URL, label, delegate status, and parent link.
    - If the current agent cannot access Linear MCP, stop and say what must be reloaded or configured. Do not use browser automation or raw API fallback.
