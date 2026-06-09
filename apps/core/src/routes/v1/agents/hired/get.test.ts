@@ -37,7 +37,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(withWorkspace = true) {
+function createApp(
+  withWorkspace = true,
+  workspaceUserId: string | null = "user_123",
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>({
@@ -62,7 +65,7 @@ function createApp(withWorkspace = true) {
       withWorkspace
         ? {
             workspaceId: "workspace_1",
-            userId: "user_123",
+            userId: workspaceUserId,
             organizationId: null,
           }
         : null,
@@ -149,6 +152,32 @@ describe("GET /agents/hired", () => {
       "newer",
       "older",
     ]);
+  });
+
+  it("scopes by the caller's id even in an org workspace (null workspace owner)", async () => {
+    agentFindManyMock.mockResolvedValue([]);
+    buildAgentSummariesMock.mockResolvedValue([]);
+
+    // Organization workspace: workspaceContext.userId is null, but the query
+    // must still filter by the authenticated caller's id, not match all members.
+    const app = createApp(true, null);
+    const response = await app.request("http://localhost/hired");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { isAvailable: true },
+            {
+              jobs: {
+                some: { workspaceId: "workspace_1", userId: "user_123" },
+              },
+            },
+          ],
+        },
+      }),
+    );
   });
 
   it("returns 403 when there is no active workspace", async () => {

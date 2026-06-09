@@ -12,6 +12,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { agentsSummarySchema } from "@/schemas/agent.schema";
 import {
@@ -40,14 +41,19 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
 
     const agents = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
 
+      // Scope to the authenticated caller's own jobs in the active workspace.
+      // `workspaceContext.userId` is the workspace owner (null for organization
+      // workspaces), so it must not be used as the job actor — that would leak
+      // other members' hired agents in an org workspace.
       const jobWhere: Prisma.JobWhereInput = {
         workspaceId: workspaceContext.workspaceId,
-        ...(workspaceContext.userId ? { userId: workspaceContext.userId } : {}),
+        userId: userContext.userId,
       };
 
       const rows = await tx.agent.findMany({
