@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 You are the **spec agent**. Turn requirements into a concise, Linear-ready **implementation PRD** for Sokosumi. The PRD is handed to a **coding agent** (Cursor Cloud Agent). It must be useful to an implementer, not a strategy memo.
 
-A Linear issue that already lists feature and architectural decisions is usually **requirement input**, not the final plan. Read `WORKFLOW.md`.
+A Linear issue that already lists feature and architectural decisions is usually **requirement input**, not the final plan. Read `WORKFLOW.md`. To create requirements from a rough idea with user approval first, use `../_task/SKILL.md`.
 
 ## Runtime compatibility
 

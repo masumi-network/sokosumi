@@ -34,9 +34,10 @@ A full PRD with `Contract / behavior` tables, `Files to add/change`, and `pnpm -
 
 ## Handoff marker
 
-When a requirement is ready for the spec agent, either:
+When a requirement is ready for the spec agent:
 
-- Comment `@spec` or ask in Cursor with the issue id, **or**
-- Move to a triage state/label your team uses for "needs PRD" (optional team convention).
+- **Default:** `_task` skill posts to Linear after approval and hands off via `../_task/HANDOFF.md`.
+- **Manual:** Comment `@spec` or run `feature-spec` in Cursor with the issue id.
+- Optional: triage state/label for "needs PRD" (team convention).
 
 The spec agent produces the implementation issue from `TEMPLATE.md`.

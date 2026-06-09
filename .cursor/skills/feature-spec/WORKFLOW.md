@@ -1,10 +1,14 @@
 # Spec → Code Pipeline
 
-Three agents. Four Linear issue shapes. PRD confirm is non-blocking. **Implementation review blocks merge.**
+Four agents. Four Linear issue shapes. Requirement intake has an approval gate. PRD confirm is non-blocking. **Implementation review blocks merge.**
 
 ```mermaid
 flowchart LR
-  req["Requirement issue\n(high level)"] --> specAgent["Spec agent\nfeature-spec skill"]
+  user["User idea"] --> intake["Requirement agent\n_task skill"]
+  intake --> approve{"User\napproves?"}
+  approve -->|yes| req["Requirement issue\n(high level)"]
+  approve -->|no| intake
+  req --> specAgent["Spec agent\nfeature-spec skill"]
   specAgent --> impl["Implementation issue\n(full PRD)"]
   specAgent --> confirm["Confirm PRD sub-task\n(human, non-blocking)"]
   specAgent --> verifyTask["Verify implementation\nsub-task"]
@@ -24,7 +28,7 @@ flowchart LR
 
 | Type | Who writes it | Purpose | Ready for code? |
 |------|---------------|---------|-----------------|
-| **Requirement** | Human, PM, or triage | Problem, goal, locked decisions, rough architecture ideas | No |
+| **Requirement** | Requirement agent (`_task`) or human/PM | Problem, goal, locked decisions, rough architecture ideas | No |
 | **Implementation** | Spec agent (auto) | Full PRD from `TEMPLATE.md` — contracts, files, verification | Yes — Cursor starts immediately |
 | **Confirm PRD** | Spec agent (auto sub-task) | Human sanity-check of the PRD against intent | No — does not block coding |
 | **Verify implementation** | Spec agent (auto sub-task) | Reviewer agent: PRD vs code, lint/test/build, screenshots | Yes — blocks human merge until Done |
@@ -132,6 +136,8 @@ Full protocol: `PRD-REVIEWER.md`.
 Parent implementation issue stays **In Review** until a human merges the PR and marks **Done**.
 
 ## Requirement issue template
+
+Use `_task` skill to draft and post requirements with user approval, then hand off here.
 
 Use `REQUIREMENT-TEMPLATE.md` when creating or reviewing requirement issues by hand.
 

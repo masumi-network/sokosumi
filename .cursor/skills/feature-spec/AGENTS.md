@@ -6,12 +6,13 @@ Use this directory as the source of truth for Sokosumi feature specs in Codex, C
 
 1. Read `SKILL.md`.
 2. Read `WORKFLOW.md` for requirement vs implementation issues and the coding-agent handoff.
-3. Use `REQUIREMENT-TEMPLATE.md` when reviewing or writing high-level requirement issues.
-4. Use `TEMPLATE.md` for the implementation PRD shape.
-5. Use `SUBAGENT-RUBRIC.md` to decide whether to include current/target architecture and subagent workstreams.
-6. Use `LINEAR-MCP.md` when publishing the implementation issue and sub-tasks (no approval gate).
-7. Use `PRD-REVIEWER.md` for the post-implementation reviewer `/goal` loop.
-8. Use `CURSOR-AUTOMATION.md` when setting up optional Linear-triggered Cloud Agents.
+3. Upstream requirement drafting: `../_task/SKILL.md` (approval gate before Linear).
+4. Use `REQUIREMENT-TEMPLATE.md` when reviewing or writing high-level requirement issues.
+5. Use `TEMPLATE.md` for the implementation PRD shape.
+6. Use `SUBAGENT-RUBRIC.md` to decide whether to include current/target architecture and subagent workstreams.
+7. Use `LINEAR-MCP.md` when publishing the implementation issue and sub-tasks (no approval gate).
+8. Use `PRD-REVIEWER.md` for the post-implementation reviewer `/goal` loop.
+9. Use `CURSOR-AUTOMATION.md` when setting up optional Linear-triggered Cloud Agents.
 
 ## Runtime notes
 
