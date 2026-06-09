@@ -12,6 +12,7 @@ networkConcurrency: 8
 overrides:
   lodash: 4.18.1
   zod: 4.4.3
+  samlify: 2.13.1
 
 allowBuilds:
   # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).
