@@ -47,6 +47,10 @@ export {
   extractLinks,
 } from "./markdown-links-extract.js";
 export {
+  serializeMetadataRecord,
+  stringifyMetadataRecord,
+} from "./metadata-record.js";
+export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
   findJsonObjectEnd,

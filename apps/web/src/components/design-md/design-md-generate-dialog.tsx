@@ -20,13 +20,12 @@ import {
 import { Progress } from "@/components/ui/progress";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 
-import type { DesignMdOwner, DesignMdTranslationNamespace } from "./types";
+import { DESIGN_MD_TRANSLATION_NAMESPACE, type DesignMdOwner } from "./types";
 import { useDesignMdGeneration } from "./use-design-md-generation";
 
 interface DesignMdGenerateDialogProps {
   disabled?: boolean;
   hasExistingDesignMd?: boolean;
-  namespace: DesignMdTranslationNamespace;
   onGenerated?: (designMd: PersistedDesignMd) => void;
   owner: DesignMdOwner;
   websiteUrl?: null | string;
@@ -35,12 +34,11 @@ interface DesignMdGenerateDialogProps {
 export function DesignMdGenerateDialog({
   disabled = false,
   hasExistingDesignMd = false,
-  namespace,
   onGenerated,
   owner,
   websiteUrl,
 }: DesignMdGenerateDialogProps) {
-  const t = useTranslations(namespace);
+  const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [open, setOpen] = useState(false);
   const [force, setForce] = useState(false);
 

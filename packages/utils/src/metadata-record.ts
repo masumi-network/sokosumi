@@ -49,6 +49,16 @@ export function stringifyMetadataRecord(
   return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
+export function serializeMetadataRecord(
+  metadata: MetadataRecord | null | undefined,
+): string | null {
+  const normalizedMetadata = stringifyMetadataRecord(
+    normalizeMetadataRecord(metadata),
+  );
+
+  return normalizedMetadata ? JSON.stringify(normalizedMetadata) : null;
+}
+
 export function getNormalizedStringField(
   metadata: MetadataRecord | null,
   key: string,

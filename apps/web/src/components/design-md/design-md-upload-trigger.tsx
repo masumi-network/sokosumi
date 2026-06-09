@@ -24,7 +24,7 @@ import {
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
 
-import type { DesignMdOwner, DesignMdTranslationNamespace } from "./types";
+import { DESIGN_MD_TRANSLATION_NAMESPACE, type DesignMdOwner } from "./types";
 
 const DESIGN_MD_ACCEPT = ".md,.markdown,text/markdown,text/plain";
 const DESIGN_MD_ALLOWED_CONTENT_TYPES = ["text/markdown", "text/plain"];
@@ -32,18 +32,16 @@ const DESIGN_MD_MAX_SIZE_BYTES = 1024 * 1024;
 
 interface DesignMdUploadTriggerProps {
   disabled?: boolean;
-  namespace: DesignMdTranslationNamespace;
   onSaved?: (designMd: PersistedDesignMd) => void;
   owner: DesignMdOwner;
 }
 
 export function DesignMdUploadTrigger({
   disabled = false,
-  namespace,
   onSaved,
   owner,
 }: DesignMdUploadTriggerProps) {
-  const t = useTranslations(namespace);
+  const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 

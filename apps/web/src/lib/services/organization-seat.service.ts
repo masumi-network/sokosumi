@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MemberRole, type Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   ensureLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
@@ -19,6 +19,7 @@ import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
 import prisma from "@/lib/db/prisma";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { grantUnusedSeatSubscriptionCreditsIfEligible } from "@/lib/services/organization-seat-credits.service";
 
 export interface OrganizationSeatSummary {
@@ -40,10 +41,6 @@ function resolveOrganizationPaidPlanLabel(
   return plan;
 }
 
-function isOwnerOrAdmin(role: string): boolean {
-  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
-}
-
 async function ensureCanManageSeatAssignments(
   userId: string,
   organizationId: string,
@@ -54,7 +51,7 @@ async function ensureCanManageSeatAssignments(
     prisma,
   );
 
-  if (!member || !isOwnerOrAdmin(member.role)) {
+  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
     throw new APIError("FORBIDDEN", {
       message:
         "Only organization owners and admins can manage seat assignments",

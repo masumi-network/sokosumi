@@ -1,6 +1,8 @@
+import type { DesignMdProfileValue } from "@/components/design-md";
 import type { Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 
+import { BrandProfileSection } from "./brand-profile-section";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { EmailPreferences } from "./email-preferences";
@@ -12,13 +14,19 @@ import { PreferencesSection } from "./preferences-section";
 
 interface AccountSettingsProps {
   accounts: Account[];
+  designMdValue?: DesignMdProfileValue;
   notificationsOptIn: boolean;
+  userLogo?: null | string;
+  userMetadata?: null | string;
   marketingOptIn: boolean;
 }
 
 export function AccountSettings({
   accounts,
+  designMdValue,
   notificationsOptIn,
+  userLogo,
+  userMetadata,
   marketingOptIn,
 }: AccountSettingsProps) {
   const hasCredentialAccount = accounts.some(
@@ -36,6 +44,14 @@ export function AccountSettings({
         <div className="md:col-span-2">
           <PasskeySettings />
         </div>
+      </div>
+
+      <div className="border-t pt-8">
+        <BrandProfileSection
+          designMdValue={designMdValue}
+          logo={userLogo}
+          metadata={userMetadata}
+        />
       </div>
 
       <div className="border-t pt-8">

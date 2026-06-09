@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ExternalLink, FileText, Trash2 } from "lucide-react";
+import { FileText, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -29,18 +29,19 @@ import {
 import { removeDesignMd } from "@/lib/actions/design-md";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 
+import { DesignMdAccessButtons } from "./design-md-access-buttons";
 import { DesignMdGenerateDialog } from "./design-md-generate-dialog";
 import { DesignMdUploadTrigger } from "./design-md-upload-trigger";
-import type {
-  DesignMdOwner,
-  DesignMdProfileValue,
-  DesignMdTranslationNamespace,
+import {
+  DESIGN_MD_TRANSLATION_NAMESPACE,
+  type DesignMdOwner,
+  type DesignMdProfileValue,
 } from "./types";
 
 interface DesignMdProfileSectionProps {
   canManage?: boolean;
   className?: string;
-  namespace: DesignMdTranslationNamespace;
+  onValueChange?: (value?: DesignMdProfileValue) => void;
   owner: DesignMdOwner;
   value?: DesignMdProfileValue;
   websiteUrl?: null | string;
@@ -54,12 +55,12 @@ function getPreviewUrl(value?: DesignMdProfileValue): null | string {
 export function DesignMdProfileSection({
   canManage = true,
   className,
-  namespace,
+  onValueChange,
   owner,
   value,
   websiteUrl,
 }: DesignMdProfileSectionProps) {
-  const t = useTranslations(namespace);
+  const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [designMd, setDesignMd] = useState<DesignMdProfileValue | undefined>(
     value,
   );
@@ -70,10 +71,18 @@ export function DesignMdProfileSection({
   const hasDesignMd = Boolean(designMdUrl);
   const hasWebsiteUrl = Boolean(websiteUrl);
   const sourceWebsiteUrl = websiteUrl ?? "";
+  const description =
+    owner.type === "user"
+      ? t("descriptionPersonal")
+      : t("descriptionOrganization");
 
-  const handlePersisted = useCallback((persisted: PersistedDesignMd) => {
-    setDesignMd(persisted);
-  }, []);
+  const handlePersisted = useCallback(
+    (persisted: PersistedDesignMd) => {
+      setDesignMd(persisted);
+      onValueChange?.(persisted);
+    },
+    [onValueChange],
+  );
 
   const handleRemove = useCallback(async () => {
     setIsRemoving(true);
@@ -85,19 +94,20 @@ export function DesignMdProfileSection({
       }
 
       setDesignMd(undefined);
+      onValueChange?.(undefined);
       toast.success(t("removeSuccess"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("removeError"));
     } finally {
       setIsRemoving(false);
     }
-  }, [owner, t]);
+  }, [owner, onValueChange, t]);
 
   return (
     <Card className={className}>
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
+        <CardDescription>{description}</CardDescription>
         <CardAction>
           <Badge variant={hasDesignMd ? "default" : "outline"}>
             {hasDesignMd ? t("statusReady") : t("statusEmpty")}
@@ -133,28 +143,17 @@ export function DesignMdProfileSection({
             <div className="flex flex-col gap-2 sm:flex-row">
               <DesignMdGenerateDialog
                 owner={owner}
-                namespace={namespace}
                 websiteUrl={websiteUrl}
                 hasExistingDesignMd={hasDesignMd}
                 onGenerated={handlePersisted}
                 disabled={!hasWebsiteUrl || isRemoving}
               />
-              {designMdUrl ? (
-                <Button asChild type="button" variant="outline">
-                  <a href={designMdUrl} target="_blank" rel="noreferrer">
-                    <Download className="size-4" />
-                    {t("downloadButton")}
-                  </a>
-                </Button>
-              ) : null}
-              {previewUrl ? (
-                <Button asChild type="button" variant="outline">
-                  <a href={previewUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink className="size-4" />
-                    {t("previewButton")}
-                  </a>
-                </Button>
-              ) : null}
+              <DesignMdAccessButtons
+                designMdUrl={designMdUrl}
+                previewUrl={previewUrl}
+                downloadLabel={t("downloadButton")}
+                previewLabel={t("previewButton")}
+              />
               {designMdUrl ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -191,29 +190,18 @@ export function DesignMdProfileSection({
             </div>
             <DesignMdUploadTrigger
               owner={owner}
-              namespace={namespace}
               onSaved={handlePersisted}
               disabled={isRemoving}
             />
           </div>
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row">
-            {designMdUrl ? (
-              <Button asChild type="button" variant="outline">
-                <a href={designMdUrl} target="_blank" rel="noreferrer">
-                  <Download className="size-4" />
-                  {t("downloadButton")}
-                </a>
-              </Button>
-            ) : null}
-            {previewUrl ? (
-              <Button asChild type="button" variant="outline">
-                <a href={previewUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-4" />
-                  {t("previewButton")}
-                </a>
-              </Button>
-            ) : null}
+            <DesignMdAccessButtons
+              designMdUrl={designMdUrl}
+              previewUrl={previewUrl}
+              downloadLabel={t("downloadButton")}
+              previewLabel={t("previewButton")}
+            />
           </div>
         )}
       </CardContent>

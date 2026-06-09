@@ -1,6 +1,5 @@
 import "server-only";
 
-import { MemberRole } from "@sokosumi/database";
 import {
   memberRepository,
   organizationRepository,
@@ -21,12 +20,14 @@ import {
   getUserMetadata,
   parseOrganizationMetadata,
   parseUserMetadata,
+  serializeMetadataRecord,
 } from "@sokosumi/utils";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { Session } from "@/lib/auth/auth";
 import { uploadDesignMdToBlob } from "@/lib/blob/design-md";
 import prisma from "@/lib/db/prisma";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
 import {
   createDesignMdJobToken,
@@ -82,14 +83,6 @@ interface ResolveEffectiveDesignMdInput {
 
 let client: DesignMdClient | null = null;
 
-function serializeMetadata(
-  metadata: Record<string, unknown> | null,
-): string | null {
-  return metadata && Object.keys(metadata).length > 0
-    ? JSON.stringify(metadata)
-    : null;
-}
-
 function assertDesignMdApiKey(apiKey: string | undefined): string {
   if (!apiKey) {
     throw new DesignMdServiceError(
@@ -128,10 +121,6 @@ function assertDonePayload(payload: DesignMdJobPayload): DesignMdDonePayload {
   }
 
   return payload;
-}
-
-function canManageOrganizationDesignMd(role: string): boolean {
-  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
 }
 
 function getJobTokenSecret(): string {
@@ -185,7 +174,7 @@ async function assertCanManageOwner(
     prisma,
   );
 
-  if (!member || !canManageOrganizationDesignMd(member.role)) {
+  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
     throw new DesignMdServiceError(
       "unauthorized",
       "Only organization owners and admins can manage DESIGN.md",
@@ -206,7 +195,7 @@ async function persistUserDesignMd(
     parseUserMetadata(user.metadata),
     designMd,
   );
-  const serializedMetadata = serializeMetadata(nextMetadata);
+  const serializedMetadata = serializeMetadataRecord(nextMetadata);
 
   await userRepository.updateUserMetadata(
     session.user.id,
@@ -244,7 +233,7 @@ async function persistOrganizationDesignMd(
     parseOrganizationMetadata(organization.metadata),
     designMd,
   );
-  const serializedMetadata = serializeMetadata(nextMetadata);
+  const serializedMetadata = serializeMetadataRecord(nextMetadata);
 
   await organizationRepository.updateOrganizationById(
     organizationId,

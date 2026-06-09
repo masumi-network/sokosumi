@@ -1,10 +1,8 @@
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
 
-export type DesignMdOwner = DesignMdOwnerSchemaType;
+export const DESIGN_MD_TRANSLATION_NAMESPACE = "App.DesignMd" as const;
 
-export type DesignMdTranslationNamespace =
-  | "App.Account.DesignMd"
-  | "App.Organizations.DesignMd";
+export type DesignMdOwner = DesignMdOwnerSchemaType;
 
 export interface DesignMdProfileValue {
   extractionId?: null | string;

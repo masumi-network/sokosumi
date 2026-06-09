@@ -1,6 +1,5 @@
 import "server-only";
 
-import { MemberRole } from "@sokosumi/database";
 import {
   assertOrganizationSubscriptionChangeAllowed,
   ensureLocalFreeSubscriptionPeriod,
@@ -19,6 +18,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -29,10 +29,6 @@ interface ActiveOrganizationSubscription {
   periodStart: Date | null;
   seats: number | null;
   stripeSubscriptionId: string | null;
-}
-
-function isOwnerOrAdmin(role: string): boolean {
-  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
 }
 
 async function resolveActiveOrganizationSubscription(
@@ -128,7 +124,7 @@ async function ensureCanManageOrganizationSubscription(
     organizationId,
     prisma,
   );
-  if (!member || !isOwnerOrAdmin(member.role)) {
+  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
     throw new APIError("FORBIDDEN", {
       message: "Only organization owners and admins can manage subscriptions",
     });
