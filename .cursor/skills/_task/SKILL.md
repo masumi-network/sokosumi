@@ -50,10 +50,10 @@ See `WORKFLOW.md` for the full intake → PRD pipeline.
 3. **Draft requirement**
    - Fill `../feature-spec/REQUIREMENT-TEMPLATE.md`.
    - Infer label and a Conventional Commit-style **proposed title** (not necessarily the final PRD title).
-   - Show near the top:
+   - Show near the top (chat draft only — do **not** post this line to Linear; requirement bodies use `REQUIREMENT-TEMPLATE.md` only):
 
      ```markdown
-     **Linear:** project Sokosumi · state Todo · label Feature
+     **Requirement draft:** project Sokosumi · state Todo · label Feature
      ```
 
    - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or subagent blocks. Those belong on the implementation issue (feature-spec skill).

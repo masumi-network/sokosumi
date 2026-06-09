@@ -68,7 +68,9 @@ Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issu
 
 ## Description body
 
-Use the approved requirement text. No MCP logs or agent reasoning.
+Use the approved requirement text from `REQUIREMENT-TEMPLATE.md` only. No MCP logs or agent reasoning.
+
+Do **not** add chat-only draft lines (`**Requirement draft:** …`), `[repo=…]`, verification commands, or PRD sections — those belong on the implementation issue after feature-spec runs.
 
 Optional footer the agent may add after approval:
 

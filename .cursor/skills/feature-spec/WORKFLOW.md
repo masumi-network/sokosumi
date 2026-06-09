@@ -96,14 +96,17 @@ On completion, Cursor must:
 
 See `CURSOR-AUTOMATION.md` and the **Agent completion** section in `TEMPLATE.md`.
 
-Trigger options (pick one per team):
+Trigger options (pick one per stage):
 
-| Method | When to use |
-|--------|-------------|
-| **MCP delegate on create** | Spec agent sets `delegate: "Cursor"` on `save_issue` (default) |
-| **Manual** | Assign issue to Cursor in Linear, or comment `@Cursor implement per PRD` |
-| **Linear triage rule** | Auto-delegate when label/state matches |
-| **Cursor Automation** | Linear trigger "Issue created" on team SOK — see `CURSOR-AUTOMATION.md` |
+| Stage | Method | When to use |
+|-------|--------|-------------|
+| **Spec agent** | `_task` handoff | Default — Write PRD sub-task + `@Cursor` comment per `../_task/HANDOFF.md` |
+| **Spec agent** | Cursor Automation | Optional — issue title `chore(spec): write implementation PRD` — see `CURSOR-AUTOMATION.md` |
+| **Coding agent** | **MCP delegate on create** | Spec agent sets `delegate: "Cursor"` on implementation `save_issue` (default) |
+| **Coding agent** | Manual | Assign implementation issue to Cursor, or comment `@Cursor implement per PRD` |
+| **Coding agent** | Linear triage / Automation | Optional — description contains `[repo=masumi-network/sokosumi]`, not a Write PRD sub-task — see `CURSOR-AUTOMATION.md` |
+
+Do **not** auto-delegate coding on requirement issues or on team/label filters alone. Upstream `_task` owns requirement create + PRD handoff comment.
 
 Cloud Agent repo resolution (priority order):
 

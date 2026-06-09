@@ -52,8 +52,10 @@ flowchart LR
 
 After the requirement is posted:
 
-- Default: create **Write implementation PRD** sub-task, delegate to Cursor, comment with feature-spec instructions (`HANDOFF.md`).
+- Default: create **Write implementation PRD** sub-task, delegate to Cursor, `@Cursor` comment on requirement + sub-task per `HANDOFF.md` (feature-spec runs next — **not** the coding agent on the requirement).
 - User can opt out of auto handoff and run `feature-spec` manually with the issue id.
+
+Optional Cursor Automations must match Write PRD title or `[repo=…]` on implementation issues — not team/label alone. See `../feature-spec/CURSOR-AUTOMATION.md`.
 
 Full spec → code pipeline (implementation issue, confirm, verify, coding agent): `../feature-spec/WORKFLOW.md`.
 

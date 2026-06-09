@@ -36,8 +36,10 @@ A full PRD with `Contract / behavior` tables, `Files to add/change`, and `pnpm -
 
 When a requirement is ready for the spec agent:
 
-- **Default:** `_task` skill posts to Linear after approval and hands off via `../_task/HANDOFF.md`.
-- **Manual:** Comment `@spec` or run `feature-spec` in Cursor with the issue id.
-- Optional: triage state/label for "needs PRD" (team convention).
+- **Default:** `_task` skill posts to Linear after approval and hands off via `../_task/HANDOFF.md` (Write PRD sub-task + `@Cursor` comment — not a coding delegate on the requirement itself).
+- **Manual:** Run `feature-spec` in Cursor with the requirement issue id.
+- Optional: triage on title `chore(spec): write implementation PRD` — see `CURSOR-AUTOMATION.md`.
+
+Requirement descriptions must **not** include `[repo=…]`, `## Data flow`, or `## Verification` — those mark **implementation** issues only.
 
 The spec agent produces the implementation issue from `TEMPLATE.md`.
