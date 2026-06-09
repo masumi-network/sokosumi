@@ -497,7 +497,5 @@ export const getUserAgentReview = async (
     id: rating.id,
     rating: rating.rating,
     comment: rating.comment,
-    createdAt: rating.createdAt,
-    updatedAt: rating.updatedAt,
   });
 };

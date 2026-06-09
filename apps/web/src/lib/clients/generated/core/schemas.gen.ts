@@ -923,24 +923,12 @@ export const AgentMyReviewSchema = {
                 'null'
             ],
             example: 'Great results.'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [
         'id',
         'rating',
-        'comment',
-        'createdAt',
-        'updatedAt'
+        'comment'
     ]
 } as const;
 

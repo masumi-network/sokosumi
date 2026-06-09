@@ -255,13 +255,17 @@ export const agentReviewsSchema = z
 
 export type AgentReviews = z.infer<typeof agentReviewsSchema>;
 
+// Intentionally omits createdAt/updatedAt: this payload is nullable at the top
+// level (null when the caller has not rated the agent), and the generated
+// client's response transformer does not null-guard a nullable top-level
+// object before converting its date fields — so including dates here makes the
+// web client throw on the common unrated case. Consumers only need rating +
+// comment; timestamps remain available via the public reviews endpoint.
 export const agentMyReviewSchema = z
   .object({
     id: z.string().openapi({ example: "rating_123" }),
     rating: z.number().min(1).max(5).openapi({ example: 5 }),
     comment: z.string().nullable().openapi({ example: "Great results." }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
   })
   .openapi("AgentMyReview");
 
