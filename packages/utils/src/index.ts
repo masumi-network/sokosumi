@@ -82,6 +82,7 @@ export {
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
+export { TaskStatus } from "./task-status.js";
 export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,
@@ -89,7 +90,6 @@ export {
   parseUserMetadata,
   type UserMetadata,
 } from "./user-metadata.js";
-export { TaskStatus } from "./task-status.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,

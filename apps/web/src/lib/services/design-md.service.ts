@@ -389,7 +389,10 @@ export const designMdService = (() => {
     owner: DesignMdOwnerSchemaType,
     url: string,
   ): Promise<PersistedDesignMd> {
-    const persisted = await persistDesignMdToProfile(session, owner, { url });
+    const persisted = await persistDesignMdToProfile(session, owner, {
+      extractionId: null,
+      url,
+    });
 
     if (!persisted) {
       throw new DesignMdServiceError(

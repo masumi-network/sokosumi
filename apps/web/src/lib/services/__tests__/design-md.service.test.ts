@@ -2,6 +2,8 @@ import { MemberRole } from "@sokosumi/database";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Session } from "@/lib/auth/auth";
+
 export {};
 
 vi.mock("server-only", () => ({}));
@@ -24,7 +26,13 @@ vi.mock("@/config/env.public", () => ({
   }),
 }));
 
-const getEnvSecretsMock = vi.fn(() => ({
+interface EnvSecretsMock {
+  BETTER_AUTH_SECRET: string;
+  MASUMI_DESIGN_MD_API_KEY?: string;
+  MASUMI_DESIGN_MD_API_URL: string;
+}
+
+const getEnvSecretsMock = vi.fn<() => EnvSecretsMock>(() => ({
   BETTER_AUTH_SECRET: "test-secret",
   MASUMI_DESIGN_MD_API_KEY: "api-key",
   MASUMI_DESIGN_MD_API_URL: "https://masumi.example/api/v1",
@@ -70,14 +78,18 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const session = {
+  session: {
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    expiresAt: new Date("2026-01-02T00:00:00.000Z"),
+    id: "session-1",
+    token: "session-token",
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    userId: "user-1",
+  },
   user: {
     id: "user-1",
   },
-} as {
-  user: {
-    id: string;
-  };
-};
+} as Session;
 
 describe("designMdService", () => {
   beforeEach(() => {
@@ -231,7 +243,7 @@ describe("designMdService", () => {
     });
   });
 
-  it("preserves extractionId when saving only a manual upload URL", async () => {
+  it("clears extractionId when saving a manual upload URL", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
       role: MemberRole.ADMIN,
     });
@@ -255,14 +267,13 @@ describe("designMdService", () => {
       "org-1",
       {
         metadata: JSON.stringify({
-          designMdExtractionId: "42",
           designMdUrl: "https://blob.example/manual-design.md",
         }),
       },
       {},
     );
     expect(persisted.url).toBe("https://blob.example/manual-design.md");
-    expect(persisted.extractionId).toBe("42");
+    expect(persisted.extractionId).toBeNull();
   });
 
   it("throws unconfigured when the Masumi API key is missing", async () => {
