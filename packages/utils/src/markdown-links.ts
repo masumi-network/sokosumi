@@ -1,8 +1,11 @@
 export function createMarkdownLinkRegex(): RegExp {
-  // `\\.` consumes an escape sequence as a unit; `[^\\)\s]` excludes the
-  // backslash so a character can never be matched two ways. This removes the
-  // ambiguity that caused polynomial backtracking (js/polynomial-redos).
-  return /\[([^\]\n]+)\]\(((?:\\.|[^\\)\s])+)(?:\s+"[^"]*")?\)/g;
+  // Excluding `[` from both the text class (`[^[\]\n]`) and the url class
+  // (`[^[\\)\s]`) makes every `[` a hard boundary, so nested brackets can't
+  // create overlapping match attempts that scan the input super-linearly. The
+  // url alternation is unambiguous too: `\\.` consumes an escape as a unit and
+  // the class excludes `\`, so no character is matchable two ways. Together
+  // this keeps matching linear (js/polynomial-redos).
+  return /\[([^[\]\n]+)\]\(((?:\\.|[^[\\)\s])+)(?:\s+"[^"]*")?\)/g;
 }
 
 export function unescapeMarkdownLinkUrl(url: string): string {

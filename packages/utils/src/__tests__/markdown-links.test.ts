@@ -45,13 +45,19 @@ describe("extractLinks", () => {
   });
 
   it("does not backtrack pathologically on malformed input", () => {
-    const evil = `[t](${"\\".repeat(50000)}`;
-    const start = process.hrtime.bigint();
-    extractLinks(evil);
-    const elapsedMs = Number(process.hrtime.bigint() - start) / 1e6;
-    assert.ok(
-      elapsedMs < 100,
-      `extractLinks took ${elapsedMs}ms on pathological input`,
-    );
+    const inputs = [
+      `[t](${"\\".repeat(50000)}`, // unterminated escaped url
+      `[${"[\\".repeat(50000)}`, // many nested '[' in link text
+      `[\\](${"[!](!".repeat(40000)}`, // many nested link-like sequences
+    ];
+    for (const evil of inputs) {
+      const start = process.hrtime.bigint();
+      extractLinks(evil);
+      const elapsedMs = Number(process.hrtime.bigint() - start) / 1e6;
+      assert.ok(
+        elapsedMs < 100,
+        `extractLinks took ${elapsedMs}ms on pathological input`,
+      );
+    }
   });
 });
