@@ -78,6 +78,14 @@ export function BrandProfileSection({
   const [metadata, setMetadata] = useState<null | string>(
     initialMetadata ?? null,
   );
+  const [prevInitialMetadata, setPrevInitialMetadata] =
+    useState(initialMetadata);
+
+  if (initialMetadata !== prevInitialMetadata) {
+    setPrevInitialMetadata(initialMetadata);
+    setMetadata(initialMetadata ?? null);
+  }
+
   const [pendingLogoFiles, setPendingLogoFiles] = useState<File[]>([]);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isRemovingLogo, setIsRemovingLogo] = useState(false);

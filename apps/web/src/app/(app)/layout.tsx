@@ -20,6 +20,7 @@ import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { designMdService } from "@/lib/services/design-md.service";
 import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
@@ -61,6 +62,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultChatRailOpen =
     cookieStore.get("chat_sidebar_state")?.value === "true";
 
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+
   const [
     shouldShowOnboarding,
     pendingNoticesResult,
@@ -68,6 +71,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     creditsResultRaw,
     coworkersResult,
     hermesMenuEnabled,
+    initialDesignMdAttachment,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
@@ -75,6 +79,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
     hermesBetaEnabled(),
+    designMdService.resolveEffectiveDesignMd({
+      activeOrganizationId,
+      userId: session.user.id,
+    }),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
@@ -182,6 +190,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               organizationSlug={activeOrganization?.slug ?? null}
               userImageUrl={userImageUrl}
               userName={session.user.name ?? undefined}
+              initialDesignMdAttachment={initialDesignMdAttachment}
             />
           </div>
         </AppChatRailProvider>

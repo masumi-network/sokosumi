@@ -39,6 +39,8 @@ import {
   formatTaskAttachmentMarkdown,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
+  seedTaskDescriptionWithDesignMd,
+  type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
@@ -88,10 +90,7 @@ interface TaskFormInitialValues {
   status?: TaskStatus;
 }
 
-export interface TaskFormInitialDesignMdAttachment {
-  label: string;
-  url: string;
-}
+export type TaskFormInitialDesignMdAttachment = TaskDesignMdAttachmentSeed;
 
 interface TaskFormProps {
   mode: "create" | "edit";
@@ -658,9 +657,9 @@ function getInitialDescription({
   description?: string;
   mode: "create" | "edit";
 }): string {
-  if (description?.trim() || mode !== "create" || !attachment) {
+  if (mode !== "create") {
     return description ?? "";
   }
 
-  return formatTaskAttachmentMarkdown(attachment.label, attachment.url);
+  return seedTaskDescriptionWithDesignMd(description ?? "", attachment);
 }

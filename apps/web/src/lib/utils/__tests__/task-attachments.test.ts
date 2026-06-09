@@ -6,6 +6,7 @@ import {
   removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
+  seedTaskDescriptionWithDesignMd,
 } from "@/lib/utils/task-attachments";
 
 describe("task-attachments", () => {
@@ -113,5 +114,34 @@ describe("task-attachments", () => {
     ].join("\n");
 
     expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
+  });
+
+  it("removes DESIGN.md links when the url contains escaped closing parens", () => {
+    const urlWithParen = "https://blob.example/design).md";
+    const markdown = [
+      formatTaskAttachmentMarkdown("DESIGN.md", urlWithParen).trimEnd(),
+      "",
+      "Build landing page",
+    ].join("\n");
+
+    expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
+  });
+
+  it("seeds empty descriptions with DESIGN.md attachment links", () => {
+    expect(
+      seedTaskDescriptionWithDesignMd("", {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+      }),
+    ).toBe("[DESIGN.md](https://blob.example/design.md)\n");
+  });
+
+  it("does not seed DESIGN.md over existing description text", () => {
+    expect(
+      seedTaskDescriptionWithDesignMd("Write docs", {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+      }),
+    ).toBe("Write docs");
   });
 });

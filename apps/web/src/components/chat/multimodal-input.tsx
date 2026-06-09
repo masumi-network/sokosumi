@@ -64,8 +64,11 @@ import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
 import {
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
+  seedTaskDescriptionWithDesignMd,
+  type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import {
@@ -120,6 +123,7 @@ interface MultimodalInputProps {
   enterSubmitsOnMobile?: boolean;
   blurOnSendOnMobile?: boolean;
   persistentImageGeneration?: boolean;
+  initialDesignMdAttachment?: TaskDesignMdAttachmentSeed | null;
 }
 
 const TASK_MARKDOWN_EDITOR_ID = "chat-task-markdown-editor";
@@ -173,12 +177,14 @@ function PureMultimodalInput({
   controlledComposeKind,
   onComposeKindChange,
   persistentImageGeneration = false,
+  initialDesignMdAttachment = null,
 }: MultimodalInputProps) {
   const t = useTranslations("App.Chat.Chat");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const designMdDismissedRef = useRef(false);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
   const [internalComposeKind, setInternalComposeKind] =
@@ -383,6 +389,20 @@ function PureMultimodalInput({
   useEffect(() => {
     setLocalStorageValue("chat-input", input);
   }, [input, setLocalStorageValue]);
+
+  useEffect(() => {
+    if (
+      !isTaskComposer ||
+      !initialDesignMdAttachment ||
+      designMdDismissedRef.current
+    ) {
+      return;
+    }
+
+    setInput((prev) =>
+      seedTaskDescriptionWithDesignMd(prev, initialDesignMdAttachment),
+    );
+  }, [initialDesignMdAttachment, isTaskComposer, setInput]);
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value);
@@ -684,6 +704,9 @@ function PureMultimodalInput({
         setPreferredCoworker(defaultChatCoworker);
         onCoworkerChange?.(defaultChatCoworker);
       }
+
+      designMdDismissedRef.current = false;
+      setInput((prev) => removeDesignMdAttachmentLinks(prev));
     },
     [
       composeKind,
@@ -694,14 +717,18 @@ function PureMultimodalInput({
       onCoworkerChange,
       onSelectModel,
       preferredCoworker,
+      setInput,
     ],
   );
 
   const handleRemoveAttachment = useCallback(
     (url: string) => {
+      if (initialDesignMdAttachment?.url === url) {
+        designMdDismissedRef.current = true;
+      }
       setInput((prev) => removeTaskAttachmentLinks(prev, [url]));
     },
-    [setInput],
+    [initialDesignMdAttachment?.url, setInput],
   );
 
   const handleRemoveChatAttachment = useCallback((url: string) => {
@@ -1101,6 +1128,12 @@ function areMultimodalInputPropsEqual(
     return false;
   }
   if (prevProps.onCoworkerChange !== nextProps.onCoworkerChange) {
+    return false;
+  }
+  if (
+    prevProps.initialDesignMdAttachment?.url !==
+    nextProps.initialDesignMdAttachment?.url
+  ) {
     return false;
   }
 

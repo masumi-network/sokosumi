@@ -3,6 +3,7 @@ import { ChatLayoutClient } from "@/app/chat-ui/components/chat-layout-client";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { getSession } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
+import { designMdService } from "@/lib/services/design-md.service";
 
 import { ChatErrorFallback } from "./components/chat-error-fallback";
 
@@ -34,6 +35,11 @@ export default async function ChatLayout({
 
   const activeOrganization = await userService.getActiveOrganization();
   const organizationSlug = activeOrganization?.slug ?? null;
+  const initialDesignMdAttachment =
+    await designMdService.resolveEffectiveDesignMd({
+      activeOrganizationId: session.session.activeOrganizationId ?? null,
+      userId: session.user.id,
+    });
 
   return (
     <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
@@ -42,6 +48,7 @@ export default async function ChatLayout({
         organizationSlug={organizationSlug}
         userImageUrl={userImageUrl}
         userName={session.user.name ?? undefined}
+        initialDesignMdAttachment={initialDesignMdAttachment}
       />
     </DefaultErrorBoundary>
   );

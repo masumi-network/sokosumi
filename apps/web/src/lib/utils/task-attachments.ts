@@ -1,4 +1,8 @@
-import { escapeMarkdownLinkUrl, extractFileLikeLinks } from "@sokosumi/utils";
+import {
+  escapeMarkdownLinkUrl,
+  extractFileLikeLinks,
+  replaceMarkdownLinks,
+} from "@sokosumi/utils";
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -33,19 +37,40 @@ export function sanitizeTaskAttachmentLabel(
   return sanitized || fallbackLabel;
 }
 
+export interface TaskDesignMdAttachmentSeed {
+  label: string;
+  url: string;
+}
+
+export function seedTaskDescriptionWithDesignMd(
+  description: string,
+  attachment?: TaskDesignMdAttachmentSeed | null,
+): string {
+  if (description.trim() || !attachment) {
+    return description;
+  }
+
+  if (
+    descriptionIncludesTaskAttachmentLink(
+      description,
+      attachment.label,
+      attachment.url,
+    )
+  ) {
+    return description;
+  }
+
+  return formatTaskAttachmentMarkdown(attachment.label, attachment.url);
+}
+
 const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
 
 export function removeDesignMdAttachmentLinks(markdown: string): string {
-  const escapedLabel = escapeRegExp(DESIGN_MD_ATTACHMENT_LABEL);
-  const designMdLinkPattern = new RegExp(
-    `\\[${escapedLabel}\\]\\([^)]*(?:\\s+"[^"]*")?\\)\\n?`,
-    "g",
+  const withoutLinks = replaceMarkdownLinks(markdown, (match) =>
+    match.text === DESIGN_MD_ATTACHMENT_LABEL ? "" : match.match,
   );
 
-  return markdown
-    .replace(designMdLinkPattern, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return withoutLinks.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function removeTaskAttachmentLinks(
