@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  createMarkdownLinkRegex,
   escapeMarkdownLinkUrl,
+  replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
 import {
@@ -246,9 +246,9 @@ export const MarkdownEditor = forwardRef<
         html: string;
       }> = [];
 
-      const withLinkTokens = withCodeBlockTokens.replace(
-        createMarkdownLinkRegex(),
-        (match, label: string, rawUrl: string) => {
+      const withLinkTokens = replaceMarkdownLinks(
+        withCodeBlockTokens,
+        ({ match, text: label, rawUrl }) => {
           const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
           if (!normalizedUrl) {
             return match;

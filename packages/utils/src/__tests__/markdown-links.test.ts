@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import {
   escapeMarkdownLinkUrl,
+  findMarkdownLinks,
+  replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "../markdown-links.js";
 import { extractLinks } from "../markdown-links-extract.js";
@@ -27,6 +29,49 @@ describe("escapeMarkdownLinkUrl / unescapeMarkdownLinkUrl", () => {
 
   it("escapes backslashes before parens", () => {
     assert.equal(escapeMarkdownLinkUrl("a\\)"), "a\\\\\\)");
+  });
+});
+
+describe("findMarkdownLinks", () => {
+  it("finds multiple links and reports their position", () => {
+    const input = 'pre [a](https://x.dev/p) mid [b](https://y.dev/q "t")';
+    const matches = findMarkdownLinks(input);
+    assert.deepEqual(
+      matches.map((m) => ({ text: m.text, rawUrl: m.rawUrl, index: m.index })),
+      [
+        { text: "a", rawUrl: "https://x.dev/p", index: 4 },
+        { text: "b", rawUrl: "https://y.dev/q", index: 29 },
+      ],
+    );
+  });
+
+  it("rejects empty labels, empty urls and unterminated links", () => {
+    assert.deepEqual(findMarkdownLinks("[]() [x]( ) [y](https://z [w]"), []);
+  });
+
+  it("stops the url at a nested bracket without backtracking", () => {
+    const matches = findMarkdownLinks("[bad](https://z [c](https://w.dev/p)");
+    assert.deepEqual(
+      matches.map((m) => ({ text: m.text, rawUrl: m.rawUrl })),
+      [{ text: "c", rawUrl: "https://w.dev/p" }],
+    );
+  });
+});
+
+describe("replaceMarkdownLinks", () => {
+  it("replaces each link and preserves surrounding text", () => {
+    const result = replaceMarkdownLinks(
+      "see [a](http://x) and [b](http://y)",
+      (m) => `<${m.text}>`,
+    );
+    assert.equal(result, "see <a> and <b>");
+  });
+
+  it("returns the input unchanged when there are no links", () => {
+    assert.equal(
+      replaceMarkdownLinks("no links here", () => "X"),
+      "no links here",
+    );
   });
 });
 
