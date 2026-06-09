@@ -27,6 +27,27 @@ describe("TimeAgo", () => {
     expect(screen.getByText(/ago$/)).toBeInTheDocument();
   });
 
+  it("localizes the post-mount relative string to the active locale", () => {
+    const date = new Date(Date.now() - 60_000);
+
+    render(<TimeAgo date={date} strict locale="de" />);
+
+    // German "vor 1 Minute" rather than the English "1 minute ago".
+    expect(screen.getByText(/^vor /)).toBeInTheDocument();
+  });
+
+  it("localizes the SSR-stable absolute fallback to the active locale", () => {
+    const date = new Date("2026-04-15T10:00:00.000Z");
+
+    const markup = renderToStaticMarkup(
+      <TimeAgo date={date} strict locale="de" />,
+    );
+
+    // German formatting drops the comma the English "Apr 15, 10:00" uses.
+    expect(markup).toContain("15. Apr.");
+    expect(markup).not.toMatch(/ago|vor/);
+  });
+
   it("renders an em dash for an invalid date", () => {
     render(<TimeAgo date="not-a-date" />);
 

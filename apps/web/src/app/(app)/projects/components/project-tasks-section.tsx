@@ -4,6 +4,7 @@ import { TaskStatus } from "@sokosumi/utils";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -58,6 +59,7 @@ export function ProjectTasksSection({
   labels,
 }: ProjectTasksSectionProps) {
   const router = useRouter();
+  const locale = useLocale();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [taskToRemove, setTaskToRemove] = useState<TaskListItem | null>(null);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
@@ -141,7 +143,7 @@ export function ProjectTasksSection({
                   className="shrink-0"
                 />
                 <p className="text-muted-foreground shrink-0 text-xs sm:text-right">
-                  <TimeAgo date={task.createdAt} />
+                  <TimeAgo date={task.createdAt} locale={locale} />
                 </p>
               </Link>
               <Button

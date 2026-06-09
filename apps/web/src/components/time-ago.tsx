@@ -1,9 +1,31 @@
 "use client";
 
-import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
+import {
+  formatDistanceToNow,
+  formatDistanceToNowStrict,
+  type Locale,
+} from "date-fns";
+import { de, enUS, es, fr, it, ja, pt, ptBR, zhCN } from "date-fns/locale";
 import { useEffect, useState } from "react";
 
 import { formatShortDateTime } from "@/lib/utils/datetime";
+
+/**
+ * Maps the app's next-intl locales to their date-fns counterparts so the
+ * relative string is localized to match the rest of the UI. Falls back to
+ * English for any locale without a mapping.
+ */
+const DATE_FNS_LOCALES: Record<string, Locale> = {
+  de,
+  en: enUS,
+  es,
+  fr,
+  it,
+  ja,
+  pt,
+  "pt-BR": ptBR,
+  "zh-Hans": zhCN,
+};
 
 interface TimeAgoProps {
   /** The timestamp to render relative to the current time. */
@@ -16,7 +38,10 @@ interface TimeAgoProps {
    * to false.
    */
   strict?: boolean;
-  /** Locale used for the SSR-stable absolute-date fallback. */
+  /**
+   * Active UI locale. Drives both the SSR-stable absolute-date fallback and
+   * the post-mount relative string. Defaults to `"en"`.
+   */
   locale?: string;
   className?: string;
 }
@@ -51,10 +76,11 @@ export function TimeAgo({
   }
 
   const absolute = formatShortDateTime(dateObj, locale);
+  const dateFnsLocale = DATE_FNS_LOCALES[locale] ?? enUS;
   const label = mounted
     ? strict
-      ? formatDistanceToNowStrict(dateObj, { addSuffix })
-      : formatDistanceToNow(dateObj, { addSuffix })
+      ? formatDistanceToNowStrict(dateObj, { addSuffix, locale: dateFnsLocale })
+      : formatDistanceToNow(dateObj, { addSuffix, locale: dateFnsLocale })
     : absolute;
 
   return (

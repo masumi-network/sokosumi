@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "next-intl";
 
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { AgentIcon } from "@/components/agents/agent-icon";
@@ -28,6 +29,7 @@ interface JobListItemProps {
 }
 
 export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
+  const locale = useLocale();
   const name = job.name?.trim() ? job.name : labels.untitled;
   const agentName = agentPreview?.name ?? labels.unknownAgent;
   const agentIconModel = {
@@ -91,7 +93,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
 
   const timeCell = (
     <p className="text-muted-foreground shrink-0 text-xs capitalize sm:w-[120px] sm:text-right">
-      <TimeAgo date={job.createdAt} />
+      <TimeAgo date={job.createdAt} locale={locale} />
     </p>
   );
 
