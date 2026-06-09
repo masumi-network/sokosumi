@@ -442,14 +442,11 @@ const creditBucketBreakdownSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
-const creditsResponseEnterpriseSchemaResponseTransformer = (data: any) => {
-    data.buckets = data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
-    return data;
-};
-
 const creditsResponseExtraSchemaResponseTransformer = (data: any) => {
     data.buckets = data.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
-    data.enterprise = creditsResponseEnterpriseSchemaResponseTransformer(data.enterprise);
+    if (data.enterprise) {
+        data.enterprise.buckets = data.enterprise.buckets.map((item: any) => creditBucketBreakdownSchemaResponseTransformer(item));
+    }
     return data;
 };
 
