@@ -10,6 +10,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import type {
   Agent as CoreAgent,
   AgentDetail as CoreAgentDetail,
+  AgentMyReview as CoreAgentMyReview,
   AgentRatingDistribution as CoreAgentRatingDistribution,
   AgentReview as CoreAgentReview,
   AgentReviews as CoreAgentReviews,
@@ -252,6 +253,25 @@ export function mapCoreAgentReview(
       name: review.user.name,
       image: review.user.image ?? null,
     },
+  };
+}
+
+/** The caller's own rating for an agent; consumers only need rating + comment. */
+export interface UserAgentRatingSummary {
+  rating: number;
+  comment: string | null;
+}
+
+export function mapCoreMyAgentReview(
+  review: CoreAgentMyReview,
+): UserAgentRatingSummary | null {
+  if (!review) {
+    return null;
+  }
+
+  return {
+    rating: review.rating,
+    comment: review.comment ?? null,
   };
 }
 

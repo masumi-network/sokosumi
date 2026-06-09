@@ -901,6 +901,37 @@ export const AgentReviewAuthorSchema = {
     ]
 } as const;
 
+export const AgentMyReviewSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'rating_123'
+        },
+        rating: {
+            type: 'number',
+            minimum: 1,
+            maximum: 5,
+            example: 5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Great results.'
+        }
+    },
+    required: [
+        'id',
+        'rating',
+        'comment'
+    ]
+} as const;
+
 export const JobSummarySchema = {
     type: 'object',
     properties: {

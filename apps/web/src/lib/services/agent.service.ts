@@ -21,9 +21,11 @@ import {
 import {
   mapCoreAgentsToAgentWithCreditsPrice,
   mapCoreAgentToAgentWithCreditsPrice,
+  mapCoreMyAgentReview,
 } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents, getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/utils";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 
 export const agentService = (() => {
@@ -285,38 +287,22 @@ export const agentService = (() => {
     },
 
     /**
-     * Get user's existing rating for an agent
+     * Get the authenticated caller's existing rating for an agent.
+     *
+     * Served by Core's `GET /v1/agents/{id}/reviews/me`, which scopes the read
+     * to the session user. Returns null when the agent is unavailable (Core 404)
+     * or the caller has not rated it.
      */
-    async getUserRatingForAgent(userId: string, agentId: string) {
-      return await agentRatingRepository.getUserRatingForAgent(
-        userId,
-        agentId,
-        prisma,
-      );
-    },
-
-    /**
-     * Get paginated ratings for an agent
-     */
-    async getAgentRatings(
-      agentId: string,
-      limit: number = 10,
-      offset: number = 0,
-    ) {
-      return await agentRatingRepository.getRatingsByAgentId(
-        agentId,
-        limit,
-        offset,
-        false,
-        prisma,
-      );
-    },
-
-    /**
-     * Get aggregate rating statistics for an agent
-     */
-    async getAgentRatingStats(agentId: string) {
-      return await agentRatingRepository.getAgentRatingStats(agentId, prisma);
+    async getUserRatingForAgent(agentId: string) {
+      try {
+        const response = await coreClient.getMyAgentReview(agentId);
+        return mapCoreMyAgentReview(response.data);
+      } catch (error) {
+        if (error instanceof CoreApiRequestError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
     },
   };
 })();

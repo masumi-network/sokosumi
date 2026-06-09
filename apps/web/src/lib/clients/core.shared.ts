@@ -65,6 +65,7 @@ import {
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
   getAgentsByIdJobs as coreGetAgentsByIdJobs,
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
+  getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
@@ -744,6 +745,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch agent reviews",
+    );
+  }
+
+  async function getMyAgentReview(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAgentsByIdReviewsMe({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch your agent review",
     );
   }
 
@@ -1565,6 +1579,7 @@ export function createCoreClient(getClient: GetClient) {
     getAgentJobs,
     getAgentInputSchema,
     getAgentReviews,
+    getMyAgentReview,
     getAgents,
     getCategories,
     getCoworkers,
