@@ -9,7 +9,11 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import {
+  isUserAuthContext,
+  requireCoworkerAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import {
   conversationSchema,
   updateConversationRequestSchema,
@@ -73,6 +77,7 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserContext(c.var.authContext);
+    const authContext = c.var.authContext;
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -107,9 +112,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (body.metadata !== undefined) {
         const existingMetadata =
           (existing.metadata as Record<string, unknown> | null) || {};
+        // A delegated coworker may only act on its own conversation (enforced
+        // above); re-pin the coworker binding so a metadata update cannot
+        // rebind the conversation to another coworker.
+        const coworkerBinding = isUserAuthContext(authContext)
+          ? {}
+          : {
+              coworker_id: requireCoworkerAuthContext(authContext).coworkerId,
+            };
         updateData.metadata = {
           ...existingMetadata,
           ...body.metadata,
+          ...coworkerBinding,
           userId: userContext.userId, // Ensure userId is preserved
         };
       }
