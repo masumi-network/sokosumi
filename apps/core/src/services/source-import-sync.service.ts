@@ -4,6 +4,7 @@ import { head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import { ssrfSafeFetch } from "@/lib/url-guard";
 
 const MAX_CONCURRENT_IMPORTS = 5;
 
@@ -100,8 +101,12 @@ async function importBlob(
 
   try {
     const abortSignal = createImportAbortSignal(options);
-    const response = await fetch(blob.sourceUrl, {
-      redirect: "follow",
+    // SSRF guard: validate the source URL (and every redirect hop) against
+    // private/loopback/link-local/metadata addresses before fetching. The
+    // result is uploaded to a public blob store, so an unguarded fetch on a
+    // URL derived from untrusted job output would be an SSRF + exfiltration
+    // primitive.
+    const response = await ssrfSafeFetch(blob.sourceUrl, {
       signal: abortSignal,
     });
 
