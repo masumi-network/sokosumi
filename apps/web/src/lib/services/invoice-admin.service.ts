@@ -81,7 +81,7 @@ const DEFAULT_INVOICE_LIST_LIMIT = 50;
 const INVOICE_SEARCH_FETCH_CEILING = 300;
 
 /**
- * Status filter accepted by {@link creditGrantAdminService.listGrantInvoices}:
+ * Status filter accepted by {@link invoiceAdminService.listGrantInvoices}:
  * `"unfinished"` (draft + open, the default), `"all"` (every status), or a
  * specific Stripe invoice status.
  */
@@ -236,7 +236,7 @@ function toInvoiceListItem(
   };
 }
 
-export const creditGrantAdminService = (() => {
+export const invoiceAdminService = (() => {
   async function ensureOrganizationStripeCustomerId(
     organizationId: string,
   ): Promise<ResolvedTarget> {

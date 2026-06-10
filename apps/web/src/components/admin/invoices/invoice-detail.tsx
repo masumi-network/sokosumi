@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { markCreditGrantInvoicePaidAction } from "@/lib/actions/credit-grant/action";
-import type { CreditGrantInvoiceSummary } from "@/lib/services/credit-grant-admin.service";
+import type { CreditGrantInvoiceSummary } from "@/lib/services/invoice-admin.service";
 
 interface InvoiceDetailProps {
   invoice: CreditGrantInvoiceSummary;

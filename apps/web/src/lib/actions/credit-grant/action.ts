@@ -11,8 +11,8 @@ import {
   type CreditGrantInvoiceSummary,
   type CreditGrantTargetType,
   CreditGrantValidationError,
-  creditGrantAdminService,
-} from "@/lib/services/credit-grant-admin.service";
+  invoiceAdminService,
+} from "@/lib/services/invoice-admin.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -65,7 +65,7 @@ export const createCreditGrantInvoiceAction = withSession<
   }) => {
     try {
       assertAdminSession(session);
-      const summary = await creditGrantAdminService.createGrantInvoice({
+      const summary = await invoiceAdminService.createGrantInvoice({
         target: { targetType, targetId },
         credits,
         ttlDays,
@@ -91,7 +91,7 @@ export const listCreditGrantInvoicesAction = withSession<
 >(async ({ session, status, recipient }) => {
   try {
     assertAdminSession(session);
-    const invoices = await creditGrantAdminService.listGrantInvoices({
+    const invoices = await invoiceAdminService.listGrantInvoices({
       status,
       recipient,
     });
@@ -111,7 +111,7 @@ export const getCreditGrantInvoiceAction = withSession<
 >(async ({ session, invoiceId }) => {
   try {
     assertAdminSession(session);
-    const summary = await creditGrantAdminService.getGrantInvoice(invoiceId);
+    const summary = await invoiceAdminService.getGrantInvoice(invoiceId);
     if (!summary) {
       return Err({
         code: CommonErrorCode.NOT_FOUND,
@@ -134,8 +134,7 @@ export const markCreditGrantInvoicePaidAction = withSession<
 >(async ({ session, invoiceId }) => {
   try {
     assertAdminSession(session);
-    const summary =
-      await creditGrantAdminService.markGrantInvoicePaid(invoiceId);
+    const summary = await invoiceAdminService.markGrantInvoicePaid(invoiceId);
     revalidatePath("/admin/invoices");
     return Ok(summary);
   } catch (error) {

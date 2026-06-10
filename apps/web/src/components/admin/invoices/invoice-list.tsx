@@ -39,7 +39,7 @@ import type {
   CreditGrantInvoiceListItem,
   CreditGrantInvoiceStatusFilter,
   CreditGrantTargetType,
-} from "@/lib/services/credit-grant-admin.service";
+} from "@/lib/services/invoice-admin.service";
 
 interface InvoiceListProps {
   initialInvoices: CreditGrantInvoiceListItem[];

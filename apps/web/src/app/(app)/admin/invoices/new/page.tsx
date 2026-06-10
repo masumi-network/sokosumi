@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { InvoiceForm } from "@/components/admin/invoices/invoice-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
+import { invoiceAdminService } from "@/lib/services/invoice-admin.service";
 
 export const metadata: Metadata = {
   title: "New invoice",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function NewInvoicePage() {
   const t = await getTranslations("App.Admin.CreditGrants");
-  const prices = await creditGrantAdminService.listPrices();
+  const prices = await invoiceAdminService.listPrices();
 
   return (
     <div className="min-h-full w-full">

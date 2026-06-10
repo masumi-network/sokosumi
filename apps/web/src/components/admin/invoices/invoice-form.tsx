@@ -32,7 +32,7 @@ import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
   CreditGrantTargetType,
   CreditPriceOption,
-} from "@/lib/services/credit-grant-admin.service";
+} from "@/lib/services/invoice-admin.service";
 
 interface InvoiceFormProps {
   prices: CreditPriceOption[];
