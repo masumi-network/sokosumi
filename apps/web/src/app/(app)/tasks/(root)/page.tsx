@@ -163,9 +163,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         return [column.id, page] as const;
       }),
     ),
-    session?.user.id
-      ? designMdService.resolveEffectiveDesignMd()
-      : null,
+    session?.user.id ? designMdService.resolveEffectiveDesignMd() : null,
   ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(
