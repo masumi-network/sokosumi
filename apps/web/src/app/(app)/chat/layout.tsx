@@ -36,10 +36,9 @@ export default async function ChatLayout({
   const activeOrganization = await userService.getActiveOrganization();
   const organizationSlug = activeOrganization?.slug ?? null;
   const initialDesignMdAttachment =
-    await designMdService.resolveEffectiveDesignMd({
-      activeOrganizationId: session.session.activeOrganizationId ?? null,
-      userId: session.user.id,
-    });
+    await designMdService.resolveEffectiveDesignMd(
+      session.session.activeOrganizationId ?? null,
+    );
 
   return (
     <DefaultErrorBoundary fallback={<ChatErrorFallback />}>

@@ -164,10 +164,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       }),
     ),
     session?.user.id
-      ? designMdService.resolveEffectiveDesignMd({
-          activeOrganizationId,
-          userId: session.user.id,
-        })
+      ? designMdService.resolveEffectiveDesignMd(activeOrganizationId)
       : null,
   ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);

@@ -136,7 +136,6 @@ async function createTaskFromDescription(input: {
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
-  userId: string;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
@@ -159,7 +158,6 @@ async function createTaskFromDescription(input: {
     ? trimmedDescription
     : await designMdService.appendDesignMdToDescription(
         trimmedDescription,
-        input.userId,
         input.activeOrganizationId,
       );
 
@@ -306,7 +304,6 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
         projectId,
         skipDesignMdAttachment,
         status,
-        userId: session.user.id,
       });
 
       revalidatePath("/tasks");
@@ -564,7 +561,6 @@ export const createTaskAndLink = withSession<
         projectId,
         skipDesignMdAttachment,
         status,
-        userId: session.user.id,
       });
 
       const parentLinksToReplace = await collectParentLinksToReplace({

@@ -81,17 +81,6 @@ export type StartDesignMdGenerationResult =
       kind: "queued";
     };
 
-interface ResolveEffectiveDesignMdInput {
-  activeOrganizationId?: null | string;
-  /**
-   * Retained for interface stability. Core resolves the effective DESIGN.md for
-   * the authenticated session user (`me`), so this is no longer read here — all
-   * call sites pass `session.user.id`. Do not rely on it to resolve a different
-   * user's DESIGN.md.
-   */
-  userId: string;
-}
-
 let client: DesignMdClient | null = null;
 
 function assertDesignMdApiKey(apiKey: string | undefined): string {
@@ -430,9 +419,9 @@ export const designMdService = (() => {
     });
   }
 
-  async function resolveEffectiveDesignMd({
-    activeOrganizationId,
-  }: ResolveEffectiveDesignMdInput): Promise<EffectiveDesignMdAttachment | null> {
+  async function resolveEffectiveDesignMd(
+    activeOrganizationId?: null | string,
+  ): Promise<EffectiveDesignMdAttachment | null> {
     const { data } =
       await coreClient.getMyEffectiveDesignMd(activeOrganizationId);
 
@@ -441,13 +430,9 @@ export const designMdService = (() => {
 
   async function appendDesignMdToDescription(
     description: string,
-    userId: string,
     activeOrganizationId?: null | string,
   ): Promise<string> {
-    const designMd = await resolveEffectiveDesignMd({
-      activeOrganizationId,
-      userId,
-    });
+    const designMd = await resolveEffectiveDesignMd(activeOrganizationId);
 
     if (
       !designMd ||

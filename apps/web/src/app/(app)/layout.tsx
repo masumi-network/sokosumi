@@ -79,10 +79,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
     hermesBetaEnabled(),
-    designMdService.resolveEffectiveDesignMd({
-      activeOrganizationId,
-      userId: session.user.id,
-    }),
+    designMdService.resolveEffectiveDesignMd(activeOrganizationId),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);

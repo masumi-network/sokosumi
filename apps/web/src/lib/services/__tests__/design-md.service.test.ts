@@ -360,10 +360,7 @@ describe("designMdService", () => {
     });
 
     const { designMdService } = await import("../design-md.service");
-    const designMd = await designMdService.resolveEffectiveDesignMd({
-      activeOrganizationId: "org-1",
-      userId: "user-1",
-    });
+    const designMd = await designMdService.resolveEffectiveDesignMd("org-1");
 
     expect(getMyEffectiveDesignMdMock).toHaveBeenCalledWith("org-1");
     expect(designMd).toEqual({
@@ -378,10 +375,7 @@ describe("designMdService", () => {
     });
 
     const { designMdService } = await import("../design-md.service");
-    const designMd = await designMdService.resolveEffectiveDesignMd({
-      activeOrganizationId: null,
-      userId: "user-1",
-    });
+    const designMd = await designMdService.resolveEffectiveDesignMd(null);
 
     expect(designMd).toBeNull();
   });
@@ -399,12 +393,10 @@ describe("designMdService", () => {
     const { designMdService } = await import("../design-md.service");
     const description = await designMdService.appendDesignMdToDescription(
       "Build landing page",
-      "user-1",
       null,
     );
     const duplicate = await designMdService.appendDesignMdToDescription(
       description,
-      "user-1",
       null,
     );
 
@@ -431,7 +423,6 @@ describe("designMdService", () => {
     ].join("\n");
     const description = await designMdService.appendDesignMdToDescription(
       seededDescription,
-      "user-1",
       null,
     );
 
