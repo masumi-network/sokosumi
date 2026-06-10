@@ -26,6 +26,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
   buildAvailableAgentWhereClause,
   getAgentCost,
@@ -559,6 +560,7 @@ export async function getUserJobs(
     projectId?: string | null;
     status?: AgentJobStatus;
     scope?: "workspace" | "owned";
+    coworkerId?: string;
     cursor?: string;
     take: number;
     skip?: number;
@@ -574,12 +576,18 @@ export async function getUserJobs(
     projectId,
     status,
     scope = "owned",
+    coworkerId,
     cursor,
     take,
     skip,
     tx = prisma,
   } = options;
   const { userContext, workspaceContext } = context;
+
+  // A delegated coworker may only list jobs whose task is assigned to it.
+  if (coworkerId) {
+    await requireCoworkerCapability(coworkerId, "tasks", tx);
+  }
 
   const where: Prisma.JobWhereInput = {
     AND: [
@@ -590,6 +598,9 @@ export async function getUserJobs(
       ...(agentId ? [{ agentId }] : []),
       ...(projectId !== undefined ? [{ projectId }] : []),
       ...(status ? [{ events: { some: { status: { equals: status } } } }] : []),
+      // `task` is an optional to-one relation, so this filter requires the job
+      // to HAVE a task assigned to this coworker — null-task jobs are excluded.
+      ...(coworkerId ? [{ task: { coworkerId } }] : []),
     ],
   };
 

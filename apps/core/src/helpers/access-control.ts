@@ -338,3 +338,125 @@ export async function requireJobRead(
 
   return job;
 }
+
+// -----------------------------------------------------------------------------
+// Job collaboration (delegated coworker must be assigned to the job's task)
+// -----------------------------------------------------------------------------
+
+/**
+ * A delegated coworker may only act on a job whose task is assigned to that
+ * coworker. Jobs have no direct coworker; the relationship is
+ * `Job.taskId -> Task.coworkerId`. Jobs without a task, or whose task is
+ * assigned to a different coworker, are denied.
+ *
+ * @throws {forbidden} If the job is not attached to a task assigned to the coworker
+ */
+async function assertJobAssignedToCoworker(
+  job: Job,
+  coworkerId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (job.taskId === null) {
+    throw forbidden("You can only access jobs assigned to your coworker");
+  }
+
+  const task = await tx.task.findFirst({
+    where: { id: job.taskId },
+    select: { coworkerId: true },
+  });
+
+  if (task?.coworkerId !== coworkerId) {
+    throw forbidden("You can only access jobs assigned to your coworker");
+  }
+}
+
+/**
+ * Job read for a workspace-scoped user or an assigned coworker with the tasks
+ * capability. Pass the route `Variables` object (e.g. `c.var` from
+ * `OpenAPIHonoWithAuth`). Mirrors `requireTaskReadForRouteVars` for jobs.
+ *
+ * @throws {forbidden} If a bare coworker (no delegation) is used, or a delegated
+ *   coworker is not assigned to the job's task
+ * @throws {notFound} If the job is not in the active workspace
+ */
+export async function requireJobReadForRouteVars(
+  vars: EnvVariables["Variables"],
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  const { authContext, workspaceContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    return await requireJobRead(
+      requireWorkspaceContext(workspaceContext),
+      jobId,
+      tx,
+    );
+  }
+
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
+    const job = await requireJobRead(
+      requireWorkspaceContext(workspaceContext),
+      jobId,
+      tx,
+    );
+
+    await assertJobAssignedToCoworker(job, coworker.coworkerId, tx);
+
+    return job;
+  }
+
+  // Bare coworkers (no delegation) have no user/workspace context for jobs.
+  throw forbidden(
+    "Delegation headers (X-Delegation-User-Id) are required for this resource",
+  );
+}
+
+/**
+ * Collaboration (write) access for a job: the authenticated user must own the
+ * job, or the delegated coworker must have the tasks capability and be assigned
+ * to the job's task. Mirrors `requireTaskCollaboration` for jobs.
+ *
+ * @throws {forbidden} If the user does not own the job, a bare coworker is used,
+ *   or a delegated coworker is not assigned to the job's task
+ */
+export async function requireJobCollaboration(
+  authContext: AuthenticationContext,
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job> {
+  if (isUserAuthContext(authContext)) {
+    return await requireJobOwnership(
+      { source: "session", ...authContext },
+      jobId,
+      tx,
+    );
+  }
+
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
+    const job = await requireJobOwnership(
+      {
+        source: "delegation",
+        userId: coworker.delegation.userId,
+        organizationId: coworker.delegation.organizationId,
+      },
+      jobId,
+      tx,
+    );
+
+    await assertJobAssignedToCoworker(job, coworker.coworkerId, tx);
+
+    return job;
+  }
+
+  // Bare coworkers (no delegation) have no user/workspace context for jobs.
+  throw forbidden(
+    "Delegation headers (X-Delegation-User-Id) are required for this resource",
+  );
+}
