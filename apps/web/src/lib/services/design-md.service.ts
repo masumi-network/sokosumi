@@ -11,10 +11,6 @@ import {
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { Session } from "@/lib/auth/auth";
-import {
-  isAllowedDesignMdBlobUrl,
-  uploadDesignMdToBlob,
-} from "@/lib/blob/design-md";
 import { coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
@@ -166,12 +162,12 @@ async function assertCanManageOwner(
 
 async function persistDesignMdToProfile(
   owner: DesignMdOwnerSchemaType,
-  designMd: { extractionId?: null | string; url?: null | string },
+  designMd: { extractionId?: null | string; content?: null | string },
 ): Promise<PersistedDesignMd | null> {
   await assertCanManageOwner(owner);
 
   const body = {
-    url: designMd.url ?? null,
+    content: designMd.content ?? null,
     extractionId: designMd.extractionId ?? null,
   };
 
@@ -195,22 +191,9 @@ async function persistDonePayload(
   owner: DesignMdOwnerSchemaType,
   donePayload: DesignMdDonePayload,
 ): Promise<PersistedDesignMd> {
-  const extractionId = String(donePayload.extractionId);
-  const blobUrl = await uploadDesignMdToBlob({
-    designMd: donePayload.designMd,
-    extractionId,
-  });
-
-  if (!blobUrl) {
-    throw new DesignMdServiceError(
-      "internal",
-      "Failed to upload generated DESIGN.md",
-    );
-  }
-
   const persisted = await persistDesignMdToProfile(owner, {
-    extractionId,
-    url: blobUrl,
+    extractionId: String(donePayload.extractionId),
+    content: donePayload.designMd,
   });
 
   if (!persisted) {
@@ -304,26 +287,18 @@ export const designMdService = (() => {
   }
 
   async function persistUploadedDesignMd(
-    session: Session,
     owner: DesignMdOwnerSchemaType,
-    url: string,
+    content: string,
   ): Promise<PersistedDesignMd> {
-    if (!isAllowedDesignMdBlobUrl(url, session.user.id)) {
-      throw new DesignMdServiceError(
-        "bad_input",
-        "DESIGN.md upload URL must come from Sokosumi blob storage",
-      );
-    }
-
     const persisted = await persistDesignMdToProfile(owner, {
       extractionId: null,
-      url,
+      content,
     });
 
     if (!persisted) {
       throw new DesignMdServiceError(
         "bad_input",
-        "DESIGN.md upload URL is required",
+        "DESIGN.md content is required",
       );
     }
 
@@ -333,7 +308,7 @@ export const designMdService = (() => {
   async function removeDesignMd(owner: DesignMdOwnerSchemaType): Promise<void> {
     await persistDesignMdToProfile(owner, {
       extractionId: null,
-      url: null,
+      content: null,
     });
   }
 

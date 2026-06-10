@@ -4379,13 +4379,13 @@ export const PersistedDesignMdSchema = {
 export const DesignMdWriteSchema = {
     type: 'object',
     properties: {
-        url: {
+        content: {
             type: [
                 'string',
                 'null'
             ],
-            example: 'https://blob.example/design.md',
-            description: 'Public blob URL of the DESIGN.md, or null to clear it'
+            example: '# DESIGN.md\n\nBrand guidelines…',
+            description: 'DESIGN.md markdown to store, or null to clear it'
         },
         extractionId: {
             type: [
@@ -4397,7 +4397,7 @@ export const DesignMdWriteSchema = {
         }
     },
     required: [
-        'url',
+        'content',
         'extractionId'
     ]
 } as const;

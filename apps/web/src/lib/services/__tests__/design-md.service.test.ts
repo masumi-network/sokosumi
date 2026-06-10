@@ -42,17 +42,6 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-const uploadDesignMdToBlobMock = vi.fn();
-
-vi.mock("@/lib/blob/design-md", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/blob/design-md")>();
-  return {
-    ...actual,
-    uploadDesignMdToBlob: (...args: unknown[]) =>
-      uploadDesignMdToBlobMock(...args),
-  };
-});
-
 const getWorkspaceDesignMdMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const setMyDesignMdMock = vi.fn();
@@ -88,9 +77,6 @@ describe("designMdService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    uploadDesignMdToBlobMock.mockResolvedValue(
-      "https://blob.example/design-md/42-hash.md",
-    );
     getMyMemberInOrganizationMock.mockResolvedValue({
       data: { role: MemberRole.ADMIN },
     });
@@ -220,12 +206,8 @@ describe("designMdService", () => {
       started.jobToken,
     );
 
-    expect(uploadDesignMdToBlobMock).toHaveBeenCalledWith({
-      designMd: "# Brand",
-      extractionId: "42",
-    });
     expect(setMyDesignMdMock).toHaveBeenCalledWith({
-      url: "https://blob.example/design-md/42-hash.md",
+      content: "# Brand",
       extractionId: "42",
     });
     expect(persisted).toEqual({
@@ -253,44 +235,28 @@ describe("designMdService", () => {
     });
   });
 
-  it("clears extractionId when saving a manual upload URL", async () => {
+  it("sends uploaded markdown content to core and returns the stored URL", async () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       data: { role: MemberRole.ADMIN },
     });
     const uploadedUrl =
-      "https://store.public.blob.vercel-storage.com/users/user-1/manual-design.md";
+      "https://store.public.blob.vercel-storage.com/design-md/manual-design.md";
     setOrganizationDesignMdMock.mockResolvedValue({
       data: { designMd: { url: uploadedUrl, extractionId: null } },
     });
 
     const { designMdService } = await import("../design-md.service");
     const persisted = await designMdService.persistUploadedDesignMd(
-      session,
       { type: "organization", organizationId: "org-1" },
-      uploadedUrl,
+      "# Uploaded brand",
     );
 
     expect(setOrganizationDesignMdMock).toHaveBeenCalledWith("org-1", {
-      url: uploadedUrl,
+      content: "# Uploaded brand",
       extractionId: null,
     });
     expect(persisted.url).toBe(uploadedUrl);
     expect(persisted.extractionId).toBeNull();
-  });
-
-  it("rejects manual upload URLs outside Sokosumi blob storage", async () => {
-    const { designMdService } = await import("../design-md.service");
-
-    await expect(
-      designMdService.persistUploadedDesignMd(
-        session,
-        { type: "user" },
-        "https://evil.example/design.md",
-      ),
-    ).rejects.toMatchObject({
-      code: "bad_input",
-      message: "DESIGN.md upload URL must come from Sokosumi blob storage",
-    });
   });
 
   it("throws unconfigured when the Masumi API key is missing", async () => {

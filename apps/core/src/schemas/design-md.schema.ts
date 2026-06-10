@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { LIMITS } from "@/config/constants";
+
 /**
  * The DESIGN.md attachment that is currently in effect for a user.
  *
@@ -29,16 +31,26 @@ export type EffectiveDesignMd = z.infer<typeof effectiveDesignMdSchema>;
 /**
  * Request body for setting (or clearing) a user's or organization's DESIGN.md.
  *
- * `url` is the public blob URL to store, or `null` to clear the DESIGN.md.
+ * `content` is the DESIGN.md markdown to store — Core uploads it to blob storage
+ * and owns the resulting URL — or `null` to clear the DESIGN.md.
  * `extractionId` is the generation/extraction id when known, or `null` (e.g. a
  * manual upload or a clear).
  */
 export const designMdWriteSchema = z
   .object({
-    url: z.string().nullable().openapi({
-      example: "https://blob.example/design.md",
-      description: "Public blob URL of the DESIGN.md, or null to clear it",
-    }),
+    content: z
+      .string()
+      .refine((value) => value.trim().length > 0, "DESIGN.md must not be empty")
+      .refine(
+        (value) =>
+          Buffer.byteLength(value, "utf8") <= LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
+        `DESIGN.md exceeds the maximum size of ${LIMITS.DESIGN_MD_MAX_SIZE_BYTES} bytes`,
+      )
+      .nullable()
+      .openapi({
+        example: "# DESIGN.md\n\nBrand guidelines…",
+        description: "DESIGN.md markdown to store, or null to clear it",
+      }),
     extractionId: z.string().nullable().openapi({
       example: "12345",
       description: "Extraction id of the generated DESIGN.md, when known",

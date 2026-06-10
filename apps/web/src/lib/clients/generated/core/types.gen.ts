@@ -1286,9 +1286,9 @@ export type PersistedDesignMd = {
 
 export type DesignMdWrite = {
     /**
-     * Public blob URL of the DESIGN.md, or null to clear it
+     * DESIGN.md markdown to store, or null to clear it
      */
-    url: string | null;
+    content: string | null;
     /**
      * Extraction id of the generated DESIGN.md, when known
      */
@@ -10193,6 +10193,19 @@ export type PutUsersByIdDesignMdErrors = {
             method: string;
         };
     };
+    /**
+     * Service Unavailable - DESIGN.md storage failed
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PutUsersByIdDesignMdError = PutUsersByIdDesignMdErrors[keyof PutUsersByIdDesignMdErrors];
@@ -12268,6 +12281,19 @@ export type PutOrganizationsByIdDesignMdErrors = {
      * Internal Server Error
      */
     500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - DESIGN.md storage failed
+     */
+    503: {
         error: string;
         message: string;
         meta: {

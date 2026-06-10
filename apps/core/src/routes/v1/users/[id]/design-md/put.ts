@@ -2,10 +2,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
 import { buildUserDesignMdMetadata } from "@/helpers/design-md";
-import { notFound } from "@/helpers/error";
+import { notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -59,6 +60,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
+    503: jsonErrorResponse("Service Unavailable - DESIGN.md storage failed"),
   },
 });
 
@@ -73,10 +75,18 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       throw notFound("User not found");
     }
 
-    const { serialized, persisted } = buildUserDesignMdMetadata(
-      user.metadata,
-      body,
-    );
+    let url: string | null = null;
+    if (body.content !== null) {
+      url = await uploadDesignMdContent(body.content, body.extractionId);
+      if (!url) {
+        throw serviceUnavailable("Failed to store the DESIGN.md");
+      }
+    }
+
+    const { serialized, persisted } = buildUserDesignMdMetadata(user.metadata, {
+      url,
+      extractionId: body.extractionId,
+    });
 
     await userRepository.updateUserMetadata(resolvedUserId, serialized, prisma);
 

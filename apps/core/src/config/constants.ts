@@ -63,6 +63,9 @@ export const LIMITS = {
   /** Maximum upload size for direct user file uploads (1GB) */
   USER_UPLOAD_MAX_SIZE_BYTES: 1024 * 1024 * 1024,
 
+  /** Maximum size of a DESIGN.md document accepted for storage (1MB) */
+  DESIGN_MD_MAX_SIZE_BYTES: 1024 * 1024,
+
   /** Minimum chargeable credits */
   MIN_CHARGEABLE_CREDITS: 1e-10,
 } as const;
@@ -84,4 +87,7 @@ export const STORAGE = {
 
   /** Root directory for user file uploads */
   USER_UPLOADS_DIR: "users",
+
+  /** Directory for stored DESIGN.md documents */
+  DESIGN_MD_UPLOAD_DIR: "design-md",
 } as const;

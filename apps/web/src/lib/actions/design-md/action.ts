@@ -194,9 +194,8 @@ export const saveDesignMdUpload = withSession<
 
   try {
     const persisted = await designMdService.persistUploadedDesignMd(
-      parameters.session,
       parsedResult.data.owner,
-      parsedResult.data.url,
+      parsedResult.data.content,
     );
 
     await revalidateOwner(parsedResult.data.owner);

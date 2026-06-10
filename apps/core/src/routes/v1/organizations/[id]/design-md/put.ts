@@ -3,10 +3,12 @@ import { MemberRole } from "@sokosumi/database";
 import { organizationRepository } from "@sokosumi/database/repositories";
 
 import { buildOrganizationDesignMdMetadata } from "@/helpers/design-md";
+import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
@@ -62,6 +64,7 @@ const route = createRoute({
     ),
     404: jsonErrorResponse("Not Found - Organization not found"),
     500: jsonErrorResponse("Internal Server Error"),
+    503: jsonErrorResponse("Service Unavailable - DESIGN.md storage failed"),
   },
 });
 
@@ -78,9 +81,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
     });
 
+    let url: string | null = null;
+    if (body.content !== null) {
+      url = await uploadDesignMdContent(body.content, body.extractionId);
+      if (!url) {
+        throw serviceUnavailable("Failed to store the DESIGN.md");
+      }
+    }
+
     const { serialized, persisted } = buildOrganizationDesignMdMetadata(
       organization.metadata,
-      body,
+      { url, extractionId: body.extractionId },
     );
 
     await organizationRepository.updateOrganizationById(

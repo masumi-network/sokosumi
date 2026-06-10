@@ -9,10 +9,12 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   updateOrganizationByIdMock,
+  uploadDesignMdContentMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   updateOrganizationByIdMock: vi.fn(),
+  uploadDesignMdContentMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -38,6 +40,11 @@ vi.mock("@sokosumi/database/repositories", () => ({
     updateOrganizationById: (...args: unknown[]) =>
       updateOrganizationByIdMock(...args),
   },
+}));
+
+vi.mock("@/lib/design-md-blob", () => ({
+  uploadDesignMdContent: (...args: unknown[]) =>
+    uploadDesignMdContentMock(...args),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -77,7 +84,7 @@ function setMembership(role: string | null, metadata: unknown) {
 
 function putDesignMd(
   id: string,
-  body: { url: string | null; extractionId: string | null },
+  body: { content: string | null; extractionId: string | null },
 ) {
   return createApp().request(`http://localhost/${id}/design-md`, {
     method: "PUT",
@@ -99,42 +106,48 @@ describe("PUT /organizations/{id}/design-md", () => {
   it("returns 404 when the organization does not exist", async () => {
     organizationFindUniqueMock.mockResolvedValue(null);
     const response = await putDesignMd("missing", {
-      url: "https://blob.example/org.md",
+      content: "# Brand",
       extractionId: null,
     });
     expect(response.status).toBe(404);
+    expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
     expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the user is not a member", async () => {
     setMembership(null, JSON.stringify({}));
     const response = await putDesignMd("org_123", {
-      url: "https://blob.example/org.md",
+      content: "# Brand",
       extractionId: null,
     });
     expect(response.status).toBe(403);
+    expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
     expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for a member who is not an owner or admin", async () => {
     setMembership("member", JSON.stringify({}));
     const response = await putDesignMd("org_123", {
-      url: "https://blob.example/org.md",
+      content: "# Brand",
       extractionId: null,
     });
     expect(response.status).toBe(403);
     expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
   });
 
-  it("persists the DESIGN.md for an owner", async () => {
+  it("uploads the content and persists the URL for an owner", async () => {
     setMembership("owner", JSON.stringify({ invoiceEmail: "b@acme.example" }));
+    uploadDesignMdContentMock.mockResolvedValueOnce(
+      "https://blob.example/org.md",
+    );
     const response = await putDesignMd("org_123", {
-      url: "https://blob.example/org.md",
+      content: "# Brand",
       extractionId: "55",
     });
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(uploadDesignMdContentMock).toHaveBeenCalledWith("# Brand", "55");
     expect(updateOrganizationByIdMock).toHaveBeenCalledWith(
       "org_123",
       { metadata: expect.stringContaining("https://blob.example/org.md") },
@@ -146,19 +159,32 @@ describe("PUT /organizations/{id}/design-md", () => {
     });
   });
 
-  it("clears the DESIGN.md for an admin when url is null", async () => {
+  it("clears the DESIGN.md for an admin when content is null", async () => {
     setMembership(
       "admin",
       JSON.stringify({ designMdUrl: "https://blob.example/old.md" }),
     );
     const response = await putDesignMd("org_123", {
-      url: null,
+      content: null,
       extractionId: null,
     });
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
     expect(updateOrganizationByIdMock).toHaveBeenCalled();
     expect(body.data.designMd).toBeNull();
+  });
+
+  it("returns 503 when storage fails", async () => {
+    setMembership("owner", JSON.stringify({}));
+    uploadDesignMdContentMock.mockResolvedValueOnce(null);
+    const response = await putDesignMd("org_123", {
+      content: "# Brand",
+      extractionId: null,
+    });
+
+    expect(response.status).toBe(503);
+    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
   });
 });
