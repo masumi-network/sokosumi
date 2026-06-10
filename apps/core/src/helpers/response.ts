@@ -84,3 +84,7 @@ export const conflictWithData = <T>(c: Context, data: T) => {
     409,
   );
 };
+
+export const empty = (c: Context) => {
+  return c.body(null, 204);
+};

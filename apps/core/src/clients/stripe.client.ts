@@ -84,4 +84,18 @@ export const stripeClient = {
       requestOptions,
     );
   },
+
+  async updateCustomerEmail(
+    customerId: string,
+    email: string | null,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Customer> {
+    return await stripe.customers.update(
+      customerId,
+      {
+        email: email ?? "",
+      },
+      requestOptions,
+    );
+  },
 };

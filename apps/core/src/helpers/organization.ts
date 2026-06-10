@@ -32,6 +32,15 @@ async function getOrganizationById(
   });
 }
 
+async function getOrganizationBySlug(
+  tx: OrgResolverClient,
+  slug: string,
+): Promise<OrganizationRecord> {
+  return await tx.organization.findUnique({
+    where: { slug },
+  });
+}
+
 async function getMemberAccess(
   tx: OrgResolverClient,
   userId: string,
@@ -47,15 +56,16 @@ async function getMemberAccess(
   });
 }
 
-export async function resolveMemberOrganizationById(
-  input: ResolveMemberOrganizationByIdInput,
+async function resolveMemberOrganizationRecord(
+  input: ResolveMemberOrganizationByIdInput & {
+    organization: NonNullable<OrganizationRecord>;
+  },
 ) {
-  const organization = await getOrganizationById(input.tx, input.id);
-  if (!organization) {
-    throw notFound("Organization not found");
-  }
-
-  const member = await getMemberAccess(input.tx, input.userId, organization.id);
+  const member = await getMemberAccess(
+    input.tx,
+    input.userId,
+    input.organization.id,
+  );
   if (!member) {
     throw forbidden("You are not a member of this organization");
   }
@@ -68,7 +78,45 @@ export async function resolveMemberOrganizationById(
   }
 
   return {
-    organization,
+    organization: input.organization,
     role: member.role,
   };
+}
+
+export async function resolveMemberOrganizationById(
+  input: ResolveMemberOrganizationByIdInput,
+) {
+  const organization = await getOrganizationById(input.tx, input.id);
+  if (!organization) {
+    throw notFound("Organization not found");
+  }
+
+  return resolveMemberOrganizationRecord({
+    ...input,
+    organization,
+  });
+}
+
+interface ResolveMemberOrganizationBySlugInput {
+  slug: string;
+  userId: string;
+  tx: OrgResolverClient;
+  allowedRoles?: MemberRole[];
+}
+
+export async function resolveMemberOrganizationBySlug(
+  input: ResolveMemberOrganizationBySlugInput,
+) {
+  const organization = await getOrganizationBySlug(input.tx, input.slug);
+  if (!organization) {
+    throw notFound("Organization not found");
+  }
+
+  return resolveMemberOrganizationRecord({
+    id: organization.id,
+    userId: input.userId,
+    tx: input.tx,
+    allowedRoles: input.allowedRoles,
+    organization,
+  });
 }

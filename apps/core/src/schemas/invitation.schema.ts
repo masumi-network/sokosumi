@@ -37,6 +37,10 @@ const invitationWithRelationsSchema = pendingInvitationSchema.extend({
   inviter: invitationInviterSchema,
 });
 
+export const userPendingInvitationsSchema = z
+  .array(invitationWithRelationsSchema)
+  .openapi("UserPendingInvitations");
+
 /**
  * Result of resolving a pending invitation by id. Discriminated on `kind` so the
  * three not-usable cases stay distinguishable (the accept-invitation page renders

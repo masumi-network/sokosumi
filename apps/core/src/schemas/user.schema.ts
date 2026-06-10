@@ -133,6 +133,47 @@ export const userOnboardingResponseSchema = z.object({
   }),
 });
 
+export const userOnboardingStatusResponseSchema = z.object({
+  show: z.boolean().openapi({
+    description: "Whether the onboarding flow should be shown",
+    example: true,
+  }),
+  completed: z.boolean().openapi({
+    description: "Whether the user has completed onboarding",
+    example: false,
+  }),
+});
+
+export const preferredOrganizationResponseSchema = z.object({
+  organizationId: z.string().nullable().openapi({
+    description: "Preferred organization id for the session user",
+    example: "org_123",
+  }),
+});
+
+export const checkEmailsRequestSchema = z
+  .object({
+    emails: z
+      .array(z.email())
+      .max(100)
+      .openapi({
+        description: "Email addresses to check for existing user accounts",
+        example: ["jane@example.com", "john@example.com"],
+      }),
+  })
+  .openapi("CheckEmailsRequest");
+
+export const checkEmailsResponseSchema = z.object({
+  existingEmails: z.array(z.email()).openapi({
+    description: "Emails that already have user accounts",
+    example: ["jane@example.com"],
+  }),
+});
+
+export const userSubscriptionResponseSchema = z.object({
+  subscription: subscriptionSchema.nullable(),
+});
+
 export const utmAttributionRequestSchema = z
   .object({
     utm_source: z.string().min(1).max(255).openapi({
