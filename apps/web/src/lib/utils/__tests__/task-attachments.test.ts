@@ -1,14 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDesignMdDismissedState,
   descriptionIncludesTaskAttachmentLink,
   ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  isDesignMdAttachmentSkipped,
+  markDesignMdDismissed,
   removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
   seedTaskDescriptionWithDesignMd,
+  syncDesignMdDismissedState,
 } from "@/lib/utils/task-attachments";
+
+const designMdAttachment = {
+  label: "DESIGN.md",
+  url: "https://blob.example/design.md",
+};
 
 describe("task-attachments", () => {
   it("extracts file-like markdown links", () => {
@@ -153,5 +162,39 @@ describe("task-attachments", () => {
         url: "https://blob.example/design.md",
       }),
     ).toBe("[DESIGN.md](https://blob.example/design.md)\n\nWrite docs");
+  });
+
+  it("marks design.md as dismissed after the prefilled link disappears", () => {
+    const state = createDesignMdDismissedState();
+    const seededDescription = seedTaskDescriptionWithDesignMd(
+      "",
+      designMdAttachment,
+    );
+
+    syncDesignMdDismissedState(seededDescription, designMdAttachment, state);
+    expect(isDesignMdAttachmentSkipped(state)).toBe(false);
+
+    syncDesignMdDismissedState("Build landing page", designMdAttachment, state);
+    expect(isDesignMdAttachmentSkipped(state)).toBe(true);
+  });
+
+  it("does not skip design.md when the link was never prefilled", () => {
+    const state = createDesignMdDismissedState();
+
+    syncDesignMdDismissedState("Write docs", designMdAttachment, state);
+    expect(isDesignMdAttachmentSkipped(state)).toBe(false);
+  });
+
+  it("marks design.md dismissed immediately when removed via attachment control", () => {
+    const state = createDesignMdDismissedState();
+    const seededDescription = seedTaskDescriptionWithDesignMd(
+      "",
+      designMdAttachment,
+    );
+
+    syncDesignMdDismissedState(seededDescription, designMdAttachment, state);
+    markDesignMdDismissed(state);
+
+    expect(isDesignMdAttachmentSkipped(state)).toBe(true);
   });
 });

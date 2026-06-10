@@ -62,13 +62,17 @@ import {
 import { cn } from "@/lib/utils";
 import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
 import {
+  createDesignMdDismissedState,
   ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  isDesignMdAttachmentSkipped,
+  markDesignMdDismissed,
   removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
   seedTaskDescriptionWithDesignMd,
+  syncDesignMdDismissedState,
   type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
@@ -185,7 +189,7 @@ function PureMultimodalInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const designMdDismissedRef = useRef(false);
+  const designMdStateRef = useRef(createDesignMdDismissedState());
   const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
   const [internalComposeKind, setInternalComposeKind] =
@@ -269,6 +273,11 @@ function PureMultimodalInput({
 
   const width = windowWidth;
   const isTaskComposer = !chatId && composeKind === "task";
+  syncDesignMdDismissedState(
+    input,
+    initialDesignMdAttachment,
+    designMdStateRef.current,
+  );
   const supportsChatImageInput = useMemo(
     () => chatModelSupportsImageInput(selectedModel?.id ?? null),
     [selectedModel?.id],
@@ -395,7 +404,7 @@ function PureMultimodalInput({
     if (
       !isTaskComposer ||
       !initialDesignMdAttachment ||
-      designMdDismissedRef.current
+      isDesignMdAttachmentSkipped(designMdStateRef.current)
     ) {
       return;
     }
@@ -590,7 +599,9 @@ function PureMultimodalInput({
           taskStatus,
           imageGeneration: effectiveImageGenerationEnabled,
           skipDesignMdAttachment:
-            composeKind === "task" ? designMdDismissedRef.current : undefined,
+            composeKind === "task"
+              ? isDesignMdAttachmentSkipped(designMdStateRef.current)
+              : undefined,
         },
       );
       if (sendResult !== true) {
@@ -695,7 +706,10 @@ function PureMultimodalInput({
           setPreferredCoworker(defaultTaskCoworker);
           onCoworkerChange?.(defaultTaskCoworker);
         }
-        if (initialDesignMdAttachment && !designMdDismissedRef.current) {
+        if (
+          initialDesignMdAttachment &&
+          !isDesignMdAttachmentSkipped(designMdStateRef.current)
+        ) {
           setInput((prev) =>
             ensureDesignMdInDescription(prev, initialDesignMdAttachment),
           );
@@ -732,7 +746,7 @@ function PureMultimodalInput({
   const handleRemoveAttachment = useCallback(
     (url: string) => {
       if (initialDesignMdAttachment?.url === url) {
-        designMdDismissedRef.current = true;
+        markDesignMdDismissed(designMdStateRef.current);
       }
       setInput((prev) => removeTaskAttachmentLinks(prev, [url]));
     },

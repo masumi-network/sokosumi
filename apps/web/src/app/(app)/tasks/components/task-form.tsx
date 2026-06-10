@@ -35,11 +35,15 @@ import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import {
+  createDesignMdDismissedState,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  isDesignMdAttachmentSkipped,
+  markDesignMdDismissed,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
   seedTaskDescriptionWithDesignMd,
+  syncDesignMdDismissedState,
   type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
@@ -189,7 +193,12 @@ export function TaskForm({
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
-  const designMdDismissedRef = useRef(false);
+  const designMdStateRef = useRef(createDesignMdDismissedState());
+  syncDesignMdDismissedState(
+    description,
+    initialDesignMdAttachment,
+    designMdStateRef.current,
+  );
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
@@ -254,7 +263,9 @@ export function TaskForm({
           const result = await createTaskHandler({
             description: trimmedDescription,
             coworkerId,
-            skipDesignMdAttachment: designMdDismissedRef.current,
+            skipDesignMdAttachment: isDesignMdAttachmentSkipped(
+              designMdStateRef.current,
+            ),
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
           });
@@ -388,7 +399,7 @@ export function TaskForm({
   const handleRemoveAttachment = useCallback(
     (url: string) => {
       if (initialDesignMdAttachment?.url === url) {
-        designMdDismissedRef.current = true;
+        markDesignMdDismissed(designMdStateRef.current);
       }
       setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
     },

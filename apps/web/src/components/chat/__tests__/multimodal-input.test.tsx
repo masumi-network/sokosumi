@@ -289,7 +289,7 @@ describe("MultimodalInput", () => {
     });
   });
 
-  it("restores DESIGN.md when switching back to task mode with existing text", async () => {
+  it("does not restore DESIGN.md after the prefilled link was removed in the editor", async () => {
     render(
       <WelcomeMultimodalInput
         initialComposeKind="task"
@@ -319,7 +319,7 @@ describe("MultimodalInput", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("markdown-editor")).toHaveValue(
-        "[DESIGN.md](https://blob.example/design.md)\n\nBuild landing page",
+        "Build landing page",
       );
     });
   });

@@ -384,6 +384,41 @@ describe("TaskForm", () => {
     expect(screen.getByTestId("markdown-editor")).toHaveValue("Write docs");
   });
 
+  it("skips design.md attachment when the prefilled link is removed in the editor", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.clear(screen.getByTestId("markdown-editor"));
+    await user.type(
+      screen.getByTestId("markdown-editor"),
+      "Build landing page",
+    );
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith({
+      description: "Build landing page",
+      coworkerId: "coworker-2",
+      status: TaskStatus.READY,
+      skipDesignMdAttachment: true,
+    });
+  });
+
   it("passes projectId when creating a task from the project picker", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);

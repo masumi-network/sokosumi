@@ -42,6 +42,51 @@ export interface TaskDesignMdAttachmentSeed {
   url: string;
 }
 
+export interface DesignMdDismissedState {
+  linkSeen: boolean;
+  dismissed: boolean;
+}
+
+export function createDesignMdDismissedState(): DesignMdDismissedState {
+  return { linkSeen: false, dismissed: false };
+}
+
+export function syncDesignMdDismissedState(
+  description: string,
+  attachment: TaskDesignMdAttachmentSeed | null | undefined,
+  state: DesignMdDismissedState,
+): void {
+  if (!attachment) {
+    return;
+  }
+
+  const hasLink = descriptionIncludesTaskAttachmentLink(
+    description,
+    attachment.label,
+    attachment.url,
+  );
+
+  if (hasLink) {
+    state.linkSeen = true;
+    return;
+  }
+
+  if (state.linkSeen) {
+    state.dismissed = true;
+  }
+}
+
+export function markDesignMdDismissed(state: DesignMdDismissedState): void {
+  state.linkSeen = true;
+  state.dismissed = true;
+}
+
+export function isDesignMdAttachmentSkipped(
+  state: DesignMdDismissedState,
+): boolean {
+  return state.dismissed;
+}
+
 export function seedTaskDescriptionWithDesignMd(
   description: string,
   attachment?: TaskDesignMdAttachmentSeed | null,
