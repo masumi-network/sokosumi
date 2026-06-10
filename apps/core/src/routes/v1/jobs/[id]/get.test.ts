@@ -13,12 +13,19 @@ const { authContextState, prismaTransactionMock, jobFindFirstMock } =
         userId: "user_123",
         organizationId: "org_123",
         role: "user",
-      } as {
-        actor: "user";
-        userId: string;
-        organizationId: string | null;
-        role: string;
-      } | null,
+      } as
+        | {
+            actor: "user";
+            userId: string;
+            organizationId: string | null;
+            role: string;
+          }
+        | {
+            actor: "coworker";
+            coworkerId: string;
+            delegation?: { userId: string; organizationId: string | null };
+          }
+        | null,
     },
     prismaTransactionMock: vi.fn(),
     jobFindFirstMock: vi.fn(),
@@ -83,6 +90,12 @@ vi.mock("@/middleware/auth", () => ({
     authContext.actor === "user",
   isCoworkerAuthContext: (authContext: { actor: string }) =>
     authContext.actor === "coworker",
+  requireCoworkerAuthContext: (authContext: { actor: string }) => {
+    if (authContext.actor !== "coworker") {
+      throw new Error("mock requireCoworkerAuthContext: not a coworker");
+    }
+    return authContext;
+  },
 }));
 
 vi.mock("@/middleware/workspace", async (importOriginal) => {
@@ -327,5 +340,69 @@ describe("GET /jobs/{id}", () => {
     const response = await app.request("http://localhost/job_123");
 
     expect(response.status).toBe(404);
+  });
+
+  it("allows a delegated coworker to read a job assigned to its task", async () => {
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: { userId: "user_123", organizationId: "org_123" },
+    };
+    const coworkerFindFirstMock = vi.fn().mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    });
+    const taskFindFirstMock = vi
+      .fn()
+      .mockResolvedValue({ coworkerId: "cow_123" });
+    jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        await callback({
+          coworker: { findFirst: coworkerFindFirstMock },
+          job: { findFirst: jobFindFirstMock },
+          task: { findFirst: taskFindFirstMock },
+        }),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/job_123");
+
+    expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      select: { coworkerId: true },
+    });
+  });
+
+  it("rejects a delegated coworker reading a job assigned to another coworker", async () => {
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: { userId: "user_123", organizationId: "org_123" },
+    };
+    const coworkerFindFirstMock = vi.fn().mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    });
+    const taskFindFirstMock = vi
+      .fn()
+      .mockResolvedValue({ coworkerId: "cow_other" });
+    jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        await callback({
+          coworker: { findFirst: coworkerFindFirstMock },
+          job: { findFirst: jobFindFirstMock },
+          task: { findFirst: taskFindFirstMock },
+        }),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/job_123");
+
+    expect(response.status).toBe(403);
   });
 });

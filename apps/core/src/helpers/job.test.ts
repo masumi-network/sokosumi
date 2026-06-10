@@ -199,4 +199,70 @@ describe("getUserJobs", () => {
       }),
     );
   });
+
+  it("restricts a delegated coworker to jobs assigned to its tasks", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "ops-agent",
+          baseURL: null,
+        }),
+      },
+      job: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await getUserJobs(orgJobContext, {
+      take: 20,
+      tx,
+      coworkerId: "cow_123",
+    });
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "cow_123",
+          capabilities: { has: "tasks" },
+        }),
+      }),
+    );
+    expect(tx.job.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              userId: "user_123",
+              workspaceId: orgWorkspaceContext.workspaceId,
+            },
+            { task: { coworkerId: "cow_123" } },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("rejects a delegated coworker without the tasks capability", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+      job: {
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await expect(
+      getUserJobs(orgJobContext, {
+        take: 20,
+        tx,
+        coworkerId: "cow_123",
+      }),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.job.findMany).not.toHaveBeenCalled();
+  });
 });
