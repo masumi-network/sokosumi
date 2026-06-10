@@ -91,6 +91,24 @@ export function isCoworkerAuthContext(
 }
 
 /**
+ * True only for a coworker acting as itself — the agent, with no delegation headers.
+ * A coworker that supplies delegation acts as the delegated user, so this returns
+ * false for it (use {@link requireUserContext} / the user code paths in that case).
+ *
+ * Use to gate agent-only semantics (coworker status transitions, agent task
+ * payments) that must NOT apply when a coworker is impersonating a user.
+ *
+ * Returns a plain boolean, not a type predicate: a `false` result is not
+ * necessarily a user — it may be a delegated coworker — so narrowing the
+ * negative branch to `UserAuthenticationContext` would be unsound.
+ */
+export function isCoworkerAgentContext(
+  authContext: AuthenticationContext,
+): boolean {
+  return isCoworkerAuthContext(authContext) && !authContext.delegation;
+}
+
+/**
  * Effective user context for a handler: either a Better Auth session (`source: "session"`)
  * or a coworker API key with delegation headers (`source: "delegation"`). Use
  * {@link requireUserAuthContext} when the operation must not run under coworker

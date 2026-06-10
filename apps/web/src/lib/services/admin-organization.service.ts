@@ -1,8 +1,6 @@
 import "server-only";
 
-import { organizationRepository } from "@sokosumi/database/repositories";
-
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export interface AdminOrganizationOption {
   id: string;
@@ -10,17 +8,11 @@ export interface AdminOrganizationOption {
   slug: string;
 }
 
-const SEARCH_LIMIT = 20;
-
 export const adminOrganizationService = {
   async searchOrganizations(query: string): Promise<AdminOrganizationOption[]> {
-    const organizations = await organizationRepository.searchOrganizations(
-      query,
-      SEARCH_LIMIT,
-      prisma,
-    );
+    const result = await coreClient.searchAdminOrganizations(query);
 
-    return organizations.map((organization) => ({
+    return result.data.map((organization) => ({
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
@@ -30,20 +22,20 @@ export const adminOrganizationService = {
   async getOrganizationOptionBySlug(
     slug: string,
   ): Promise<AdminOrganizationOption | null> {
-    const organization =
-      await organizationRepository.getOrganizationLimitedInfoBySlug(
-        slug,
-        prisma,
-      );
+    try {
+      const result = await coreClient.getAdminOrganizationBySlug(slug);
 
-    if (!organization) {
-      return null;
+      return {
+        id: result.data.id,
+        name: result.data.name,
+        slug: result.data.slug,
+      };
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
     }
-
-    return {
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-    };
   },
 };

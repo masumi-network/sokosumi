@@ -61,6 +61,7 @@ import {
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -132,6 +133,8 @@ import {
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
+  searchAdminOrganizations as coreSearchAdminOrganizations,
+  searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -484,6 +487,45 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch jobs",
+    );
+  }
+
+  async function searchAdminUsers(query: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreSearchAdminUsers({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search users",
+    );
+  }
+
+  async function searchAdminOrganizations(query: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreSearchAdminOrganizations({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search organizations",
+    );
+  }
+
+  async function getAdminOrganizationBySlug(slug: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAdminOrganizationBySlug({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
     );
   }
 
@@ -1617,6 +1659,9 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    searchAdminUsers,
+    searchAdminOrganizations,
+    getAdminOrganizationBySlug,
     getJobById,
     getJobs,
     getMyCredits,
