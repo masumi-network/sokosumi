@@ -67,17 +67,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // by the stable `metadata.coworker_id` binding (no slug resolution here);
       // conversations without that binding are excluded for coworker actors.
       const authContext = c.var.authContext;
-      const visibleConversations = isUserAuthContext(authContext)
-        ? conversations
-        : (() => {
-            const coworkerId =
-              requireCoworkerAuthContext(authContext).coworkerId;
-            return conversations.filter((conv) => {
-              const meta =
-                (conv.metadata as Record<string, unknown> | null) ?? {};
-              return meta.coworker_id === coworkerId;
-            });
-          })();
+      let visibleConversations = conversations;
+      if (!isUserAuthContext(authContext)) {
+        const { coworkerId } = requireCoworkerAuthContext(authContext);
+        visibleConversations = conversations.filter((conv) => {
+          const meta = (conv.metadata as Record<string, unknown> | null) ?? {};
+          return meta.coworker_id === coworkerId;
+        });
+      }
 
       // Map database conversations to response format
       const response = visibleConversations.map((conv) => ({

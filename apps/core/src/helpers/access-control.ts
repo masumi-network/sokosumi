@@ -421,6 +421,28 @@ export async function requireConversationCoworkerAccess(
   }
 }
 
+/**
+ * Pins a conversation's coworker binding to the acting coworker when the request
+ * is delegated. For coworker actors this stamps `coworker_id` to the
+ * authenticated coworker and drops any client-supplied `coworker_slug`, so the
+ * binding cannot diverge (the chat handler resolves the coworker from
+ * `coworker_id`; the real slug is derived from it). No-op for user sessions.
+ *
+ * Mutates and returns the passed metadata object.
+ */
+export function pinCoworkerConversationBinding(
+  authContext: AuthenticationContext,
+  metadata: Record<string, unknown>,
+): Record<string, unknown> {
+  if (isUserAuthContext(authContext)) {
+    return metadata;
+  }
+
+  metadata.coworker_id = requireCoworkerAuthContext(authContext).coworkerId;
+  delete metadata.coworker_slug;
+  return metadata;
+}
+
 // -----------------------------------------------------------------------------
 // Job collaboration (delegated coworker must be assigned to the job's task)
 // -----------------------------------------------------------------------------

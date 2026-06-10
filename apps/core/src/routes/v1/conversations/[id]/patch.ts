@@ -1,6 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireConversationCoworkerAccess } from "@/helpers/access-control";
+import {
+  pinCoworkerConversationBinding,
+  requireConversationCoworkerAccess,
+} from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -9,11 +12,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import {
-  isUserAuthContext,
-  requireCoworkerAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   conversationSchema,
   updateConversationRequestSchema,
@@ -77,7 +76,6 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserContext(c.var.authContext);
-    const authContext = c.var.authContext;
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -112,21 +110,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (body.metadata !== undefined) {
         const existingMetadata =
           (existing.metadata as Record<string, unknown> | null) || {};
-        const nextMetadata: Record<string, unknown> = {
-          ...existingMetadata,
-          ...body.metadata,
-          userId: userContext.userId, // Ensure userId is preserved
-        };
         // A delegated coworker may only act on its own conversation (enforced
-        // above); re-pin coworker_id and drop any client-supplied coworker_slug
-        // so a metadata update cannot rebind the conversation to another
-        // coworker or route chat to one via a divergent slug.
-        if (!isUserAuthContext(authContext)) {
-          nextMetadata.coworker_id =
-            requireCoworkerAuthContext(authContext).coworkerId;
-          delete nextMetadata.coworker_slug;
-        }
-        updateData.metadata = nextMetadata;
+        // above); re-pin the binding so a metadata update cannot rebind it.
+        updateData.metadata = pinCoworkerConversationBinding(
+          c.var.authContext,
+          {
+            ...existingMetadata,
+            ...body.metadata,
+            userId: userContext.userId, // Ensure userId is preserved
+          },
+        );
       }
 
       // Update conversation in database

@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { v4 as uuidv4 } from "uuid";
-
+import { pinCoworkerConversationBinding } from "@/helpers/access-control";
 import { conflict, internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -9,11 +9,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import {
-  isUserAuthContext,
-  requireCoworkerAuthContext,
-  requireUserContext,
-} from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import {
   conversationSchema,
   createConversationRequestSchema,
@@ -85,22 +81,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw conflict("Conversation already exists");
         }
 
-        // A delegated coworker owns the conversations it creates: stamp the
+        // A delegated coworker owns the conversations it creates: pin the
         // binding so later per-resource checks recognize it (no-op for users).
-        const authContext = c.var.authContext;
-        const metadata: Record<string, unknown> = {
+        const metadata = pinCoworkerConversationBinding(c.var.authContext, {
           ...(body.metadata ?? {}),
           userId: userContext.userId, // Store userId in metadata for reference
-        };
-        if (!isUserAuthContext(authContext)) {
-          // Pin the binding to the acting coworker and drop any client-supplied
-          // coworker_slug so it cannot diverge from coworker_id and route chat
-          // to another coworker (the chat handler resolves the coworker from
-          // coworker_id; the real slug is derived from it).
-          metadata.coworker_id =
-            requireCoworkerAuthContext(authContext).coworkerId;
-          delete metadata.coworker_slug;
-        }
+        });
 
         // Create conversation in database with title and metadata
         const conversationData = {
