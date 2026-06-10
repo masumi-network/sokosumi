@@ -57,6 +57,7 @@ const route = createRoute({
     404: jsonErrorResponse(
       "Not Found - Organization not found or not on an enterprise contract",
     ),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 

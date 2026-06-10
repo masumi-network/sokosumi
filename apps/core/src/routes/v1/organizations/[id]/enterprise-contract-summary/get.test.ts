@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { forbidden } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import type { AuthVariables } from "@/middleware/auth";
@@ -158,6 +158,20 @@ describe("GET /organizations/{id}/enterprise-contract-summary", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(resolveOrganizationBillingPlanMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the organization does not exist", async () => {
+    resolveMemberOrganizationByIdMock.mockRejectedValue(
+      notFound("Organization not found"),
+    );
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/org_1/enterprise-contract-summary",
+    );
+
+    expect(response.status).toBe(404);
     expect(resolveOrganizationBillingPlanMock).not.toHaveBeenCalled();
   });
 });
