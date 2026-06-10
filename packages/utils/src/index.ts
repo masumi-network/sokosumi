@@ -49,6 +49,10 @@ export {
   extractLinks,
 } from "./markdown-links-extract.js";
 export {
+  serializeMetadataRecord,
+  stringifyMetadataRecord,
+} from "./metadata-record.js";
+export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
   findJsonObjectEnd,
@@ -71,6 +75,8 @@ export {
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
 } from "./organization-logo-upload.js";
 export {
+  buildOrganizationMetadataWithDesignMd,
+  buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
   type OrganizationMetadata,
   parseOrganizationMetadata,
@@ -83,6 +89,13 @@ export {
   type TaskArchivableStatus,
 } from "./task-archive.js";
 export { TaskStatus } from "./task-status.js";
+export {
+  buildUserMetadataWithDesignMd,
+  buildUserMetadataWithUrl,
+  getUserMetadata,
+  parseUserMetadata,
+  type UserMetadata,
+} from "./user-metadata.js";
 export { getFallbackUserName, getStoredUserName } from "./user-name.js";
 export {
   isUserUploadAllowedContentType,

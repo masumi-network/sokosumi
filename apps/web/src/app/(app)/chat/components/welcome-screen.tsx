@@ -18,6 +18,7 @@ import type {
 import { MultimodalInput } from "@/components/chat/multimodal-input";
 import { TaskboardVisual } from "@/components/onboarding/taskboard-visual";
 import { cn } from "@/lib/utils";
+import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 
 const PROMPT_KEYS = ["1", "2", "3"] as const;
 
@@ -48,6 +49,7 @@ interface WelcomeScreenProps {
   onCoworkerChange?: (coworker: Coworker | null) => void;
   selectedModel?: { id: string; name: string } | null;
   onSelectModel?: (model: { id: string; name: string } | null) => void;
+  initialDesignMdAttachment?: TaskDesignMdAttachmentSeed | null;
 }
 
 export default function WelcomeScreen({
@@ -71,6 +73,7 @@ export default function WelcomeScreen({
   onCoworkerChange,
   selectedModel,
   onSelectModel,
+  initialDesignMdAttachment = null,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
   const tOnboarding = useTranslations("Onboarding.Dialog");
@@ -219,6 +222,7 @@ export default function WelcomeScreen({
             onCoworkerChange={onCoworkerChange}
             selectedModel={selectedModel ?? undefined}
             onSelectModel={onSelectModel}
+            initialDesignMdAttachment={initialDesignMdAttachment}
           />
         </div>
       </div>

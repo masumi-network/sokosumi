@@ -11,8 +11,10 @@ import type {
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
+import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
+import { removeDesignMdAttachmentLinks } from "@/lib/utils/task-attachments";
 import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
@@ -23,6 +25,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
+  skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
 }
 
@@ -74,6 +77,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
+  skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   type: TaskLinkType;
   direction?: "outgoing" | "incoming";
@@ -126,25 +130,42 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
 }
 
 async function createTaskFromDescription(input: {
+  activeOrganizationId?: string | null;
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
+  skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
+  userId: string;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
     throw new Error("Description required");
   }
 
-  const generatedName =
-    await openrouterClient.generateTaskName(trimmedDescription);
-  const candidate = generatedName ?? buildFallbackName(input.description);
+  const descriptionForNaming =
+    removeDesignMdAttachmentLinks(trimmedDescription).trim();
+  const generatedName = descriptionForNaming
+    ? await openrouterClient.generateTaskName(descriptionForNaming)
+    : null;
+  const candidate =
+    generatedName ??
+    (descriptionForNaming
+      ? buildFallbackName(descriptionForNaming)
+      : "Untitled Task");
   const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
+  const descriptionWithDesignMd = input.skipDesignMdAttachment
+    ? trimmedDescription
+    : await designMdService.appendDesignMdToDescription(
+        trimmedDescription,
+        input.userId,
+        input.activeOrganizationId,
+      );
 
   return taskService.createTask({
     name,
-    description: trimmedDescription,
+    description: descriptionWithDesignMd,
     coworkerId: input.coworkerId ? input.coworkerId : null,
     projectId: normalizedProjectId ?? null,
     status: input.status,
@@ -269,13 +290,23 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 }
 
 export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
-  async ({ description, coworkerId, projectId, status }) => {
+  async ({
+    description,
+    coworkerId,
+    projectId,
+    session,
+    skipDesignMdAttachment,
+    status,
+  }) => {
     try {
       const task = await createTaskFromDescription({
+        activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,
+        skipDesignMdAttachment,
         status,
+        userId: session.user.id,
       });
 
       revalidatePath("/tasks");
@@ -504,7 +535,9 @@ export const createTaskAndLink = withSession<
     description,
     coworkerId,
     projectId,
+    session,
     status,
+    skipDesignMdAttachment,
     type,
     direction,
     note,
@@ -525,10 +558,13 @@ export const createTaskAndLink = withSession<
 
     try {
       createdTask = await createTaskFromDescription({
+        activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,
+        skipDesignMdAttachment,
         status,
+        userId: session.user.id,
       });
 
       const parentLinksToReplace = await collectParentLinksToReplace({

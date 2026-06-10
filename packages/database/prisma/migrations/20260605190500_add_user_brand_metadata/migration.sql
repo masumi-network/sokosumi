@@ -1,0 +1,3 @@
+ALTER TABLE "user"
+ADD COLUMN "logo" TEXT,
+ADD COLUMN "metadata" TEXT;
