@@ -124,6 +124,26 @@ describe("GET /users/{id}/effective-design-md", () => {
     });
   });
 
+  it("does not expose the organization DESIGN.md to a non-member", async () => {
+    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
+    getUserByIdMock.mockResolvedValueOnce({
+      metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
+    });
+
+    const response = await createApp().request(
+      "http://localhost/me/effective-design-md?organizationId=org_1",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(body.data.designMd).toEqual({
+      label: "DESIGN.md",
+      url: "https://blob.example/user.md",
+    });
+  });
+
   it("returns the user DESIGN.md when no organization is supplied", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
     getUserByIdMock.mockResolvedValueOnce({
