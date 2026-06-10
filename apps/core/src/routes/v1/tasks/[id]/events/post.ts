@@ -28,7 +28,8 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
-  isCoworkerAuthContext,
+  isCoworkerAgentContext,
+  isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
@@ -42,17 +43,28 @@ const paramsSchema = z.object({
 });
 
 function getActorData(authContext: AuthenticationContext) {
-  if (isCoworkerAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: authContext.coworkerId,
-    };
-  } else {
+  if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
       coworkerId: null,
     };
   }
+
+  // A delegated coworker acts on behalf of the user: attribute the event to the
+  // delegated user, but keep the coworker that actually performed it so the
+  // audit trail shows "coworker X on behalf of user Y", not a forged
+  // user-only record. (See SOK-554: delegation is currently broad.)
+  if (authContext.delegation) {
+    return {
+      userId: authContext.delegation.userId,
+      coworkerId: authContext.coworkerId,
+    };
+  }
+
+  return {
+    userId: null,
+    coworkerId: authContext.coworkerId,
+  };
 }
 
 async function mapCreatedTaskEventForResponse(
@@ -125,13 +137,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             coworkerId: task.coworkerId,
           });
 
+          // Only the assigned coworker agent settles billing.
+          const isAgent = isCoworkerAgentContext(authContext);
+          const isAgentSpend = isAgent && isTaskStatusSpendable(status);
+
+          // User and delegated-coworker callers use the user transition table,
+          // and the charge branch below is gated on isAgent — so credits from
+          // them would be silently dropped. Reject it.
+          //
+          // masumiPayment needs no check here: the schema only allows it with
+          // status COMPLETED, which the user transition table can never reach,
+          // so a non-agent caller is already rejected upstream (400/422).
+          if (!isAgent && credits != null) {
+            throw unprocessableEntity(
+              "Only the assigned coworker can set credits when changing task status",
+            );
+          }
+
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
-          if (
-            isCoworkerAuthContext(authContext) &&
-            isTaskStatusSpendable(status)
-          ) {
+          if (isAgentSpend) {
             if (masumiPayment) {
               console.info("[tasks] masumi task payment: using masumiPayment", {
                 masumiPayment,
@@ -196,11 +222,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
 
           const payment =
-            masumiPayment !== undefined &&
-            isCoworkerAuthContext(authContext) &&
-            isTaskStatusSpendable(status)
-              ? masumiPayment
-              : null;
+            masumiPayment !== undefined && isAgentSpend ? masumiPayment : null;
 
           return {
             event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),

@@ -1,7 +1,7 @@
 import { convertCentsToCredits, TaskStatus } from "@sokosumi/utils";
 
 import type { AuthenticationContext } from "@/middleware/auth";
-import { isCoworkerAuthContext } from "@/middleware/auth";
+import { isCoworkerAgentContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskListItemWithIncludes,
@@ -47,7 +47,9 @@ interface ValidateTaskCoworkerAssignmentParams {
 function getAllowedTransitions(
   authContext: AuthenticationContext,
 ): Record<TaskStatus, TaskStatus[]> {
-  if (isCoworkerAuthContext(authContext)) {
+  // A coworker acting as itself (the agent) uses the agent transition table.
+  // A delegated coworker acts as the user, so it falls through to the user table.
+  if (isCoworkerAgentContext(authContext)) {
     return {
       [TaskStatus.DRAFT]: [],
       [TaskStatus.READY]: [
