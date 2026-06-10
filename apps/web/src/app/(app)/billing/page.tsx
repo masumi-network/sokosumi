@@ -141,20 +141,18 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const [enterpriseContractSummary, seatSummary, balanceInCents] =
       await Promise.all([
         isEnterpriseContract
-          ? getEnterpriseContractBillingSummary(
-              billingPlan,
-              activeOrganization.id,
-              prisma,
-            )
+          ? getEnterpriseContractBillingSummary(activeOrganization.id)
           : Promise.resolve(null),
         organizationSeatService.getSeatSummary(activeOrganization.id),
-        isEnterpriseContract
-          ? Promise.resolve(BigInt(0))
-          : creditBucketRepository.getBalance(
-              userId,
-              activeOrganization.id,
-              prisma,
-            ),
+        // Always load the org credit balance so the balance section shows the
+        // real figure. It is unused when the enterprise summary renders, but is
+        // the correct fallback if core reports the org is not on an enterprise
+        // contract (404 -> null) while the locally resolved plan said it was.
+        creditBucketRepository.getBalance(
+          userId,
+          activeOrganization.id,
+          prisma,
+        ),
       ]);
     const currentSeats = seatSummary.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
@@ -190,8 +188,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     return (
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
-          {isEnterpriseContract ? (
-            <EnterpriseContractSummary summary={enterpriseContractSummary!} />
+          {enterpriseContractSummary ? (
+            <EnterpriseContractSummary summary={enterpriseContractSummary} />
           ) : (
             <BalanceSection
               title={t("balanceTitle")}

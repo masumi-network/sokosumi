@@ -1,8 +1,6 @@
 import "server-only";
 
-import { userRepository } from "@sokosumi/database/repositories";
-
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 
 export interface AdminUserOption {
   id: string;
@@ -10,13 +8,11 @@ export interface AdminUserOption {
   email: string;
 }
 
-const SEARCH_LIMIT = 20;
-
 export const adminUserService = {
   async searchUsers(query: string): Promise<AdminUserOption[]> {
-    const users = await userRepository.searchUsers(query, SEARCH_LIMIT, prisma);
+    const result = await coreClient.searchAdminUsers(query);
 
-    return users.map((user) => ({
+    return result.data.map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,

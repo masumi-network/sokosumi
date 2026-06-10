@@ -186,6 +186,7 @@ describe("GET /agents/{id}/jobs", () => {
       {
         agentId: "agent_123",
         scope: "owned",
+        coworkerId: "cow_123",
         cursor: undefined,
         take: 20,
         skip: undefined,

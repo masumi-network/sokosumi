@@ -3,6 +3,7 @@ import { JobType, jobInclude, OnChainJobStatus } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
+import { requireJobReadForRouteVars } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -11,7 +12,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSchema } from "@/schemas/job.schema.js";
 import { serializeJobDetails } from "@/types/job";
@@ -100,12 +100,13 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
     const job = await prisma.$transaction(async (tx) => {
-      // Workspace collaborators may read full job details here.
+      // Authorize the read (workspace scope for users; assigned-task scope for
+      // delegated coworkers) before loading full details.
+      await requireJobReadForRouteVars(c.var, id, tx);
       const job = await tx.job.findFirst({
         where: {
           id,

@@ -4,7 +4,6 @@ import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
   type JobEvent,
-  JobType,
   type JobWithSokosumiStatus,
   Prisma,
 } from "@sokosumi/database";
@@ -14,11 +13,11 @@ import {
   jobRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
-import { v4 as uuidv4 } from "uuid";
 
 import publishJobStatusData from "@/lib/ably/publish";
 import type { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient } from "@/lib/clients";
 import { coreClient } from "@/lib/clients/core.client";
@@ -29,10 +28,6 @@ import type {
   ProvideJobInputSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-
-import { agentService } from "./agent.service";
-import { sourceImportService } from "./source-import.service";
-import { userService } from "./user.service";
 
 export const jobService = (() => {
   /**
@@ -64,55 +59,27 @@ export const jobService = (() => {
   const startDemoJob = async (
     input: StartJobInputSchemaType,
     jobStatusResponse: JobStatusResponseSchemaType,
-  ): Promise<JobWithSokosumiStatus> => {
-    const { userId, agentId, inputData, inputSchema } = input;
-    const activeOrganizationId = await userService.getActiveOrganizationId();
+  ): Promise<{ id: string }> => {
+    const { agentId, inputData, inputSchema } = input;
 
-    const agent = await agentService.getAvailableAgentById(agentId);
-    if (!agent) {
-      throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
-    }
-
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      userId,
-      activeOrganizationId ?? null,
-      prisma,
-    );
-
-    const job = await jobRepository.createDemoJob(
-      {
-        jobType: JobType.DEMO,
-        agentJobId: uuidv4(),
-        agentId,
-        userId,
-        organizationId: activeOrganizationId,
-        workspaceId: workspace.id,
-        input: JSON.stringify(inputData),
-        inputSchema: inputSchema,
-        name: "Demo Job",
-        result: jobStatusResponse.result,
-      },
-      prisma,
-    );
-
-    // Enqueue any sources from demo output
-    try {
-      // Find the COMPLETED event with a result for the demo job
-      const eventWithResult = job.events.find(
-        (event) =>
-          event.status === AgentJobStatus.COMPLETED && event.result !== null,
+    const coreInputData = toCoreJobInputData(inputData);
+    if (!coreInputData) {
+      throw new JobError(
+        JobErrorCode.AGENT_JOB_START_FAILED,
+        "Demo job input data is not supported",
       );
-      if (eventWithResult?.result) {
-        await sourceImportService.enqueueFromMarkdown(
-          eventWithResult.id,
-          eventWithResult.result,
-        );
-      }
-    } catch {
-      // Ignore errors
     }
 
-    return job;
+    // Demo job creation (job + events) and source-import enqueueing now live in
+    // core; the agent-availability check and active-org/workspace resolution
+    // happen server-side there.
+    const result = await coreClient.createDemoJob(agentId, {
+      inputData: coreInputData,
+      inputSchema,
+      result: jobStatusResponse.result ?? null,
+    });
+
+    return result.data;
   };
 
   const moveJobToWorkspace = async (

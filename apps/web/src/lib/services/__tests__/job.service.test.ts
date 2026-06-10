@@ -8,9 +8,9 @@ const upsertWorkspaceForContextMock = vi.fn();
 const publishJobStatusDataMock = vi.fn();
 const getAvailableAgentByIdMock = vi.fn();
 const getActiveOrganizationIdMock = vi.fn();
-const enqueueFromMarkdownMock = vi.fn();
 const prismaTransactionMock = vi.fn();
 const moveJobToWorkspaceCoreMock = vi.fn();
+const createDemoJobCoreMock = vi.fn();
 const getLatestJobByAgentIdUserIdAndWorkspaceMock = vi.fn();
 const getSessionMock = vi.fn();
 const getJobStatusDataMock = vi.fn();
@@ -72,6 +72,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     moveJobToWorkspace: (...args: unknown[]) =>
       moveJobToWorkspaceCoreMock(...args),
+    createDemoJob: (...args: unknown[]) => createDemoJobCoreMock(...args),
   },
 }));
 
@@ -98,13 +99,6 @@ vi.mock("../agent.service", () => ({
   },
 }));
 
-vi.mock("../source-import.service", () => ({
-  sourceImportService: {
-    enqueueFromMarkdown: (...args: unknown[]) =>
-      enqueueFromMarkdownMock(...args),
-  },
-}));
-
 vi.mock("../user.service", () => ({
   userService: {
     getActiveOrganizationId: (...args: unknown[]) =>
@@ -116,13 +110,6 @@ vi.mock("@/lib/services/agent.service", () => ({
   agentService: {
     getAvailableAgentById: (...args: unknown[]) =>
       getAvailableAgentByIdMock(...args),
-  },
-}));
-
-vi.mock("@/lib/services/source-import.service", () => ({
-  sourceImportService: {
-    enqueueFromMarkdown: (...args: unknown[]) =>
-      enqueueFromMarkdownMock(...args),
   },
 }));
 
@@ -170,7 +157,6 @@ describe("job.service workspace persistence", () => {
       },
     });
     publishJobStatusDataMock.mockResolvedValue(undefined);
-    enqueueFromMarkdownMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
@@ -180,37 +166,47 @@ describe("job.service workspace persistence", () => {
     );
   });
 
-  it("persists workspaceId for demo jobs in the personal workspace", async () => {
-    getActiveOrganizationIdMock.mockResolvedValue(null);
-    getAvailableAgentByIdMock.mockResolvedValue({
-      id: "agent_123",
-      name: "Agent",
-      description: null,
-    });
-    createDemoJobMock.mockResolvedValue({
-      id: "job_demo",
-      events: [],
-    });
+  it("creates demo jobs through the core client", async () => {
+    createDemoJobCoreMock.mockResolvedValue({ data: { id: "job_demo" } });
 
     const { jobService } = await import("../job.service");
 
-    await jobService.startDemoJob(buildStartInput({ organizationId: null }), {
-      result: "demo result",
-    } as never);
+    const result = await jobService.startDemoJob(
+      buildStartInput({ organizationId: null }),
+      { result: "demo result" } as never,
+    );
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      null,
-      expect.any(Object),
-    );
-    expect(createDemoJobMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user_123",
-        organizationId: null,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      }),
-      expect.any(Object),
-    );
+    expect(createDemoJobCoreMock).toHaveBeenCalledWith("agent_123", {
+      inputData: { prompt: "hello" },
+      inputSchema: {
+        input_data: [
+          {
+            id: "prompt",
+            type: InputType.STRING,
+            name: "Prompt",
+          },
+        ],
+      },
+      result: "demo result",
+    });
+    // Demo job creation no longer touches the database directly.
+    expect(createDemoJobMock).not.toHaveBeenCalled();
+    expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: "job_demo" });
+  });
+
+  it("rejects demo jobs whose input cannot be sent to core (e.g. File values)", async () => {
+    const { jobService } = await import("../job.service");
+
+    await expect(
+      jobService.startDemoJob(
+        buildStartInput({
+          inputData: { attachment: new File(["x"], "x.txt") },
+        }),
+        { result: "demo result" } as never,
+      ),
+    ).rejects.toThrow();
+    expect(createDemoJobCoreMock).not.toHaveBeenCalled();
   });
 
   it("moves standalone jobs through the core client", async () => {

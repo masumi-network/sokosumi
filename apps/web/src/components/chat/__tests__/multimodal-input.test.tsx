@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { type UIMessage } from "ai";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ChatComposeKind,
@@ -22,6 +22,25 @@ vi.mock("@/components/agents/coworker-gallery-card", () => ({
 
 vi.mock("../coworker-model-selector", () => ({
   default: () => null,
+}));
+
+vi.mock("@/app/tasks/components/markdown-editor", () => ({
+  MarkdownEditor: ({
+    value,
+    onChange,
+    id,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    id?: string;
+  }) => (
+    <textarea
+      data-testid="markdown-editor"
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
 }));
 
 const taskOnlyCoworker: Coworker = {
@@ -57,6 +76,7 @@ function WelcomeMultimodalInput({
   onCoworkerChange,
   onSendMessage,
   initialComposeKind = "task",
+  initialDesignMdAttachment = null,
 }: {
   onCoworkerChange?: (coworker: Coworker | null) => void;
   onSendMessage?: (
@@ -66,6 +86,7 @@ function WelcomeMultimodalInput({
     options?: ChatComposeSubmitOptions,
   ) => boolean | Promise<boolean>;
   initialComposeKind?: ChatComposeKind;
+  initialDesignMdAttachment?: { label: string; url: string } | null;
 }) {
   const [input, setInput] = useState("");
   const [composeKind, setComposeKind] =
@@ -86,6 +107,7 @@ function WelcomeMultimodalInput({
       coworkers={[taskOnlyCoworker]}
       coworker={taskOnlyCoworker}
       onCoworkerChange={onCoworkerChange}
+      initialDesignMdAttachment={initialDesignMdAttachment}
     />
   );
 }
@@ -159,6 +181,10 @@ function TestMultimodalInput({
 }
 
 describe("MultimodalInput", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it("notifies parent with null when switching to chat without chat-capable coworkers", () => {
     const onCoworkerChange = vi.fn();
 
@@ -219,6 +245,133 @@ describe("MultimodalInput", () => {
     fireEvent.click(screen.getByTestId("send-button"));
 
     expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("seeds task compose input with initial DESIGN.md attachment", async () => {
+    render(
+      <WelcomeMultimodalInput
+        initialComposeKind="task"
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+  });
+
+  it("removes DESIGN.md from input when switching to chat mode", async () => {
+    render(
+      <WelcomeMultimodalInput
+        initialComposeKind="task"
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeChat" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("");
+    });
+  });
+
+  it("restores DESIGN.md and keeps attachment enabled after switching task to chat and back", async () => {
+    const onSendMessage = vi.fn().mockResolvedValue(true);
+
+    render(
+      <WelcomeMultimodalInput
+        initialComposeKind="task"
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSendMessage={onSendMessage}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeChat" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("");
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeTask" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.click(screen.getByTestId("send-button"));
+
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledTimes(1));
+    expect(onSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "[DESIGN.md](https://blob.example/design.md)",
+      }),
+      expect.anything(),
+      undefined,
+      expect.objectContaining({
+        kind: "task",
+        skipDesignMdAttachment: false,
+      }),
+    );
+  });
+
+  it("does not restore DESIGN.md after the prefilled link was removed in the editor", async () => {
+    render(
+      <WelcomeMultimodalInput
+        initialComposeKind="task"
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.change(screen.getByTestId("markdown-editor"), {
+      target: { value: "Build landing page" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "composeChat" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("Build landing page");
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeTask" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "Build landing page",
+      );
+    });
   });
 
   it("keeps persistent image generation enabled and sends it with the message", async () => {

@@ -20,6 +20,8 @@ model User {
   email         String
   emailVerified Boolean
   image         String?
+  logo          String?
+  metadata      String?
   role          String    @default("user")
   banned        Boolean?  @default(false)
   banReason     String?

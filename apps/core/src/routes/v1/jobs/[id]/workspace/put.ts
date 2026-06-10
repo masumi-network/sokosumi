@@ -3,6 +3,7 @@ import { jobInclude, Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
+import { requireJobCollaboration } from "@/helpers/access-control";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -62,6 +63,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const job = await prisma.$transaction(
       async (tx) => {
+        // A delegated coworker may only move a job whose task is assigned to it.
+        await requireJobCollaboration(c.var.authContext, id, tx);
+
         const currentJob = await tx.job.findFirst({
           where: {
             id,

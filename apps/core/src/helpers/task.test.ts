@@ -599,6 +599,37 @@ describe("validateStatusTransition", () => {
       ).toThrow();
     });
   });
+
+  describe("delegated coworker acts as the user", () => {
+    const delegatedCoworkerContext: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_123",
+        organizationId: null,
+      },
+    };
+
+    it("allows a user-side transition (DRAFT → READY)", () => {
+      expect(() =>
+        validateStatusTransition(
+          delegatedCoworkerContext,
+          TaskStatus.DRAFT,
+          TaskStatus.READY,
+        ),
+      ).not.toThrow();
+    });
+
+    it("rejects an agent-only transition (READY → RUNNING)", () => {
+      expect(() =>
+        validateStatusTransition(
+          delegatedCoworkerContext,
+          TaskStatus.READY,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow("Invalid status transition from READY to RUNNING");
+    });
+  });
 });
 
 describe("validateTaskCoworkerAssignment", () => {

@@ -39,6 +39,8 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchProjectsByIdData,
+  PostAgentsByIdDemoJobsData,
+  PostAgentsByIdDemoJobsError,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -61,6 +63,7 @@ import {
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -85,6 +88,7 @@ import {
   getHistory as coreGetHistory,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
@@ -104,6 +108,7 @@ import {
   patchJobsById as corePatchJobsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  postAgentsByIdDemoJobs as corePostAgentsByIdDemoJobs,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -132,6 +137,8 @@ import {
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
+  searchAdminOrganizations as coreSearchAdminOrganizations,
+  searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -487,6 +494,58 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function searchAdminUsers(query: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreSearchAdminUsers({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search users",
+    );
+  }
+
+  async function searchAdminOrganizations(query: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreSearchAdminOrganizations({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search organizations",
+    );
+  }
+
+  async function getAdminOrganizationBySlug(slug: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAdminOrganizationBySlug({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    );
+  }
+
+  async function getOrganizationEnterpriseContractSummary(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationEnterpriseContractSummary({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch enterprise contract summary",
+    );
+  }
+
   async function getJobById(id: string) {
     return executeOperation(
       getClient,
@@ -816,6 +875,32 @@ export function createCoreClient(getClient: GetClient) {
         return result;
       },
       "Failed to create agent job",
+    );
+  }
+
+  async function createDemoJob(
+    id: string,
+    body: NonNullable<PostAgentsByIdDemoJobsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await corePostAgentsByIdDemoJobs({
+          client,
+          path: { id },
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as PostAgentsByIdDemoJobsError,
+            response: result.response,
+          };
+        }
+
+        return result;
+      },
+      "Failed to create demo job",
     );
   }
 
@@ -1579,6 +1664,7 @@ export function createCoreClient(getClient: GetClient) {
     archiveConversation,
     createConversation,
     createAgentJob,
+    createDemoJob,
     createMyFileUploadSession,
     createTask,
     createTaskLink,
@@ -1617,6 +1703,10 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    searchAdminUsers,
+    searchAdminOrganizations,
+    getAdminOrganizationBySlug,
+    getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,
     getMyCredits,

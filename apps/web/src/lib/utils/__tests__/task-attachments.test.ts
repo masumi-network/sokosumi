@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDesignMdDismissedState,
+  descriptionIncludesTaskAttachmentLink,
+  ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  isDesignMdAttachmentSkipped,
+  markDesignMdDismissed,
+  removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
+  seedTaskDescriptionWithDesignMd,
+  syncDesignMdDismissedState,
 } from "@/lib/utils/task-attachments";
+
+const designMdAttachment = {
+  label: "DESIGN.md",
+  url: "https://blob.example/design.md",
+};
 
 describe("task-attachments", () => {
   it("extracts file-like markdown links", () => {
@@ -55,6 +68,31 @@ describe("task-attachments", () => {
     ).toBe("[invoice.pdf](https://example.com/invoice.pdf)\n");
   });
 
+  it("detects attachment links with escaped markdown url characters", () => {
+    const urlWithParen = "https://example.com/design).md";
+    const markdown = [
+      formatTaskAttachmentMarkdown("DESIGN.md", urlWithParen).trimEnd(),
+      "",
+      "Build landing page",
+    ].join("\n");
+
+    expect(
+      descriptionIncludesTaskAttachmentLink(
+        markdown,
+        "DESIGN.md",
+        urlWithParen,
+      ),
+    ).toBe(true);
+    expect(
+      descriptionIncludesTaskAttachmentLink(
+        markdown,
+        "DESIGN.md",
+        "https://example.com/other.md",
+      ),
+    ).toBe(false);
+    expect(markdown.includes(urlWithParen)).toBe(false);
+  });
+
   it("formats and removes links when url contains closing parenthesis", () => {
     const urlWithParen = "https://example.com/image).png";
     const markdown = [
@@ -76,5 +114,87 @@ describe("task-attachments", () => {
     expect(sanitizeTaskAttachmentLabel("[]", "fallback-file")).toBe(
       "fallback-file",
     );
+  });
+
+  it("removes DESIGN.md attachment links from task descriptions", () => {
+    const markdown = [
+      "[DESIGN.md](https://blob.example/design.md)",
+      "",
+      "Build landing page",
+    ].join("\n");
+
+    expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
+  });
+
+  it("removes DESIGN.md links when the url contains escaped closing parens", () => {
+    const urlWithParen = "https://blob.example/design).md";
+    const markdown = [
+      formatTaskAttachmentMarkdown("DESIGN.md", urlWithParen).trimEnd(),
+      "",
+      "Build landing page",
+    ].join("\n");
+
+    expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
+  });
+
+  it("seeds empty descriptions with DESIGN.md attachment links", () => {
+    expect(
+      seedTaskDescriptionWithDesignMd("", {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+      }),
+    ).toBe("[DESIGN.md](https://blob.example/design.md)\n");
+  });
+
+  it("does not seed DESIGN.md over existing description text", () => {
+    expect(
+      seedTaskDescriptionWithDesignMd("Write docs", {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+      }),
+    ).toBe("Write docs");
+  });
+
+  it("prepends DESIGN.md to non-empty descriptions when ensuring attachment", () => {
+    expect(
+      ensureDesignMdInDescription("Write docs", {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+      }),
+    ).toBe("[DESIGN.md](https://blob.example/design.md)\n\nWrite docs");
+  });
+
+  it("marks design.md as dismissed after the prefilled link disappears", () => {
+    const state = createDesignMdDismissedState();
+    const seededDescription = seedTaskDescriptionWithDesignMd(
+      "",
+      designMdAttachment,
+    );
+
+    syncDesignMdDismissedState(seededDescription, designMdAttachment, state);
+    expect(isDesignMdAttachmentSkipped(state)).toBe(false);
+
+    syncDesignMdDismissedState("Build landing page", designMdAttachment, state);
+    expect(isDesignMdAttachmentSkipped(state)).toBe(true);
+  });
+
+  it("does not skip design.md when the link was never prefilled", () => {
+    const state = createDesignMdDismissedState();
+
+    syncDesignMdDismissedState("Write docs", designMdAttachment, state);
+    expect(isDesignMdAttachmentSkipped(state)).toBe(false);
+  });
+
+  it("marks design.md dismissed immediately when removed via attachment control", () => {
+    const state = createDesignMdDismissedState();
+    const seededDescription = seedTaskDescriptionWithDesignMd(
+      "",
+      designMdAttachment,
+    );
+
+    syncDesignMdDismissedState(seededDescription, designMdAttachment, state);
+    markDesignMdDismissed(state);
+
+    expect(isDesignMdAttachmentSkipped(state)).toBe(true);
   });
 });

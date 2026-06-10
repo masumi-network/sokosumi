@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 
-import { forbidden, notFound } from "@/helpers/error.js";
+import { requireJobCollaboration } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -10,7 +10,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { jobSchema, patchJobRequestSchema } from "@/schemas/job.schema.js";
 import { serializeJobDetails } from "@/types/job";
 
@@ -51,26 +50,11 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { name } = c.req.valid("json");
 
     const job = await prisma.$transaction(async (tx) => {
-      const existing = await tx.job.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          userId: true,
-        },
-      });
-
-      if (!existing) {
-        throw notFound("Job not found");
-      }
-
-      if (existing.userId !== userContext.userId) {
-        throw forbidden("You can only update your own jobs");
-      }
+      await requireJobCollaboration(c.var.authContext, id, tx);
 
       const job = await tx.job.update({
         where: { id },

@@ -71,12 +71,12 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
-
 import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
 import { isDnDColumn, statusForColumn } from "./task-dnd";
+import type { TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
 import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
@@ -209,6 +209,7 @@ interface TasksViewProps {
   defaultViewMode?: TasksViewMode;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   createTaskModalResetKey?: string;
   labels: {
     tabs: {
@@ -291,6 +292,7 @@ export function TasksView({
   defaultViewMode,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
+  initialDesignMdAttachment = null,
   createTaskModalResetKey = "default",
   labels,
 }: TasksViewProps) {
@@ -1133,6 +1135,7 @@ export function TasksView({
         projectOptions={projectOptions}
         defaultProjectId={defaultProjectId}
         agentNameById={agentNameById}
+        initialDesignMdAttachment={initialDesignMdAttachment}
       />
     </CreateTaskModalProvider>
   );

@@ -192,6 +192,7 @@ describe("GET /jobs", () => {
         projectId: undefined,
         status: undefined,
         scope: "owned",
+        coworkerId: "cow_123",
         cursor: undefined,
         take: 20,
         skip: undefined,

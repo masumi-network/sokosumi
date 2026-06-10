@@ -4,7 +4,7 @@ import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
 
 import { paymentClient } from "@/clients/masumi-payment.client.js";
-import { requireJobOwnership } from "@/helpers/access-control.js";
+import { requireJobCollaboration } from "@/helpers/access-control.js";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -13,7 +13,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { jobSchema } from "@/schemas/job.schema.js";
 import { serializeJobDetails } from "@/types/job";
 
@@ -102,12 +101,11 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const { blockchainIdentifier, externalId } = await prisma.$transaction(
       async (tx) => {
-        await requireJobOwnership(userContext, id, tx);
+        await requireJobCollaboration(c.var.authContext, id, tx);
 
         const job = await tx.job.findUnique({
           where: { id },
