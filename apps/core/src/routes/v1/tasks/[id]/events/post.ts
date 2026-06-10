@@ -28,7 +28,8 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
-  isCoworkerAuthContext,
+  isCoworkerAgentContext,
+  isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
@@ -42,17 +43,25 @@ const paramsSchema = z.object({
 });
 
 function getActorData(authContext: AuthenticationContext) {
-  if (isCoworkerAuthContext(authContext)) {
-    return {
-      userId: null,
-      coworkerId: authContext.coworkerId,
-    };
-  } else {
+  if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
       coworkerId: null,
     };
   }
+
+  // A delegated coworker acts as the user, so the event is attributed to that user.
+  if (authContext.delegation) {
+    return {
+      userId: authContext.delegation.userId,
+      coworkerId: null,
+    };
+  }
+
+  return {
+    userId: null,
+    coworkerId: authContext.coworkerId,
+  };
 }
 
 async function mapCreatedTaskEventForResponse(
@@ -125,11 +134,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             coworkerId: task.coworkerId,
           });
 
+          // Billing is settled only by the assigned coworker agent. User and
+          // delegated-coworker callers use the user transition table, and the
+          // charge branch below is gated on isCoworkerAgentContext — so credits
+          // or masumiPayment from them would be silently dropped. Reject it.
+          if (
+            !isCoworkerAgentContext(authContext) &&
+            (credits != null || masumiPayment !== undefined)
+          ) {
+            throw unprocessableEntity(
+              "Only the assigned coworker can set credits or masumiPayment when changing task status",
+            );
+          }
+
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
           if (
-            isCoworkerAuthContext(authContext) &&
+            isCoworkerAgentContext(authContext) &&
             isTaskStatusSpendable(status)
           ) {
             if (masumiPayment) {
@@ -197,7 +219,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           const payment =
             masumiPayment !== undefined &&
-            isCoworkerAuthContext(authContext) &&
+            isCoworkerAgentContext(authContext) &&
             isTaskStatusSpendable(status)
               ? masumiPayment
               : null;
