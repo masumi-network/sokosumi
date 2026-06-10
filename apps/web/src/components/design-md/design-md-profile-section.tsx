@@ -67,6 +67,10 @@ export function DesignMdProfileSection({
   const previewUrl = getPreviewUrl(designMd);
   const hasDesignMd = Boolean(designMdUrl);
   const hasWebsiteUrl = Boolean(websiteUrl);
+
+  if (!hasDesignMd && isGenerateDialogOpen) {
+    setIsGenerateDialogOpen(false);
+  }
   const sourceWebsiteUrl = websiteUrl ?? "";
   const description =
     owner.type === "user"
