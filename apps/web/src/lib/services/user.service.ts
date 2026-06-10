@@ -21,6 +21,7 @@ import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
+import { coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -121,10 +122,8 @@ export const userService = (() => {
       if (!session) {
         return [];
       }
-      return await memberRepository.getMembersWithOrganizationByUserId(
-        session.user.id,
-        prisma,
-      );
+      const response = await coreClient.getMyMembersWithOrganizations();
+      return response.data;
     },
   );
 
@@ -144,11 +143,8 @@ export const userService = (() => {
     if (!session) {
       return null;
     }
-    return await memberRepository.getMemberByUserIdAndOrganizationId(
-      session.user.id,
-      organizationId,
-      prisma,
-    );
+    const response = await coreClient.getMyMemberInOrganization(organizationId);
+    return response?.data ?? null;
   }
 
   /**

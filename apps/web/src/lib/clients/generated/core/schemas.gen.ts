@@ -4341,6 +4341,102 @@ export const CreditBucketBreakdownSchema = {
     ]
 } as const;
 
+export const MemberWithOrganizationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'member_123'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        role: {
+            type: 'string',
+            example: 'member'
+        },
+        seatAssignedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        organization: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'My Organization'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'my-org'
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/logo.png'
+                },
+                metadata: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: '{"url":"https://example.com"}'
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                stripeCustomerId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'cus_123'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug',
+                'logo',
+                'metadata',
+                'createdAt',
+                'stripeCustomerId'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'userId',
+        'organizationId',
+        'role',
+        'seatAssignedAt',
+        'createdAt',
+        'organization'
+    ]
+} as const;
+
 export const OrganizationSchema = {
     type: 'object',
     properties: {
@@ -4417,6 +4513,49 @@ export const OrganizationSchema = {
         'logo',
         'metadata',
         'role'
+    ]
+} as const;
+
+export const MemberRecordSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'member_123'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        role: {
+            type: 'string',
+            example: 'member'
+        },
+        seatAssignedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'userId',
+        'organizationId',
+        'role',
+        'seatAssignedAt',
+        'createdAt'
     ]
 } as const;
 

@@ -101,8 +101,10 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getUsersByIdCredits as coreGetUsersByIdCredits,
+  getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
+  getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
@@ -1185,6 +1187,43 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getMyMembersWithOrganizations() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdMembers({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user memberships",
+    );
+  }
+
+  /**
+   * Returns the current user's membership in `organizationId`, or `null` when
+   * the user is not a member (Core responds 404 in that case).
+   */
+  async function getMyMemberInOrganization(organizationId: string) {
+    try {
+      return await executeOperation(
+        getClient,
+        (client) =>
+          coreGetUsersByIdOrganizationsByOrganizationIdMember({
+            client,
+            path: { id: CURRENT_USER_PATH_ID, organizationId },
+            cache: "no-store",
+          }),
+        "Failed to fetch organization membership",
+      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async function getHermesInstance() {
     return executeOperation(
       getClient,
@@ -1767,6 +1806,8 @@ export function createCoreClient(getClient: GetClient) {
     getJobs,
     getInvitationById,
     getMyCredits,
+    getMyMemberInOrganization,
+    getMyMembersWithOrganizations,
     getMyOrganizations,
     getMyStripeCustomer,
     getOrganizationMembers,
