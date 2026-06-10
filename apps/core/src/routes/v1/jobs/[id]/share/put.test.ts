@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPutJobShareById from "./put";
@@ -7,8 +8,8 @@ import mountPutJobShareById from "./put";
 const {
   authContextState,
   prismaTransactionMock,
-  jobFindUniqueMock,
   upsertForJobMock,
+  requireJobCollaborationMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -24,8 +25,12 @@ const {
     } | null,
   },
   prismaTransactionMock: vi.fn(),
-  jobFindUniqueMock: vi.fn(),
   upsertForJobMock: vi.fn(),
+  requireJobCollaborationMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control.js", () => ({
+  requireJobCollaboration: requireJobCollaborationMock,
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -117,16 +122,12 @@ describe("PUT /jobs/{id}/share", () => {
       role: "user",
     };
     prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          job: {
-            findUnique: jobFindUniqueMock,
-          },
-        }),
+      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
     );
-    jobFindUniqueMock.mockResolvedValue({
+    requireJobCollaborationMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
+      taskId: null,
     });
     upsertForJobMock.mockResolvedValue({
       id: "share_123",
@@ -185,10 +186,9 @@ describe("PUT /jobs/{id}/share", () => {
   });
 
   it("returns 403 when the job is owned by another user", async () => {
-    jobFindUniqueMock.mockResolvedValue({
-      id: "job_123",
-      userId: "other_user",
-    });
+    requireJobCollaborationMock.mockRejectedValueOnce(
+      forbidden("You can only access your own jobs"),
+    );
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/share", {
@@ -205,8 +205,10 @@ describe("PUT /jobs/{id}/share", () => {
     expect(upsertForJobMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the job does not exist", async () => {
-    jobFindUniqueMock.mockResolvedValue(null);
+  it("returns 403 when the job does not exist (no existence leak)", async () => {
+    requireJobCollaborationMock.mockRejectedValueOnce(
+      forbidden("You can only access your own jobs"),
+    );
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123/share", {
@@ -219,7 +221,7 @@ describe("PUT /jobs/{id}/share", () => {
       }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(upsertForJobMock).not.toHaveBeenCalled();
   });
 });

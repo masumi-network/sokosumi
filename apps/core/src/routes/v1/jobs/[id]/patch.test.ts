@@ -2,6 +2,7 @@ import { AgentJobStatus, JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { patchJobRequestSchema } from "@/schemas/job.schema";
 
@@ -10,10 +11,10 @@ import mountPatchJobById from "./patch";
 const {
   authContextState,
   prismaTransactionMock,
-  jobFindUniqueMock,
   jobUpdateMock,
   mapJobWithStatusMock,
   serializeJobDetailsMock,
+  requireJobCollaborationMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -29,10 +30,14 @@ const {
     } | null,
   },
   prismaTransactionMock: vi.fn(),
-  jobFindUniqueMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   mapJobWithStatusMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
+  requireJobCollaborationMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/access-control.js", () => ({
+  requireJobCollaboration: requireJobCollaborationMock,
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -232,14 +237,14 @@ describe("PATCH /jobs/{id}", () => {
       async (callback: (tx: unknown) => Promise<unknown>) =>
         await callback({
           job: {
-            findUnique: jobFindUniqueMock,
             update: jobUpdateMock,
           },
         }),
     );
-    jobFindUniqueMock.mockResolvedValueOnce({
+    requireJobCollaborationMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",
+      taskId: null,
     });
     jobUpdateMock.mockResolvedValue({ id: "job_123" });
     mapJobWithStatusMock.mockReturnValue({});
@@ -289,11 +294,10 @@ describe("PATCH /jobs/{id}", () => {
   });
 
   it("returns 403 when the job is owned by another user", async () => {
-    jobFindUniqueMock.mockReset();
-    jobFindUniqueMock.mockResolvedValueOnce({
-      id: "job_123",
-      userId: "other_user",
-    });
+    requireJobCollaborationMock.mockReset();
+    requireJobCollaborationMock.mockRejectedValueOnce(
+      forbidden("You can only access your own jobs"),
+    );
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123", {
@@ -308,9 +312,11 @@ describe("PATCH /jobs/{id}", () => {
     expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the job does not exist", async () => {
-    jobFindUniqueMock.mockReset();
-    jobFindUniqueMock.mockResolvedValueOnce(null);
+  it("returns 403 when the job does not exist (no existence leak)", async () => {
+    requireJobCollaborationMock.mockReset();
+    requireJobCollaborationMock.mockRejectedValueOnce(
+      forbidden("You can only access your own jobs"),
+    );
     const app = createApp();
 
     const response = await app.request("http://localhost/job_123", {
@@ -321,7 +327,7 @@ describe("PATCH /jobs/{id}", () => {
       body: JSON.stringify({ name: "Renamed job" }),
     });
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(403);
     expect(jobUpdateMock).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { AgentJobStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
-import { requireJobOwnership } from "@/helpers/access-control.js";
+import { requireJobCollaboration } from "@/helpers/access-control.js";
 import {
   badRequest,
   conflict,
@@ -16,7 +16,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { jobInputSchema } from "@/schemas/job.schema";
 
 const params = z.object({
@@ -94,7 +93,6 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const authContext = requireUserContext(c.var.authContext);
     const { id: jobId } = c.req.valid("param");
     const { eventId, inputData } = c.req.valid("json");
 
@@ -103,7 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const jobEvent = await prisma.$transaction(async (tx) => {
-      await requireJobOwnership(authContext, jobId, tx);
+      await requireJobCollaboration(c.var.authContext, jobId, tx);
       const jobEvent = await tx.jobEvent.findFirst({
         where: {
           id: eventId,
