@@ -5,7 +5,7 @@ import {
   type JobEventWithRelations,
   type JobWithSokosumiStatus,
 } from "@sokosumi/database";
-import { hashResult } from "@sokosumi/masumi";
+import { hashResult } from "@sokosumi/masumi/hash";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
