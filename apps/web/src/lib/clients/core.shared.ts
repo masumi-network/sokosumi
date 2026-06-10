@@ -1443,7 +1443,7 @@ export function createCoreClient(getClient: GetClient) {
   async function checkExistingUsers(emails: string[]) {
     return requestCoreApiPath<{ existingEmails: string[] }>(
       getClient,
-      "/users/check-existing",
+      "/users/check-emails",
       {
         method: "POST",
         body: { emails },

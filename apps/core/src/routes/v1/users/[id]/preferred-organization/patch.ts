@@ -86,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       );
 
       if (!member) {
-        badRequest("You are not a member of this organization");
+        throw badRequest("You are not a member of this organization");
       }
 
       await userRepository.updatePreferredOrganizationId(

@@ -6,6 +6,7 @@ import {
   buildOrganizationDesignMdMetadataUpdate,
   readOrganizationDesignMdMetadata,
 } from "@/helpers/design-md-metadata";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { empty, ok } from "@/helpers/response";
@@ -162,6 +163,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return readOrganizationDesignMdMetadata(serializedMetadata);
     });
+
+    if (!metadata) {
+      throw notFound("Organization not found");
+    }
 
     return ok(c, designMdMetadataSchema.parse(metadata));
   });
