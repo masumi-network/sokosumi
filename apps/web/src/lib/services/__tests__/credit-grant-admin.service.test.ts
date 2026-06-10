@@ -444,10 +444,14 @@ describe("creditGrantAdminService.listGrantInvoices", () => {
 
     const items = await creditGrantAdminService.listGrantInvoices({ limit: 2 });
 
-    expect(searchInvoicesMock).toHaveBeenCalledWith(
+    // The display limit is applied after sorting newest-first, not pushed down
+    // to the Stripe search call — search has no guaranteed ordering, so the cap
+    // must select the newest from the full set rather than the first page.
+    expect(searchInvoicesMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ limit: 2 }),
     );
     expect(items).toHaveLength(2);
+    expect(items.map((item) => item.invoiceId)).toEqual(["in_4", "in_3"]);
   });
 
   it("returns only admin credit-grant invoices, mapped and sorted newest first", async () => {

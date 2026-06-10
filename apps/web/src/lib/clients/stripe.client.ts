@@ -468,19 +468,35 @@ export const stripeClient = (() => {
      * returns grant invoices instead of having them crowded out of the most
      * recent page by unrelated checkout/subscription invoices.
      *
+     * Paginates through all matches up to `maxResults` because Stripe's search
+     * API does not guarantee an ordering (unlike `invoices.list`, which is
+     * newest-first). Callers that need "most recent first" must therefore
+     * gather every match and sort themselves rather than trusting the first
+     * page to hold the newest results.
+     *
      * Note: Stripe's search index is eventually consistent, so an invoice
      * created moments ago may take a short while to appear.
      */
     async searchInvoices(params: {
       query: string;
-      limit?: number;
+      maxResults?: number;
     }): Promise<Stripe.Invoice[]> {
-      const result = await stripe.invoices.search({
-        query: params.query,
-        limit: params.limit ?? 100,
-        expand: ["data.customer"],
-      });
-      return result.data;
+      const maxResults = params.maxResults ?? 100;
+      const invoices: Stripe.Invoice[] = [];
+      let page: string | undefined;
+
+      do {
+        const result = await stripe.invoices.search({
+          query: params.query,
+          limit: 100,
+          expand: ["data.customer"],
+          ...(page ? { page } : {}),
+        });
+        invoices.push(...result.data);
+        page = result.has_more ? (result.next_page ?? undefined) : undefined;
+      } while (page && invoices.length < maxResults);
+
+      return invoices;
     },
 
     async getCheckoutSession(

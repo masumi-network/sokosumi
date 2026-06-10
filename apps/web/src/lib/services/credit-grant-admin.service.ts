@@ -71,6 +71,16 @@ const UNFINISHED_INVOICE_STATUSES: Stripe.Invoice.Status[] = ["draft", "open"];
 const DEFAULT_INVOICE_LIST_LIMIT = 50;
 
 /**
+ * How many matching invoices to fetch per status before sorting newest-first.
+ * Stripe's invoice search has no guaranteed ordering, so we must gather all
+ * matches (not just the first `limit`) and sort ourselves to reliably surface
+ * the most recent ones. This ceiling bounds API usage; it comfortably exceeds
+ * realistic admin credit-grant volumes, where pagination usually stops on the
+ * first page anyway.
+ */
+const INVOICE_SEARCH_FETCH_CEILING = 300;
+
+/**
  * Status filter accepted by {@link creditGrantAdminService.listGrantInvoices}:
  * `"unfinished"` (draft + open, the default), `"all"` (every status), or a
  * specific Stripe invoice status.
@@ -487,7 +497,9 @@ export const creditGrantAdminService = (() => {
                 status: statusFilter,
                 customerId,
               }),
-              limit,
+              // Fetch all matches (not just `limit`) so the newest can be
+              // selected after sorting — Stripe search isn't newest-first.
+              maxResults: INVOICE_SEARCH_FETCH_CEILING,
             }),
           ),
         ),
