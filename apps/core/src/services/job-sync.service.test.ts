@@ -1738,4 +1738,141 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
   });
+
+  it("captures Postmark socket hang up errors in Sentry and still counts the job as processed", async () => {
+    const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({ agent: [initialJob] });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: null,
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    sendEmailMock.mockRejectedValue(new Error("socket hang up"));
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({ processed: 1, unfinishedFound: 1 }),
+    );
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "socket hang up" }),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          notificationType: "job-final-status",
+        }),
+      }),
+    );
+  });
+
+  it("skips purchase backfill gracefully on P2014 relation violation (concurrent job deletion)", async () => {
+    const job = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [job] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({ id: "purchase_concurrent" }),
+    );
+    createJobPurchaseMock.mockRejectedValue(
+      Object.assign(new Error("violates required relation"), { code: "P2014" }),
+    );
+    // Job was deleted concurrently, so the post-backfill refresh finds nothing.
+    getJobByIdMock.mockResolvedValueOnce(null);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(expect.objectContaining({ processed: 0 }));
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("skips purchase backfill gracefully on P2025 record-not-found (concurrent job deletion)", async () => {
+    const job = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [job] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({ id: "purchase_missing" }),
+    );
+    createJobPurchaseMock.mockRejectedValue(
+      Object.assign(new Error("record to update not found"), { code: "P2025" }),
+    );
+    // Job was deleted concurrently, so the post-backfill refresh finds nothing.
+    getJobByIdMock.mockResolvedValueOnce(null);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(expect.objectContaining({ processed: 0 }));
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("skips purchase backfill gracefully on P2002 unique constraint (concurrent purchase creation)", async () => {
+    const job = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [job] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({ id: "purchase_duplicate" }),
+    );
+    createJobPurchaseMock.mockRejectedValue(
+      Object.assign(new Error("unique constraint failed"), { code: "P2002" }),
+    );
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(expect.objectContaining({ processed: 1 }));
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates unexpected Prisma errors in the backfill path to Sentry", async () => {
+    const job = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [job] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({ id: "purchase_bad" }),
+    );
+    const unexpectedError = Object.assign(new Error("unexpected db error"), {
+      code: "P2003",
+    });
+    createJobPurchaseMock.mockRejectedValue(unexpectedError);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(expect.objectContaining({ processed: 0 }));
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      unexpectedError,
+      expect.objectContaining({
+        extra: expect.objectContaining({ jobId: "job_1" }),
+      }),
+    );
+  });
 });
