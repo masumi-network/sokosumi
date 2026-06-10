@@ -2,7 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -45,6 +45,11 @@ interface CreditGrantInvoiceListProps {
   initialInvoices: CreditGrantInvoiceListItem[];
 }
 
+type RecipientFilter = {
+  targetType: CreditGrantTargetType;
+  targetId: string;
+} | null;
+
 const STATUS_FILTERS = [
   "unfinished",
   "all",
@@ -66,6 +71,15 @@ const STATUS_BADGE_VARIANT: Record<
   uncollectible: "destructive",
 };
 
+/**
+ * Filterable admin list of credit-grant invoices. Filters are kept in local
+ * state (not URL/`nuqs` like the enterprise-contracts table) and re-fetch
+ * through a server action: the recipient filter is a live async-search
+ * combobox whose selected option carries its display label, so URL state would
+ * require an extra server round-trip to re-resolve the label by id on reload.
+ * The page still server-renders the default (unfinished) list as
+ * `initialInvoices`, so first paint needs no client fetch.
+ */
 export function CreditGrantInvoiceList({
   initialInvoices,
 }: CreditGrantInvoiceListProps) {
@@ -96,44 +110,80 @@ export function CreditGrantInvoiceList({
     clear: t("Filters.recipientAll"),
   });
 
-  const selectedRecipient =
-    recipientType === "user" ? selectedUser : selectedOrg;
-  const recipientId = selectedRecipient?.id ?? null;
+  // Monotonic id so out-of-order responses from rapid filter changes are
+  // ignored — only the latest request is allowed to update the list.
+  const latestRequestId = useRef(0);
 
-  // Re-fetch whenever a filter changes. Skips the initial mount because the
-  // server already provided the default (unfinished) list as `initialInvoices`.
-  const didMount = useRef(false);
-  useEffect(() => {
-    if (!didMount.current) {
-      didMount.current = true;
-      return;
-    }
+  function applyFilters(
+    nextStatus: CreditGrantInvoiceStatusFilter,
+    nextRecipient: RecipientFilter,
+  ) {
+    const requestId = ++latestRequestId.current;
     startTransition(async () => {
       const result = await listCreditGrantInvoicesAction({
-        status,
-        recipient: recipientId
-          ? { targetType: recipientType, targetId: recipientId }
-          : null,
+        status: nextStatus,
+        recipient: nextRecipient,
       });
+      if (requestId !== latestRequestId.current) {
+        return;
+      }
       if (!result.ok) {
         toast.error(result.error.message ?? t("loadError"));
         return;
       }
       setInvoices(result.data);
     });
-  }, [status, recipientId, recipientType, t]);
+  }
+
+  function recipientFor(
+    type: CreditGrantTargetType,
+    org: AdminOrganizationOption | null,
+    user: AdminUserOption | null,
+  ): RecipientFilter {
+    const selected = type === "user" ? user : org;
+    return selected ? { targetType: type, targetId: selected.id } : null;
+  }
+
+  function handleStatusChange(value: string) {
+    const next = value as CreditGrantInvoiceStatusFilter;
+    setStatus(next);
+    applyFilters(next, recipientFor(recipientType, selectedOrg, selectedUser));
+  }
+
+  function handleRecipientTypeChange(value: string) {
+    const next = value as CreditGrantTargetType;
+    const before = recipientFor(recipientType, selectedOrg, selectedUser);
+    const after = recipientFor(next, selectedOrg, selectedUser);
+    setRecipientType(next);
+    // Switching tabs only changes the effective filter when the now-active
+    // tab has a different selection — skip a redundant fetch otherwise.
+    if (before?.targetId !== after?.targetId) {
+      applyFilters(status, after);
+    }
+  }
+
+  function handleOrgChange(org: AdminOrganizationOption | null) {
+    setSelectedOrg(org);
+    applyFilters(
+      status,
+      org ? { targetType: "organization", targetId: org.id } : null,
+    );
+  }
+
+  function handleUserChange(user: AdminUserOption | null) {
+    setSelectedUser(user);
+    applyFilters(
+      status,
+      user ? { targetType: "user", targetId: user.id } : null,
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
         <div className="space-y-2">
           <Label htmlFor="filter-status">{t("Filters.status")}</Label>
-          <Select
-            value={status}
-            onValueChange={(value) =>
-              setStatus(value as CreditGrantInvoiceStatusFilter)
-            }
-          >
+          <Select value={status} onValueChange={handleStatusChange}>
             <SelectTrigger id="filter-status" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -152,9 +202,7 @@ export function CreditGrantInvoiceList({
           <div className="flex flex-col gap-2 sm:flex-row">
             <Tabs
               value={recipientType}
-              onValueChange={(value) =>
-                setRecipientType(value as CreditGrantTargetType)
-              }
+              onValueChange={handleRecipientTypeChange}
             >
               <TabsList>
                 <TabsTrigger value="organization">
@@ -168,7 +216,7 @@ export function CreditGrantInvoiceList({
                 <AsyncSearchCombobox<AdminOrganizationOption>
                   id="filter-recipient"
                   value={selectedOrg}
-                  onChange={setSelectedOrg}
+                  onChange={handleOrgChange}
                   search={searchOrganizationsClient}
                   getKey={(org) => org.id}
                   getTriggerLabel={(org) => org.name}
@@ -187,7 +235,7 @@ export function CreditGrantInvoiceList({
                 <AsyncSearchCombobox<AdminUserOption>
                   id="filter-recipient"
                   value={selectedUser}
-                  onChange={setSelectedUser}
+                  onChange={handleUserChange}
                   search={searchUsersClient}
                   getKey={(user) => user.id}
                   getTriggerLabel={(user) => user.name}

@@ -461,35 +461,26 @@ export const stripeClient = (() => {
     },
 
     /**
-     * Lists invoices with the customer expanded, most recent first. When
-     * `statuses` is omitted, invoices across all statuses are returned;
-     * otherwise each status is fetched separately because Stripe's
-     * `invoices.list` filters by a single status per request. An optional
-     * `customerId` scopes the list to one customer. Used by the admin
-     * credit-grant list and its status/recipient filters.
+     * Searches invoices with the customer expanded, using Stripe's invoice
+     * search query language. Search filters server-side on metadata, status,
+     * and customer — unlike `invoices.list`, which can only filter by a single
+     * status and ignores metadata — so the admin credit-grant list reliably
+     * returns grant invoices instead of having them crowded out of the most
+     * recent page by unrelated checkout/subscription invoices.
+     *
+     * Note: Stripe's search index is eventually consistent, so an invoice
+     * created moments ago may take a short while to appear.
      */
-    async listInvoices(params: {
-      statuses?: Stripe.Invoice.Status[];
-      customerId?: string;
+    async searchInvoices(params: {
+      query: string;
       limit?: number;
     }): Promise<Stripe.Invoice[]> {
-      const baseParams: Stripe.InvoiceListParams = {
+      const result = await stripe.invoices.search({
+        query: params.query,
         limit: params.limit ?? 100,
         expand: ["data.customer"],
-        ...(params.customerId ? { customer: params.customerId } : {}),
-      };
-
-      if (!params.statuses || params.statuses.length === 0) {
-        const page = await stripe.invoices.list(baseParams);
-        return page.data;
-      }
-
-      const pages = await Promise.all(
-        params.statuses.map((status) =>
-          stripe.invoices.list({ ...baseParams, status }),
-        ),
-      );
-      return pages.flatMap((page) => page.data);
+      });
+      return result.data;
     },
 
     async getCheckoutSession(

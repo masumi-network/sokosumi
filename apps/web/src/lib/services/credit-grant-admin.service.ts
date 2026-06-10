@@ -47,7 +47,7 @@ export interface CreditPriceOption {
   nickname: string | null;
 }
 
-/** A credit-grant invoice surfaced in the admin list of unfinished invoices. */
+/** A credit-grant invoice surfaced in the admin invoice list. */
 export interface CreditGrantInvoiceListItem {
   invoiceId: string;
   targetType: CreditGrantTargetType | null;
@@ -172,6 +172,34 @@ function resolveTargetFromCustomer(customer: Stripe.Invoice["customer"]): {
       ? customerType
       : null;
   return { targetType, targetName: customer.name ?? null };
+}
+
+/**
+ * Builds a Stripe invoice search query that always scopes to admin
+ * credit-grant invoices (via the `grant_source` metadata), optionally narrowed
+ * by status and/or customer. All values here are fixed enums, a known
+ * constant, or a Stripe customer id, so they need no escaping.
+ */
+function buildGrantInvoiceSearchQuery(params: {
+  statuses?: Stripe.Invoice.Status[];
+  customerId?: string;
+}): string {
+  const clauses = [`metadata["grant_source"]:"${ADMIN_CREDIT_GRANT_SOURCE}"`];
+
+  if (params.customerId) {
+    clauses.push(`customer:"${params.customerId}"`);
+  }
+
+  if (params.statuses && params.statuses.length > 0) {
+    const statusClause = params.statuses
+      .map((status) => `status:"${status}"`)
+      .join(" OR ");
+    clauses.push(
+      params.statuses.length > 1 ? `(${statusClause})` : statusClause,
+    );
+  }
+
+  return clauses.join(" AND ");
 }
 
 function toInvoiceListItem(
@@ -407,20 +435,26 @@ export const creditGrantAdminService = (() => {
             ? UNFINISHED_INVOICE_STATUSES
             : [status];
 
+      const query = buildGrantInvoiceSearchQuery({ statuses, customerId });
+
       const [invoices, accountId] = await Promise.all([
-        stripeClient.listInvoices({ statuses, customerId, limit }),
+        stripeClient.searchInvoices({ query, limit }),
         stripeClient.getAccountId(),
       ]);
 
-      return invoices
-        .filter(
-          (invoice) =>
-            invoice.metadata?.grant_source === ADMIN_CREDIT_GRANT_SOURCE,
-        )
-        .map((invoice) => toInvoiceListItem(invoice, accountId))
-        .filter((item): item is CreditGrantInvoiceListItem => item !== null)
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, limit);
+      return (
+        invoices
+          // Defensive: the search query already scopes to grant invoices, but
+          // keep the check so a query change can never leak unrelated invoices.
+          .filter(
+            (invoice) =>
+              invoice.metadata?.grant_source === ADMIN_CREDIT_GRANT_SOURCE,
+          )
+          .map((invoice) => toInvoiceListItem(invoice, accountId))
+          .filter((item): item is CreditGrantInvoiceListItem => item !== null)
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, limit)
+      );
     },
 
     async createGrantInvoice(params: {
