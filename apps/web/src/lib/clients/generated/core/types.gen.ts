@@ -1268,6 +1268,22 @@ export type CreditBucketBreakdown = {
     expiresAt: Date | null;
 };
 
+export type EffectiveDesignMd = {
+    /**
+     * The effective DESIGN.md, or null when none
+     */
+    designMd: {
+        /**
+         * Attachment label
+         */
+        label: string;
+        /**
+         * Public blob URL of the DESIGN.md attachment
+         */
+        url: string;
+    } | null;
+};
+
 export type MemberWithOrganization = {
     id: string;
     userId: string;
@@ -9986,6 +10002,83 @@ export type GetUsersByIdCreditsResponses = {
 };
 
 export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
+
+export type GetUsersByIdEffectiveDesignMdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * When provided and the user is a member, the organization's DESIGN.md takes precedence over the user's own.
+         */
+        organizationId?: string;
+    };
+    url: '/users/{id}/effective-design-md';
+};
+
+export type GetUsersByIdEffectiveDesignMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdEffectiveDesignMdError = GetUsersByIdEffectiveDesignMdErrors[keyof GetUsersByIdEffectiveDesignMdErrors];
+
+export type GetUsersByIdEffectiveDesignMdResponses = {
+    /**
+     * The effective DESIGN.md for the user
+     */
+    200: {
+        data: EffectiveDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdEffectiveDesignMdResponse = GetUsersByIdEffectiveDesignMdResponses[keyof GetUsersByIdEffectiveDesignMdResponses];
 
 export type GetUsersByIdMembersData = {
     body?: never;

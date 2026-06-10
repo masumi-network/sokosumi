@@ -81,6 +81,15 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
 
+const getMyEffectiveDesignMdMock = vi.fn();
+
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getMyEffectiveDesignMd: (...args: unknown[]) =>
+      getMyEffectiveDesignMdMock(...args),
+  },
+}));
+
 const session = {
   session: {
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -340,21 +349,14 @@ describe("designMdService", () => {
     });
   });
 
-  it("resolves organization design.md before user fallback", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      role: MemberRole.MEMBER,
-    });
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org-1",
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/org-design.md",
-      }),
-    });
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/user-design.md",
-      }),
+  it("delegates effective design.md resolution to core", async () => {
+    getMyEffectiveDesignMdMock.mockResolvedValue({
+      data: {
+        designMd: {
+          label: "DESIGN.md",
+          url: "https://blob.example/org-design.md",
+        },
+      },
     });
 
     const { designMdService } = await import("../design-md.service");
@@ -363,19 +365,35 @@ describe("designMdService", () => {
       userId: "user-1",
     });
 
+    expect(getMyEffectiveDesignMdMock).toHaveBeenCalledWith("org-1");
     expect(designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org-design.md",
     });
-    expect(getUserByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null when core reports no effective design.md", async () => {
+    getMyEffectiveDesignMdMock.mockResolvedValue({
+      data: { designMd: null },
+    });
+
+    const { designMdService } = await import("../design-md.service");
+    const designMd = await designMdService.resolveEffectiveDesignMd({
+      activeOrganizationId: null,
+      userId: "user-1",
+    });
+
+    expect(designMd).toBeNull();
   });
 
   it("prepends design.md to descriptions without duplicating existing links", async () => {
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/user-design.md",
-      }),
+    getMyEffectiveDesignMdMock.mockResolvedValue({
+      data: {
+        designMd: {
+          label: "DESIGN.md",
+          url: "https://blob.example/user-design.md",
+        },
+      },
     });
 
     const { designMdService } = await import("../design-md.service");
@@ -398,9 +416,8 @@ describe("designMdService", () => {
 
   it("does not duplicate design.md links when the url needs markdown escaping", async () => {
     const designMdUrl = "https://blob.example/user-design).md";
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: JSON.stringify({ designMdUrl }),
+    getMyEffectiveDesignMdMock.mockResolvedValue({
+      data: { designMd: { label: "DESIGN.md", url: designMdUrl } },
     });
 
     const { designMdService } = await import("../design-md.service");

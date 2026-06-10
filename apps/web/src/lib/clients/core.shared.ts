@@ -102,6 +102,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getUsersByIdCredits as coreGetUsersByIdCredits,
+  getUsersByIdEffectiveDesignMd as coreGetUsersByIdEffectiveDesignMd,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
@@ -1226,6 +1227,25 @@ export function createCoreClient(getClient: GetClient) {
     }
   }
 
+  /**
+   * Resolves the DESIGN.md attachment currently in effect for the current user.
+   * When `organizationId` is supplied and the user is a member, the
+   * organization's DESIGN.md takes precedence over the user's own.
+   */
+  async function getMyEffectiveDesignMd(organizationId?: null | string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdEffectiveDesignMd({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          query: organizationId ? { organizationId } : undefined,
+          cache: "no-store",
+        }),
+      "Failed to resolve effective DESIGN.md",
+    );
+  }
+
   async function getHermesInstance() {
     return executeOperation(
       getClient,
@@ -1824,6 +1844,7 @@ export function createCoreClient(getClient: GetClient) {
     getJobs,
     getInvitationById,
     getMyCredits,
+    getMyEffectiveDesignMd,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyOrganizations,

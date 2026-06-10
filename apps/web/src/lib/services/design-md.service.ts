@@ -29,6 +29,7 @@ import {
   isAllowedDesignMdBlobUrl,
   uploadDesignMdToBlob,
 } from "@/lib/blob/design-md";
+import { coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
@@ -40,8 +41,6 @@ import {
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
 } from "@/lib/utils/task-attachments";
-
-const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
 
 type DesignMdServiceErrorCode =
   | "bad_input"
@@ -427,43 +426,11 @@ export const designMdService = (() => {
 
   async function resolveEffectiveDesignMd({
     activeOrganizationId,
-    userId,
   }: ResolveEffectiveDesignMdInput): Promise<EffectiveDesignMdAttachment | null> {
-    if (activeOrganizationId) {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        activeOrganizationId,
-        prisma,
-      );
+    const { data } =
+      await coreClient.getMyEffectiveDesignMd(activeOrganizationId);
 
-      if (member) {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            activeOrganizationId,
-            prisma,
-          );
-        const organizationDesignMdUrl = getOrganizationMetadata(
-          organization?.metadata,
-        ).designMdUrl;
-
-        if (organizationDesignMdUrl) {
-          return {
-            label: DESIGN_MD_ATTACHMENT_LABEL,
-            url: organizationDesignMdUrl,
-          };
-        }
-      }
-    }
-
-    const user = await userRepository.getUserById(userId, prisma);
-    const userDesignMdUrl = getUserMetadata(user?.metadata).designMdUrl;
-
-    if (!userDesignMdUrl) return null;
-
-    return {
-      label: DESIGN_MD_ATTACHMENT_LABEL,
-      url: userDesignMdUrl,
-    };
+    return data.designMd;
   }
 
   async function appendDesignMdToDescription(
