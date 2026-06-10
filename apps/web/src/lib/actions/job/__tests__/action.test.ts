@@ -52,6 +52,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 const patchJobMock = vi.fn();
+const provideJobInputCoreMock = vi.fn();
 const requestJobRefundMock = vi.fn();
 const createAgentJobMock = vi.fn();
 const getAgentByIdMock = vi.fn();
@@ -77,6 +78,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     getAgentById: (...args: unknown[]) => getAgentByIdMock(...args),
     getMyCredits: (...args: unknown[]) => getMyCreditsMock(...args),
     patchJob: (...args: unknown[]) => patchJobMock(...args),
+    provideJobInput: (...args: unknown[]) => provideJobInputCoreMock(...args),
     requestJobRefund: (...args: unknown[]) => requestJobRefundMock(...args),
   },
   toCoreApiActionError: (...args: unknown[]) =>
@@ -829,6 +831,75 @@ describe("requestRefundJob", () => {
         message: "Job not found",
         code: JobErrorCode.JOB_NOT_FOUND,
       },
+    });
+  });
+});
+
+describe("provideJobInput", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("submits input through the core client and returns the job id", async () => {
+    provideJobInputCoreMock.mockResolvedValue({
+      data: { id: "input-1", input: "{}", inputHash: "h", signature: "s" },
+    });
+
+    const { provideJobInput } = await import("../action");
+    const result = await provideJobInput({
+      input: {
+        jobId: "job-1",
+        eventId: "event-1",
+        inputData: { answer: "8" },
+      },
+    });
+
+    expect(provideJobInputCoreMock).toHaveBeenCalledWith("job-1", {
+      eventId: "event-1",
+      inputData: { answer: "8" },
+    });
+    expect(result).toEqual({ ok: true, data: { jobId: "job-1" } });
+  });
+
+  it("returns BAD_INPUT and skips core for input it cannot narrow", async () => {
+    const { provideJobInput } = await import("../action");
+    const result = await provideJobInput({
+      input: {
+        jobId: "job-1",
+        eventId: "event-1",
+        inputData: { attachment: new File(["x"], "x.txt") },
+      },
+    });
+
+    expect(provideJobInputCoreMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: { message: "Bad Input", code: CommonErrorCode.BAD_INPUT },
+    });
+  });
+
+  it("maps a core request error to an action error", async () => {
+    provideJobInputCoreMock.mockRejectedValue(
+      new MockCoreApiRequestError("not found", { status: 404 }),
+    );
+    toCoreApiActionErrorMock.mockReturnValue({
+      code: CommonErrorCode.NOT_FOUND,
+      message: "not found",
+    });
+
+    const { provideJobInput } = await import("../action");
+    const result = await provideJobInput({
+      input: {
+        jobId: "job-1",
+        eventId: "event-1",
+        inputData: { answer: "8" },
+      },
+    });
+
+    expect(toCoreApiActionErrorMock).toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      error: { code: CommonErrorCode.NOT_FOUND, message: "not found" },
     });
   });
 });

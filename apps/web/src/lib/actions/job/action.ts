@@ -564,12 +564,21 @@ export const provideJobInput = withSession<
         },
       });
 
-      // Call service to provide job input
-      const { job } = await jobService.provideJobInput({
-        jobId,
+      // Narrow input to the value union core accepts (files were already
+      // uploaded client-side and replaced with references).
+      const coreInputData = toCoreJobInputData(inputData);
+      if (!coreInputData) {
+        return Err({
+          message: "Bad Input",
+          code: CommonErrorCode.BAD_INPUT,
+        });
+      }
+
+      // Provide job input through core (ownership + agent call + input write
+      // are enforced there; the caller revalidates via router.refresh()).
+      await coreClient.provideJobInput(jobId, {
         eventId,
-        userId,
-        inputData,
+        inputData: coreInputData,
       });
 
       // Add success breadcrumb
@@ -578,14 +587,12 @@ export const provideJobInput = withSession<
         message: "Job input submitted successfully",
         level: "info",
         data: {
-          jobId: job.id,
+          jobId,
           eventId,
-          agentId: job.agentId,
         },
       });
 
-      revalidatePath(`/agents/${job.agentId}/jobs/${job.id}`, "layout");
-      return Ok({ jobId: job.id });
+      return Ok({ jobId });
     } catch (error) {
       scope.setTag("error_type", "job_input_submission_error");
       scope.setContext("error", {
@@ -601,6 +608,10 @@ export const provideJobInput = withSession<
           },
         },
       });
+
+      if (error instanceof CoreApiRequestError) {
+        return Err(toCoreApiActionError(error));
+      }
 
       if (isJobError(error)) {
         return Err({
