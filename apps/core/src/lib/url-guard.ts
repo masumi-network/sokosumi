@@ -1,9 +1,12 @@
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { lookup as dnsLookup } from "node:dns";
+import http, { type IncomingMessage } from "node:http";
+import https from "node:https";
+import { BlockList, isIP, type LookupFunction } from "node:net";
 
 /**
  * Maximum number of HTTP redirects {@link ssrfSafeFetch} will follow before
- * giving up. Each hop is re-validated, so this only bounds redirect chains.
+ * giving up. Each hop is re-validated and re-pinned, so this only bounds the
+ * length of redirect chains.
  */
 export const MAX_SSRF_FETCH_REDIRECTS = 5;
 
@@ -18,73 +21,34 @@ export class SsrfError extends Error {
   }
 }
 
-function parseIpv4(ip: string): [number, number, number, number] | null {
-  const parts = ip.split(".");
-  if (parts.length !== 4) {
-    return null;
-  }
-
-  const octets = parts.map((part) => {
-    // Reject empty, signs, whitespace, or non-decimal forms that Number() would
-    // otherwise coerce (e.g. "0x7f", "", " 1").
-    if (!/^\d+$/.test(part)) {
-      return Number.NaN;
-    }
-    return Number(part);
-  });
-
-  if (octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
-    return null;
-  }
-
-  return octets as [number, number, number, number];
-}
-
 /**
- * Returns true for IPv4 addresses that must never be reachable from a
- * server-side fetch driven by untrusted input: loopback, RFC1918 private,
- * link-local (incl. the cloud metadata endpoint 169.254.169.254), carrier-grade
- * NAT, "this host", and multicast/reserved/broadcast ranges.
+ * IP ranges that must never be reachable from a server-side fetch driven by
+ * untrusted input. `BlockList` parses and normalizes addresses, so this is
+ * immune to non-canonical spellings (e.g. `0:0:0:0:0:0:0:1`, IPv4-mapped or
+ * hex IPv6 forms) that string comparison would miss.
  */
-function isDisallowedIpv4(ip: string): boolean {
-  const octets = parseIpv4(ip);
-  if (!octets) {
-    return false;
-  }
+const blockedRanges: BlockList = (() => {
+  const list = new BlockList();
 
-  const [a, b] = octets;
+  // IPv4
+  list.addSubnet("0.0.0.0", 8, "ipv4"); // "this host" / unspecified
+  list.addSubnet("10.0.0.0", 8, "ipv4"); // private
+  list.addSubnet("100.64.0.0", 10, "ipv4"); // carrier-grade NAT
+  list.addSubnet("127.0.0.0", 8, "ipv4"); // loopback
+  list.addSubnet("169.254.0.0", 16, "ipv4"); // link-local (incl. 169.254.169.254)
+  list.addSubnet("172.16.0.0", 12, "ipv4"); // private
+  list.addSubnet("192.168.0.0", 16, "ipv4"); // private
+  list.addSubnet("224.0.0.0", 4, "ipv4"); // multicast
+  list.addSubnet("240.0.0.0", 4, "ipv4"); // reserved (incl. 255.255.255.255)
 
-  if (a === 0) return true; // 0.0.0.0/8 "this host"
-  if (a === 10) return true; // 10.0.0.0/8 private
-  if (a === 127) return true; // 127.0.0.0/8 loopback
-  if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local (metadata)
-  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private
-  if (a === 192 && b === 168) return true; // 192.168.0.0/16 private
-  if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 CGNAT
-  if (a >= 224) return true; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved + 255.255.255.255
+  // IPv6
+  list.addAddress("::", "ipv6"); // unspecified
+  list.addAddress("::1", "ipv6"); // loopback
+  list.addSubnet("fe80::", 10, "ipv6"); // link-local
+  list.addSubnet("fc00::", 7, "ipv6"); // unique-local
 
-  return false;
-}
-
-/**
- * Returns true for IPv6 addresses that must never be reachable: unspecified,
- * loopback, link-local (fe80::/10), unique-local (fc00::/7), and IPv4-mapped
- * addresses that wrap a disallowed IPv4 address.
- */
-function isDisallowedIpv6(ip: string): boolean {
-  const addr = ip.toLowerCase();
-
-  const mapped = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(addr);
-  if (mapped) {
-    return isDisallowedIpv4(mapped[1]);
-  }
-
-  if (addr === "::" || addr === "::1") return true; // unspecified + loopback
-  if (/^fe[89ab]/.test(addr)) return true; // fe80::/10 link-local
-  if (/^f[cd]/.test(addr)) return true; // fc00::/7 unique-local
-
-  return false;
-}
+  return list;
+})();
 
 /**
  * Returns true when `ip` (a numeric IP literal) must not be fetched. Anything
@@ -92,28 +56,44 @@ function isDisallowedIpv6(ip: string): boolean {
  */
 export function isDisallowedIp(ip: string): boolean {
   const version = isIP(ip);
-  if (version === 4) {
-    return isDisallowedIpv4(ip);
+  if (version === 0) {
+    return true;
   }
-  if (version === 6) {
-    return isDisallowedIpv6(ip);
+
+  const type = version === 4 ? "ipv4" : "ipv6";
+  if (blockedRanges.check(ip, type)) {
+    return true;
   }
-  return true;
+
+  // An IPv4-mapped IPv6 address (e.g. ::ffff:127.0.0.1) must also be checked
+  // against the IPv4 ranges; BlockList does this when asked for "ipv4".
+  if (version === 6 && blockedRanges.check(ip, "ipv4")) {
+    return true;
+  }
+
+  return false;
+}
+
+/** Strip the brackets Node keeps around IPv6 hostnames (e.g. "[::1]"). */
+function stripBrackets(host: string): string {
+  return host.replace(/^\[|\]$/g, "");
 }
 
 /**
- * Validates that `rawUrl` is an http(s) URL whose host resolves only to public
- * IP addresses, and returns the parsed {@link URL}.
+ * Validates that `rawUrl` is an http(s) URL and, if its host is an IP literal,
+ * that the literal is not private/loopback/link-local. Returns the parsed
+ * {@link URL}.
  *
- * Defends against SSRF: a hostname literal is checked directly, otherwise the
- * host is resolved via DNS and rejected if ANY resolved address is private,
- * loopback, link-local, or otherwise non-public (DNS-rebinding safe at the
- * point of validation).
+ * Hostnames are intentionally NOT resolved here: the authoritative protection
+ * for hostnames is the pinned {@link guardedLookup} used by
+ * {@link ssrfSafeFetch}, which resolves and validates the host at connect time
+ * (so the validated address is the connected address, with no rebinding
+ * window). This function only performs the cheap, DNS-free checks.
  *
- * @throws {SsrfError} when the URL is malformed, not http(s), or resolves to a
- *   disallowed address.
+ * @throws {SsrfError} when the URL is malformed, not http(s), or has a
+ *   disallowed IP-literal host.
  */
-export async function assertPublicHttpUrl(rawUrl: string): Promise<URL> {
+export function assertPublicHttpUrl(rawUrl: string): URL {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -125,45 +105,133 @@ export async function assertPublicHttpUrl(rawUrl: string): Promise<URL> {
     throw new SsrfError(`Unsupported URL scheme: ${url.protocol}`);
   }
 
-  // `hostname` keeps the brackets around IPv6 literals (e.g. "[::1]"); strip
-  // them so the value can be recognized as an IP literal.
-  const host = url.hostname.replace(/^\[|\]$/g, "");
-
-  if (isIP(host)) {
-    if (isDisallowedIp(host)) {
-      throw new SsrfError(`URL host resolves to a non-public address: ${host}`);
-    }
-    return url;
-  }
-
-  let resolved: { address: string }[];
-  try {
-    resolved = await lookup(host, { all: true });
-  } catch {
-    throw new SsrfError(`Unable to resolve host: ${host}`);
-  }
-
-  if (resolved.length === 0) {
-    throw new SsrfError(`Host did not resolve to any address: ${host}`);
-  }
-
-  for (const { address } of resolved) {
-    if (isDisallowedIp(address)) {
-      throw new SsrfError(
-        `URL host resolves to a non-public address: ${host} -> ${address}`,
-      );
-    }
+  const host = stripBrackets(url.hostname);
+  if (isIP(host) && isDisallowedIp(host)) {
+    throw new SsrfError(`URL host is a non-public address: ${host}`);
   }
 
   return url;
 }
 
 /**
- * Performs a `fetch` that is hardened against SSRF. Every URL — the initial one
- * and each redirect hop — is validated with {@link assertPublicHttpUrl} before
- * a request is made, defeating both direct internal targets and redirect- or
- * rebind-to-internal attacks. Redirects are followed manually up to
- * {@link MAX_SSRF_FETCH_REDIRECTS}.
+ * A `dns.lookup`-compatible function that rejects resolution if ANY resolved
+ * address is non-public. Passed to the HTTP(S) agent so the address that is
+ * validated is the exact address the socket connects to — eliminating the
+ * DNS-rebinding window between validation and connection.
+ */
+export const guardedLookup: LookupFunction = (hostname, options, callback) => {
+  const family = typeof options === "number" ? options : options.family;
+  const wantAll = typeof options === "object" && options.all === true;
+
+  dnsLookup(
+    hostname,
+    { all: true, verbatim: true, ...(family ? { family } : {}) },
+    (error, addresses) => {
+      if (error) {
+        callback(error, "", 0);
+        return;
+      }
+
+      if (addresses.length === 0) {
+        callback(
+          new SsrfError(`Host did not resolve to any address: ${hostname}`),
+          "",
+          0,
+        );
+        return;
+      }
+
+      for (const { address } of addresses) {
+        if (isDisallowedIp(address)) {
+          callback(
+            new SsrfError(
+              `Host resolves to a non-public address: ${hostname} -> ${address}`,
+            ),
+            "",
+            0,
+          );
+          return;
+        }
+      }
+
+      if (wantAll) {
+        // The `all` overload's callback receives the address array.
+        (
+          callback as unknown as (
+            err: Error | null,
+            a: typeof addresses,
+          ) => void
+        )(null, addresses);
+        return;
+      }
+
+      callback(null, addresses[0].address, addresses[0].family);
+    },
+  );
+};
+
+function headersFrom(message: IncomingMessage): Headers {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(message.headers)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        headers.append(key, item);
+      }
+    } else if (value !== undefined) {
+      headers.set(key, value);
+    }
+  }
+  return headers;
+}
+
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
+
+/**
+ * Performs a single GET request with the connection pinned to a validated IP
+ * via {@link guardedLookup}. Buffers the response into a {@link Response}.
+ */
+function guardedRequest(url: URL, init: RequestInit): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const transport = url.protocol === "https:" ? https : http;
+    const request = transport.request(
+      url,
+      {
+        method: "GET",
+        lookup: guardedLookup,
+        signal: init.signal ?? undefined,
+      },
+      (message) => {
+        const chunks: Buffer[] = [];
+        message.on("data", (chunk: Buffer) => chunks.push(chunk));
+        message.on("end", () => {
+          const status = message.statusCode ?? 502;
+          const body = NULL_BODY_STATUSES.has(status)
+            ? null
+            : Buffer.concat(chunks);
+          resolve(
+            new Response(body, {
+              status,
+              statusText: message.statusMessage ?? "",
+              headers: headersFrom(message),
+            }),
+          );
+        });
+        message.on("error", reject);
+      },
+    );
+
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+/**
+ * Performs a `fetch`-like GET that is hardened against SSRF. Every URL — the
+ * initial one and each redirect hop — is validated with
+ * {@link assertPublicHttpUrl}, and the underlying connection is pinned to a
+ * re-validated IP via {@link guardedLookup}, defeating direct internal targets,
+ * redirect-to-internal, and DNS-rebinding attacks. Redirects are followed
+ * manually up to {@link MAX_SSRF_FETCH_REDIRECTS}.
  *
  * @throws {SsrfError} when any hop fails validation or the redirect limit is hit.
  */
@@ -174,9 +242,9 @@ export async function ssrfSafeFetch(
   let currentUrl = rawUrl;
 
   for (let hop = 0; hop <= MAX_SSRF_FETCH_REDIRECTS; hop += 1) {
-    await assertPublicHttpUrl(currentUrl);
+    const url = assertPublicHttpUrl(currentUrl);
 
-    const response = await fetch(currentUrl, { ...init, redirect: "manual" });
+    const response = await guardedRequest(url, init);
 
     const location = response.headers.get("location");
     const isRedirect =
