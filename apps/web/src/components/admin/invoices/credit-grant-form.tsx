@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -56,28 +56,12 @@ function countDecimals(value: number): number {
   return dotIndex === -1 ? 0 : text.length - dotIndex - 1;
 }
 
-function formatPricePerCredit(
-  amountPerCredit: number,
-  currency: string,
-  fractionDigits: number,
-): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: fractionDigits,
-      maximumFractionDigits: fractionDigits,
-    }).format(amountPerCredit / 100);
-  } catch {
-    return `${(amountPerCredit / 100).toFixed(fractionDigits)} ${currency.toUpperCase()}`;
-  }
-}
-
 export function CreditGrantForm({ prices }: CreditGrantFormProps) {
   const t = useTranslations("App.Admin.CreditGrants");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
   const router = useRouter();
+  const formatter = useFormatter();
   const defaultPriceId = prices[0]?.id ?? "";
   // Pad every price to the same number of decimals so the values line up in
   // the dropdown (combined with tabular-nums on render).
@@ -218,11 +202,12 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
             {prices.map((price) => (
               <SelectItem key={price.id} value={price.id}>
                 <span className="tabular-nums">
-                  {formatPricePerCredit(
-                    price.amountPerCredit,
-                    price.currency,
-                    priceFractionDigits,
-                  )}
+                  {formatter.number(price.amountPerCredit / 100, {
+                    style: "currency",
+                    currency: price.currency.toUpperCase(),
+                    minimumFractionDigits: priceFractionDigits,
+                    maximumFractionDigits: priceFractionDigits,
+                  })}
                 </span>
                 {price.nickname ? (
                   <span className="text-muted-foreground">

@@ -2666,8 +2666,6 @@
           "loadError": "Failed to load invoice"
         },
         "InvoiceList": {
-          "title": "Invoices",
-          "description": "Credit-grant invoices, most recent first. Defaults to unfinished (draft and open); use the filters to view other statuses or a specific recipient.",
           "empty": "No credit-grant invoices match the current filters.",
           "loadError": "Failed to load invoices",
           "recipient": "Recipient",

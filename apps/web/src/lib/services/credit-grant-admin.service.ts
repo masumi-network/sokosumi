@@ -654,7 +654,12 @@ export const creditGrantAdminService = (() => {
         );
       }
 
-      const target = await resolveInvoiceTarget(existing);
+      // Target resolution and the account-id lookup are independent reads —
+      // run them concurrently.
+      const [target, accountId] = await Promise.all([
+        resolveInvoiceTarget(existing),
+        stripeClient.getAccountId(),
+      ]);
 
       // A non-zero invoice still open is marked paid out of band; a $0 invoice
       // is already "paid" on finalization, so we skip the pay call there.
@@ -665,16 +670,11 @@ export const creditGrantAdminService = (() => {
 
       await grantCreditsForPaidInvoice(paidInvoice, target);
 
-      const credits = Number(paidInvoice.metadata?.credits ?? 0);
-      const ttlDaysRaw = paidInvoice.metadata?.ttl_days;
-      const ttlDays = ttlDaysRaw ? Number(ttlDaysRaw) : null;
-
-      const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         paidInvoice,
         target,
-        Number.isFinite(credits) ? credits : 0,
-        ttlDays !== null && Number.isFinite(ttlDays) ? ttlDays : null,
+        parseMetadataNumber(paidInvoice.metadata?.credits, 0) ?? 0,
+        parseMetadataNumber(paidInvoice.metadata?.ttl_days, null),
         accountId,
       );
     },

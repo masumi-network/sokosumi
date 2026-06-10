@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,24 +14,11 @@ interface CreditGrantInvoiceDetailProps {
   invoice: CreditGrantInvoiceSummary;
 }
 
-function formatCurrency(minorUnits: number, currency: string): string {
-  if (!currency) {
-    return String(minorUnits);
-  }
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-    }).format(minorUnits / 100);
-  } catch {
-    return `${(minorUnits / 100).toFixed(2)} ${currency.toUpperCase()}`;
-  }
-}
-
 export function CreditGrantInvoiceDetail({
   invoice: initialInvoice,
 }: CreditGrantInvoiceDetailProps) {
   const t = useTranslations("App.Admin.CreditGrants");
+  const formatter = useFormatter();
   const [invoice, setInvoice] =
     useState<CreditGrantInvoiceSummary>(initialInvoice);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
@@ -91,7 +78,12 @@ export function CreditGrantInvoiceDetail({
             {t("Result.amount")}
           </dt>
           <dd className="text-sm font-medium">
-            {formatCurrency(invoice.amountDue, invoice.currency)}
+            {invoice.currency
+              ? formatter.number(invoice.amountDue / 100, {
+                  style: "currency",
+                  currency: invoice.currency.toUpperCase(),
+                })
+              : invoice.amountDue}
           </dd>
         </div>
         <div className="space-y-1">
