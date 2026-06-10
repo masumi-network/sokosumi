@@ -17,13 +17,13 @@ import {
   saveDesignMdUploadSchema,
   startDesignMdGenerationSchema,
 } from "@/lib/schemas/design-md";
-import { organizationService } from "@/lib/services/organization.service";
 import {
   DesignMdServiceError,
   designMdService,
   type PersistedDesignMd,
   type StartDesignMdGenerationResult,
 } from "@/lib/services/design-md.service";
+import { organizationService } from "@/lib/services/organization.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,

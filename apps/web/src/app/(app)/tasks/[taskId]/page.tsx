@@ -1,4 +1,4 @@
-import type { SubscriptionPlanName } from "@sokosumi/utils";
+import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -354,7 +354,7 @@ async function TaskActivitySectionContent({
   task: Task;
   agentsPromise: Promise<AgentsResult>;
   sessionPromise: Promise<SessionResult>;
-  currentPlanPromise: Promise<SubscriptionPlanName>;
+  currentPlanPromise: Promise<OrganizationBillingPlanName>;
 }) {
   const [agents, session, currentPlan, t] = await Promise.all([
     agentsPromise,
@@ -415,7 +415,7 @@ async function TaskActivitySectionContent({
 async function getCurrentPlan(
   session: SessionResult,
   organizationId: string | null,
-): Promise<SubscriptionPlanName> {
+): Promise<OrganizationBillingPlanName> {
   if (!session) {
     return "free";
   }

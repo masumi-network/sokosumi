@@ -1,14 +1,11 @@
 import "server-only";
 
-import { getUnusedSeatCount } from "@sokosumi/database/helpers";
 import type { OrganizationBillingPlan } from "@sokosumi/database/helpers";
+import { getUnusedSeatCount } from "@sokosumi/database/helpers";
 import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
-import {
-  CoreApiRequestError,
-  coreClient,
-} from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 
 export interface OrganizationSeatSummary {

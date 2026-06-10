@@ -14,7 +14,7 @@ import { cache } from "react";
 import { mapCoreJobSummaryToJobWithSokosumiStatus } from "@/lib/agents/core-dto-mappers";
 import { auth, type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
-import { coreClient, CoreApiRequestError } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 
 function mapCoreOrganizationToOrganizationWithRelations(

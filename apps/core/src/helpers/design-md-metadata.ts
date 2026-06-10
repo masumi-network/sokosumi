@@ -1,3 +1,4 @@
+import { buildDesignMdPreviewUrl } from "@sokosumi/masumi/tools";
 import {
   buildOrganizationMetadataWithDesignMd,
   buildUserMetadataWithDesignMd,
@@ -7,7 +8,6 @@ import {
   parseUserMetadata,
   serializeMetadataRecord,
 } from "@sokosumi/utils";
-import { buildDesignMdPreviewUrl } from "@sokosumi/masumi/tools";
 
 export interface DesignMdMetadata {
   extractionId: string | null;

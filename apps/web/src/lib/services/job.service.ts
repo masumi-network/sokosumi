@@ -12,7 +12,7 @@ import {
   mapCoreJobToJobWithSokosumiStatus,
 } from "@/lib/agents/core-dto-mappers";
 import { getSession } from "@/lib/auth/utils";
-import { coreClient, CoreApiRequestError } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { getJobStatusData } from "@/lib/helpers/job";
 import type {
   JobStatusResponseSchemaType,

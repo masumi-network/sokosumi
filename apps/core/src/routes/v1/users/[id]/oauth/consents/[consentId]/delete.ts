@@ -57,15 +57,15 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     });
 
     if (!consent) {
-      notFound("Consent not found");
+      throw notFound("Consent not found");
     }
 
     if (consent.userId !== resolvedUserId) {
-      forbidden("You can only revoke your own OAuth consents");
+      throw forbidden("You can only revoke your own OAuth consents");
     }
 
     if (consent.clientId !== clientId) {
-      badRequest("Client ID does not match the consent");
+      throw badRequest("Client ID does not match the consent");
     }
 
     await prisma.$transaction(async (tx) => {

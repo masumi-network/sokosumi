@@ -38,7 +38,7 @@ async function ensureCanManageSeatAssignments(
     !member ||
     (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN)
   ) {
-    forbidden(
+    throw forbidden(
       "Only organization owners and admins can manage seat assignments",
     );
   }
@@ -50,11 +50,11 @@ function mapSeatRepositoryError(error: unknown): never {
   }
 
   if (error.message === "Member not found") {
-    notFound("Member not found");
+    throw notFound("Member not found");
   }
 
   if (error.message.includes("exceeds purchased seats")) {
-    badRequest(
+    throw badRequest(
       "No unused seats available. Purchase more seats or unassign another member.",
     );
   }
@@ -134,7 +134,7 @@ export async function assignOrganizationMemberSeat(params: {
       );
 
       if (!member.seatAssignedAt) {
-        internalServerError("Failed to assign seat");
+        throw internalServerError("Failed to assign seat");
       }
 
       const suppressSelfServeSeatCredits =

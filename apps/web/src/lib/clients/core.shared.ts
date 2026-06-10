@@ -92,9 +92,11 @@ import {
   getJobsById as coreGetJobsById,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
+  getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
+  getOrganizationsByIdSubscriptionChangeAllowed as coreGetOrganizationsByIdSubscriptionChangeAllowed,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -108,14 +110,17 @@ import {
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOnboarding as coreGetUsersByIdOnboarding,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
+  getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
+  getUsersByIdSubscriptionChangeAllowed as coreGetUsersByIdSubscriptionChangeAllowed,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
+  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdDemoJobs as corePostAgentsByIdDemoJobs,
@@ -137,13 +142,13 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postProjects as corePostProjects,
-  postUsersByIdOnboarding as corePostUsersByIdOnboarding,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdOnboarding as corePostUsersByIdOnboarding,
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
@@ -733,6 +738,79 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization Stripe customer",
+    );
+  }
+
+  async function getOrganizationBillingPlan(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdBillingPlan({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization billing plan",
+    );
+  }
+
+  async function getOrganizationCredits(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdOrganizationsByOrganizationIdCredits({
+          client,
+          path: {
+            id: CURRENT_USER_PATH_ID,
+            organizationId,
+          },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credits",
+    );
+  }
+
+  async function getOrganizationSubscriptionChangeAllowed(
+    organizationId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionChangeAllowed({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to verify organization subscription change eligibility",
+    );
+  }
+
+  async function getPersonalSubscriptionChangeAllowed() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdSubscriptionChangeAllowed({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to verify personal subscription change eligibility",
+    );
+  }
+
+  async function patchOrganizationInvoiceEmail(
+    organizationId: string,
+    invoiceEmail: string | null,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchOrganizationsByIdInvoiceEmail({
+          client,
+          path: { id: organizationId },
+          body: { invoiceEmail },
+        }),
+      "Failed to update organization invoice email",
     );
   }
 
@@ -2074,6 +2152,15 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function revokeOAuthConsent(consentId: string, clientId: string) {
+    const searchParams = new URLSearchParams({ clientId });
+    await requestCoreApiDelete(
+      getClient,
+      `/users/me/oauth/consents/${encodeURIComponent(consentId)}?${searchParams.toString()}`,
+      "Failed to revoke OAuth consent",
+    );
+  }
+
   return {
     activateEnterpriseContract,
     assignOrganizationMemberSeat,
@@ -2149,9 +2236,13 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     getMyPendingInvitations,
     getMyStripeCustomer,
+    getPersonalSubscriptionChangeAllowed,
+    getOrganizationBillingPlan,
     getOrganizationById,
+    getOrganizationCredits,
     getOrganizationDesignMd,
     getOrganizationMembers,
+    getOrganizationSubscriptionChangeAllowed,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,
     getPendingNotices,
@@ -2167,12 +2258,14 @@ export function createCoreClient(getClient: GetClient) {
     patchMyDesignMd,
     patchMyPreferredOrganization,
     patchOrganizationDesignMd,
+    patchOrganizationInvoiceEmail,
     patchProjectsById,
     postProjects,
     postProjectsByIdJobs,
     postProjectsByIdTasks,
     provisionHermesInstance,
     requestJobRefund,
+    revokeOAuthConsent,
     setHermesSecret,
     getTaskById,
     getTaskLinks,

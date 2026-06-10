@@ -6,16 +6,16 @@ import * as z from "zod";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
+  type OrganizationInformationFormSchemaType,
+  organizationInformationFormSchema,
+} from "@/lib/schemas";
+import {
   type BulkInviteResultRow,
   organizationService,
 } from "@/lib/services/organization.service";
 import { preferredOrganizationService } from "@/lib/services/preferred-organization.service";
 import { stripeService } from "@/lib/services/stripe.service";
 import { userService } from "@/lib/services/user.service";
-import {
-  type OrganizationInformationFormSchemaType,
-  organizationInformationFormSchema,
-} from "@/lib/schemas";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,

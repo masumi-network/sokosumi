@@ -2,7 +2,7 @@ import "server-only";
 
 import type { OrganizationBillingPlan } from "@sokosumi/database/helpers";
 import { OrganizationSubscriptionExclusivityError } from "@sokosumi/database/helpers";
-import type { SubscriptionPlanName } from "@sokosumi/utils";
+import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
@@ -34,7 +34,7 @@ export const billingService = (() => {
 
   async function getCurrentPlanName(
     organizationId: string | null,
-  ): Promise<SubscriptionPlanName> {
+  ): Promise<OrganizationBillingPlanName> {
     if (organizationId) {
       const billingPlan = await getOrganizationBillingPlan(organizationId);
       return billingPlan.plan;

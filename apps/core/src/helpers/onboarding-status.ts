@@ -1,8 +1,8 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   memberRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import type { Prisma } from "@sokosumi/database";
 
 export interface OnboardingStatus {
   show: boolean;
