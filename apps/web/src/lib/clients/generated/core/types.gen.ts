@@ -1412,6 +1412,13 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type StripeCustomer = {
+    /**
+     * Stripe customer id
+     */
+    stripeCustomerId: string | null;
+};
+
 export type User = {
     id: string;
     createdAt: Date;
@@ -11071,6 +11078,105 @@ export type PostUsersByIdUtmAttributionResponses = {
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
+export type GetUsersByIdStripeCustomerData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/stripe-customer';
+};
+
+export type GetUsersByIdStripeCustomerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdStripeCustomerError = GetUsersByIdStripeCustomerErrors[keyof GetUsersByIdStripeCustomerErrors];
+
+export type GetUsersByIdStripeCustomerResponses = {
+    /**
+     * The user's Stripe customer id (null when not provisioned)
+     */
+    200: {
+        data: StripeCustomer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdStripeCustomerResponse = GetUsersByIdStripeCustomerResponses[keyof GetUsersByIdStripeCustomerResponses];
+
 export type GetUsersByIdData = {
     body?: never;
     path: {
@@ -11495,6 +11601,91 @@ export type GetOrganizationEnterpriseContractSummaryResponses = {
 };
 
 export type GetOrganizationEnterpriseContractSummaryResponse = GetOrganizationEnterpriseContractSummaryResponses[keyof GetOrganizationEnterpriseContractSummaryResponses];
+
+export type GetOrganizationsByIdStripeCustomerData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/stripe-customer';
+};
+
+export type GetOrganizationsByIdStripeCustomerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdStripeCustomerError = GetOrganizationsByIdStripeCustomerErrors[keyof GetOrganizationsByIdStripeCustomerErrors];
+
+export type GetOrganizationsByIdStripeCustomerResponses = {
+    /**
+     * The organization's Stripe customer id (null when not provisioned)
+     */
+    200: {
+        data: StripeCustomer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdStripeCustomerResponse = GetOrganizationsByIdStripeCustomerResponses[keyof GetOrganizationsByIdStripeCustomerResponses];
 
 export type GetProjectsData = {
     body?: never;

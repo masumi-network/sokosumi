@@ -9,10 +9,10 @@ const createUserCustomerMock = vi.fn();
 const createOrganizationCustomerMock = vi.fn();
 const getUserByIdMock = vi.fn();
 const getOrganizationWithRelationsByIdMock = vi.fn();
-const userFindUniqueMock = vi.fn();
 const userUpdateMock = vi.fn();
-const organizationFindUniqueMock = vi.fn();
 const organizationUpdateMock = vi.fn();
+const getMyStripeCustomerMock = vi.fn();
+const getOrganizationStripeCustomerMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
@@ -52,13 +52,20 @@ vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
     organization: {
-      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
       update: (...args: unknown[]) => organizationUpdateMock(...args),
     },
     user: {
-      findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
       update: (...args: unknown[]) => userUpdateMock(...args),
     },
+  },
+}));
+
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getMyStripeCustomer: (...args: unknown[]) =>
+      getMyStripeCustomerMock(...args),
+    getOrganizationStripeCustomer: (...args: unknown[]) =>
+      getOrganizationStripeCustomerMock(...args),
   },
 }));
 
@@ -94,8 +101,8 @@ describe("stripeService.createStripeCheckoutSession", () => {
   });
 
   it("reuses the existing personal Stripe customer", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      stripeCustomerId: "cus_existing",
+    getMyStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: "cus_existing" },
     });
 
     const { stripeService } = await import("../stripe.service");
@@ -126,8 +133,8 @@ describe("stripeService.createStripeCheckoutSession", () => {
   });
 
   it("creates a personal Stripe customer when missing without persisting it", async () => {
-    userFindUniqueMock.mockResolvedValue({
-      stripeCustomerId: null,
+    getMyStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: null },
     });
     getUserByIdMock.mockResolvedValue({
       id: "user-1",
@@ -169,8 +176,8 @@ describe("stripeService.createStripeCheckoutSession", () => {
   });
 
   it("creates an organization Stripe customer when missing without persisting it", async () => {
-    organizationFindUniqueMock.mockResolvedValue({
-      stripeCustomerId: null,
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: null },
     });
     getOrganizationWithRelationsByIdMock.mockResolvedValue({
       id: "org-1",

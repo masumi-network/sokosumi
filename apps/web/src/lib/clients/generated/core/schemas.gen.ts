@@ -4696,6 +4696,23 @@ export const UtmAttributionRequestSchema = {
     ]
 } as const;
 
+export const StripeCustomerSchema = {
+    type: 'object',
+    properties: {
+        stripeCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cus_123',
+            description: 'Stripe customer id'
+        }
+    },
+    required: [
+        'stripeCustomerId'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {
