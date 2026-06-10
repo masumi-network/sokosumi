@@ -222,7 +222,7 @@ export async function requireTaskCollaboration(
   if (coworker.delegation) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
-    return await requireTaskOwnership(
+    const task = await requireTaskOwnership(
       {
         source: "delegation",
         userId: coworker.delegation.userId,
@@ -231,6 +231,14 @@ export async function requireTaskCollaboration(
       taskId,
       tx,
     );
+
+    // Delegation only authorizes collaboration on tasks assigned to this
+    // coworker — not every task the delegated user owns.
+    if (task.coworkerId !== coworker.coworkerId) {
+      throw forbidden("You can only act on tasks assigned to your coworker");
+    }
+
+    return task;
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
@@ -289,11 +297,18 @@ export async function requireTaskReadForRouteVars(
   if (coworker.delegation) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
-    return await requireTaskReadForWorkspace(
+    const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
     );
+
+    // Delegation only authorizes reads of tasks assigned to this coworker.
+    if (task.coworkerId !== coworker.coworkerId) {
+      throw forbidden("You can only access tasks assigned to your coworker");
+    }
+
+    return task;
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);

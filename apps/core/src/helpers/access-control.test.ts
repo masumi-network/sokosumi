@@ -291,6 +291,7 @@ describe("requireTaskReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      coworkerId: "cow_123",
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -351,6 +352,39 @@ describe("requireTaskReadForRouteVars", () => {
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
     expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker reading a task not assigned to it", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    // Task is in the delegated user's workspace but assigned to another coworker.
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_123", tx),
+    ).rejects.toThrow("You can only access tasks assigned to your coworker");
   });
 });
 
