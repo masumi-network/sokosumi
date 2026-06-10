@@ -13,6 +13,7 @@ vi.mock("@/config/env.js", () => ({
   getEnv: getEnvMock,
 }));
 
+vi.mock("./admin/index.js", () => ({ default: new Hono() }));
 vi.mock("./agents/index.js", () => ({ default: new Hono() }));
 vi.mock("./categories/index.js", () => ({ default: new Hono() }));
 vi.mock("./chat/index.js", () => ({ default: new Hono() }));
