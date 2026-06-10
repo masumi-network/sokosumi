@@ -1332,6 +1332,17 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
+export type EnterpriseContractBillingSummary = {
+    activatedAt: Date;
+    endsAt: Date;
+    currentPeriodEnd: Date | null;
+    isConsumable: boolean;
+    monthlyCredits: number | null;
+    nextActivationAt: Date | null;
+    poolRemainingCredits: number;
+    purchasedSeats: number;
+};
+
 export type ProjectListItem = Project & {
     taskCount: number;
     jobCount: number;
@@ -10216,6 +10227,78 @@ export type GetOrganizationsByIdMembersResponses = {
 };
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
+
+export type GetOrganizationEnterpriseContractSummaryData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/enterprise-contract-summary';
+};
+
+export type GetOrganizationEnterpriseContractSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found or not on an enterprise contract
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationEnterpriseContractSummaryError = GetOrganizationEnterpriseContractSummaryErrors[keyof GetOrganizationEnterpriseContractSummaryErrors];
+
+export type GetOrganizationEnterpriseContractSummaryResponses = {
+    /**
+     * Enterprise contract billing summary
+     */
+    200: {
+        data: EnterpriseContractBillingSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationEnterpriseContractSummaryResponse = GetOrganizationEnterpriseContractSummaryResponses[keyof GetOrganizationEnterpriseContractSummaryResponses];
 
 export type GetProjectsData = {
     body?: never;

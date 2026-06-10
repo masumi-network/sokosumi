@@ -141,11 +141,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const [enterpriseContractSummary, seatSummary, balanceInCents] =
       await Promise.all([
         isEnterpriseContract
-          ? getEnterpriseContractBillingSummary(
-              billingPlan,
-              activeOrganization.id,
-              prisma,
-            )
+          ? getEnterpriseContractBillingSummary(activeOrganization.id)
           : Promise.resolve(null),
         organizationSeatService.getSeatSummary(activeOrganization.id),
         isEnterpriseContract

@@ -478,12 +478,7 @@ describe("BillingPage", () => {
     );
 
     expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contractId: "contract-1",
-        mode: "enterprise_contract",
-      }),
       "org-enterprise",
-      expect.anything(),
     );
     expect(getBalanceMock).not.toHaveBeenCalled();
     expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
@@ -579,13 +574,7 @@ describe("BillingPage", () => {
     );
 
     expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contractId: "contract-1",
-        isConsumable: false,
-        mode: "enterprise_contract",
-      }),
       "org-enterprise-post-term",
-      expect.anything(),
     );
     expect(getBalanceMock).not.toHaveBeenCalled();
     expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
