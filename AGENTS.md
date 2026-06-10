@@ -5,8 +5,8 @@
 ## Tech Stack & Architecture
 
 **Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace, Node.js 24.x  
-**Web Architecture**: Three-layer pattern with repositories (`@sokosumi/database`) wrapping Prisma/Postgres, services (`src/lib/services/`) coordinating domain flows, and actions (`src/lib/actions/`) exposing typed server mutations
-**API Architecture**: Hono with OpenAPI validation and standardized response helpers
+**Web Architecture**: Three-layer pattern with services (`src/lib/services/`) coordinating domain flows and actions (`src/lib/actions/`) exposing typed server mutations. Web reaches data **only through the Core API** — it never touches Prisma/Postgres directly (see [Database Access](#database-access)).
+**API Architecture**: Hono with OpenAPI validation and standardized response helpers. Core owns all database access via repositories (`@sokosumi/database`) wrapping Prisma/Postgres.
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
 **Auth**: Better Auth with organization-aware sessions
 **i18n**: next-intl for internationalization
@@ -286,6 +286,16 @@ docs(readme): update setup instructions
 - **When logic is duplicated across apps** (e.g. core and web): move the implementation to a shared package (e.g. `packages/utils`) so there is a single source of truth; fix bugs and add features in one place.
 - **Prefer direct imports** from the shared package (`@sokosumi/utils`, `@sokosumi/database`, etc.). Do not add re-export-only layers—see [avoid re-exports](.cursor/rules/avoid-re-exports.mdc).
 - **`packages/utils`** holds framework-agnostic helpers (URL/file utilities, markdown link extraction, user-name helpers, client-safe billing types/parsers). Add new shared helpers here when multiple apps or packages would use them. Do not import `@sokosumi/database/helpers` from client components—see [utils vs database helpers](.cursor/rules/utils-vs-database.mdc).
+
+### Database Access
+
+> [!IMPORTANT]
+> **Direct database access from `apps/web` is forbidden.** All database reads and writes MUST be implemented in `apps/core` and exposed as Core API endpoints. The web app consumes data exclusively through the generated Core API client — never through Prisma, Postgres, or `@sokosumi/database` repositories.
+
+- **Forbidden in `apps/web`**: importing `@sokosumi/database` repositories/helpers, instantiating or calling the Prisma client, or issuing raw SQL. Web services (`src/lib/services/`) and actions (`src/lib/actions/`) coordinate domain flows but obtain their data by calling Core endpoints.
+- **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, backed by `@sokosumi/database` repositories, validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
+- **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
+- **Why**: a single owner for data access keeps authorization, validation, and schema invariants in one place, lets the web app stay a thin client, and removes Prisma/Postgres credentials from the web runtime.
 
 ### Code References
 
