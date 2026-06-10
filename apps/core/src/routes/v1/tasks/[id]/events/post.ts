@@ -52,8 +52,9 @@ function getActorData(authContext: AuthenticationContext) {
 
   // A delegated coworker acts on behalf of the user: attribute the event to the
   // delegated user, but keep the coworker that actually performed it so the
-  // audit trail shows "coworker X on behalf of user Y", not a forged
-  // user-only record. (See SOK-554: delegation is currently broad.)
+  // audit trail honestly shows "coworker X on behalf of user Y" rather than a
+  // user-only record. Delegation only reaches tasks assigned to this coworker
+  // (see SOK-554), so the recorded coworker is the task's assigned coworker.
   if (authContext.delegation) {
     return {
       userId: authContext.delegation.userId,
