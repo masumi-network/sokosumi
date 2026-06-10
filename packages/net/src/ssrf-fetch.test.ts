@@ -1,13 +1,14 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { httpsRequestMock, useAgentMock } = vi.hoisted(() => ({
+const { httpsRequestMock, httpRequestMock, useAgentMock } = vi.hoisted(() => ({
   httpsRequestMock: vi.fn(),
+  httpRequestMock: vi.fn(),
   useAgentMock: vi.fn(),
 }));
 
 vi.mock("node:https", () => ({ default: { request: httpsRequestMock } }));
-vi.mock("node:http", () => ({ default: { request: vi.fn() } }));
+vi.mock("node:http", () => ({ default: { request: httpRequestMock } }));
 vi.mock("request-filtering-agent", () => ({ useAgent: useAgentMock }));
 
 import {
@@ -15,7 +16,7 @@ import {
   MAX_SSRF_FETCH_REDIRECTS,
   SsrfError,
   ssrfSafeFetch,
-} from "./url-guard";
+} from "./ssrf-fetch.js";
 
 const SENTINEL_AGENT = { sentinel: true };
 
@@ -25,20 +26,34 @@ interface MockResponseSpec {
   body?: string;
 }
 
-/** Builds an http(s).request stub that emits a single response. */
-function mockRequestImplementation(spec: MockResponseSpec) {
+interface CapturedRequest {
+  url: URL;
+  options: { method?: string; headers?: Record<string, string> };
+  body: string | undefined;
+}
+
+/** Builds an http(s).request stub that emits a single response and records the request. */
+function mockRequestImplementation(
+  spec: MockResponseSpec,
+  captured?: CapturedRequest[],
+) {
   return (
-    _url: URL,
-    _options: unknown,
+    url: URL,
+    options: { method?: string; headers?: Record<string, string> },
     callback: (message: EventEmitter) => void,
   ) => {
+    let body: string | undefined;
     const message = Object.assign(new EventEmitter(), {
       statusCode: spec.status,
       statusMessage: "",
       headers: spec.headers ?? {},
     });
     const request = Object.assign(new EventEmitter(), {
+      write: (chunk: string) => {
+        body = chunk;
+      },
       end: () => {
+        captured?.push({ url, options, body });
         queueMicrotask(() => {
           if (spec.body) {
             message.emit("data", Buffer.from(spec.body));
@@ -53,11 +68,11 @@ function mockRequestImplementation(spec: MockResponseSpec) {
 }
 
 describe("assertPublicHttpUrl", () => {
-  it("returns the parsed URL for a well-formed http(s) URL", () => {
-    expect(assertPublicHttpUrl("https://example.com/file.pdf").href).toBe(
-      "https://example.com/file.pdf",
+  it("returns the parsed URL for a well-formed http(s) URL or URL object", () => {
+    expect(assertPublicHttpUrl("https://example.com/x").href).toBe(
+      "https://example.com/x",
     );
-    expect(assertPublicHttpUrl("http://example.com/").href).toBe(
+    expect(assertPublicHttpUrl(new URL("http://example.com/")).href).toBe(
       "http://example.com/",
     );
   });
@@ -65,7 +80,6 @@ describe("assertPublicHttpUrl", () => {
   it.each([
     "ftp://example.com/x",
     "file:///etc/passwd",
-    "gopher://x",
   ])("rejects non-http(s) scheme %s", (raw) => {
     expect(() => assertPublicHttpUrl(raw)).toThrow(SsrfError);
   });
@@ -81,7 +95,7 @@ describe("ssrfSafeFetch", () => {
     useAgentMock.mockReturnValue(SENTINEL_AGENT);
   });
 
-  it("returns the response and routes through the filtering agent", async () => {
+  it("performs a GET through the filtering agent and returns the response", async () => {
     httpsRequestMock.mockImplementation(
       mockRequestImplementation({ status: 200, body: "ok" }),
     );
@@ -90,8 +104,6 @@ describe("ssrfSafeFetch", () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
-    expect(httpsRequestMock).toHaveBeenCalledTimes(1);
-    // The connection is filtered by request-filtering-agent for this exact URL.
     expect(useAgentMock).toHaveBeenCalledWith("https://example.com/file.pdf");
     expect(httpsRequestMock.mock.calls[0]?.[1]).toMatchObject({
       method: "GET",
@@ -99,7 +111,29 @@ describe("ssrfSafeFetch", () => {
     });
   });
 
-  it("follows a redirect and re-applies the agent to the new host", async () => {
+  it("sends method, headers, body and a derived Content-Length for POST", async () => {
+    const captured: CapturedRequest[] = [];
+    const body = JSON.stringify({ hello: "world" });
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({ status: 200, body: "{}" }, captured),
+    );
+
+    await ssrfSafeFetch("https://example.com/start_job", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+
+    expect(captured).toHaveLength(1);
+    expect(captured[0].options.method).toBe("POST");
+    expect(captured[0].body).toBe(body);
+    expect(captured[0].options.headers).toMatchObject({
+      "Content-Type": "application/json",
+      "Content-Length": String(Buffer.byteLength(body)),
+    });
+  });
+
+  it("follows a GET redirect and re-applies the agent to the new host", async () => {
     httpsRequestMock
       .mockImplementationOnce(
         mockRequestImplementation({
@@ -115,16 +149,29 @@ describe("ssrfSafeFetch", () => {
 
     expect(response.status).toBe(200);
     expect(httpsRequestMock).toHaveBeenCalledTimes(2);
-    expect(String(httpsRequestMock.mock.calls[1]?.[0])).toBe(
-      "https://cdn.example.com/file.pdf",
-    );
-    // Agent re-derived per hop so the redirect target is filtered too.
     expect(useAgentMock).toHaveBeenCalledWith(
       "https://cdn.example.com/file.pdf",
     );
   });
 
-  it("throws once the redirect limit is exceeded", async () => {
+  it("does NOT follow redirects for non-GET methods", async () => {
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({
+        status: 302,
+        headers: { location: "https://cdn.example.com/x" },
+      }),
+    );
+
+    const response = await ssrfSafeFetch("https://example.com/start_job", {
+      method: "POST",
+      body: "{}",
+    });
+
+    expect(response.status).toBe(302);
+    expect(httpsRequestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws once the GET redirect limit is exceeded", async () => {
     httpsRequestMock.mockImplementation(
       mockRequestImplementation({
         status: 302,

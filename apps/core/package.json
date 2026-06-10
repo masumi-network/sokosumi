@@ -13,7 +13,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build:workspace-deps": "pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/database run prisma:generate && pnpm --filter @sokosumi/database run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/ai-provider run build && pnpm --filter @sokosumi/email run build",
+    "build:workspace-deps": "pnpm --filter @sokosumi/net run build && pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/database run prisma:generate && pnpm --filter @sokosumi/database run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/ai-provider run build && pnpm --filter @sokosumi/email run build",
     "prepare": "pnpm run build:workspace-deps",
     "prebuild": "pnpm run build:workspace-deps",
     "build": "tsup",
@@ -48,6 +48,7 @@
     "@sokosumi/database": "workspace:*",
     "@sokosumi/email": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
+    "@sokosumi/net": "workspace:*",
     "@sokosumi/utils": "workspace:*",
 
     "@vercel/blob": "2.4.0",
@@ -63,7 +64,6 @@
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
     "postmark": "4.0.7",
-    "request-filtering-agent": "3.2.0",
     "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
     "stripe": "22.2.0",

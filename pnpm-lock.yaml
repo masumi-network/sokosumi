@@ -79,6 +79,9 @@ importers:
       '@sokosumi/masumi':
         specifier: workspace:*
         version: link:../../packages/masumi
+      '@sokosumi/net':
+        specifier: workspace:*
+        version: link:../../packages/net
       '@sokosumi/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -121,9 +124,6 @@ importers:
       postmark:
         specifier: 4.0.7
         version: 4.0.7
-      request-filtering-agent:
-        specifier: 3.2.0
-        version: 3.2.0
       resumable-stream:
         specifier: 2.2.12
         version: 2.2.12
@@ -603,6 +603,9 @@ importers:
 
   packages/masumi:
     dependencies:
+      '@sokosumi/net':
+        specifier: workspace:*
+        version: link:../net
       json-canonicalize:
         specifier: 2.0.0
         version: 2.0.0
@@ -619,6 +622,25 @@ importers:
       '@types/node':
         specifier: 24.13.1
         version: 24.13.1
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.1)(happy-dom@20.10.2)(vite@8.0.16(@types/node@24.13.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/net:
+    dependencies:
+      request-filtering-agent:
+        specifier: 3.2.0
+        version: 3.2.0
+    devDependencies:
+      '@types/node':
+        specifier: 24.13.1
+        version: 24.13.1
+      tsx:
+        specifier: 4.22.4
+        version: 4.22.4
       typescript:
         specifier: 6.0.3
         version: 6.0.3
