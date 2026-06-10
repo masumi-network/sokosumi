@@ -8,6 +8,8 @@ import { useState } from "react";
 import { OrganizationInformationModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 
+import { useOrganizationMetadata } from "./organization-metadata-context";
+
 interface OrganizationEditButtonProps {
   organization: Organization;
   className?: string | undefined;
@@ -19,6 +21,7 @@ export default function OrganizationEditButton({
 }: OrganizationEditButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const [open, setOpen] = useState(false);
+  const { metadata } = useOrganizationMetadata();
 
   return (
     <>
@@ -26,6 +29,7 @@ export default function OrganizationEditButton({
         open={open}
         onOpenChange={setOpen}
         organization={organization}
+        organizationMetadata={metadata}
       />
       <Button onClick={() => setOpen(true)} className={className}>
         <Pencil size={16} />

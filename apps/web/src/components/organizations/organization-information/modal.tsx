@@ -17,12 +17,14 @@ interface OrganizationInformationModalProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
   organization: Organization | null;
+  organizationMetadata?: string | null;
 }
 
 export default function OrganizationInformationModal({
   open,
   onOpenChange,
   organization,
+  organizationMetadata,
 }: OrganizationInformationModalProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Title");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +47,13 @@ export default function OrganizationInformationModal({
         </DialogTitle>
         <DialogDescription className="hidden" />
         <OrganizationInformationForm
+          key={
+            organization
+              ? `${organization.id}:${organizationMetadata ?? organization.metadata ?? ""}`
+              : "create"
+          }
           organization={organization}
+          organizationMetadata={organizationMetadata}
           setIsLoading={setIsLoading}
           onLogoUploadBusyChange={setIsLogoUploadInFlight}
           onOpenChange={onOpenChange}

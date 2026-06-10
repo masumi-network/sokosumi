@@ -3,8 +3,10 @@ import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/tas
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { getSession } from "@/lib/auth/utils";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { designMdService } from "@/lib/services/design-md.service";
 
 export const metadata = {
   title: "New Task",
@@ -12,10 +14,17 @@ export const metadata = {
 
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
-  const [taskCoworkers, agents] = await Promise.all([
+  const [taskCoworkers, agents, session] = await Promise.all([
     coworkerService.listCoworkers("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
+    getSession(),
   ]);
+  const initialDesignMdAttachment = session?.user.id
+    ? await designMdService.resolveEffectiveDesignMd({
+        activeOrganizationId: session.session.activeOrganizationId ?? null,
+        userId: session.user.id,
+      })
+    : null;
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);
 
@@ -60,6 +69,7 @@ export default async function NewTaskPage() {
           }}
           coworkerOptions={coworkerOptions}
           agentNameById={agentNameById}
+          initialDesignMdAttachment={initialDesignMdAttachment}
         />
       </div>
     </div>

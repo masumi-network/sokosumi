@@ -58,6 +58,43 @@ vi.mock("@/components/copyable-value", () => ({
   ),
 }));
 
+vi.mock("@/components/design-md", () => ({
+  DesignMdProfileSection: ({
+    canManage,
+    owner,
+    value,
+    websiteUrl,
+  }: {
+    canManage?: boolean;
+    owner: { organizationId?: string; type: string };
+    value?: {
+      extractionId?: null | string;
+      previewUrl?: null | string;
+      url?: null | string;
+    };
+    websiteUrl?: null | string;
+  }) => (
+    <section
+      data-testid="design-md-section"
+      data-can-manage={String(canManage)}
+      data-owner-id={owner.organizationId}
+      data-owner-type={owner.type}
+      data-preview-url={value?.previewUrl ?? ""}
+      data-url={value?.url ?? ""}
+      data-website-url={websiteUrl ?? ""}
+    >
+      DESIGN.md
+    </section>
+  ),
+}));
+
+vi.mock("@/lib/services/design-md.service", () => ({
+  designMdService: {
+    getDesignMdPreviewUrl: (extractionId: string | number) =>
+      `https://www.masumi.example/tools/design-md?cached=${extractionId}`,
+  },
+}));
+
 function createOrganization(
   overrides: Partial<Organization>,
 ): Organization & { _count: { members: number } } {
@@ -109,6 +146,18 @@ describe("OrganizationInformation", () => {
     expect(
       screen.getByRole("link", { name: "https://acme.example" }),
     ).toHaveAttribute("href", "https://acme.example");
+    expect(screen.getByTestId("design-md-section")).toHaveAttribute(
+      "data-can-manage",
+      "true",
+    );
+    expect(screen.getByTestId("design-md-section")).toHaveAttribute(
+      "data-owner-id",
+      "org_1",
+    );
+    expect(screen.getByTestId("design-md-section")).toHaveAttribute(
+      "data-website-url",
+      "https://acme.example",
+    );
 
     const websiteLabel = screen.getByText("Website");
     const stripeLabel = screen.getByText("Stripe customer ID");
@@ -133,5 +182,33 @@ describe("OrganizationInformation", () => {
     expect(screen.getByText("acme")).toBeInTheDocument();
     expect(screen.queryByText("Stripe customer ID")).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Copy" })).toHaveLength(1);
+    expect(screen.getByTestId("design-md-section")).toHaveAttribute(
+      "data-can-manage",
+      "false",
+    );
+  });
+
+  it("passes persisted organization DESIGN.md metadata to the shared section", async () => {
+    const view = await OrganizationInformation({
+      organization: createOrganization({
+        metadata: JSON.stringify({
+          designMdExtractionId: "42",
+          designMdUrl: "https://blob.example/design.md",
+          url: "https://acme.example",
+        }),
+      }),
+      member: createMember({ role: MemberRole.ADMIN }),
+    });
+
+    render(view);
+
+    expect(screen.getByTestId("design-md-section")).toHaveAttribute(
+      "data-url",
+      "https://blob.example/design.md",
+    );
+    expect(screen.getByTestId("design-md-section")).toHaveAttribute(
+      "data-preview-url",
+      "https://www.masumi.example/tools/design-md?cached=42",
+    );
   });
 });

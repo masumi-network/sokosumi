@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Organization } from "@sokosumi/database";
 import {
+  buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
   normalizeOrganizationLogo,
   parseOrganizationMetadata,
 } from "@sokosumi/utils";
-import { Building2, CloudUpload, Loader2, Trash2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -20,9 +21,8 @@ import {
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
-import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
 import {
   Form,
   FormControl,
@@ -36,7 +36,6 @@ import { generateOrganizationSlug } from "@/lib/actions";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import {
-  ORGANIZATION_LOGO_ACCEPT,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
@@ -46,6 +45,10 @@ import {
   organizationInformationFormSchema,
 } from "@/lib/schemas";
 import {
+  ClientTimeoutError,
+  raceWithTimeout,
+} from "@/lib/utils/race-with-timeout";
+import {
   getUserFileUploadErrorMessage,
   uploadUserFileDirect,
 } from "@/lib/utils/user-file-upload.client";
@@ -53,53 +56,9 @@ import {
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
-class LogoUploadClientTimeoutError extends Error {
-  constructor() {
-    super("Logo upload timed out");
-    this.name = "LogoUploadClientTimeoutError";
-  }
-}
-
-function raceWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new LogoUploadClientTimeoutError());
-    }, ms);
-  });
-
-  return Promise.race([
-    promise.finally(() => {
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-      }
-    }),
-    timeoutPromise,
-  ]);
-}
-
-function buildOrganizationMetadataWithUrl(
-  metadata: Record<string, unknown> | null | undefined,
-  rawUrl: string,
-): Record<string, unknown> | null {
-  const normalizedUrl = rawUrl.trim();
-  const metadataRecord = metadata ?? {};
-
-  if (normalizedUrl.length === 0) {
-    const { url: _url, ...metadataWithoutUrl } = metadataRecord;
-    return Object.keys(metadataWithoutUrl).length > 0
-      ? metadataWithoutUrl
-      : null;
-  }
-
-  return {
-    ...metadataRecord,
-    url: normalizedUrl,
-  };
-}
-
 interface OrganizationInformationFormProps {
   organization: Organization | null;
+  organizationMetadata?: string | null;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onLogoUploadBusyChange?: (busy: boolean) => void;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
@@ -107,6 +66,7 @@ interface OrganizationInformationFormProps {
 
 export default function OrganizationInformationForm({
   organization,
+  organizationMetadata,
   setIsLoading,
   onLogoUploadBusyChange,
   onOpenChange,
@@ -154,7 +114,7 @@ export default function OrganizationInformationForm({
         form.setValue("logo", uploadedFile.publicUrl, { shouldDirty: true });
       } catch (error) {
         toast.error(
-          error instanceof LogoUploadClientTimeoutError
+          error instanceof ClientTimeoutError
             ? t("Fields.Logo.uploadError")
             : getUserFileUploadErrorMessage(
                 error,
@@ -185,8 +145,10 @@ export default function OrganizationInformationForm({
       let result;
       const isCreating = !organization;
       const logoForApi = normalizeOrganizationLogo(values.logo);
+      const metadataSource =
+        organizationMetadata ?? organization?.metadata ?? values.metadata;
       const metadataForApi = buildOrganizationMetadataWithUrl(
-        values.metadata,
+        parseOrganizationMetadata(metadataSource),
         values.url ?? "",
       );
 
@@ -270,6 +232,16 @@ export default function OrganizationInformationForm({
 
   const isCreating = !organization;
   const isLoading = form.formState.isSubmitting || isUploadingLogo;
+  const logoLabels = {
+    fileTooLarge: t("Fields.Logo.fileTooLarge"),
+    fileTypeNotAccepted: t("Fields.Logo.fileTypeNotAccepted"),
+    maxFilesExceeded: t("Fields.Logo.maxFilesExceeded"),
+    previewAlt: t("Fields.Logo.previewAlt"),
+    remove: t("Fields.Logo.remove"),
+    replace: t("Fields.Logo.replace"),
+    upload: t("Fields.Logo.upload"),
+    uploadError: t("Fields.Logo.uploadError"),
+  };
 
   return (
     <Form {...form}>
@@ -282,83 +254,16 @@ export default function OrganizationInformationForm({
               <FormItem>
                 <FormLabel>{t("Fields.Logo.label")}</FormLabel>
                 <FormControl>
-                  <div className="max-w-24 space-y-3">
-                    <FileUpload
-                      value={pendingLogoFiles}
-                      onValueChange={setPendingLogoFiles}
-                      accept={ORGANIZATION_LOGO_ACCEPT}
-                      maxFiles={1}
-                      maxSize={ORGANIZATION_LOGO_MAX_SIZE_BYTES}
-                      multiple={false}
-                      disabled={isLoading}
-                      onAccept={handleLogoUpload}
-                      onFileReject={(_file, message) => {
-                        const translatedMessage =
-                          message === "File too large"
-                            ? t("Fields.Logo.fileTooLarge")
-                            : message === "File type not accepted"
-                              ? t("Fields.Logo.fileTypeNotAccepted")
-                              : message?.startsWith("Maximum")
-                                ? t("Fields.Logo.maxFilesExceeded")
-                                : (message ?? t("Fields.Logo.uploadError"));
-                        toast.error(translatedMessage);
-                      }}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <FileUploadTrigger asChild>
-                          <button
-                            type="button"
-                            disabled={isLoading}
-                            aria-label={
-                              logoValue
-                                ? t("Fields.Logo.replace")
-                                : t("Fields.Logo.upload")
-                            }
-                            className="group bg-muted focus-visible:ring-ring/60 relative size-24 cursor-pointer overflow-hidden rounded-lg border transition-opacity outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Avatar className="size-full rounded-none">
-                              <AvatarImage
-                                src={logoValue || undefined}
-                                alt={t("Fields.Logo.previewAlt")}
-                                className="object-cover"
-                              />
-                              <AvatarFallback className="bg-muted text-muted-foreground rounded-none">
-                                <Building2 className="size-8" />
-                              </AvatarFallback>
-                            </Avatar>
-                            <div
-                              className={`absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60 px-2 text-white transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${
-                                isUploadingLogo ? "opacity-100" : "opacity-0"
-                              }`}
-                            >
-                              {isUploadingLogo ? (
-                                <Loader2 className="size-4 animate-spin" />
-                              ) : (
-                                <CloudUpload className="size-4" />
-                              )}
-                              <span className="text-center text-xs leading-tight">
-                                {logoValue
-                                  ? t("Fields.Logo.replace")
-                                  : t("Fields.Logo.upload")}
-                              </span>
-                            </div>
-                          </button>
-                        </FileUploadTrigger>
-                        {logoValue && (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            onClick={handleRemoveLogo}
-                            className="size-8"
-                            aria-label={t("Fields.Logo.remove")}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </FileUpload>
-                  </div>
+                  <OrganizationLogoUploadField
+                    disabled={isLoading}
+                    isUploading={isUploadingLogo}
+                    labels={logoLabels}
+                    logoValue={logoValue ?? ""}
+                    onPendingLogoFilesChange={setPendingLogoFiles}
+                    onRemove={handleRemoveLogo}
+                    onUpload={handleLogoUpload}
+                    pendingLogoFiles={pendingLogoFiles}
+                  />
                 </FormControl>
                 <FormDescription>
                   {t("Fields.Logo.description")}

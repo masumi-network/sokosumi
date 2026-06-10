@@ -35,10 +35,16 @@ import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import {
+  createDesignMdDismissedState,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
+  isDesignMdAttachmentSkipped,
+  markDesignMdDismissed,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
+  seedTaskDescriptionWithDesignMd,
+  syncDesignMdDismissedState,
+  type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
@@ -88,6 +94,8 @@ interface TaskFormInitialValues {
   status?: TaskStatus;
 }
 
+export type TaskFormInitialDesignMdAttachment = TaskDesignMdAttachmentSeed;
+
 interface TaskFormProps {
   mode: "create" | "edit";
   labels: TaskFormLabels;
@@ -95,6 +103,7 @@ interface TaskFormProps {
   agentNameById?: Map<string, string>;
   taskId?: string;
   initialValues?: TaskFormInitialValues;
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   projectOptions?: ProjectFilterOption[];
   defaultProjectId?: string | null;
   variant?: "page" | "modal";
@@ -104,6 +113,7 @@ interface TaskFormProps {
     description: string;
     coworkerId: string | null;
     projectId?: string | null;
+    skipDesignMdAttachment?: boolean;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
   }) => Promise<{ taskId: string }>;
   showCancel?: boolean;
@@ -117,6 +127,7 @@ export function TaskForm({
   agentNameById = EMPTY_AGENT_NAME_MAP,
   taskId,
   initialValues,
+  initialDesignMdAttachment,
   projectOptions,
   defaultProjectId = null,
   variant = "page",
@@ -131,8 +142,12 @@ export function TaskForm({
   const shouldShowProjectSelect = isModal && projectOptions !== undefined;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const [description, setDescription] = useState(
-    initialValues?.description ?? "",
+  const [description, setDescription] = useState(() =>
+    getInitialDescription({
+      attachment: initialDesignMdAttachment,
+      description: initialValues?.description,
+      mode,
+    }),
   );
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
@@ -178,6 +193,12 @@ export function TaskForm({
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
+  const designMdStateRef = useRef(createDesignMdDismissedState());
+  syncDesignMdDismissedState(
+    description,
+    initialDesignMdAttachment,
+    designMdStateRef.current,
+  );
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
@@ -242,6 +263,9 @@ export function TaskForm({
           const result = await createTaskHandler({
             description: trimmedDescription,
             coworkerId,
+            skipDesignMdAttachment: isDesignMdAttachmentSkipped(
+              designMdStateRef.current,
+            ),
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
           });
@@ -372,9 +396,15 @@ export function TaskForm({
     [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
   );
 
-  const handleRemoveAttachment = useCallback((url: string) => {
-    setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
-  }, []);
+  const handleRemoveAttachment = useCallback(
+    (url: string) => {
+      if (initialDesignMdAttachment?.url === url) {
+        markDesignMdDismissed(designMdStateRef.current);
+      }
+      setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
+    },
+    [initialDesignMdAttachment?.url],
+  );
 
   const handleCancel = () => {
     abortActiveUploads();
@@ -636,4 +666,20 @@ export function TaskForm({
       </section>
     </div>
   );
+}
+
+function getInitialDescription({
+  attachment,
+  description,
+  mode,
+}: {
+  attachment?: TaskFormInitialDesignMdAttachment | null;
+  description?: string;
+  mode: "create" | "edit";
+}): string {
+  if (mode !== "create") {
+    return description ?? "";
+  }
+
+  return seedTaskDescriptionWithDesignMd(description ?? "", attachment);
 }
