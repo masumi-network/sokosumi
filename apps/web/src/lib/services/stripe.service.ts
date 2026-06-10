@@ -11,34 +11,22 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
+import { coreClient } from "@/lib/clients/core.client";
 import { type Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
   async function getStripeCustomerId(
-    userId: string,
     organizationId: string | null,
   ): Promise<string | null> {
     if (organizationId) {
-      const organization = await prisma.organization.findUnique({
-        where: { id: organizationId },
-        select: { stripeCustomerId: true },
-      });
-      if (!organization) {
-        throw new Error("Organization not found");
-      }
-      return organization.stripeCustomerId;
-    } else {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { stripeCustomerId: true },
-      });
-      if (!user) {
-        throw new Error("User not found");
-      }
-      return user.stripeCustomerId;
+      const { data } =
+        await coreClient.getOrganizationStripeCustomer(organizationId);
+      return data.stripeCustomerId;
     }
+    const { data } = await coreClient.getMyStripeCustomer();
+    return data.stripeCustomerId;
   }
 
   return {
@@ -56,10 +44,7 @@ export const stripeService = (() => {
         throw new UnAuthenticatedError("User not authorized");
       }
       try {
-        let stripeCustomerId = await getStripeCustomerId(
-          userId,
-          organizationId,
-        );
+        let stripeCustomerId = await getStripeCustomerId(organizationId);
         if (!stripeCustomerId) {
           const customer = organizationId
             ? await this.createStripeCustomerForOrganization(organizationId)
@@ -111,10 +96,7 @@ export const stripeService = (() => {
       scope: { userId: string; organizationId: string | null },
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      let stripeCustomerId = await getStripeCustomerId(
-        scope.userId,
-        scope.organizationId,
-      );
+      let stripeCustomerId = await getStripeCustomerId(scope.organizationId);
 
       // Create Stripe customer if doesn't exist
       if (!stripeCustomerId) {

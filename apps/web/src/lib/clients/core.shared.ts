@@ -92,6 +92,7 @@ import {
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -102,6 +103,7 @@ import {
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
+  getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -635,6 +637,32 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch invitation",
+    );
+  }
+
+  async function getOrganizationStripeCustomer(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdStripeCustomer({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization Stripe customer",
+    );
+  }
+
+  async function getMyStripeCustomer() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdStripeCustomer({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user Stripe customer",
     );
   }
 
@@ -1740,8 +1768,10 @@ export function createCoreClient(getClient: GetClient) {
     getInvitationById,
     getMyCredits,
     getMyOrganizations,
+    getMyStripeCustomer,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationStripeCustomer,
     getPendingNotices,
     getProjects,
     getProjectsById,
