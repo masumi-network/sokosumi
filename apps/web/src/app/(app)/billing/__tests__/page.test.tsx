@@ -494,6 +494,40 @@ describe("BillingPage", () => {
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
   });
 
+  it("falls back to the balance section when the enterprise summary is unavailable", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise",
+      name: "Enterprise Org",
+      stripeCustomerId: "cus_org_enterprise",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(true, 10);
+    // Core re-resolved the org to a non-enterprise plan (404 -> null) even
+    // though the page locally believed it was on an enterprise contract.
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue(null);
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      "org-enterprise",
+    );
+    expect(enterpriseContractSummaryMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("enterprise-contract-summary")).toBeNull();
+    expect(view.getByTestId("balance-section")).toBeTruthy();
+  });
+
   it("shows the enterprise contract summary when contract details cannot be loaded", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       _count: { members: 2 },
