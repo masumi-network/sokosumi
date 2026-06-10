@@ -137,13 +137,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // Billing is settled only by the assigned coworker agent. User and
           // delegated-coworker callers use the user transition table, and the
           // charge branch below is gated on isCoworkerAgentContext — so credits
-          // or masumiPayment from them would be silently dropped. Reject it.
-          if (
-            !isCoworkerAgentContext(authContext) &&
-            (credits != null || masumiPayment !== undefined)
-          ) {
+          // from them would be silently dropped. Reject it.
+          //
+          // masumiPayment needs no check here: the schema only allows it with
+          // status COMPLETED, which the user transition table can never reach,
+          // so a non-agent caller is already rejected upstream (400/422).
+          if (!isCoworkerAgentContext(authContext) && credits != null) {
             throw unprocessableEntity(
-              "Only the assigned coworker can set credits or masumiPayment when changing task status",
+              "Only the assigned coworker can set credits when changing task status",
             );
           }
 

@@ -52,9 +52,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const task = await requireTaskCollaboration(authContext, taskId);
 
-    // The non-delegated coworker path already excludes DRAFT tasks; the
-    // delegated path resolves via task ownership, which does not. Jobs cannot
-    // be added to a task that is not ready, so reject DRAFT here too.
+    // The non-delegated coworker path already excludes DRAFT inside
+    // requireCoworkerTaskCollaboration, which returns 404 to avoid leaking task
+    // existence to an unassigned agent. The delegated/owner path resolves via
+    // task ownership, which does not exclude DRAFT; since that caller already
+    // knows the task exists, reject DRAFT with an explanatory 422 rather than a
+    // 404. The differing status codes are intentional, not an oversight.
     if (task.status === TaskStatus.DRAFT) {
       throw unprocessableEntity("Cannot add a job to a draft task");
     }
