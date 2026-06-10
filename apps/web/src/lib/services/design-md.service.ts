@@ -309,10 +309,19 @@ async function persistDonePayload(
 }
 
 export function getDesignMdPreviewUrl(extractionId: string | number): string {
-  return buildDesignMdPreviewUrl(
-    getEnvPublicConfig().NEXT_PUBLIC_MASUMI_URL,
-    extractionId,
-  );
+  return buildDesignMdPreviewUrl(getDesignMdPreviewBaseUrl(), extractionId);
+}
+
+function getDesignMdPreviewBaseUrl(): string {
+  const url = new URL(getEnvPublicConfig().NEXT_PUBLIC_MASUMI_URL);
+  const isLocalHost = url.hostname === "localhost";
+  const isIpv4Address = /^\d{1,3}(\.\d{1,3}){3}$/.test(url.hostname);
+
+  if (!url.hostname.startsWith("www.") && !isLocalHost && !isIpv4Address) {
+    url.hostname = `www.${url.hostname}`;
+  }
+
+  return url.toString();
 }
 
 export const designMdService = (() => {

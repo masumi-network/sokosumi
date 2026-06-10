@@ -34,12 +34,14 @@ interface DesignMdUploadTriggerProps {
   disabled?: boolean;
   onSaved?: (designMd: PersistedDesignMd) => void;
   owner: DesignMdOwner;
+  variant?: "compact" | "default";
 }
 
 export function DesignMdUploadTrigger({
   disabled = false,
   onSaved,
   owner,
+  variant = "default",
 }: DesignMdUploadTriggerProps) {
   const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
   const [files, setFiles] = useState<File[]>([]);
@@ -101,6 +103,9 @@ export function DesignMdUploadTrigger({
   );
 
   const isDisabled = disabled || isUploading;
+  const uploadDescription = t("uploadDescription", {
+    maxSize: formatBytes(DESIGN_MD_MAX_SIZE_BYTES),
+  });
 
   return (
     <FileUpload
@@ -115,32 +120,62 @@ export function DesignMdUploadTrigger({
       onUpload={handleUpload}
     >
       {files.length === 0 ? (
-        <FileUploadDropzone className="items-start p-4 text-left">
-          <div className="flex w-full items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent">
-              <FileText className="size-5 text-muted-foreground" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <p className="font-medium text-sm">{t("uploadTitle")}</p>
-              <p className="text-muted-foreground text-sm">
-                {t("uploadDescription", {
-                  maxSize: formatBytes(DESIGN_MD_MAX_SIZE_BYTES),
-                })}
-              </p>
+        <FileUploadDropzone
+          className={
+            variant === "compact"
+              ? "items-start p-3 text-left"
+              : "items-start p-4 text-left"
+          }
+        >
+          {variant === "compact" ? (
+            <div className="flex w-full items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent">
+                <FileText className="size-5 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="font-medium text-sm">{t("uploadTitle")}</p>
+                <p className="text-muted-foreground text-sm">
+                  {uploadDescription}
+                </p>
+              </div>
               <FileUploadTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   disabled={isDisabled}
-                  className="mt-2"
+                  className="shrink-0"
                 >
                   <CloudUpload className="size-4" />
                   {isUploading ? t("uploading") : t("uploadButton")}
                 </Button>
               </FileUploadTrigger>
             </div>
-          </div>
+          ) : (
+            <div className="flex w-full items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent">
+                <FileText className="size-5 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="font-medium text-sm">{t("uploadTitle")}</p>
+                <p className="text-muted-foreground text-sm">
+                  {uploadDescription}
+                </p>
+                <FileUploadTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isDisabled}
+                    className="mt-2"
+                  >
+                    <CloudUpload className="size-4" />
+                    {isUploading ? t("uploading") : t("uploadButton")}
+                  </Button>
+                </FileUploadTrigger>
+              </div>
+            </div>
+          )}
         </FileUploadDropzone>
       ) : null}
       <FileUploadList>

@@ -13,7 +13,7 @@ const pollJobMock = vi.fn();
 
 vi.mock("@sokosumi/masumi/tools", () => ({
   buildDesignMdPreviewUrl: (baseUrl: string, extractionId: string | number) =>
-    `${baseUrl}/tools/design-md?cached=${extractionId}`,
+    `${baseUrl.replace(/\/$/, "")}/tools/design-md?cached=${extractionId}`,
   createDesignMdClient: () => ({
     pollJob: (...args: unknown[]) => pollJobMock(...args),
     submit: (...args: unknown[]) => submitMock(...args),
@@ -224,7 +224,7 @@ describe("designMdService", () => {
     expect(updateUserMetadataMock).toHaveBeenCalled();
     expect(persisted).toEqual({
       extractionId: "42",
-      previewUrl: "https://masumi.example/tools/design-md?cached=42",
+      previewUrl: "https://www.masumi.example/tools/design-md?cached=42",
       url: "https://blob.example/design-md/42-hash.md",
     });
   });

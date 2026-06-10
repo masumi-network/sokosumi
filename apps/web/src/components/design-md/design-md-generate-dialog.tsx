@@ -26,7 +26,10 @@ import { useDesignMdGeneration } from "./use-design-md-generation";
 interface DesignMdGenerateDialogProps {
   disabled?: boolean;
   hasExistingDesignMd?: boolean;
+  hideTrigger?: boolean;
   onGenerated?: (designMd: PersistedDesignMd) => void;
+  onOpenChange?: (open: boolean) => void;
+  open?: boolean;
   owner: DesignMdOwner;
   websiteUrl?: null | string;
 }
@@ -34,22 +37,33 @@ interface DesignMdGenerateDialogProps {
 export function DesignMdGenerateDialog({
   disabled = false,
   hasExistingDesignMd = false,
+  hideTrigger = false,
   onGenerated,
+  onOpenChange,
+  open,
   owner,
   websiteUrl,
 }: DesignMdGenerateDialogProps) {
   const t = useTranslations(DESIGN_MD_TRANSLATION_NAMESPACE);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [force, setForce] = useState(false);
+  const isOpen = open ?? internalOpen;
+  const setDialogOpen = useCallback(
+    (nextOpen: boolean) => {
+      setInternalOpen(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [onOpenChange],
+  );
 
   const handleCompleted = useCallback(
     (designMd: PersistedDesignMd) => {
       onGenerated?.(designMd);
       toast.success(t("generateSuccess"));
-      setOpen(false);
+      setDialogOpen(false);
       setForce(false);
     },
-    [onGenerated, t],
+    [onGenerated, setDialogOpen, t],
   );
 
   const generation = useDesignMdGeneration({
@@ -65,13 +79,13 @@ export function DesignMdGenerateDialog({
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen && generation.isRunning) return;
-      setOpen(nextOpen);
+      setDialogOpen(nextOpen);
       if (!nextOpen) {
         generation.reset();
         setForce(false);
       }
     },
-    [generation],
+    [generation, setDialogOpen],
   );
 
   const handleGenerate = useCallback(() => {
@@ -91,13 +105,15 @@ export function DesignMdGenerateDialog({
         : t("starting");
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" disabled={disabled || !websiteUrl}>
-          <WandSparkles className="size-4" />
-          {hasExistingDesignMd ? t("regenerateButton") : t("generateButton")}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {hideTrigger ? null : (
+        <DialogTrigger asChild>
+          <Button type="button" disabled={disabled || !websiteUrl}>
+            <WandSparkles className="size-4" />
+            {hasExistingDesignMd ? t("regenerateButton") : t("generateButton")}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("generateDialogTitle")}</DialogTitle>

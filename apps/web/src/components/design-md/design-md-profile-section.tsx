@@ -1,23 +1,10 @@
 "use client";
 
-import { FileText, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -26,10 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { removeDesignMd } from "@/lib/actions/design-md";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 
-import { DesignMdAccessButtons } from "./design-md-access-buttons";
+import { DesignMdFileRow } from "./design-md-file-row";
 import { DesignMdGenerateDialog } from "./design-md-generate-dialog";
 import { DesignMdUploadTrigger } from "./design-md-upload-trigger";
 import {
@@ -71,6 +59,8 @@ export function DesignMdProfileSection({
     setDesignMd(value);
   }
 
+  const [isAutoMode, setIsAutoMode] = useState(true);
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
 
   const designMdUrl = designMd?.url ?? null;
@@ -110,6 +100,14 @@ export function DesignMdProfileSection({
     }
   }, [owner, onValueChange, t]);
 
+  const autoToggleId =
+    owner.type === "user"
+      ? "design-md-auto-user"
+      : `design-md-auto-${owner.organizationId}`;
+  const websiteSource = hasWebsiteUrl
+    ? t("websiteSource", { websiteUrl: sourceWebsiteUrl })
+    : null;
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -121,33 +119,71 @@ export function DesignMdProfileSection({
           </Badge>
         </CardAction>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="flex items-start gap-3 rounded-lg border p-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent">
-            <FileText className="size-5 text-muted-foreground" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="font-medium text-sm">
-              {hasDesignMd ? t("readyTitle") : t("emptyTitle")}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              {hasDesignMd ? t("readyDescription") : t("emptyDescription")}
-            </p>
-            {hasWebsiteUrl ? (
-              <p className="truncate text-muted-foreground text-xs">
-                {t("websiteSource", { websiteUrl: sourceWebsiteUrl })}
-              </p>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                {t("missingWebsiteHint")}
-              </p>
-            )}
-          </div>
-        </div>
-
+      <CardContent className="space-y-3">
         {canManage ? (
-          <div className="grid gap-3">
-            <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
+            <label htmlFor={autoToggleId} className="min-w-0 space-y-1">
+              <span className="block font-medium text-sm">
+                {t("autoLabel")}
+              </span>
+              <span className="block text-muted-foreground text-sm">
+                {t("autoDescription")}
+              </span>
+            </label>
+            <Switch
+              id={autoToggleId}
+              checked={isAutoMode}
+              onCheckedChange={setIsAutoMode}
+              disabled={isRemoving}
+              aria-label={t("autoLabel")}
+            />
+          </div>
+        ) : null}
+
+        {hasDesignMd && designMdUrl ? (
+          <>
+            <DesignMdFileRow
+              canManage={canManage}
+              description={t("readyDescription")}
+              designMdUrl={designMdUrl}
+              isRemoving={isRemoving}
+              labels={{
+                actionsMenu: t("actionsMenuLabel"),
+                cancel: t("cancel"),
+                confirmRemove: t("confirmRemove"),
+                download: t("menuDownload"),
+                preview: t("menuPreview"),
+                regenerate: t("menuRegenerate"),
+                remove: t("menuRemove"),
+                removeDialogDescription: t("removeDialogDescription"),
+                removeDialogTitle: t("removeDialogTitle"),
+                removing: t("removing"),
+                rowDownload: t("downloadButton"),
+              }}
+              onRegenerateClick={() => setIsGenerateDialogOpen(true)}
+              onRemove={() => {
+                void handleRemove();
+              }}
+              previewUrl={previewUrl}
+              title={t("readyTitle")}
+              websiteSource={websiteSource}
+            />
+            {canManage ? (
+              <DesignMdGenerateDialog
+                hideTrigger
+                open={isGenerateDialogOpen}
+                onOpenChange={setIsGenerateDialogOpen}
+                owner={owner}
+                websiteUrl={websiteUrl}
+                hasExistingDesignMd={hasDesignMd}
+                onGenerated={handlePersisted}
+                disabled={!hasWebsiteUrl || isRemoving}
+              />
+            ) : null}
+          </>
+        ) : canManage ? (
+          <div className="space-y-2">
+            <div className="flex justify-end">
               <DesignMdGenerateDialog
                 owner={owner}
                 websiteUrl={websiteUrl}
@@ -155,62 +191,32 @@ export function DesignMdProfileSection({
                 onGenerated={handlePersisted}
                 disabled={!hasWebsiteUrl || isRemoving}
               />
-              <DesignMdAccessButtons
-                designMdUrl={designMdUrl}
-                previewUrl={previewUrl}
-                downloadLabel={t("downloadButton")}
-                previewLabel={t("previewButton")}
-              />
-              {designMdUrl ? (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button type="button" variant="ghost" disabled={isRemoving}>
-                      <Trash2 className="size-4" />
-                      {isRemoving ? t("removing") : t("removeButton")}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        {t("removeDialogTitle")}
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t("removeDialogDescription")}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel disabled={isRemoving}>
-                        {t("cancel")}
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        disabled={isRemoving}
-                        onClick={() => {
-                          void handleRemove();
-                        }}
-                      >
-                        {isRemoving ? t("removing") : t("confirmRemove")}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              ) : null}
             </div>
+            {!hasWebsiteUrl ? (
+              <p className="text-muted-foreground text-sm">
+                {t("missingWebsiteHint")}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded-lg border px-4 py-3">
+            <p className="font-medium text-sm">{t("emptyTitle")}</p>
+            <p className="text-muted-foreground text-sm">
+              {t("emptyDescription")}
+            </p>
+          </div>
+        )}
+
+        {canManage && !isAutoMode ? (
+          <div className="pt-1">
             <DesignMdUploadTrigger
               owner={owner}
               onSaved={handlePersisted}
               disabled={isRemoving}
+              variant="compact"
             />
           </div>
-        ) : (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <DesignMdAccessButtons
-              designMdUrl={designMdUrl}
-              previewUrl={previewUrl}
-              downloadLabel={t("downloadButton")}
-              previewLabel={t("previewButton")}
-            />
-          </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

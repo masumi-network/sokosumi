@@ -91,7 +91,7 @@ vi.mock("@/components/design-md", () => ({
 vi.mock("@/lib/services/design-md.service", () => ({
   designMdService: {
     getDesignMdPreviewUrl: (extractionId: string | number) =>
-      `https://masumi.example/tools/design-md?cached=${extractionId}`,
+      `https://www.masumi.example/tools/design-md?cached=${extractionId}`,
   },
 }));
 
@@ -208,7 +208,7 @@ describe("OrganizationInformation", () => {
     );
     expect(screen.getByTestId("design-md-section")).toHaveAttribute(
       "data-preview-url",
-      "https://masumi.example/tools/design-md?cached=42",
+      "https://www.masumi.example/tools/design-md?cached=42",
     );
   });
 });

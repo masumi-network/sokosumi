@@ -20,6 +20,18 @@ describe("buildDesignMdPreviewUrl", () => {
       "https://www.masumi.network/tools/design-md?cached=42",
     );
   });
+
+  it("adds www to the preview host", () => {
+    expect(buildDesignMdPreviewUrl("https://masumi.network", 42)).toBe(
+      "https://www.masumi.network/tools/design-md?cached=42",
+    );
+  });
+
+  it("keeps local preview hosts unchanged", () => {
+    expect(buildDesignMdPreviewUrl("http://localhost:3000", 42)).toBe(
+      "http://localhost:3000/tools/design-md?cached=42",
+    );
+  });
 });
 
 describe("designMdApiResponseSchema", () => {
