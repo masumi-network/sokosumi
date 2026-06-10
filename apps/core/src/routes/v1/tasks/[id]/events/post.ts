@@ -134,15 +134,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             coworkerId: task.coworkerId,
           });
 
-          // Billing is settled only by the assigned coworker agent. User and
-          // delegated-coworker callers use the user transition table, and the
-          // charge branch below is gated on isCoworkerAgentContext — so credits
-          // from them would be silently dropped. Reject it.
+          // Only the assigned coworker agent settles billing.
+          const isAgent = isCoworkerAgentContext(authContext);
+          const isAgentSpend = isAgent && isTaskStatusSpendable(status);
+
+          // User and delegated-coworker callers use the user transition table,
+          // and the charge branch below is gated on isAgent — so credits from
+          // them would be silently dropped. Reject it.
           //
           // masumiPayment needs no check here: the schema only allows it with
           // status COMPLETED, which the user transition table can never reach,
           // so a non-agent caller is already rejected upstream (400/422).
-          if (!isCoworkerAgentContext(authContext) && credits != null) {
+          if (!isAgent && credits != null) {
             throw unprocessableEntity(
               "Only the assigned coworker can set credits when changing task status",
             );
@@ -151,10 +154,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let cents: bigint | undefined;
           let transactionId: string | null = null;
 
-          if (
-            isCoworkerAgentContext(authContext) &&
-            isTaskStatusSpendable(status)
-          ) {
+          if (isAgentSpend) {
             if (masumiPayment) {
               console.info("[tasks] masumi task payment: using masumiPayment", {
                 masumiPayment,
@@ -219,11 +219,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
 
           const payment =
-            masumiPayment !== undefined &&
-            isCoworkerAgentContext(authContext) &&
-            isTaskStatusSpendable(status)
-              ? masumiPayment
-              : null;
+            masumiPayment !== undefined && isAgentSpend ? masumiPayment : null;
 
           return {
             event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
