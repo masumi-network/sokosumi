@@ -44,6 +44,7 @@ import type {
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
+  PostJobsByIdInputsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -130,6 +131,7 @@ import {
   postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
   postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
   postHermesMeSecrets as corePostHermesMeSecrets,
+  postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
@@ -1507,6 +1509,22 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function provideJobInput(
+    id: string,
+    body: NonNullable<PostJobsByIdInputsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostJobsByIdInputs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to provide job input",
+    );
+  }
+
   async function putJobShare(
     id: string,
     body: { allowSearchIndexing: boolean },
@@ -1823,6 +1841,7 @@ export function createCoreClient(getClient: GetClient) {
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
+    provideJobInput,
     patchProjectsById,
     postProjects,
     postProjectsByIdJobs,

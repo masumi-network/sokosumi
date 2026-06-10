@@ -7,7 +7,6 @@ import {
 } from "../generated/prisma/browser.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { mapJobWithStatus } from "../helpers/job.js";
-import { buildJobsNeedingAgentStatusSyncWhere } from "../helpers/job-sync.js";
 import {
   finalizedAgentJobStatuses,
   type JobWithSokosumiStatus,
@@ -371,32 +370,6 @@ export const jobRepository = {
         throw new Error(`Unsupported job type: ${_exhaustive}`);
       }
     }
-  },
-
-  /**
-   * Retrieves the latest not-finished job for a specific agent, user, and workspace placement.
-   * @param agentId - The unique identifier of the agent
-   * @param userId - The unique identifier of the user
-   * @param workspaceId - The unique identifier of the workspace
-   * @returns Promise latest not-finished job or null
-   */
-  async getLatestJobByAgentIdUserIdAndWorkspace(
-    agentId: string,
-    userId: string,
-    workspaceId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus | null> {
-    const job = await tx.job.findFirst({
-      where: {
-        agentId,
-        userId,
-        workspaceId,
-        ...buildJobsNeedingAgentStatusSyncWhere(),
-      },
-      orderBy: { createdAt: "desc" },
-      include: jobInclude,
-    });
-    return job ? mapJobWithStatus(job) : null;
   },
 
   async updateJobNameById(

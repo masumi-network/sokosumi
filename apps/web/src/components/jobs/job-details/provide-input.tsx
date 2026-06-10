@@ -8,6 +8,7 @@ import {
   type InputSchemaSchemaType,
   normalizeAndValidateInputSchema,
 } from "@sokosumi/masumi/schemas";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +28,7 @@ import { useOSDetection } from "@/hooks/use-os-detection";
 import { useProvideJobInput } from "@/hooks/use-provide-job-input";
 import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
+import { getJobQueryKey } from "@/queries";
 
 interface JobDetailsProvideInputProps {
   job: JobWithSokosumiStatus;
@@ -104,11 +106,17 @@ function ProvideInputForm({
     return inputFields.map((inputField) => inputField.id);
   }, [inputFields]);
 
+  const queryClient = useQueryClient();
   const { handleSubmit, isSubmitting } = useProvideJobInput({
     jobId,
     eventId,
     readonlyInputValues,
     inputFieldIdsInOrder,
+    // Core provides the input now and no longer emits an immediate Ably status
+    // push, so invalidate the cached job here to clear the awaiting-input form
+    // (job-sync publishes the eventual status transition as usual).
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: getJobQueryKey(jobId) }),
   });
 
   // Handle group clear - the generic form manages accumulated values internally
