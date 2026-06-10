@@ -53,15 +53,15 @@ vi.mock("@/lib/blob/design-md", async (importOriginal) => {
   };
 });
 
-const getMyEffectiveDesignMdMock = vi.fn();
+const getWorkspaceDesignMdMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const setMyDesignMdMock = vi.fn();
 const setOrganizationDesignMdMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
-    getMyEffectiveDesignMd: (...args: unknown[]) =>
-      getMyEffectiveDesignMdMock(...args),
+    getWorkspaceDesignMd: (...args: unknown[]) =>
+      getWorkspaceDesignMdMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
     setMyDesignMd: (...args: unknown[]) => setMyDesignMdMock(...args),
@@ -336,7 +336,7 @@ describe("designMdService", () => {
   });
 
   it("delegates effective design.md resolution to core", async () => {
-    getMyEffectiveDesignMdMock.mockResolvedValue({
+    getWorkspaceDesignMdMock.mockResolvedValue({
       data: {
         designMd: {
           label: "DESIGN.md",
@@ -348,7 +348,7 @@ describe("designMdService", () => {
     const { designMdService } = await import("../design-md.service");
     const designMd = await designMdService.resolveEffectiveDesignMd("org-1");
 
-    expect(getMyEffectiveDesignMdMock).toHaveBeenCalledWith("org-1");
+    expect(getWorkspaceDesignMdMock).toHaveBeenCalledWith("org-1");
     expect(designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org-design.md",
@@ -356,7 +356,7 @@ describe("designMdService", () => {
   });
 
   it("returns null when core reports no effective design.md", async () => {
-    getMyEffectiveDesignMdMock.mockResolvedValue({
+    getWorkspaceDesignMdMock.mockResolvedValue({
       data: { designMd: null },
     });
 
@@ -367,7 +367,7 @@ describe("designMdService", () => {
   });
 
   it("prepends design.md to descriptions without duplicating existing links", async () => {
-    getMyEffectiveDesignMdMock.mockResolvedValue({
+    getWorkspaceDesignMdMock.mockResolvedValue({
       data: {
         designMd: {
           label: "DESIGN.md",
@@ -394,7 +394,7 @@ describe("designMdService", () => {
 
   it("does not duplicate design.md links when the url needs markdown escaping", async () => {
     const designMdUrl = "https://blob.example/user-design).md";
-    getMyEffectiveDesignMdMock.mockResolvedValue({
+    getWorkspaceDesignMdMock.mockResolvedValue({
       data: { designMd: { label: "DESIGN.md", url: designMdUrl } },
     });
 

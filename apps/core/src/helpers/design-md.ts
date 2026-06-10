@@ -34,6 +34,22 @@ function toPersisted(
     : null;
 }
 
+/** Reads the stored DESIGN.md out of a user's metadata, or null when none. */
+export function readUserDesignMd(
+  metadata: unknown,
+): PersistedDesignMdRecord | null {
+  const parsed = getUserMetadata(metadata);
+  return toPersisted(parsed.designMdUrl, parsed.designMdExtractionId);
+}
+
+/** Reads the stored DESIGN.md out of an organization's metadata, or null. */
+export function readOrganizationDesignMd(
+  metadata: unknown,
+): PersistedDesignMdRecord | null {
+  const parsed = getOrganizationMetadata(metadata);
+  return toPersisted(parsed.designMdUrl, parsed.designMdExtractionId);
+}
+
 /**
  * Merges `write` into a user's existing metadata and returns both the
  * serialized form to persist and the normalized stored DESIGN.md.

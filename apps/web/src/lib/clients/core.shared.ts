@@ -104,12 +104,12 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getUsersByIdCredits as coreGetUsersByIdCredits,
-  getUsersByIdEffectiveDesignMd as coreGetUsersByIdEffectiveDesignMd,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
+  getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -1232,21 +1232,20 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
-   * Resolves the DESIGN.md attachment currently in effect for the current user.
-   * When `organizationId` is supplied and the user is a member, the
-   * organization's DESIGN.md takes precedence over the user's own.
+   * Resolves the DESIGN.md in effect for the caller's current workspace. When
+   * `organizationId` is supplied and the caller is a member, the organization
+   * workspace's DESIGN.md takes precedence over the personal one.
    */
-  async function getMyEffectiveDesignMd(organizationId?: null | string) {
+  async function getWorkspaceDesignMd(organizationId?: null | string) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetUsersByIdEffectiveDesignMd({
+        coreGetWorkspacesDesignMd({
           client,
-          path: { id: CURRENT_USER_PATH_ID },
           query: organizationId ? { organizationId } : undefined,
           cache: "no-store",
         }),
-      "Failed to resolve effective DESIGN.md",
+      "Failed to resolve workspace DESIGN.md",
     );
   }
 
@@ -1910,7 +1909,6 @@ export function createCoreClient(getClient: GetClient) {
     getJobs,
     getInvitationById,
     getMyCredits,
-    getMyEffectiveDesignMd,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyOrganizations,
@@ -1919,6 +1917,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationMembers,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,
+    getWorkspaceDesignMd,
     setMyDesignMd,
     setOrganizationDesignMd,
     getPendingNotices,

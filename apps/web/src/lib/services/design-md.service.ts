@@ -341,7 +341,7 @@ export const designMdService = (() => {
     activeOrganizationId?: null | string,
   ): Promise<EffectiveDesignMdAttachment | null> {
     const { data } =
-      await coreClient.getMyEffectiveDesignMd(activeOrganizationId);
+      await coreClient.getWorkspaceDesignMd(activeOrganizationId);
 
     return data.designMd;
   }

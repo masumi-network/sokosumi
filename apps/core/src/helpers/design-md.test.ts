@@ -3,7 +3,33 @@ import { describe, expect, it } from "vitest";
 import {
   buildOrganizationDesignMdMetadata,
   buildUserDesignMdMetadata,
+  readOrganizationDesignMd,
+  readUserDesignMd,
 } from "./design-md";
+
+describe("readUserDesignMd / readOrganizationDesignMd", () => {
+  it("reads the stored DESIGN.md from a JSON metadata string", () => {
+    expect(
+      readUserDesignMd(
+        JSON.stringify({
+          designMdUrl: "https://blob.example/user.md",
+          designMdExtractionId: "7",
+        }),
+      ),
+    ).toEqual({ url: "https://blob.example/user.md", extractionId: "7" });
+  });
+
+  it("returns null when no DESIGN.md is present", () => {
+    expect(readUserDesignMd(JSON.stringify({}))).toBeNull();
+    expect(readOrganizationDesignMd(null)).toBeNull();
+  });
+
+  it("reads organization DESIGN.md from an object", () => {
+    expect(
+      readOrganizationDesignMd({ designMdUrl: "https://blob.example/org.md" }),
+    ).toEqual({ url: "https://blob.example/org.md", extractionId: null });
+  });
+});
 
 describe("buildUserDesignMdMetadata", () => {
   it("merges a DESIGN.md into existing metadata, preserving other fields", () => {

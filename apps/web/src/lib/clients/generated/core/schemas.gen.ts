@@ -4402,38 +4402,6 @@ export const DesignMdWriteSchema = {
     ]
 } as const;
 
-export const EffectiveDesignMdSchema = {
-    type: 'object',
-    properties: {
-        designMd: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                label: {
-                    type: 'string',
-                    example: 'DESIGN.md',
-                    description: 'Attachment label'
-                },
-                url: {
-                    type: 'string',
-                    example: 'https://blob.example/design.md',
-                    description: 'Public blob URL of the DESIGN.md attachment'
-                }
-            },
-            required: [
-                'label',
-                'url'
-            ],
-            description: 'The effective DESIGN.md, or null when none'
-        }
-    },
-    required: [
-        'designMd'
-    ]
-} as const;
-
 export const MemberWithOrganizationSchema = {
     type: 'object',
     properties: {
@@ -7174,5 +7142,37 @@ export const MasumiTaskPaymentSourceSchema = {
         'network',
         'smartContractAddress',
         'policyId'
+    ]
+} as const;
+
+export const EffectiveDesignMdSchema = {
+    type: 'object',
+    properties: {
+        designMd: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                label: {
+                    type: 'string',
+                    example: 'DESIGN.md',
+                    description: 'Attachment label'
+                },
+                url: {
+                    type: 'string',
+                    example: 'https://blob.example/design.md',
+                    description: 'Public blob URL of the DESIGN.md attachment'
+                }
+            },
+            required: [
+                'label',
+                'url'
+            ],
+            description: 'The effective DESIGN.md, or null when none'
+        }
+    },
+    required: [
+        'designMd'
     ]
 } as const;

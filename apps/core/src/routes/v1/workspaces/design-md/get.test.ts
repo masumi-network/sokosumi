@@ -1,85 +1,89 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HTTPException } from "hono/http-exception";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-import {
-  type UserRouteVariables,
-  usersPathUserContextMiddleware,
-} from "@/routes/v1/users/user-route-context";
-
-import mountGetUserEffectiveDesignMd from "./get";
 
 const {
-  userFindUniqueMock,
   organizationFindUniqueMock,
-  getUserByIdMock,
   getMemberByUserIdAndOrganizationIdMock,
+  getUserByIdMock,
 } = vi.hoisted(() => ({
-  userFindUniqueMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
-  getUserByIdMock: vi.fn(),
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+  getUserByIdMock: vi.fn(),
+}));
+
+vi.mock("@/middleware/auth", () => ({
+  requireUserContext: (authContext: AuthenticationContext | null) => {
+    if (!authContext || authContext.actor !== "user") {
+      throw new HTTPException(403, { message: "User authentication required" });
+    }
+    return { source: "session" as const, ...authContext };
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    user: { findUnique: userFindUniqueMock },
-    organization: { findUnique: organizationFindUniqueMock },
-  },
+  default: { organization: { findUnique: organizationFindUniqueMock } },
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  userRepository: {
-    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-  },
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
   },
+  userRepository: {
+    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+  },
 }));
 
-const SESSION_USER: AuthenticationContext = {
+const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
   organizationId: null,
   role: "user",
 };
 
-function createApp(authContext: AuthenticationContext = SESSION_USER) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+};
+
+let mountGetWorkspaceDesignMd: (app: OpenAPIHonoWithAuth) => void;
+
+function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & { requestId: string };
+  }>();
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
-
-  const userByIdApp = new OpenAPIHono<{
-    Variables: AuthVariables & UserRouteVariables;
-  }>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountGetUserEffectiveDesignMd(
-    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
-  );
-  app.route("/:id", userByIdApp);
+  mountGetWorkspaceDesignMd(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
-describe("GET /users/{id}/effective-design-md", () => {
+beforeAll(async () => {
+  const module = await import("./get");
+  mountGetWorkspaceDesignMd = module.default;
+});
+
+describe("GET /workspaces/design-md", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
-  it("returns 403 when the caller may not access the target user", async () => {
-    const response = await createApp().request(
-      "http://localhost/other_user/effective-design-md",
+  it("returns 403 for coworker authentication", async () => {
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
+      "http://localhost/design-md",
     );
     expect(response.status).toBe(403);
-    expect(getUserByIdMock).not.toHaveBeenCalled();
   });
 
-  it("prefers the organization DESIGN.md when the user is a member", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
+  it("uses the organization DESIGN.md when the caller is a member", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
       id: "member_1",
     });
@@ -88,7 +92,7 @@ describe("GET /users/{id}/effective-design-md", () => {
     });
 
     const response = await createApp().request(
-      "http://localhost/me/effective-design-md?organizationId=org_1",
+      "http://localhost/design-md?organizationId=org_1",
     );
     const body = await response.json();
 
@@ -100,8 +104,7 @@ describe("GET /users/{id}/effective-design-md", () => {
     expect(getUserByIdMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to the user DESIGN.md when the organization has none", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
+  it("falls back to the personal DESIGN.md when the organization has none", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
       id: "member_1",
     });
@@ -113,7 +116,7 @@ describe("GET /users/{id}/effective-design-md", () => {
     });
 
     const response = await createApp().request(
-      "http://localhost/me/effective-design-md?organizationId=org_1",
+      "http://localhost/design-md?organizationId=org_1",
     );
     const body = await response.json();
 
@@ -125,14 +128,13 @@ describe("GET /users/{id}/effective-design-md", () => {
   });
 
   it("does not expose the organization DESIGN.md to a non-member", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
     getUserByIdMock.mockResolvedValueOnce({
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });
 
     const response = await createApp().request(
-      "http://localhost/me/effective-design-md?organizationId=org_1",
+      "http://localhost/design-md?organizationId=org_1",
     );
     const body = await response.json();
 
@@ -144,32 +146,26 @@ describe("GET /users/{id}/effective-design-md", () => {
     });
   });
 
-  it("returns the user DESIGN.md when no organization is supplied", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
+  it("returns the personal DESIGN.md when no workspace organization is given", async () => {
     getUserByIdMock.mockResolvedValueOnce({
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });
 
-    const response = await createApp().request(
-      "http://localhost/me/effective-design-md",
-    );
+    const response = await createApp().request("http://localhost/design-md");
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/user.md",
     });
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
   });
 
-  it("returns null when neither the organization nor the user has a DESIGN.md", async () => {
-    userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
+  it("returns null when neither workspace has a DESIGN.md", async () => {
     getUserByIdMock.mockResolvedValueOnce({ metadata: JSON.stringify({}) });
 
-    const response = await createApp().request(
-      "http://localhost/me/effective-design-md",
-    );
+    const response = await createApp().request("http://localhost/design-md");
     const body = await response.json();
 
     expect(response.status).toBe(200);
