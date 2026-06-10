@@ -12,6 +12,8 @@ export {
   type CoreApiPagination,
   CoreApiRequestError,
   type CoreApiResponse,
+  type CoreDesignMdMetadata,
+  type CorePreferredOrganization,
   mapCoreApiStatusToCommonErrorCode,
   toCoreApiActionError,
 } from "./core.shared";

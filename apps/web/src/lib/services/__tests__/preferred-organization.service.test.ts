@@ -1,32 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CoreApiRequestError } from "@/lib/clients/core.shared";
+
 export {};
 
 vi.mock("server-only", () => ({}));
 
-const getMemberByUserIdAndOrganizationIdMock = vi.fn();
-const getUserByIdMock = vi.fn();
-const updatePreferredOrganizationIdMock = vi.fn();
+const getMyPreferredOrganizationMock = vi.fn();
+const patchMyPreferredOrganizationMock = vi.fn();
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
+vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError,
+  coreClient: {
+    getMyPreferredOrganization: (...args: unknown[]) =>
+      getMyPreferredOrganizationMock(...args),
+    patchMyPreferredOrganization: (...args: unknown[]) =>
+      patchMyPreferredOrganizationMock(...args),
   },
-  userRepository: {
-    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-    updatePreferredOrganizationId: (...args: unknown[]) =>
-      updatePreferredOrganizationIdMock(...args),
-  },
-}));
-
-const mockPrisma = {} as {
-  $transaction: (callback: (tx: unknown) => unknown) => Promise<unknown>;
-};
-mockPrisma.$transaction = (callback) => Promise.resolve(callback(mockPrisma));
-vi.mock("@/lib/db/prisma", () => ({
-  __esModule: true,
-  default: mockPrisma,
 }));
 
 describe("preferredOrganizationService", () => {
@@ -35,12 +25,8 @@ describe("preferredOrganizationService", () => {
   });
 
   it("resolves the preferred organization for a new session when membership is still valid", async () => {
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: "org-1",
-    });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      id: "member-1",
+    getMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: "org-1" },
     });
 
     const { preferredOrganizationService } = await import(
@@ -52,18 +38,12 @@ describe("preferredOrganizationService", () => {
       );
 
     expect(result).toBe("org-1");
-    expect(getUserByIdMock).toHaveBeenCalled();
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      mockPrisma,
-    );
+    expect(getMyPreferredOrganizationMock).toHaveBeenCalled();
   });
 
   it("returns null when there is no stored preferred organization", async () => {
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: null,
+    getMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: null },
     });
 
     const { preferredOrganizationService } = await import(
@@ -75,15 +55,12 @@ describe("preferredOrganizationService", () => {
       );
 
     expect(result).toBeNull();
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
   });
 
   it("returns null for a stale preferred organization when membership was removed", async () => {
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: "org-1",
+    getMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: null },
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
 
     const { preferredOrganizationService } = await import(
       "../preferred-organization.service"
@@ -94,17 +71,12 @@ describe("preferredOrganizationService", () => {
       );
 
     expect(result).toBeNull();
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      mockPrisma,
-    );
+    expect(getMyPreferredOrganizationMock).toHaveBeenCalled();
   });
 
   it("persists a personal workspace preference without checking membership", async () => {
-    updatePreferredOrganizationIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: null,
+    patchMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: null },
     });
 
     const { preferredOrganizationService } = await import(
@@ -120,21 +92,12 @@ describe("preferredOrganizationService", () => {
       ok: true,
       organizationId: null,
     });
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
-    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      null,
-      mockPrisma,
-    );
+    expect(patchMyPreferredOrganizationMock).toHaveBeenCalledWith(null);
   });
 
   it("persists an organization preference when the user is a member", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      id: "member-1",
-    });
-    updatePreferredOrganizationIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: "org-1",
+    patchMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: "org-1" },
     });
 
     const { preferredOrganizationService } = await import(
@@ -150,20 +113,15 @@ describe("preferredOrganizationService", () => {
       ok: true,
       organizationId: "org-1",
     });
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      mockPrisma,
-    );
-    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      mockPrisma,
-    );
+    expect(patchMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
   });
 
   it("rejects persisting an organization preference when the user is not a member", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+    patchMyPreferredOrganizationMock.mockRejectedValue(
+      new CoreApiRequestError("You are not a member of this organization", {
+        status: 400,
+      }),
+    );
 
     const { preferredOrganizationService } = await import(
       "../preferred-organization.service"
@@ -178,6 +136,5 @@ describe("preferredOrganizationService", () => {
       ok: false,
       organizationId: null,
     });
-    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
   });
 });

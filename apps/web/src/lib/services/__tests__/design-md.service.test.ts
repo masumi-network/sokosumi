@@ -42,26 +42,22 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-const getMemberByUserIdAndOrganizationIdMock = vi.fn();
-const getOrganizationWithRelationsByIdMock = vi.fn();
-const updateOrganizationByIdMock = vi.fn();
-const getUserByIdMock = vi.fn();
-const updateUserMetadataMock = vi.fn();
+const getMyMemberInOrganizationMock = vi.fn();
+const getOrganizationDesignMdMock = vi.fn();
+const getMyDesignMdMock = vi.fn();
+const patchMyDesignMdMock = vi.fn();
+const patchOrganizationDesignMdMock = vi.fn();
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
-  },
-  organizationRepository: {
-    getOrganizationWithRelationsById: (...args: unknown[]) =>
-      getOrganizationWithRelationsByIdMock(...args),
-    updateOrganizationById: (...args: unknown[]) =>
-      updateOrganizationByIdMock(...args),
-  },
-  userRepository: {
-    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-    updateUserMetadata: (...args: unknown[]) => updateUserMetadataMock(...args),
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getMyDesignMd: (...args: unknown[]) => getMyDesignMdMock(...args),
+    getMyMemberInOrganization: (...args: unknown[]) =>
+      getMyMemberInOrganizationMock(...args),
+    getOrganizationDesignMd: (...args: unknown[]) =>
+      getOrganizationDesignMdMock(...args),
+    patchMyDesignMd: (...args: unknown[]) => patchMyDesignMdMock(...args),
+    patchOrganizationDesignMd: (...args: unknown[]) =>
+      patchOrganizationDesignMdMock(...args),
   },
 }));
 
@@ -75,11 +71,6 @@ vi.mock("@/lib/blob/design-md", async (importOriginal) => {
       uploadDesignMdToBlobMock(...args),
   };
 });
-
-vi.mock("@/lib/db/prisma", () => ({
-  __esModule: true,
-  default: {},
-}));
 
 const session = {
   session: {
@@ -102,11 +93,20 @@ describe("designMdService", () => {
     uploadDesignMdToBlobMock.mockResolvedValue(
       "https://blob.example/design-md/42-hash.md",
     );
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: null,
+    patchMyDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: "42",
+        previewUrl: "https://www.masumi.example/tools/design-md?cached=42",
+        url: "https://blob.example/design-md/42-hash.md",
+      },
     });
-    updateUserMetadataMock.mockResolvedValue(undefined);
+    patchOrganizationDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://store.public.blob.vercel-storage.com/users/user-1/manual-design.md",
+      },
+    });
   });
 
   it("returns a queued job token when generation is queued", async () => {
@@ -221,7 +221,10 @@ describe("designMdService", () => {
       designMd: "# Brand",
       extractionId: "42",
     });
-    expect(updateUserMetadataMock).toHaveBeenCalled();
+    expect(patchMyDesignMdMock).toHaveBeenCalledWith({
+      extractionId: "42",
+      url: "https://blob.example/design-md/42-hash.md",
+    });
     expect(persisted).toEqual({
       extractionId: "42",
       previewUrl: "https://www.masumi.example/tools/design-md?cached=42",
@@ -230,8 +233,8 @@ describe("designMdService", () => {
   });
 
   it("requires organization admin access for organization owners", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      role: MemberRole.MEMBER,
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      data: { role: MemberRole.MEMBER },
     });
 
     const { designMdService } = await import("../design-md.service");
@@ -248,37 +251,30 @@ describe("designMdService", () => {
   });
 
   it("clears extractionId when saving a manual upload URL", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      role: MemberRole.ADMIN,
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      data: { role: MemberRole.ADMIN },
     });
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org-1",
-      metadata: JSON.stringify({
-        designMdExtractionId: "42",
-        designMdUrl:
-          "https://store.public.blob.vercel-storage.com/design-md/old-design.md",
-      }),
-    });
-    updateOrganizationByIdMock.mockResolvedValue(undefined);
-
-    const { designMdService } = await import("../design-md.service");
     const uploadedUrl =
       "https://store.public.blob.vercel-storage.com/users/user-1/manual-design.md";
+    patchOrganizationDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: null,
+        previewUrl: null,
+        url: uploadedUrl,
+      },
+    });
+
+    const { designMdService } = await import("../design-md.service");
     const persisted = await designMdService.persistUploadedDesignMd(
       session,
       { type: "organization", organizationId: "org-1" },
       uploadedUrl,
     );
 
-    expect(updateOrganizationByIdMock).toHaveBeenCalledWith(
-      "org-1",
-      {
-        metadata: JSON.stringify({
-          designMdUrl: uploadedUrl,
-        }),
-      },
-      {},
-    );
+    expect(patchOrganizationDesignMdMock).toHaveBeenCalledWith("org-1", {
+      extractionId: null,
+      url: uploadedUrl,
+    });
     expect(persisted.url).toBe(uploadedUrl);
     expect(persisted.extractionId).toBeNull();
   });
@@ -341,20 +337,22 @@ describe("designMdService", () => {
   });
 
   it("resolves organization design.md before user fallback", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      role: MemberRole.MEMBER,
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      data: { role: MemberRole.MEMBER },
     });
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org-1",
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/org-design.md",
-      }),
+    getOrganizationDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/org-design.md",
+      },
     });
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/user-design.md",
-      }),
+    getMyDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/user-design.md",
+      },
     });
 
     const { designMdService } = await import("../design-md.service");
@@ -367,15 +365,16 @@ describe("designMdService", () => {
       label: "DESIGN.md",
       url: "https://blob.example/org-design.md",
     });
-    expect(getUserByIdMock).not.toHaveBeenCalled();
+    expect(getMyDesignMdMock).not.toHaveBeenCalled();
   });
 
   it("prepends design.md to descriptions without duplicating existing links", async () => {
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: JSON.stringify({
-        designMdUrl: "https://blob.example/user-design.md",
-      }),
+    getMyDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/user-design.md",
+      },
     });
 
     const { designMdService } = await import("../design-md.service");
@@ -398,9 +397,12 @@ describe("designMdService", () => {
 
   it("does not duplicate design.md links when the url needs markdown escaping", async () => {
     const designMdUrl = "https://blob.example/user-design).md";
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      metadata: JSON.stringify({ designMdUrl }),
+    getMyDesignMdMock.mockResolvedValue({
+      data: {
+        extractionId: null,
+        previewUrl: null,
+        url: designMdUrl,
+      },
     });
 
     const { designMdService } = await import("../design-md.service");

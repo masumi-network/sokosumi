@@ -1,11 +1,6 @@
 import "server-only";
 
-import {
-  memberRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
-
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 interface PersistPreferredOrganizationResult {
   ok: boolean;
@@ -14,61 +9,34 @@ interface PersistPreferredOrganizationResult {
 
 export const preferredOrganizationService = (() => {
   async function resolveActiveOrganizationIdForSession(
-    userId: string,
+    _userId: string,
   ): Promise<string | null> {
-    const user = await userRepository.getUserById(userId, prisma);
-    const preferredOrganizationId = user?.preferredOrganizationId ?? null;
-
-    if (!preferredOrganizationId) {
-      return null;
-    }
-
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
-      preferredOrganizationId,
-      prisma,
-    );
-
-    return member ? preferredOrganizationId : null;
+    const response = await coreClient.getMyPreferredOrganization();
+    return response.data.organizationId;
   }
 
   async function persistPreferredOrganizationId(
-    userId: string,
+    _userId: string,
     organizationId: string | null,
   ): Promise<PersistPreferredOrganizationResult> {
-    if (!organizationId) {
-      await userRepository.updatePreferredOrganizationId(userId, null, prisma);
+    try {
+      const response =
+        await coreClient.patchMyPreferredOrganization(organizationId);
+
       return {
         ok: true,
-        organizationId: null,
+        organizationId: response.data.organizationId,
       };
-    }
-
-    return await prisma.$transaction(async (tx) => {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId,
-        tx,
-      );
-
-      if (!member) {
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 400) {
         return {
           ok: false,
           organizationId: null,
         };
       }
 
-      await userRepository.updatePreferredOrganizationId(
-        userId,
-        organizationId,
-        tx,
-      );
-
-      return {
-        ok: true,
-        organizationId,
-      };
-    });
+      throw error;
+    }
   }
 
   return {

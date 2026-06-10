@@ -44,6 +44,7 @@ import type {
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
+  PostJobsByIdInputsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -90,11 +91,10 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
-  getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
+  getOrganizationsById as coreGetOrganizationsById,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
-  getOrganizationsByIdSubscriptionChangeAllowed as coreGetOrganizationsByIdSubscriptionChangeAllowed,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -102,19 +102,17 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
+  getUsersById as coreGetUsersById,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
+  getUsersByIdOnboarding as coreGetUsersByIdOnboarding,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
-  getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
-  getUsersByIdSubscriptionChangeAllowed as coreGetUsersByIdSubscriptionChangeAllowed,
-  deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
-  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
@@ -136,8 +134,10 @@ import {
   postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
   postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
   postHermesMeSecrets as corePostHermesMeSecrets,
+  postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postProjects as corePostProjects,
+  postUsersByIdOnboarding as corePostUsersByIdOnboarding,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -194,23 +194,6 @@ const CURRENT_USER_PATH_ID = "me";
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
-}
-
-function transformBillingPlanResponseEnvelope(data: any) {
-  const plan = data.data;
-
-  if (plan.mode === "enterprise_contract") {
-    plan.endsAt = toDate(plan.endsAt);
-    plan.activatedAt = toDate(plan.activatedAt);
-  } else if (plan.periodEnd) {
-    plan.periodEnd = toDate(plan.periodEnd);
-  }
-
-  if (data.meta?.timestamp) {
-    data.meta.timestamp = toDate(data.meta.timestamp);
-  }
-
-  return data;
 }
 
 function transformHistoryResponseEnvelope(data: any) {
@@ -315,6 +298,81 @@ async function executeOperation<TData, TError>(
   }
 
   return result.data;
+}
+
+type CoreApiRequestMethod = "DELETE" | "GET" | "PATCH" | "POST";
+
+async function requestCoreApiPath<TData>(
+  getClient: GetClient,
+  path: string,
+  options?: {
+    method?: CoreApiRequestMethod;
+    body?: unknown;
+  },
+  fallbackMessage = "Failed to communicate with Core API",
+): Promise<CoreApiResponse<TData>> {
+  return executeOperation(
+    getClient,
+    async (client) => {
+      const method = options?.method ?? "GET";
+      const requestOptions = {
+        url: path,
+        cache: "no-store" as const,
+        ...(options?.body !== undefined ? { body: options.body } : {}),
+      };
+
+      const result =
+        method === "POST"
+          ? await client.post<CoreApiResponse<TData>>(requestOptions)
+          : method === "PATCH"
+            ? await client.patch<CoreApiResponse<TData>>(requestOptions)
+            : method === "DELETE"
+              ? await client.delete<CoreApiResponse<TData>>(requestOptions)
+              : await client.get<CoreApiResponse<TData>>(requestOptions);
+
+      return result;
+    },
+    fallbackMessage,
+  );
+}
+
+async function requestCoreApiDelete(
+  getClient: GetClient,
+  path: string,
+  fallbackMessage = "Failed to communicate with Core API",
+): Promise<void> {
+  const client = await getClient();
+
+  let result: CoreOperationResult<unknown, unknown>;
+  try {
+    result = await client.delete({
+      url: path,
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw new CoreApiRequestError(
+      error instanceof Error ? error.message : fallbackMessage,
+      { details: error },
+    );
+  }
+
+  if (result.error) {
+    const message = extractErrorMessage(result.error, result.response?.status);
+    throw new CoreApiRequestError(message, {
+      details: result.error,
+      status: result.response?.status,
+    });
+  }
+}
+
+export interface CoreDesignMdMetadata {
+  extractionId: string | null;
+  previewUrl: string | null;
+  url: string | null;
+}
+
+export interface CorePreferredOrganization {
+  organizationId: string | null;
 }
 
 export function mapCoreApiStatusToCommonErrorCode(
@@ -1197,88 +1255,138 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getOrganizationCredits(organizationId: string) {
+  async function getMe() {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetUsersByIdOrganizationsByOrganizationIdCredits({
-          client,
-          path: { id: CURRENT_USER_PATH_ID, organizationId },
-          cache: "no-store",
-        }),
-      "Failed to fetch organization credits",
-    );
-  }
-
-  async function getOrganizationBillingPlan(organizationId: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetOrganizationsByIdBillingPlan({
-          client,
-          path: { id: organizationId },
-          cache: "no-store",
-          responseTransformer: async (data) =>
-            transformBillingPlanResponseEnvelope(data),
-        }),
-      "Failed to fetch organization billing plan",
-    );
-  }
-
-  async function getOrganizationSubscriptionChangeAllowed(
-    organizationId: string,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetOrganizationsByIdSubscriptionChangeAllowed({
-          client,
-          path: { id: organizationId },
-          cache: "no-store",
-        }),
-      "Failed to validate organization subscription change",
-    );
-  }
-
-  async function getPersonalSubscriptionChangeAllowed() {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetUsersByIdSubscriptionChangeAllowed({
+        coreGetUsersById({
           client,
           path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
-      "Failed to validate personal subscription change",
+      "Failed to fetch current user",
     );
   }
 
-  async function patchOrganizationInvoiceEmail(
-    organizationId: string,
-    invoiceEmail: string | null,
+  async function getUserById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch user",
+    );
+  }
+
+  async function getUserStripeCustomer(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdStripeCustomer({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch user Stripe customer",
+    );
+  }
+
+  async function getOrganizationById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    );
+  }
+
+  async function getMyJobs(agentId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetJobs({
+          client,
+          query: { agentId, scope: "owned" },
+          cache: "no-store",
+        }),
+      "Failed to fetch user jobs",
+    );
+  }
+
+  async function provideJobInput(
+    id: string,
+    body: NonNullable<PostJobsByIdInputsData["body"]>,
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        corePatchOrganizationsByIdInvoiceEmail({
+        corePostJobsByIdInputs({
           client,
-          path: { id: organizationId },
-          body: { invoiceEmail },
+          path: { id },
+          body,
         }),
-      "Failed to update organization invoice email",
+      "Failed to provide job input",
     );
   }
 
-  async function revokeOAuthConsent(consentId: string, clientId: string) {
+  async function getMyOnboarding() {
     return executeOperation(
       getClient,
       (client) =>
-        coreDeleteUsersByIdOauthConsentsByConsentId({
+        coreGetUsersByIdOnboarding({
           client,
-          path: { id: CURRENT_USER_PATH_ID, consentId },
-          query: { clientId },
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
         }),
-      "Failed to revoke OAuth consent",
+      "Failed to fetch onboarding status",
+    );
+  }
+
+  async function completeMyOnboarding() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdOnboarding({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+        }),
+      "Failed to complete onboarding",
+    );
+  }
+
+  /**
+   * Pending invitations for the session user. Route is added in core-api-gaps;
+   * uses raw fetch until the OpenAPI client is regenerated.
+   */
+  async function getMyPendingInvitations<T = unknown>() {
+    return requestCoreApiPath<T[]>(
+      getClient,
+      "/users/me/invitations/pending",
+      undefined,
+      "Failed to fetch pending invitations",
+    );
+  }
+
+  /**
+   * Returns emails that already have user accounts. Route is added in
+   * core-api-gaps; uses raw fetch until the OpenAPI client is regenerated.
+   */
+  async function checkExistingUsers(emails: string[]) {
+    return requestCoreApiPath<{ existingEmails: string[] }>(
+      getClient,
+      "/users/check-existing",
+      {
+        method: "POST",
+        body: { emails },
+      },
+      "Failed to check existing users",
     );
   }
 
@@ -1854,9 +1962,99 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getMyPreferredOrganization() {
+    return requestCoreApiPath<CorePreferredOrganization>(
+      getClient,
+      "/users/me/preferred-organization",
+      undefined,
+      "Failed to fetch preferred organization",
+    );
+  }
+
+  async function patchMyPreferredOrganization(organizationId: string | null) {
+    return requestCoreApiPath<CorePreferredOrganization>(
+      getClient,
+      "/users/me/preferred-organization",
+      {
+        method: "PATCH",
+        body: { organizationId },
+      },
+      "Failed to update preferred organization",
+    );
+  }
+
+  async function getMyDesignMd() {
+    return requestCoreApiPath<CoreDesignMdMetadata | null>(
+      getClient,
+      "/users/me/design-md",
+      undefined,
+      "Failed to fetch user DESIGN.md metadata",
+    );
+  }
+
+  async function patchMyDesignMd(body: {
+    extractionId?: string | null;
+    url: string | null;
+  }) {
+    return requestCoreApiPath<CoreDesignMdMetadata | null>(
+      getClient,
+      "/users/me/design-md",
+      {
+        method: "PATCH",
+        body,
+      },
+      "Failed to update user DESIGN.md metadata",
+    );
+  }
+
+  async function deleteMyDesignMd() {
+    return requestCoreApiDelete(
+      getClient,
+      "/users/me/design-md",
+      "Failed to delete user DESIGN.md metadata",
+    );
+  }
+
+  async function getOrganizationDesignMd(organizationId: string) {
+    return requestCoreApiPath<CoreDesignMdMetadata | null>(
+      getClient,
+      `/organizations/${organizationId}/design-md`,
+      undefined,
+      "Failed to fetch organization DESIGN.md metadata",
+    );
+  }
+
+  async function patchOrganizationDesignMd(
+    organizationId: string,
+    body: {
+      extractionId?: string | null;
+      url: string | null;
+    },
+  ) {
+    return requestCoreApiPath<CoreDesignMdMetadata | null>(
+      getClient,
+      `/organizations/${organizationId}/design-md`,
+      {
+        method: "PATCH",
+        body,
+      },
+      "Failed to update organization DESIGN.md metadata",
+    );
+  }
+
+  async function deleteOrganizationDesignMd(organizationId: string) {
+    return requestCoreApiDelete(
+      getClient,
+      `/organizations/${organizationId}/design-md`,
+      "Failed to delete organization DESIGN.md metadata",
+    );
+  }
+
   return {
     activateEnterpriseContract,
     cancelEnterpriseContract,
+    checkExistingUsers,
+    completeMyOnboarding,
     createEnterpriseContract,
     getEnterpriseContract,
     listEnterpriseContracts,
@@ -1873,6 +2071,8 @@ export function createCoreClient(getClient: GetClient) {
     createTaskLink,
     createTaskEvent,
     deleteJobShare,
+    deleteMyDesignMd,
+    deleteOrganizationDesignMd,
     deleteProjectsById,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdTasksByTaskId,
@@ -1913,20 +2113,22 @@ export function createCoreClient(getClient: GetClient) {
     getJobById,
     getJobs,
     getInvitationById,
+    getMe,
     getMyCredits,
+    getMyDesignMd,
+    getMyJobs,
     getMyMemberInOrganization,
+    getMyPreferredOrganization,
     getMyMembersWithOrganizations,
+    getMyOnboarding,
     getMyOrganizations,
+    getMyPendingInvitations,
     getMyStripeCustomer,
-    getOrganizationBillingPlan,
-    getOrganizationCredits,
+    getOrganizationById,
+    getOrganizationDesignMd,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,
-    getOrganizationSubscriptionChangeAllowed,
-    getPersonalSubscriptionChangeAllowed,
-    patchOrganizationInvoiceEmail,
-    revokeOAuthConsent,
     getPendingNotices,
     getProjects,
     getProjectsById,
@@ -1937,6 +2139,9 @@ export function createCoreClient(getClient: GetClient) {
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
+    patchMyDesignMd,
+    patchMyPreferredOrganization,
+    patchOrganizationDesignMd,
     patchProjectsById,
     postProjects,
     postProjectsByIdJobs,
@@ -1948,8 +2153,11 @@ export function createCoreClient(getClient: GetClient) {
     getTaskLinks,
     getTasks,
     patchTask,
+    provideJobInput,
     putJobShare,
     putTaskShare,
+    getUserById,
+    getUserStripeCustomer,
     updateConversation,
     updateHermesInstance,
   };
