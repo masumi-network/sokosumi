@@ -461,22 +461,32 @@ export const stripeClient = (() => {
     },
 
     /**
-     * Lists invoices in the given statuses with the customer expanded, most
-     * recent first. Stripe's `invoices.list` filters by a single status, so
-     * each status is fetched separately and the results are merged. Used by
-     * the admin credit-grant list to surface unfinished (draft/open) invoices.
+     * Lists invoices with the customer expanded, most recent first. When
+     * `statuses` is omitted, invoices across all statuses are returned;
+     * otherwise each status is fetched separately because Stripe's
+     * `invoices.list` filters by a single status per request. An optional
+     * `customerId` scopes the list to one customer. Used by the admin
+     * credit-grant list and its status/recipient filters.
      */
-    async listInvoicesByStatus(
-      statuses: Stripe.Invoice.Status[],
-      limit = 100,
-    ): Promise<Stripe.Invoice[]> {
+    async listInvoices(params: {
+      statuses?: Stripe.Invoice.Status[];
+      customerId?: string;
+      limit?: number;
+    }): Promise<Stripe.Invoice[]> {
+      const baseParams: Stripe.InvoiceListParams = {
+        limit: params.limit ?? 100,
+        expand: ["data.customer"],
+        ...(params.customerId ? { customer: params.customerId } : {}),
+      };
+
+      if (!params.statuses || params.statuses.length === 0) {
+        const page = await stripe.invoices.list(baseParams);
+        return page.data;
+      }
+
       const pages = await Promise.all(
-        statuses.map((status) =>
-          stripe.invoices.list({
-            status,
-            limit,
-            expand: ["data.customer"],
-          }),
+        params.statuses.map((status) =>
+          stripe.invoices.list({ ...baseParams, status }),
         ),
       );
       return pages.flatMap((page) => page.data);

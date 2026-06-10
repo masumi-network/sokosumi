@@ -15,7 +15,7 @@ const getCreditTopUpPriceByIdMock = vi.fn();
 const getInvoiceMock = vi.fn();
 const payInvoiceOutOfBandMock = vi.fn();
 const getAccountIdMock = vi.fn();
-const listInvoicesByStatusMock = vi.fn();
+const listInvoicesMock = vi.fn();
 
 const handleInvoicePaidEventMock = vi.fn();
 const creditBucketFindFirstMock = vi.fn();
@@ -65,8 +65,7 @@ vi.mock("@/lib/clients/stripe.client", () => ({
     payInvoiceOutOfBand: (...args: unknown[]) =>
       payInvoiceOutOfBandMock(...args),
     getAccountId: (...args: unknown[]) => getAccountIdMock(...args),
-    listInvoicesByStatus: (...args: unknown[]) =>
-      listInvoicesByStatusMock(...args),
+    listInvoices: (...args: unknown[]) => listInvoicesMock(...args),
   },
 }));
 
@@ -350,8 +349,73 @@ describe("creditGrantAdminService.listGrantInvoices", () => {
     getAccountIdMock.mockResolvedValue("acct_1");
   });
 
+  it("defaults to unfinished (draft + open) statuses with no customer filter", async () => {
+    listInvoicesMock.mockResolvedValue([]);
+
+    await creditGrantAdminService.listGrantInvoices();
+
+    expect(listInvoicesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statuses: ["draft", "open"],
+        customerId: undefined,
+      }),
+    );
+  });
+
+  it("passes no statuses to Stripe when filtering by 'all'", async () => {
+    listInvoicesMock.mockResolvedValue([]);
+
+    await creditGrantAdminService.listGrantInvoices({ status: "all" });
+
+    expect(listInvoicesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: undefined }),
+    );
+  });
+
+  it("passes a single status to Stripe when filtering by a specific status", async () => {
+    listInvoicesMock.mockResolvedValue([]);
+
+    await creditGrantAdminService.listGrantInvoices({ status: "paid" });
+
+    expect(listInvoicesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: ["paid"] }),
+    );
+  });
+
+  it("scopes the list to the recipient's Stripe customer", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user_1",
+      name: "Ada",
+      stripeCustomerId: "cus_user",
+    });
+    listInvoicesMock.mockResolvedValue([]);
+
+    await creditGrantAdminService.listGrantInvoices({
+      recipient: { targetType: "user", targetId: "user_1" },
+    });
+
+    expect(listInvoicesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: "cus_user" }),
+    );
+  });
+
+  it("returns an empty list when the recipient has no Stripe customer", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      stripeCustomerId: null,
+    });
+
+    const items = await creditGrantAdminService.listGrantInvoices({
+      recipient: { targetType: "organization", targetId: "org_1" },
+    });
+
+    expect(items).toEqual([]);
+    expect(listInvoicesMock).not.toHaveBeenCalled();
+  });
+
   it("returns only admin credit-grant invoices, mapped and sorted newest first", async () => {
-    listInvoicesByStatusMock.mockResolvedValue([
+    listInvoicesMock.mockResolvedValue([
       {
         id: "in_old",
         status: "open",
@@ -391,7 +455,9 @@ describe("creditGrantAdminService.listGrantInvoices", () => {
 
     const items = await creditGrantAdminService.listGrantInvoices();
 
-    expect(listInvoicesByStatusMock).toHaveBeenCalledWith(["draft", "open"]);
+    expect(listInvoicesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: ["draft", "open"] }),
+    );
     expect(items.map((item) => item.invoiceId)).toEqual(["in_new", "in_old"]);
     expect(items[0]).toMatchObject({
       invoiceId: "in_new",
@@ -414,7 +480,7 @@ describe("creditGrantAdminService.listGrantInvoices", () => {
   });
 
   it("handles unexpanded or deleted customers without throwing", async () => {
-    listInvoicesByStatusMock.mockResolvedValue([
+    listInvoicesMock.mockResolvedValue([
       {
         id: "in_str",
         status: "open",

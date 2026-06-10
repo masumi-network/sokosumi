@@ -64,8 +64,28 @@ export interface CreditGrantInvoiceListItem {
 }
 
 /** Statuses of invoices that still need attention (not paid, void, or
- * uncollectible). These are the only invoices shown in the admin list. */
+ * uncollectible). This is the default filter for the admin list. */
 const UNFINISHED_INVOICE_STATUSES: Stripe.Invoice.Status[] = ["draft", "open"];
+
+/** Max number of invoices returned by the admin list (per filter). */
+const DEFAULT_INVOICE_LIST_LIMIT = 50;
+
+/**
+ * Status filter accepted by {@link creditGrantAdminService.listGrantInvoices}:
+ * `"unfinished"` (draft + open, the default), `"all"` (every status), or a
+ * specific Stripe invoice status.
+ */
+export type CreditGrantInvoiceStatusFilter =
+  | "unfinished"
+  | "all"
+  | Stripe.Invoice.Status;
+
+export interface ListGrantInvoicesParams {
+  status?: CreditGrantInvoiceStatusFilter;
+  /** When set, only invoices for this user/organization are returned. */
+  recipient?: CreditGrantTarget | null;
+  limit?: number;
+}
 
 /** Identity of a grant target (user or organization) used for summaries and
  * credit-bucket verification, independent of Stripe billing details. */
@@ -267,6 +287,24 @@ export const creditGrantAdminService = (() => {
       : ensureOrganizationStripeCustomerId(target.targetId);
   }
 
+  /** Resolves a recipient to its existing Stripe customer id without creating
+   * one. Returns null when the recipient has no Stripe customer yet (so no
+   * invoices can exist for them). */
+  async function resolveExistingStripeCustomerId(
+    recipient: CreditGrantTarget,
+  ): Promise<string | null> {
+    if (recipient.targetType === "user") {
+      const user = await userRepository.getUserById(recipient.targetId, prisma);
+      return user?.stripeCustomerId ?? null;
+    }
+    const organization =
+      await organizationRepository.getOrganizationWithRelationsById(
+        recipient.targetId,
+        prisma,
+      );
+    return organization?.stripeCustomerId ?? null;
+  }
+
   async function resolvePrice(priceId: string | null) {
     if (!priceId) {
       return await stripeClient.getBaseCreditTopUpPrice();
@@ -338,14 +376,39 @@ export const creditGrantAdminService = (() => {
     },
 
     /**
-     * Lists unfinished (draft/open) admin credit-grant invoices, most recent
-     * first. Paid, void, and uncollectible invoices are excluded — they no
-     * longer need attention. Only invoices tagged with the admin grant source
-     * are returned, so normal checkout/subscription invoices are filtered out.
+     * Lists admin credit-grant invoices, most recent first. Defaults to
+     * unfinished (draft + open) invoices but accepts a status filter
+     * (`"all"` or a specific status) and an optional recipient filter. Only
+     * invoices tagged with the admin grant source are returned, so normal
+     * checkout/subscription invoices are filtered out.
      */
-    async listGrantInvoices(): Promise<CreditGrantInvoiceListItem[]> {
+    async listGrantInvoices(
+      params: ListGrantInvoicesParams = {},
+    ): Promise<CreditGrantInvoiceListItem[]> {
+      const status = params.status ?? "unfinished";
+      const limit = params.limit ?? DEFAULT_INVOICE_LIST_LIMIT;
+
+      let customerId: string | undefined;
+      if (params.recipient) {
+        const resolved = await resolveExistingStripeCustomerId(
+          params.recipient,
+        );
+        // No Stripe customer means no invoices exist for the recipient yet.
+        if (!resolved) {
+          return [];
+        }
+        customerId = resolved;
+      }
+
+      const statuses =
+        status === "all"
+          ? undefined
+          : status === "unfinished"
+            ? UNFINISHED_INVOICE_STATUSES
+            : [status];
+
       const [invoices, accountId] = await Promise.all([
-        stripeClient.listInvoicesByStatus(UNFINISHED_INVOICE_STATUSES),
+        stripeClient.listInvoices({ statuses, customerId, limit }),
         stripeClient.getAccountId(),
       ]);
 
@@ -356,7 +419,8 @@ export const creditGrantAdminService = (() => {
         )
         .map((invoice) => toInvoiceListItem(invoice, accountId))
         .filter((item): item is CreditGrantInvoiceListItem => item !== null)
-        .sort((a, b) => b.createdAt - a.createdAt);
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, limit);
     },
 
     async createGrantInvoice(params: {

@@ -6,6 +6,8 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import {
+  type CreditGrantInvoiceListItem,
+  type CreditGrantInvoiceStatusFilter,
   type CreditGrantInvoiceSummary,
   type CreditGrantTargetType,
   CreditGrantValidationError,
@@ -77,6 +79,27 @@ export const createCreditGrantInvoiceAction = withSession<
     }
   },
 );
+
+interface ListCreditGrantInvoicesParameters extends AuthenticatedRequest {
+  status: CreditGrantInvoiceStatusFilter;
+  recipient: { targetType: CreditGrantTargetType; targetId: string } | null;
+}
+
+export const listCreditGrantInvoicesAction = withSession<
+  ListCreditGrantInvoicesParameters,
+  Result<CreditGrantInvoiceListItem[], ActionError>
+>(async ({ session, status, recipient }) => {
+  try {
+    assertAdminSession(session);
+    const invoices = await creditGrantAdminService.listGrantInvoices({
+      status,
+      recipient,
+    });
+    return Ok(invoices);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
 
 interface MarkCreditGrantInvoicePaidParameters extends AuthenticatedRequest {
   invoiceId: string;

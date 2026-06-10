@@ -2663,9 +2663,10 @@
           "openInStripe": "Open in Stripe"
         },
         "InvoiceList": {
-          "title": "Unfinished invoices",
-          "description": "Credit-grant invoices that still need attention. Paid, canceled, and void invoices are not shown.",
-          "empty": "No unfinished credit-grant invoices.",
+          "title": "Invoices",
+          "description": "Credit-grant invoices, most recent first. Defaults to unfinished (draft and open); use the filters to view other statuses or a specific recipient.",
+          "empty": "No credit-grant invoices match the current filters.",
+          "loadError": "Failed to load invoices",
           "recipient": "Recipient",
           "typeUser": "User",
           "typeOrganization": "Organization",
@@ -2677,7 +2678,23 @@
           "status": "Status",
           "created": "Created",
           "actions": "Actions",
-          "openInStripe": "Open in Stripe"
+          "openInStripe": "Open in Stripe",
+          "Filters": {
+            "status": "Status",
+            "recipient": "Recipient",
+            "recipientAll": "All recipients",
+            "tabOrganization": "Organization",
+            "tabUser": "User"
+          },
+          "Status": {
+            "unfinished": "Unfinished",
+            "all": "All statuses",
+            "draft": "Draft",
+            "open": "Open",
+            "paid": "Paid",
+            "void": "Void",
+            "uncollectible": "Uncollectible"
+          }
         }
       },
       "Overview": {

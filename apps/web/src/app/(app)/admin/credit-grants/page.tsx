@@ -49,7 +49,7 @@ export default async function CreditGrantsPage() {
             <CardDescription>{t("InvoiceList.description")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <CreditGrantInvoiceList invoices={invoices} />
+            <CreditGrantInvoiceList initialInvoices={invoices} />
           </CardContent>
         </Card>
       </div>
