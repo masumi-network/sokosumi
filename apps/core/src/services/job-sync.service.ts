@@ -219,7 +219,7 @@ async function dispatchFinalStatusNotification(
       locale: "en",
     });
 
-    void postmarkClient
+    await postmarkClient
       .sendEmail({
         From: getEnv().POSTMARK_FROM_EMAIL,
         To: job.user.email,
@@ -265,7 +265,7 @@ async function dispatchInputRequiredNotification(
       locale: "en",
     });
 
-    void postmarkClient
+    await postmarkClient
       .sendEmail({
         From: getEnv().POSTMARK_FROM_EMAIL,
         To: job.user.email,
@@ -351,7 +351,7 @@ async function dispatchJobFailureNotification(
       locale: "en",
     });
 
-    void postmarkClient
+    await postmarkClient
       .sendEmail({
         From: getEnv().POSTMARK_FROM_EMAIL,
         To: toRecipients.join(","),
@@ -472,13 +472,42 @@ async function syncPurchaseState(
 
     if (purchaseResult.isOk()) {
       const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
-      await jobPurchaseRepository.createJobPurchase(
-        {
-          jobId: job.id,
-          ...purchaseData,
-        },
-        prisma,
-      );
+      try {
+        await jobPurchaseRepository.createJobPurchase(
+          {
+            jobId: job.id,
+            ...purchaseData,
+          },
+          prisma,
+        );
+      } catch (error) {
+        const code =
+          error !== null &&
+          typeof error === "object" &&
+          "code" in error &&
+          typeof (error as { code: unknown }).code === "string"
+            ? (error as { code: string }).code
+            : null;
+        if (code === "P2002") {
+          // Unique constraint: purchase already created by a concurrent
+          // request. The row exists, so fall through to refresh and finalize.
+          logJobSyncInfo(
+            "purchase",
+            `Skipping purchase backfill for job ${job.id}: ${code}`,
+          );
+        } else if (code === "P2014" || code === "P2025") {
+          // Job was deleted or the relation can't be satisfied; nothing to
+          // sync. Skip the refresh below, which would otherwise throw
+          // "Job not found" for the now-missing job.
+          logJobSyncInfo(
+            "purchase",
+            `Skipping purchase backfill for job ${job.id}: ${code}`,
+          );
+          return false;
+        } else {
+          throw error;
+        }
+      }
     }
 
     const refreshedJob = await jobRepository.getJobById(job.id, prisma);
