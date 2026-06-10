@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { UI_MESSAGE_STREAM_HEADERS } from "ai";
 
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import {
   clearActiveUiStreamIdInMetadata,
   readActiveUiStreamIdFromMetadata,
@@ -75,6 +76,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!conversation) {
       throw notFound("Conversation not found");
     }
+
+    // Per-resource delegation check: a delegated coworker may only resume a
+    // stream for a conversation bound to it (no-op for real user sessions).
+    await requireConversationCoworkerAccess(
+      c.var.authContext,
+      conversation.metadata,
+    );
 
     if (!isUiStreamResumptionConfigured()) {
       return new Response(null, { status: 204 });
