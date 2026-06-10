@@ -333,6 +333,48 @@ export const creditGrantAdminService = (() => {
     return organization?.stripeCustomerId ?? null;
   }
 
+  /** Resolves the grant target (id + name + type) from an invoice by looking
+   * up its Stripe customer. Mirrors the webhook's user-first resolution. */
+  async function resolveInvoiceTarget(
+    invoice: Stripe.Invoice,
+  ): Promise<TargetIdentity> {
+    const stripeCustomerId =
+      typeof invoice.customer === "string"
+        ? invoice.customer
+        : (invoice.customer?.id ?? null);
+    if (!stripeCustomerId) {
+      throw new CreditGrantValidationError("Invoice has no customer");
+    }
+
+    // Resolve the target user-first to mirror the webhook
+    // (`handleInvoicePaidEvent` resolves a user customer before falling back
+    // to an organization). An org-first lookup would never resolve a user
+    // customer.
+    const user = await userRepository.getUserByStripeCustomerId(
+      stripeCustomerId,
+      prisma,
+    );
+    if (user) {
+      return { targetType: "user", id: user.id, name: user.name };
+    }
+
+    const organization =
+      await organizationRepository.getOrganizationByStripeCustomerId(
+        stripeCustomerId,
+        prisma,
+      );
+    if (!organization) {
+      throw new CreditGrantValidationError(
+        "Invoice does not belong to a user or organization",
+      );
+    }
+    return {
+      targetType: "organization",
+      id: organization.id,
+      name: organization.name,
+    };
+  }
+
   async function resolvePrice(priceId: string | null) {
     if (!priceId) {
       return await stripeClient.getBaseCreditTopUpPrice();
@@ -563,6 +605,39 @@ export const creditGrantAdminService = (() => {
     },
 
     /**
+     * Fetches a single admin credit-grant invoice as a detail summary. Returns
+     * null when the invoice does not exist or is not an admin credit grant, so
+     * the caller can surface a 404.
+     */
+    async getGrantInvoice(
+      invoiceId: string,
+    ): Promise<CreditGrantInvoiceSummary | null> {
+      let invoice: Stripe.Invoice;
+      try {
+        invoice = await stripeClient.getInvoice(invoiceId);
+      } catch {
+        return null;
+      }
+
+      if (invoice.metadata?.grant_source !== ADMIN_CREDIT_GRANT_SOURCE) {
+        return null;
+      }
+
+      const [target, accountId] = await Promise.all([
+        resolveInvoiceTarget(invoice),
+        stripeClient.getAccountId(),
+      ]);
+
+      return toInvoiceSummary(
+        invoice,
+        target,
+        parseMetadataNumber(invoice.metadata?.credits, 0) ?? 0,
+        parseMetadataNumber(invoice.metadata?.ttl_days, null),
+        accountId,
+      );
+    },
+
+    /**
      * Marks a credit-grant invoice as paid and grants the credits instantly by
      * running the same invoice-paid automation the webhook uses. Granting is
      * idempotent: the shared reference-id dedup prevents a double grant when the
@@ -579,44 +654,7 @@ export const creditGrantAdminService = (() => {
         );
       }
 
-      const stripeCustomerId =
-        typeof existing.customer === "string"
-          ? existing.customer
-          : (existing.customer?.id ?? null);
-      if (!stripeCustomerId) {
-        throw new CreditGrantValidationError("Invoice has no customer");
-      }
-
-      // Resolve the target user-first to mirror the webhook
-      // (`handleInvoicePaidEvent` resolves a user customer before falling back
-      // to an organization). An org-first lookup would never resolve a user
-      // customer.
-      const user = await userRepository.getUserByStripeCustomerId(
-        stripeCustomerId,
-        prisma,
-      );
-
-      let target: TargetIdentity;
-
-      if (user) {
-        target = { targetType: "user", id: user.id, name: user.name };
-      } else {
-        const organization =
-          await organizationRepository.getOrganizationByStripeCustomerId(
-            stripeCustomerId,
-            prisma,
-          );
-        if (!organization) {
-          throw new CreditGrantValidationError(
-            "Invoice does not belong to a user or organization",
-          );
-        }
-        target = {
-          targetType: "organization",
-          id: organization.id,
-          name: organization.name,
-        };
-      }
+      const target = await resolveInvoiceTarget(existing);
 
       // A non-zero invoice still open is marked paid out of band; a $0 invoice
       // is already "paid" on finalization, so we skip the pay call there.

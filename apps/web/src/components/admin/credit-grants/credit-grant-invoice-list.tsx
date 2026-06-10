@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -330,14 +330,11 @@ export function CreditGrantInvoiceList({
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={invoice.dashboardUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <Link
+                          href={`/admin/credit-grants/${invoice.invoiceId}`}
                         >
-                          <ExternalLink className="size-4" />
-                          {t("openInStripe")}
-                        </a>
+                          {t("view")}
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>

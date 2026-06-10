@@ -2614,6 +2614,8 @@
         "title": "Grant credits",
         "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
         "cardTitle": "New credit grant",
+        "newGrant": "New credit grant",
+        "backToList": "Back to list",
         "Form": {
           "Fields": {
             "target": "Recipient",
@@ -2660,7 +2662,8 @@
           "marking": "Granting credits…",
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
-          "openInStripe": "Open in Stripe"
+          "openInStripe": "Open in Stripe",
+          "loadError": "Failed to load invoice"
         },
         "InvoiceList": {
           "title": "Invoices",
@@ -2678,7 +2681,7 @@
           "status": "Status",
           "created": "Created",
           "actions": "Actions",
-          "openInStripe": "Open in Stripe",
+          "view": "View",
           "Filters": {
             "status": "Status",
             "recipient": "Recipient",

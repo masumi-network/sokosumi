@@ -101,6 +101,29 @@ export const listCreditGrantInvoicesAction = withSession<
   }
 });
 
+interface GetCreditGrantInvoiceParameters extends AuthenticatedRequest {
+  invoiceId: string;
+}
+
+export const getCreditGrantInvoiceAction = withSession<
+  GetCreditGrantInvoiceParameters,
+  Result<CreditGrantInvoiceSummary, ActionError>
+>(async ({ session, invoiceId }) => {
+  try {
+    assertAdminSession(session);
+    const summary = await creditGrantAdminService.getGrantInvoice(invoiceId);
+    if (!summary) {
+      return Err({
+        code: CommonErrorCode.NOT_FOUND,
+        message: "Credit grant invoice not found",
+      });
+    }
+    return Ok(summary);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
+
 interface MarkCreditGrantInvoicePaidParameters extends AuthenticatedRequest {
   invoiceId: string;
 }
