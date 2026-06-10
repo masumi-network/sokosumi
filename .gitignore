@@ -40,3 +40,6 @@ lint-report.json
 
 # next-agents-md
 /.next-docs/
+
+# git worktrees
+.worktrees/
