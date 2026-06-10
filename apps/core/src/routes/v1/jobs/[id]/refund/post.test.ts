@@ -12,9 +12,9 @@ const {
   prismaTransactionMock,
   jobFindUniqueMock,
   updateJobPurchaseByExternalIdMock,
-  requireJobOwnershipMock,
+  requireJobCollaborationMock,
 } = vi.hoisted(() => ({
-  requireJobOwnershipMock: vi.fn(async () => undefined),
+  requireJobCollaborationMock: vi.fn(async () => undefined),
   authContextState: {
     current: {
       actor: "user",
@@ -107,7 +107,7 @@ vi.mock("@/middleware/auth", () => ({
 }));
 
 vi.mock("@/helpers/access-control.js", () => ({
-  requireJobOwnership: requireJobOwnershipMock,
+  requireJobCollaboration: requireJobCollaborationMock,
 }));
 
 const requestRefundMock = vi.fn();
@@ -220,8 +220,8 @@ describe("POST /jobs/{id}/refund", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     jobFindUniqueMock.mockReset();
-    requireJobOwnershipMock.mockReset();
-    requireJobOwnershipMock.mockResolvedValue(undefined);
+    requireJobCollaborationMock.mockReset();
+    requireJobCollaborationMock.mockResolvedValue(undefined);
     authContextState.current = {
       actor: "user",
       userId: "user_123",
@@ -280,7 +280,7 @@ describe("POST /jobs/{id}/refund", () => {
   });
 
   it("returns 403 when the job belongs to another user", async () => {
-    requireJobOwnershipMock.mockRejectedValueOnce(
+    requireJobCollaborationMock.mockRejectedValueOnce(
       forbidden("You can only access your own jobs"),
     );
 

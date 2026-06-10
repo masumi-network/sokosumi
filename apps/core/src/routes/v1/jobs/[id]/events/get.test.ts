@@ -211,12 +211,13 @@ describe("GET /jobs/{id}/events", () => {
     const response = await app.request("http://localhost/job_123/events");
 
     expect(response.status).toBe(404);
+    // The authorization read (requireJobReadForRouteVars) short-circuits before
+    // the include-heavy fetch, so the only query is the workspace-scoped check.
     expect(jobFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "job_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
-      include: expect.any(Object),
     });
   });
 });

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { publicShareRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "@/helpers/error.js";
+import { requireJobCollaboration } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -9,7 +9,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import {
   jobShareSchema,
   putJobShareRequestSchema,
@@ -49,26 +48,11 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
     const share = await prisma.$transaction(async (tx) => {
-      const job = await tx.job.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          userId: true,
-        },
-      });
-
-      if (!job) {
-        throw notFound("Job not found");
-      }
-
-      if (job.userId !== userContext.userId) {
-        throw forbidden("You can only manage sharing for your own jobs");
-      }
+      await requireJobCollaboration(c.var.authContext, id, tx);
 
       return await publicShareRepository.upsertForJob(
         id,
