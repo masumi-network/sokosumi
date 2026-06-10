@@ -6,7 +6,7 @@ import {
   isInputHashVerified,
   isResultHashVerified,
   type ResultVerificationOptions,
-} from "@sokosumi/masumi";
+} from "@sokosumi/masumi/hash";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";

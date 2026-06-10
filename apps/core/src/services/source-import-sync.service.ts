@@ -1,10 +1,10 @@
 import { BlobStatus } from "@sokosumi/database";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { getUrlBasename } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-import { ssrfSafeFetch } from "@/lib/url-guard";
 
 const MAX_CONCURRENT_IMPORTS = 5;
 

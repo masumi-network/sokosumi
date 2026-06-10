@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/database run prisma:generate && pnpm --filter @sokosumi/database run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/email run build",
+    "prebuild": "pnpm --filter @sokosumi/net run build && pnpm --filter @sokosumi/utils run build && pnpm --filter @sokosumi/masumi run build && pnpm --filter @sokosumi/database run prisma:generate && pnpm --filter @sokosumi/database run build && pnpm --filter @sokosumi/chat run build && pnpm --filter @sokosumi/email run build",
     "build": "next build",
     "start": "next start",
     "lint": "biome lint .",
