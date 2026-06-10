@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import {
   memberRepository,
-  organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { getOrganizationMetadata, getUserMetadata } from "@sokosumi/utils";
@@ -18,6 +17,54 @@ import {
 import { effectiveDesignMdSchema } from "@/schemas/design-md.schema";
 
 const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
+
+interface DesignMdAttachment {
+  label: string;
+  url: string;
+}
+
+/**
+ * Resolves the DESIGN.md in effect for `userId`. When `organizationId` is given
+ * and the user is a member, the organization's DESIGN.md wins; otherwise the
+ * user's own (or null) is returned. The organization lookup selects only
+ * `metadata` to avoid loading the org's relations for a scalar read.
+ */
+async function resolveEffectiveDesignMd(
+  userId: string,
+  organizationId: string | undefined,
+): Promise<DesignMdAttachment | null> {
+  if (organizationId) {
+    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+      userId,
+      organizationId,
+      prisma,
+    );
+
+    if (member) {
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { metadata: true },
+      });
+      const organizationDesignMdUrl = getOrganizationMetadata(
+        organization?.metadata,
+      ).designMdUrl;
+
+      if (organizationDesignMdUrl) {
+        return {
+          label: DESIGN_MD_ATTACHMENT_LABEL,
+          url: organizationDesignMdUrl,
+        };
+      }
+    }
+  }
+
+  const user = await userRepository.getUserById(userId, prisma);
+  const userDesignMdUrl = getUserMetadata(user?.metadata).designMdUrl;
+
+  return userDesignMdUrl
+    ? { label: DESIGN_MD_ATTACHMENT_LABEL, url: userDesignMdUrl }
+    : null;
+}
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -73,47 +120,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { organizationId } = c.req.valid("query");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    if (organizationId) {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        resolvedUserId,
-        organizationId,
-        prisma,
-      );
-
-      if (member) {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            organizationId,
-            prisma,
-          );
-        const organizationDesignMdUrl = getOrganizationMetadata(
-          organization?.metadata,
-        ).designMdUrl;
-
-        if (organizationDesignMdUrl) {
-          return ok(
-            c,
-            effectiveDesignMdSchema.parse({
-              designMd: {
-                label: DESIGN_MD_ATTACHMENT_LABEL,
-                url: organizationDesignMdUrl,
-              },
-            }),
-          );
-        }
-      }
-    }
-
-    const user = await userRepository.getUserById(resolvedUserId, prisma);
-    const userDesignMdUrl = getUserMetadata(user?.metadata).designMdUrl;
-
-    return ok(
-      c,
-      effectiveDesignMdSchema.parse({
-        designMd: userDesignMdUrl
-          ? { label: DESIGN_MD_ATTACHMENT_LABEL, url: userDesignMdUrl }
-          : null,
-      }),
+    const designMd = await resolveEffectiveDesignMd(
+      resolvedUserId,
+      organizationId,
     );
+
+    return ok(c, effectiveDesignMdSchema.parse({ designMd }));
   });
 }

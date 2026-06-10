@@ -83,6 +83,12 @@ export type StartDesignMdGenerationResult =
 
 interface ResolveEffectiveDesignMdInput {
   activeOrganizationId?: null | string;
+  /**
+   * Retained for interface stability. Core resolves the effective DESIGN.md for
+   * the authenticated session user (`me`), so this is no longer read here — all
+   * call sites pass `session.user.id`. Do not rely on it to resolve a different
+   * user's DESIGN.md.
+   */
   userId: string;
 }
 

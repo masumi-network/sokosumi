@@ -12,18 +12,21 @@ import mountGetUserEffectiveDesignMd from "./get";
 
 const {
   userFindUniqueMock,
+  organizationFindUniqueMock,
   getUserByIdMock,
   getMemberByUserIdAndOrganizationIdMock,
-  getOrganizationWithRelationsByIdMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
+  organizationFindUniqueMock: vi.fn(),
   getUserByIdMock: vi.fn(),
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
-  getOrganizationWithRelationsByIdMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { user: { findUnique: userFindUniqueMock } },
+  default: {
+    user: { findUnique: userFindUniqueMock },
+    organization: { findUnique: organizationFindUniqueMock },
+  },
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -33,10 +36,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
-  },
-  organizationRepository: {
-    getOrganizationWithRelationsById: (...args: unknown[]) =>
-      getOrganizationWithRelationsByIdMock(...args),
   },
 }));
 
@@ -84,8 +83,8 @@ describe("GET /users/{id}/effective-design-md", () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
       id: "member_1",
     });
-    getOrganizationWithRelationsByIdMock.mockResolvedValueOnce({
-      metadata: { designMdUrl: "https://blob.example/org.md" },
+    organizationFindUniqueMock.mockResolvedValueOnce({
+      metadata: JSON.stringify({ designMdUrl: "https://blob.example/org.md" }),
     });
 
     const response = await createApp().request(
@@ -106,11 +105,11 @@ describe("GET /users/{id}/effective-design-md", () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
       id: "member_1",
     });
-    getOrganizationWithRelationsByIdMock.mockResolvedValueOnce({
-      metadata: {},
+    organizationFindUniqueMock.mockResolvedValueOnce({
+      metadata: JSON.stringify({}),
     });
     getUserByIdMock.mockResolvedValueOnce({
-      metadata: { designMdUrl: "https://blob.example/user.md" },
+      metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });
 
     const response = await createApp().request(
@@ -128,7 +127,7 @@ describe("GET /users/{id}/effective-design-md", () => {
   it("returns the user DESIGN.md when no organization is supplied", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
     getUserByIdMock.mockResolvedValueOnce({
-      metadata: { designMdUrl: "https://blob.example/user.md" },
+      metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });
 
     const response = await createApp().request(
@@ -146,7 +145,7 @@ describe("GET /users/{id}/effective-design-md", () => {
 
   it("returns null when neither the organization nor the user has a DESIGN.md", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    getUserByIdMock.mockResolvedValueOnce({ metadata: {} });
+    getUserByIdMock.mockResolvedValueOnce({ metadata: JSON.stringify({}) });
 
     const response = await createApp().request(
       "http://localhost/me/effective-design-md",
