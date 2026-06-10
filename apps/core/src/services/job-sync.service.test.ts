@@ -1794,12 +1794,37 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     createJobPurchaseMock.mockRejectedValue(
       Object.assign(new Error("violates required relation"), { code: "P2014" }),
     );
+    // Job was deleted concurrently, so the post-backfill refresh finds nothing.
+    getJobByIdMock.mockResolvedValueOnce(null);
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
     );
 
-    expect(result).toEqual(expect.objectContaining({ processed: 1 }));
+    expect(result).toEqual(expect.objectContaining({ processed: 0 }));
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("skips purchase backfill gracefully on P2025 record-not-found (concurrent job deletion)", async () => {
+    const job = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [job] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({ id: "purchase_missing" }),
+    );
+    createJobPurchaseMock.mockRejectedValue(
+      Object.assign(new Error("record to update not found"), { code: "P2025" }),
+    );
+    // Job was deleted concurrently, so the post-backfill refresh finds nothing.
+    getJobByIdMock.mockResolvedValueOnce(null);
+
+    const result = await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+
+    expect(result).toEqual(expect.objectContaining({ processed: 0 }));
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 

@@ -481,8 +481,6 @@ async function syncPurchaseState(
           prisma,
         );
       } catch (error) {
-        // P2002: unique constraint (purchase already created by a concurrent request)
-        // P2014/P2025: job was deleted or relation can't be satisfied; nothing to sync
         const code =
           error !== null &&
           typeof error === "object" &&
@@ -490,11 +488,22 @@ async function syncPurchaseState(
           typeof (error as { code: unknown }).code === "string"
             ? (error as { code: string }).code
             : null;
-        if (code === "P2002" || code === "P2014" || code === "P2025") {
+        if (code === "P2002") {
+          // Unique constraint: purchase already created by a concurrent
+          // request. The row exists, so fall through to refresh and finalize.
           logJobSyncInfo(
             "purchase",
             `Skipping purchase backfill for job ${job.id}: ${code}`,
           );
+        } else if (code === "P2014" || code === "P2025") {
+          // Job was deleted or the relation can't be satisfied; nothing to
+          // sync. Skip the refresh below, which would otherwise throw
+          // "Job not found" for the now-missing job.
+          logJobSyncInfo(
+            "purchase",
+            `Skipping purchase backfill for job ${job.id}: ${code}`,
+          );
+          return false;
         } else {
           throw error;
         }
