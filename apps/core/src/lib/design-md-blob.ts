@@ -8,7 +8,11 @@ import { getEnv } from "@/config/env";
 
 /**
  * Uploads DESIGN.md markdown content to blob storage and returns the public URL,
- * or `null` when the content is empty or storage is not configured.
+ * or `null` when a transient storage error prevents the upload.
+ *
+ * Throws when blob storage is not configured — that is a deployment
+ * misconfiguration (a 500-class error), not a transient failure. Callers should
+ * map a `null` result to a 503.
  *
  * The filename is content-addressed (sha256) and namespaced by `extractionId`
  * when known, so re-uploading identical content is idempotent.
@@ -17,17 +21,12 @@ export async function uploadDesignMdContent(
   content: string,
   extractionId?: string | null,
 ): Promise<string | null> {
-  const trimmed = content.trim();
-  if (!trimmed) return null;
-
   const env = getEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      "[Blob] BLOB_READ_WRITE_TOKEN not configured, skipping DESIGN.md upload",
-    );
-    return null;
+    throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
   }
 
+  const trimmed = content.trim();
   const hash = crypto.createHash("sha256").update(trimmed).digest("hex");
   const fileName = extractionId ? `${extractionId}-${hash}.md` : `${hash}.md`;
 

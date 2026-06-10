@@ -296,10 +296,9 @@ export const designMdService = (() => {
     });
 
     if (!persisted) {
-      throw new DesignMdServiceError(
-        "bad_input",
-        "DESIGN.md content is required",
-      );
+      // Core only returns a null DESIGN.md when clearing; a non-empty upload
+      // should always round-trip a stored record.
+      throw new DesignMdServiceError("internal", "DESIGN.md was not persisted");
     }
 
     return persisted;

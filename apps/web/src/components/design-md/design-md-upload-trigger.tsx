@@ -47,7 +47,6 @@ export function DesignMdUploadTrigger({
       acceptedFiles: File[],
       options: {
         onError: (file: File, error: Error) => void;
-        onProgress: (file: File, progress: number) => void;
         onSuccess: (file: File) => void;
       },
     ) => {
