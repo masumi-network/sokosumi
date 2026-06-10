@@ -273,11 +273,13 @@ function PureMultimodalInput({
 
   const width = windowWidth;
   const isTaskComposer = !chatId && composeKind === "task";
-  syncDesignMdDismissedState(
-    input,
-    initialDesignMdAttachment,
-    designMdStateRef.current,
-  );
+  if (isTaskComposer) {
+    syncDesignMdDismissedState(
+      input,
+      initialDesignMdAttachment,
+      designMdStateRef.current,
+    );
+  }
   const supportsChatImageInput = useMemo(
     () => chatModelSupportsImageInput(selectedModel?.id ?? null),
     [selectedModel?.id],

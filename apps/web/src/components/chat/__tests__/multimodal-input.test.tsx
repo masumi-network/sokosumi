@@ -289,6 +289,56 @@ describe("MultimodalInput", () => {
     });
   });
 
+  it("restores DESIGN.md and keeps attachment enabled after switching task to chat and back", async () => {
+    const onSendMessage = vi.fn().mockResolvedValue(true);
+
+    render(
+      <WelcomeMultimodalInput
+        initialComposeKind="task"
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSendMessage={onSendMessage}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeChat" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveValue("");
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "composeTask" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-editor")).toHaveValue(
+        "[DESIGN.md](https://blob.example/design.md)\n",
+      );
+    });
+
+    fireEvent.click(screen.getByTestId("send-button"));
+
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledTimes(1));
+    expect(onSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "[DESIGN.md](https://blob.example/design.md)",
+      }),
+      expect.anything(),
+      undefined,
+      expect.objectContaining({
+        kind: "task",
+        skipDesignMdAttachment: false,
+      }),
+    );
+  });
+
   it("does not restore DESIGN.md after the prefilled link was removed in the editor", async () => {
     render(
       <WelcomeMultimodalInput
