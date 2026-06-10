@@ -2,7 +2,18 @@ import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
-const enterpriseOrganizationBillingPlanSchema = z
+const selfServeBillingPlanSchema = z
+  .object({
+    mode: z.literal("self_serve"),
+    plan: z.enum(["free", "starter", "standard", "pro"]),
+    purchasedSeats: z.number().int(),
+    subscriptionId: z.string().nullable(),
+    cancelAtPeriodEnd: z.boolean(),
+    periodEnd: dateTimeSchema.nullable(),
+  })
+  .openapi("SelfServeOrganizationBillingPlan");
+
+const enterpriseBillingPlanSchema = z
   .object({
     mode: z.literal("enterprise_contract"),
     plan: z.literal("enterprise"),
@@ -16,21 +27,10 @@ const enterpriseOrganizationBillingPlanSchema = z
   })
   .openapi("EnterpriseOrganizationBillingPlan");
 
-const selfServeOrganizationBillingPlanSchema = z
-  .object({
-    mode: z.literal("self_serve"),
-    plan: z.enum(["free", "starter", "standard", "pro"]),
-    purchasedSeats: z.number().int(),
-    subscriptionId: z.string().nullable(),
-    cancelAtPeriodEnd: z.boolean(),
-    periodEnd: dateTimeSchema.nullable(),
-  })
-  .openapi("SelfServeOrganizationBillingPlan");
-
 export const organizationBillingPlanSchema = z
   .discriminatedUnion("mode", [
-    enterpriseOrganizationBillingPlanSchema,
-    selfServeOrganizationBillingPlanSchema,
+    enterpriseBillingPlanSchema,
+    selfServeBillingPlanSchema,
   ])
   .openapi("OrganizationBillingPlan");
 

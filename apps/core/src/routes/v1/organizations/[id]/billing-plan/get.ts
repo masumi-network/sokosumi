@@ -21,7 +21,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/billing-plan",
   description:
-    "Resolve the organization's billing plan (self-serve subscription or enterprise contract). Any member may read it.",
+    "Resolve the organization's billing plan for subscription and seat management.",
   tags: ["Organizations"],
   request: {
     params,
@@ -29,12 +29,12 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(
       organizationBillingPlanSchema,
-      "Retrieve the organization billing plan",
+      "Organization billing plan",
       {
         data: {
           mode: "self_serve",
           plan: "starter",
-          purchasedSeats: 3,
+          purchasedSeats: 5,
           subscriptionId: "sub_123",
           cancelAtPeriodEnd: false,
           periodEnd: "2026-04-01T00:00:00.000Z",
@@ -58,6 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
+    const now = new Date();
 
     const billingPlan = await prisma.$transaction(async (tx) => {
       await resolveMemberOrganizationById({
@@ -66,7 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       });
 
-      return await resolveOrganizationBillingPlan(id, tx);
+      return resolveOrganizationBillingPlan(id, tx, now);
     });
 
     return ok(c, organizationBillingPlanSchema.parse(billingPlan));

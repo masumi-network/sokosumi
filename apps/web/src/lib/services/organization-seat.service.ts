@@ -1,26 +1,15 @@
 import "server-only";
 
-import type { Prisma } from "@sokosumi/database";
-import {
-  ensureLocalFreeSubscriptionPeriod,
-  FREE_SUBSCRIPTION_PLAN,
-  fetchOrganizationMemberUserIds,
-  getUnusedSeatCount,
-  grantFreeOrganizationMemberSubscriptionCredits,
-  isActiveSubscriptionStatus,
-  resolveOrganizationBillingPlan,
-  resolvePurchasedSeats,
-} from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
+import { getUnusedSeatCount } from "@sokosumi/database/helpers";
+import type { OrganizationBillingPlan } from "@sokosumi/database/helpers";
 import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
-import prisma from "@/lib/db/prisma";
+import {
+  CoreApiRequestError,
+  coreClient,
+} from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { grantUnusedSeatSubscriptionCreditsIfEligible } from "@/lib/services/organization-seat-credits.service";
 
 export interface OrganizationSeatSummary {
   assignedCount: number;
@@ -45,11 +34,8 @@ async function ensureCanManageSeatAssignments(
   userId: string,
   organizationId: string,
 ): Promise<void> {
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    userId,
-    organizationId,
-    prisma,
-  );
+  const response = await coreClient.getMyMemberInOrganization(organizationId);
+  const member = response?.data ?? null;
 
   if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
     throw new APIError("FORBIDDEN", {
@@ -59,63 +45,44 @@ async function ensureCanManageSeatAssignments(
   }
 }
 
-function mapSeatRepositoryError(error: unknown): never {
-  if (!(error instanceof Error)) {
-    throw error;
+function mapSeatApiError(error: unknown): never {
+  if (error instanceof CoreApiRequestError) {
+    if (error.status === 403) {
+      throw new APIError("FORBIDDEN", {
+        message: error.message,
+      });
+    }
+
+    if (error.status === 404) {
+      throw new APIError("NOT_FOUND", {
+        message: "Member not found",
+      });
+    }
+
+    if (error.status === 400) {
+      throw new APIError("BAD_REQUEST", {
+        message:
+          error.message.includes("exceeds purchased seats") ||
+          error.message.includes("unused seats")
+            ? "No unused seats available. Purchase more seats or unassign another member."
+            : error.message,
+      });
+    }
   }
 
-  if (error.message === "Member not found") {
+  if (error instanceof Error && error.message === "Member not found") {
     throw new APIError("NOT_FOUND", {
       message: "Member not found",
-    });
-  }
-
-  if (error.message.includes("exceeds purchased seats")) {
-    throw new APIError("BAD_REQUEST", {
-      message:
-        "No unused seats available. Purchase more seats or unassign another member.",
     });
   }
 
   throw error;
 }
 
-async function syncLocalFreeOrganizationCreditsIfNeeded(
-  organizationId: string,
-  subscription: {
-    createdAt: Date;
-    periodEnd: Date;
-    periodStart: Date;
-    seats: number | null;
-    status: string;
-    stripeSubscriptionId: string | null;
-  },
-  tx: Prisma.TransactionClient,
-): Promise<void> {
-  if (
-    subscription.stripeSubscriptionId ||
-    !isActiveSubscriptionStatus(subscription.status)
-  ) {
-    return;
-  }
-
-  const memberUserIds = await fetchOrganizationMemberUserIds(
-    organizationId,
-    tx,
-  );
-
-  await ensureLocalFreeSubscriptionPeriod(
-    {
-      billingAnchorDate: subscription.createdAt,
-      memberUserIds,
-      organizationId,
-      periodEnd: subscription.periodEnd,
-      periodStart: subscription.periodStart,
-      purchasedSeats: resolvePurchasedSeats(subscription.seats),
-      referenceId: organizationId,
-    },
-    tx,
-  );
+function countAssignedSeats(
+  members: Array<{ seatAssignedAt: string | Date | null }>,
+): number {
+  return members.filter((member) => member.seatAssignedAt != null).length;
 }
 
 export const organizationSeatService = (() => {
@@ -123,15 +90,15 @@ export const organizationSeatService = (() => {
     async getSeatSummary(
       organizationId: string,
     ): Promise<OrganizationSeatSummary> {
-      const [assignedCount, memberCount, billingPlan] = await Promise.all([
-        memberRepository.getAssignedMemberCount(organizationId, prisma),
-        prisma.member.count({
-          where: {
-            organizationId,
-          },
-        }),
-        resolveOrganizationBillingPlan(organizationId, prisma),
+      const [membersResponse, billingPlanResponse] = await Promise.all([
+        coreClient.getOrganizationMembers(organizationId),
+        coreClient.getOrganizationBillingPlan(organizationId),
       ]);
+
+      const members = membersResponse.data;
+      const billingPlan = billingPlanResponse.data as OrganizationBillingPlan;
+      const assignedCount = countAssignedSeats(members);
+      const memberCount = members.length;
       const paidPlan = resolveOrganizationPaidPlanLabel(billingPlan.plan);
       const purchasedSeats = billingPlan.purchasedSeats;
       const hasSeatEntitlements = paidPlan != null;
@@ -156,71 +123,17 @@ export const organizationSeatService = (() => {
       await ensureCanManageSeatAssignments(userId, organizationId);
 
       try {
-        return await prisma.$transaction(async (tx) => {
-          const billingPlan = await resolveOrganizationBillingPlan(
-            organizationId,
-            tx,
-          );
-          const purchasedSeats = billingPlan.purchasedSeats;
-          const subscription =
-            billingPlan.mode === "self_serve"
-              ? await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-                  organizationId,
-                  tx,
-                )
-              : null;
+        const response = await coreClient.assignOrganizationMemberSeat(
+          organizationId,
+          memberId,
+        );
 
-          const member = await memberRepository.assignSeat(
-            memberId,
-            organizationId,
-            purchasedSeats,
-            tx,
-          );
-
-          if (!member.seatAssignedAt) {
-            throw new APIError("INTERNAL_SERVER_ERROR", {
-              message: "Failed to assign seat",
-            });
-          }
-
-          const suppressSelfServeSeatCredits =
-            billingPlan.mode === "enterprise_contract" &&
-            billingPlan.isConsumable;
-
-          if (!suppressSelfServeSeatCredits) {
-            await grantUnusedSeatSubscriptionCreditsIfEligible(
-              organizationId,
-              member.userId,
-              tx,
-            );
-          }
-
-          if (
-            billingPlan.mode === "self_serve" &&
-            subscription?.periodStart &&
-            subscription?.periodEnd
-          ) {
-            await syncLocalFreeOrganizationCreditsIfNeeded(
-              organizationId,
-              {
-                createdAt: subscription.createdAt,
-                periodEnd: subscription.periodEnd,
-                periodStart: subscription.periodStart,
-                seats: subscription.seats,
-                status: subscription.status,
-                stripeSubscriptionId: subscription.stripeSubscriptionId,
-              },
-              tx,
-            );
-          }
-
-          return {
-            memberId: member.id,
-            seatAssignedAt: member.seatAssignedAt,
-          };
-        });
+        return {
+          memberId: response.data.memberId,
+          seatAssignedAt: new Date(response.data.seatAssignedAt),
+        };
       } catch (error) {
-        mapSeatRepositoryError(error);
+        mapSeatApiError(error);
       }
     },
 
@@ -232,67 +145,16 @@ export const organizationSeatService = (() => {
       await ensureCanManageSeatAssignments(userId, organizationId);
 
       try {
-        return await prisma.$transaction(async (tx) => {
-          const billingPlan = await resolveOrganizationBillingPlan(
-            organizationId,
-            tx,
-          );
-          const member = await memberRepository.unassignSeat(
-            memberId,
-            organizationId,
-            tx,
-          );
+        const response = await coreClient.unassignOrganizationMemberSeat(
+          organizationId,
+          memberId,
+        );
 
-          if (
-            billingPlan.mode === "enterprise_contract" &&
-            billingPlan.isConsumable
-          ) {
-            return {
-              memberId: member.id,
-            };
-          }
-
-          const subscription =
-            await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-              organizationId,
-              tx,
-            );
-
-          if (
-            subscription?.stripeSubscriptionId &&
-            subscription.periodEnd &&
-            subscription.plan !== FREE_SUBSCRIPTION_PLAN &&
-            isActiveSubscriptionStatus(subscription.status)
-          ) {
-            await grantFreeOrganizationMemberSubscriptionCredits(
-              {
-                memberUserIds: [member.userId],
-                organizationId,
-                periodEnd: subscription.periodEnd,
-              },
-              tx,
-            );
-          } else if (subscription?.periodStart && subscription.periodEnd) {
-            await syncLocalFreeOrganizationCreditsIfNeeded(
-              organizationId,
-              {
-                createdAt: subscription.createdAt,
-                periodEnd: subscription.periodEnd,
-                periodStart: subscription.periodStart,
-                seats: subscription.seats,
-                status: subscription.status,
-                stripeSubscriptionId: subscription.stripeSubscriptionId,
-              },
-              tx,
-            );
-          }
-
-          return {
-            memberId: member.id,
-          };
-        });
+        return {
+          memberId: response.data.memberId,
+        };
       } catch (error) {
-        mapSeatRepositoryError(error);
+        mapSeatApiError(error);
       }
     },
   };

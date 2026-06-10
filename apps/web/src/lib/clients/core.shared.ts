@@ -2050,8 +2050,33 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function assignOrganizationMemberSeat(
+    organizationId: string,
+    memberId: string,
+  ) {
+    return requestCoreApiPath<{ memberId: string; seatAssignedAt: string }>(
+      getClient,
+      `/organizations/${organizationId}/members/${memberId}/seat/assign`,
+      { method: "POST" },
+      "Failed to assign organization seat",
+    );
+  }
+
+  async function unassignOrganizationMemberSeat(
+    organizationId: string,
+    memberId: string,
+  ) {
+    return requestCoreApiPath<{ memberId: string }>(
+      getClient,
+      `/organizations/${organizationId}/members/${memberId}/seat/unassign`,
+      { method: "POST" },
+      "Failed to unassign organization seat",
+    );
+  }
+
   return {
     activateEnterpriseContract,
+    assignOrganizationMemberSeat,
     cancelEnterpriseContract,
     checkExistingUsers,
     completeMyOnboarding,
@@ -2158,6 +2183,7 @@ export function createCoreClient(getClient: GetClient) {
     putTaskShare,
     getUserById,
     getUserStripeCustomer,
+    unassignOrganizationMemberSeat,
     updateConversation,
     updateHermesInstance,
   };
