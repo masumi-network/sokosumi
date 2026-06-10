@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
 
 export const metadata: Metadata = {
-  title: "Grant credits",
+  title: "Credits",
   description: "Grant one-time credits to a user or organization",
 };
 

@@ -265,7 +265,7 @@
       "admin": "Admin",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
-      "credit-grants": "Grant credits",
+      "credit-grants": "Credits",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",
@@ -2611,7 +2611,7 @@
         }
       },
       "CreditGrants": {
-        "title": "Grant credits",
+        "title": "Credits",
         "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
         "cardTitle": "New credit grant",
         "newGrant": "New credit grant",
@@ -2709,7 +2709,7 @@
             "description": "Create and manage draft, active, and canceled enterprise contracts."
           },
           "creditGrants": {
-            "title": "Grant credits",
+            "title": "Credits",
             "description": "Grant one-time credits to an organization via a Stripe invoice."
           }
         }
