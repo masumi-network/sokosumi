@@ -2710,7 +2710,7 @@
           },
           "creditGrants": {
             "title": "Invoices",
-            "description": "Grant one-time credits to an organization via a Stripe invoice."
+            "description": "View credit-grant invoices and grant one-time credits to a user or organization."
           }
         }
       }
