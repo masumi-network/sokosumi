@@ -1,4 +1,3 @@
-import type { InvitationWithRelations } from "@sokosumi/database";
 import type { User } from "better-auth";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
@@ -15,11 +14,12 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PendingInvitationErrorCode } from "@/lib/services";
+import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 
 import InvitationActions from "./invitation-actions";
 
 interface InvitationCardProps {
-  invitation: InvitationWithRelations;
+  invitation: PendingInvitationDetail;
   user?: User;
 }
 
