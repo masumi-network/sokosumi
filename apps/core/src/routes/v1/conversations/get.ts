@@ -8,7 +8,11 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import {
+  isUserAuthContext,
+  requireCoworkerAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import { conversationListResponseSchema } from "@/schemas/conversation.schema";
 
 const route = withGlobalHeaderParameters(
@@ -59,8 +63,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         orderBy: { updatedAt: "desc" },
       });
 
+      // A delegated coworker may only see conversations assigned to it. Scope
+      // by the stable `metadata.coworker_id` binding (no slug resolution here);
+      // conversations without that binding are excluded for coworker actors.
+      const authContext = c.var.authContext;
+      let visibleConversations = conversations;
+      if (!isUserAuthContext(authContext)) {
+        const { coworkerId } = requireCoworkerAuthContext(authContext);
+        visibleConversations = conversations.filter((conv) => {
+          const meta = (conv.metadata as Record<string, unknown> | null) ?? {};
+          return meta.coworker_id === coworkerId;
+        });
+      }
+
       // Map database conversations to response format
-      const response = conversations.map((conv) => ({
+      const response = visibleConversations.map((conv) => ({
         id: conv.id,
         userId: conv.userId,
         title: conv.title,

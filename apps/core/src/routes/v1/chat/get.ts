@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { validateUIMessages } from "ai";
 
 import { LIMITS } from "@/config/constants";
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import { conversationMessagesToUiMessages } from "@/helpers/conversation-messages-to-ui-messages";
 import { badRequest, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -77,12 +78,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userId: userContext.userId,
           archivedAt: null,
         },
-        select: { id: true },
+        select: { id: true, metadata: true },
       });
 
       if (!conversation) {
         throw notFound("Conversation not found");
       }
+
+      // Per-resource delegation check: a delegated coworker may only read a
+      // conversation bound to it (no-op for real user sessions).
+      await requireConversationCoworkerAccess(
+        c.var.authContext,
+        conversation.metadata,
+      );
 
       const limit = Math.min(
         query.limit ?? LIMITS.CHAT_UI_MESSAGES_DEFAULT_LIMIT,
