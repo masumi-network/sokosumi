@@ -97,10 +97,14 @@ export function isCoworkerAuthContext(
  *
  * Use to gate agent-only semantics (coworker status transitions, agent task
  * payments) that must NOT apply when a coworker is impersonating a user.
+ *
+ * Returns a plain boolean, not a type predicate: a `false` result is not
+ * necessarily a user — it may be a delegated coworker — so narrowing the
+ * negative branch to `UserAuthenticationContext` would be unsound.
  */
 export function isCoworkerAgentContext(
   authContext: AuthenticationContext,
-): authContext is CoworkerAuthenticationContext {
+): boolean {
   return isCoworkerAuthContext(authContext) && !authContext.delegation;
 }
 
