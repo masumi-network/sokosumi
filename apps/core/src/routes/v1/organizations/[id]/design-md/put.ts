@@ -28,7 +28,7 @@ const route = createRoute({
   method: "put",
   path: "/{id}/design-md",
   description:
-    "Set or clear an organization's DESIGN.md. Only organization owners and admins may do this. Pass a null `url` to clear it.",
+    "Set or clear an organization's DESIGN.md. Only organization owners and admins may do this. Pass a null `content` to clear it.",
   tags: ["Organizations"],
   request: {
     params,

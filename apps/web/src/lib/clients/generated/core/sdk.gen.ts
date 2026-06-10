@@ -638,7 +638,7 @@ export const getUsersByIdDesignMd = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Set or clear the user's own DESIGN.md (path `me` or a user id when the caller may access that user's data). Pass a null `url` to clear it.
+ * Set or clear the user's own DESIGN.md (path `me` or a user id when the caller may access that user's data). Pass a null `content` to clear it.
  */
 export const putUsersByIdDesignMd = <ThrowOnError extends boolean = false>(options: Options<PutUsersByIdDesignMdData, ThrowOnError>): RequestResult<PutUsersByIdDesignMdResponses, PutUsersByIdDesignMdErrors, ThrowOnError> => (options.client ?? client).put<PutUsersByIdDesignMdResponses, PutUsersByIdDesignMdErrors, ThrowOnError>({
     responseTransformer: putUsersByIdDesignMdResponseTransformer,
@@ -860,7 +860,7 @@ export const getOrganizationsByIdDesignMd = <ThrowOnError extends boolean = fals
 });
 
 /**
- * Set or clear an organization's DESIGN.md. Only organization owners and admins may do this. Pass a null `url` to clear it.
+ * Set or clear an organization's DESIGN.md. Only organization owners and admins may do this. Pass a null `content` to clear it.
  */
 export const putOrganizationsByIdDesignMd = <ThrowOnError extends boolean = false>(options: Options<PutOrganizationsByIdDesignMdData, ThrowOnError>): RequestResult<PutOrganizationsByIdDesignMdResponses, PutOrganizationsByIdDesignMdErrors, ThrowOnError> => (options.client ?? client).put<PutOrganizationsByIdDesignMdResponses, PutOrganizationsByIdDesignMdErrors, ThrowOnError>({
     responseTransformer: putOrganizationsByIdDesignMdResponseTransformer,

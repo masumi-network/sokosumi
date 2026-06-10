@@ -51,6 +51,7 @@ import type {
   PostTasksByIdLinksData,
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
+  PutOrganizationsByIdDesignMdData,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
@@ -1249,7 +1250,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
-   * Sets (or clears, when `url` is null) the current user's own DESIGN.md.
+   * Sets (or clears, when `content` is null) the current user's own DESIGN.md.
    */
   async function setMyDesignMd(
     body: NonNullable<PutUsersByIdDesignMdData["body"]>,
@@ -1267,12 +1268,12 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
-   * Sets (or clears, when `url` is null) an organization's DESIGN.md. Core
+   * Sets (or clears, when `content` is null) an organization's DESIGN.md. Core
    * enforces that the caller is an organization owner or admin.
    */
   async function setOrganizationDesignMd(
     organizationId: string,
-    body: NonNullable<PutUsersByIdDesignMdData["body"]>,
+    body: NonNullable<PutOrganizationsByIdDesignMdData["body"]>,
   ) {
     return executeOperation(
       getClient,

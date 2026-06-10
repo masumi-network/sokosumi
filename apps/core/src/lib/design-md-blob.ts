@@ -36,6 +36,8 @@ export async function uploadDesignMdContent(
       trimmed,
       {
         access: "public",
+        // Must stay a non-HTML type: the blob is public and user-authored, so
+        // serving it as text/html would turn it into stored XSS.
         contentType: "text/markdown; charset=utf-8",
         token: env.BLOB_READ_WRITE_TOKEN,
         allowOverwrite: true,

@@ -26,7 +26,7 @@ const route = createRoute({
   method: "put",
   path: "/design-md",
   description:
-    "Set or clear the user's own DESIGN.md (path `me` or a user id when the caller may access that user's data). Pass a null `url` to clear it.",
+    "Set or clear the user's own DESIGN.md (path `me` or a user id when the caller may access that user's data). Pass a null `content` to clear it.",
   tags: ["Users"],
   request: {
     params,
