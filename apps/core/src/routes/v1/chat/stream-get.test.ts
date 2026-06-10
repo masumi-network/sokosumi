@@ -173,7 +173,10 @@ describe("GET /chat/stream/:conversationId", () => {
   it("allows delegated coworker auth to resume the delegated user's stream", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: cid,
-      metadata: { active_ui_stream_id: "stream_1" },
+      metadata: {
+        active_ui_stream_id: "stream_1",
+        coworker_id: "cow_123",
+      },
     });
 
     const app = createApp({
@@ -195,5 +198,28 @@ describe("GET /chat/stream/:conversationId", () => {
       },
       select: { id: true, metadata: true },
     });
+  });
+
+  it("rejects a delegated coworker resuming a stream assigned to another coworker", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: {
+        active_ui_stream_id: "stream_1",
+        coworker_id: "cow_other",
+      },
+    });
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "delegated_user_123",
+        organizationId: "delegated_org_123",
+      },
+    });
+    const response = await app.request(`http://localhost/stream/${cid}`);
+
+    expect(response.status).toBe(403);
+    expect(resumeExistingStreamMock).not.toHaveBeenCalled();
   });
 });

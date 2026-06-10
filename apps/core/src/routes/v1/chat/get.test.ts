@@ -108,7 +108,10 @@ describe("GET /chat", () => {
   });
 
   it("allows delegated coworker auth to read the delegated user's chat", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce({ id: cid });
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_id: "cow_123" },
+    });
     conversationMessageCountMock.mockResolvedValueOnce(1);
     conversationMessageFindManyMock.mockResolvedValueOnce([
       { id: "m1", role: "user", contentText: "Hi" },
@@ -133,8 +136,30 @@ describe("GET /chat", () => {
         userId: "delegated_user_123",
         archivedAt: null,
       },
-      select: { id: true },
+      select: { id: true, metadata: true },
     });
+  });
+
+  it("rejects a delegated coworker reading a conversation assigned to another coworker", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_id: "cow_other" },
+    });
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "delegated_user_123",
+        organizationId: "delegated_org_123",
+      },
+    });
+    const response = await app.request(
+      `http://localhost/?conversationId=${cid}`,
+    );
+
+    expect(response.status).toBe(403);
+    expect(conversationMessageFindManyMock).not.toHaveBeenCalled();
   });
 
   it("includes stored reasoning parts before assistant text", async () => {

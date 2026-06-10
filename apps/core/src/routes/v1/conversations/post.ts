@@ -9,7 +9,11 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import {
+  isUserAuthContext,
+  requireCoworkerAuthContext,
+  requireUserContext,
+} from "@/middleware/auth";
 import {
   conversationSchema,
   createConversationRequestSchema,
@@ -81,17 +85,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw conflict("Conversation already exists");
         }
 
+        // A delegated coworker owns the conversations it creates: stamp the
+        // binding so later per-resource checks recognize it (no-op for users).
+        const authContext = c.var.authContext;
+        const coworkerBinding = isUserAuthContext(authContext)
+          ? {}
+          : {
+              coworker_id: requireCoworkerAuthContext(authContext).coworkerId,
+            };
+
         // Create conversation in database with title and metadata
         const conversationData = {
           openaiId,
           userId: userContext.userId,
           title: body.title,
-          metadata: body.metadata
-            ? {
-                ...body.metadata,
-                userId: userContext.userId, // Store userId in metadata for reference
-              }
-            : { userId: userContext.userId },
+          metadata: {
+            ...(body.metadata ?? {}),
+            ...coworkerBinding,
+            userId: userContext.userId, // Store userId in metadata for reference
+          },
         };
 
         return tx.conversation.create({ data: conversationData });

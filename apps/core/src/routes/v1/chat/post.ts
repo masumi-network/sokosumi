@@ -15,7 +15,10 @@ import {
 } from "ai";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { LIMITS } from "@/config/constants";
-import { requireCoworkerChatCapability } from "@/helpers/access-control";
+import {
+  requireConversationCoworkerAccess,
+  requireCoworkerChatCapability,
+} from "@/helpers/access-control";
 import {
   clearActiveUiStreamIdInMetadata,
   setActiveUiStreamIdInMetadata,
@@ -23,6 +26,7 @@ import {
 import { conversationMessagesToUiMessages } from "@/helpers/conversation-messages-to-ui-messages";
 import {
   badRequest,
+  forbidden,
   internalServerError,
   notFound,
   serviceUnavailable,
@@ -61,7 +65,7 @@ import {
   getOpenRouterChatApiKeyForProvider,
   getSokosumiProvider,
 } from "@/lib/sokosumi-ai-provider";
-import { requireUserContext } from "@/middleware/auth";
+import { isUserAuthContext, requireUserContext } from "@/middleware/auth";
 import {
   AI_SDK_CHAT_MESSAGES_REQUIREMENT,
   aiSdkChatRequestSchema,
@@ -435,6 +439,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         previousResponseId: previousResponseIdFromRequest,
       } = c.req.valid("json");
 
+      // A delegated coworker may only act on a conversation assigned to it.
+      // Without a conversationId there is no resource to authorize against, so a
+      // coworker would be driving a transient chat as the delegated user — deny.
+      if (!isUserAuthContext(c.var.authContext) && !conversationId) {
+        throw forbidden(
+          "You can only access conversations assigned to your coworker",
+        );
+      }
+
       const useServerMergedHistory =
         Boolean(conversationId) &&
         singleMessage !== undefined &&
@@ -458,6 +471,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!conversation) {
           throw notFound("Conversation not found");
         }
+
+        // Per-resource delegation check: a delegated coworker may only act on a
+        // conversation bound to it (no-op for real user sessions).
+        await requireConversationCoworkerAccess(
+          c.var.authContext,
+          conversation.metadata,
+        );
 
         internalConversationId = conversation.id;
 

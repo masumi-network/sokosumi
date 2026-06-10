@@ -25,6 +25,7 @@ const {
   getSokosumiProviderMock,
   isUiStreamResumptionConfiguredMock,
   prismaTransactionMock,
+  requireConversationCoworkerAccessMock,
   requireCoworkerChatCapabilityMock,
   setActiveUiStreamIdInMetadataMock,
   streamTextMock,
@@ -48,6 +49,7 @@ const {
   getSokosumiProviderMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(() => false),
   prismaTransactionMock: vi.fn(),
+  requireConversationCoworkerAccessMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   setActiveUiStreamIdInMetadataMock: vi.fn(),
   streamTextMock: vi.fn(),
@@ -70,6 +72,7 @@ vi.mock("@/lib/sokosumi-ai-provider", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
+  requireConversationCoworkerAccess: requireConversationCoworkerAccessMock,
   requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
 }));
 
@@ -226,6 +229,7 @@ describe("POST /chat", () => {
       slug: "ops-agent",
       baseURL: "https://responses.example.com/v1",
     });
+    requireConversationCoworkerAccessMock.mockResolvedValue(undefined);
   });
 
   it("returns 422 when the JSON body fails OpenAPI / Zod validation", async () => {
@@ -367,6 +371,69 @@ describe("POST /chat", () => {
     expect(args.providerOptions?.sokosumi?.sokosumiOrganizationId).toBe(
       "delegated_org_123",
     );
+  });
+
+  it("rejects a delegated coworker on a conversation assigned to another coworker", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_id: "cow_other" },
+      providerConversationId: null,
+    });
+    requireConversationCoworkerAccessMock.mockRejectedValueOnce(
+      new HTTPException(403, {
+        message: "You can only access conversations assigned to your coworker",
+      }),
+    );
+
+    const app = createApp({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "delegated_user_123",
+          organizationId: "delegated_org_123",
+        },
+      },
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(requireConversationCoworkerAccessMock).toHaveBeenCalled();
+    expect(createCoworkerConversationMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker chat without a conversationId", async () => {
+    const app = createApp({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "delegated_user_123",
+          organizationId: "delegated_org_123",
+        },
+      },
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(conversationFindFirstMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
   });
 
   it("rejects attachment-only system messages for coworker chats", async () => {

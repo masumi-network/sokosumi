@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -85,6 +86,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!existing) {
         throw notFound("Conversation not found");
       }
+
+      // Per-resource delegation check: a delegated coworker may only update a
+      // conversation bound to it (no-op for real user sessions).
+      await requireConversationCoworkerAccess(
+        c.var.authContext,
+        existing.metadata,
+        tx,
+      );
 
       // Build update data - only include fields that were explicitly provided
       const updateData: {
