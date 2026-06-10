@@ -1,236 +1,83 @@
-import type { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getContractWithPeriodsMock = vi.fn();
-const sumOrganizationEnterprisePoolBalancesMock = vi.fn();
+vi.mock("server-only", () => ({}));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: {
-    sumOrganizationEnterprisePoolBalances: (...args: unknown[]) =>
-      sumOrganizationEnterprisePoolBalancesMock(...args),
-  },
-  enterpriseContractRepository: {
-    getContractWithPeriods: (...args: unknown[]) =>
-      getContractWithPeriodsMock(...args),
-  },
-}));
+const {
+  getOrganizationEnterpriseContractSummaryMock,
+  MockCoreApiRequestError,
+} = vi.hoisted(() => {
+  class MockCoreApiRequestError extends Error {
+    status?: number;
 
-import {
-  getEnterpriseContractBillingSummary,
-  resolveCurrentEnterprisePeriodEnd,
-  resolveEnterprisePeriodEndForDisplay,
-  resolveNextEnterpriseActivationAt,
-} from "@/lib/services/enterprise-contract-summary.service";
+    constructor(message: string, options?: { status?: number }) {
+      super(message);
+      this.name = "CoreApiRequestError";
+      this.status = options?.status;
+    }
+  }
 
-describe("enterprise contract summary helpers", () => {
-  const now = new Date("2026-02-15T12:00:00.000Z");
-
-  it("resolves the current period end from the active window", () => {
-    const currentPeriodEnd = resolveCurrentEnterprisePeriodEnd(
-      [
-        {
-          periodStart: new Date("2026-01-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-02-14T23:59:59.999Z"),
-        },
-        {
-          periodStart: new Date("2026-02-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-03-14T23:59:59.999Z"),
-        },
-      ],
-      now,
-    );
-
-    expect(currentPeriodEnd?.toISOString()).toBe("2026-03-14T23:59:59.999Z");
-  });
-
-  it("resolves the next activation from the earliest upcoming period", () => {
-    const nextActivationAt = resolveNextEnterpriseActivationAt(
-      [
-        {
-          periodStart: new Date("2026-01-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-02-14T23:59:59.999Z"),
-        },
-        {
-          periodStart: new Date("2026-03-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-04-14T23:59:59.999Z"),
-        },
-        {
-          periodStart: new Date("2026-02-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-03-14T23:59:59.999Z"),
-        },
-      ],
-      new Date("2026-01-20T12:00:00.000Z"),
-    );
-
-    expect(nextActivationAt?.toISOString()).toBe("2026-02-15T00:00:00.000Z");
-  });
-
-  it("falls back to the last period end after the commercial term", () => {
-    const periods = [
-      {
-        periodStart: new Date("2026-01-15T00:00:00.000Z"),
-        periodEnd: new Date("2026-02-14T23:59:59.999Z"),
-      },
-      {
-        periodStart: new Date("2026-02-15T00:00:00.000Z"),
-        periodEnd: new Date("2026-03-14T23:59:59.999Z"),
-      },
-    ];
-
-    expect(
-      resolveEnterprisePeriodEndForDisplay(
-        periods,
-        new Date("2026-04-01T00:00:00.000Z"),
-        false,
-      )?.toISOString(),
-    ).toBe("2026-03-14T23:59:59.999Z");
-  });
+  return {
+    getOrganizationEnterpriseContractSummaryMock: vi.fn(),
+    MockCoreApiRequestError,
+  };
 });
 
-describe("getEnterpriseContractBillingSummary", () => {
-  const mockTx = {} as Prisma.TransactionClient;
-  const billingPlan = {
-    mode: "enterprise_contract" as const,
-    plan: "enterprise" as const,
-    isConsumable: true,
-    purchasedSeats: 10,
-    contractId: "contract-1",
-    endsAt: new Date("2026-12-14T23:59:59.999Z"),
-    activatedAt: new Date("2026-01-15T00:00:00.000Z"),
-    cancelAtPeriodEnd: false as const,
-    periodEnd: null,
-  };
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getOrganizationEnterpriseContractSummary: (...args: unknown[]) =>
+      getOrganizationEnterpriseContractSummaryMock(...args),
+  },
+  CoreApiRequestError: MockCoreApiRequestError,
+}));
 
+import { getEnterpriseContractBillingSummary } from "../enterprise-contract-summary.service";
+
+const SUMMARY = {
+  activatedAt: new Date("2026-01-15T00:00:00.000Z"),
+  endsAt: new Date("2026-12-14T23:59:59.999Z"),
+  currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
+  isConsumable: true,
+  monthlyCredits: 6000,
+  nextActivationAt: new Date("2026-03-15T00:00:00.000Z"),
+  poolRemainingCredits: 2500,
+  purchasedSeats: 10,
+};
+
+describe("getEnterpriseContractBillingSummary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns a billing-plan fallback when the contract cannot be loaded", async () => {
-    getContractWithPeriodsMock.mockResolvedValue(null);
-    sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: BigInt(12_500_000_000_000),
-      totalCents: BigInt(12_500_000_000_000),
+  it("returns the summary from the core response", async () => {
+    getOrganizationEnterpriseContractSummaryMock.mockResolvedValue({
+      data: SUMMARY,
     });
 
-    const summary = await getEnterpriseContractBillingSummary(
-      billingPlan,
+    const result = await getEnterpriseContractBillingSummary("org-1");
+
+    expect(getOrganizationEnterpriseContractSummaryMock).toHaveBeenCalledWith(
       "org-1",
-      mockTx,
     );
-
-    expect(summary).toEqual({
-      activatedAt: billingPlan.activatedAt,
-      endsAt: billingPlan.endsAt,
-      currentPeriodEnd: null,
-      isConsumable: true,
-      monthlyCredits: null,
-      nextActivationAt: null,
-      poolRemainingCredits: 1_250,
-      purchasedSeats: 10,
-    });
+    expect(result).toEqual(SUMMARY);
   });
 
-  it("returns a billing-plan fallback when the contract belongs to another organization", async () => {
-    getContractWithPeriodsMock.mockResolvedValue({
-      centsPerMonth: BigInt(60_000_000_000_000),
-      organizationId: "org-other",
-      periods: [],
-    });
-    sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: BigInt(0),
-      totalCents: BigInt(0),
-    });
-
-    const summary = await getEnterpriseContractBillingSummary(
-      billingPlan,
-      "org-1",
-      mockTx,
+  it("returns null when core responds 404 (not an enterprise contract)", async () => {
+    getOrganizationEnterpriseContractSummaryMock.mockRejectedValue(
+      new MockCoreApiRequestError("Not Found", { status: 404 }),
     );
 
-    expect(summary).toEqual({
-      activatedAt: billingPlan.activatedAt,
-      endsAt: billingPlan.endsAt,
-      currentPeriodEnd: null,
-      isConsumable: true,
-      monthlyCredits: null,
-      nextActivationAt: null,
-      poolRemainingCredits: 0,
-      purchasedSeats: 10,
-    });
+    const result = await getEnterpriseContractBillingSummary("org-1");
+
+    expect(result).toBeNull();
   });
 
-  it("maps contract, period, and pool data into a billing summary", async () => {
-    getContractWithPeriodsMock.mockResolvedValue({
-      centsPerMonth: BigInt(60_000_000_000_000),
-      organizationId: "org-1",
-      periods: [
-        {
-          periodStart: new Date("2026-01-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-02-14T23:59:59.999Z"),
-        },
-        {
-          periodStart: new Date("2026-02-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-03-14T23:59:59.999Z"),
-        },
-        {
-          periodStart: new Date("2026-03-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-04-14T23:59:59.999Z"),
-        },
-      ],
-    });
-    sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: BigInt(25_000_000_000_000),
-      totalCents: BigInt(60_000_000_000_000),
-    });
-
-    const summary = await getEnterpriseContractBillingSummary(
-      billingPlan,
-      "org-1",
-      mockTx,
-      new Date("2026-02-15T12:00:00.000Z"),
+  it("rethrows non-404 core errors", async () => {
+    getOrganizationEnterpriseContractSummaryMock.mockRejectedValue(
+      new MockCoreApiRequestError("Boom", { status: 500 }),
     );
 
-    expect(summary).toEqual({
-      activatedAt: billingPlan.activatedAt,
-      endsAt: billingPlan.endsAt,
-      currentPeriodEnd: new Date("2026-03-14T23:59:59.999Z"),
-      isConsumable: true,
-      monthlyCredits: 6_000,
-      nextActivationAt: new Date("2026-03-15T00:00:00.000Z"),
-      poolRemainingCredits: 2_500,
-      purchasedSeats: 10,
-    });
-  });
-
-  it("uses the last period end when the contract is post-term", async () => {
-    getContractWithPeriodsMock.mockResolvedValue({
-      centsPerMonth: BigInt(60_000_000_000_000),
-      organizationId: "org-1",
-      periods: [
-        {
-          periodStart: new Date("2026-01-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-02-14T23:59:59.999Z"),
-        },
-        {
-          periodStart: new Date("2026-02-15T00:00:00.000Z"),
-          periodEnd: new Date("2026-03-14T23:59:59.999Z"),
-        },
-      ],
-    });
-    sumOrganizationEnterprisePoolBalancesMock.mockResolvedValue({
-      remainingCents: BigInt(0),
-      totalCents: BigInt(0),
-    });
-
-    const summary = await getEnterpriseContractBillingSummary(
-      { ...billingPlan, isConsumable: false },
-      "org-1",
-      mockTx,
-      new Date("2026-04-01T00:00:00.000Z"),
-    );
-
-    expect(summary?.currentPeriodEnd?.toISOString()).toBe(
-      "2026-03-14T23:59:59.999Z",
+    await expect(getEnterpriseContractBillingSummary("org-1")).rejects.toThrow(
+      "Boom",
     );
   });
 });

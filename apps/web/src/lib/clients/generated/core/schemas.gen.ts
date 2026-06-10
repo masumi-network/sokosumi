@@ -4263,6 +4263,63 @@ export const MemberSchema = {
     ]
 } as const;
 
+export const EnterpriseContractBillingSummarySchema = {
+    type: 'object',
+    properties: {
+        activatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        currentPeriodEnd: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        isConsumable: {
+            type: 'boolean'
+        },
+        monthlyCredits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        nextActivationAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        poolRemainingCredits: {
+            type: 'number'
+        },
+        purchasedSeats: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'activatedAt',
+        'endsAt',
+        'currentPeriodEnd',
+        'isConsumable',
+        'monthlyCredits',
+        'nextActivationAt',
+        'poolRemainingCredits',
+        'purchasedSeats'
+    ]
+} as const;
+
 export const ProjectListItemSchema = {
     allOf: [
         {

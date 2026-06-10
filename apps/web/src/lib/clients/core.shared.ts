@@ -86,6 +86,7 @@ import {
   getHistory as coreGetHistory,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
@@ -526,6 +527,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization",
+    );
+  }
+
+  async function getOrganizationEnterpriseContractSummary(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationEnterpriseContractSummary({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch enterprise contract summary",
     );
   }
 
@@ -1662,6 +1676,7 @@ export function createCoreClient(getClient: GetClient) {
     searchAdminUsers,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
+    getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,
     getMyCredits,

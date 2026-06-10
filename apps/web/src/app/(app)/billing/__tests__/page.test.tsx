@@ -478,14 +478,8 @@ describe("BillingPage", () => {
     );
 
     expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contractId: "contract-1",
-        mode: "enterprise_contract",
-      }),
       "org-enterprise",
-      expect.anything(),
     );
-    expect(getBalanceMock).not.toHaveBeenCalled();
     expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: expect.objectContaining({
@@ -497,6 +491,47 @@ describe("BillingPage", () => {
     expect(view.getByTestId("enterprise-contract-summary")).toBeTruthy();
     expect(view.queryByTestId("balance-section")).toBeNull();
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the balance section when the enterprise summary is unavailable", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      _count: { members: 2 },
+      id: "org-enterprise",
+      name: "Enterprise Org",
+      stripeCustomerId: "cus_org_enterprise",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockEnterpriseOrganizationBillingPlan(true, 10);
+    // Core re-resolved the org to a non-enterprise plan (404 -> null) even
+    // though the page locally believed it was on an enterprise contract.
+    getEnterpriseContractBillingSummaryMock.mockResolvedValue(null);
+    getBalanceMock.mockResolvedValue(BigInt(7_500_000_000_000));
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      "org-enterprise",
+    );
+    expect(enterpriseContractSummaryMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("enterprise-contract-summary")).toBeNull();
+    expect(view.getByTestId("balance-section")).toBeTruthy();
+    // The real org balance is loaded for the fallback (not a hardcoded zero).
+    expect(getBalanceMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-enterprise",
+      expect.anything(),
+    );
   });
 
   it("shows the enterprise contract summary when contract details cannot be loaded", async () => {
@@ -579,15 +614,8 @@ describe("BillingPage", () => {
     );
 
     expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        contractId: "contract-1",
-        isConsumable: false,
-        mode: "enterprise_contract",
-      }),
       "org-enterprise-post-term",
-      expect.anything(),
     );
-    expect(getBalanceMock).not.toHaveBeenCalled();
     expect(enterpriseContractSummaryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         summary: expect.objectContaining({
