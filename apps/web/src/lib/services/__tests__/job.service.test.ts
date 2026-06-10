@@ -195,6 +195,20 @@ describe("job.service workspace persistence", () => {
     expect(result).toEqual({ id: "job_demo" });
   });
 
+  it("rejects demo jobs whose input cannot be sent to core (e.g. File values)", async () => {
+    const { jobService } = await import("../job.service");
+
+    await expect(
+      jobService.startDemoJob(
+        buildStartInput({
+          inputData: { attachment: new File(["x"], "x.txt") },
+        }),
+        { result: "demo result" } as never,
+      ),
+    ).rejects.toThrow();
+    expect(createDemoJobCoreMock).not.toHaveBeenCalled();
+  });
+
   it("moves standalone jobs through the core client", async () => {
     moveJobToWorkspaceCoreMock.mockResolvedValue({
       data: {
