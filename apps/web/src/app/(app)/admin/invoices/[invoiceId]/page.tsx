@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { CreditGrantInvoiceDetail } from "@/components/admin/credit-grants/credit-grant-invoice-detail";
+import { CreditGrantInvoiceDetail } from "@/components/admin/invoices/credit-grant-invoice-detail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCreditGrantInvoiceAction } from "@/lib/actions/credit-grant/action";
@@ -34,7 +34,7 @@ export default async function CreditGrantInvoiceDetailPage({
       <div className="min-h-full w-full">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">
           <Button variant="outline" asChild>
-            <Link href="/admin/credit-grants">{t("backToList")}</Link>
+            <Link href="/admin/invoices">{t("backToList")}</Link>
           </Button>
           <p className="text-destructive text-sm">
             {result.error.message ?? t("Result.loadError")}
@@ -52,7 +52,7 @@ export default async function CreditGrantInvoiceDetailPage({
             {t("Result.heading")}
           </h1>
           <Button variant="outline" asChild>
-            <Link href="/admin/credit-grants">{t("backToList")}</Link>
+            <Link href="/admin/invoices">{t("backToList")}</Link>
           </Button>
         </div>
 

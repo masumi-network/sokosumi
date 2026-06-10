@@ -330,9 +330,7 @@ export function CreditGrantInvoiceList({
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       <Button variant="outline" size="sm" asChild>
-                        <Link
-                          href={`/admin/credit-grants/${invoice.invoiceId}`}
-                        >
+                        <Link href={`/admin/invoices/${invoice.invoiceId}`}>
                           {t("view")}
                         </Link>
                       </Button>

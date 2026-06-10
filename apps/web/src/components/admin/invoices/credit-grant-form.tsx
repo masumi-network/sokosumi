@@ -144,7 +144,7 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
       }
       toast.success(t("Form.createSuccess"));
       // The invoice detail page doubles as the post-creation summary view.
-      router.push(`/admin/credit-grants/${result.data.invoiceId}`);
+      router.push(`/admin/invoices/${result.data.invoiceId}`);
     } finally {
       setIsSubmitting(false);
     }

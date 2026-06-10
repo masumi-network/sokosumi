@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { CreditGrantForm } from "@/components/admin/credit-grants/credit-grant-form";
+import { CreditGrantForm } from "@/components/admin/invoices/credit-grant-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
@@ -27,7 +27,7 @@ export default async function NewCreditGrantPage() {
             <p className="text-muted-foreground text-sm">{t("description")}</p>
           </div>
           <Button variant="outline" asChild>
-            <Link href="/admin/credit-grants">{t("backToList")}</Link>
+            <Link href="/admin/invoices">{t("backToList")}</Link>
           </Button>
         </div>
 

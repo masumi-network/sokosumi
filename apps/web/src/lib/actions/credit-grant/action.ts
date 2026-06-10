@@ -72,7 +72,7 @@ export const createCreditGrantInvoiceAction = withSession<
         priceId,
         markFree,
       });
-      revalidatePath("/admin/credit-grants");
+      revalidatePath("/admin/invoices");
       return Ok(summary);
     } catch (error) {
       return Err(mapError(error));
@@ -136,7 +136,7 @@ export const markCreditGrantInvoicePaidAction = withSession<
     assertAdminSession(session);
     const summary =
       await creditGrantAdminService.markGrantInvoicePaid(invoiceId);
-    revalidatePath("/admin/credit-grants");
+    revalidatePath("/admin/invoices");
     return Ok(summary);
   } catch (error) {
     return Err(mapError(error));
