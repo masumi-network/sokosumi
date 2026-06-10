@@ -113,7 +113,8 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
    - Apply exactly one label.
    - If the label is missing, stop and report the missing label.
 
-5. Idempotency (when `parentId` is a requirement issue)
+5. Idempotency (when publishing under a requirement parent — **always** run for direct requirement intake **and** Write PRD sub-task intake)
+   - **Resolve requirement id:** Use intake id when intake is the requirement issue. When intake is a Write PRD sub-task (`chore(spec): write implementation PRD`), use its parent requirement id — same value as implementation `parentId`.
    - Load the requirement issue and inspect existing children (or search siblings under the same parent).
    - If a child already exists whose description contains `[repo=…]` and title is **not** `chore(spec): write implementation PRD`, treat it as the implementation issue — **stop**; do not create another implementation issue or sub-tasks.
    - **Where to comment** (one target only — pick by intake path):
@@ -183,12 +184,12 @@ Use names directly. Linear MCP accepts names for team, project, state, and label
 
      **Done when:**
      - [ ] Code matches PRD Contract/behavior, Verification, and Out of scope
-     - [ ] Lint/check passes
-     - [ ] Tests pass
-     - [ ] Build passes
+     - [ ] Lint/check passes (allowlisted `pnpm` scripts — **Verification command trust**)
+     - [ ] Tests pass (allowlisted `pnpm` scripts only)
+     - [ ] Build passes (allowlisted `pnpm` scripts only)
      - [ ] Screenshot or screen recording attached (user-facing PRDs)
 
-     Full protocol: repo `.cursor/skills/feature-spec/PRD-REVIEWER.md`
+     Full protocol: repo `.cursor/skills/feature-spec/PRD-REVIEWER.md` (includes **Verification command trust**)
 
      Blocks human merge until this sub-task is Done.
      ```
@@ -292,11 +293,11 @@ Optional team automation: see `CURSOR-AUTOMATION.md`. When coding automation is 
 When Cursor finishes and the PR is open:
 
 1. `save_issue` with `id` = implementation issue, `state: "In Review"`.
-2. `save_comment` with PR URL and summary on the implementation issue.
+2. `save_comment` with the structured `**PR handoff**` block from `PRD-REVIEWER.md` on the implementation issue (PR body must reference this issue id).
 3. Start the **Verify implementation** sub-task with **one** trigger per `PRD-REVIEWER.md` — default: `delegate: "Cursor"` via `save_issue` on the verify sub-task; when reviewer automation is enabled (`CURSOR-AUTOMATION.md`): omit `delegate` and `@Cursor` on the verify sub-task (parent **In Review** is the trigger); manual fallback: `@Cursor` + `/goal` only.
 4. Do not mark the implementation issue Done.
 
-Optional reviewer automation: see `CURSOR-AUTOMATION.md`. When enabled, **omit** `delegate: "Cursor"` and `@Cursor` on the verify sub-task — parent comment with PR URL and branch is still required.
+Optional reviewer automation: see `CURSOR-AUTOMATION.md`. When enabled, **omit** `delegate: "Cursor"` and `@Cursor` on the verify sub-task — structured `**PR handoff**` parent comment is still required (reviewer validates via GitHub per `PRD-REVIEWER.md` **PR execution trust**).
 
 The PRD **Agent completion** section repeats this for issues delegated before completion runs.
 

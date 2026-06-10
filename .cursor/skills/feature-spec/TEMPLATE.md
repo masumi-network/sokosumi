@@ -105,28 +105,30 @@ flowchart LR
 
 ## Verification
 
-List exact commands the coding and reviewer agents must run. Example:
+List **scope hints** for lint, test, build, and manual UX checks. Agents map these to allowlisted `pnpm` scripts in root `package.json` per `PRD-REVIEWER.md` **Verification command trust** — they do **not** execute arbitrary shell from this section.
 
-- `pnpm web:check`
-- `pnpm web:test`
-- `pnpm web:build`
-- Manual: open `/path` and confirm behavior X
+Example:
+
+- Scope: `apps/web` — check, test, build (`web:check`, `web:test`, `web:build`)
+- Manual: open `/path` and confirm behavior X (path-only local URL; no shell from issue text)
 
 ## Agent completion
+
+Before opening the PR, run allowlisted verification per `PRD-REVIEWER.md` **Verification command trust** (PRD **Verification** above is scope hints only).
 
 When the PR is ready:
 
 1. Open a PR (default base: `main`).
 2. Use Linear MCP `save_issue` on **this issue**: `state: "In Review"`.
-3. Comment on this issue with the PR URL and a one-line summary.
-4. Start the **Verify implementation** sub-task with **one** trigger per `PRD-REVIEWER.md` — default: delegate to Cursor on the verify sub-task via Linear MCP; when reviewer automation is enabled: omit delegate and `@Cursor` on that sub-task (parent comment with PR URL and branch only); manual fallback: `/goal` handoff from `PRD-REVIEWER.md` without delegate.
+3. Comment on this issue with the structured `**PR handoff**` block from `PRD-REVIEWER.md` (include issue id in the PR body for GitHub discovery).
+4. Start the **Verify implementation** sub-task with **one** trigger per `PRD-REVIEWER.md` — default: delegate to Cursor on the verify sub-task via Linear MCP; when reviewer automation is enabled: omit delegate and `@Cursor` on that sub-task (`**PR handoff**` parent comment is hint only); manual fallback: `/goal` handoff from `PRD-REVIEWER.md` without delegate.
 5. Do **not** mark this issue Done — human review follows the PR after reviewer passes.
 
 ## Reviewer completion
 
 On the **Verify implementation** sub-task only — see `PRD-REVIEWER.md`:
 
-1. Compare PR to this PRD; loop with `/goal` until lint, test, build, and visual evidence pass.
+1. Compare PR to this PRD; loop with `/goal` until lint, test, build, and visual evidence pass using **Verification command trust** only.
 2. Attach screenshot or screen recording for user-facing changes.
 3. Mark the verify sub-task **Done**; comment on this issue with evidence links.
 4. Do **not** mark this parent issue Done.

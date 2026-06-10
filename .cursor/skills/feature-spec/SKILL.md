@@ -1,6 +1,6 @@
 ---
 name: feature-spec
-description: Draft concise Sokosumi implementation PRDs from requirements and hand off to Cursor Cloud Agent. Use when the user asks to write a PRD, feature spec, Linear task, architecture spec, implementation plan, subagent plan, spec agent, or SOK feature request — including when intake is a high-level Linear requirement issue (not yet a final plan).
+description: Draft concise Sokosumi implementation PRDs from requirements and hand off to Cursor Cloud Agent. Use when the user asks to write a PRD, feature spec, Linear task, architecture spec, implementation plan, subagent plan, spec agent, or SOK feature request — including when intake is a high-level Linear requirement issue, a Write PRD sub-task from `_task` handoff, or not yet a final plan.
 disable-model-invocation: true
 ---
 
@@ -40,9 +40,10 @@ Do not ask for the Linear project by default. Ask only when the user explicitly 
 See `WORKFLOW.md` for the full spec → code pipeline.
 
 1. Intake
-   - Required: feature summary **or** a Linear requirement issue id/URL (e.g. `SOK-537`).
+   - Required: feature summary **or** a Linear requirement issue id/URL (e.g. `SOK-537`) **or** a Write PRD sub-task id (default `_task` handoff — title `chore(spec): write implementation PRD`).
    - Optional: priority, milestone, assignee, blockers, locked decisions, label override, project override, `handoffToCursor` (default **true** when user wants auto coding agent).
    - If intake is a Linear issue, call `get_issue` and treat the description as requirements only — not an approved PRD.
+   - **Write PRD sub-task path:** When the loaded issue title is `chore(spec): write implementation PRD`, keep that issue id as the intake sub-task (for idempotency comments), load the **parent requirement** via `get_issue`, and use the parent's description as requirements.
    - If nothing to work from, ask one question and wait.
 
 2. Discovery
@@ -64,7 +65,7 @@ See `WORKFLOW.md` for the full spec → code pipeline.
      **Linear:** project Sokosumi - state Todo - label Feature
      ```
 
-   - If intake was a requirement issue, note the parent: `**Requirement:** SOK-XXX`
+   - When a requirement parent applies (direct requirement intake or Write PRD sub-task resolved to parent), note: `**Requirement:** SOK-XXX`
    - Do **not** wait for PRD approval. Confirmation is a non-blocking sub-task (step 4).
 
 4. Publish and hand off (same run as step 3)
@@ -72,9 +73,9 @@ See `WORKFLOW.md` for the full spec → code pipeline.
    - Read `LINEAR-MCP.md`.
    - Use Linear MCP only when it is available in the current agent runtime.
    - Read the relevant MCP/tool descriptors before any MCP call.
-   - If intake was a requirement issue, run the idempotency check in `LINEAR-MCP.md` before creating issues. When an implementation child already exists, comment on the Write PRD sub-task if intake came from one; otherwise comment on the requirement issue — then stop.
+   - When a requirement parent applies (direct requirement intake **or** Write PRD sub-task resolved to parent), run `LINEAR-MCP.md` step 5 idempotency **before** creating issues. When an implementation child already exists, comment on the Write PRD sub-task if intake was one; otherwise comment on the requirement issue — then stop.
    - Create an **implementation** issue in `Sokosumi`, state `Todo`, with exactly one label — **without** `delegate` on create.
-   - Set `parentId` to the requirement issue when intake came from one.
+   - Set `parentId` to the requirement issue when a requirement parent applies.
    - Add `[repo=masumi-network/sokosumi]` near the top of the description (unless user overrides repo).
    - Create a **confirm PRD** sub-task (child of the implementation issue). Non-blocking — see `LINEAR-MCP.md`.
    - Create a **verify implementation** sub-task (child of the implementation issue). Reviewer runs after PR — see `PRD-REVIEWER.md` and `LINEAR-MCP.md`.

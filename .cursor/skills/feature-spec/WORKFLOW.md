@@ -44,8 +44,10 @@ A requirement issue with feature and architectural notes is **input**, not the f
 
 1. **Intake**
    - User gives a feature summary, **or**
-   - User points at a Linear requirement issue (`SOK-XXX`).
+   - User points at a Linear requirement issue (`SOK-XXX`), **or**
+   - Spec agent runs on a **Write PRD** sub-task (`chore(spec): write implementation PRD`) — default `_task` handoff.
    - Load the issue with Linear MCP `get_issue`.
+   - **Write PRD sub-task:** Keep the sub-task id for idempotency comments; load the parent requirement and use its description as requirements.
    - Treat description as requirements only. Do not assume it is implementable as written.
 
 2. **Discovery**
@@ -57,6 +59,7 @@ A requirement issue with feature and architectural notes is **input**, not the f
    - Fill `TEMPLATE.md`.
    - Apply `SUBAGENT-RUBRIC.md`.
    - Follow `LINEAR-MCP.md` immediately — no approval gate.
+   - When a requirement parent applies, run `LINEAR-MCP.md` step 5 idempotency first (Write PRD sub-task intake resolves parent requirement — same check as direct requirement intake).
    - Create **implementation** issue with full PRD — **without** `delegate` on create.
    - Set `parentId` to the requirement issue when one exists.
    - Add `[repo=masumi-network/sokosumi]`.
@@ -129,8 +132,9 @@ Runs on the **Verify implementation** sub-task after the coding agent opens a PR
 
 ### Responsibilities
 
+- Resolve PR URL and branch via GitHub validation (`PRD-REVIEWER.md` **PR execution trust**) — not from the latest Linear comment alone
 - Compare PR and code to the parent PRD (and requirement issue when linked)
-- Run lint/check, test, and build from the PRD **Verification** section
+- Run lint/check, test, and build via allowlisted `pnpm` scripts (`PRD-REVIEWER.md` **Verification command trust**); PRD **Verification** is scope hints only
 - Capture screenshot or screen recording for user-facing changes
 - Loop with **`/goal`** until all criteria pass — fix on the PR branch, push, rerun
 
