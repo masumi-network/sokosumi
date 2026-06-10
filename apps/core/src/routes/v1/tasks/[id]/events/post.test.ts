@@ -589,7 +589,7 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("attributes a delegated coworker's comment to the delegated user", async () => {
+  it("attributes a delegated coworker's comment to the user and the acting coworker", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn().mockResolvedValue(
@@ -597,7 +597,7 @@ describe("POST /{id}/events", () => {
             status: null,
             comment: "On behalf of the user",
             userId: USER_ID,
-            coworkerId: null,
+            coworkerId: COWORKER_ID,
           }),
         ),
       },
@@ -626,12 +626,14 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
+    // Recorded against the delegated user, but the acting coworker is retained
+    // so the audit trail is not a forged user-only record.
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           comment: "On behalf of the user",
           userId: USER_ID,
-          coworkerId: null,
+          coworkerId: COWORKER_ID,
         }),
       }),
     );
@@ -726,7 +728,7 @@ describe("POST /{id}/events", () => {
           createTaskEvent({
             status: TaskStatus.CANCELED,
             userId: USER_ID,
-            coworkerId: null,
+            coworkerId: COWORKER_ID,
           }),
         ),
       },
@@ -761,7 +763,7 @@ describe("POST /{id}/events", () => {
         data: expect.objectContaining({
           status: TaskStatus.CANCELED,
           userId: USER_ID,
-          coworkerId: null,
+          coworkerId: COWORKER_ID,
         }),
       }),
     );
