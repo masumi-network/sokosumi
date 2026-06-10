@@ -181,4 +181,34 @@ describe("POST /tasks/{id}/jobs", () => {
       }),
     );
   });
+
+  it("rejects adding a job to a draft task", async () => {
+    requireTaskAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      userId: "user_123",
+      organizationId: "org_123",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      status: TaskStatus.DRAFT,
+    });
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+    });
+
+    const response = await app.request("http://localhost/tsk_123/jobs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: requestBody,
+    });
+
+    expect(response.status).toBe(422);
+    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
+  });
 });

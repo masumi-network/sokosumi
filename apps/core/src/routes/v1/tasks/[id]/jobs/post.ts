@@ -1,6 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/utils";
 
 import { requireTaskCollaboration } from "@/helpers/access-control";
+import { unprocessableEntity } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -49,6 +51,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { id: taskId } = c.req.valid("param");
     const task = await requireTaskCollaboration(authContext, taskId);
+
+    // The non-delegated coworker path already excludes DRAFT tasks; the
+    // delegated path resolves via task ownership, which does not. Jobs cannot
+    // be added to a task that is not ready, so reject DRAFT here too.
+    if (task.status === TaskStatus.DRAFT) {
+      throw unprocessableEntity("Cannot add a job to a draft task");
+    }
 
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
