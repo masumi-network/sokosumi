@@ -86,9 +86,11 @@ import {
   getHermesMeMessages as coreGetHermesMeMessages,
   getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getHistory as coreGetHistory,
+  getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
+  getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
@@ -607,6 +609,32 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization members",
+    );
+  }
+
+  async function getOrganizationPendingInvitations(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdInvitations({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization invitations",
+    );
+  }
+
+  async function getInvitationById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetInvitationsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch invitation",
     );
   }
 
@@ -1709,9 +1737,11 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,
+    getInvitationById,
     getMyCredits,
     getMyOrganizations,
     getOrganizationMembers,
+    getOrganizationPendingInvitations,
     getPendingNotices,
     getProjects,
     getProjectsById,

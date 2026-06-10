@@ -4828,6 +4828,59 @@ export const MemberSchema = {
     ]
 } as const;
 
+export const PendingInvitationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'inv_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        role: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'member'
+        },
+        status: {
+            type: 'string',
+            example: 'pending'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        inviterId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'email',
+        'role',
+        'status',
+        'expiresAt',
+        'inviterId',
+        'createdAt'
+    ]
+} as const;
+
 export const EnterpriseContractBillingSummarySchema = {
     type: 'object',
     properties: {
@@ -5335,6 +5388,123 @@ export const JobShareSchema = {
         'createdAt',
         'updatedAt',
         'jobId'
+    ]
+} as const;
+
+export const GetInvitationResultSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'ok'
+                    ]
+                },
+                invitation: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/PendingInvitation'
+                        },
+                        {
+                            type: 'object',
+                            properties: {
+                                organization: {
+                                    type: 'object',
+                                    properties: {
+                                        id: {
+                                            type: 'string',
+                                            example: 'org_123'
+                                        },
+                                        name: {
+                                            type: 'string',
+                                            example: 'Acme Inc'
+                                        },
+                                        slug: {
+                                            type: 'string',
+                                            example: 'acme-inc'
+                                        }
+                                    },
+                                    required: [
+                                        'id',
+                                        'name',
+                                        'slug'
+                                    ]
+                                },
+                                inviter: {
+                                    type: 'object',
+                                    properties: {
+                                        id: {
+                                            type: 'string',
+                                            example: 'user_123'
+                                        },
+                                        email: {
+                                            type: 'string',
+                                            example: 'owner@example.com'
+                                        }
+                                    },
+                                    required: [
+                                        'id',
+                                        'email'
+                                    ]
+                                }
+                            },
+                            required: [
+                                'organization',
+                                'inviter'
+                            ]
+                        }
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'invitation'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'not_found'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'expired'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'inviter_not_found'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        }
     ]
 } as const;
 

@@ -1441,6 +1441,17 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
+export type PendingInvitation = {
+    id: string;
+    organizationId: string;
+    email: string;
+    role: string | null;
+    status: string;
+    expiresAt: Date;
+    inviterId: string;
+    createdAt: Date;
+};
+
 export type EnterpriseContractBillingSummary = {
     activatedAt: Date;
     endsAt: Date;
@@ -1543,6 +1554,27 @@ export type JobShare = {
     createdAt: Date;
     updatedAt: Date;
     jobId: string;
+};
+
+export type GetInvitationResult = {
+    kind: 'ok';
+    invitation: PendingInvitation & {
+        organization: {
+            id: string;
+            name: string;
+            slug: string;
+        };
+        inviter: {
+            id: string;
+            email: string;
+        };
+    };
+} | {
+    kind: 'not_found';
+} | {
+    kind: 'expired';
+} | {
+    kind: 'inviter_not_found';
 };
 
 export type PublicSharedResourceResponse = ({
@@ -11294,6 +11326,91 @@ export type GetOrganizationsByIdMembersResponses = {
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
 
+export type GetOrganizationsByIdInvitationsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/invitations';
+};
+
+export type GetOrganizationsByIdInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not an owner or admin of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdInvitationsError = GetOrganizationsByIdInvitationsErrors[keyof GetOrganizationsByIdInvitationsErrors];
+
+export type GetOrganizationsByIdInvitationsResponses = {
+    /**
+     * List pending organization invitations
+     */
+    200: {
+        data: Array<PendingInvitation>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
+
 export type GetOrganizationEnterpriseContractSummaryData = {
     body?: never;
     path: {
@@ -13481,6 +13598,52 @@ export type PutJobsByIdWorkspaceResponses = {
 };
 
 export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
+
+export type GetInvitationsByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Invitation ID (acts as the capability token for the link)
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/invitations/{id}';
+};
+
+export type GetInvitationsByIdErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetInvitationsByIdError = GetInvitationsByIdErrors[keyof GetInvitationsByIdErrors];
+
+export type GetInvitationsByIdResponses = {
+    /**
+     * Resolve a pending invitation by id
+     */
+    200: {
+        data: GetInvitationResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetInvitationsByIdResponse = GetInvitationsByIdResponses[keyof GetInvitationsByIdResponses];
 
 export type GetShareByTokenData = {
     body?: never;
