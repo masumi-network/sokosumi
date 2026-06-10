@@ -52,6 +52,7 @@ import type {
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutTasksByIdShareError,
+  PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
@@ -91,6 +92,7 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
+  getOrganizationsById as coreGetOrganizationsById,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
@@ -144,8 +146,10 @@ import {
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
+  putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
+  putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
@@ -1246,6 +1250,68 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  /**
+   * Sets (or clears, when `url` is null) the current user's own DESIGN.md.
+   */
+  async function setMyDesignMd(
+    body: NonNullable<PutUsersByIdDesignMdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutUsersByIdDesignMd({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body,
+        }),
+      "Failed to save DESIGN.md",
+    );
+  }
+
+  /**
+   * Sets (or clears, when `url` is null) an organization's DESIGN.md. Core
+   * enforces that the caller is an organization owner or admin.
+   */
+  async function setOrganizationDesignMd(
+    organizationId: string,
+    body: NonNullable<PutUsersByIdDesignMdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutOrganizationsByIdDesignMd({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to save organization DESIGN.md",
+    );
+  }
+
+  /**
+   * Fetches an organization by id, returning null when it does not exist
+   * (Core responds 404).
+   */
+  async function getOrganizationById(organizationId: string) {
+    try {
+      return await executeOperation(
+        getClient,
+        (client) =>
+          coreGetOrganizationsById({
+            client,
+            path: { id: organizationId },
+            cache: "no-store",
+          }),
+        "Failed to fetch organization",
+      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async function getHermesInstance() {
     return executeOperation(
       getClient,
@@ -1849,9 +1915,12 @@ export function createCoreClient(getClient: GetClient) {
     getMyMembersWithOrganizations,
     getMyOrganizations,
     getMyStripeCustomer,
+    getOrganizationById,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,
+    setMyDesignMd,
+    setOrganizationDesignMd,
     getPendingNotices,
     getProjects,
     getProjectsById,

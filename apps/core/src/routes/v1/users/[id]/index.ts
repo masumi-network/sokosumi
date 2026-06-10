@@ -4,6 +4,7 @@ import {
   usersPathUserContextMiddleware,
 } from "../user-route-context.js";
 import mountGetUserCredits from "./credits/get.js";
+import mountPutUserDesignMd from "./design-md/put.js";
 import mountGetUserEffectiveDesignMd from "./effective-design-md/get.js";
 import mountGetUserById from "./get.js";
 import mountGetUserMembers from "./members/get.js";
@@ -26,6 +27,7 @@ const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 app.use("*", usersPathUserContextMiddleware);
 
 mountGetUserCredits(app);
+mountPutUserDesignMd(app);
 mountGetUserEffectiveDesignMd(app);
 mountGetUserMembers(app);
 mountGetUserOrganizations(app);

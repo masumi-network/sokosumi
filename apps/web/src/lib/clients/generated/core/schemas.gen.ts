@@ -4341,6 +4341,67 @@ export const CreditBucketBreakdownSchema = {
     ]
 } as const;
 
+export const PersistedDesignMdSchema = {
+    type: 'object',
+    properties: {
+        designMd: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                url: {
+                    type: 'string',
+                    example: 'https://blob.example/design.md',
+                    description: 'Public blob URL of the stored DESIGN.md'
+                },
+                extractionId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: '12345',
+                    description: 'Extraction id of the stored DESIGN.md, when known'
+                }
+            },
+            required: [
+                'url',
+                'extractionId'
+            ],
+            description: 'The persisted DESIGN.md, or null when cleared'
+        }
+    },
+    required: [
+        'designMd'
+    ]
+} as const;
+
+export const DesignMdWriteSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://blob.example/design.md',
+            description: 'Public blob URL of the DESIGN.md, or null to clear it'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '12345',
+            description: 'Extraction id of the generated DESIGN.md, when known'
+        }
+    },
+    required: [
+        'url',
+        'extractionId'
+    ]
+} as const;
+
 export const EffectiveDesignMdSchema = {
     type: 'object',
     properties: {
