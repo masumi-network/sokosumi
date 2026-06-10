@@ -373,6 +373,42 @@ describe("POST /chat", () => {
     );
   });
 
+  it("resolves the coworker by coworker_id, ignoring a divergent coworker_slug", async () => {
+    const cid = "550e8400-e29b-41d4-a716-446655440000";
+    conversationFindFirstMock.mockResolvedValueOnce({
+      id: cid,
+      metadata: { coworker_id: "cow_123", coworker_slug: "victim-agent" },
+      providerConversationId: "conv_remote_1",
+    });
+    coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+
+    const app = createApp({
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        delegation: {
+          userId: "delegated_user_123",
+          organizationId: "delegated_org_123",
+        },
+      },
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: cid,
+        conversationId: cid,
+        messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith({
+      where: { archivedAt: null, id: "cow_123" },
+      select: { id: true },
+    });
+  });
+
   it("rejects a delegated coworker on a conversation assigned to another coworker", async () => {
     const cid = "550e8400-e29b-41d4-a716-446655440000";
     conversationFindFirstMock.mockResolvedValueOnce({

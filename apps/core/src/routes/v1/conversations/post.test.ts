@@ -58,11 +58,17 @@ const delegatedCoworker: AuthVariables["authContext"] = {
   },
 };
 
-function create(app: ReturnType<typeof createApp>) {
+function create(
+  app: ReturnType<typeof createApp>,
+  metadata?: Record<string, unknown>,
+) {
   return app.request("http://localhost/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: "New chat" }),
+    body: JSON.stringify({
+      title: "New chat",
+      ...(metadata ? { metadata } : {}),
+    }),
   });
 }
 
@@ -109,5 +115,32 @@ describe("POST /conversations", () => {
     };
     expect(data.metadata.coworker_id).toBe("cow_123");
     expect(data.metadata.userId).toBe("delegated_user_123");
+  });
+
+  it("drops a client coworker_slug for a delegated coworker so it cannot diverge", async () => {
+    const response = await create(createApp(delegatedCoworker), {
+      coworker_slug: "victim-agent",
+      coworker_id: "cow_other",
+    });
+
+    expect(response.status).toBe(201);
+    const data = conversationCreateMock.mock.calls[0]![0].data as {
+      metadata: Record<string, unknown>;
+    };
+    expect(data.metadata.coworker_id).toBe("cow_123");
+    expect(data.metadata.coworker_slug).toBeUndefined();
+  });
+
+  it("preserves a client coworker_slug for a user session", async () => {
+    const response = await create(createApp(), {
+      coworker_slug: "ops-agent",
+    });
+
+    expect(response.status).toBe(201);
+    const data = conversationCreateMock.mock.calls[0]![0].data as {
+      metadata: Record<string, unknown>;
+    };
+    expect(data.metadata.coworker_slug).toBe("ops-agent");
+    expect(data.metadata.coworker_id).toBeUndefined();
   });
 });

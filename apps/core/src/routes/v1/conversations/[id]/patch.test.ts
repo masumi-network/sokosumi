@@ -143,7 +143,9 @@ describe("PATCH /conversations/{id}", () => {
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metadata: { coworker_id: "cow_other" } }),
+        body: JSON.stringify({
+          metadata: { coworker_id: "cow_other", coworker_slug: "victim-agent" },
+        }),
       },
     );
 
@@ -152,5 +154,6 @@ describe("PATCH /conversations/{id}", () => {
       metadata: Record<string, unknown>;
     };
     expect(data.metadata.coworker_id).toBe("cow_123");
+    expect(data.metadata.coworker_slug).toBeUndefined();
   });
 });

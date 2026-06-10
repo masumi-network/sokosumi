@@ -88,22 +88,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // A delegated coworker owns the conversations it creates: stamp the
         // binding so later per-resource checks recognize it (no-op for users).
         const authContext = c.var.authContext;
-        const coworkerBinding = isUserAuthContext(authContext)
-          ? {}
-          : {
-              coworker_id: requireCoworkerAuthContext(authContext).coworkerId,
-            };
+        const metadata: Record<string, unknown> = {
+          ...(body.metadata ?? {}),
+          userId: userContext.userId, // Store userId in metadata for reference
+        };
+        if (!isUserAuthContext(authContext)) {
+          // Pin the binding to the acting coworker and drop any client-supplied
+          // coworker_slug so it cannot diverge from coworker_id and route chat
+          // to another coworker (the chat handler resolves the coworker from
+          // coworker_id; the real slug is derived from it).
+          metadata.coworker_id =
+            requireCoworkerAuthContext(authContext).coworkerId;
+          delete metadata.coworker_slug;
+        }
 
         // Create conversation in database with title and metadata
         const conversationData = {
           openaiId,
           userId: userContext.userId,
           title: body.title,
-          metadata: {
-            ...(body.metadata ?? {}),
-            ...coworkerBinding,
-            userId: userContext.userId, // Store userId in metadata for reference
-          },
+          metadata,
         };
 
         return tx.conversation.create({ data: conversationData });

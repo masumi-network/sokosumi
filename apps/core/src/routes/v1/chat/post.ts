@@ -547,13 +547,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       } | null = null;
 
       if (coworkerSlug || coworkerId) {
+        // Anchor on coworker_id (verified by requireConversationCoworkerAccess)
+        // when present, falling back to coworker_slug only before the binding is
+        // stamped. Resolving slug-first would let a divergent coworker_slug
+        // route a delegated request to another coworker's Responses endpoint
+        // even though the guard authorized it against the matching coworker_id.
         const coworkerIdentity = await prisma.coworker.findFirst({
           where: {
             archivedAt: null,
-            OR: [
-              ...(coworkerSlug ? [{ slug: coworkerSlug }] : []),
-              ...(coworkerId ? [{ id: coworkerId }] : []),
-            ],
+            ...(coworkerId ? { id: coworkerId } : { slug: coworkerSlug }),
           },
           select: { id: true },
         });

@@ -112,20 +112,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (body.metadata !== undefined) {
         const existingMetadata =
           (existing.metadata as Record<string, unknown> | null) || {};
-        // A delegated coworker may only act on its own conversation (enforced
-        // above); re-pin the coworker binding so a metadata update cannot
-        // rebind the conversation to another coworker.
-        const coworkerBinding = isUserAuthContext(authContext)
-          ? {}
-          : {
-              coworker_id: requireCoworkerAuthContext(authContext).coworkerId,
-            };
-        updateData.metadata = {
+        const nextMetadata: Record<string, unknown> = {
           ...existingMetadata,
           ...body.metadata,
-          ...coworkerBinding,
           userId: userContext.userId, // Ensure userId is preserved
         };
+        // A delegated coworker may only act on its own conversation (enforced
+        // above); re-pin coworker_id and drop any client-supplied coworker_slug
+        // so a metadata update cannot rebind the conversation to another
+        // coworker or route chat to one via a divergent slug.
+        if (!isUserAuthContext(authContext)) {
+          nextMetadata.coworker_id =
+            requireCoworkerAuthContext(authContext).coworkerId;
+          delete nextMetadata.coworker_slug;
+        }
+        updateData.metadata = nextMetadata;
       }
 
       // Update conversation in database
