@@ -349,37 +349,50 @@ describe("creditGrantAdminService.listGrantInvoices", () => {
     getAccountIdMock.mockResolvedValue("acct_1");
   });
 
-  function getSearchQuery(): string {
-    return searchInvoicesMock.mock.calls[0]?.[0]?.query ?? "";
+  function getSearchQueries(): string[] {
+    return searchInvoicesMock.mock.calls.map((call) => call[0]?.query ?? "");
   }
 
-  it("always scopes the search to admin grant invoices, defaulting to unfinished statuses", async () => {
+  it("runs one AND-only query per status (never mixing AND and OR), defaulting to unfinished", async () => {
     searchInvoicesMock.mockResolvedValue([]);
 
     await creditGrantAdminService.listGrantInvoices();
 
-    const query = getSearchQuery();
-    expect(query).toContain('metadata["grant_source"]:"admin_one_time_credit"');
-    expect(query).toContain('(status:"draft" OR status:"open")');
-    expect(query).not.toContain("customer:");
+    const queries = getSearchQueries();
+    expect(searchInvoicesMock).toHaveBeenCalledTimes(2);
+    for (const query of queries) {
+      expect(query).toContain(
+        'metadata["grant_source"]:"admin_one_time_credit"',
+      );
+      // Stripe rejects a mix of AND and OR — each query must use AND only.
+      expect(query).not.toContain(" OR ");
+      expect(query).not.toContain("(");
+      expect(query).not.toContain("customer:");
+    }
+    expect(queries.some((query) => query.includes('status:"draft"'))).toBe(
+      true,
+    );
+    expect(queries.some((query) => query.includes('status:"open"'))).toBe(true);
   });
 
-  it("omits the status clause when filtering by 'all'", async () => {
+  it("runs a single status-less query when filtering by 'all'", async () => {
     searchInvoicesMock.mockResolvedValue([]);
 
     await creditGrantAdminService.listGrantInvoices({ status: "all" });
 
-    const query = getSearchQuery();
+    expect(searchInvoicesMock).toHaveBeenCalledTimes(1);
+    const query = getSearchQueries()[0];
     expect(query).toContain('metadata["grant_source"]:"admin_one_time_credit"');
     expect(query).not.toContain("status:");
   });
 
-  it("uses a single status clause when filtering by a specific status", async () => {
+  it("runs a single AND-only query when filtering by a specific status", async () => {
     searchInvoicesMock.mockResolvedValue([]);
 
     await creditGrantAdminService.listGrantInvoices({ status: "paid" });
 
-    const query = getSearchQuery();
+    expect(searchInvoicesMock).toHaveBeenCalledTimes(1);
+    const query = getSearchQueries()[0];
     expect(query).toContain('status:"paid"');
     expect(query).not.toContain(" OR ");
   });
@@ -396,7 +409,9 @@ describe("creditGrantAdminService.listGrantInvoices", () => {
       recipient: { targetType: "user", targetId: "user_1" },
     });
 
-    expect(getSearchQuery()).toContain('customer:"cus_user"');
+    for (const query of getSearchQueries()) {
+      expect(query).toContain('customer:"cus_user"');
+    }
   });
 
   it("returns an empty list when the recipient has no Stripe customer", async () => {

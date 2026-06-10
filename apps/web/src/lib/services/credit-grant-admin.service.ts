@@ -175,13 +175,18 @@ function resolveTargetFromCustomer(customer: Stripe.Invoice["customer"]): {
 }
 
 /**
- * Builds a Stripe invoice search query that always scopes to admin
+ * Builds a single Stripe invoice search query that always scopes to admin
  * credit-grant invoices (via the `grant_source` metadata), optionally narrowed
- * by status and/or customer. All values here are fixed enums, a known
+ * by a single status and/or customer. All values here are fixed enums, a known
  * constant, or a Stripe customer id, so they need no escaping.
+ *
+ * Stripe's search query language rejects a mix of `AND` and `OR` in one query,
+ * so this builder only ever joins clauses with `AND` (single status). Filtering
+ * by multiple statuses is done by running one query per status and merging the
+ * results — see {@link listGrantInvoices}.
  */
 function buildGrantInvoiceSearchQuery(params: {
-  statuses?: Stripe.Invoice.Status[];
+  status?: Stripe.Invoice.Status;
   customerId?: string;
 }): string {
   const clauses = [`metadata["grant_source"]:"${ADMIN_CREDIT_GRANT_SOURCE}"`];
@@ -190,13 +195,8 @@ function buildGrantInvoiceSearchQuery(params: {
     clauses.push(`customer:"${params.customerId}"`);
   }
 
-  if (params.statuses && params.statuses.length > 0) {
-    const statusClause = params.statuses
-      .map((status) => `status:"${status}"`)
-      .join(" OR ");
-    clauses.push(
-      params.statuses.length > 1 ? `(${statusClause})` : statusClause,
-    );
+  if (params.status) {
+    clauses.push(`status:"${params.status}"`);
   }
 
   return clauses.join(" AND ");
@@ -428,22 +428,35 @@ export const creditGrantAdminService = (() => {
         customerId = resolved;
       }
 
-      const statuses =
+      // Stripe search can't mix AND and OR, so a multi-status filter runs one
+      // AND-only query per status; "all" runs a single status-less query.
+      const statusesToQuery: Array<Stripe.Invoice.Status | undefined> =
         status === "all"
-          ? undefined
+          ? [undefined]
           : status === "unfinished"
             ? UNFINISHED_INVOICE_STATUSES
             : [status];
 
-      const query = buildGrantInvoiceSearchQuery({ statuses, customerId });
-
-      const [invoices, accountId] = await Promise.all([
-        stripeClient.searchInvoices({ query, limit }),
+      const [searchResults, accountId] = await Promise.all([
+        Promise.all(
+          statusesToQuery.map((statusFilter) =>
+            stripeClient.searchInvoices({
+              query: buildGrantInvoiceSearchQuery({
+                status: statusFilter,
+                customerId,
+              }),
+              limit,
+            }),
+          ),
+        ),
         stripeClient.getAccountId(),
       ]);
 
+      const seenInvoiceIds = new Set<string>();
+
       return (
-        invoices
+        searchResults
+          .flat()
           // Defensive: the search query already scopes to grant invoices, but
           // keep the check so a query change can never leak unrelated invoices.
           .filter(
@@ -452,6 +465,15 @@ export const creditGrantAdminService = (() => {
           )
           .map((invoice) => toInvoiceListItem(invoice, accountId))
           .filter((item): item is CreditGrantInvoiceListItem => item !== null)
+          // De-dupe across per-status queries (statuses are disjoint, so this
+          // is belt-and-suspenders) before sorting newest-first.
+          .filter((item) => {
+            if (seenInvoiceIds.has(item.invoiceId)) {
+              return false;
+            }
+            seenInvoiceIds.add(item.invoiceId);
+            return true;
+          })
           .sort((a, b) => b.createdAt - a.createdAt)
           .slice(0, limit)
       );
