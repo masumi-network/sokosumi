@@ -7,7 +7,8 @@ export {};
 
 const createInvitationMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
-const getMemberByUserIdAndOrganizationIdMock = vi.fn();
+const getMyMemberInOrganizationMock = vi.fn();
+const inviteMultipleMembersMock = vi.fn();
 const headersMock = vi.fn();
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -33,21 +34,18 @@ vi.mock("@/lib/auth/utils", () => ({
   getSession: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  invitationRepository: {},
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
+vi.mock("@/lib/services/organization.service", () => ({
+  organizationService: {
+    inviteMultipleMembers: (...args: unknown[]) =>
+      inviteMultipleMembersMock(...args),
   },
-  organizationRepository: {},
 }));
 
-vi.mock("next/headers", () => ({
-  headers: () => headersMock(),
+vi.mock("@/lib/services/user.service", () => ({
+  userService: {
+    getMyMemberInOrganization: (...args: unknown[]) =>
+      getMyMemberInOrganizationMock(...args),
+  },
 }));
 
 vi.mock("@/lib/services/preferred-organization.service", () => ({
@@ -71,9 +69,14 @@ describe("organization actions", () => {
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_ORG_INVITATION_LIMIT: 100,
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+    getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.ADMIN,
     });
+    inviteMultipleMembersMock.mockImplementation(
+      async (_organizationId: string, emails: string[]) => ({
+        results: emails.map((email) => ({ email, status: "sent" as const })),
+      }),
+    );
     headersMock.mockResolvedValue(new Headers());
   });
 
@@ -97,25 +100,20 @@ describe("organization actions", () => {
         ],
       },
     });
-    expect(createInvitationMock).toHaveBeenCalledTimes(3);
-    expect(createInvitationMock).toHaveBeenNthCalledWith(1, {
-      body: {
-        email: "first@example.com",
-        organizationId: "org-1",
-        resend: true,
-        role: MemberRole.MEMBER,
-      },
-      headers: expect.any(Headers),
-    });
+    expect(inviteMultipleMembersMock).toHaveBeenCalledWith(
+      "org-1",
+      ["first@example.com", "second@example.com", "third@example.com"],
+      MemberRole.MEMBER,
+    );
   });
 
   it("returns sent and failed statuses for a partial batch", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    createInvitationMock
-      .mockResolvedValueOnce({})
-      .mockRejectedValueOnce(new Error("invite failed"));
+    inviteMultipleMembersMock.mockResolvedValueOnce({
+      results: [
+        { email: "ok@example.com", status: "sent" },
+        { email: "fail@example.com", status: "failed" },
+      ],
+    });
     const { inviteOrganizationMembersBulk } = await import("../action");
 
     const result = await inviteOrganizationMembersBulk({
@@ -133,12 +131,10 @@ describe("organization actions", () => {
         ],
       },
     });
-
-    consoleErrorSpy.mockRestore();
   });
 
   it("rejects users who are not members of the organization", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+    getMyMemberInOrganizationMock.mockResolvedValue(null);
     const { inviteOrganizationMembersBulk } = await import("../action");
 
     const result = await inviteOrganizationMembersBulk({
@@ -154,11 +150,11 @@ describe("organization actions", () => {
         message: "You are not a member of this organization",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteMultipleMembersMock).not.toHaveBeenCalled();
   });
 
   it("rejects members without owner or admin permissions", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+    getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.MEMBER,
     });
     const { inviteOrganizationMembersBulk } = await import("../action");
@@ -176,7 +172,7 @@ describe("organization actions", () => {
         message: "Only organization owners and admins can invite members",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteMultipleMembersMock).not.toHaveBeenCalled();
   });
 
   it("rejects empty or invalid email input", async () => {
@@ -201,7 +197,7 @@ describe("organization actions", () => {
         message: "Enter at least one valid email address",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteMultipleMembersMock).not.toHaveBeenCalled();
   });
 
   it("rejects batches over the invitation limit", async () => {
@@ -223,6 +219,6 @@ describe("organization actions", () => {
         message: "You can invite up to 1 members at a time",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteMultipleMembersMock).not.toHaveBeenCalled();
   });
 });

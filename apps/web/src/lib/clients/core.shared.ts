@@ -90,9 +90,11 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
+  getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
+  getOrganizationsByIdSubscriptionChangeAllowed as coreGetOrganizationsByIdSubscriptionChangeAllowed,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -104,11 +106,15 @@ import {
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
+  getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
+  getUsersByIdSubscriptionChangeAllowed as coreGetUsersByIdSubscriptionChangeAllowed,
+  deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
+  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
@@ -188,6 +194,23 @@ const CURRENT_USER_PATH_ID = "me";
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
+}
+
+function transformBillingPlanResponseEnvelope(data: any) {
+  const plan = data.data;
+
+  if (plan.mode === "enterprise_contract") {
+    plan.endsAt = toDate(plan.endsAt);
+    plan.activatedAt = toDate(plan.activatedAt);
+  } else if (plan.periodEnd) {
+    plan.periodEnd = toDate(plan.periodEnd);
+  }
+
+  if (data.meta?.timestamp) {
+    data.meta.timestamp = toDate(data.meta.timestamp);
+  }
+
+  return data;
 }
 
 function transformHistoryResponseEnvelope(data: any) {
@@ -1174,6 +1197,91 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationCredits(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdOrganizationsByOrganizationIdCredits({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credits",
+    );
+  }
+
+  async function getOrganizationBillingPlan(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdBillingPlan({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+          responseTransformer: async (data) =>
+            transformBillingPlanResponseEnvelope(data),
+        }),
+      "Failed to fetch organization billing plan",
+    );
+  }
+
+  async function getOrganizationSubscriptionChangeAllowed(
+    organizationId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscriptionChangeAllowed({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to validate organization subscription change",
+    );
+  }
+
+  async function getPersonalSubscriptionChangeAllowed() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdSubscriptionChangeAllowed({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to validate personal subscription change",
+    );
+  }
+
+  async function patchOrganizationInvoiceEmail(
+    organizationId: string,
+    invoiceEmail: string | null,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchOrganizationsByIdInvoiceEmail({
+          client,
+          path: { id: organizationId },
+          body: { invoiceEmail },
+        }),
+      "Failed to update organization invoice email",
+    );
+  }
+
+  async function revokeOAuthConsent(consentId: string, clientId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteUsersByIdOauthConsentsByConsentId({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, consentId },
+          query: { clientId },
+        }),
+      "Failed to revoke OAuth consent",
+    );
+  }
+
   async function getMyOrganizations() {
     return executeOperation(
       getClient,
@@ -1810,9 +1918,15 @@ export function createCoreClient(getClient: GetClient) {
     getMyMembersWithOrganizations,
     getMyOrganizations,
     getMyStripeCustomer,
+    getOrganizationBillingPlan,
+    getOrganizationCredits,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,
+    getOrganizationSubscriptionChangeAllowed,
+    getPersonalSubscriptionChangeAllowed,
+    patchOrganizationInvoiceEmail,
+    revokeOAuthConsent,
     getPendingNotices,
     getProjects,
     getProjectsById,

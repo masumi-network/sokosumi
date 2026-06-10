@@ -12,6 +12,8 @@ const cookiesMock = vi.fn(async () => ({
 const upgradeSubscriptionMock = vi.fn();
 const createBillingPortalMock = vi.fn();
 const updateOrganizationSeatsImmediatelyMock = vi.fn();
+const assertPersonalSubscriptionChangeAllowedMock = vi.fn();
+const assertOrganizationSubscriptionChangeAllowedMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   cookies: cookiesMock,
@@ -28,21 +30,15 @@ vi.mock("@/lib/auth/auth", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
+  billingService: {
+    assertOrganizationSubscriptionChangeAllowed: (...args: unknown[]) =>
+      assertOrganizationSubscriptionChangeAllowedMock(...args),
+    assertPersonalSubscriptionChangeAllowed: (...args: unknown[]) =>
+      assertPersonalSubscriptionChangeAllowedMock(...args),
+  },
   organizationSubscriptionService: {
     updateOrganizationSeatsImmediately: updateOrganizationSeatsImmediatelyMock,
   },
-}));
-
-vi.mock("@sokosumi/database/helpers", () => ({
-  assertOrganizationSubscriptionChangeAllowed: vi
-    .fn()
-    .mockResolvedValue(undefined),
-  assertPersonalSubscriptionChangeAllowed: vi.fn().mockResolvedValue(undefined),
-  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
 }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -73,6 +69,10 @@ const organizationSession = {
 describe("subscription actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    assertPersonalSubscriptionChangeAllowedMock.mockResolvedValue(undefined);
+    assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
+      undefined,
+    );
   });
 
   it("returns BAD_INPUT for invalid plan names", async () => {

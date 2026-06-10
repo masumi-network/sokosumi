@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { Invitation, MemberRole } from "@sokosumi/database";
+import type {
+  Invitation,
+  MemberRole,
+  OrganizationWithRelations,
+} from "@sokosumi/database";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import slugify from "slugify";
@@ -93,6 +97,49 @@ export const organizationService = (() => {
     return data;
   }
 
+  async function getOrganizationWithRelationsBySlug(
+    slug: string,
+  ): Promise<OrganizationWithRelations | null> {
+    const memberships = await coreClient.getMyMembersWithOrganizations();
+    const membership = memberships.data.find(
+      (entry) => entry.organization.slug === slug,
+    );
+
+    if (!membership) {
+      return null;
+    }
+
+    const { data: members } = await coreClient.getOrganizationMembers(
+      membership.organizationId,
+    );
+
+    return {
+      ...membership.organization,
+      _count: { members: members.length },
+    };
+  }
+
+  async function updateOrganizationInvoiceEmail(
+    organizationId: string,
+    invoiceEmail: string | null,
+  ) {
+    const response = await coreClient.patchOrganizationInvoiceEmail(
+      organizationId,
+      invoiceEmail,
+    );
+    return response.data;
+  }
+
+  async function getOrganizationSlugById(
+    organizationId: string,
+  ): Promise<string | null> {
+    const memberships = await coreClient.getMyMembersWithOrganizations();
+    const membership = memberships.data.find(
+      (entry) => entry.organizationId === organizationId,
+    );
+    return membership?.organization.slug ?? null;
+  }
+
   /**
    * Creates an organization with the specified user as owner.
    *
@@ -158,10 +205,13 @@ export const organizationService = (() => {
 
   return {
     generateOrganizationSlugFromName,
+    getOrganizationSlugById,
+    getOrganizationWithRelationsBySlug,
     getPendingInvitation,
     getPendingInvitations,
     createOrganizationWithOwner,
     inviteMultipleMembers,
+    updateOrganizationInvoiceEmail,
   };
 })();
 

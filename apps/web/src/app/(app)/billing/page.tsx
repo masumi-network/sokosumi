@@ -1,10 +1,4 @@
 import { MemberRole } from "@sokosumi/database";
-import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  creditBucketRepository,
-  subscriptionRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
 import {
   convertCentsToCredits,
   type SelfServeSubscriptionPlanName,
@@ -27,9 +21,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
-import { organizationSeatService, userService } from "@/lib/services";
+import {
+  billingService,
+  organizationSeatService,
+  userService,
+} from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
@@ -83,7 +81,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   if (!session) {
     return null;
   }
-  const userId = session.user.id;
   const creditsPriceLookupKeyOverride = isZeroMarginTopUpEnabled
     ? ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY
     : undefined;
@@ -118,9 +115,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       );
     }
 
-    const billingPlan = await resolveOrganizationBillingPlan(
+    const billingPlan = await billingService.getOrganizationBillingPlan(
       activeOrganization.id,
-      prisma,
     );
     const currentPlan = billingPlan.plan;
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
@@ -144,15 +140,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           ? getEnterpriseContractBillingSummary(activeOrganization.id)
           : Promise.resolve(null),
         organizationSeatService.getSeatSummary(activeOrganization.id),
-        // Always load the org credit balance so the balance section shows the
-        // real figure. It is unused when the enterprise summary renders, but is
-        // the correct fallback if core reports the org is not on an enterprise
-        // contract (404 -> null) while the locally resolved plan said it was.
-        creditBucketRepository.getBalance(
-          userId,
-          activeOrganization.id,
-          prisma,
-        ),
+        billingService.getCreditBalanceInCents(activeOrganization.id),
       ]);
     const currentSeats = seatSummary.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
@@ -257,15 +245,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     balanceInCents,
     latestPersonalSubscription,
     subscriptionCatalog,
-    user,
+    stripeCustomer,
   ] = await Promise.all([
-    creditBucketRepository.getBalance(userId, null, prisma),
-    subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-      userId,
-      prisma,
-    ),
+    billingService.getCreditBalanceInCents(null),
+    billingService.getPersonalSubscription(),
     getSubscriptionCatalog(stripeInstance),
-    userRepository.getUserById(userId, prisma),
+    coreClient.getMyStripeCustomer(),
   ]);
   const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
   const credits = convertCentsToCredits(balanceInCents);
@@ -300,10 +285,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           creditsLabel={t("balanceCreditsLabel", {
             credits: displayCredits,
           })}
-          stripeCustomerId={user?.stripeCustomerId ?? null}
+          stripeCustomerId={stripeCustomer.data.stripeCustomerId}
           stripeCustomerLabel={t("stripeCustomerIdLabel")}
           billingPortal={
-            user?.stripeCustomerId ? (
+            stripeCustomer.data.stripeCustomerId ? (
               <BalanceBillingPortalLink
                 baseReturnPath="/billing"
                 description={t("billingPortalDescription")}

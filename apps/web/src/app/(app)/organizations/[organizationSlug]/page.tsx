@@ -1,5 +1,4 @@
 import { type Invitation, MemberRole } from "@sokosumi/database";
-import { organizationRepository } from "@sokosumi/database/repositories";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -7,7 +6,6 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { coreClient } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
 import {
   organizationSeatService,
   organizationService,
@@ -34,9 +32,8 @@ export async function generateMetadata({
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
   const organization =
-    await organizationRepository.getOrganizationWithRelationsBySlug(
+    await organizationService.getOrganizationWithRelationsBySlug(
       normalizedSlug,
-      prisma,
     );
   if (!organization) {
     return notFound();
@@ -59,9 +56,8 @@ export default async function OrganizationPage({
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
   const organization =
-    await organizationRepository.getOrganizationWithRelationsBySlug(
+    await organizationService.getOrganizationWithRelationsBySlug(
       normalizedSlug,
-      prisma,
     );
   if (!organization) {
     return notFound();

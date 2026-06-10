@@ -1,5 +1,4 @@
 import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
-import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import { Suspense } from "react";
@@ -11,8 +10,11 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
-import { organizationSeatService, userService } from "@/lib/services";
+import {
+  billingService,
+  organizationSeatService,
+  userService,
+} from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 import {
@@ -89,7 +91,7 @@ export async function OnboardingDialogLoader({
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
   const organizationBillingPlanPromise = activeOrganization
-    ? resolveOrganizationBillingPlan(activeOrganization.id, prisma)
+    ? billingService.getOrganizationBillingPlan(activeOrganization.id)
     : Promise.resolve(null);
   const organizationSeatSummaryPromise = activeOrganization
     ? organizationSeatService.getSeatSummary(activeOrganization.id)

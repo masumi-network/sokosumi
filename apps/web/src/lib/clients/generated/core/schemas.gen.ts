@@ -4852,6 +4852,36 @@ export const StripeCustomerSchema = {
     ]
 } as const;
 
+export const PersonalSubscriptionChangeAllowedSchema = {
+    type: 'object',
+    properties: {
+        allowed: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'allowed'
+    ]
+} as const;
+
+export const RevokeOAuthConsentResponseSchema = {
+    type: 'object',
+    properties: {
+        revoked: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'revoked'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {
@@ -5091,6 +5121,160 @@ export const EnterpriseContractBillingSummarySchema = {
         'nextActivationAt',
         'poolRemainingCredits',
         'purchasedSeats'
+    ]
+} as const;
+
+export const OrganizationBillingPlanSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/EnterpriseOrganizationBillingPlan'
+        },
+        {
+            $ref: '#/components/schemas/SelfServeOrganizationBillingPlan'
+        }
+    ],
+    discriminator: {
+        propertyName: 'mode',
+        mapping: {
+            enterprise_contract: '#/components/schemas/EnterpriseOrganizationBillingPlan',
+            self_serve: '#/components/schemas/SelfServeOrganizationBillingPlan'
+        }
+    }
+} as const;
+
+export const EnterpriseOrganizationBillingPlanSchema = {
+    type: 'object',
+    properties: {
+        mode: {
+            type: 'string',
+            enum: [
+                'enterprise_contract'
+            ]
+        },
+        plan: {
+            type: 'string',
+            enum: [
+                'enterprise'
+            ]
+        },
+        isConsumable: {
+            type: 'boolean'
+        },
+        purchasedSeats: {
+            type: 'integer'
+        },
+        contractId: {
+            type: 'string'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        activatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        cancelAtPeriodEnd: {
+            type: 'boolean',
+            enum: [
+                false
+            ]
+        },
+        periodEnd: {
+            type: 'null'
+        }
+    },
+    required: [
+        'mode',
+        'plan',
+        'isConsumable',
+        'purchasedSeats',
+        'contractId',
+        'endsAt',
+        'activatedAt',
+        'cancelAtPeriodEnd',
+        'periodEnd'
+    ]
+} as const;
+
+export const SelfServeOrganizationBillingPlanSchema = {
+    type: 'object',
+    properties: {
+        mode: {
+            type: 'string',
+            enum: [
+                'self_serve'
+            ]
+        },
+        plan: {
+            type: 'string',
+            enum: [
+                'free',
+                'starter',
+                'standard',
+                'pro'
+            ]
+        },
+        purchasedSeats: {
+            type: 'integer'
+        },
+        subscriptionId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        cancelAtPeriodEnd: {
+            type: 'boolean'
+        },
+        periodEnd: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'mode',
+        'plan',
+        'purchasedSeats',
+        'subscriptionId',
+        'cancelAtPeriodEnd',
+        'periodEnd'
+    ]
+} as const;
+
+export const SubscriptionChangeAllowedSchema = {
+    type: 'object',
+    properties: {
+        allowed: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'allowed'
+    ]
+} as const;
+
+export const OrganizationInvoiceEmailSchema = {
+    type: 'object',
+    properties: {
+        invoiceEmail: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'invoiceEmail'
     ]
 } as const;
 

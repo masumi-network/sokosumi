@@ -1,10 +1,9 @@
-import { jobRepository } from "@sokosumi/database/repositories";
 import type { NextRequest, NextResponse } from "next/server";
 import superJson from "superjson";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 
 interface RouteParams {
   params: Promise<{
@@ -31,13 +30,12 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const job = await jobRepository.getJobById(jobId, prisma);
+    const { data: job } = await coreClient.getJobById(jobId);
 
     if (!job || job.userId !== session.user.id) {
       throw new Error("JOB_NOT_FOUND");
     }
 
-    // Format and return the job
     const stringifiedJob = superJson.stringify(job);
     return createApiSuccessResponse(stringifiedJob);
   } catch (error) {

@@ -8,10 +8,11 @@ import { render } from "@testing-library/react";
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
-const getBalanceMock = vi.fn();
-const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
+const getCreditBalanceInCentsMock = vi.fn();
+const getPersonalSubscriptionMock = vi.fn();
+const getOrganizationBillingPlanMock = vi.fn();
+const getMyStripeCustomerMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
-const getUserByIdMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
 const zeroMarginTopUpEnabledMock = vi.fn();
 const balanceBillingPortalLinkMock = vi.fn();
@@ -19,7 +20,6 @@ const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
 const organizationSubscriptionSectionMock = vi.fn();
 const personalSubscriptionSectionMock = vi.fn();
-const resolveOrganizationBillingPlanMock = vi.fn();
 const getEnterpriseContractBillingSummaryMock = vi.fn();
 const enterpriseContractSummaryMock = vi.fn();
 
@@ -50,9 +50,11 @@ vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  __esModule: true,
-  default: {},
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    getMyStripeCustomer: (...args: unknown[]) =>
+      getMyStripeCustomerMock(...args),
+  },
 }));
 
 vi.mock("@/lib/flags/zero-margin-top-up", () => ({
@@ -61,6 +63,14 @@ vi.mock("@/lib/flags/zero-margin-top-up", () => ({
 }));
 
 vi.mock("@/lib/services", () => ({
+  billingService: {
+    getCreditBalanceInCents: (...args: unknown[]) =>
+      getCreditBalanceInCentsMock(...args),
+    getOrganizationBillingPlan: (...args: unknown[]) =>
+      getOrganizationBillingPlanMock(...args),
+    getPersonalSubscription: (...args: unknown[]) =>
+      getPersonalSubscriptionMock(...args),
+  },
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
   },
@@ -79,29 +89,6 @@ vi.mock("@/lib/stripe/subscription-catalog", () => ({
 
 vi.mock("@/lib/utils/credits", () => ({
   formatCreditsForDisplay: (credits: number) => String(credits),
-}));
-
-vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/helpers")>();
-  return {
-    ...actual,
-    resolveOrganizationBillingPlan: (...args: unknown[]) =>
-      resolveOrganizationBillingPlanMock(...args),
-  };
-});
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: {
-    getBalance: (...args: unknown[]) => getBalanceMock(...args),
-  },
-  subscriptionRepository: {
-    resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
-      resolveActiveSubscriptionByReferenceIdMock(...args),
-  },
-  userRepository: {
-    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-  },
 }));
 
 vi.mock("@/components/billing/enterprise-contract-summary", () => ({
@@ -187,7 +174,7 @@ function mockSelfServeOrganizationBillingPlan(
   plan: "free" | "pro" | "standard" | "starter",
   purchasedSeats: number,
 ): void {
-  resolveOrganizationBillingPlanMock.mockResolvedValue({
+  getOrganizationBillingPlanMock.mockResolvedValue({
     mode: "self_serve",
     plan,
     purchasedSeats,
@@ -201,7 +188,7 @@ function mockEnterpriseOrganizationBillingPlan(
   isConsumable: boolean,
   purchasedSeats: number,
 ): void {
-  resolveOrganizationBillingPlanMock.mockResolvedValue({
+  getOrganizationBillingPlanMock.mockResolvedValue({
     mode: "enterprise_contract",
     plan: "enterprise",
     isConsumable,
@@ -224,16 +211,16 @@ describe("BillingPage", () => {
         id: "user-1",
       },
     });
-    getBalanceMock.mockResolvedValue(BigInt(0));
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
+    getCreditBalanceInCentsMock.mockResolvedValue(BigInt(0));
+    getPersonalSubscriptionMock.mockResolvedValue({
+      periodEnd: new Date("2026-03-01T00:00:00.000Z"),
       plan: "pro",
-      seats: 2,
     });
     getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
-    getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      stripeCustomerId: "cus_user_1",
+    getMyStripeCustomerMock.mockResolvedValue({
+      data: {
+        stripeCustomerId: "cus_user_1",
+      },
     });
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 1,
@@ -247,10 +234,9 @@ describe("BillingPage", () => {
   it("passes the zero-margin override to personal billing credits when the flag is enabled", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(true);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
+    getPersonalSubscriptionMock.mockResolvedValue({
+      periodEnd: new Date("2026-03-01T00:00:00.000Z"),
       plan: "free",
-      seats: 1,
     });
 
     const { default: BillingPage } = await import("../page");
@@ -333,10 +319,9 @@ describe("BillingPage", () => {
   it("shows the personal credits tab even on the free plan", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      periodEnd: "2026-03-01T00:00:00.000Z",
+    getPersonalSubscriptionMock.mockResolvedValue({
+      periodEnd: new Date("2026-03-01T00:00:00.000Z"),
       plan: "free",
-      seats: 1,
     });
 
     const { default: BillingPage } = await import("../page");
@@ -364,7 +349,7 @@ describe("BillingPage", () => {
     expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         cancelAtPeriodEnd: false,
-        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
+        currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         returnPath: "/billing?tab=subscription",
         status: null,
       }),
@@ -505,10 +490,8 @@ describe("BillingPage", () => {
     });
     zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(true, 10);
-    // Core re-resolved the org to a non-enterprise plan (404 -> null) even
-    // though the page locally believed it was on an enterprise contract.
     getEnterpriseContractBillingSummaryMock.mockResolvedValue(null);
-    getBalanceMock.mockResolvedValue(BigInt(7_500_000_000_000));
+    getCreditBalanceInCentsMock.mockResolvedValue(BigInt(7_500_000_000_000));
 
     const { default: BillingPage } = await import("../page");
 
@@ -526,12 +509,7 @@ describe("BillingPage", () => {
     expect(enterpriseContractSummaryMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("enterprise-contract-summary")).toBeNull();
     expect(view.getByTestId("balance-section")).toBeTruthy();
-    // The real org balance is loaded for the fallback (not a hardcoded zero).
-    expect(getBalanceMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-enterprise",
-      expect.anything(),
-    );
+    expect(getCreditBalanceInCentsMock).toHaveBeenCalledWith("org-enterprise");
   });
 
   it("shows the enterprise contract summary when contract details cannot be loaded", async () => {

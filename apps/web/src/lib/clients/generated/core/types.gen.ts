@@ -1446,6 +1446,14 @@ export type StripeCustomer = {
     stripeCustomerId: string | null;
 };
 
+export type PersonalSubscriptionChangeAllowed = {
+    allowed: true;
+};
+
+export type RevokeOAuthConsentResponse = {
+    revoked: true;
+};
+
 export type User = {
     id: string;
     createdAt: Date;
@@ -1495,6 +1503,41 @@ export type EnterpriseContractBillingSummary = {
     nextActivationAt: Date | null;
     poolRemainingCredits: number;
     purchasedSeats: number;
+};
+
+export type OrganizationBillingPlan = ({
+    mode: 'enterprise_contract';
+} & EnterpriseOrganizationBillingPlan) | ({
+    mode: 'self_serve';
+} & SelfServeOrganizationBillingPlan);
+
+export type EnterpriseOrganizationBillingPlan = {
+    mode: 'enterprise_contract';
+    plan: 'enterprise';
+    isConsumable: boolean;
+    purchasedSeats: number;
+    contractId: string;
+    endsAt: Date;
+    activatedAt: Date;
+    cancelAtPeriodEnd: false;
+    periodEnd: null;
+};
+
+export type SelfServeOrganizationBillingPlan = {
+    mode: 'self_serve';
+    plan: 'free' | 'starter' | 'standard' | 'pro';
+    purchasedSeats: number;
+    subscriptionId: string | null;
+    cancelAtPeriodEnd: boolean;
+    periodEnd: Date | null;
+};
+
+export type SubscriptionChangeAllowed = {
+    allowed: true;
+};
+
+export type OrganizationInvoiceEmail = {
+    invoiceEmail: string | null;
 };
 
 export type ProjectListItem = Project & {
@@ -11378,6 +11421,211 @@ export type GetUsersByIdStripeCustomerResponses = {
 
 export type GetUsersByIdStripeCustomerResponse = GetUsersByIdStripeCustomerResponses[keyof GetUsersByIdStripeCustomerResponses];
 
+export type GetUsersByIdSubscriptionChangeAllowedData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/subscription-change-allowed';
+};
+
+export type GetUsersByIdSubscriptionChangeAllowedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Subscription change blocked
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdSubscriptionChangeAllowedError = GetUsersByIdSubscriptionChangeAllowedErrors[keyof GetUsersByIdSubscriptionChangeAllowedErrors];
+
+export type GetUsersByIdSubscriptionChangeAllowedResponses = {
+    /**
+     * Personal subscription changes are allowed
+     */
+    200: {
+        data: PersonalSubscriptionChangeAllowed;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdSubscriptionChangeAllowedResponse = GetUsersByIdSubscriptionChangeAllowedResponses[keyof GetUsersByIdSubscriptionChangeAllowedResponses];
+
+export type DeleteUsersByIdOauthConsentsByConsentIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * OAuth consent ID
+         */
+        consentId: string;
+    };
+    query: {
+        /**
+         * OAuth client ID associated with the consent
+         */
+        clientId: string;
+    };
+    url: '/users/{id}/oauth/consents/{consentId}';
+};
+
+export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdOauthConsentsByConsentIdError = DeleteUsersByIdOauthConsentsByConsentIdErrors[keyof DeleteUsersByIdOauthConsentsByConsentIdErrors];
+
+export type DeleteUsersByIdOauthConsentsByConsentIdResponses = {
+    /**
+     * OAuth consent revoked
+     */
+    200: {
+        data: RevokeOAuthConsentResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdOauthConsentsByConsentIdResponse = DeleteUsersByIdOauthConsentsByConsentIdResponses[keyof DeleteUsersByIdOauthConsentsByConsentIdResponses];
+
 export type GetUsersByIdData = {
     body?: never;
     path: {
@@ -11887,6 +12135,289 @@ export type GetOrganizationsByIdStripeCustomerResponses = {
 };
 
 export type GetOrganizationsByIdStripeCustomerResponse = GetOrganizationsByIdStripeCustomerResponses[keyof GetOrganizationsByIdStripeCustomerResponses];
+
+export type GetOrganizationsByIdBillingPlanData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/billing-plan';
+};
+
+export type GetOrganizationsByIdBillingPlanErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingPlanError = GetOrganizationsByIdBillingPlanErrors[keyof GetOrganizationsByIdBillingPlanErrors];
+
+export type GetOrganizationsByIdBillingPlanResponses = {
+    /**
+     * Retrieve the organization billing plan
+     */
+    200: {
+        data: OrganizationBillingPlan;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingPlanResponse = GetOrganizationsByIdBillingPlanResponses[keyof GetOrganizationsByIdBillingPlanResponses];
+
+export type GetOrganizationsByIdSubscriptionChangeAllowedData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription-change-allowed';
+};
+
+export type GetOrganizationsByIdSubscriptionChangeAllowedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Subscription change blocked
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionChangeAllowedError = GetOrganizationsByIdSubscriptionChangeAllowedErrors[keyof GetOrganizationsByIdSubscriptionChangeAllowedErrors];
+
+export type GetOrganizationsByIdSubscriptionChangeAllowedResponses = {
+    /**
+     * Subscription changes are allowed
+     */
+    200: {
+        data: SubscriptionChangeAllowed;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionChangeAllowedResponse = GetOrganizationsByIdSubscriptionChangeAllowedResponses[keyof GetOrganizationsByIdSubscriptionChangeAllowedResponses];
+
+export type PatchOrganizationsByIdInvoiceEmailData = {
+    body?: {
+        invoiceEmail: string | null;
+    };
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/invoice-email';
+};
+
+export type PatchOrganizationsByIdInvoiceEmailErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchOrganizationsByIdInvoiceEmailError = PatchOrganizationsByIdInvoiceEmailErrors[keyof PatchOrganizationsByIdInvoiceEmailErrors];
+
+export type PatchOrganizationsByIdInvoiceEmailResponses = {
+    /**
+     * Updated organization invoice email
+     */
+    200: {
+        data: OrganizationInvoiceEmail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchOrganizationsByIdInvoiceEmailResponse = PatchOrganizationsByIdInvoiceEmailResponses[keyof PatchOrganizationsByIdInvoiceEmailResponses];
 
 export type GetProjectsData = {
     body?: never;

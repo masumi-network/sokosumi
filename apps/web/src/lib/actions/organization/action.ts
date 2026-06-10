@@ -1,26 +1,21 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/database";
-import {
-  memberRepository,
-  organizationRepository,
-} from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import prisma from "@/lib/db/prisma";
-import {
-  type OrganizationInformationFormSchemaType,
-  organizationInformationFormSchema,
-} from "@/lib/schemas";
 import {
   type BulkInviteResultRow,
   organizationService,
 } from "@/lib/services/organization.service";
 import { preferredOrganizationService } from "@/lib/services/preferred-organization.service";
 import { stripeService } from "@/lib/services/stripe.service";
+import { userService } from "@/lib/services/user.service";
+import {
+  type OrganizationInformationFormSchemaType,
+  organizationInformationFormSchema,
+} from "@/lib/schemas";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -71,8 +66,6 @@ export const updateOrganizationInvoiceEmail = withSession<
   UpdateOrganizationInvoiceEmailParameters,
   Result<{ invoiceEmail: string | null }, ActionError>
 >(async (parameters) => {
-  const userId = parameters.session.user.id;
-
   // Validate input
   const parsedResult = updateInvoiceEmailSchema.safeParse({
     organizationId: parameters.organizationId,
@@ -86,12 +79,7 @@ export const updateOrganizationInvoiceEmail = withSession<
   }
   const { organizationId, invoiceEmail } = parsedResult.data;
 
-  // Check if user is an owner or admin of the organization
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    userId,
-    organizationId,
-    prisma,
-  );
+  const member = await userService.getMyMemberInOrganization(organizationId);
 
   if (!member) {
     return Err({
@@ -109,13 +97,10 @@ export const updateOrganizationInvoiceEmail = withSession<
     });
   }
 
-  // Update the invoice email in the database
-  const updatedOrganization =
-    await organizationRepository.updateOrganizationInvoiceEmail(
-      organizationId,
-      invoiceEmail,
-      prisma,
-    );
+  const updated = await organizationService.updateOrganizationInvoiceEmail(
+    organizationId,
+    invoiceEmail,
+  );
 
   // Sync with Stripe if the organization has a Stripe customer
   await stripeService.syncOrganizationInvoiceEmailWithStripe(
@@ -124,8 +109,7 @@ export const updateOrganizationInvoiceEmail = withSession<
   );
 
   return Ok({
-    invoiceEmail: getOrganizationMetadata(updatedOrganization.metadata)
-      .invoiceEmail,
+    invoiceEmail: updated.invoiceEmail,
   });
 });
 
@@ -186,10 +170,8 @@ export const inviteOrganizationMembersBulk = withSession<
     });
   }
 
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    session.user.id,
+  const member = await userService.getMyMemberInOrganization(
     parsedResult.data.organizationId,
-    prisma,
   );
 
   if (!member) {

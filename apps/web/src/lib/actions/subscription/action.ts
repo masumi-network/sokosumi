@@ -1,10 +1,6 @@
 "use server";
 
-import {
-  assertOrganizationSubscriptionChangeAllowed,
-  assertPersonalSubscriptionChangeAllowed,
-  OrganizationSubscriptionExclusivityError,
-} from "@sokosumi/database/helpers";
+import { OrganizationSubscriptionExclusivityError } from "@sokosumi/database/helpers";
 import { headers } from "next/headers";
 import * as z from "zod";
 import {
@@ -14,8 +10,10 @@ import {
 } from "@/lib/actions/errors";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import { auth } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
-import { organizationSubscriptionService } from "@/lib/services";
+import {
+  billingService,
+  organizationSubscriptionService,
+} from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -144,7 +142,7 @@ export const upgradePersonalSubscription = withSession<
   }
 
   try {
-    await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
+    await billingService.assertPersonalSubscriptionChangeAllowed();
 
     const resolvedReturnPath =
       parsed.data.returnPath ?? "/billing?tab=subscription";
@@ -191,7 +189,7 @@ export const openPersonalBillingPortal = withSession<
   }
 
   try {
-    await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
+    await billingService.assertPersonalSubscriptionChangeAllowed();
 
     const result = await auth.api.createBillingPortal({
       headers: await headers(),
@@ -239,9 +237,8 @@ export const upgradeOrganizationSubscription = withSession<
   }
 
   try {
-    await assertOrganizationSubscriptionChangeAllowed(
+    await billingService.assertOrganizationSubscriptionChangeAllowed(
       parsed.data.organizationId,
-      prisma,
     );
 
     const result = await auth.api.upgradeSubscription({
@@ -296,9 +293,8 @@ export const openOrganizationBillingPortal = withSession<
   }
 
   try {
-    await assertOrganizationSubscriptionChangeAllowed(
+    await billingService.assertOrganizationSubscriptionChangeAllowed(
       parsed.data.organizationId,
-      prisma,
     );
 
     const result = await auth.api.createBillingPortal({

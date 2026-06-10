@@ -4,7 +4,6 @@ import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
 import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import prisma from "@/lib/db/prisma";
 import {
   type DesignMdOwnerSchemaType,
   type FinalizeDesignMdGenerationSchemaType,
@@ -18,6 +17,7 @@ import {
   saveDesignMdUploadSchema,
   startDesignMdGenerationSchema,
 } from "@/lib/schemas/design-md";
+import { organizationService } from "@/lib/services/organization.service";
 import {
   DesignMdServiceError,
   designMdService,
@@ -84,13 +84,12 @@ async function revalidateOwner(owner: DesignMdOwnerSchemaType): Promise<void> {
   revalidatePath("/account");
 
   if (owner.type === "organization") {
-    const organization = await prisma.organization.findUnique({
-      where: { id: owner.organizationId },
-      select: { slug: true },
-    });
+    const organizationSlug = await organizationService.getOrganizationSlugById(
+      owner.organizationId,
+    );
 
-    if (organization?.slug) {
-      revalidatePath(`/organizations/${organization.slug}`);
+    if (organizationSlug) {
+      revalidatePath(`/organizations/${organizationSlug}`);
     }
   }
 }

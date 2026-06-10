@@ -2,7 +2,7 @@
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 
 /**
@@ -17,7 +17,6 @@ export async function revokeOAuthClientAccess(
   clientId: string,
 ): Promise<Result<void, ActionError>> {
   try {
-    // Verify user is authenticated
     const session = await getSession();
     if (!session?.user?.id) {
       return Err({
@@ -26,65 +25,35 @@ export async function revokeOAuthClientAccess(
       });
     }
 
-    const userId = session.user.id;
-
-    // Verify the consent belongs to the current user
-    const consent = await prisma.oauthConsent.findUnique({
-      where: { id: consentId },
-    });
-
-    if (!consent) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Consent not found",
-      });
-    }
-
-    if (consent.userId !== userId) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "You can only revoke your own OAuth consents",
-      });
-    }
-
-    if (consent.clientId !== clientId) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Client ID does not match the consent",
-      });
-    }
-
-    // Perform all revocation steps in a transaction
-    await prisma.$transaction(async (tx) => {
-      // 1. Delete the consent
-      await tx.oauthConsent.delete({
-        where: { id: consentId },
-      });
-
-      // 2. Revoke all refresh tokens for this client/user
-      await tx.oauthRefreshToken.updateMany({
-        where: {
-          userId: userId,
-          clientId: clientId,
-          revoked: null, // Only revoke tokens that aren't already revoked
-        },
-        data: {
-          revoked: new Date(),
-        },
-      });
-
-      // 3. Delete all access tokens for this client/user
-      await tx.oauthAccessToken.deleteMany({
-        where: {
-          userId: userId,
-          clientId: clientId,
-        },
-      });
-    });
+    await coreClient.revokeOAuthConsent(consentId, clientId);
 
     return Ok(undefined);
   } catch (error) {
     console.error("Failed to revoke OAuth client access", error);
+
+    if (error instanceof CoreApiRequestError) {
+      if (error.status === 404) {
+        return Err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Consent not found",
+        });
+      }
+
+      if (error.status === 403) {
+        return Err({
+          code: CommonErrorCode.UNAUTHORIZED,
+          message: "You can only revoke your own OAuth consents",
+        });
+      }
+
+      if (error.status === 400) {
+        return Err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: error.message,
+        });
+      }
+    }
+
     return Err({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       message: "Failed to revoke OAuth client access",
