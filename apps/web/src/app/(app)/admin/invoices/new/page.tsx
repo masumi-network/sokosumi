@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
 
 export const metadata: Metadata = {
-  title: "New credit grant",
+  title: "New invoice",
   description: "Grant one-time credits to a user or organization",
 };
 

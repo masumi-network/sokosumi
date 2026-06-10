@@ -2613,8 +2613,8 @@
       "CreditGrants": {
         "title": "Invoices",
         "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
-        "cardTitle": "New credit grant",
-        "newGrant": "New credit grant",
+        "cardTitle": "New invoice",
+        "newGrant": "New invoice",
         "backToList": "Back to list",
         "Form": {
           "Fields": {
