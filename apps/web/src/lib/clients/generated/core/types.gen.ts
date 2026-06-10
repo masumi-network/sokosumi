@@ -342,6 +342,115 @@ export type WorkspaceSummary = {
     } | null;
 };
 
+export type Job = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    completedAt?: Date | null;
+    agentId: string;
+    userId: string;
+    user: UserSummary;
+    organizationId?: string | null;
+    organization?: OrganizationSummary;
+    projectId: string | null;
+    taskId?: string | null;
+    name?: string | null;
+    jobType: 'FREE' | 'PAID' | 'DEMO';
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    credits: number;
+    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainTransactionHash?: string | null;
+    result?: string | null;
+    resultHash?: string | null;
+    blockchainIdentifier?: string | null;
+    payByTime?: Date | null;
+    submitResultTime?: Date | null;
+    unlockTime?: Date | null;
+    externalDisputeUnlockTime?: Date | null;
+    sellerVkey?: string | null;
+    input?: string | null;
+    inputHash?: string | null;
+    inputSchema?: string | null;
+    agentJobId: string;
+    identifierFromPurchaser?: string | null;
+    workspace: WorkspaceSummary;
+    agent: {
+        id: string;
+        name: string;
+        overrideName?: string | null;
+        icon?: string | null;
+        image?: string | null;
+        overrideImage?: string | null;
+        legalPrivacyPolicy?: string | null;
+        overrideLegalPrivacyPolicy?: string | null;
+        legalTerms?: string | null;
+        overrideLegalTerms?: string | null;
+        legalDpa?: string | null;
+        overrideLegalDpa?: string | null;
+        legalOther?: string | null;
+        overrideLegalOther?: string | null;
+    };
+    events: Array<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+        inputSchema?: string | null;
+        input?: {
+            id: string;
+            input: string;
+            inputHash?: string | null;
+            signature?: string | null;
+        } | null;
+        result?: string | null;
+        blobs: Array<File>;
+        links: Array<Link>;
+    }>;
+};
+
+export type File = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    /**
+     * ID of the job
+     */
+    jobId: string;
+    /**
+     * Source URL of the file
+     */
+    sourceUrl: string;
+    /**
+     * Name of the file
+     */
+    name?: string | null;
+    /**
+     * Status of the file
+     */
+    status: 'PENDING' | 'READY' | 'FAILED';
+    /**
+     * Size in bytes
+     */
+    size?: number | null;
+    /**
+     * MIME type of the file
+     */
+    mimeType?: string | null;
+    /**
+     * Publicly accessible URL of the file
+     */
+    fileUrl?: string | null;
+};
+
+export type Link = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    jobId: string;
+    url: string;
+    title?: string | null;
+};
+
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
 };
@@ -1404,115 +1513,6 @@ export type PatchProjectRequest = {
 export type ProjectDeleted = {
     id: string;
     deleted: true;
-};
-
-export type Job = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    completedAt?: Date | null;
-    agentId: string;
-    userId: string;
-    user: UserSummary;
-    organizationId?: string | null;
-    organization?: OrganizationSummary;
-    projectId: string | null;
-    taskId?: string | null;
-    name?: string | null;
-    jobType: 'FREE' | 'PAID' | 'DEMO';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
-    credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
-    onChainTransactionHash?: string | null;
-    result?: string | null;
-    resultHash?: string | null;
-    blockchainIdentifier?: string | null;
-    payByTime?: Date | null;
-    submitResultTime?: Date | null;
-    unlockTime?: Date | null;
-    externalDisputeUnlockTime?: Date | null;
-    sellerVkey?: string | null;
-    input?: string | null;
-    inputHash?: string | null;
-    inputSchema?: string | null;
-    agentJobId: string;
-    identifierFromPurchaser?: string | null;
-    workspace: WorkspaceSummary;
-    agent: {
-        id: string;
-        name: string;
-        overrideName?: string | null;
-        icon?: string | null;
-        image?: string | null;
-        overrideImage?: string | null;
-        legalPrivacyPolicy?: string | null;
-        overrideLegalPrivacyPolicy?: string | null;
-        legalTerms?: string | null;
-        overrideLegalTerms?: string | null;
-        legalDpa?: string | null;
-        overrideLegalDpa?: string | null;
-        legalOther?: string | null;
-        overrideLegalOther?: string | null;
-    };
-    events: Array<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-        inputSchema?: string | null;
-        input?: {
-            id: string;
-            input: string;
-            inputHash?: string | null;
-            signature?: string | null;
-        } | null;
-        result?: string | null;
-        blobs: Array<File>;
-        links: Array<Link>;
-    }>;
-};
-
-export type File = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    /**
-     * ID of the job
-     */
-    jobId: string;
-    /**
-     * Source URL of the file
-     */
-    sourceUrl: string;
-    /**
-     * Name of the file
-     */
-    name?: string | null;
-    /**
-     * Status of the file
-     */
-    status: 'PENDING' | 'READY' | 'FAILED';
-    /**
-     * Size in bytes
-     */
-    size?: number | null;
-    /**
-     * MIME type of the file
-     */
-    mimeType?: string | null;
-    /**
-     * Publicly accessible URL of the file
-     */
-    fileUrl?: string | null;
-};
-
-export type Link = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    jobId: string;
-    url: string;
-    title?: string | null;
 };
 
 export type JobInput = {
@@ -4684,6 +4684,1072 @@ export type PostAgentsByIdJobsResponses = {
 };
 
 export type PostAgentsByIdJobsResponse = PostAgentsByIdJobsResponses[keyof PostAgentsByIdJobsResponses];
+
+export type PostAgentsByIdDemoJobsData = {
+    body?: {
+        inputSchema: {
+            input_data: Array<{
+                id: string;
+                type: 'none';
+                name: string;
+                data?: {
+                    description?: string | null;
+                } | null;
+            } | {
+                id: string;
+                type: 'string';
+                name: string;
+                data?: {
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                } | {
+                    validation: 'format';
+                    value: 'url';
+                } | {
+                    validation: 'format';
+                    value: 'email';
+                }> | null;
+            } | {
+                id: string;
+                type: 'text';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                } | {
+                    validation: 'format';
+                    value: 'url';
+                } | {
+                    validation: 'format';
+                    value: 'email';
+                }> | null;
+            } | {
+                id: string;
+                type: 'textarea';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                }> | null;
+            } | {
+                id: string;
+                type: 'number';
+                name: string;
+                data?: {
+                    default?: number | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'integer';
+                }> | null;
+            } | {
+                id: string;
+                type: 'boolean';
+                name: string;
+                data?: {
+                    default?: boolean | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                }> | null;
+            } | {
+                id: string;
+                type: 'email';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                } | {
+                    validation: 'format';
+                    value: 'email';
+                }> | null;
+            } | {
+                id: string;
+                type: 'password';
+                name: string;
+                data?: {
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                }> | null;
+            } | {
+                id: string;
+                type: 'tel';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'tel_pattern';
+                }> | null;
+            } | {
+                id: string;
+                type: 'url';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                } | {
+                    validation: 'format';
+                    value: 'url';
+                }> | null;
+            } | {
+                id: string;
+                type: 'date';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'datetime-local';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'time';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'month';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'week';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'color';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                }> | null;
+            } | {
+                id: string;
+                type: 'range';
+                name: string;
+                data?: {
+                    description?: string | null;
+                    step?: number | null;
+                    default?: number | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'file';
+                name: string;
+                data: {
+                    description?: string | null;
+                    outputFormat: 'url';
+                };
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'accept';
+                    value: string;
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'hidden';
+                name: string;
+                data?: {
+                    value?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                }> | null;
+            } | {
+                id: string;
+                type: 'search';
+                name: string;
+                data?: {
+                    default?: string | null;
+                    placeholder?: string | null;
+                    description?: string | null;
+                } | null;
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'format';
+                    value: 'nonempty';
+                }> | null;
+            } | {
+                id: string;
+                type: 'checkbox';
+                name: string;
+                data: {
+                    label?: string | null;
+                    description?: string | null;
+                    default?: boolean | null;
+                };
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                }> | null;
+            } | {
+                id: string;
+                type: 'radio';
+                name: string;
+                data: {
+                    default?: string | null;
+                    values: Array<string>;
+                    description?: string | null;
+                };
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'option';
+                name: string;
+                data: {
+                    values: Array<string>;
+                    placeholder?: string | null;
+                    description?: string | null;
+                };
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            } | {
+                id: string;
+                type: 'multiselect';
+                name: string;
+                data: {
+                    values: Array<string>;
+                    placeholder?: string | null;
+                    description?: string | null;
+                };
+                validations?: Array<{
+                    validation: 'optional';
+                    value: 'true' | 'false';
+                } | {
+                    validation: 'min';
+                    value: number | null | string | null;
+                } | {
+                    validation: 'max';
+                    value: number | null | string | null;
+                }> | null;
+            }>;
+        } | {
+            input_groups: Array<{
+                id: string;
+                title: string;
+            } & {
+                input_data: Array<{
+                    id: string;
+                    type: 'none';
+                    name: string;
+                    data?: {
+                        description?: string | null;
+                    } | null;
+                } | {
+                    id: string;
+                    type: 'string';
+                    name: string;
+                    data?: {
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    } | {
+                        validation: 'format';
+                        value: 'url';
+                    } | {
+                        validation: 'format';
+                        value: 'email';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'text';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    } | {
+                        validation: 'format';
+                        value: 'url';
+                    } | {
+                        validation: 'format';
+                        value: 'email';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'textarea';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'number';
+                    name: string;
+                    data?: {
+                        default?: number | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'integer';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'boolean';
+                    name: string;
+                    data?: {
+                        default?: boolean | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'email';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    } | {
+                        validation: 'format';
+                        value: 'email';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'password';
+                    name: string;
+                    data?: {
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'tel';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'tel_pattern';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'url';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    } | {
+                        validation: 'format';
+                        value: 'url';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'date';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'datetime-local';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'time';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'month';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'week';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'color';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'range';
+                    name: string;
+                    data?: {
+                        description?: string | null;
+                        step?: number | null;
+                        default?: number | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'file';
+                    name: string;
+                    data: {
+                        description?: string | null;
+                        outputFormat: 'url';
+                    };
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'accept';
+                        value: string;
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'hidden';
+                    name: string;
+                    data?: {
+                        value?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'search';
+                    name: string;
+                    data?: {
+                        default?: string | null;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    } | null;
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'format';
+                        value: 'nonempty';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'checkbox';
+                    name: string;
+                    data: {
+                        label?: string | null;
+                        description?: string | null;
+                        default?: boolean | null;
+                    };
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'radio';
+                    name: string;
+                    data: {
+                        default?: string | null;
+                        values: Array<string>;
+                        description?: string | null;
+                    };
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'option';
+                    name: string;
+                    data: {
+                        values: Array<string>;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    };
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                } | {
+                    id: string;
+                    type: 'multiselect';
+                    name: string;
+                    data: {
+                        values: Array<string>;
+                        placeholder?: string | null;
+                        description?: string | null;
+                    };
+                    validations?: Array<{
+                        validation: 'optional';
+                        value: 'true' | 'false';
+                    } | {
+                        validation: 'min';
+                        value: number | null | string | null;
+                    } | {
+                        validation: 'max';
+                        value: number | null | string | null;
+                    }> | null;
+                }>;
+            }>;
+        };
+        inputData: {
+            [key: string]: string | number | boolean | Array<string> | Array<number>;
+        };
+        /**
+         * The demo result markdown returned by the agent for the completed demo run.
+         */
+        result?: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/agents/{id}/demo-jobs';
+};
+
+export type PostAgentsByIdDemoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Agent not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostAgentsByIdDemoJobsError = PostAgentsByIdDemoJobsErrors[keyof PostAgentsByIdDemoJobsErrors];
+
+export type PostAgentsByIdDemoJobsResponses = {
+    /**
+     * Demo job created successfully
+     */
+    201: {
+        data: Job;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostAgentsByIdDemoJobsResponse = PostAgentsByIdDemoJobsResponses[keyof PostAgentsByIdDemoJobsResponses];
 
 export type GetCategoriesData = {
     body?: never;
@@ -10271,6 +11337,19 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
      * Not Found - Organization not found or not on an enterprise contract
      */
     404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
         error: string;
         message: string;
         meta: {

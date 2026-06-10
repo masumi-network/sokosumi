@@ -8,8 +8,10 @@ import {
 import {
   creditBucketRepository,
   jobPurchaseRepository,
+  jobRepository,
 } from "@sokosumi/database/repositories";
 import {
+  type JobWithSokosumiStatus,
   type JobWithSummaryRelations,
   jobSummaryInclude,
 } from "@sokosumi/database/types/job";
@@ -32,7 +34,11 @@ import {
 import prisma from "@/lib/db/prisma";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
+import {
+  type CreateDemoJobRequestType,
+  type StartPaidJobResponseSchemaType,
+} from "@/schemas/job.schema";
+import { sourceImportService } from "@/services/source-import.service";
 import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
@@ -242,6 +248,74 @@ export interface JobOwnerContext {
   userId: string;
   organizationId: string | null;
   workspaceId: string;
+}
+
+export interface CreateDemoJobInput {
+  owner: JobOwnerContext;
+  agentId: string;
+  request: CreateDemoJobRequestType;
+}
+
+/**
+ * Creates a demo job (a pre-computed agent demo run) for a user and enqueues any
+ * file/link sources found in the demo result. Mirrors the production demo flow
+ * that previously lived in the web app.
+ */
+export async function createDemoJobForUser({
+  owner,
+  agentId,
+  request,
+}: CreateDemoJobInput): Promise<JobWithSokosumiStatus> {
+  const creditCosts = await getCreditCostsOrThrow();
+
+  const agentRecord = await prisma.agent.findFirst({
+    where: {
+      id: agentId,
+      ...buildAvailableAgentWhereClause(creditCosts),
+    },
+    select: { id: true },
+  });
+
+  if (!agentRecord) {
+    throw notFound("Agent not found");
+  }
+
+  const job = await prisma.$transaction((tx) =>
+    jobRepository.createDemoJob(
+      {
+        jobType: JobType.DEMO,
+        agentJobId: uuidv4(),
+        agentId,
+        userId: owner.userId,
+        organizationId: owner.organizationId,
+        workspaceId: owner.workspaceId,
+        input: JSON.stringify(request.inputData),
+        inputSchema: request.inputSchema,
+        name: "Demo Job",
+        result: request.result ?? null,
+      },
+      tx,
+    ),
+  );
+
+  // Best-effort: enqueue file/link sources from the completed demo result.
+  // Failures here must not fail demo job creation.
+  const eventWithResult = job.events.find(
+    (event) =>
+      event.status === AgentJobStatus.COMPLETED && event.result !== null,
+  );
+  if (eventWithResult?.result) {
+    try {
+      await sourceImportService.enqueueFromMarkdown(
+        eventWithResult.id,
+        eventWithResult.result,
+      );
+    } catch (error) {
+      Sentry.captureException(error);
+    }
+  }
+
+  return job;
 }
 
 export async function createAgentJobForUser(
