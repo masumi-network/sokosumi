@@ -20,7 +20,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   },
   {
     key: "creditGrants",
-    href: "/admin/credit-grants",
+    href: "/admin/invoices",
     Icon: Coins,
   },
 ];

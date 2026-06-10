@@ -47,6 +47,56 @@ export interface CreditPriceOption {
   nickname: string | null;
 }
 
+/** A credit-grant invoice surfaced in the admin invoice list. */
+export interface CreditGrantInvoiceListItem {
+  invoiceId: string;
+  targetType: CreditGrantTargetType | null;
+  targetName: string | null;
+  credits: number;
+  ttlDays: number | null;
+  currency: string;
+  amountDue: number;
+  status: Stripe.Invoice.Status | null;
+  /** Invoice creation time as a Unix timestamp in milliseconds. */
+  createdAt: number;
+  /** Stripe dashboard URL for the invoice (admin-facing, not the payment page). */
+  dashboardUrl: string;
+}
+
+/** Statuses of invoices that still need attention (not paid, void, or
+ * uncollectible). This is the default filter for the admin list. */
+const UNFINISHED_INVOICE_STATUSES: Stripe.Invoice.Status[] = ["draft", "open"];
+
+/** Max number of invoices returned by the admin list (per filter). */
+const DEFAULT_INVOICE_LIST_LIMIT = 50;
+
+/**
+ * How many matching invoices to fetch per status before sorting newest-first.
+ * Stripe's invoice search has no guaranteed ordering, so we must gather all
+ * matches (not just the first `limit`) and sort ourselves to reliably surface
+ * the most recent ones. This ceiling bounds API usage; it comfortably exceeds
+ * realistic admin credit-grant volumes, where pagination usually stops on the
+ * first page anyway.
+ */
+const INVOICE_SEARCH_FETCH_CEILING = 300;
+
+/**
+ * Status filter accepted by {@link invoiceAdminService.listGrantInvoices}:
+ * `"unfinished"` (draft + open, the default), `"all"` (every status), or a
+ * specific Stripe invoice status.
+ */
+export type CreditGrantInvoiceStatusFilter =
+  | "unfinished"
+  | "all"
+  | Stripe.Invoice.Status;
+
+export interface ListGrantInvoicesParams {
+  status?: CreditGrantInvoiceStatusFilter;
+  /** When set, only invoices for this user/organization are returned. */
+  recipient?: CreditGrantTarget | null;
+  limit?: number;
+}
+
 /** Identity of a grant target (user or organization) used for summaries and
  * credit-bucket verification, independent of Stripe billing details. */
 interface TargetIdentity {
@@ -104,7 +154,89 @@ function toInvoiceSummary(
   };
 }
 
-export const creditGrantAdminService = (() => {
+/** Reads a non-negative integer-ish value out of invoice metadata, returning
+ * the fallback when it is missing or not a finite number. */
+function parseMetadataNumber(
+  value: string | undefined,
+  fallback: number | null,
+): number | null {
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+/** Resolves the grant target (type + display name) from an expanded invoice
+ * customer. Returns nulls when the customer is unexpanded or deleted. */
+function resolveTargetFromCustomer(customer: Stripe.Invoice["customer"]): {
+  targetType: CreditGrantTargetType | null;
+  targetName: string | null;
+} {
+  if (!customer || typeof customer === "string" || customer.deleted) {
+    return { targetType: null, targetName: null };
+  }
+  const customerType = customer.metadata?.customerType;
+  const targetType: CreditGrantTargetType | null =
+    customerType === "user" || customerType === "organization"
+      ? customerType
+      : null;
+  return { targetType, targetName: customer.name ?? null };
+}
+
+/**
+ * Builds a single Stripe invoice search query that always scopes to admin
+ * credit-grant invoices (via the `grant_source` metadata), optionally narrowed
+ * by a single status and/or customer. All values here are fixed enums, a known
+ * constant, or a Stripe customer id, so they need no escaping.
+ *
+ * Stripe's search query language rejects a mix of `AND` and `OR` in one query,
+ * so this builder only ever joins clauses with `AND` (single status). Filtering
+ * by multiple statuses is done by running one query per status and merging the
+ * results — see {@link listGrantInvoices}.
+ */
+function buildGrantInvoiceSearchQuery(params: {
+  status?: Stripe.Invoice.Status;
+  customerId?: string;
+}): string {
+  const clauses = [`metadata["grant_source"]:"${ADMIN_CREDIT_GRANT_SOURCE}"`];
+
+  if (params.customerId) {
+    clauses.push(`customer:"${params.customerId}"`);
+  }
+
+  if (params.status) {
+    clauses.push(`status:"${params.status}"`);
+  }
+
+  return clauses.join(" AND ");
+}
+
+function toInvoiceListItem(
+  invoice: Stripe.Invoice,
+  accountId: string,
+): CreditGrantInvoiceListItem | null {
+  if (!invoice.id) {
+    return null;
+  }
+  const { targetType, targetName } = resolveTargetFromCustomer(
+    invoice.customer,
+  );
+  return {
+    invoiceId: invoice.id,
+    targetType,
+    targetName,
+    credits: parseMetadataNumber(invoice.metadata?.credits, 0) ?? 0,
+    ttlDays: parseMetadataNumber(invoice.metadata?.ttl_days, null),
+    currency: invoice.currency ?? "",
+    amountDue: invoice.amount_due ?? 0,
+    status: invoice.status ?? null,
+    createdAt: invoice.created * 1000,
+    dashboardUrl: buildInvoiceDashboardUrl(invoice, accountId),
+  };
+}
+
+export const invoiceAdminService = (() => {
   async function ensureOrganizationStripeCustomerId(
     organizationId: string,
   ): Promise<ResolvedTarget> {
@@ -193,6 +325,66 @@ export const creditGrantAdminService = (() => {
       : ensureOrganizationStripeCustomerId(target.targetId);
   }
 
+  /** Resolves a recipient to its existing Stripe customer id without creating
+   * one. Returns null when the recipient has no Stripe customer yet (so no
+   * invoices can exist for them). */
+  async function resolveExistingStripeCustomerId(
+    recipient: CreditGrantTarget,
+  ): Promise<string | null> {
+    if (recipient.targetType === "user") {
+      const user = await userRepository.getUserById(recipient.targetId, prisma);
+      return user?.stripeCustomerId ?? null;
+    }
+    const organization =
+      await organizationRepository.getOrganizationWithRelationsById(
+        recipient.targetId,
+        prisma,
+      );
+    return organization?.stripeCustomerId ?? null;
+  }
+
+  /** Resolves the grant target (id + name + type) from an invoice by looking
+   * up its Stripe customer. Mirrors the webhook's user-first resolution. */
+  async function resolveInvoiceTarget(
+    invoice: Stripe.Invoice,
+  ): Promise<TargetIdentity> {
+    const stripeCustomerId =
+      typeof invoice.customer === "string"
+        ? invoice.customer
+        : (invoice.customer?.id ?? null);
+    if (!stripeCustomerId) {
+      throw new CreditGrantValidationError("Invoice has no customer");
+    }
+
+    // Resolve the target user-first to mirror the webhook
+    // (`handleInvoicePaidEvent` resolves a user customer before falling back
+    // to an organization). An org-first lookup would never resolve a user
+    // customer.
+    const user = await userRepository.getUserByStripeCustomerId(
+      stripeCustomerId,
+      prisma,
+    );
+    if (user) {
+      return { targetType: "user", id: user.id, name: user.name };
+    }
+
+    const organization =
+      await organizationRepository.getOrganizationByStripeCustomerId(
+        stripeCustomerId,
+        prisma,
+      );
+    if (!organization) {
+      throw new CreditGrantValidationError(
+        "Invoice does not belong to a user or organization",
+      );
+    }
+    return {
+      targetType: "organization",
+      id: organization.id,
+      name: organization.name,
+    };
+  }
+
   async function resolvePrice(priceId: string | null) {
     if (!priceId) {
       return await stripeClient.getBaseCreditTopUpPrice();
@@ -261,6 +453,84 @@ export const creditGrantAdminService = (() => {
         currency: price.currency,
         nickname: price.nickname,
       }));
+    },
+
+    /**
+     * Lists admin credit-grant invoices, most recent first. Defaults to
+     * unfinished (draft + open) invoices but accepts a status filter
+     * (`"all"` or a specific status) and an optional recipient filter. Only
+     * invoices tagged with the admin grant source are returned, so normal
+     * checkout/subscription invoices are filtered out.
+     */
+    async listGrantInvoices(
+      params: ListGrantInvoicesParams = {},
+    ): Promise<CreditGrantInvoiceListItem[]> {
+      const status = params.status ?? "unfinished";
+      const limit = params.limit ?? DEFAULT_INVOICE_LIST_LIMIT;
+
+      let customerId: string | undefined;
+      if (params.recipient) {
+        const resolved = await resolveExistingStripeCustomerId(
+          params.recipient,
+        );
+        // No Stripe customer means no invoices exist for the recipient yet.
+        if (!resolved) {
+          return [];
+        }
+        customerId = resolved;
+      }
+
+      // Stripe search can't mix AND and OR, so a multi-status filter runs one
+      // AND-only query per status; "all" runs a single status-less query.
+      const statusesToQuery: Array<Stripe.Invoice.Status | undefined> =
+        status === "all"
+          ? [undefined]
+          : status === "unfinished"
+            ? UNFINISHED_INVOICE_STATUSES
+            : [status];
+
+      const [searchResults, accountId] = await Promise.all([
+        Promise.all(
+          statusesToQuery.map((statusFilter) =>
+            stripeClient.searchInvoices({
+              query: buildGrantInvoiceSearchQuery({
+                status: statusFilter,
+                customerId,
+              }),
+              // Fetch all matches (not just `limit`) so the newest can be
+              // selected after sorting — Stripe search isn't newest-first.
+              maxResults: INVOICE_SEARCH_FETCH_CEILING,
+            }),
+          ),
+        ),
+        stripeClient.getAccountId(),
+      ]);
+
+      const seenInvoiceIds = new Set<string>();
+
+      return (
+        searchResults
+          .flat()
+          // Defensive: the search query already scopes to grant invoices, but
+          // keep the check so a query change can never leak unrelated invoices.
+          .filter(
+            (invoice) =>
+              invoice.metadata?.grant_source === ADMIN_CREDIT_GRANT_SOURCE,
+          )
+          .map((invoice) => toInvoiceListItem(invoice, accountId))
+          .filter((item): item is CreditGrantInvoiceListItem => item !== null)
+          // De-dupe across per-status queries (statuses are disjoint, so this
+          // is belt-and-suspenders) before sorting newest-first.
+          .filter((item) => {
+            if (seenInvoiceIds.has(item.invoiceId)) {
+              return false;
+            }
+            seenInvoiceIds.add(item.invoiceId);
+            return true;
+          })
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, limit)
+      );
     },
 
     async createGrantInvoice(params: {
@@ -347,6 +617,39 @@ export const creditGrantAdminService = (() => {
     },
 
     /**
+     * Fetches a single admin credit-grant invoice as a detail summary. Returns
+     * null when the invoice does not exist or is not an admin credit grant, so
+     * the caller can surface a 404.
+     */
+    async getGrantInvoice(
+      invoiceId: string,
+    ): Promise<CreditGrantInvoiceSummary | null> {
+      let invoice: Stripe.Invoice;
+      try {
+        invoice = await stripeClient.getInvoice(invoiceId);
+      } catch {
+        return null;
+      }
+
+      if (invoice.metadata?.grant_source !== ADMIN_CREDIT_GRANT_SOURCE) {
+        return null;
+      }
+
+      const [target, accountId] = await Promise.all([
+        resolveInvoiceTarget(invoice),
+        stripeClient.getAccountId(),
+      ]);
+
+      return toInvoiceSummary(
+        invoice,
+        target,
+        parseMetadataNumber(invoice.metadata?.credits, 0) ?? 0,
+        parseMetadataNumber(invoice.metadata?.ttl_days, null),
+        accountId,
+      );
+    },
+
+    /**
      * Marks a credit-grant invoice as paid and grants the credits instantly by
      * running the same invoice-paid automation the webhook uses. Granting is
      * idempotent: the shared reference-id dedup prevents a double grant when the
@@ -363,44 +666,12 @@ export const creditGrantAdminService = (() => {
         );
       }
 
-      const stripeCustomerId =
-        typeof existing.customer === "string"
-          ? existing.customer
-          : (existing.customer?.id ?? null);
-      if (!stripeCustomerId) {
-        throw new CreditGrantValidationError("Invoice has no customer");
-      }
-
-      // Resolve the target user-first to mirror the webhook
-      // (`handleInvoicePaidEvent` resolves a user customer before falling back
-      // to an organization). An org-first lookup would never resolve a user
-      // customer.
-      const user = await userRepository.getUserByStripeCustomerId(
-        stripeCustomerId,
-        prisma,
-      );
-
-      let target: TargetIdentity;
-
-      if (user) {
-        target = { targetType: "user", id: user.id, name: user.name };
-      } else {
-        const organization =
-          await organizationRepository.getOrganizationByStripeCustomerId(
-            stripeCustomerId,
-            prisma,
-          );
-        if (!organization) {
-          throw new CreditGrantValidationError(
-            "Invoice does not belong to a user or organization",
-          );
-        }
-        target = {
-          targetType: "organization",
-          id: organization.id,
-          name: organization.name,
-        };
-      }
+      // Target resolution and the account-id lookup are independent reads —
+      // run them concurrently.
+      const [target, accountId] = await Promise.all([
+        resolveInvoiceTarget(existing),
+        stripeClient.getAccountId(),
+      ]);
 
       // A non-zero invoice still open is marked paid out of band; a $0 invoice
       // is already "paid" on finalization, so we skip the pay call there.
@@ -411,16 +682,11 @@ export const creditGrantAdminService = (() => {
 
       await grantCreditsForPaidInvoice(paidInvoice, target);
 
-      const credits = Number(paidInvoice.metadata?.credits ?? 0);
-      const ttlDaysRaw = paidInvoice.metadata?.ttl_days;
-      const ttlDays = ttlDaysRaw ? Number(ttlDaysRaw) : null;
-
-      const accountId = await stripeClient.getAccountId();
       return toInvoiceSummary(
         paidInvoice,
         target,
-        Number.isFinite(credits) ? credits : 0,
-        ttlDays !== null && Number.isFinite(ttlDays) ? ttlDays : null,
+        parseMetadataNumber(paidInvoice.metadata?.credits, 0) ?? 0,
+        parseMetadataNumber(paidInvoice.metadata?.ttl_days, null),
         accountId,
       );
     },

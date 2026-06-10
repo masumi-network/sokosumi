@@ -1,7 +1,7 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,19 +26,15 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import {
-  createCreditGrantInvoiceAction,
-  markCreditGrantInvoicePaidAction,
-} from "@/lib/actions/credit-grant/action";
+import { createCreditGrantInvoiceAction } from "@/lib/actions/credit-grant/action";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
-  CreditGrantInvoiceSummary,
   CreditGrantTargetType,
   CreditPriceOption,
-} from "@/lib/services/credit-grant-admin.service";
+} from "@/lib/services/invoice-admin.service";
 
-interface CreditGrantFormProps {
+interface InvoiceFormProps {
   prices: CreditPriceOption[];
 }
 
@@ -51,20 +47,6 @@ function parseOptionalPositiveInteger(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function formatCurrency(minorUnits: number, currency: string): string {
-  if (!currency) {
-    return String(minorUnits);
-  }
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-    }).format(minorUnits / 100);
-  } catch {
-    return `${(minorUnits / 100).toFixed(2)} ${currency.toUpperCase()}`;
-  }
-}
-
 function countDecimals(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -74,27 +56,12 @@ function countDecimals(value: number): number {
   return dotIndex === -1 ? 0 : text.length - dotIndex - 1;
 }
 
-function formatPricePerCredit(
-  amountPerCredit: number,
-  currency: string,
-  fractionDigits: number,
-): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: fractionDigits,
-      maximumFractionDigits: fractionDigits,
-    }).format(amountPerCredit / 100);
-  } catch {
-    return `${(amountPerCredit / 100).toFixed(fractionDigits)} ${currency.toUpperCase()}`;
-  }
-}
-
-export function CreditGrantForm({ prices }: CreditGrantFormProps) {
+export function InvoiceForm({ prices }: InvoiceFormProps) {
   const t = useTranslations("App.Admin.CreditGrants");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
+  const router = useRouter();
+  const formatter = useFormatter();
   const defaultPriceId = prices[0]?.id ?? "";
   // Pad every price to the same number of decimals so the values line up in
   // the dropdown (combined with tabular-nums on render).
@@ -114,12 +81,6 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
   const [priceId, setPriceId] = useState(defaultPriceId);
   const [markFree, setMarkFree] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
-  const [invoice, setInvoice] = useState<CreditGrantInvoiceSummary | null>(
-    null,
-  );
-
-  const isPaid = invoice?.status === "paid";
 
   const orgLabels = buildComboboxLabels(tOrg);
   const userLabels = buildComboboxLabels(tUser);
@@ -165,115 +126,12 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
         toast.error(result.error.message ?? t("Form.createError"));
         return;
       }
-      setInvoice(result.data);
       toast.success(t("Form.createSuccess"));
+      // The invoice detail page doubles as the post-creation summary view.
+      router.push(`/admin/invoices/${result.data.invoiceId}`);
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  async function handleMarkPaid() {
-    if (!invoice) {
-      return;
-    }
-    setIsMarkingPaid(true);
-    try {
-      const result = await markCreditGrantInvoicePaidAction({
-        invoiceId: invoice.invoiceId,
-      });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("Result.paidError"));
-        return;
-      }
-      setInvoice(result.data);
-      toast.success(t("Result.paidSuccess"));
-    } finally {
-      setIsMarkingPaid(false);
-    }
-  }
-
-  if (invoice) {
-    const targetLabel =
-      invoice.targetType === "user"
-        ? t("Result.user")
-        : t("Result.organization");
-    return (
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold">{t("Result.heading")}</h3>
-          <p className="text-muted-foreground text-xs">
-            {isPaid ? t("Result.paidHelper") : t("Result.pendingHelper")}
-          </p>
-        </div>
-
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">{targetLabel}</dt>
-            <dd className="text-sm font-medium">{invoice.targetName}</dd>
-          </div>
-          <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">
-              {t("Result.credits")}
-            </dt>
-            <dd className="text-sm font-medium">
-              {invoice.credits.toLocaleString("en-US")}
-            </dd>
-          </div>
-          <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">
-              {t("Result.expiry")}
-            </dt>
-            <dd className="text-sm font-medium">
-              {invoice.ttlDays
-                ? t("Result.expiryDays", { days: invoice.ttlDays })
-                : t("Result.noExpiry")}
-            </dd>
-          </div>
-          <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">
-              {t("Result.amount")}
-            </dt>
-            <dd className="text-sm font-medium">
-              {formatCurrency(invoice.amountDue, invoice.currency)}
-            </dd>
-          </div>
-          <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">
-              {t("Result.status")}
-            </dt>
-            <dd className="text-sm font-medium capitalize">
-              {invoice.status ?? "—"}
-            </dd>
-          </div>
-          <div className="space-y-1">
-            <dt className="text-muted-foreground text-xs">
-              {t("Result.invoiceId")}
-            </dt>
-            <dd className="font-mono text-sm">{invoice.invoiceId}</dd>
-          </div>
-        </dl>
-
-        <Separator />
-
-        <div className="flex flex-wrap gap-2">
-          {!isPaid ? (
-            <Button onClick={handleMarkPaid} disabled={isMarkingPaid}>
-              {isMarkingPaid ? t("Result.marking") : t("Result.markPaid")}
-            </Button>
-          ) : null}
-          <Button variant="outline" asChild>
-            <a
-              href={invoice.dashboardUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="size-4" />
-              {t("Result.openInStripe")}
-            </a>
-          </Button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -344,11 +202,12 @@ export function CreditGrantForm({ prices }: CreditGrantFormProps) {
             {prices.map((price) => (
               <SelectItem key={price.id} value={price.id}>
                 <span className="tabular-nums">
-                  {formatPricePerCredit(
-                    price.amountPerCredit,
-                    price.currency,
-                    priceFractionDigits,
-                  )}
+                  {formatter.number(price.amountPerCredit / 100, {
+                    style: "currency",
+                    currency: price.currency.toUpperCase(),
+                    minimumFractionDigits: priceFractionDigits,
+                    maximumFractionDigits: priceFractionDigits,
+                  })}
                 </span>
                 {price.nickname ? (
                   <span className="text-muted-foreground">

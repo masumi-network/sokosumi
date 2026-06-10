@@ -265,7 +265,7 @@
       "admin": "Admin",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
-      "credit-grants": "Grant credits",
+      "invoices": "Invoices",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",
@@ -2611,9 +2611,11 @@
         }
       },
       "CreditGrants": {
-        "title": "Grant credits",
+        "title": "Invoices",
         "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
-        "cardTitle": "New credit grant",
+        "cardTitle": "New invoice",
+        "newGrant": "New invoice",
+        "backToList": "Back to list",
         "Form": {
           "Fields": {
             "target": "Recipient",
@@ -2660,7 +2662,40 @@
           "marking": "Granting credits…",
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
-          "openInStripe": "Open in Stripe"
+          "openInStripe": "Open in Stripe",
+          "loadError": "Failed to load invoice"
+        },
+        "InvoiceList": {
+          "empty": "No credit-grant invoices match the current filters.",
+          "loadError": "Failed to load invoices",
+          "recipient": "Recipient",
+          "typeUser": "User",
+          "typeOrganization": "Organization",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "created": "Created",
+          "actions": "Actions",
+          "view": "View",
+          "Filters": {
+            "status": "Status",
+            "recipient": "Recipient",
+            "recipientAll": "All recipients",
+            "tabOrganization": "Organization",
+            "tabUser": "User"
+          },
+          "Status": {
+            "unfinished": "Unfinished",
+            "all": "All statuses",
+            "draft": "Draft",
+            "open": "Open",
+            "paid": "Paid",
+            "void": "Void",
+            "uncollectible": "Uncollectible"
+          }
         }
       },
       "Overview": {
@@ -2672,8 +2707,8 @@
             "description": "Create and manage draft, active, and canceled enterprise contracts."
           },
           "creditGrants": {
-            "title": "Grant credits",
-            "description": "Grant one-time credits to an organization via a Stripe invoice."
+            "title": "Invoices",
+            "description": "View credit-grant invoices and grant one-time credits to a user or organization."
           }
         }
       }
