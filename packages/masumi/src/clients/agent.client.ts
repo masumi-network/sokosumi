@@ -1,3 +1,4 @@
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { err, ok, type Result } from "neverthrow";
 
 import { hashCanonicalJsonValue, hashInputSchema } from "../hash/index.js";
@@ -45,144 +46,6 @@ interface AgentClientRequestOptions {
 }
 
 /**
- * Validates that a hostname is not an internal/private address to prevent SSRF attacks.
- * Blocks localhost, loopback, private IP ranges, link-local, and multicast addresses.
- */
-function isInternalHostname(hostname: string): boolean {
-  // Check for localhost and loopback
-  if (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname.startsWith("127.") ||
-    hostname === "[::1]"
-  ) {
-    return true;
-  }
-
-  // Try to parse as IP address
-  try {
-    // Handle IPv6 addresses in brackets
-    const ipString =
-      hostname.startsWith("[") && hostname.endsWith("]")
-        ? hostname.slice(1, -1)
-        : hostname;
-
-    // Check if it's a valid IP address
-    const parts = ipString.split(".");
-    if (parts.length === 4) {
-      // IPv4 address
-      const [a, b, _c, _d] = parts.map((p) => parseInt(p, 10));
-
-      // Check for invalid parts
-      if (
-        parts.some(
-          (p) =>
-            Number.isNaN(parseInt(p, 10)) ||
-            parseInt(p, 10) < 0 ||
-            parseInt(p, 10) > 255,
-        )
-      ) {
-        return false; // Not a valid IP, might be a hostname
-      }
-
-      // Block 0.0.0.0/8 (SSRF bypass - resolves to localhost on Unix systems)
-      if (a === 0) {
-        return true;
-      }
-
-      // Private IP ranges (RFC 1918)
-      // 10.0.0.0/8
-      if (a === 10) {
-        return true;
-      }
-      // 172.16.0.0/12
-      if (a === 172 && b >= 16 && b <= 31) {
-        return true;
-      }
-      // 192.168.0.0/16
-      if (a === 192 && b === 168) {
-        return true;
-      }
-
-      // Link-local addresses (169.254.0.0/16) - includes cloud metadata endpoints
-      if (a === 169 && b === 254) {
-        return true;
-      }
-
-      // Loopback (127.0.0.0/8)
-      if (a === 127) {
-        return true;
-      }
-
-      // Multicast (224.0.0.0/4)
-      if (a >= 224 && a <= 239) {
-        return true;
-      }
-
-      // Reserved for future use (240.0.0.0/4)
-      if (a >= 240 && a <= 255) {
-        return true;
-      }
-    } else if (ipString.includes(":")) {
-      // IPv6 address
-      // Block IPv6 unspecified address :: (SSRF bypass - resolves to localhost on Unix systems)
-      if (ipString === "::" || ipString === "0:0:0:0:0:0:0:0") {
-        return true;
-      }
-      // Check for IPv6 loopback
-      if (ipString === "::1" || ipString === "0:0:0:0:0:0:0:1") {
-        return true;
-      }
-
-      // Check for IPv6 private ranges
-      // fc00::/7 (unique local addresses)
-      if (ipString.startsWith("fc") || ipString.startsWith("fd")) {
-        return true;
-      }
-
-      // fe80::/10 (link-local)
-      if (
-        ipString.startsWith("fe8") ||
-        ipString.startsWith("fe9") ||
-        ipString.startsWith("fea") ||
-        ipString.startsWith("feb")
-      ) {
-        return true;
-      }
-
-      // ::ffff:0:0/96 (IPv4-mapped IPv6 addresses)
-      if (ipString.startsWith("::ffff:")) {
-        const ipv4Part = ipString.substring(7);
-        // WHATWG URL parser normalizes IPv4-mapped addresses to hex groups
-        // e.g., ::ffff:127.0.0.1 becomes ::ffff:7f00:1
-        // Convert hex groups back to decimal IPv4 format
-        if (ipv4Part.includes(":")) {
-          // Hex format: convert to decimal IPv4
-          const hexParts = ipv4Part.split(":");
-          if (hexParts.length === 2) {
-            // Format: 7f00:1 -> 127.0.0.1
-            const upper = parseInt(hexParts[0], 16);
-            const lower = parseInt(hexParts[1], 16);
-            const a = (upper >> 8) & 0xff;
-            const b = upper & 0xff;
-            const c = (lower >> 8) & 0xff;
-            const d = lower & 0xff;
-            return isInternalHostname(`${a}.${b}.${c}.${d}`);
-          }
-        }
-        return isInternalHostname(ipv4Part);
-      }
-    }
-  } catch {
-    // Not a valid IP address, treat as hostname
-    // Additional hostname checks can go here if needed
-  }
-
-  return false;
-}
-
-/**
  * Creates an agent client with the provided configuration.
  */
 export function createAgentClient(config?: AgentClientConfig) {
@@ -208,12 +71,9 @@ export function createAgentClient(config?: AgentClientConfig) {
       throw new Error("Agent API base URL must not have a hash");
     }
 
-    // SSRF protection: block internal/private hostnames
-    if (isInternalHostname(apiBaseUrl.hostname)) {
-      throw new Error(
-        "Agent API base URL must not point to internal or private addresses",
-      );
-    }
+    // SSRF protection against private/loopback/link-local addresses is enforced
+    // at connect time by `ssrfSafeFetch` (which resolves and filters the host),
+    // so it also covers public hostnames that resolve to internal IPs.
 
     const usedUrl = agent.overrideApiBaseUrl ?? agent.apiBaseUrl;
     const overrideUrl = new URL(usedUrl);
@@ -230,12 +90,6 @@ export function createAgentClient(config?: AgentClientConfig) {
     }
     if (overrideUrl.hash !== "") {
       throw new Error("Agent API base URL override must not have a hash");
-    }
-
-    if (isInternalHostname(overrideUrl.hostname)) {
-      throw new Error(
-        "Agent API base URL override must not point to internal or private addresses",
-      );
     }
 
     return overrideUrl;
@@ -274,7 +128,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     ): Promise<Result<StartPaidJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-        const startJobResponse = await fetch(startJobUrl, {
+        const startJobResponse = await ssrfSafeFetch(startJobUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -311,7 +165,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-        const startJobResponse = await fetch(startJobUrl, {
+        const startJobResponse = await ssrfSafeFetch(startJobUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -350,7 +204,7 @@ export function createAgentClient(config?: AgentClientConfig) {
       try {
         const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
         jobStatusUrl.searchParams.set("job_id", jobId);
-        const jobStatusResponse = await fetch(jobStatusUrl, {
+        const jobStatusResponse = await ssrfSafeFetch(jobStatusUrl, {
           method: "GET",
           signal: options.signal,
         });
@@ -409,7 +263,7 @@ export function createAgentClient(config?: AgentClientConfig) {
         }
         const body = JSON.stringify(parsedRequestPayload.data);
 
-        const provideInputResponse = await fetch(provideInputUrl, {
+        const provideInputResponse = await ssrfSafeFetch(provideInputUrl, {
           method: "POST",
           headers: {
             Accept: "application/json",
@@ -448,7 +302,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           "input_schema",
         );
 
-        const response = await fetch(inputSchemaUrl);
+        const response = await ssrfSafeFetch(inputSchemaUrl);
 
         if (!response.ok) {
           // Log HTTP errors (4xx/5xx)

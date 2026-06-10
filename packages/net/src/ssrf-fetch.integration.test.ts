@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ssrfSafeFetch } from "./url-guard";
+import { ssrfSafeFetch } from "./ssrf-fetch.js";
 
 // These exercise the real `request-filtering-agent`: the connection must be
 // refused at connect time for non-public targets, with no network egress.
