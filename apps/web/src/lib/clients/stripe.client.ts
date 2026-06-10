@@ -460,6 +460,28 @@ export const stripeClient = (() => {
       });
     },
 
+    /**
+     * Lists invoices in the given statuses with the customer expanded, most
+     * recent first. Stripe's `invoices.list` filters by a single status, so
+     * each status is fetched separately and the results are merged. Used by
+     * the admin credit-grant list to surface unfinished (draft/open) invoices.
+     */
+    async listInvoicesByStatus(
+      statuses: Stripe.Invoice.Status[],
+      limit = 100,
+    ): Promise<Stripe.Invoice[]> {
+      const pages = await Promise.all(
+        statuses.map((status) =>
+          stripe.invoices.list({
+            status,
+            limit,
+            expand: ["data.customer"],
+          }),
+        ),
+      );
+      return pages.flatMap((page) => page.data);
+    },
+
     async getCheckoutSession(
       sessionId: string,
     ): Promise<Stripe.Checkout.Session> {

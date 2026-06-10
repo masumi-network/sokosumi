@@ -2661,6 +2661,23 @@
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
           "openInStripe": "Open in Stripe"
+        },
+        "InvoiceList": {
+          "title": "Unfinished invoices",
+          "description": "Credit-grant invoices that still need attention. Paid, canceled, and void invoices are not shown.",
+          "empty": "No unfinished credit-grant invoices.",
+          "recipient": "Recipient",
+          "typeUser": "User",
+          "typeOrganization": "Organization",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "created": "Created",
+          "actions": "Actions",
+          "openInStripe": "Open in Stripe"
         }
       },
       "Overview": {

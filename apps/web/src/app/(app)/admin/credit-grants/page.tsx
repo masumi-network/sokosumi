@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { CreditGrantForm } from "@/components/admin/credit-grants/credit-grant-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditGrantInvoiceList } from "@/components/admin/credit-grants/credit-grant-invoice-list";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
 
 export const metadata: Metadata = {
@@ -12,7 +19,10 @@ export const metadata: Metadata = {
 
 export default async function CreditGrantsPage() {
   const t = await getTranslations("App.Admin.CreditGrants");
-  const prices = await creditGrantAdminService.listPrices();
+  const [prices, invoices] = await Promise.all([
+    creditGrantAdminService.listPrices(),
+    creditGrantAdminService.listGrantInvoices(),
+  ]);
 
   return (
     <div className="min-h-full w-full">
@@ -30,6 +40,16 @@ export default async function CreditGrantsPage() {
           </CardHeader>
           <CardContent>
             <CreditGrantForm prices={prices} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("InvoiceList.title")}</CardTitle>
+            <CardDescription>{t("InvoiceList.description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CreditGrantInvoiceList invoices={invoices} />
           </CardContent>
         </Card>
       </div>

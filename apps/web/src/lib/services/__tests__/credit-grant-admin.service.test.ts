@@ -15,6 +15,7 @@ const getCreditTopUpPriceByIdMock = vi.fn();
 const getInvoiceMock = vi.fn();
 const payInvoiceOutOfBandMock = vi.fn();
 const getAccountIdMock = vi.fn();
+const listInvoicesByStatusMock = vi.fn();
 
 const handleInvoicePaidEventMock = vi.fn();
 const creditBucketFindFirstMock = vi.fn();
@@ -64,6 +65,8 @@ vi.mock("@/lib/clients/stripe.client", () => ({
     payInvoiceOutOfBand: (...args: unknown[]) =>
       payInvoiceOutOfBandMock(...args),
     getAccountId: (...args: unknown[]) => getAccountIdMock(...args),
+    listInvoicesByStatus: (...args: unknown[]) =>
+      listInvoicesByStatusMock(...args),
   },
 }));
 
@@ -338,6 +341,107 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     ).rejects.toThrow(CreditGrantValidationError);
     // Must not silently grant free credits for a paid grant.
     expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("creditGrantAdminService.listGrantInvoices", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAccountIdMock.mockResolvedValue("acct_1");
+  });
+
+  it("returns only admin credit-grant invoices, mapped and sorted newest first", async () => {
+    listInvoicesByStatusMock.mockResolvedValue([
+      {
+        id: "in_old",
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: 100,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: {
+          name: "Acme",
+          metadata: { customerType: "organization" },
+        },
+      },
+      {
+        id: "in_other",
+        status: "open",
+        currency: "usd",
+        amount_due: 2000,
+        created: 200,
+        // Not an admin grant invoice (e.g. a checkout invoice) — excluded.
+        metadata: { credits: "5" },
+        customer: { name: "Someone", metadata: { customerType: "user" } },
+      },
+      {
+        id: "in_new",
+        status: "draft",
+        currency: "eur",
+        amount_due: 500,
+        created: 300,
+        metadata: {
+          grant_source: "admin_one_time_credit",
+          credits: "3",
+          ttl_days: "30",
+        },
+        customer: { name: "Ada", metadata: { customerType: "user" } },
+      },
+    ]);
+
+    const items = await creditGrantAdminService.listGrantInvoices();
+
+    expect(listInvoicesByStatusMock).toHaveBeenCalledWith(["draft", "open"]);
+    expect(items.map((item) => item.invoiceId)).toEqual(["in_new", "in_old"]);
+    expect(items[0]).toMatchObject({
+      invoiceId: "in_new",
+      targetType: "user",
+      targetName: "Ada",
+      credits: 3,
+      ttlDays: 30,
+      currency: "eur",
+      amountDue: 500,
+      status: "draft",
+      createdAt: 300_000,
+      dashboardUrl: "https://dashboard.stripe.com/acct_1/invoices/in_new",
+    });
+    expect(items[1]).toMatchObject({
+      invoiceId: "in_old",
+      targetType: "organization",
+      targetName: "Acme",
+      ttlDays: null,
+    });
+  });
+
+  it("handles unexpanded or deleted customers without throwing", async () => {
+    listInvoicesByStatusMock.mockResolvedValue([
+      {
+        id: "in_str",
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: 100,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: "cus_unexpanded",
+      },
+      {
+        id: "in_deleted",
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: 50,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: { deleted: true },
+      },
+    ]);
+
+    const items = await creditGrantAdminService.listGrantInvoices();
+
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(item.targetType).toBeNull();
+      expect(item.targetName).toBeNull();
+    }
   });
 });
 

@@ -47,6 +47,26 @@ export interface CreditPriceOption {
   nickname: string | null;
 }
 
+/** A credit-grant invoice surfaced in the admin list of unfinished invoices. */
+export interface CreditGrantInvoiceListItem {
+  invoiceId: string;
+  targetType: CreditGrantTargetType | null;
+  targetName: string | null;
+  credits: number;
+  ttlDays: number | null;
+  currency: string;
+  amountDue: number;
+  status: Stripe.Invoice.Status | null;
+  /** Invoice creation time as a Unix timestamp in milliseconds. */
+  createdAt: number;
+  /** Stripe dashboard URL for the invoice (admin-facing, not the payment page). */
+  dashboardUrl: string;
+}
+
+/** Statuses of invoices that still need attention (not paid, void, or
+ * uncollectible). These are the only invoices shown in the admin list. */
+const UNFINISHED_INVOICE_STATUSES: Stripe.Invoice.Status[] = ["draft", "open"];
+
 /** Identity of a grant target (user or organization) used for summaries and
  * credit-bucket verification, independent of Stripe billing details. */
 interface TargetIdentity {
@@ -100,6 +120,60 @@ function toInvoiceSummary(
     currency: invoice.currency ?? "",
     amountDue: invoice.amount_due ?? 0,
     status: invoice.status ?? null,
+    dashboardUrl: buildInvoiceDashboardUrl(invoice, accountId),
+  };
+}
+
+/** Reads a non-negative integer-ish value out of invoice metadata, returning
+ * the fallback when it is missing or not a finite number. */
+function parseMetadataNumber(
+  value: string | undefined,
+  fallback: number | null,
+): number | null {
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+/** Resolves the grant target (type + display name) from an expanded invoice
+ * customer. Returns nulls when the customer is unexpanded or deleted. */
+function resolveTargetFromCustomer(customer: Stripe.Invoice["customer"]): {
+  targetType: CreditGrantTargetType | null;
+  targetName: string | null;
+} {
+  if (!customer || typeof customer === "string" || customer.deleted) {
+    return { targetType: null, targetName: null };
+  }
+  const customerType = customer.metadata?.customerType;
+  const targetType: CreditGrantTargetType | null =
+    customerType === "user" || customerType === "organization"
+      ? customerType
+      : null;
+  return { targetType, targetName: customer.name ?? null };
+}
+
+function toInvoiceListItem(
+  invoice: Stripe.Invoice,
+  accountId: string,
+): CreditGrantInvoiceListItem | null {
+  if (!invoice.id) {
+    return null;
+  }
+  const { targetType, targetName } = resolveTargetFromCustomer(
+    invoice.customer,
+  );
+  return {
+    invoiceId: invoice.id,
+    targetType,
+    targetName,
+    credits: parseMetadataNumber(invoice.metadata?.credits, 0) ?? 0,
+    ttlDays: parseMetadataNumber(invoice.metadata?.ttl_days, null),
+    currency: invoice.currency ?? "",
+    amountDue: invoice.amount_due ?? 0,
+    status: invoice.status ?? null,
+    createdAt: invoice.created * 1000,
     dashboardUrl: buildInvoiceDashboardUrl(invoice, accountId),
   };
 }
@@ -261,6 +335,28 @@ export const creditGrantAdminService = (() => {
         currency: price.currency,
         nickname: price.nickname,
       }));
+    },
+
+    /**
+     * Lists unfinished (draft/open) admin credit-grant invoices, most recent
+     * first. Paid, void, and uncollectible invoices are excluded — they no
+     * longer need attention. Only invoices tagged with the admin grant source
+     * are returned, so normal checkout/subscription invoices are filtered out.
+     */
+    async listGrantInvoices(): Promise<CreditGrantInvoiceListItem[]> {
+      const [invoices, accountId] = await Promise.all([
+        stripeClient.listInvoicesByStatus(UNFINISHED_INVOICE_STATUSES),
+        stripeClient.getAccountId(),
+      ]);
+
+      return invoices
+        .filter(
+          (invoice) =>
+            invoice.metadata?.grant_source === ADMIN_CREDIT_GRANT_SOURCE,
+        )
+        .map((invoice) => toInvoiceListItem(invoice, accountId))
+        .filter((item): item is CreditGrantInvoiceListItem => item !== null)
+        .sort((a, b) => b.createdAt - a.createdAt);
     },
 
     async createGrantInvoice(params: {
