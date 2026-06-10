@@ -1398,22 +1398,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function provideJobInput(
-    id: string,
-    body: NonNullable<PostJobsByIdInputsData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostJobsByIdInputs({
-          client,
-          path: { id },
-          body,
-        }),
-      "Failed to provide job input",
-    );
-  }
-
   async function getMyOnboarding() {
     return executeOperation(
       getClient,
@@ -1798,6 +1782,22 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to move job to workspace",
+    );
+  }
+
+  async function provideJobInput(
+    id: string,
+    body: NonNullable<PostJobsByIdInputsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostJobsByIdInputs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to provide job input",
     );
   }
 
@@ -2259,6 +2259,7 @@ export function createCoreClient(getClient: GetClient) {
     patchMyPreferredOrganization,
     patchOrganizationDesignMd,
     patchOrganizationInvoiceEmail,
+    provideJobInput,
     patchProjectsById,
     postProjects,
     postProjectsByIdJobs,
@@ -2271,7 +2272,6 @@ export function createCoreClient(getClient: GetClient) {
     getTaskLinks,
     getTasks,
     patchTask,
-    provideJobInput,
     putJobShare,
     putTaskShare,
     getUserById,
