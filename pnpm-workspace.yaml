@@ -10,6 +10,7 @@ fetchRetryMaxtimeout: 120000
 networkConcurrency: 8
 
 overrides:
+  docx: "9.7.1"
   lodash: 4.18.1
   zod: 4.4.3
   samlify: 2.13.1
