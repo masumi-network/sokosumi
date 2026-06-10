@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { CreditGrantInvoiceDetail } from "@/components/admin/invoices/credit-grant-invoice-detail";
+import { InvoiceDetail } from "@/components/admin/invoices/invoice-detail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCreditGrantInvoiceAction } from "@/lib/actions/credit-grant/action";
@@ -14,13 +14,13 @@ export const metadata: Metadata = {
   description: "Credit grant invoice detail",
 };
 
-interface CreditGrantInvoiceDetailPageProps {
+interface InvoiceDetailPageProps {
   params: Promise<{ invoiceId: string }>;
 }
 
-export default async function CreditGrantInvoiceDetailPage({
+export default async function InvoiceDetailPage({
   params,
-}: CreditGrantInvoiceDetailPageProps) {
+}: InvoiceDetailPageProps) {
   const { invoiceId } = await params;
   const t = await getTranslations("App.Admin.CreditGrants");
   const result = await getCreditGrantInvoiceAction({ invoiceId });
@@ -58,7 +58,7 @@ export default async function CreditGrantInvoiceDetailPage({
 
         <Card>
           <CardContent>
-            <CreditGrantInvoiceDetail invoice={result.data} />
+            <InvoiceDetail invoice={result.data} />
           </CardContent>
         </Card>
       </div>

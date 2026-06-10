@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { CreditGrantForm } from "@/components/admin/invoices/credit-grant-form";
+import { InvoiceForm } from "@/components/admin/invoices/invoice-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { creditGrantAdminService } from "@/lib/services/credit-grant-admin.service";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Grant one-time credits to a user or organization",
 };
 
-export default async function NewCreditGrantPage() {
+export default async function NewInvoicePage() {
   const t = await getTranslations("App.Admin.CreditGrants");
   const prices = await creditGrantAdminService.listPrices();
 
@@ -33,7 +33,7 @@ export default async function NewCreditGrantPage() {
 
         <Card>
           <CardContent>
-            <CreditGrantForm prices={prices} />
+            <InvoiceForm prices={prices} />
           </CardContent>
         </Card>
       </div>

@@ -10,13 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { markCreditGrantInvoicePaidAction } from "@/lib/actions/credit-grant/action";
 import type { CreditGrantInvoiceSummary } from "@/lib/services/credit-grant-admin.service";
 
-interface CreditGrantInvoiceDetailProps {
+interface InvoiceDetailProps {
   invoice: CreditGrantInvoiceSummary;
 }
 
-export function CreditGrantInvoiceDetail({
-  invoice: initialInvoice,
-}: CreditGrantInvoiceDetailProps) {
+export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
   const t = useTranslations("App.Admin.CreditGrants");
   const formatter = useFormatter();
   const [invoice, setInvoice] =

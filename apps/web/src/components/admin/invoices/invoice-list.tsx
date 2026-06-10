@@ -41,7 +41,7 @@ import type {
   CreditGrantTargetType,
 } from "@/lib/services/credit-grant-admin.service";
 
-interface CreditGrantInvoiceListProps {
+interface InvoiceListProps {
   initialInvoices: CreditGrantInvoiceListItem[];
 }
 
@@ -80,9 +80,7 @@ const STATUS_BADGE_VARIANT: Record<
  * The page still server-renders the default (unfinished) list as
  * `initialInvoices`, so first paint needs no client fetch.
  */
-export function CreditGrantInvoiceList({
-  initialInvoices,
-}: CreditGrantInvoiceListProps) {
+export function InvoiceList({ initialInvoices }: InvoiceListProps) {
   const t = useTranslations("App.Admin.CreditGrants.InvoiceList");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");

@@ -34,7 +34,7 @@ import type {
   CreditPriceOption,
 } from "@/lib/services/credit-grant-admin.service";
 
-interface CreditGrantFormProps {
+interface InvoiceFormProps {
   prices: CreditPriceOption[];
 }
 
@@ -56,7 +56,7 @@ function countDecimals(value: number): number {
   return dotIndex === -1 ? 0 : text.length - dotIndex - 1;
 }
 
-export function CreditGrantForm({ prices }: CreditGrantFormProps) {
+export function InvoiceForm({ prices }: InvoiceFormProps) {
   const t = useTranslations("App.Admin.CreditGrants");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
