@@ -1268,6 +1268,24 @@ export type CreditBucketBreakdown = {
     expiresAt: Date | null;
 };
 
+export type MemberWithOrganization = {
+    id: string;
+    userId: string;
+    organizationId: string;
+    role: string;
+    seatAssignedAt: Date | null;
+    createdAt: Date;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+        logo: string | null;
+        metadata: string | null;
+        createdAt: Date;
+        stripeCustomerId: string | null;
+    };
+};
+
 export type Organization = {
     id: string;
     createdAt: Date;
@@ -1280,6 +1298,15 @@ export type Organization = {
         [key: string]: unknown;
     } | null;
     role: string;
+};
+
+export type MemberRecord = {
+    id: string;
+    userId: string;
+    organizationId: string;
+    role: string;
+    seatAssignedAt: Date | null;
+    createdAt: Date;
 };
 
 export type Notice = {
@@ -9960,6 +9987,91 @@ export type GetUsersByIdCreditsResponses = {
 
 export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
 
+export type GetUsersByIdMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/members';
+};
+
+export type GetUsersByIdMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdMembersError = GetUsersByIdMembersErrors[keyof GetUsersByIdMembersErrors];
+
+export type GetUsersByIdMembersResponses = {
+    /**
+     * Retrieve the user's memberships with organizations
+     */
+    200: {
+        data: Array<MemberWithOrganization>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdMembersResponse = GetUsersByIdMembersResponses[keyof GetUsersByIdMembersResponses];
+
 export type GetUsersByIdOrganizationsData = {
     body?: never;
     path: {
@@ -10195,6 +10307,95 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
 };
 
 export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponse = GetUsersByIdOrganizationsByOrganizationIdCreditsResponses[keyof GetUsersByIdOrganizationsByOrganizationIdCreditsResponses];
+
+export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Organization ID
+         */
+        organizationId: string;
+    };
+    query?: never;
+    url: '/users/{id}/organizations/{organizationId}/member';
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - The user is not a member
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdMemberError = GetUsersByIdOrganizationsByOrganizationIdMemberErrors[keyof GetUsersByIdOrganizationsByOrganizationIdMemberErrors];
+
+export type GetUsersByIdOrganizationsByOrganizationIdMemberResponses = {
+    /**
+     * Retrieve the user's membership in the organization
+     */
+    200: {
+        data: MemberRecord;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdOrganizationsByOrganizationIdMemberResponse = GetUsersByIdOrganizationsByOrganizationIdMemberResponses[keyof GetUsersByIdOrganizationsByOrganizationIdMemberResponses];
 
 export type GetUsersByIdPreferencesData = {
     body?: never;
