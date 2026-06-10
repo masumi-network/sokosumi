@@ -1,33 +1,46 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import {
-  AgentJobStatus,
-  type JobEvent,
-  type JobWithSokosumiStatus,
-  Prisma,
-} from "@sokosumi/database";
-import {
-  jobEventRepository,
-  jobInputRepository,
-  jobRepository,
-  workspaceRepository,
-} from "@sokosumi/database/repositories";
+import type { JobEvent, JobWithSokosumiStatus } from "@sokosumi/database";
 
 import publishJobStatusData from "@/lib/ably/publish";
 import type { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
+import {
+  mapCoreJobSummaryToJobWithSokosumiStatus,
+  mapCoreJobToJobWithSokosumiStatus,
+} from "@/lib/agents/core-dto-mappers";
 import { getSession } from "@/lib/auth/utils";
-import { agentClient } from "@/lib/clients";
-import { coreClient } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
+import { coreClient, CoreApiRequestError } from "@/lib/clients/core.client";
 import { getJobStatusData } from "@/lib/helpers/job";
 import type {
   JobStatusResponseSchemaType,
   ProvideJobInputSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
+
+function mapCoreApiErrorToJobError(
+  error: CoreApiRequestError,
+  fallbackMessage: string,
+): JobError {
+  switch (error.status) {
+    case 404:
+      return new JobError(JobErrorCode.JOB_NOT_FOUND, error.message);
+    case 409:
+      return new JobError(
+        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
+        error.message || "Input has already been provided for this event",
+      );
+    case 422:
+      return new JobError(JobErrorCode.JOB_INPUT_PROVIDE_FAILED, error.message);
+    default:
+      return new JobError(
+        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
+        fallbackMessage,
+      );
+  }
+}
 
 export const jobService = (() => {
   /**
@@ -105,40 +118,32 @@ export const jobService = (() => {
    * otherwise, it returns null for that agent.
    *
    * @param agentIds - An array of agent IDs to fetch job status data for.
-   * @param tx - (Optional) A Prisma transaction client to use for database operations. Defaults to the main Prisma client.
    * @returns A Promise that resolves to an array of JobStatusData or null (one for each agent ID).
    *
    * If the user session is not found, returns an empty array.
    */
   const getJobStatusesDataForAgents = async (
     agentIds: string[],
-    tx: Prisma.TransactionClient = prisma,
   ): Promise<(JobStatusData | null)[]> => {
     const session = await getSession();
     if (!session) {
       return [];
     }
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      userId,
-      activeOrganizationId ?? null,
-      tx,
-    );
 
     return await Promise.all(
       agentIds.map(async (agentId) => {
-        const latestJob =
-          await jobRepository.getLatestJobByAgentIdUserIdAndWorkspace(
-            agentId,
-            userId,
-            workspace.id,
-            tx,
-          );
+        const response = await coreClient.getJobs({
+          agentId,
+          scope: "owned",
+          limit: 1,
+        });
+        const latestJob = response.data[0];
         if (!latestJob) {
           return null;
         }
-        return getJobStatusData(latestJob);
+        return getJobStatusData(
+          mapCoreJobSummaryToJobWithSokosumiStatus(latestJob),
+        );
       }),
     );
   };
@@ -176,116 +181,58 @@ export const jobService = (() => {
       },
     });
 
-    // Get the job and verify ownership
-    const job = await jobRepository.getJobById(jobId, prisma);
-    if (!job || job.userId !== userId) {
-      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-    }
-    const jobEvent = await jobEventRepository.getJobEventById(eventId, prisma);
-    if (!jobEvent) {
-      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job status not found");
-    }
-    if (
-      jobEvent.jobId !== jobId ||
-      jobEvent.status !== AgentJobStatus.AWAITING_INPUT
-    ) {
+    const coreInputData = toCoreJobInputData(inputData);
+    if (!coreInputData) {
       throw new JobError(
-        JobErrorCode.JOB_NOT_FOUND,
-        "Job status not found or is not awaiting input",
+        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
+        "Job input data is not supported",
       );
     }
 
-    // Convert input data to JSON
-    const inputJson = JSON.stringify(inputData);
-
-    // Add breadcrumb for agent API call
     Sentry.addBreadcrumb({
       category: "Job Service",
-      message: "Calling agent API to provide input",
+      message: "Calling Core API to provide input",
       level: "info",
       data: {
-        jobId: job.id,
+        jobId,
         eventId,
-        jobEventId: jobEvent.id,
-        agentId: job.agentId,
-        agentJobId: job.agentJobId,
       },
     });
 
-    const inputSchema = jobEvent.inputSchema;
-    if (!inputSchema) {
-      throw new JobError(
-        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
-        "Agent did not provide an input schema",
-      );
-    }
-
-    // Call agent API to provide input
-    const provideInputResult = await agentClient.provideJobInput(
-      job.agent,
-      job.agentJobId,
-      inputSchema,
-      inputData,
-    );
-
-    if (provideInputResult.isErr()) {
-      Sentry.setTag("error_type", "agent_provide_input_failed");
-      Sentry.setContext("agent_provide_input", {
-        jobId: job.id,
+    try {
+      await coreClient.provideJobInput(jobId, {
         eventId,
-        jobEventId: jobEvent.id,
-        agentId: job.agentId,
-        agentJobId: job.agentJobId,
-        error: provideInputResult.error,
+        inputData: coreInputData,
       });
-
-      Sentry.captureMessage(
-        `Agent provide input failed: ${provideInputResult.error}`,
-        "error",
-      );
-      throw new JobError(
-        JobErrorCode.JOB_INPUT_PROVIDE_FAILED,
-        provideInputResult.error,
-      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError) {
+        throw mapCoreApiErrorToJobError(error, "Failed to provide job input");
+      }
+      throw error;
     }
 
-    const responseData = provideInputResult.value;
+    const jobResponse = await coreClient.getJobById(jobId);
+    const job = mapCoreJobToJobWithSokosumiStatus(jobResponse.data);
+    const jobEvent = job.events.find((event) => event.id === eventId);
 
-    const updatedJob = await prisma.$transaction(async (tx) => {
-      await jobInputRepository.createJobInputForEventId(
-        jobEvent.id,
-        {
-          input: inputJson,
-          inputHash: responseData.input_hash,
-          signature: responseData.signature,
-        },
-        tx,
-      );
+    if (!jobEvent) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job status not found");
+    }
 
-      // Refetch the job to get updated events
-      const updatedJob = await jobRepository.getJobById(job.id, tx);
-      if (!updatedJob) {
-        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
-      }
-
-      return updatedJob;
-    });
-
-    // Publish job status update
-    await publishJobStatusSafely(updatedJob);
+    await publishJobStatusSafely(job);
 
     Sentry.addBreadcrumb({
       category: "Job Service",
       message: "Job input provided successfully",
       level: "info",
       data: {
-        jobId: updatedJob.id,
+        jobId: job.id,
         eventId,
         jobEventId: jobEvent.id,
       },
     });
 
-    return { job: updatedJob, jobEvent };
+    return { job, jobEvent };
   };
 
   return {

@@ -1,9 +1,5 @@
 import "server-only";
 
-import {
-  organizationRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import Stripe from "stripe";
@@ -13,7 +9,6 @@ import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import { type Price, stripeClient } from "@/lib/clients/stripe.client";
-import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
@@ -27,6 +22,12 @@ export const stripeService = (() => {
     }
     const { data } = await coreClient.getMyStripeCustomer();
     return data.stripeCustomerId;
+  }
+
+  function serializeOrganizationMetadata(
+    metadata: Record<string, unknown> | null | undefined,
+  ): string | null {
+    return metadata ? JSON.stringify(metadata) : null;
   }
 
   return {
@@ -147,7 +148,7 @@ export const stripeService = (() => {
     async createStripeCustomerForUser(
       userId: string,
     ): Promise<Stripe.Customer | null> {
-      const user = await userRepository.getUserById(userId, prisma);
+      const { data: user } = await coreClient.getUserById(userId);
       if (!user) {
         return null;
       }
@@ -161,15 +162,14 @@ export const stripeService = (() => {
     async createStripeCustomerForOrganization(
       organizationId: string,
     ): Promise<Stripe.Customer | null> {
-      const organization =
-        await organizationRepository.getOrganizationWithRelationsById(
-          organizationId,
-          prisma,
-        );
+      const { data: organization } =
+        await coreClient.getOrganizationById(organizationId);
       if (!organization) {
         return null;
       }
-      const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+      const { invoiceEmail } = getOrganizationMetadata(
+        serializeOrganizationMetadata(organization.metadata),
+      );
       return await stripeClient.createOrganizationCustomer(
         organization.id,
         organization.slug,
@@ -183,20 +183,17 @@ export const stripeService = (() => {
       invoiceEmail: string | null,
     ): Promise<boolean> {
       try {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            organizationId,
-            prisma,
-          );
+        const { data: stripeCustomer } =
+          await coreClient.getOrganizationStripeCustomer(organizationId);
 
-        if (!organization || !organization.stripeCustomerId) {
+        if (!stripeCustomer.stripeCustomerId) {
           // No Stripe customer to update
           return true;
         }
 
         // Update Stripe customer email
         await stripeClient.updateCustomerEmail(
-          organization.stripeCustomerId,
+          stripeCustomer.stripeCustomerId,
           invoiceEmail,
         );
 
@@ -215,18 +212,22 @@ export const stripeService = (() => {
       newEmail: string,
     ): Promise<boolean> {
       try {
-        const user = await userRepository.getUserById(userId, prisma);
+        const { data: stripeCustomer } =
+          await coreClient.getUserStripeCustomer(userId);
 
-        if (!user || !user.stripeCustomerId) {
+        if (!stripeCustomer.stripeCustomerId) {
           // No Stripe customer to update
           return true;
         }
 
         // Update Stripe customer email
-        await stripeClient.updateCustomerEmail(user.stripeCustomerId, newEmail);
+        await stripeClient.updateCustomerEmail(
+          stripeCustomer.stripeCustomerId,
+          newEmail,
+        );
 
         console.log(
-          `✅ Synced user ${userId} email to Stripe customer ${user.stripeCustomerId}`,
+          `✅ Synced user ${userId} email to Stripe customer ${stripeCustomer.stripeCustomerId}`,
         );
 
         return true;
@@ -253,17 +254,20 @@ export const stripeService = (() => {
       const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
 
       try {
-        const user = await userRepository.getUserById(userId, prisma);
+        const [{ data: user }, { data: stripeCustomer }] = await Promise.all([
+          coreClient.getUserById(userId),
+          coreClient.getUserStripeCustomer(userId),
+        ]);
         if (!user) {
           throw new Error("User not found");
         }
-        if (!user.stripeCustomerId) {
+        if (!stripeCustomer.stripeCustomerId) {
           throw new Error("User does not have a stripe customer id");
         }
 
         const coupon = await this.getCoupon(welcomeCouponId);
         const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
-          user.stripeCustomerId,
+          stripeCustomer.stripeCustomerId,
           coupon.id,
           {
             redemption_type: "welcome_coupon",
@@ -298,8 +302,11 @@ export const stripeService = (() => {
       personalCoupon?: Stripe.Coupon;
       orgCoupon?: Stripe.Coupon;
     }> {
-      const user = await userRepository.getUserById(userId, prisma);
-      if (!user || !user.stripeCustomerId) {
+      const [{ data: user }, { data: userStripeCustomer }] = await Promise.all([
+        coreClient.getUserById(userId),
+        coreClient.getUserStripeCustomer(userId),
+      ]);
+      if (!user || !userStripeCustomer.stripeCustomerId) {
         throw new Error("User or Stripe customer not found");
       }
 
@@ -308,7 +315,7 @@ export const stripeService = (() => {
       );
 
       const personalInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
-        user.stripeCustomerId,
+        userStripeCustomer.stripeCustomerId,
         personalCoupon.id,
         {
           referral_user_id: String(user.id),
@@ -327,20 +334,20 @@ export const stripeService = (() => {
       // Create and apply organization coupon if organizationId provided
       let orgCoupon: Stripe.Coupon | undefined;
       if (organizationId) {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            organizationId,
-            prisma,
-          );
+        const [{ data: organization }, { data: orgStripeCustomer }] =
+          await Promise.all([
+            coreClient.getOrganizationById(organizationId),
+            coreClient.getOrganizationStripeCustomer(organizationId),
+          ]);
 
         if (!organization) {
           throw new Error("Organization not found");
         }
 
-        let orgStripeCustomerId = organization.stripeCustomerId;
+        let orgStripeCustomerId = orgStripeCustomer.stripeCustomerId;
         if (!orgStripeCustomerId) {
           const { invoiceEmail } = getOrganizationMetadata(
-            organization.metadata,
+            serializeOrganizationMetadata(organization.metadata),
           );
           const orgCustomer = await stripeClient.createOrganizationCustomer(
             organization.id,

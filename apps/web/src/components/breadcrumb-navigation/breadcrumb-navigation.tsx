@@ -42,9 +42,9 @@ async function BreadcrumbNavigationInner({
   segmentLabels?: Record<string, string>;
 }) {
   // Breadcrumb labels are nice-to-have, not load-bearing. The agent catalog is
-  // served by Core (cached) and organizations from the user's memberships;
-  // each lookup degrades to an empty fallback independently rather than blowing
-  // up the app shell with an unhandled server-component throw.
+  // served by Core (cached) and organizations from Core; each lookup degrades
+  // to an empty fallback independently rather than blowing up the app shell
+  // with an unhandled server-component throw.
   const [messages, agents, organizations] = await Promise.all([
     getMessages(),
     getAllCoreAgents()

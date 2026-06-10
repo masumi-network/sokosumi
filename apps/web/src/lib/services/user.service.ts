@@ -8,21 +8,42 @@ import type {
   OrganizationWithRelations,
   User,
 } from "@sokosumi/database";
-import {
-  invitationRepository,
-  jobRepository,
-  memberRepository,
-  organizationRepository,
-  userRepository,
-  workspaceRepository,
-} from "@sokosumi/database/repositories";
 import { headers } from "next/headers";
 import { cache } from "react";
 
+import { mapCoreJobSummaryToJobWithSokosumiStatus } from "@/lib/agents/core-dto-mappers";
 import { auth, type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
-import { coreClient } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
+import { coreClient, CoreApiRequestError } from "@/lib/clients/core.client";
+import type { Organization } from "@/lib/clients/generated/core";
+
+function mapCoreOrganizationToOrganizationWithRelations(
+  organization: Organization,
+  stripeCustomerId: string | null,
+): OrganizationWithRelations {
+  return {
+    id: organization.id,
+    name: organization.name,
+    slug: organization.slug,
+    logo: organization.logo || null,
+    metadata: organization.metadata
+      ? JSON.stringify(organization.metadata)
+      : null,
+    createdAt: organization.createdAt,
+    stripeCustomerId,
+    _count: { members: 0 },
+  };
+}
+
+function sortJobsByCreatedAtDesc(
+  jobs: JobWithSokosumiStatus[],
+): JobWithSokosumiStatus[] {
+  return [...jobs].sort(
+    (firstJob, secondJob) =>
+      new Date(secondJob.createdAt).getTime() -
+      new Date(firstJob.createdAt).getTime(),
+  );
+}
 
 /**
  * Service for user-related operations.
@@ -39,7 +60,9 @@ export const userService = (() => {
     if (!session) {
       return null;
     }
-    return userRepository.getUserById(session.user.id, prisma);
+
+    const response = await coreClient.getMe();
+    return response.data as User;
   }
 
   /**
@@ -64,12 +87,15 @@ export const userService = (() => {
       return null;
     }
 
-    const organization =
-      await organizationRepository.getOrganizationWithRelationsById(
-        activeOrganizationId,
-        prisma,
-      );
-    return organization;
+    const [organizationResponse, stripeCustomerResponse] = await Promise.all([
+      coreClient.getOrganizationById(activeOrganizationId),
+      coreClient.getOrganizationStripeCustomer(activeOrganizationId),
+    ]);
+
+    return mapCoreOrganizationToOrganizationWithRelations(
+      organizationResponse.data,
+      stripeCustomerResponse.data.stripeCustomerId,
+    );
   }
 
   /**
@@ -86,26 +112,10 @@ export const userService = (() => {
     if (!session) {
       return [];
     }
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      userId,
-      activeOrganizationId ?? null,
-      prisma,
-    );
 
-    // Get owned jobs
-    const ownedJobs = await jobRepository.getJobs(
-      {
-        agentId,
-        userId,
-        workspaceId: workspace.id,
-      },
-      prisma,
-    );
-    return ownedJobs.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    const response = await coreClient.getMyJobs(agentId);
+    return sortJobsByCreatedAtDesc(
+      response.data.map((job) => mapCoreJobSummaryToJobWithSokosumiStatus(job)),
     );
   }
 
@@ -159,18 +169,16 @@ export const userService = (() => {
     if (!session) {
       return [];
     }
-    return await prisma.$transaction(async (tx) => {
-      const user = await userRepository.getUserById(session.user.id, tx);
-      if (!user?.email) {
-        console.error("User email not found");
+
+    try {
+      const response = await coreClient.getMyPendingInvitations();
+      return response.data as InvitationWithRelations[];
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
         return [];
       }
-
-      return await invitationRepository.getValidPendingInvitationsByEmail(
-        user.email,
-        tx,
-      );
-    });
+      throw error;
+    }
   }
 
   /**
@@ -196,17 +204,18 @@ export const userService = (() => {
     }
 
     try {
-      return await prisma.$transaction(async (tx) => {
-        const membershipOrgIds =
-          await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
+      const onboardingResponse = await coreClient.getMyOnboarding();
+      if (onboardingResponse.data.completed) {
+        return false;
+      }
 
-        if (membershipOrgIds.length > 0) {
-          await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
-          return false;
-        }
+      const membersResponse = await coreClient.getMyMembersWithOrganizations();
+      if (membersResponse.data.length > 0) {
+        await coreClient.completeMyOnboarding();
+        return false;
+      }
 
-        return true;
-      });
+      return true;
     } catch (error) {
       console.error("Failed to check/update onboarding status", error);
       // Return true (show onboarding) on error as a safe default - better to show
@@ -228,15 +237,19 @@ export const userService = (() => {
       ),
     );
 
-    const users = await Promise.all(
-      normalizedEmails.map((email) =>
-        userRepository.getUserByEmail(email, prisma),
-      ),
-    );
+    if (normalizedEmails.length === 0) {
+      return [];
+    }
 
-    return users
-      .filter((u): u is NonNullable<typeof u> => !!u)
-      .map((u) => u.email.toLowerCase());
+    try {
+      const response = await coreClient.checkExistingUsers(normalizedEmails);
+      return response.data.existingEmails.map((email) => email.toLowerCase());
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   /**
