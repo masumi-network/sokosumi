@@ -1,14 +1,13 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { httpsRequestMock, httpRequestMock, useAgentMock } = vi.hoisted(() => ({
+const { httpsRequestMock, useAgentMock } = vi.hoisted(() => ({
   httpsRequestMock: vi.fn(),
-  httpRequestMock: vi.fn(),
   useAgentMock: vi.fn(),
 }));
 
 vi.mock("node:https", () => ({ default: { request: httpsRequestMock } }));
-vi.mock("node:http", () => ({ default: { request: httpRequestMock } }));
+vi.mock("node:http", () => ({ default: { request: vi.fn() } }));
 vi.mock("request-filtering-agent", () => ({ useAgent: useAgentMock }));
 
 import {

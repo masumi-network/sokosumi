@@ -67,7 +67,10 @@ const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
  * the check happens at connect time on the resolved address, the validated
  * address is the connected address — closing the DNS-rebinding window.
  */
-function guardedRequest(url: URL, init: RequestInit): Promise<Response> {
+function guardedRequest(
+  url: URL,
+  init: { signal?: AbortSignal },
+): Promise<Response> {
   return new Promise((resolve, reject) => {
     const transport = url.protocol === "https:" ? https : http;
     const request = transport.request(
@@ -75,7 +78,7 @@ function guardedRequest(url: URL, init: RequestInit): Promise<Response> {
       {
         method: "GET",
         agent: useAgent(url.href),
-        signal: init.signal ?? undefined,
+        signal: init.signal,
       },
       (message) => {
         const chunks: Buffer[] = [];
@@ -114,7 +117,7 @@ function guardedRequest(url: URL, init: RequestInit): Promise<Response> {
  */
 export async function ssrfSafeFetch(
   rawUrl: string,
-  init: RequestInit = {},
+  init: { signal?: AbortSignal } = {},
 ): Promise<Response> {
   let currentUrl = rawUrl;
 
