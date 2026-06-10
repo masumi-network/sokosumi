@@ -10,6 +10,7 @@ import type {
 import type { WorkspaceContext } from "@/middleware/workspace";
 
 import {
+  requireConversationCoworkerAccess,
   requireCoworkerCapability,
   requireCoworkerChatCapability,
   requireCoworkerTaskCollaboration,
@@ -22,6 +23,7 @@ import {
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
+  resolveConversationCoworkerId,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -604,6 +606,135 @@ const delegatedCoworkerContext: CoworkerAuthenticationContext = {
     organizationId: "org_123",
   },
 };
+
+describe("resolveConversationCoworkerId", () => {
+  it("prefers the stable coworker_id without a DB lookup", async () => {
+    const tx = createTransactionClient();
+
+    const result = await resolveConversationCoworkerId(
+      { coworker_id: "cow_123", coworker_slug: "ops-agent" },
+      tx,
+    );
+
+    expect(result).toBe("cow_123");
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("falls back to resolving coworker_slug to an id", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+
+    const result = await resolveConversationCoworkerId(
+      { coworker_slug: "ops-agent" },
+      tx,
+    );
+
+    expect(result).toBe("cow_123");
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: { slug: "ops-agent", archivedAt: null },
+      select: { id: true },
+    });
+  });
+
+  it("returns null when there is no coworker binding", async () => {
+    const tx = createTransactionClient();
+
+    expect(await resolveConversationCoworkerId(null, tx)).toBeNull();
+    expect(await resolveConversationCoworkerId({ userId: "u" }, tx)).toBeNull();
+  });
+
+  it("returns null when the slug resolves to no coworker", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    expect(
+      await resolveConversationCoworkerId({ coworker_slug: "ghost" }, tx),
+    ).toBeNull();
+  });
+});
+
+describe("requireConversationCoworkerAccess", () => {
+  it("is a no-op for user sessions", async () => {
+    const tx = createTransactionClient();
+
+    await requireConversationCoworkerAccess(userAuthContext, null, tx);
+
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows a delegated coworker on its own conversation (coworker_id)", async () => {
+    const tx = createTransactionClient();
+
+    await requireConversationCoworkerAccess(
+      delegatedCoworkerContext,
+      { coworker_id: "cow_123" },
+      tx,
+    );
+
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows a delegated coworker when only coworker_slug is set", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+
+    await requireConversationCoworkerAccess(
+      delegatedCoworkerContext,
+      { coworker_slug: "ops-agent" },
+      tx,
+    );
+
+    expect(tx.coworker.findFirst).toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker on another coworker's conversation", async () => {
+    const tx = createTransactionClient();
+
+    await expect(
+      requireConversationCoworkerAccess(
+        delegatedCoworkerContext,
+        { coworker_id: "cow_other" },
+        tx,
+      ),
+    ).rejects.toThrow(
+      "You can only access conversations assigned to your coworker",
+    );
+  });
+
+  it("rejects a delegated coworker on a conversation with no binding", async () => {
+    const tx = createTransactionClient();
+
+    await expect(
+      requireConversationCoworkerAccess(
+        delegatedCoworkerContext,
+        { userId: "delegated_user_123" },
+        tx,
+      ),
+    ).rejects.toThrow(
+      "You can only access conversations assigned to your coworker",
+    );
+  });
+
+  it("rejects a coworker without delegation", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    await expect(
+      requireConversationCoworkerAccess(
+        coworkerContext,
+        { coworker_id: "cow_123" },
+        tx,
+      ),
+    ).rejects.toThrow("Delegation is required for this resource");
+  });
+});
 
 describe("requireJobReadForRouteVars", () => {
   it("delegates to workspace read for users", async () => {

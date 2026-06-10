@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -93,6 +94,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!existing) {
           throw notFound("Conversation not found");
         }
+
+        // Per-resource delegation check: a delegated coworker may only
+        // archive a conversation bound to it (no-op for real user sessions).
+        await requireConversationCoworkerAccess(
+          c.var.authContext,
+          existing.metadata,
+          tx,
+        );
 
         // Archive or unarchive conversation in database
         const updateData = body.archived

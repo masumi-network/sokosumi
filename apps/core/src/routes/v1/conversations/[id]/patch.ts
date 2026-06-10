@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import {
+  pinCoworkerConversationBinding,
+  requireConversationCoworkerAccess,
+} from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -86,6 +90,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Conversation not found");
       }
 
+      // Per-resource delegation check: a delegated coworker may only update a
+      // conversation bound to it (no-op for real user sessions).
+      await requireConversationCoworkerAccess(
+        c.var.authContext,
+        existing.metadata,
+        tx,
+      );
+
       // Build update data - only include fields that were explicitly provided
       const updateData: {
         title?: string;
@@ -98,11 +110,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (body.metadata !== undefined) {
         const existingMetadata =
           (existing.metadata as Record<string, unknown> | null) || {};
-        updateData.metadata = {
-          ...existingMetadata,
-          ...body.metadata,
-          userId: userContext.userId, // Ensure userId is preserved
-        };
+        // A delegated coworker may only act on its own conversation (enforced
+        // above); re-pin the binding so a metadata update cannot rebind it.
+        updateData.metadata = pinCoworkerConversationBinding(
+          c.var.authContext,
+          {
+            ...existingMetadata,
+            ...body.metadata,
+            userId: userContext.userId, // Ensure userId is preserved
+          },
+        );
       }
 
       // Update conversation in database

@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { openrouterClient } from "@/clients/openrouter.client";
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import { conversationMessageToApiContent } from "@/helpers/conversation-message-api-content";
 import { notFound } from "@/helpers/error";
 import {
@@ -111,6 +112,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!conversation) {
           throw notFound("Conversation not found");
         }
+
+        // Per-resource delegation check: a delegated coworker may only post to a
+        // conversation bound to it (no-op for real user sessions).
+        await requireConversationCoworkerAccess(
+          c.var.authContext,
+          conversation.metadata,
+          tx,
+        );
 
         const item = await tx.conversationMessage.create({
           data: {
