@@ -8,6 +8,9 @@ const getSessionMock = vi.fn();
 const getMyJobsMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
+const getOrganizationByIdMock = vi.fn();
+const getOrganizationStripeCustomerMock = vi.fn();
+const getOrganizationMembersMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -16,6 +19,12 @@ vi.mock("@/lib/clients/core.client", () => ({
       getMyMembersWithOrganizationsMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
+    getOrganizationById: (...args: unknown[]) =>
+      getOrganizationByIdMock(...args),
+    getOrganizationStripeCustomer: (...args: unknown[]) =>
+      getOrganizationStripeCustomerMock(...args),
+    getOrganizationMembers: (...args: unknown[]) =>
+      getOrganizationMembersMock(...args),
   },
 }));
 
@@ -110,6 +119,54 @@ describe("user.service", () => {
 
       expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("getActiveOrganization", () => {
+    it("returns organization with member count from Core", async () => {
+      getSessionMock.mockResolvedValue({
+        user: { id: "user-1" },
+        session: { activeOrganizationId: "org-1" },
+      });
+      getOrganizationByIdMock.mockResolvedValue({
+        data: {
+          id: "org-1",
+          name: "Org One",
+          slug: "org-one",
+          logo: null,
+          metadata: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      });
+      getOrganizationStripeCustomerMock.mockResolvedValue({
+        data: { stripeCustomerId: "cus_123" },
+      });
+      getOrganizationMembersMock.mockResolvedValue({
+        data: [{ id: "member-1" }, { id: "member-2" }, { id: "member-3" }],
+      });
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(getOrganizationMembersMock).toHaveBeenCalledWith("org-1");
+      expect(result).toMatchObject({
+        id: "org-1",
+        stripeCustomerId: "cus_123",
+        _count: { members: 3 },
+      });
+    });
+
+    it("returns null when there is no active organization", async () => {
+      getSessionMock.mockResolvedValue({
+        user: { id: "user-1" },
+        session: { activeOrganizationId: null },
+      });
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(getOrganizationByIdMock).not.toHaveBeenCalled();
+      expect(result).toBeNull();
     });
   });
 

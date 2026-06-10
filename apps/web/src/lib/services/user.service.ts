@@ -20,6 +20,7 @@ import type { Organization } from "@/lib/clients/generated/core";
 function mapCoreOrganizationToOrganizationWithRelations(
   organization: Organization,
   stripeCustomerId: string | null,
+  memberCount: number,
 ): OrganizationWithRelations {
   return {
     id: organization.id,
@@ -31,7 +32,7 @@ function mapCoreOrganizationToOrganizationWithRelations(
       : null,
     createdAt: organization.createdAt,
     stripeCustomerId,
-    _count: { members: 0 },
+    _count: { members: memberCount },
   };
 }
 
@@ -87,14 +88,17 @@ export const userService = (() => {
       return null;
     }
 
-    const [organizationResponse, stripeCustomerResponse] = await Promise.all([
-      coreClient.getOrganizationById(activeOrganizationId),
-      coreClient.getOrganizationStripeCustomer(activeOrganizationId),
-    ]);
+    const [organizationResponse, stripeCustomerResponse, membersResponse] =
+      await Promise.all([
+        coreClient.getOrganizationById(activeOrganizationId),
+        coreClient.getOrganizationStripeCustomer(activeOrganizationId),
+        coreClient.getOrganizationMembers(activeOrganizationId),
+      ]);
 
     return mapCoreOrganizationToOrganizationWithRelations(
       organizationResponse.data,
       stripeCustomerResponse.data.stripeCustomerId,
+      membersResponse.data.length,
     );
   }
 
