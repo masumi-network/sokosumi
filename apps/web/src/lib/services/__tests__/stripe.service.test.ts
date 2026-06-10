@@ -64,8 +64,11 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getMyStripeCustomer: (...args: unknown[]) =>
       getMyStripeCustomerMock(...args),
+    getOrganizationById: (...args: unknown[]) =>
+      getOrganizationWithRelationsByIdMock(...args),
     getOrganizationStripeCustomer: (...args: unknown[]) =>
       getOrganizationStripeCustomerMock(...args),
+    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
   },
 }));
 
@@ -137,9 +140,11 @@ describe("stripeService.createStripeCheckoutSession", () => {
       data: { stripeCustomerId: null },
     });
     getUserByIdMock.mockResolvedValue({
-      id: "user-1",
-      name: "Jane Doe",
-      email: "jane@example.com",
+      data: {
+        id: "user-1",
+        name: "Jane Doe",
+        email: "jane@example.com",
+      },
     });
     createUserCustomerMock.mockResolvedValue({
       id: "cus_new_user",
@@ -180,10 +185,12 @@ describe("stripeService.createStripeCheckoutSession", () => {
       data: { stripeCustomerId: null },
     });
     getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org-1",
-      slug: "org-one",
-      name: "Org One",
-      metadata: JSON.stringify({ invoiceEmail: "billing@org-one.com" }),
+      data: {
+        id: "org-1",
+        slug: "org-one",
+        name: "Org One",
+        metadata: { invoiceEmail: "billing@org-one.com" },
+      },
     });
     createOrganizationCustomerMock.mockResolvedValue({
       id: "cus_new_org",

@@ -11,6 +11,7 @@ const getActiveOrganizationIdMock = vi.fn();
 const prismaTransactionMock = vi.fn();
 const moveJobToWorkspaceCoreMock = vi.fn();
 const createDemoJobCoreMock = vi.fn();
+const getJobsCoreMock = vi.fn();
 const getLatestJobByAgentIdUserIdAndWorkspaceMock = vi.fn();
 const getSessionMock = vi.fn();
 const getJobStatusDataMock = vi.fn();
@@ -70,6 +71,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
+    getJobs: (...args: unknown[]) => getJobsCoreMock(...args),
     moveJobToWorkspace: (...args: unknown[]) =>
       moveJobToWorkspaceCoreMock(...args),
     createDemoJob: (...args: unknown[]) => createDemoJobCoreMock(...args),
@@ -228,9 +230,30 @@ describe("job.service workspace persistence", () => {
     });
   });
 
-  it("resolves the active workspace before loading recent job statuses", async () => {
-    getLatestJobByAgentIdUserIdAndWorkspaceMock.mockResolvedValue({
-      id: "job_123",
+  it("loads recent job statuses from Core for each agent", async () => {
+    getJobsCoreMock.mockResolvedValue({
+      data: [
+        {
+          id: "job_123",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          agentId: "agent_123",
+          userId: "user_123",
+          jobType: "PAID",
+          status: "PROCESSING",
+          credits: 0,
+          user: { id: "user_123", name: "User", image: null },
+          workspace: {
+            id: "workspace-1",
+            organizationId: "org_123",
+            organization: {
+              id: "org_123",
+              name: "Org",
+              slug: "org",
+            },
+          },
+        },
+      ],
     });
     getJobStatusDataMock.mockReturnValue({
       id: "job_123",
@@ -241,17 +264,12 @@ describe("job.service workspace persistence", () => {
 
     const result = await jobService.getJobStatusesDataForAgents(["agent_123"]);
 
-    expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
-      "user_123",
-      "org_123",
-      expect.any(Object),
-    );
-    expect(getLatestJobByAgentIdUserIdAndWorkspaceMock).toHaveBeenCalledWith(
-      "agent_123",
-      "user_123",
-      "11111111-1111-7111-8111-111111111111",
-      expect.any(Object),
-    );
+    expect(getJobsCoreMock).toHaveBeenCalledWith({
+      agentId: "agent_123",
+      scope: "owned",
+      limit: 1,
+    });
+    expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
     expect(result).toEqual([
       {
         id: "job_123",

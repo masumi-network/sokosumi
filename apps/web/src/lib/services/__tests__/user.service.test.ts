@@ -5,13 +5,13 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const getSessionMock = vi.fn();
-const getJobsMock = vi.fn();
-const upsertWorkspaceForContextMock = vi.fn();
+const getMyJobsMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
+    getMyJobs: (...args: unknown[]) => getMyJobsMock(...args),
     getMyMembersWithOrganizations: (...args: unknown[]) =>
       getMyMembersWithOrganizationsMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
@@ -35,30 +35,9 @@ vi.mock("next/headers", () => ({
   headers: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  invitationRepository: {},
-  jobRepository: {
-    getJobs: (...args: unknown[]) => getJobsMock(...args),
-  },
-  memberRepository: {},
-  organizationRepository: {},
-  userRepository: {},
-  workspaceRepository: {
-    upsertWorkspaceForContext: (...args: unknown[]) =>
-      upsertWorkspaceForContextMock(...args),
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
-}));
-
 describe("user.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    upsertWorkspaceForContextMock.mockResolvedValue({
-      id: "11111111-1111-7111-8111-111111111111",
-    });
   });
 
   it("returns only owned jobs for the active context", async () => {
@@ -66,23 +45,45 @@ describe("user.service", () => {
       user: { id: "user-1" },
       session: { activeOrganizationId: "org-1" },
     });
-    getJobsMock.mockResolvedValue([
-      { id: "job-2", createdAt: new Date("2026-02-13T10:00:00.000Z") },
-      { id: "job-1", createdAt: new Date("2026-02-12T10:00:00.000Z") },
-    ]);
+    const coreJob = {
+      agentId: "agent-1",
+      userId: "user-1",
+      jobType: "PAID",
+      status: "COMPLETED",
+      credits: 0,
+      user: { id: "user-1", name: "User One", image: null },
+      workspace: {
+        id: "workspace-1",
+        organizationId: "org-1",
+        organization: {
+          id: "org-1",
+          name: "Org One",
+          slug: "org-one",
+        },
+      },
+    };
+    getMyJobsMock.mockResolvedValue({
+      data: [
+        {
+          ...coreJob,
+          id: "job-2",
+          createdAt: "2026-02-13T10:00:00.000Z",
+          updatedAt: "2026-02-13T10:00:00.000Z",
+        },
+        {
+          ...coreJob,
+          id: "job-1",
+          createdAt: "2026-02-12T10:00:00.000Z",
+          updatedAt: "2026-02-12T10:00:00.000Z",
+        },
+      ],
+    });
 
     const { userService } = await import("../user.service");
     const result = await userService.getMyJobs("agent-1");
 
-    expect(getJobsMock).toHaveBeenCalledTimes(1);
-    expect(getJobsMock).toHaveBeenCalledWith(
-      {
-        agentId: "agent-1",
-        userId: "user-1",
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-      expect.any(Object),
-    );
+    expect(getMyJobsMock).toHaveBeenCalledTimes(1);
+    expect(getMyJobsMock).toHaveBeenCalledWith("agent-1");
     expect(result.map((job) => job.id)).toEqual(["job-2", "job-1"]);
   });
 

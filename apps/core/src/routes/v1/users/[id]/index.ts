@@ -19,7 +19,6 @@ import mountGetUserOrganizationMember from "./organizations/[organizationId]/mem
 import mountGetUserOrganizationSubscription from "./organizations/[organizationId]/subscription/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserOAuthConsents from "./oauth/consents/get.js";
-import mountDeleteUserOAuthConsent from "./oauth/consents/[consentId]/delete.js";
 import mountGetUserPreferredOrganization from "./preferred-organization/get.js";
 import mountPatchUserPreferredOrganization from "./preferred-organization/patch.js";
 import mountGetUserPreferences from "./preferences/get.js";
@@ -60,7 +59,6 @@ mountPostUserUploads(app);
 mountPostUserUtmAttribution(app);
 mountGetUserStripeCustomer(app);
 mountGetUserSubscriptionChangeAllowed(app);
-mountDeleteUserOAuthConsent(app);
 mountGetUserById(app);
 
 export default app;
