@@ -15,7 +15,7 @@ const { createAgentJobForUserMock, flattenJobMock, requireTaskAccessMock } =
   }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskAccessMock,
+  requireCoworkerTaskCollaboration: requireTaskAccessMock,
 }));
 
 vi.mock("@/helpers/job", () => ({
@@ -141,7 +141,7 @@ describe("POST /tasks/{id}/jobs", () => {
     );
   });
 
-  it("forwards the delegation context to task collaboration access", async () => {
+  it("uses assigned-agent collaboration, not delegation, to resolve the task", async () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
@@ -159,56 +159,15 @@ describe("POST /tasks/{id}/jobs", () => {
       body: requestBody,
     });
 
+    // The endpoint is coworker-scoped and routes through the coworker-only
+    // helper, which ignores delegation (assignment is enforced internally).
     expect(response.status).toBe(201);
     expect(requireTaskAccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actor: "coworker",
         coworkerId: "cow_123",
-        delegation: {
-          userId: "user_123",
-          organizationId: "org_123",
-        },
       }),
       "tsk_123",
     );
-    expect(createAgentJobForUserMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner: {
-          userId: "user_123",
-          organizationId: "org_123",
-          workspaceId: "11111111-1111-7111-8111-111111111111",
-        },
-      }),
-    );
-  });
-
-  it("rejects adding a job to a draft task", async () => {
-    requireTaskAccessMock.mockResolvedValue({
-      id: "tsk_123",
-      userId: "user_123",
-      organizationId: "org_123",
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      status: TaskStatus.DRAFT,
-    });
-
-    const app = createApp({
-      actor: "coworker",
-      coworkerId: "cow_123",
-      delegation: {
-        userId: "user_123",
-        organizationId: "org_123",
-      },
-    });
-
-    const response = await app.request("http://localhost/tsk_123/jobs", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: requestBody,
-    });
-
-    expect(response.status).toBe(422);
-    expect(createAgentJobForUserMock).not.toHaveBeenCalled();
   });
 });

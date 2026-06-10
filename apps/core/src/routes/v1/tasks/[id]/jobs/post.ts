@@ -1,8 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
 
-import { requireTaskCollaboration } from "@/helpers/access-control";
-import { unprocessableEntity } from "@/helpers/error";
+import { requireCoworkerTaskCollaboration } from "@/helpers/access-control";
 import { createAgentJobForUser } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -50,17 +48,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
 
     const { id: taskId } = c.req.valid("param");
-    const task = await requireTaskCollaboration(authContext, taskId);
-
-    // The non-delegated coworker path already excludes DRAFT inside
-    // requireCoworkerTaskCollaboration, which returns 404 to avoid leaking task
-    // existence to an unassigned agent. The delegated/owner path resolves via
-    // task ownership, which does not exclude DRAFT; since that caller already
-    // knows the task exists, reject DRAFT with an explanatory 422 rather than a
-    // 404. The differing status codes are intentional, not an oversight.
-    if (task.status === TaskStatus.DRAFT) {
-      throw unprocessableEntity("Cannot add a job to a draft task");
-    }
+    // Assigned-agent-only collaboration: this endpoint is coworker-scoped and
+    // intentionally does NOT honor delegation. Delegated/user job creation goes
+    // through the user-context routes (agents/{id}/jobs, projects/{id}/jobs).
+    // See SOK-554: per-coworker delegation authz before broadening this.
+    const task = await requireCoworkerTaskCollaboration(authContext, taskId);
 
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
