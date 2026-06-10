@@ -45,6 +45,11 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   role: "user",
 };
 
+const USER_AUTH_WITH_ORG: AuthenticationContext = {
+  ...USER_AUTH_CONTEXT,
+  organizationId: "org_1",
+};
+
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
@@ -83,7 +88,7 @@ describe("GET /workspaces/design-md", () => {
     expect(response.status).toBe(403);
   });
 
-  it("uses the organization DESIGN.md when the caller is a member", async () => {
+  it("uses the organization DESIGN.md when the active workspace org has one", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
       id: "member_1",
     });
@@ -91,12 +96,17 @@ describe("GET /workspaces/design-md", () => {
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/org.md" }),
     });
 
-    const response = await createApp().request(
-      "http://localhost/design-md?organizationId=org_1",
+    const response = await createApp(USER_AUTH_WITH_ORG).request(
+      "http://localhost/design-md",
     );
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_1",
+      expect.anything(),
+    );
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org.md",
@@ -104,7 +114,7 @@ describe("GET /workspaces/design-md", () => {
     expect(getUserByIdMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to the personal DESIGN.md when the organization has none", async () => {
+  it("falls back to the personal DESIGN.md when the active org has none", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
       id: "member_1",
     });
@@ -115,8 +125,8 @@ describe("GET /workspaces/design-md", () => {
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });
 
-    const response = await createApp().request(
-      "http://localhost/design-md?organizationId=org_1",
+    const response = await createApp(USER_AUTH_WITH_ORG).request(
+      "http://localhost/design-md",
     );
     const body = await response.json();
 
@@ -133,8 +143,8 @@ describe("GET /workspaces/design-md", () => {
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });
 
-    const response = await createApp().request(
-      "http://localhost/design-md?organizationId=org_1",
+    const response = await createApp(USER_AUTH_WITH_ORG).request(
+      "http://localhost/design-md",
     );
     const body = await response.json();
 
@@ -146,7 +156,7 @@ describe("GET /workspaces/design-md", () => {
     });
   });
 
-  it("returns the personal DESIGN.md when no workspace organization is given", async () => {
+  it("returns the personal DESIGN.md when no organization workspace is active", async () => {
     getUserByIdMock.mockResolvedValueOnce({
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
     });

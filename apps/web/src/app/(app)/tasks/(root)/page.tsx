@@ -164,7 +164,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       }),
     ),
     session?.user.id
-      ? designMdService.resolveEffectiveDesignMd(activeOrganizationId)
+      ? designMdService.resolveEffectiveDesignMd()
       : null,
   ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);

@@ -62,8 +62,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultChatRailOpen =
     cookieStore.get("chat_sidebar_state")?.value === "true";
 
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
-
   const [
     shouldShowOnboarding,
     pendingNoticesResult,
@@ -79,7 +77,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
     hermesBetaEnabled(),
-    designMdService.resolveEffectiveDesignMd(activeOrganizationId),
+    designMdService.resolveEffectiveDesignMd(),
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);

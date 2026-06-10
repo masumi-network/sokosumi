@@ -206,7 +206,6 @@ describe("task link actions", () => {
 
     expect(appendDesignMdToDescriptionMock).toHaveBeenCalledWith(
       "Created related task",
-      "org-1",
     );
     expect(taskServiceMock.createTask).toHaveBeenCalledWith(
       expect.objectContaining({

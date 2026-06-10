@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import {
   memberRepository,
   userRepository,
@@ -17,27 +17,12 @@ import { effectiveDesignMdSchema } from "@/schemas/design-md.schema";
 
 const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
 
-const querySchema = z.object({
-  organizationId: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "organizationId", in: "query" },
-      description:
-        "The organization whose workspace is active. When the caller is a member, the organization's DESIGN.md is used; otherwise the personal (user) workspace DESIGN.md is returned.",
-      example: "org_123",
-    }),
-});
-
 const route = createRoute({
   method: "get",
   path: "/design-md",
   description:
-    "Resolve the DESIGN.md in effect for the caller's current workspace. When `organizationId` is supplied and the caller is a member, the organization workspace's DESIGN.md is used; otherwise the personal workspace's DESIGN.md (or null) is returned.",
+    "Resolve the DESIGN.md in effect for the caller's current workspace. The active workspace is taken from the session (the active organization, or the personal workspace when none): when the caller is a member of the active organization, that organization's DESIGN.md is used; otherwise the personal workspace's DESIGN.md (or null) is returned.",
   tags: ["Workspaces"],
-  request: {
-    query: querySchema,
-  },
   responses: {
     200: jsonSuccessResponse(
       effectiveDesignMdSchema,
@@ -63,8 +48,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { userId } = requireUserContext(c.var.authContext);
-    const { organizationId } = c.req.valid("query");
+    const { userId, organizationId } = requireUserContext(c.var.authContext);
 
     if (organizationId) {
       const member = await memberRepository.getMemberByUserIdAndOrganizationId(

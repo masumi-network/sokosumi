@@ -17769,12 +17769,7 @@ export type PostTasksByIdJobsResponse = PostTasksByIdJobsResponses[keyof PostTas
 export type GetWorkspacesDesignMdData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * The organization whose workspace is active. When the caller is a member, the organization's DESIGN.md is used; otherwise the personal (user) workspace DESIGN.md is returned.
-         */
-        organizationId?: string;
-    };
+    query?: never;
     url: '/workspaces/design-md';
 };
 

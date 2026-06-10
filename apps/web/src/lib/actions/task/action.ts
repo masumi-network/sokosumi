@@ -130,7 +130,6 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
 }
 
 async function createTaskFromDescription(input: {
-  activeOrganizationId?: string | null;
   description: string;
   coworkerId: string | null;
   projectId?: string | null;
@@ -156,10 +155,7 @@ async function createTaskFromDescription(input: {
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
   const descriptionWithDesignMd = input.skipDesignMdAttachment
     ? trimmedDescription
-    : await designMdService.appendDesignMdToDescription(
-        trimmedDescription,
-        input.activeOrganizationId,
-      );
+    : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
   return taskService.createTask({
     name,
@@ -298,7 +294,6 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
   }) => {
     try {
       const task = await createTaskFromDescription({
-        activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,
@@ -555,7 +550,6 @@ export const createTaskAndLink = withSession<
 
     try {
       createdTask = await createTaskFromDescription({
-        activeOrganizationId: session.session.activeOrganizationId ?? null,
         description,
         coworkerId,
         projectId,

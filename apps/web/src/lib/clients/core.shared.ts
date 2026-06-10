@@ -1232,17 +1232,16 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
-   * Resolves the DESIGN.md in effect for the caller's current workspace. When
-   * `organizationId` is supplied and the caller is a member, the organization
-   * workspace's DESIGN.md takes precedence over the personal one.
+   * Resolves the DESIGN.md in effect for the caller's current workspace. Core
+   * derives the active workspace from the session (the active organization, or
+   * the personal workspace when none).
    */
-  async function getWorkspaceDesignMd(organizationId?: null | string) {
+  async function getWorkspaceDesignMd() {
     return executeOperation(
       getClient,
       (client) =>
         coreGetWorkspacesDesignMd({
           client,
-          query: organizationId ? { organizationId } : undefined,
           cache: "no-store",
         }),
       "Failed to resolve workspace DESIGN.md",

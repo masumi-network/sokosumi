@@ -1437,7 +1437,7 @@ export const postTasksByIdJobs = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Resolve the DESIGN.md in effect for the caller's current workspace. When `organizationId` is supplied and the caller is a member, the organization workspace's DESIGN.md is used; otherwise the personal workspace's DESIGN.md (or null) is returned.
+ * Resolve the DESIGN.md in effect for the caller's current workspace. The active workspace is taken from the session (the active organization, or the personal workspace when none): when the caller is a member of the active organization, that organization's DESIGN.md is used; otherwise the personal workspace's DESIGN.md (or null) is returned.
  */
 export const getWorkspacesDesignMd = <ThrowOnError extends boolean = false>(options?: Options<GetWorkspacesDesignMdData, ThrowOnError>): RequestResult<GetWorkspacesDesignMdResponses, GetWorkspacesDesignMdErrors, ThrowOnError> => (options?.client ?? client).get<GetWorkspacesDesignMdResponses, GetWorkspacesDesignMdErrors, ThrowOnError>({
     responseTransformer: getWorkspacesDesignMdResponseTransformer,

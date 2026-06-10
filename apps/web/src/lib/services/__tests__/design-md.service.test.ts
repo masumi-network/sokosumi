@@ -346,9 +346,9 @@ describe("designMdService", () => {
     });
 
     const { designMdService } = await import("../design-md.service");
-    const designMd = await designMdService.resolveEffectiveDesignMd("org-1");
+    const designMd = await designMdService.resolveEffectiveDesignMd();
 
-    expect(getWorkspaceDesignMdMock).toHaveBeenCalledWith("org-1");
+    expect(getWorkspaceDesignMdMock).toHaveBeenCalledWith();
     expect(designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org-design.md",
@@ -361,7 +361,7 @@ describe("designMdService", () => {
     });
 
     const { designMdService } = await import("../design-md.service");
-    const designMd = await designMdService.resolveEffectiveDesignMd(null);
+    const designMd = await designMdService.resolveEffectiveDesignMd();
 
     expect(designMd).toBeNull();
   });
@@ -377,14 +377,10 @@ describe("designMdService", () => {
     });
 
     const { designMdService } = await import("../design-md.service");
-    const description = await designMdService.appendDesignMdToDescription(
-      "Build landing page",
-      null,
-    );
-    const duplicate = await designMdService.appendDesignMdToDescription(
-      description,
-      null,
-    );
+    const description =
+      await designMdService.appendDesignMdToDescription("Build landing page");
+    const duplicate =
+      await designMdService.appendDesignMdToDescription(description);
 
     expect(description).toBe(
       "[DESIGN.md](https://blob.example/user-design.md)\n\nBuild landing page",
@@ -407,10 +403,8 @@ describe("designMdService", () => {
       "",
       "Build landing page",
     ].join("\n");
-    const description = await designMdService.appendDesignMdToDescription(
-      seededDescription,
-      null,
-    );
+    const description =
+      await designMdService.appendDesignMdToDescription(seededDescription);
 
     expect(description).toBe(seededDescription);
   });

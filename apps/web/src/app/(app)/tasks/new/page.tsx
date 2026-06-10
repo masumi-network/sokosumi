@@ -20,9 +20,7 @@ export default async function NewTaskPage() {
     getSession(),
   ]);
   const initialDesignMdAttachment = session?.user.id
-    ? await designMdService.resolveEffectiveDesignMd(
-        session.session.activeOrganizationId ?? null,
-      )
+    ? await designMdService.resolveEffectiveDesignMd()
     : null;
   const coworkerOptions = getCoworkerOptions(taskCoworkers);
   const agentNameById = buildAgentNameById(agents);

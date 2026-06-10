@@ -337,20 +337,16 @@ export const designMdService = (() => {
     });
   }
 
-  async function resolveEffectiveDesignMd(
-    activeOrganizationId?: null | string,
-  ): Promise<EffectiveDesignMdAttachment | null> {
-    const { data } =
-      await coreClient.getWorkspaceDesignMd(activeOrganizationId);
+  async function resolveEffectiveDesignMd(): Promise<EffectiveDesignMdAttachment | null> {
+    const { data } = await coreClient.getWorkspaceDesignMd();
 
     return data.designMd;
   }
 
   async function appendDesignMdToDescription(
     description: string,
-    activeOrganizationId?: null | string,
   ): Promise<string> {
-    const designMd = await resolveEffectiveDesignMd(activeOrganizationId);
+    const designMd = await resolveEffectiveDesignMd();
 
     if (
       !designMd ||
