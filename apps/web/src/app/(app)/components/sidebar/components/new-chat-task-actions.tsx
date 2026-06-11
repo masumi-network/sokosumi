@@ -28,19 +28,19 @@ export default function NewChatTaskActions() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.key.toLowerCase() !== "k" ||
-        !(event.metaKey || event.ctrlKey)
-      ) {
-        return;
-      }
-
       const target = event.target;
       if (target instanceof HTMLElement) {
         const tag = target.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
           return;
         }
+      }
+
+      if (
+        event.key?.toLowerCase() !== "k" ||
+        !(event.metaKey || event.ctrlKey)
+      ) {
+        return;
       }
 
       event.preventDefault();
