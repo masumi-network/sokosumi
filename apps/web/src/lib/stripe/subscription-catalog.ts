@@ -1,10 +1,10 @@
 import "server-only";
 
 import type { StripePlan } from "@better-auth/stripe";
-import { FREE_SUBSCRIPTION_MONTHLY_CREDITS } from "@sokosumi/database/helpers";
-import type {
-  PaidSubscriptionPlanName,
-  SelfServeSubscriptionPlanName,
+import {
+  FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+  type PaidSubscriptionPlanName,
+  type SelfServeSubscriptionPlanName,
 } from "@sokosumi/utils";
 import type Stripe from "stripe";
 

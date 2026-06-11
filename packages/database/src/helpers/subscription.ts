@@ -1,4 +1,7 @@
-import { convertCreditsToCents } from "@sokosumi/utils";
+import {
+  convertCreditsToCents,
+  FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+} from "@sokosumi/utils";
 import {
   CreditBucketReferenceType,
   type Prisma,
@@ -20,7 +23,6 @@ export const ACTIVE_SUBSCRIPTION_STATUSES = [
   "unpaid",
 ] as const;
 
-export const FREE_SUBSCRIPTION_MONTHLY_CREDITS = 250;
 export const FREE_SUBSCRIPTION_PLAN = "free";
 export const MONTHLY_BILLING_INTERVAL = "month";
 

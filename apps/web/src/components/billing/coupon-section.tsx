@@ -1,10 +1,9 @@
-import type { Organization } from "@sokosumi/database";
-
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
 import CreditsSuccessModal from "@/app/credits/components/success-modal";
 import CouponForm from "@/components/credits/coupon-form";
 import { stripeClient } from "@/lib/clients";
+import type { Organization } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
 

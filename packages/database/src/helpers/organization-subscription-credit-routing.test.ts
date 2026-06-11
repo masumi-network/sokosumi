@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FREE_SUBSCRIPTION_MONTHLY_CREDITS } from "@sokosumi/utils";
 import { describe, it, vi } from "vitest";
 import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 
@@ -7,7 +8,6 @@ import {
   buildLocalFreeUserSubscriptionReferenceId,
   type EnsureLocalFreeSubscriptionPeriodParams,
   ensureLocalFreeSubscriptionPeriod,
-  FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   grantFreeOrganizationMemberSubscriptionCredits,
 } from "./subscription.js";
 

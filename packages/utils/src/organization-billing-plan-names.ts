@@ -1,3 +1,6 @@
+/** Monthly credit grant for the free subscription plan. */
+export const FREE_SUBSCRIPTION_MONTHLY_CREDITS = 250;
+
 export type SelfServeSubscriptionPlanName =
   | "free"
   | "starter"

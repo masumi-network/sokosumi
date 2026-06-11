@@ -127,25 +127,32 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         ? { cancel: query.cancel, session_id: query.session_id }
         : undefined;
 
-    const [enterpriseContractSummary, seatSummary, organizationCredits] =
-      await Promise.all([
-        isEnterpriseContract
-          ? getEnterpriseContractBillingSummary(activeOrganization.id)
-          : Promise.resolve(null),
-        organizationSeatService.getSeatSummary(activeOrganization.id),
-        // Always load the org credit balance so the balance section shows the
-        // real figure. It is unused when the enterprise summary renders, but is
-        // the correct fallback when the enterprise summary is absent (core
-        // reports no active contract, 404 -> null) despite the locally resolved
-        // plan saying it was an enterprise contract.
-        coreClient.getMyOrganizationCredits(activeOrganization.id),
-      ]);
+    const [
+      enterpriseContractSummary,
+      seatSummary,
+      organizationCredits,
+      organizationStripeCustomer,
+    ] = await Promise.all([
+      isEnterpriseContract
+        ? getEnterpriseContractBillingSummary(activeOrganization.id)
+        : Promise.resolve(null),
+      organizationSeatService.getSeatSummary(activeOrganization.id),
+      // Always load the org credit balance so the balance section shows the
+      // real figure. It is unused when the enterprise summary renders, but is
+      // the correct fallback when the enterprise summary is absent (core
+      // reports no active contract, 404 -> null) despite the locally resolved
+      // plan saying it was an enterprise contract.
+      coreClient.getMyOrganizationCredits(activeOrganization.id),
+      coreClient.getOrganizationStripeCustomer(activeOrganization.id),
+    ]);
+    const organizationStripeCustomerId =
+      organizationStripeCustomer.data.stripeCustomerId;
     const currentSeats = seatSummary.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
       organizationCredits.data.credits.total,
     );
     const organizationBillingPortal =
-      activeOrganization.stripeCustomerId && showOrganizationBillingPortal ? (
+      organizationStripeCustomerId && showOrganizationBillingPortal ? (
         <BalanceBillingPortalLink
           baseReturnPath="/billing"
           description={t("billingPortalDescription")}
@@ -189,7 +196,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               creditsLabel={t("balanceCreditsLabel", {
                 credits: displayCredits,
               })}
-              stripeCustomerId={activeOrganization.stripeCustomerId}
+              stripeCustomerId={organizationStripeCustomerId}
               stripeCustomerLabel={t("stripeCustomerIdLabel")}
               billingPortal={organizationBillingPortal}
             />
