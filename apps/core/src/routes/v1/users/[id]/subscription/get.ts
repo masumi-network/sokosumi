@@ -60,6 +60,8 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
+    // Validate the path param shape; the resolved user id comes from the route
+    // context (`me` resolution + access checks), not the raw param.
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
