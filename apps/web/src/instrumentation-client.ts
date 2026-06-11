@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-mutation-errors";
 import {
   beforeSendClientEvent,
   thirdPartyAnalyticsDenyUrls,
@@ -16,6 +17,7 @@ Sentry.init({
   // https://github.com/getsentry/sentry-javascript/issues/16542
 
   denyUrls: thirdPartyAnalyticsDenyUrls,
+  ignoreErrors: thirdPartyDomMutationIgnoreErrors,
   beforeSend: beforeSendClientEvent,
 
   integrations: [Sentry.replayIntegration({})],
