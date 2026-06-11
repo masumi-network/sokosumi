@@ -1,6 +1,6 @@
 # Spec Template
 
-Tech Lead appends this as `## Spec` on the Sapphire issue. Delete sections that do not apply except **Data flow**.
+Tech Lead writes this as the **session spec** (not posted to Linear). Delete sections that do not apply except **Data flow**.
 
 ````markdown
 ## Spec
@@ -80,9 +80,9 @@ Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`.
 - Non-goals for v1.
 ````
 
-## Before saving to Linear
+## Before handing to Coder
 
 - No YAML plan frontmatter.
 - Remove empty optional sections.
 - Keep Data flow, Verification, Out of scope.
-- Preserve `## Requirement`, `## Investigation`, and `## Sapphire status` above this section.
+- Spec stays in orchestrator session — not written to Linear.

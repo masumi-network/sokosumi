@@ -59,7 +59,7 @@ Footer to append:
 | Reviewer | pending |
 
 ---
-_Sapphire squad — run `.cursor/skills/_team-sapphire/SKILL.md` on this issue._
+_Sapphire squad — run `.cursor/skills/_team-sapphire/SKILL.md` on this issue. Complete all four phases in one session through **In Review** — do not stop after Investigator._
 ```
 
 ### 2. Delegate to Cursor (default)
@@ -84,7 +84,7 @@ Ensure Linear MCP is enabled on the Cloud Agent run (first delegated run may nee
 ### 3. Informational comment (optional)
 
 ```markdown
-Requirement filed. Team Sapphire handoff — orchestrator runs Investigator → Tech Lead → Coder → Reviewer on this issue.
+Requirement filed. Team Sapphire handoff — orchestrator runs Investigator → Tech Lead → Coder → Reviewer on this issue in **one session** through In Review.
 ```
 
 Do **not** include `@Cursor` when `delegate` is set.

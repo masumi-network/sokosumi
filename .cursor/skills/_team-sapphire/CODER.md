@@ -1,12 +1,12 @@
 # Coder
 
-**Goal:** Implement `## Spec` on the Sapphire issue. Open a PR. Hand off to Reviewer on the **same issue**.
+**Goal:** Implement the **session spec** from Tech Lead. Open a PR. Hand off to Reviewer on the **same issue**.
 
 ## Inputs
 
-- `## Spec` — sole source of truth for behavior and deliverables
-- `## Investigation` — context only when spec is ambiguous
-- `## Requirement` — product intent when spec references goal/out of scope
+- **Session spec** — sole source of truth for behavior and deliverables
+- **Session investigation** — context only when spec is ambiguous
+- `## Requirement` on Linear — product intent when spec references goal/out of scope
 
 ## Single coder
 
@@ -30,7 +30,7 @@ When Tech Lead defined `### Coder A`, `### Coder B`, …:
 
 Each subagent prompt must include:
 
-- Its coder block from `## Spec`
+- Its coder block from the **session spec** (inline — not a Linear link)
 - File ownership table
 - "Do not edit files owned by other coders"
 - Link to Linear issue id

@@ -6,11 +6,11 @@ Two skills. One Linear issue. Approval gate only on `_task`.
 flowchart LR
   user["User idea"] --> task["_task skill"]
   task --> approve{"User\napproves?"}
-  approve -->|yes| issue["Single Linear issue\nRequirement + Sapphire"]
+  approve -->|yes| issue["Linear issue\nRequirement + status"]
   approve -->|no| task
   issue --> sapphire["_team-sapphire"]
-  sapphire --> inv["Investigator"]
-  inv --> lead["Tech Lead\nfinal spec"]
+  sapphire --> inv["Investigator\n(session)"]
+  inv --> lead["Tech Lead\n(session spec)"]
   lead --> code["Coder(s)"]
   code --> pr["Pull request"]
   pr --> rev["Reviewer\n/goal loop"]
@@ -18,18 +18,24 @@ flowchart LR
   review --> human["Human merge → Done"]
 ```
 
+## Single session rule
+
+The orchestrator runs **Investigator → Tech Lead → Coder → Reviewer** in one agent session. Phase completion comments are audit markers — not handoff to a new run.
+
+Resume: use **artifact-aware resume** in `SKILL.md` — status `done` does not skip a phase when session investigation or spec is missing. Rebuild Investigator → Tech Lead before Coder or Reviewer in a new session; then finish every later phase in the same session.
+
 ## Roles
 
-| Role | Output | Blocks next? |
-|------|--------|--------------|
-| **Investigator** | `## Investigation` — pitfalls, similar code, technical recommendations | No |
-| **Tech Lead** | `## Spec` — implementable spec, optional coder breakdown | No |
-| **Coder** | Code + PR + `**PR handoff**` | No |
-| **Reviewer** | Evidence + issue **In Review** | Yes — human merge waits for Reviewer pass |
+| Role | Output | Where it lives |
+|------|--------|----------------|
+| **Investigator** | Pitfalls, patterns, recommendations | **Session** → Tech Lead |
+| **Tech Lead** | Implementable spec, optional coder breakdown | **Session** → Coder, Reviewer |
+| **Coder** | Code + PR + `**PR handoff**` | GitHub + Linear comments |
+| **Reviewer** | Evidence + issue **In Review** | Linear state + comments |
 
-## Issue description shape
+## Issue description shape (Linear)
 
-One growing document on the same issue:
+Only requirement and progress on the issue:
 
 ```markdown
 ## Requirement
@@ -42,15 +48,11 @@ One growing document on the same issue:
 | Tech Lead | pending / done |
 | Coder | pending / done |
 | Reviewer | pending / done |
-
-## Investigation
-(Investigator)
-
-## Spec
-(Tech Lead — includes [repo=masumi-network/sokosumi])
 ```
 
-Phase transitions also post structured comments (`**Sapphire · … complete**`) for audit trail.
+Investigation and spec stay in the orchestrator session — not in this document.
+
+Phase transitions post structured **summary** comments (`**Sapphire · … complete**`) for audit trail.
 
 ## Status lifecycle
 
@@ -69,6 +71,7 @@ Manual: `Run _team-sapphire for SOK-XXX` in Cursor.
 ## What not to do
 
 - Do not create child Linear issues for spec, code, or review.
-- Do not run Coder before `## Spec` exists.
+- Do not write `## Investigation` or `## Spec` to the Linear description.
+- Do not run Coder before **session spec** exists.
 - Do not set **In Review** when the PR opens — Reviewer sets it on pass.
 - Do not mark **Done** before human merge.

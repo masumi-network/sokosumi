@@ -416,6 +416,14 @@ function PureMultimodalInput({
     );
   }, [initialDesignMdAttachment, isTaskComposer, setInput]);
 
+  useEffect(() => {
+    if (composeKind !== "chat") {
+      return;
+    }
+
+    setInput((prev) => removeDesignMdAttachmentLinks(prev));
+  }, [composeKind, setInput]);
+
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value);
   };

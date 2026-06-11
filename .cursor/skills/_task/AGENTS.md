@@ -22,3 +22,4 @@ Source of truth for drafting Sokosumi **requirement** issues before Team Sapphir
 - Draft in chat first. **Wait for approval.**
 - Keep requirements concise. No spec sections, no verification checklist.
 - After approval: one Linear issue + Sapphire handoff per `HANDOFF.md`.
+- On create, never omit `project: "Sokosumi"` (or user override) — verify with `get_issue` before handoff.

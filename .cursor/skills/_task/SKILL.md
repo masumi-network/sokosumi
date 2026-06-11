@@ -58,7 +58,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
      **Requirement draft:** project Sokosumi · state In Progress · priority Medium · assignee me · label Feature
      ```
 
-   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Team Sapphire adds those under `## Spec`.
+   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Tech Lead adds those in the **session spec**.
 
 4. **Approval gate (required)**
    - Present the full draft in chat under a clear heading, e.g. `## Draft requirement — review before Linear`.
@@ -76,7 +76,8 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
 5. **Publish and hand off (only after approval)**
    - Read `LINEAR-MCP.md`.
    - Run MCP health check before any write.
-   - Create the issue in `Sokosumi`, state `In Progress`, priority Medium (`3`), assignee `me`, with exactly one label.
+   - Create via `save_issue` with **all** required fields from `LINEAR-MCP.md` — always include `project: "Sokosumi"` when the user did not override project (do not skip it).
+   - After create, run post-create verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults) before handoff.
    - Read MCP tool descriptors before any call.
    - Follow `HANDOFF.md` when `handoffToSapphire` is true (default).
    - Return issue id/URL, label, delegate status, and handoff path.
