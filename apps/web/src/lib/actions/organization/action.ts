@@ -171,25 +171,25 @@ export const inviteOrganizationMembersBulk = withSession<
     });
   }
 
-  const member = await userService.getMyMemberInOrganization(
-    parsedResult.data.organizationId,
-  );
-
-  if (!member) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "You are not a member of this organization",
-    });
-  }
-
-  if (!isOrganizationOwnerOrAdmin(member.role)) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "Only organization owners and admins can invite members",
-    });
-  }
-
   try {
+    const member = await userService.getMyMemberInOrganization(
+      parsedResult.data.organizationId,
+    );
+
+    if (!member) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      });
+    }
+
+    if (!isOrganizationOwnerOrAdmin(member.role)) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can invite members",
+      });
+    }
+
     return Ok(
       await organizationService.inviteMultipleMembers(
         parsedResult.data.organizationId,

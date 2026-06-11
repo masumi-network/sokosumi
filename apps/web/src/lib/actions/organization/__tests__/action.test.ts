@@ -215,6 +215,7 @@ describe("organization actions", () => {
         message: "Enter at least one valid email address",
       },
     });
+    expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
     expect(createInvitationMock).not.toHaveBeenCalled();
   });
 
@@ -237,7 +238,34 @@ describe("organization actions", () => {
         message: "You can invite up to 1 members at a time",
       },
     });
+    expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
     expect(createInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it("maps membership lookup failures to INTERNAL_SERVER_ERROR", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    getMyMemberInOrganizationMock.mockRejectedValue(
+      new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
+    );
+    const { inviteOrganizationMembersBulk } = await import("../action");
+
+    const result = await inviteOrganizationMembersBulk({
+      organizationId: "org-1",
+      rawEmails: "member@example.com",
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+      },
+    });
+    expect(createInvitationMock).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
   });
 });
 
