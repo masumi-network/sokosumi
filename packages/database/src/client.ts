@@ -22,7 +22,11 @@ export function createPrismaClient(databaseUrl: string): PrismaClient {
     // Detect dead TCP connections before the next query hits them.
     // Without this, a server-side idle-timeout closure looks like
     // "server conn crashed?" mid-transaction in serverless runtimes.
+    // keepAliveInitialDelayMillis must be set explicitly: the OS default
+    // (tcp_keepalive_time, typically 7200 s on Linux) is far longer than
+    // the 60 s between cron invocations, so probes would never fire in time.
     keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   });
   return new PrismaClient({ adapter });
 }
