@@ -70,11 +70,11 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
 - If `## Sapphire status` is **missing**, insert the initial status block per `LINEAR-MCP.md` (full-description merge via `save_issue`) **first** — do not run resume or cleanup rules until the table exists; then start Investigator (or the user’s explicit start phase).
 - If `## Sapphire status` is present, compute start phase with **artifact-aware resume** (do not use status table alone):
   1. Set `target` = user start phase if specified, else first row not `done` (Investigator → Tech Lead → Coder → Reviewer).
-  2. If `target` is Coder or Reviewer and there is no **session spec** in this run → set `target` to **Tech Lead** (even when Tech Lead = `done` on Linear).
-  3. If `target` is Tech Lead or later and there is no **session investigation** in this run → set `target` to **Investigator** (even when Investigator = `done` on Linear).
-  4. If user explicitly requested **that phase only** (e.g. `run investigator for SOK-XXX`), keep their phase — skip steps 2–3.
+  2. If user explicitly requested **that phase only** (e.g. `run investigator for SOK-XXX`) → run `target` and stop.
+  3. If `target` is Coder or Reviewer and there is no **session spec** in this run → set `target` to **Tech Lead** (even when Tech Lead = `done` on Linear).
+  4. If `target` is Tech Lead or later and there is no **session investigation** in this run → set `target` to **Investigator** (even when Investigator = `done` on Linear).
   5. Run from `target` through all later phases in this session.
-- If `**PR handoff**` + open PR exist and Coder = `done`, `target` is normally **Reviewer** — steps 2–3 still apply when session spec or investigation is missing.
+- If `**PR handoff**` + open PR exist and Coder = `done`, `target` is normally **Reviewer** — steps 3–4 still apply when session spec or investigation is missing.
 - If **every** status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — rebuild session spec via Tech Lead (and Investigator if needed) when missing, then verify PR + `/goal`; on pass set `In Review` and post `**Sapphire · Reviewer complete**`.
 - If **every** status row is `done` and issue is **`In Review`**, stop — await human merge.
 
