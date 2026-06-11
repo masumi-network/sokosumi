@@ -1,13 +1,11 @@
-import {
-  AgentJobStatus,
-  type JobEventWithRelations,
-  type JobWithSokosumiStatus,
-} from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { JobEvent } from "@/components/jobs/job-details/job-details-events.utils";
 import JobDetailsOutputs from "@/components/jobs/job-details/outputs";
+import type { Job } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -52,7 +50,7 @@ vi.mock("@/components/jobs/job-details/refund-request", () => ({
   default: () => <button type="button">refund</button>,
 }));
 
-function createJob(): JobWithSokosumiStatus {
+function createJob(): Job {
   return {
     id: "job-1",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
@@ -61,12 +59,13 @@ function createJob(): JobWithSokosumiStatus {
     agentId: "agent-1",
     userId: "user-1",
     organizationId: null,
+    organization: null,
+    projectId: null,
     taskId: null,
     name: "Shared Job",
     jobType: "FREE",
     status: SokosumiJobStatus.COMPLETED,
     credits: 0,
-    cents: BigInt(0),
     onChainStatus: null,
     onChainTransactionHash: null,
     result: "final result",
@@ -76,28 +75,18 @@ function createJob(): JobWithSokosumiStatus {
     inputSchema: null,
     agentJobId: "agent-job-1",
     identifierFromPurchaser: "purchase-id",
-    blockchainIdentifier: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
-    externalDisputeUnlockTime: null,
-    sellerVkey: null,
-    purchaseId: null,
-    transactionId: null,
-    refundedTransaction: null,
-    refundedTransactionId: null,
     share: null,
-    task: null,
-    purchase: null,
-    transaction: null,
     events: [],
-    jobStatusSettled: false,
     user: {
       id: "user-1",
       name: "Ada Lovelace",
       image: null,
     },
-    organization: null,
+    workspace: {
+      id: "workspace-1",
+      organizationId: null,
+      organization: null,
+    },
     agent: {
       id: "agent-1",
       name: "Research Agent",
@@ -114,22 +103,21 @@ function createJob(): JobWithSokosumiStatus {
       legalOther: null,
       overrideLegalOther: null,
     },
-  } as unknown as JobWithSokosumiStatus;
+  };
 }
 
-function createEvent(): JobEventWithRelations {
+function createEvent(): JobEvent {
   return {
     id: "event-1",
     createdAt: new Date("2026-03-26T10:06:00.000Z"),
     updatedAt: new Date("2026-03-26T10:06:00.000Z"),
-    jobId: "job-1",
     status: AgentJobStatus.COMPLETED,
+    inputSchema: null,
+    input: null,
     result: "final result",
-    transactionHash: null,
-    log: null,
-    postResultTransactionHash: null,
-    fileLinks: [],
-  } as unknown as JobEventWithRelations;
+    blobs: [],
+    links: [],
+  };
 }
 
 describe("JobDetailsOutputs", () => {

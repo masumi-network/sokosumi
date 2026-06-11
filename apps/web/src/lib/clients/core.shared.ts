@@ -1,7 +1,6 @@
 import type { Notice, NoticeKind } from "@sokosumi/database";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { mapCoreJobShare } from "@/lib/agents/core-dto-mappers";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
@@ -1710,7 +1709,7 @@ export function createCoreClient(getClient: GetClient) {
           };
         }
         return {
-          data: mapCoreJobShare(result.data.data),
+          data: result.data.data,
           error: undefined,
           response: result.response,
         };

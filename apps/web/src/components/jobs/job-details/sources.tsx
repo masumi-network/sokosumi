@@ -1,12 +1,13 @@
 "use client";
-import type { JobEventWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 
+import type { JobEvent } from "./job-details-events.utils";
+
 interface JobOutputSourcesProps {
-  event: JobEventWithRelations;
+  event: JobEvent;
 }
 export default function JotOutputSources({ event }: JobOutputSourcesProps) {
   return (

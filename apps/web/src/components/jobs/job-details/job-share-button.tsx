@@ -1,11 +1,11 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
+import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import JobShareModal from "./job-share-modal";
@@ -13,7 +13,7 @@ import JobShareModal from "./job-share-modal";
 interface JobShareModalHostProps {
   open: boolean;
   onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
-  job: JobWithSokosumiStatus;
+  job: Job;
 }
 
 function JobShareModalHost({
@@ -25,7 +25,7 @@ function JobShareModalHost({
 }
 
 interface JobShareButtonProps {
-  job: JobWithSokosumiStatus;
+  job: Job;
   label?: string;
   className?: string;
   variant?: React.ComponentProps<typeof Button>["variant"];

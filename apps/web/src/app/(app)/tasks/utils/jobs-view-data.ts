@@ -10,7 +10,8 @@ import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";
 
-type AgentForPreview = Parameters<typeof getAgentName>[0];
+type AgentForPreview = Parameters<typeof getAgentName>[0] &
+  Parameters<typeof getAgentResolvedIcon>[0];
 
 /** Minimal task shape used to resolve job coworker; full Task from getTaskById also accepted. */
 type TaskSeedForJob = { id: string; coworkerId: string | null };

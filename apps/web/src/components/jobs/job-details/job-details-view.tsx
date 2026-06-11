@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  JobEventWithRelations,
-  JobWithSokosumiStatus,
-  MemberWithOrganization,
-} from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/database";
 import { ArrowLeftRight, List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -25,6 +21,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Job } from "@/lib/clients/generated/core";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -33,6 +30,7 @@ import { JobStatusBadge } from "../job-status-badge";
 import JobDetailsInputs from "./inputs";
 import {
   getVisibleTimelineEvents,
+  type JobEvent,
   shouldHighlightJobEventBorder,
   shouldRenderAwaitingInputFormForViewer,
   splitInitiatedEvent,
@@ -49,7 +47,7 @@ import JobDetailsProvideInput from "./provide-input";
 import JotOutputSources from "./sources";
 
 export interface JobDetailsViewProps {
-  job: JobWithSokosumiStatus;
+  job: Job;
   readOnly?: boolean;
   className?: string;
   organizations?: MemberWithOrganization[];
@@ -149,7 +147,7 @@ export default function JobDetailsView({
                 </h2>
 
                 {visibleEvents.length > 0 ? (
-                  visibleEvents.map((event: JobEventWithRelations, index) => (
+                  visibleEvents.map((event: JobEvent, index) => (
                     <div key={`${job.id}-event-${event.id}`}>
                       <JobDetailsContent
                         job={job}
@@ -194,7 +192,7 @@ function JobDetailsHeader({
   showInlineActions,
   controller,
 }: {
-  job: JobWithSokosumiStatus;
+  job: Job;
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel?: string;
   readOnly: boolean;
@@ -216,7 +214,7 @@ function JobDetailsHeader({
       ) : null}
       <JobDetailsName
         editing={controller.editing}
-        name={job.name}
+        name={job.name ?? null}
         form={controller.form}
         handleSubmit={controller.submit}
         handleCancel={controller.cancelEditing}
@@ -232,7 +230,7 @@ function JobDetailsTopBarActions({
   onEdit,
   personalWorkspaceLabel,
 }: {
-  job: JobWithSokosumiStatus;
+  job: Job;
   editing: boolean;
   organizations?: MemberWithOrganization[];
   onEdit: () => void;
@@ -353,8 +351,8 @@ function JobDetailsInitiatedSection({
   job,
   event,
 }: {
-  job: JobWithSokosumiStatus;
-  event: JobEventWithRelations;
+  job: Job;
+  event: JobEvent;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.InitiatedSection");
 
@@ -366,7 +364,7 @@ function JobDetailsInitiatedSection({
       <div>
         <JobDetailsInputs
           input={event.input?.input ?? null}
-          inputSchema={event.inputSchema}
+          inputSchema={event.inputSchema ?? null}
           inputHash={event.input?.inputHash}
           identifierFromPurchaser={job.identifierFromPurchaser}
           jobType={job.jobType}
@@ -382,8 +380,8 @@ function JobDetailsContent({
   isLatestEvent,
   readOnly,
 }: {
-  job: JobWithSokosumiStatus;
-  event: JobEventWithRelations;
+  job: Job;
+  event: JobEvent;
   isLatestEvent: boolean;
   readOnly: boolean;
 }) {
@@ -488,7 +486,7 @@ function JobDetailsContent({
                 <section className="space-y-2">
                   <JobDetailsInputs
                     input={event.input.input}
-                    inputSchema={event.inputSchema}
+                    inputSchema={event.inputSchema ?? null}
                     inputHash={event.input.inputHash}
                     identifierFromPurchaser={job.identifierFromPurchaser}
                     jobType={job.jobType}
@@ -512,13 +510,7 @@ function JobDetailsContent({
   );
 }
 
-function getJobEventActor({
-  job,
-  event,
-}: {
-  job: JobWithSokosumiStatus;
-  event: JobEventWithRelations;
-}):
+function getJobEventActor({ job, event }: { job: Job; event: JobEvent }):
   | { type: "user"; name: string; imageUrl: string | null }
   | {
       type: "agent";
@@ -531,7 +523,7 @@ function getJobEventActor({
     name: agentName,
     agent: {
       name: agentName,
-      icon: job.agent.icon,
+      icon: job.agent.icon ?? null,
     },
   };
 

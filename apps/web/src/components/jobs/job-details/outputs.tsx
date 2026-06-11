@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  AgentJobStatus,
-  type JobEventWithRelations,
-  type JobWithSokosumiStatus,
-} from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
 import { hashResult } from "@sokosumi/masumi/hash";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,16 +9,18 @@ import { useMemo } from "react";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Separator } from "@/components/ui/separator";
+import type { Job } from "@/lib/clients/generated/core";
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";
 import { HashGroupRow } from "./hash-group-row";
+import type { JobEvent } from "./job-details-events.utils";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton, { canRenderRefundRequest } from "./refund-request";
 
 interface JobDetailsOutputsProps {
-  job: JobWithSokosumiStatus;
-  event: JobEventWithRelations;
+  job: Job;
+  event: JobEvent;
   readOnly?: boolean;
 }
 
@@ -97,7 +95,7 @@ function JobDetailsOutputsInner({
                 direction="result"
                 jobType={job.jobType}
                 onChainStatus={job.onChainStatus}
-                identifierFromPurchaser={job.identifierFromPurchaser}
+                identifierFromPurchaser={job.identifierFromPurchaser ?? null}
                 result={result}
                 externalHash={onChainResultHash}
                 hash={calculatedResultHash}

@@ -1,9 +1,9 @@
-import { JobType, type JobWithSokosumiStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { JobMetaDetails } from "@/components/jobs/job-details/job-meta-details";
+import type { Job } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -30,9 +30,7 @@ vi.mock("@/components/middle-truncate", () => ({
   MiddleTruncate: ({ text }: { text: string }) => <span>{text}</span>,
 }));
 
-function createJob(
-  overrides: Partial<JobWithSokosumiStatus> = {},
-): JobWithSokosumiStatus {
+function createJob(overrides: Partial<Job> = {}): Job {
   return {
     id: "job-1",
     name: "Job name",
@@ -40,29 +38,18 @@ function createJob(
     updatedAt: new Date("2026-03-27T10:00:00.000Z"),
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
-    jobType: JobType.FREE,
+    jobType: "FREE",
     agentId: "agent-1",
     userId: "user-1",
     organizationId: null,
-    agentJobId: "agent-job-1",
-    blockchainIdentifier: null,
-    identifierFromPurchaser: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
-    externalDisputeUnlockTime: null,
-    sellerVkey: null,
-    transaction: null,
-    transactionId: null,
-    refundedTransaction: null,
-    refundedTransactionId: null,
-    share: null,
+    organization: null,
+    projectId: null,
     taskId: null,
-    task: null,
-    purchase: null,
+    agentJobId: "agent-job-1",
+    identifierFromPurchaser: null,
+    share: null,
     events: [],
     credits: 0,
-    cents: BigInt(0),
     onChainStatus: null,
     onChainTransactionHash: null,
     input: null,
@@ -70,19 +57,22 @@ function createJob(
     inputSchema: null,
     result: null,
     resultHash: null,
-    jobStatusSettled: false,
     user: {
       id: "user-1",
       name: "User",
       image: null,
     },
-    organization: null,
+    workspace: {
+      id: "workspace-1",
+      organizationId: null,
+      organization: null,
+    },
     agent: {
       id: "agent-1",
       name: "Agent",
     },
     ...overrides,
-  } as unknown as JobWithSokosumiStatus;
+  };
 }
 
 describe("JobMetaDetails", () => {

@@ -1,10 +1,5 @@
 "use client";
 
-import {
-  JobType,
-  type JobWithSokosumiStatus,
-  type PaidJobWithStatus,
-} from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import {
   ExternalLink,
@@ -42,10 +37,26 @@ import {
   JobErrorCode,
   requestRefundJob,
 } from "@/lib/actions";
+import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
+/**
+ * Core `Job` narrowed to the paid variant the refund flow renders (mirrors the
+ * former Prisma `PaidJobWithStatus`).
+ *
+ * `unlockTime` is checked by `canRenderRefundRequest` for the COMPLETED and
+ * FAILED branches — the only statuses that reach a read (the refund/dispute
+ * statuses early-return via `STATUS_CONFIGS` first). `submitResultTime` is
+ * only guaranteed on the FAILED branch, so it keeps the core nullability and
+ * the FAILED readers narrow it locally.
+ */
+type PaidJob = Job & {
+  jobType: "PAID";
+  unlockTime: Date;
+};
+
 interface RequestRefundButtonProps {
-  initialJob: PaidJobWithStatus;
+  initialJob: PaidJob;
   className?: string;
 }
 
@@ -80,18 +91,16 @@ const STATUS_CONFIGS: Partial<Record<SokosumiJobStatus, StatusConfig>> = {
   },
 };
 
-export function canRenderRefundRequest(
-  job: JobWithSokosumiStatus,
-): job is PaidJobWithStatus {
-  if (job.jobType !== JobType.PAID) {
+export function canRenderRefundRequest(job: Job): job is PaidJob {
+  if (job.jobType !== "PAID") {
     return false;
   }
 
   switch (job.status) {
     case SokosumiJobStatus.COMPLETED:
-      return job.unlockTime !== null;
+      return job.unlockTime != null;
     case SokosumiJobStatus.FAILED:
-      return job.submitResultTime !== null && job.unlockTime !== null;
+      return job.submitResultTime != null && job.unlockTime != null;
     case SokosumiJobStatus.REFUND_PENDING:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_PENDING:
@@ -168,13 +177,13 @@ function RefundErrorButton({
  * @returns An object with `title` and `description` for the tooltip.
  */
 function makeTitleAndDescription(
-  job: PaidJobWithStatus,
+  job: PaidJob,
   t: IntlTranslation<"Components.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
   const isEnabled = isRefundEnabled(job);
 
-  if (job.status === SokosumiJobStatus.FAILED) {
+  if (job.status === SokosumiJobStatus.FAILED && job.submitResultTime != null) {
     // For failed jobs, use submitResultTime as the unlock time for refunds
     const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
       dateStyle: "medium",
@@ -224,11 +233,15 @@ function makeTitleAndDescription(
  * @param job - The job object containing status and relevant timestamps.
  * @returns True if refund is currently enabled, false otherwise.
  */
-function isRefundEnabled(job: PaidJobWithStatus): boolean {
+function isRefundEnabled(job: PaidJob): boolean {
   const now = new Date();
   switch (job.status) {
     case SokosumiJobStatus.FAILED:
-      return now > job.submitResultTime && now < job.unlockTime;
+      return (
+        job.submitResultTime != null &&
+        now > job.submitResultTime &&
+        now < job.unlockTime
+      );
     case SokosumiJobStatus.COMPLETED:
       return now < job.unlockTime;
     default:
@@ -268,7 +281,7 @@ export default function RequestRefundButton({
   // Handle complex interactive states (default case)
   const { title, description } = makeTitleAndDescription(job, t, formatter);
 
-  const handleRefundRequest = async (job: PaidJobWithStatus) => {
+  const handleRefundRequest = async (job: PaidJob) => {
     setIsLoading(true);
     setError(null);
 

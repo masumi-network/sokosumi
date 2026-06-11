@@ -1,6 +1,5 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -10,12 +9,13 @@ import { CopyableValue } from "@/components/copyable-value";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { getEnvPublicConfig } from "@/config/env.public";
+import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { buildJobTransactionUrl } from "@/lib/utils/url";
 
 export interface JobMetaDetailsProps {
-  job: JobWithSokosumiStatus;
+  job: Job;
   projectName?: string | null;
 }
 

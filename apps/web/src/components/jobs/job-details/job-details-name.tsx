@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
+import type { Job } from "@/lib/clients/generated/core";
 import {
   JOB_NAME_MAX_LENGTH,
   type JobDetailsNameFormSchemaType,
@@ -42,7 +42,7 @@ interface JobDetailsNameProps {
 }
 
 export function useJobDetailsNameController(
-  job: JobWithSokosumiStatus,
+  job: Job,
 ): UseJobDetailsNameControllerResult {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const router = useRouter();

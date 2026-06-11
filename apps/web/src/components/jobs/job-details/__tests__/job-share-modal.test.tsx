@@ -1,9 +1,9 @@
-import { JobType, type JobWithSokosumiStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import JobShareModal from "@/components/jobs/job-details/job-share-modal";
+import type { Job } from "@/lib/clients/generated/core";
 
 const { MockCoreApiRequestError } = vi.hoisted(() => {
   class MockCoreApiRequestError extends Error {
@@ -57,9 +57,13 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
-function createJob(
-  overrides: Partial<JobWithSokosumiStatus>,
-): JobWithSokosumiStatus {
+// The real @/queries barrel reaches the `getJob` server action and its
+// server-only auth/env imports; the modal only needs the query key.
+vi.mock("@/queries", () => ({
+  getJobQueryKey: (jobId: string) => ["jobs", jobId],
+}));
+
+function createJob(overrides: Partial<Job>): Job {
   return {
     id: "job-1",
     name: "Job name",
@@ -67,47 +71,39 @@ function createJob(
     updatedAt: new Date("2026-02-13T10:00:00.000Z"),
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
-    jobType: JobType.FREE,
+    jobType: "FREE",
     agentId: "agent-1",
     userId: "user-1",
     organizationId: null,
+    organization: null,
+    projectId: null,
     agentJobId: "agent-job-1",
-    blockchainIdentifier: null,
     identifierFromPurchaser: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
-    externalDisputeUnlockTime: null,
-    sellerVkey: null,
-    transaction: null,
-    transactionId: null,
-    refundedTransaction: null,
-    refundedTransactionId: null,
     share: null,
     taskId: null,
-    task: null,
-    purchase: null,
     events: [],
     credits: 0,
-    cents: BigInt(0),
     input: null,
     inputHash: null,
     inputSchema: null,
     result: null,
     resultHash: null,
-    jobStatusSettled: false,
     user: {
       id: "user-1",
       name: "User",
       image: null,
     },
-    organization: null,
+    workspace: {
+      id: "workspace-1",
+      organizationId: null,
+      organization: null,
+    },
     agent: {
       id: "agent-1",
       name: "Agent",
     },
     ...overrides,
-  } as unknown as JobWithSokosumiStatus;
+  };
 }
 
 describe("JobShareModal", () => {
@@ -175,9 +171,12 @@ describe("JobShareModal", () => {
         job={createJob({
           share: {
             id: "share-1",
+            jobId: "job-1",
             token: "public-token",
             allowSearchIndexing: true,
-          } as never,
+            createdAt: new Date("2026-02-13T10:00:00.000Z"),
+            updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+          },
         })}
       />,
     );
@@ -206,9 +205,12 @@ describe("JobShareModal", () => {
         job={createJob({
           share: {
             id: "share-1",
+            jobId: "job-1",
             token: "public-token",
             allowSearchIndexing: true,
-          } as never,
+            createdAt: new Date("2026-02-13T10:00:00.000Z"),
+            updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+          },
         })}
       />,
     );
@@ -233,9 +235,12 @@ describe("JobShareModal", () => {
         job={createJob({
           share: {
             id: "share-1",
+            jobId: "job-1",
             token: "public-token",
             allowSearchIndexing: true,
-          } as never,
+            createdAt: new Date("2026-02-13T10:00:00.000Z"),
+            updatedAt: new Date("2026-02-13T10:00:00.000Z"),
+          },
         })}
       />,
     );

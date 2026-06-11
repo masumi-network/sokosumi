@@ -1,9 +1,5 @@
 "use client";
 
-import type {
-  JobEventWithRelations,
-  JobWithSokosumiStatus,
-} from "@sokosumi/database";
 import {
   type InputSchemaSchemaType,
   normalizeAndValidateInputSchema,
@@ -26,13 +22,16 @@ import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { useProvideJobInput } from "@/hooks/use-provide-job-input";
+import type { Job } from "@/lib/clients/generated/core";
 import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
 import { getJobQueryKey } from "@/queries";
 
+import type { JobEvent } from "./job-details-events.utils";
+
 interface JobDetailsProvideInputProps {
-  job: JobWithSokosumiStatus;
-  event: JobEventWithRelations;
+  job: Job;
+  event: JobEvent;
 }
 
 export default function JobDetailsProvideInput({

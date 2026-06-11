@@ -1,6 +1,5 @@
 "use client";
 
-import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -22,13 +21,14 @@ import {
   CoreApiRequestError,
   coreClient,
 } from "@/lib/clients/core.browser.client";
+import type { Job, JobShare } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getJobQueryKey } from "@/queries";
 
 interface JobShareModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  job: JobWithSokosumiStatus;
+  job: Job;
 }
 
 export default function JobShareModal({
@@ -59,19 +59,16 @@ export default function JobShareModal({
 
   function syncJobShare(nextJobShare: JobShare | null) {
     setJobShare(nextJobShare);
-    queryClient.setQueryData<JobWithSokosumiStatus>(
-      getJobQueryKey(job.id),
-      (currentJob) => {
-        if (!currentJob) {
-          return currentJob;
-        }
+    queryClient.setQueryData<Job>(getJobQueryKey(job.id), (currentJob) => {
+      if (!currentJob) {
+        return currentJob;
+      }
 
-        return {
-          ...currentJob,
-          share: nextJobShare,
-        };
-      },
-    );
+      return {
+        ...currentJob,
+        share: nextJobShare,
+      };
+    });
   }
 
   const handleOnOpenChange = (open: boolean) => {

@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  JobWithSokosumiStatus,
-  MemberWithOrganization,
-} from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -24,10 +21,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Job } from "@/lib/clients/generated/core";
 
 interface JobDetailsModalProps {
   agentId: string;
-  job: JobWithSokosumiStatus;
+  job: Job;
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel?: string;
   projectName?: string | null;

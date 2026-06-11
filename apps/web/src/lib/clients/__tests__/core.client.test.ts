@@ -387,6 +387,10 @@ describe("core.client", () => {
       data: {
         data: {
           kind: "job",
+          // Wire-shaped ISO strings: the generated `getShareByToken`
+          // transformer only revives `meta.timestamp` (the union payload is
+          // skipped by the generator), so date revival is the mapper's job —
+          // the Date assertions below prove it.
           share: {
             id: "share_1",
             jobId: "job_1",
@@ -523,8 +527,6 @@ describe("core.client", () => {
       name: "Acme Labs",
       slug: "acme-labs",
     });
-    expect(response.job.transaction).toBeNull();
-    expect(response.job.purchase).toBeNull();
     expect(response.job.share?.token).toBe("public-share-token");
     expect(response.job.events[0]?.createdAt).toEqual(
       new Date("2026-03-26T10:10:00.000Z"),
