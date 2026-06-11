@@ -10874,6 +10874,115 @@ export type PatchUsersByIdPreferencesResponses = {
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
 
+export type DeleteUsersByIdOauthConsentsByConsentIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * OAuth consent ID
+         */
+        consentId: string;
+    };
+    query: {
+        /**
+         * OAuth client ID the consent was granted to; must match the consent
+         */
+        clientId: string;
+    };
+    url: '/users/{id}/oauth-consents/{consentId}';
+};
+
+export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
+    /**
+     * Bad Request - Client ID does not match consent
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Consent not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdOauthConsentsByConsentIdError = DeleteUsersByIdOauthConsentsByConsentIdErrors[keyof DeleteUsersByIdOauthConsentsByConsentIdErrors];
+
+export type DeleteUsersByIdOauthConsentsByConsentIdResponses = {
+    /**
+     * OAuth client access revoked
+     */
+    200: {
+        data: {
+            [key: string]: unknown;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdOauthConsentsByConsentIdResponse = DeleteUsersByIdOauthConsentsByConsentIdResponses[keyof DeleteUsersByIdOauthConsentsByConsentIdResponses];
+
 export type GetUsersByIdOnboardingData = {
     body?: never;
     path: {
