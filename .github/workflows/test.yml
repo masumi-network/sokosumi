@@ -12,9 +12,16 @@ env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
 jobs:
-  web:
-    name: Web
+  test:
+    name: Test ${{ matrix.target.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { name: Web, command: "pnpm web:test:ci" }
+          - { name: Core, command: "pnpm core:test:ci" }
+          - { name: Packages, command: 'pnpm --filter "./packages/*" test:ci' }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,47 +37,5 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Run Web Tests
-        run: pnpm web:test:ci
-
-  core:
-    name: Core
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install
-
-      - name: Run Core Tests
-        run: pnpm core:test:ci
-
-  packages:
-    name: Packages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install
-
-      - name: Run Package Tests
-        run: pnpm --filter "./packages/*" test:ci
+      - name: Run Tests
+        run: ${{ matrix.target.command }}
