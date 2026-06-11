@@ -17,6 +17,12 @@ import { PrismaClient } from "./generated/prisma/client.js";
  * ```
  */
 export function createPrismaClient(databaseUrl: string): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: databaseUrl });
+  const adapter = new PrismaPg({
+    connectionString: databaseUrl,
+    // Detect dead TCP connections before the next query hits them.
+    // Without this, a server-side idle-timeout closure looks like
+    // "server conn crashed?" mid-transaction in serverless runtimes.
+    keepAlive: true,
+  });
   return new PrismaClient({ adapter });
 }
