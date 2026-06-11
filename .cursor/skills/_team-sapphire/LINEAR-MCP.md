@@ -19,7 +19,7 @@ Every `save_issue` that sets `description` must:
 
 1. Call `get_issue` first.
 2. Start from the **full** existing `description`.
-3. Insert or update only the target parts (`## Sapphire status` row, `## Investigation`, `## Spec`).
+3. Insert, update, or **replace in place** the target parts (`## Sapphire status` row, `## Investigation`, `## Spec`). If a phase section already exists and you re-run that phase, replace the existing section — do not duplicate the heading.
 4. Pass the **entire** merged markdown in `description`.
 
 Linear **replaces** the whole field — never send only a new section or you wipe `## Requirement` and the Sapphire footer.
@@ -98,7 +98,7 @@ Use `## Sapphire status` as the source of truth — same rules as `SKILL.md` **R
 |-----------|--------|
 | Status Investigator = `done` | Skip Investigator unless user asked to re-run |
 | Status Tech Lead = `done` | Skip Tech Lead unless user asked to re-spec |
-| `## Investigation` or `## Spec` exists but status still `pending` | Run that phase; merge full description; set status → `done` |
+| `## Investigation` or `## Spec` exists but status still `pending` | Run that phase; **replace** existing section in merged description; set status → `done` |
 | `**PR handoff**` + open PR | Skip Coder; run Reviewer |
 
 Section headings alone do not skip a phase when status is still `pending`.

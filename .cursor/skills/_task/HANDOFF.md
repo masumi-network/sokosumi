@@ -92,12 +92,20 @@ Do **not** include `@Cursor` when `delegate` is set.
 
 ## In-session handoff
 
-When the user approved in this chat:
+When the user approved in this chat **and** step 2 set `delegate: "Cursor"`:
 
 ```text
-Requirement posted: SOK-XXX (delegated to Cursor / Team Sapphire).
+Requirement posted: SOK-XXX (delegated to Cursor — a Cloud Agent may already be running Team Sapphire).
 
-To continue in this chat instead of Cloud Agent, say: run _team-sapphire for SOK-XXX
+To run the orchestrator in this chat instead, wait for or cancel the Cloud run first, then say: run _team-sapphire for SOK-XXX
+
+Do not run both in parallel — duplicate orchestrators race on the same issue.
+```
+
+When handoff used manual `@Cursor` only (no delegate), omit the Cloud warning and use:
+
+```text
+Requirement posted: SOK-XXX. To continue in this chat, say: run _team-sapphire for SOK-XXX
 ```
 
 ## Opt-out

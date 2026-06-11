@@ -4,7 +4,7 @@
 
 ## You produce
 
-Append `## Investigation` to the Linear issue (merge full description per `LINEAR-MCP.md`). Comment summary when done.
+Merge or **replace** `## Investigation` in the full issue description per `LINEAR-MCP.md`. If `## Investigation` already exists, update that section in place — do not append a second block. Comment summary when done.
 
 ## Do
 

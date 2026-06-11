@@ -32,7 +32,9 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 - Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run.
 - Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
 - If start phase is not specified, read `## Sapphire status` and resume at the **first** phase whose status is not `done`, in order: Investigator → Tech Lead → Coder → Reviewer.
-- If `## Sapphire status` is missing, start at Investigator.
+- If every status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — verify PR + `/goal`; on pass set `In Review` and post `**Sapphire · Reviewer complete**`; do not re-run earlier phases unless the user asked.
+- If every status row is `done` and issue is **`In Review`**, stop — await human merge.
+- If `## Sapphire status` is missing, insert the initial status block per `LINEAR-MCP.md` (full-description merge via `save_issue`) **before** Phase 1 — then start Investigator.
 
 ## Workflow
 
@@ -87,6 +89,7 @@ Use `## Sapphire status` as the source of truth for which phase to run. Section 
 | `## Sapphire status` — Tech Lead = done | Skip Tech Lead unless user asked to re-spec |
 | `## Spec` present but Tech Lead still `pending` | Run Tech Lead — status table wins |
 | `**PR handoff**` comment + open PR | Skip Coder; run Reviewer |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — set `In Review` when criteria pass; do not restart Investigator–Coder |
 | Issue `In Review` + Reviewer done | Stop — await human merge |
 
 ## Output

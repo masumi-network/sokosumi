@@ -9,7 +9,7 @@
 
 ## You produce
 
-- Full `## Spec` section from `SPEC-TEMPLATE.md` — merge into the full issue description per `LINEAR-MCP.md`, never post the section alone
+- Full `## Spec` section from `SPEC-TEMPLATE.md` — merge or **replace in place** per `LINEAR-MCP.md`; never post the section alone or duplicate `## Spec`
 - Apply `SUBAGENT-RUBRIC.md` for architecture sections and **Coder breakdown**
 - When rubric score ≥ 2: define named coders (`Coder A — …`) with file ownership — Tech Lead decides parallel vs sequential
 
