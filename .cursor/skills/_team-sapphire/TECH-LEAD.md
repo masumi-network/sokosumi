@@ -41,3 +41,8 @@ Post `**Sapphire · Tech Lead complete**` with:
 - Coder count (1 or N)
 - Execution order one-liner
 - Link to spec section (issue URL)
+
+## Handoff to Coder
+
+- **Sapphire orchestrator (default):** After Tech Lead complete, continue to Phase 3 (Coder) in the **same run** per `SKILL.md` — do not stop early.
+- **Standalone Tech Lead** (user invoked Tech Lead only): Stop after `**Sapphire · Tech Lead complete**`; Coder runs in a separate session.

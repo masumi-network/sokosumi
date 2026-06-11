@@ -1,6 +1,6 @@
 ---
 name: _team-sapphire
-description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — from requirement through PR and /goal review. Use after _task posts a requirement, when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue is delegated with Sapphire handoff footer.
+description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — in one session from requirement through PR and /goal review until In Review. Use after _task posts a requirement, when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue is delegated with Sapphire handoff footer.
 disable-model-invocation: true
 ---
 
@@ -9,6 +9,27 @@ disable-model-invocation: true
 You are the **Sapphire orchestrator**. One Linear issue. Four roles. No child issues.
 
 Run the squad in order on the **same issue** `_task` created (or any SOK issue the user points at with a requirement body).
+
+## Continuous orchestration (critical)
+
+**Do not stop after one phase.** You are the orchestrator — run every remaining phase in **this same agent session** until the pipeline finishes or you hit an unrecoverable blocker.
+
+| After phase completes | Next action |
+|----------------------|-------------|
+| Investigator → `done` | **Immediately** start Phase 2 (Tech Lead) — do not return to the user yet |
+| Tech Lead → `done` | **Immediately** start Phase 3 (Coder) |
+| Coder → `done` + PR open | **Immediately** start Phase 4 (Reviewer) |
+| Reviewer → `done` | Set issue **In Review**, then return summary to user |
+
+**Only stop early when:**
+
+- Issue is already **In Review** and Reviewer is `done` (await human merge).
+- User explicitly asked to run a single phase only (e.g. `run investigator for SOK-XXX`).
+- Unrecoverable blocker (no GitHub access, Linear MCP down, spec impossible) — report what finished, what is blocked, and the issue URL.
+
+**Never** treat Investigator, Tech Lead, or Coder as standalone jobs when you were delegated from `_task` or invoked as `_team-sapphire` on a full issue. Phase comments (`**Sapphire · … complete**`) mark progress — they are **not** exit signals.
+
+Resume runs: start at the first phase still `pending` in `## Sapphire status`, then **continue through all later phases in the same session** unless a stop condition above applies.
 
 ## Runtime
 
@@ -46,6 +67,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 2. Merge `## Investigation` into the **full** issue description via `save_issue` per `LINEAR-MCP.md` — never post the section alone.
 3. Post comment `**Sapphire · Investigator complete**` with a 3–5 bullet summary.
 4. Update `## Sapphire status` — Investigator → `done` (same merged `save_issue` or follow-up write with full body).
+5. **Continue in this run** — proceed to Phase 2 without stopping.
 
 ### Phase 2 — Tech Lead
 
@@ -54,6 +76,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 3. Merge `## Spec` into the **full** issue description per `LINEAR-MCP.md`. Include `[repo=…]`, data flow, contracts, verification hints, coder breakdown when rubric score ≥ 2.
 4. Post comment `**Sapphire · Tech Lead complete**` with execution order and coder count.
 5. Update status — Tech Lead → `done` (in the same merged write when possible).
+6. **Continue in this run** — proceed to Phase 3 without stopping.
 
 ### Phase 3 — Coder(s)
 
@@ -64,6 +87,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 5. Open PR; PR body must reference the Linear issue id.
 6. Post `**PR handoff**` comment per `REVIEWER.md`.
 7. Post `**Sapphire · Coder complete**`. Update status — Coder → done. Stay **In Progress** — do not set In Review yet.
+8. **Continue in this run** — proceed to Phase 4 without stopping.
 
 ### Phase 4 — Reviewer
 
@@ -94,7 +118,7 @@ Use `## Sapphire status` as the source of truth for which phase to run. Section 
 
 ## Output
 
-Return issue id/URL, phases completed, PR link (if any), and current Linear state.
+Return issue id/URL, **all phases completed in this run**, PR link (if any), and current Linear state. If you stopped early, say which phase blocked and why — stopping after Investigator alone is a failure unless the user asked for a single phase.
 
 ## Supporting files
 

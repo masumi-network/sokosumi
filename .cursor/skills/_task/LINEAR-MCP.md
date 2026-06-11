@@ -15,18 +15,28 @@ const LINEAR_ASSIGNEE = "me";
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```
 
-Create exactly one issue with:
+## Required on create (never omit)
 
-- Team: `SOK`
-- Project: `Sokosumi`, unless user override
-- State: `In Progress`
-- Priority: `3` (Medium) unless user passed a different priority
-- Assignee: `me` unless user passed a different assignee
-- Label: exactly one of `Feature`, `Bug`, or `Improvement`
-- Description: approved markdown from `REQUIREMENT-TEMPLATE.md` (must include `## Requirement` heading)
-- Title: user-approved proposed title (Conventional Commit style when possible)
-- Do **not** set `delegate` on create — `HANDOFF.md` sets delegate after Sapphire footer
-- Do **not** set `parentId` unless user asked to file under an epic/parent
+Every `save_issue` **create** call (no `id`) must include **all** of:
+
+| Field | Default |
+|-------|---------|
+| `title` | user-approved proposed title |
+| `description` | approved requirement (`## Requirement`) |
+| `team` | `SOK` |
+| `project` | `Sokosumi` |
+| `state` | `In Progress` |
+| `priority` | `3` (Medium) |
+| `assignee` | `me` |
+| `labels` | exactly one of `Feature`, `Bug`, `Improvement` |
+
+Override only when the user explicitly passed a different value during intake.
+
+**Never omit `project`.** If the user did not name a project, always pass `"project": "Sokosumi"`. Linear leaves issues unscoped when `project` is missing.
+
+Do **not** set `delegate` on create — `HANDOFF.md` sets delegate after Sapphire footer.
+
+Do **not** set `parentId` unless user asked to file under an epic/parent.
 
 ## Hard rules
 
@@ -35,6 +45,7 @@ Create exactly one issue with:
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded.
 - **Never create before user approval.**
+- **Never create without `project`** — same rule as `assignee`, `state`, and `priority`.
 
 ## MCP health check
 
@@ -59,7 +70,19 @@ Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issu
 4. Priority → `3` (Medium) unless user override
 5. Assignee → `me` unless user override
 6. Label → exact match from draft
-7. Create issue via `save_issue` (no `id`, no `delegate`)
+7. Create issue via `save_issue` (no `id`, no `delegate`) — pass the full required field set above
+
+## Post-create verify (before handoff)
+
+Immediately after create:
+
+1. `get_issue` with the new identifier.
+2. If any default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
+   - `project` null/empty → `"Sokosumi"`
+   - no assignee → `"me"`
+   - state not `In Progress` → `"In Progress"`
+   - priority not Medium (`3`) → `3`
+3. Do not start `HANDOFF.md` until defaults are confirmed on the issue.
 
 ## Write-call shape
 

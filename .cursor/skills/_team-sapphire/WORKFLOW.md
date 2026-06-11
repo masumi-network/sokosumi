@@ -18,6 +18,12 @@ flowchart LR
   review --> human["Human merge → Done"]
 ```
 
+## Single session rule
+
+The orchestrator runs **Investigator → Tech Lead → Coder → Reviewer** in one agent session. Phase completion comments are audit markers — not handoff to a new run.
+
+Resume: start at the first `pending` row in `## Sapphire status`, then finish every later phase in the same session.
+
 ## Roles
 
 | Role | Output | Blocks next? |

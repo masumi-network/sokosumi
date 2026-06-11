@@ -4,6 +4,8 @@
 
 Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
 
+**Sapphire orchestrator:** Phase 4 runs in the **same session** as Phases 1–3 — do not exit after Coder complete.
+
 ## `/goal` loop
 
 Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are possible:

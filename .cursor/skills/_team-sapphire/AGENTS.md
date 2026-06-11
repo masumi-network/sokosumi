@@ -19,3 +19,5 @@ Requirement intake and approval: `../_task/SKILL.md`.
 ## Output rule
 
 Keep specs concise. Tech Lead spec always includes a data flow diagram. All phases update the **same** Linear issue — no child issues.
+
+**Orchestrator:** Run all four phases in one session through **In Review**. Do not stop after Investigator (or any single phase) unless the user asked for that phase only or you hit an unrecoverable blocker.
