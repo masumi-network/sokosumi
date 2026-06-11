@@ -36,3 +36,21 @@ a short kebab-case description — e.g. for `SOK-555`, name the branch
 `sok-555-short-description`. Prefer the `gitBranchName` Linear provides for the
 issue when available.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in Linear (team "Sokosumi", key `SOK`), accessed via the Linear MCP
+tools. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix
+(Canceled); labels `needs-info` / `ready-for-agent` / `ready-for-human`. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily).
+See `docs/agents/domain.md`.
+
