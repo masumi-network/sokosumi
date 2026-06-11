@@ -25,23 +25,26 @@ Skip handoff when `handoffToSapphire: false` — see **Opt-out** below.
 
 ### 0. Idempotency check
 
-Load the issue with `get_issue` before any handoff write.
+Load the issue with `get_issue` before any handoff write. **Re-call `get_issue` immediately before steps 1 and 2** — do not reuse an earlier snapshot; another agent may have updated the issue.
 
 | Condition | Action |
 |-----------|--------|
-| Description contains `## Sapphire status` **and** delegate is already `Cursor` | Stop handoff — return issue URL; comment optional: "Sapphire handoff already active." |
-| Description contains `## Sapphire status` **and** delegate is not `Cursor` | Skip step 1; run step 2 (delegate only) |
-| No `## Sapphire status` | Run steps 1–2 |
+| `## Sapphire status` **and** delegate is `Cursor` | Stop handoff — return issue URL; optional comment: "Sapphire handoff already active." |
+| `## Sapphire status` **and** delegate is not `Cursor` | Skip step 1; run step 2 (delegate only) |
+| No `## Sapphire status` **and** delegate is `Cursor` | Run step 1 only — **skip step 2** (delegate already set; do not delegate again) |
+| No `## Sapphire status` **and** delegate is not `Cursor` | Run steps 1 then 2 |
 
-Do not append a second footer or set `delegate` twice on the same issue.
+Do not append a second footer or call `save_issue` with `delegate: "Cursor"` when delegate is already `Cursor`.
 
 ### 1. Add Sapphire footer to description
 
-**Required:** Use the **full** description from step 0’s `get_issue` as the base. `save_issue` **replaces** the entire `description` field — never post only the footer block or you will wipe the approved requirement.
+Skip when a fresh `get_issue` shows `## Sapphire status` already present.
 
-1. Start from the complete existing description returned by `get_issue`.
+**Required:** Call `get_issue` **immediately before** merging and saving — not the snapshot from step 0. `save_issue` **replaces** the entire `description` field — never post only the footer block or you will wipe the approved requirement.
+
+1. Start from the complete description returned by that fresh `get_issue`.
 2. If `## Requirement` is missing, add that heading and keep the approved body under it.
-3. Append the footer below (only when step 0 found no `## Sapphire status`).
+3. Append the footer below.
 4. Call `save_issue` with `id` and the **merged** `description` string.
 
 Footer to append:
@@ -61,7 +64,9 @@ _Sapphire squad — run `.cursor/skills/_team-sapphire/SKILL.md` on this issue._
 
 ### 2. Delegate to Cursor (default)
 
-After footer is saved (or when step 0 skipped footer because it already exists):
+Skip when a fresh `get_issue` shows delegate is already `Cursor`.
+
+After footer is saved (or step 1 was skipped because footer already exists):
 
 ```json
 {
