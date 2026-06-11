@@ -1,11 +1,6 @@
 import "server-only";
 
 import {
-  memberRepository,
-  organizationRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
-import {
   buildDesignMdPreviewUrl,
   createDesignMdClient,
   type DesignMdClient,
@@ -13,23 +8,10 @@ import {
   type DesignMdDonePayload,
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
-import {
-  buildOrganizationMetadataWithDesignMd,
-  buildUserMetadataWithDesignMd,
-  getOrganizationMetadata,
-  getUserMetadata,
-  parseOrganizationMetadata,
-  parseUserMetadata,
-  serializeMetadataRecord,
-} from "@sokosumi/utils";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { Session } from "@/lib/auth/auth";
-import {
-  isAllowedDesignMdBlobUrl,
-  uploadDesignMdToBlob,
-} from "@/lib/blob/design-md";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
 import {
@@ -40,8 +22,6 @@ import {
   descriptionIncludesTaskAttachmentLink,
   formatTaskAttachmentMarkdown,
 } from "@/lib/utils/task-attachments";
-
-const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
 
 type DesignMdServiceErrorCode =
   | "bad_input"
@@ -81,11 +61,6 @@ export type StartDesignMdGenerationResult =
       jobToken: string;
       kind: "queued";
     };
-
-interface ResolveEffectiveDesignMdInput {
-  activeOrganizationId?: null | string;
-  userId: string;
-}
 
 let client: DesignMdClient | null = null;
 
@@ -169,18 +144,15 @@ function createJobToken(
 }
 
 async function assertCanManageOwner(
-  session: Session,
   owner: DesignMdOwnerSchemaType,
 ): Promise<void> {
   if (owner.type === "user") return;
 
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    session.user.id,
+  const member = await coreClient.getMyMemberInOrganization(
     owner.organizationId,
-    prisma,
   );
 
-  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
+  if (!member || !isOrganizationOwnerOrAdmin(member.data.role)) {
     throw new DesignMdServiceError(
       "unauthorized",
       "Only organization owners and admins can manage DESIGN.md",
@@ -188,114 +160,40 @@ async function assertCanManageOwner(
   }
 }
 
-async function persistUserDesignMd(
-  session: Session,
-  designMd: { extractionId?: null | string; url?: null | string },
+async function persistDesignMdToProfile(
+  owner: DesignMdOwnerSchemaType,
+  designMd: { extractionId?: null | string; content?: null | string },
 ): Promise<PersistedDesignMd | null> {
-  const user = await userRepository.getUserById(session.user.id, prisma);
-  if (!user) {
-    throw new DesignMdServiceError("unauthorized", "User not found");
-  }
+  await assertCanManageOwner(owner);
 
-  const nextMetadata = buildUserMetadataWithDesignMd(
-    parseUserMetadata(user.metadata),
-    designMd,
-  );
-  const serializedMetadata = serializeMetadataRecord(nextMetadata);
+  const body = {
+    content: designMd.content ?? null,
+    extractionId: designMd.extractionId ?? null,
+  };
 
-  await userRepository.updateUserMetadata(
-    session.user.id,
-    serializedMetadata,
-    prisma,
-  );
+  const { data } =
+    owner.type === "user"
+      ? await coreClient.setMyDesignMd(body)
+      : await coreClient.setOrganizationDesignMd(owner.organizationId, body);
 
-  const persistedUrl = getUserMetadata(serializedMetadata).designMdUrl;
-  if (!persistedUrl) return null;
+  if (!data.designMd) return null;
 
-  const extractionId = getUserMetadata(serializedMetadata).designMdExtractionId;
+  const { extractionId, url } = data.designMd;
 
   return {
     extractionId,
     previewUrl: extractionId ? getDesignMdPreviewUrl(extractionId) : null,
-    url: persistedUrl,
+    url,
   };
-}
-
-async function persistOrganizationDesignMd(
-  organizationId: string,
-  designMd: { extractionId?: null | string; url?: null | string },
-): Promise<PersistedDesignMd | null> {
-  const organization =
-    await organizationRepository.getOrganizationWithRelationsById(
-      organizationId,
-      prisma,
-    );
-
-  if (!organization) {
-    throw new DesignMdServiceError("bad_input", "Organization not found");
-  }
-
-  const nextMetadata = buildOrganizationMetadataWithDesignMd(
-    parseOrganizationMetadata(organization.metadata),
-    designMd,
-  );
-  const serializedMetadata = serializeMetadataRecord(nextMetadata);
-
-  await organizationRepository.updateOrganizationById(
-    organizationId,
-    {
-      metadata: serializedMetadata,
-    },
-    prisma,
-  );
-
-  const persistedMetadata = getOrganizationMetadata(serializedMetadata);
-  if (!persistedMetadata.designMdUrl) return null;
-
-  return {
-    extractionId: persistedMetadata.designMdExtractionId,
-    previewUrl: persistedMetadata.designMdExtractionId
-      ? getDesignMdPreviewUrl(persistedMetadata.designMdExtractionId)
-      : null,
-    url: persistedMetadata.designMdUrl,
-  };
-}
-
-async function persistDesignMdToProfile(
-  session: Session,
-  owner: DesignMdOwnerSchemaType,
-  designMd: { extractionId?: null | string; url?: null | string },
-): Promise<PersistedDesignMd | null> {
-  await assertCanManageOwner(session, owner);
-
-  if (owner.type === "user") {
-    return persistUserDesignMd(session, designMd);
-  }
-
-  return persistOrganizationDesignMd(owner.organizationId, designMd);
 }
 
 async function persistDonePayload(
-  session: Session,
   owner: DesignMdOwnerSchemaType,
   donePayload: DesignMdDonePayload,
 ): Promise<PersistedDesignMd> {
-  const extractionId = String(donePayload.extractionId);
-  const blobUrl = await uploadDesignMdToBlob({
-    designMd: donePayload.designMd,
-    extractionId,
-  });
-
-  if (!blobUrl) {
-    throw new DesignMdServiceError(
-      "internal",
-      "Failed to upload generated DESIGN.md",
-    );
-  }
-
-  const persisted = await persistDesignMdToProfile(session, owner, {
-    extractionId,
-    url: blobUrl,
+  const persisted = await persistDesignMdToProfile(owner, {
+    extractionId: String(donePayload.extractionId),
+    content: donePayload.designMd,
   });
 
   if (!persisted) {
@@ -331,7 +229,7 @@ export const designMdService = (() => {
     url: string,
     force?: boolean,
   ): Promise<StartDesignMdGenerationResult> {
-    await assertCanManageOwner(session, owner);
+    await assertCanManageOwner(owner);
 
     const result = await getDesignMdClient().submit({ force, url });
     if (result.isErr()) throw toExternalServiceError(result.error);
@@ -347,7 +245,7 @@ export const designMdService = (() => {
     if (payload.status === "done") {
       return {
         kind: "completed",
-        data: await persistDonePayload(session, owner, payload),
+        data: await persistDonePayload(owner, payload),
       };
     }
 
@@ -365,7 +263,7 @@ export const designMdService = (() => {
     jobToken: string,
   ): Promise<DesignMdJobPayload> {
     assertValidJobToken(session, owner, jobId, jobToken);
-    await assertCanManageOwner(session, owner);
+    await assertCanManageOwner(owner);
 
     const result = await getDesignMdClient().pollJob(jobId);
     if (result.isErr()) throw toExternalServiceError(result.error);
@@ -380,101 +278,49 @@ export const designMdService = (() => {
     jobToken: string,
   ): Promise<PersistedDesignMd> {
     assertValidJobToken(session, owner, jobId, jobToken);
-    await assertCanManageOwner(session, owner);
+    await assertCanManageOwner(owner);
 
     const result = await getDesignMdClient().pollJob(jobId);
     if (result.isErr()) throw toExternalServiceError(result.error);
 
-    return persistDonePayload(session, owner, assertDonePayload(result.value));
+    return persistDonePayload(owner, assertDonePayload(result.value));
   }
 
   async function persistUploadedDesignMd(
-    session: Session,
     owner: DesignMdOwnerSchemaType,
-    url: string,
+    content: string,
   ): Promise<PersistedDesignMd> {
-    if (!isAllowedDesignMdBlobUrl(url, session.user.id)) {
-      throw new DesignMdServiceError(
-        "bad_input",
-        "DESIGN.md upload URL must come from Sokosumi blob storage",
-      );
-    }
-
-    const persisted = await persistDesignMdToProfile(session, owner, {
+    const persisted = await persistDesignMdToProfile(owner, {
       extractionId: null,
-      url,
+      content,
     });
 
     if (!persisted) {
-      throw new DesignMdServiceError(
-        "bad_input",
-        "DESIGN.md upload URL is required",
-      );
+      // Core only returns a null DESIGN.md when clearing; a non-empty upload
+      // should always round-trip a stored record.
+      throw new DesignMdServiceError("internal", "DESIGN.md was not persisted");
     }
 
     return persisted;
   }
 
-  async function removeDesignMd(
-    session: Session,
-    owner: DesignMdOwnerSchemaType,
-  ): Promise<void> {
-    await persistDesignMdToProfile(session, owner, {
+  async function removeDesignMd(owner: DesignMdOwnerSchemaType): Promise<void> {
+    await persistDesignMdToProfile(owner, {
       extractionId: null,
-      url: null,
+      content: null,
     });
   }
 
-  async function resolveEffectiveDesignMd({
-    activeOrganizationId,
-    userId,
-  }: ResolveEffectiveDesignMdInput): Promise<EffectiveDesignMdAttachment | null> {
-    if (activeOrganizationId) {
-      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        activeOrganizationId,
-        prisma,
-      );
+  async function resolveEffectiveDesignMd(): Promise<EffectiveDesignMdAttachment | null> {
+    const { data } = await coreClient.getWorkspaceDesignMd();
 
-      if (member) {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            activeOrganizationId,
-            prisma,
-          );
-        const organizationDesignMdUrl = getOrganizationMetadata(
-          organization?.metadata,
-        ).designMdUrl;
-
-        if (organizationDesignMdUrl) {
-          return {
-            label: DESIGN_MD_ATTACHMENT_LABEL,
-            url: organizationDesignMdUrl,
-          };
-        }
-      }
-    }
-
-    const user = await userRepository.getUserById(userId, prisma);
-    const userDesignMdUrl = getUserMetadata(user?.metadata).designMdUrl;
-
-    if (!userDesignMdUrl) return null;
-
-    return {
-      label: DESIGN_MD_ATTACHMENT_LABEL,
-      url: userDesignMdUrl,
-    };
+    return data.designMd;
   }
 
   async function appendDesignMdToDescription(
     description: string,
-    userId: string,
-    activeOrganizationId?: null | string,
   ): Promise<string> {
-    const designMd = await resolveEffectiveDesignMd({
-      activeOrganizationId,
-      userId,
-    });
+    const designMd = await resolveEffectiveDesignMd();
 
     if (
       !designMd ||

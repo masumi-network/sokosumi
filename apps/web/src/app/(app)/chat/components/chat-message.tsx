@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useStreamingContent } from "@/app/chat/hooks/use-streaming-content";
 import { useStreamingPaused } from "@/app/chat/hooks/use-streaming-paused";
+import { useTimeZone } from "@/app/chat/hooks/use-time-zone";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import { parseMarkdownWithDataImageSegments } from "@/app/chat/utils/generated-image-markdown";
 import { extractOAuthAuthorizationUrl } from "@/app/chat/utils/oauth-link";
@@ -83,13 +84,18 @@ export default function ChatMessage({
     setShowPromptToggle(overflow);
   }, [isUser, isPromptExpanded, displayContent]);
 
-  const timestamp = createdAt
-    ? formatter.dateTime(createdAt, {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      })
-    : null;
+  // `null` on the server and first client render so SSR and hydration agree;
+  // resolves to the client timezone after mount.
+  const timeZone = useTimeZone();
+
+  const timestamp =
+    createdAt && timeZone
+      ? formatter.dateTime(createdAt, {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone,
+        })
+      : null;
 
   const getAssistantAvatar = () => {
     if (modelId) {

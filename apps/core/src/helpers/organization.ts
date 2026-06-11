@@ -8,12 +8,21 @@ type OrgResolverClient = Pick<
   "organization" | "member"
 >;
 
-interface ResolveMemberOrganizationByIdInput {
-  id: string;
+interface ResolveMemberOrganizationInputBase {
   userId: string;
   /** Transaction client or default Prisma client. */
   tx: OrgResolverClient;
   allowedRoles?: MemberRole[];
+}
+
+interface ResolveMemberOrganizationByIdInput
+  extends ResolveMemberOrganizationInputBase {
+  id: string;
+}
+
+interface ResolveMemberOrganizationBySlugInput
+  extends ResolveMemberOrganizationInputBase {
+  slug: string;
 }
 
 type OrganizationRecord = Awaited<
@@ -32,6 +41,15 @@ async function getOrganizationById(
   });
 }
 
+async function getOrganizationBySlug(
+  tx: OrgResolverClient,
+  slug: string,
+): Promise<OrganizationRecord> {
+  return await tx.organization.findUnique({
+    where: { slug },
+  });
+}
+
 async function getMemberAccess(
   tx: OrgResolverClient,
   userId: string,
@@ -47,10 +65,10 @@ async function getMemberAccess(
   });
 }
 
-export async function resolveMemberOrganizationById(
-  input: ResolveMemberOrganizationByIdInput,
+async function resolveMemberAccess(
+  organization: OrganizationRecord,
+  input: ResolveMemberOrganizationInputBase,
 ) {
-  const organization = await getOrganizationById(input.tx, input.id);
   if (!organization) {
     throw notFound("Organization not found");
   }
@@ -71,4 +89,20 @@ export async function resolveMemberOrganizationById(
     organization,
     role: member.role,
   };
+}
+
+export async function resolveMemberOrganizationById(
+  input: ResolveMemberOrganizationByIdInput,
+) {
+  const organization = await getOrganizationById(input.tx, input.id);
+
+  return await resolveMemberAccess(organization, input);
+}
+
+export async function resolveMemberOrganizationBySlug(
+  input: ResolveMemberOrganizationBySlugInput,
+) {
+  const organization = await getOrganizationBySlug(input.tx, input.slug);
+
+  return await resolveMemberAccess(organization, input);
 }

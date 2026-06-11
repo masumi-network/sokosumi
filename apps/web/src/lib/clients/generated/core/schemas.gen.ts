@@ -4341,6 +4341,67 @@ export const CreditBucketBreakdownSchema = {
     ]
 } as const;
 
+export const PersistedDesignMdSchema = {
+    type: 'object',
+    properties: {
+        designMd: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                url: {
+                    type: 'string',
+                    example: 'https://blob.example/design.md',
+                    description: 'Public blob URL of the stored DESIGN.md'
+                },
+                extractionId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: '12345',
+                    description: 'Extraction id of the stored DESIGN.md, when known'
+                }
+            },
+            required: [
+                'url',
+                'extractionId'
+            ],
+            description: 'The persisted DESIGN.md, or null when cleared'
+        }
+    },
+    required: [
+        'designMd'
+    ]
+} as const;
+
+export const DesignMdWriteSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '# DESIGN.md\n\nBrand guidelines…',
+            description: 'DESIGN.md markdown to store, or null to clear it'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '12345',
+            description: 'Extraction id of the generated DESIGN.md, when known'
+        }
+    },
+    required: [
+        'content',
+        'extractionId'
+    ]
+} as const;
+
 export const MemberWithOrganizationSchema = {
     type: 'object',
     properties: {
@@ -4374,56 +4435,7 @@ export const MemberWithOrganizationSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         organization: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'org_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'My Organization'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'my-org'
-                },
-                logo: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/logo.png'
-                },
-                metadata: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: '{"url":"https://example.com"}'
-                },
-                createdAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                stripeCustomerId: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'cus_123'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'slug',
-                'logo',
-                'metadata',
-                'createdAt',
-                'stripeCustomerId'
-            ]
+            $ref: '#/components/schemas/OrganizationRecord'
         }
     },
     required: [
@@ -4434,6 +4446,59 @@ export const MemberWithOrganizationSchema = {
         'seatAssignedAt',
         'createdAt',
         'organization'
+    ]
+} as const;
+
+export const OrganizationRecordSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'My Organization'
+        },
+        slug: {
+            type: 'string',
+            example: 'my-org'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/logo.png'
+        },
+        metadata: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '{"url":"https://example.com"}'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        stripeCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cus_123'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'logo',
+        'metadata',
+        'createdAt',
+        'stripeCustomerId'
     ]
 } as const;
 
@@ -7081,5 +7146,37 @@ export const MasumiTaskPaymentSourceSchema = {
         'network',
         'smartContractAddress',
         'policyId'
+    ]
+} as const;
+
+export const EffectiveDesignMdSchema = {
+    type: 'object',
+    properties: {
+        designMd: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                label: {
+                    type: 'string',
+                    example: 'DESIGN.md',
+                    description: 'Attachment label'
+                },
+                url: {
+                    type: 'string',
+                    example: 'https://blob.example/design.md',
+                    description: 'Public blob URL of the DESIGN.md attachment'
+                }
+            },
+            required: [
+                'label',
+                'url'
+            ],
+            description: 'The effective DESIGN.md, or null when none'
+        }
+    },
+    required: [
+        'designMd'
     ]
 } as const;

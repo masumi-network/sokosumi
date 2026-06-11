@@ -1268,6 +1268,33 @@ export type CreditBucketBreakdown = {
     expiresAt: Date | null;
 };
 
+export type PersistedDesignMd = {
+    /**
+     * The persisted DESIGN.md, or null when cleared
+     */
+    designMd: {
+        /**
+         * Public blob URL of the stored DESIGN.md
+         */
+        url: string;
+        /**
+         * Extraction id of the stored DESIGN.md, when known
+         */
+        extractionId: string | null;
+    } | null;
+};
+
+export type DesignMdWrite = {
+    /**
+     * DESIGN.md markdown to store, or null to clear it
+     */
+    content: string | null;
+    /**
+     * Extraction id of the generated DESIGN.md, when known
+     */
+    extractionId: string | null;
+};
+
 export type MemberWithOrganization = {
     id: string;
     userId: string;
@@ -1275,15 +1302,17 @@ export type MemberWithOrganization = {
     role: string;
     seatAssignedAt: Date | null;
     createdAt: Date;
-    organization: {
-        id: string;
-        name: string;
-        slug: string;
-        logo: string | null;
-        metadata: string | null;
-        createdAt: Date;
-        stripeCustomerId: string | null;
-    };
+    organization: OrganizationRecord;
+};
+
+export type OrganizationRecord = {
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    metadata: string | null;
+    createdAt: Date;
+    stripeCustomerId: string | null;
 };
 
 export type Organization = {
@@ -1886,6 +1915,22 @@ export type MasumiTaskPaymentSource = {
     network: 'Preprod' | 'Mainnet';
     smartContractAddress: string;
     policyId: string;
+};
+
+export type EffectiveDesignMd = {
+    /**
+     * The effective DESIGN.md, or null when none
+     */
+    designMd: {
+        /**
+         * Attachment label
+         */
+        label: string;
+        /**
+         * Public blob URL of the DESIGN.md attachment
+         */
+        url: string;
+    } | null;
 };
 
 /**
@@ -9987,6 +10032,202 @@ export type GetUsersByIdCreditsResponses = {
 
 export type GetUsersByIdCreditsResponse = GetUsersByIdCreditsResponses[keyof GetUsersByIdCreditsResponses];
 
+export type GetUsersByIdDesignMdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/design-md';
+};
+
+export type GetUsersByIdDesignMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdDesignMdError = GetUsersByIdDesignMdErrors[keyof GetUsersByIdDesignMdErrors];
+
+export type GetUsersByIdDesignMdResponses = {
+    /**
+     * The user's stored DESIGN.md (null when none)
+     */
+    200: {
+        data: PersistedDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdDesignMdResponse = GetUsersByIdDesignMdResponses[keyof GetUsersByIdDesignMdResponses];
+
+export type PutUsersByIdDesignMdData = {
+    body?: DesignMdWrite;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/design-md';
+};
+
+export type PutUsersByIdDesignMdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - DESIGN.md storage failed
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutUsersByIdDesignMdError = PutUsersByIdDesignMdErrors[keyof PutUsersByIdDesignMdErrors];
+
+export type PutUsersByIdDesignMdResponses = {
+    /**
+     * The persisted DESIGN.md for the user
+     */
+    200: {
+        data: PersistedDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutUsersByIdDesignMdResponse = PutUsersByIdDesignMdResponses[keyof PutUsersByIdDesignMdResponses];
+
 export type GetUsersByIdMembersData = {
     body?: never;
     path: {
@@ -11463,6 +11704,91 @@ export type GetUsersByIdResponses = {
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
 
+export type GetOrganizationBySlugData = {
+    body?: never;
+    path: {
+        /**
+         * Organization slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/organizations/slug/{slug}';
+};
+
+export type GetOrganizationBySlugErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationBySlugError = GetOrganizationBySlugErrors[keyof GetOrganizationBySlugErrors];
+
+export type GetOrganizationBySlugResponses = {
+    /**
+     * Retrieve organization by slug
+     */
+    200: {
+        data: OrganizationRecord;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationBySlugResponse = GetOrganizationBySlugResponses[keyof GetOrganizationBySlugResponses];
+
 export type GetOrganizationsByIdData = {
     body?: never;
     path: {
@@ -11887,6 +12213,202 @@ export type GetOrganizationsByIdStripeCustomerResponses = {
 };
 
 export type GetOrganizationsByIdStripeCustomerResponse = GetOrganizationsByIdStripeCustomerResponses[keyof GetOrganizationsByIdStripeCustomerResponses];
+
+export type GetOrganizationsByIdDesignMdData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/design-md';
+};
+
+export type GetOrganizationsByIdDesignMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdDesignMdError = GetOrganizationsByIdDesignMdErrors[keyof GetOrganizationsByIdDesignMdErrors];
+
+export type GetOrganizationsByIdDesignMdResponses = {
+    /**
+     * The organization's stored DESIGN.md (null when none)
+     */
+    200: {
+        data: PersistedDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdDesignMdResponse = GetOrganizationsByIdDesignMdResponses[keyof GetOrganizationsByIdDesignMdResponses];
+
+export type PutOrganizationsByIdDesignMdData = {
+    body?: DesignMdWrite;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/design-md';
+};
+
+export type PutOrganizationsByIdDesignMdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - DESIGN.md storage failed
+     */
+    503: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdDesignMdError = PutOrganizationsByIdDesignMdErrors[keyof PutOrganizationsByIdDesignMdErrors];
+
+export type PutOrganizationsByIdDesignMdResponses = {
+    /**
+     * The persisted DESIGN.md for the organization
+     */
+    200: {
+        data: PersistedDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
 
 export type GetProjectsData = {
     body?: never;
@@ -17356,3 +17878,70 @@ export type PostTasksByIdJobsResponses = {
 };
 
 export type PostTasksByIdJobsResponse = PostTasksByIdJobsResponses[keyof PostTasksByIdJobsResponses];
+
+export type GetWorkspacesDesignMdData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/workspaces/design-md';
+};
+
+export type GetWorkspacesDesignMdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesDesignMdError = GetWorkspacesDesignMdErrors[keyof GetWorkspacesDesignMdErrors];
+
+export type GetWorkspacesDesignMdResponses = {
+    /**
+     * The DESIGN.md in effect for the current workspace
+     */
+    200: {
+        data: EffectiveDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesDesignMdResponse = GetWorkspacesDesignMdResponses[keyof GetWorkspacesDesignMdResponses];

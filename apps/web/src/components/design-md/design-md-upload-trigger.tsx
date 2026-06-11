@@ -19,15 +19,10 @@ import {
 import { saveDesignMdUpload } from "@/lib/actions/design-md";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 
 import { DESIGN_MD_TRANSLATION_NAMESPACE, type DesignMdOwner } from "./types";
 
 const DESIGN_MD_ACCEPT = ".md,.markdown,text/markdown,text/plain";
-const DESIGN_MD_ALLOWED_CONTENT_TYPES = ["text/markdown", "text/plain"];
 const DESIGN_MD_MAX_SIZE_BYTES = 1024 * 1024;
 
 interface DesignMdUploadTriggerProps {
@@ -52,7 +47,6 @@ export function DesignMdUploadTrigger({
       acceptedFiles: File[],
       options: {
         onError: (file: File, error: Error) => void;
-        onProgress: (file: File, progress: number) => void;
         onSuccess: (file: File) => void;
       },
     ) => {
@@ -61,17 +55,8 @@ export function DesignMdUploadTrigger({
 
       setIsUploading(true);
       try {
-        const uploadedFile = await uploadUserFileDirect(file, {
-          allowedContentTypes: DESIGN_MD_ALLOWED_CONTENT_TYPES,
-          maxSizeBytes: DESIGN_MD_MAX_SIZE_BYTES,
-          onUploadProgress: (progress) => {
-            options.onProgress(file, progress.percentage);
-          },
-        });
-        const result = await saveDesignMdUpload({
-          owner,
-          url: uploadedFile.publicUrl,
-        });
+        const content = await file.text();
+        const result = await saveDesignMdUpload({ owner, content });
 
         if (!result.ok) {
           throw new Error(result.error.message ?? t("uploadError"));
@@ -83,9 +68,7 @@ export function DesignMdUploadTrigger({
         toast.success(t("uploadSuccess"));
       } catch (error) {
         const message =
-          error instanceof Error
-            ? error.message
-            : getUserFileUploadErrorMessage(error, t("uploadError"));
+          error instanceof Error ? error.message : t("uploadError");
         options.onError(file, new Error(message));
         toast.error(message);
       } finally {

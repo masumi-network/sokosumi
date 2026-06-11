@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { organizationRecordSchema } from "@/schemas/organization.schema";
 
 const memberUserSchema = z.object({
   id: z.string().openapi({ example: "user_123" }),
@@ -50,28 +51,9 @@ export const memberRecordSchema = z
 export type MemberRecord = z.infer<typeof memberRecordSchema>;
 
 /**
- * Organization scalars as stored (metadata kept as the raw string column),
- * matching the Prisma `Organization` model embedded in a membership.
- */
-const memberOrganizationSchema = z.object({
-  id: z.string().openapi({ example: "org_123" }),
-  name: z.string().openapi({ example: "My Organization" }),
-  slug: z.string().openapi({ example: "my-org" }),
-  logo: z
-    .string()
-    .nullable()
-    .openapi({ example: "https://example.com/logo.png" }),
-  metadata: z
-    .string()
-    .nullable()
-    .openapi({ example: '{"url":"https://example.com"}' }),
-  createdAt: dateTimeSchema,
-  stripeCustomerId: z.string().nullable().openapi({ example: "cus_123" }),
-});
-
-/**
- * A membership of the authenticated user including the embedded organization.
- * Shape mirrors the Prisma `MemberWithOrganization` type.
+ * A membership of the authenticated user including the embedded organization
+ * record (see {@link organizationRecordSchema}). Shape mirrors the Prisma
+ * `MemberWithOrganization` type.
  */
 export const memberWithOrganizationSchema = z
   .object({
@@ -81,7 +63,7 @@ export const memberWithOrganizationSchema = z
     role: z.string().openapi({ example: "member" }),
     seatAssignedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
-    organization: memberOrganizationSchema,
+    organization: organizationRecordSchema,
   })
   .openapi("MemberWithOrganization");
 

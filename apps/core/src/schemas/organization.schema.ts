@@ -34,6 +34,31 @@ export type OrganizationWithRole = z.infer<typeof organizationWithRoleSchema>;
 
 export const organizationsSchema = z.array(organizationWithRoleSchema);
 
+/**
+ * Raw organization record (no relations) with `metadata` kept as the stored
+ * string column. Mirrors the Prisma `Organization` model so web callers can
+ * keep consuming the database `Organization` type unchanged.
+ */
+export const organizationRecordSchema = z
+  .object({
+    id: z.string().openapi({ example: "org_123" }),
+    name: z.string().openapi({ example: "My Organization" }),
+    slug: z.string().openapi({ example: "my-org" }),
+    logo: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/logo.png" }),
+    metadata: z
+      .string()
+      .nullable()
+      .openapi({ example: '{"url":"https://example.com"}' }),
+    createdAt: dateTimeSchema,
+    stripeCustomerId: z.string().nullable().openapi({ example: "cus_123" }),
+  })
+  .openapi("OrganizationRecord");
+
+export type OrganizationRecord = z.infer<typeof organizationRecordSchema>;
+
 export const organizationSummarySchema = z
   .object({
     id: z.string().openapi({ example: "org_123" }),
