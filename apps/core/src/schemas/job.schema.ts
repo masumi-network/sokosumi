@@ -221,6 +221,9 @@ export const jobSchema = z
     workspace: workspaceSummarySchema,
     agent: jobDetailsAgentSchema,
     events: z.array(jobDetailsEventSchema),
+    // Union-with-null instead of `jobShareSchema.nullable()`: `.nullable()` on a
+    // named `.openapi(...)` schema leaks `| null` into the generated `JobShare`
+    // component itself. Keep the union so the nullability stays on this field.
     share: z.union([jobShareSchema, z.null()]).openapi({ example: null }),
   })
   .openapi("Job");
