@@ -72,26 +72,6 @@ export const subscriptionRepository = {
   },
 
   /**
-   * Active subscription with the latest `periodEnd` (any status window).
-   * Ignores whether `now` falls inside that period.
-   */
-  async getLatestActiveSubscriptionByReferenceId(
-    referenceId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Subscription | null> {
-    return await tx.subscription.findFirst({
-      where: {
-        referenceId,
-        ...activeSubscriptionStatusWhere(),
-      },
-      orderBy: [
-        { periodEnd: { sort: "desc", nulls: "last" } },
-        { updatedAt: "desc" },
-      ],
-    });
-  },
-
-  /**
    * Active subscription with the latest `periodEnd` among rows whose period has
    * started (`periodStart` null or `<= now`). Excludes pre-created successors
    * whose `periodStart` is still in the future.

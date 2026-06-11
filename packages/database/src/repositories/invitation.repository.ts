@@ -27,27 +27,6 @@ export const invitationRepository = {
     });
   },
 
-  /**
-   * Checks if there is at least one pending invitation for a given email.
-   *
-   * @param email - The email address to search invitations for.
-   * @param tx - Optional Prisma transaction client.
-   * @returns Promise resolving to true if there is at least one pending invitation for the given email, false otherwise.
-   */
-  async hasPendingInvitationByEmail(
-    email: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<boolean> {
-    const count = await tx.invitation.count({
-      where: {
-        email,
-        status: InvitationStatus.PENDING,
-      },
-      take: 1,
-    });
-    return count > 0;
-  },
-
   async getPendingInvitationsByOrganizationId(
     organizationId: string,
     tx: Prisma.TransactionClient,

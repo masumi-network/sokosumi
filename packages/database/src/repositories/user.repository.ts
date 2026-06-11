@@ -36,22 +36,6 @@ export const userRepository = {
   },
 
   /**
-   * Retrieves all users that do not have a Stripe customer ID.
-   *
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to an array of User objects without Stripe customer IDs.
-   */
-  getUsersWithoutStripeCustomerId: async (
-    tx: Prisma.TransactionClient,
-  ): Promise<User[]> => {
-    return tx.user.findMany({
-      where: {
-        stripeCustomerId: null,
-      },
-    });
-  },
-
-  /**
    * Searches users by name or email using a case-insensitive partial match.
    *
    * @param query - The search term to match against user name and email.
@@ -80,69 +64,6 @@ export const userRepository = {
       orderBy: { name: "asc" },
       take: limit,
     });
-  },
-
-  /**
-   * Retrieves a page of user IDs ordered by ID, starting after an optional cursor.
-   *
-   * @param cursorId - The last processed user ID, or null to start from the beginning.
-   * @param limit - The maximum number of users to return.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to an array of users containing only IDs.
-   */
-  getUsersBatchAfterCursor: async (
-    cursorId: string | null,
-    limit: number,
-    tx: Prisma.TransactionClient,
-  ): Promise<Array<Pick<User, "id">>> => {
-    return tx.user.findMany({
-      where: cursorId
-        ? {
-            id: {
-              gt: cursorId,
-            },
-          }
-        : undefined,
-      orderBy: {
-        id: "asc",
-      },
-      select: {
-        id: true,
-      },
-      take: limit,
-    });
-  },
-
-  /**
-   * Updates the termsAccepted status for a user.
-   *
-   * @param userId - The unique identifier of the user.
-   * @param termsAccepted - The new terms accepted status to set.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to the updated User object.
-   */
-  updateTermsAccepted: async (
-    userId: string,
-    termsAccepted: boolean,
-    tx: Prisma.TransactionClient,
-  ): Promise<User> => {
-    return tx.user.update({ where: { id: userId }, data: { termsAccepted } });
-  },
-
-  /**
-   * Updates the marketingOptIn status for a user.
-   *
-   * @param userId - The unique identifier of the user.
-   * @param marketingOptIn - The new marketing opt in status to set.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to the updated User object.
-   */
-  updateMarketingOptIn: async (
-    userId: string,
-    marketingOptIn: boolean,
-    tx: Prisma.TransactionClient,
-  ): Promise<User> => {
-    return tx.user.update({ where: { id: userId }, data: { marketingOptIn } });
   },
 
   /**
