@@ -35,6 +35,7 @@ import type {
   PaginationMetadata,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
+  PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
   PostAgentsByIdDemoJobsData,
   PostAgentsByIdDemoJobsError,
@@ -120,6 +121,7 @@ import {
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
+  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   postAgentsByIdDemoJobs as corePostAgentsByIdDemoJobs,
@@ -1361,6 +1363,26 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
+   * Sets (or clears, when `invoiceEmail` is null) an organization's invoice
+   * email. Core enforces that the caller is an organization owner or admin.
+   */
+  async function updateOrganizationInvoiceEmail(
+    organizationId: string,
+    body: NonNullable<PatchOrganizationsByIdInvoiceEmailData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchOrganizationsByIdInvoiceEmail({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to update organization invoice email",
+    );
+  }
+
+  /**
    * Fetches an organization by id, returning null when it does not exist
    * (Core responds 404).
    */
@@ -2050,6 +2072,7 @@ export function createCoreClient(getClient: GetClient) {
     putTaskShare,
     updateConversation,
     updateHermesInstance,
+    updateOrganizationInvoiceEmail,
   };
 }
 
