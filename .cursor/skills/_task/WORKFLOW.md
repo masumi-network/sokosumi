@@ -46,6 +46,8 @@ Default: `delegate: "Cursor"` on the **main issue** per `HANDOFF.md` — no chil
 
 Disable legacy `feature-spec` Cursor Automations before handoff — see `../_team-sapphire/CURSOR-AUTOMATION.md`.
 
+Manual: `Run _team-sapphire for SOK-XXX`.
+
 Full squad pipeline: `../_team-sapphire/WORKFLOW.md`.
 
 ## What not to do
