@@ -4917,6 +4917,65 @@ export const StripeCustomerSchema = {
     ]
 } as const;
 
+export const ActiveSubscriptionResponseSchema = {
+    type: 'object',
+    properties: {
+        subscription: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                plan: {
+                    type: 'string',
+                    example: 'starter'
+                },
+                status: {
+                    type: 'string',
+                    example: 'active'
+                },
+                cancelAtPeriodEnd: {
+                    type: [
+                        'boolean',
+                        'null'
+                    ],
+                    example: false
+                },
+                periodStart: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                periodEnd: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                seats: {
+                    type: [
+                        'integer',
+                        'null'
+                    ],
+                    example: 3
+                }
+            },
+            required: [
+                'plan',
+                'status'
+            ]
+        }
+    },
+    required: [
+        'subscription'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {
@@ -5099,6 +5158,65 @@ export const PendingInvitationSchema = {
         'expiresAt',
         'inviterId',
         'createdAt'
+    ]
+} as const;
+
+export const OrganizationBillingPlanSchema = {
+    type: 'object',
+    properties: {
+        mode: {
+            type: 'string',
+            enum: [
+                'enterprise_contract',
+                'self_serve'
+            ],
+            description: 'Billing mode: active enterprise contract or self-serve subscription',
+            example: 'self_serve'
+        },
+        plan: {
+            type: 'string',
+            enum: [
+                'free',
+                'starter',
+                'standard',
+                'pro',
+                'enterprise'
+            ],
+            description: 'Resolved billing plan name',
+            example: 'starter'
+        },
+        isConsumable: {
+            type: 'boolean',
+            description: 'Whether the enterprise contract is still within its consumable term (always false for self-serve)',
+            example: false
+        },
+        purchasedSeats: {
+            type: 'integer',
+            description: 'Number of purchased seats',
+            example: 3
+        },
+        cancelAtPeriodEnd: {
+            type: 'boolean',
+            description: 'Whether the self-serve subscription cancels at the period end (always false for enterprise contracts)',
+            example: false
+        },
+        periodEnd: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'End of the current self-serve billing period (null for enterprise contracts or when unknown)'
+        }
+    },
+    required: [
+        'mode',
+        'plan',
+        'isConsumable',
+        'purchasedSeats',
+        'cancelAtPeriodEnd',
+        'periodEnd'
     ]
 } as const;
 
