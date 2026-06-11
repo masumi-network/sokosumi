@@ -100,14 +100,6 @@ export const organizationRepository = {
     });
   },
 
-  async listOrganizationsWithLimitedInfo(
-    tx: Prisma.TransactionClient,
-  ): Promise<OrganizationWithLimitedInfo[]> {
-    return await tx.organization.findMany({
-      select: organizationLimitedInfoInclude,
-    });
-  },
-
   /**
    * Searches organizations by name or slug using a case-insensitive partial
    * match.

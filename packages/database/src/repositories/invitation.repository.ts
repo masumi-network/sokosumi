@@ -28,29 +28,6 @@ export const invitationRepository = {
   },
 
   /**
-   * Retrieves all valid (not expired) pending invitations for a given email.
-   *
-   * @param email - The email address to search invitations for.
-   * @param tx - Optional Prisma transaction client.
-   * @returns Promise resolving to an array of InvitationWithRelations.
-   */
-  async getValidPendingInvitationsByEmail(
-    email: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<InvitationWithRelations[]> {
-    return tx.invitation.findMany({
-      where: {
-        email,
-        status: InvitationStatus.PENDING,
-        expiresAt: {
-          gt: new Date(),
-        },
-      },
-      include: invitationInclude,
-    });
-  },
-
-  /**
    * Checks if there is at least one pending invitation for a given email.
    *
    * @param email - The email address to search invitations for.

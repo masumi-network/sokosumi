@@ -1,20 +1,14 @@
 import "server-only";
 
 import type {
-  InvitationWithRelations,
-  JobWithSokosumiStatus,
   Member,
   MemberWithOrganization,
   OrganizationWithRelations,
-  User,
 } from "@sokosumi/database";
 import {
-  invitationRepository,
-  jobRepository,
   memberRepository,
   organizationRepository,
   userRepository,
-  workspaceRepository,
 } from "@sokosumi/database/repositories";
 import { headers } from "next/headers";
 import { cache } from "react";
@@ -28,20 +22,6 @@ import prisma from "@/lib/db/prisma";
  * Service for user-related operations.
  */
 export const userService = (() => {
-  /**
-   * Retrieves the currently authenticated user from the session.
-   *
-   * @returns {Promise<User | null>} The user object if authenticated, otherwise null.
-   *
-   */
-  async function getMe(): Promise<User | null> {
-    const session = await getSession();
-    if (!session) {
-      return null;
-    }
-    return userRepository.getUserById(session.user.id, prisma);
-  }
-
   /**
    * Retrieves the active organization ID for the currently authenticated user.
    *
@@ -70,43 +50,6 @@ export const userService = (() => {
         prisma,
       );
     return organization;
-  }
-
-  /**
-   * Retrieves jobs for the currently authenticated user filtered by agent ID.
-   * If the user has an active organization, returns jobs in that organization context.
-   * Otherwise, returns personal jobs for the user and agent.
-   *
-   * @param {string} agentId - The ID of the agent to filter jobs by.
-   * @returns {Promise<JobWithSokosumiStatus[]>} An array of jobs with status for the user and agent.
-   *
-   */
-  async function getMyJobs(agentId: string): Promise<JobWithSokosumiStatus[]> {
-    const session = await getSession();
-    if (!session) {
-      return [];
-    }
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId ?? null;
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      userId,
-      activeOrganizationId ?? null,
-      prisma,
-    );
-
-    // Get owned jobs
-    const ownedJobs = await jobRepository.getJobs(
-      {
-        agentId,
-        userId,
-        workspaceId: workspace.id,
-      },
-      prisma,
-    );
-    return ownedJobs.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
   }
 
   /**
@@ -145,32 +88,6 @@ export const userService = (() => {
     }
     const response = await coreClient.getMyMemberInOrganization(organizationId);
     return response?.data ?? null;
-  }
-
-  /**
-   * Retrieves all valid pending invitations for the currently authenticated user.
-   *
-   * @returns A promise that resolves to an array of InvitationWithRelations objects for the current user.
-   */
-  async function getMyValidPendingInvitations(): Promise<
-    InvitationWithRelations[]
-  > {
-    const session = await getSession();
-    if (!session) {
-      return [];
-    }
-    return await prisma.$transaction(async (tx) => {
-      const user = await userRepository.getUserById(session.user.id, tx);
-      if (!user?.email) {
-        console.error("User email not found");
-        return [];
-      }
-
-      return await invitationRepository.getValidPendingInvitationsByEmail(
-        user.email,
-        tx,
-      );
-    });
   }
 
   /**
@@ -216,30 +133,6 @@ export const userService = (() => {
   }
 
   /**
-   * Checks which of the provided emails already have user accounts.
-   *
-   * @param emails - Array of email addresses to check.
-   * @returns Promise resolving to array of emails that already have user accounts.
-   */
-  async function checkExistingUsers(emails: string[]): Promise<string[]> {
-    const normalizedEmails = Array.from(
-      new Set(
-        emails.map((e) => e.trim().toLowerCase()).filter((e) => e.length > 0),
-      ),
-    );
-
-    const users = await Promise.all(
-      normalizedEmails.map((email) =>
-        userRepository.getUserByEmail(email, prisma),
-      ),
-    );
-
-    return users
-      .filter((u): u is NonNullable<typeof u> => !!u)
-      .map((u) => u.email.toLowerCase());
-  }
-
-  /**
    * Marks the onboarding as completed for a specific user.
    *
    * @param userId - The ID of the user to update.
@@ -261,15 +154,11 @@ export const userService = (() => {
   }
 
   return {
-    getMe,
     getActiveOrganizationId,
     getActiveOrganization,
-    getMyJobs,
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
-    getMyValidPendingInvitations,
     showOnboarding,
-    checkExistingUsers,
     markOnboardingCompleteForMe,
   };
 })();

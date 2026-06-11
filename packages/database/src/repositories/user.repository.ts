@@ -20,20 +20,6 @@ export const userRepository = {
   },
 
   /**
-   * Retrieves a user by their email address.
-   *
-   * @param email - The email address of the user.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to the User object if found, or null otherwise.
-   */
-  getUserByEmail: async (
-    email: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<User | null> => {
-    return tx.user.findUnique({ where: { email } });
-  },
-
-  /**
    * Get a user by their Stripe customer ID.
    *
    * @param stripeCustomerId - The Stripe customer ID.
