@@ -1619,6 +1619,20 @@ export type EnterpriseContractBillingSummary = {
     purchasedSeats: number;
 };
 
+export type OrganizationSubscriptionSeats = {
+    /**
+     * Purchased seat count on the active subscription
+     */
+    seats: number;
+};
+
+export type UpdateOrganizationSubscriptionSeats = {
+    /**
+     * Desired purchased seat count
+     */
+    seats: number;
+};
+
 export type OrganizationInvoiceEmail = {
     /**
      * The persisted invoice email, or null when none
@@ -12965,6 +12979,104 @@ export type GetOrganizationsByIdSubscriptionResponses = {
 };
 
 export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
+
+export type PutOrganizationsByIdSubscriptionSeatsData = {
+    body?: UpdateOrganizationSubscriptionSeats;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription/seats';
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsErrors = {
+    /**
+     * Bad Request - No active subscription, seats below assigned members, or enterprise contract exclusivity
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+
+export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seat count after the update
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
 
 export type GetOrganizationsByIdDesignMdData = {
     body?: never;
