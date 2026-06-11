@@ -1,4 +1,4 @@
-import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/database";
 import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import { Suspense } from "react";
@@ -11,6 +11,7 @@ import {
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { Organization } from "@/lib/clients/generated/core";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
@@ -29,7 +30,7 @@ const PLAN_ORDER = [
 ] as const satisfies SubscriptionPlanName[];
 
 interface OnboardingDialogLoaderProps {
-  activeOrganization: OrganizationWithRelations | null;
+  activeOrganization: Organization | null;
   loginId?: null | string;
   subscriptionOnly?: boolean;
 }
@@ -117,10 +118,9 @@ export async function OnboardingDialogLoader({
   const canManageOrganizationSubscription =
     organizationMember?.role === MemberRole.OWNER ||
     organizationMember?.role === MemberRole.ADMIN;
-  const organizationMemberCount =
-    organizationSeatSummary?.memberCount ??
-    activeOrganization?._count.members ??
-    0;
+  // 0 when the seat summary is unavailable: the core Organization type has no
+  // member count, so there is no local fallback anymore (was _count.members).
+  const organizationMemberCount = organizationSeatSummary?.memberCount ?? 0;
   const organizationCurrentPlan = organizationBillingPlan?.plan ?? null;
   const hasActiveOrganization = activeOrganization !== null;
   const subscriptionCheckoutMode: OnboardingSubscriptionCheckoutMode =

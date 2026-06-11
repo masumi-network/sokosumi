@@ -1,22 +1,13 @@
 import "server-only";
 
-import type {
-  Member,
-  MemberWithOrganization,
-  OrganizationWithRelations,
-} from "@sokosumi/database";
-import {
-  memberRepository,
-  organizationRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
+import type { Member, MemberWithOrganization } from "@sokosumi/database";
 import { headers } from "next/headers";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
-import { coreClient } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { Organization } from "@/lib/clients/generated/core";
 
 /**
  * Service for user-related operations.
@@ -38,19 +29,35 @@ export const userService = (() => {
     return session.session.activeOrganizationId ?? null;
   }
 
-  async function getActiveOrganization(): Promise<OrganizationWithRelations | null> {
-    const activeOrganizationId = await getActiveOrganizationId();
-    if (!activeOrganizationId) {
-      return null;
-    }
+  /**
+   * Retrieves the active organization (from Core) for the currently
+   * authenticated user. Deduplicated per request via React cache() because it
+   * runs in the root layout (and other Server Components) on every render.
+   *
+   * Returns null when no active organization is set, when Core does not know
+   * the organization (404), or when the caller is no longer a member of it
+   * (403, e.g. a stale `activeOrganizationId` after a revoked membership).
+   */
+  const getActiveOrganization = cache(
+    async (): Promise<Organization | null> => {
+      const activeOrganizationId = await getActiveOrganizationId();
+      if (!activeOrganizationId) {
+        return null;
+      }
 
-    const organization =
-      await organizationRepository.getOrganizationWithRelationsById(
-        activeOrganizationId,
-        prisma,
-      );
-    return organization;
-  }
+      try {
+        // coreClient.getOrganizationById already maps Core 404 -> null.
+        const response =
+          await coreClient.getOrganizationById(activeOrganizationId);
+        return response?.data ?? null;
+      } catch (error) {
+        if (error instanceof CoreApiRequestError && error.status === 403) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  );
 
   /**
    * Retrieves all organization memberships for the currently authenticated user.
@@ -113,21 +120,24 @@ export const userService = (() => {
     }
 
     try {
-      return await prisma.$transaction(async (tx) => {
-        const membershipOrgIds =
-          await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
+      const members = await getMyMembersWithOrganizations();
 
-        if (membershipOrgIds.length > 0) {
-          await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
-          return false;
-        }
+      if (members.length > 0) {
+        // Mark onboarding complete via Better Auth (not a direct DB write) so
+        // the session cookie cache stays in sync — same approach as
+        // markOnboardingCompleteForMe below.
+        await auth.api.updateUser({
+          headers: await headers(),
+          body: { onboardingCompleted: true },
+        });
+        return false;
+      }
 
-        return true;
-      });
+      return true;
     } catch (error) {
       console.error("Failed to check/update onboarding status", error);
       // Return true (show onboarding) on error as a safe default - better to show
-      // onboarding than to silently skip it due to a transient DB error
+      // onboarding than to silently skip it due to a transient error
       return true;
     }
   }

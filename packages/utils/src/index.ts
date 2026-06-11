@@ -63,6 +63,7 @@ export {
   parseReactEnvelopeBuffer,
 } from "./openrouter-react-image-envelope.js";
 export {
+  FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   type OrganizationBillingPlanName,
   type PaidSubscriptionPlanName,
   parseSelfServeSubscriptionPlanName,
