@@ -84,6 +84,7 @@ const route = withGlobalHeaderParameters(
             overrideLegalOther: null,
           },
           events: [],
+          share: null,
         },
         meta: {
           timestamp: "2025-01-15T12:00:00.000Z",

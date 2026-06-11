@@ -13,6 +13,7 @@ import { userSummarySchema } from "@/schemas/user.schema";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
+import { jobShareSchema } from "./share.schema.js";
 import { workspaceSummarySchema } from "./workspace.schema.js";
 
 export const JOB_NAME_MAX_LENGTH = 120;
@@ -220,6 +221,10 @@ export const jobSchema = z
     workspace: workspaceSummarySchema,
     agent: jobDetailsAgentSchema,
     events: z.array(jobDetailsEventSchema),
+    // Union-with-null instead of `jobShareSchema.nullable()`: `.nullable()` on a
+    // named `.openapi(...)` schema leaks `| null` into the generated `JobShare`
+    // component itself. Keep the union so the nullability stays on this field.
+    share: z.union([jobShareSchema, z.null()]).openapi({ example: null }),
   })
   .openapi("Job");
 

@@ -1,10 +1,8 @@
 import type { Notice, NoticeKind } from "@sokosumi/database";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import {
-  mapCoreJobShare,
-  mapCorePublicSharedResourceResponse,
-} from "@/lib/clients/core.job-share";
+import { mapCoreJobShare } from "@/lib/agents/core-dto-mappers";
+import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
   CreateConversationMessageRequest,

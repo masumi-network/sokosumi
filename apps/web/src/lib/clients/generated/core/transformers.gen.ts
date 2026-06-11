@@ -123,6 +123,12 @@ const linkSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const jobShareSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    return data;
+};
+
 const jobSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
@@ -148,6 +154,9 @@ const jobSchemaResponseTransformer = (data: any) => {
         item.links = item.links.map((item: any) => linkSchemaResponseTransformer(item));
         return item;
     });
+    if (data.share) {
+        data.share = jobShareSchemaResponseTransformer(data.share);
+    }
     return data;
 };
 
@@ -950,12 +959,6 @@ export const getJobsByIdEventsResponseTransformer = async (data: any): Promise<G
 
 export const deleteJobsByIdShareResponseTransformer = async (data: any): Promise<DeleteJobsByIdShareResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-const jobShareSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
     return data;
 };
 

@@ -7,10 +7,8 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
-import {
-  putTaskShareRequestSchema,
-  taskShareSchema,
-} from "@/schemas/public-share.schema.js";
+import { putTaskShareRequestSchema } from "@/schemas/public-share.schema.js";
+import { taskShareSchema } from "@/schemas/share.schema.js";
 
 const paramsSchema = z.object({
   id: z.string().openapi({

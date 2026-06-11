@@ -406,6 +406,7 @@ export type Job = {
         blobs: Array<File>;
         links: Array<Link>;
     }>;
+    share: JobShare | null;
 };
 
 export type File = {
@@ -449,6 +450,15 @@ export type Link = {
     jobId: string;
     url: string;
     title?: string | null;
+};
+
+export type JobShare = {
+    id: string;
+    token: string;
+    allowSearchIndexing: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    jobId: string;
 };
 
 export type GetChatUiMessagesResponseData = {
@@ -1646,15 +1656,6 @@ export type JobEvent = {
     result?: string | null;
     files: Array<File>;
     links: Array<Link>;
-};
-
-export type JobShare = {
-    id: string;
-    token: string;
-    allowSearchIndexing: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    jobId: string;
 };
 
 export type GetInvitationResult = {

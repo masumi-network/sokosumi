@@ -1740,6 +1740,17 @@ export const JobSchema = {
                     'links'
                 ]
             }
+        },
+        share: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/JobShare'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null
         }
     },
     required: [
@@ -1756,7 +1767,8 @@ export const JobSchema = {
         'agentJobId',
         'workspace',
         'agent',
-        'events'
+        'events',
+        'share'
     ]
 } as const;
 
@@ -1879,6 +1891,46 @@ export const LinkSchema = {
         'updatedAt',
         'jobId',
         'url'
+    ]
+} as const;
+
+export const JobShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'share_123'
+        },
+        token: {
+            type: 'string',
+            example: 'public-share-token'
+        },
+        allowSearchIndexing: {
+            type: 'boolean',
+            example: true
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            example: 'job_123'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'allowSearchIndexing',
+        'createdAt',
+        'updatedAt',
+        'jobId'
     ]
 } as const;
 
@@ -5687,46 +5739,6 @@ export const Job_EventSchema = {
         'status',
         'files',
         'links'
-    ]
-} as const;
-
-export const JobShareSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'share_123'
-        },
-        token: {
-            type: 'string',
-            example: 'public-share-token'
-        },
-        allowSearchIndexing: {
-            type: 'boolean',
-            example: true
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        jobId: {
-            type: 'string',
-            example: 'job_123'
-        }
-    },
-    required: [
-        'id',
-        'token',
-        'allowSearchIndexing',
-        'createdAt',
-        'updatedAt',
-        'jobId'
     ]
 } as const;
 

@@ -192,6 +192,7 @@ function createSerializedJob(overrides: Record<string, unknown> = {}) {
         links: [],
       },
     ],
+    share: null,
     ...overrides,
   };
 }
