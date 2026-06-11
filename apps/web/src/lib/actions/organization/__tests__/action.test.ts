@@ -7,7 +7,7 @@ export {};
 
 const createInvitationMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
-const getMemberByUserIdAndOrganizationIdMock = vi.fn();
+const getMyMemberInOrganizationMock = vi.fn();
 const headersMock = vi.fn();
 const syncOrganizationInvoiceEmailWithStripeMock = vi.fn();
 const updateOrganizationInvoiceEmailMock = vi.fn();
@@ -49,21 +49,11 @@ vi.mock("@/lib/auth/auth", () => ({
   },
 }));
 
-vi.mock("@/lib/auth/utils", () => ({
-  getSession: vi.fn(),
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  invitationRepository: {},
-  memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
+vi.mock("@/lib/services/user.service", () => ({
+  userService: {
+    getMyMemberInOrganization: (...args: unknown[]) =>
+      getMyMemberInOrganizationMock(...args),
   },
-  organizationRepository: {},
 }));
 
 vi.mock("next/headers", () => ({
@@ -94,7 +84,7 @@ describe("organization actions", () => {
     getEnvSecretsMock.mockReturnValue({
       BETTER_AUTH_ORG_INVITATION_LIMIT: 100,
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+    getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.ADMIN,
     });
     headersMock.mockResolvedValue(new Headers());
@@ -120,6 +110,7 @@ describe("organization actions", () => {
         ],
       },
     });
+    expect(getMyMemberInOrganizationMock).toHaveBeenCalledWith("org-1");
     expect(createInvitationMock).toHaveBeenCalledTimes(3);
     expect(createInvitationMock).toHaveBeenNthCalledWith(1, {
       body: {
@@ -161,7 +152,7 @@ describe("organization actions", () => {
   });
 
   it("rejects users who are not members of the organization", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+    getMyMemberInOrganizationMock.mockResolvedValue(null);
     const { inviteOrganizationMembersBulk } = await import("../action");
 
     const result = await inviteOrganizationMembersBulk({
@@ -181,7 +172,7 @@ describe("organization actions", () => {
   });
 
   it("rejects members without owner or admin permissions", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+    getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.MEMBER,
     });
     const { inviteOrganizationMembersBulk } = await import("../action");
