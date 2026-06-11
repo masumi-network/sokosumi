@@ -4,11 +4,13 @@ import { organizationRepository } from "../organization.repository.js";
 
 const findManyMock = vi.fn();
 const findUniqueMock = vi.fn();
+const updateMock = vi.fn();
 
 const tx = {
   organization: {
     findMany: findManyMock,
     findUnique: findUniqueMock,
+    update: updateMock,
   },
 } as never;
 
@@ -49,6 +51,85 @@ describe("organizationRepository.searchOrganizations", () => {
       organizationRepository.searchOrganizations("   ", 20, tx),
     ).resolves.toEqual([]);
     expect(findManyMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("organizationRepository.updateOrganizationInvoiceEmail", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    updateMock.mockImplementation(
+      ({ data }: { data: { metadata: string | null } }) => ({
+        id: "org_1",
+        metadata: data.metadata,
+      }),
+    );
+  });
+
+  it("preserves unrelated metadata keys when setting the invoice email", async () => {
+    findUniqueMock.mockResolvedValue({
+      metadata: JSON.stringify({
+        designMdUrl: "https://blob.example/design.md",
+        designMdExtractionId: "ext_1",
+      }),
+    });
+
+    await organizationRepository.updateOrganizationInvoiceEmail(
+      "org_1",
+      "billing@acme.example",
+      tx,
+    );
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "org_1" },
+      data: {
+        metadata: JSON.stringify({
+          designMdUrl: "https://blob.example/design.md",
+          designMdExtractionId: "ext_1",
+          invoiceEmail: "billing@acme.example",
+        }),
+      },
+    });
+  });
+
+  it("preserves unrelated metadata keys when clearing the invoice email", async () => {
+    findUniqueMock.mockResolvedValue({
+      metadata: JSON.stringify({
+        designMdUrl: "https://blob.example/design.md",
+        invoiceEmail: "old@acme.example",
+      }),
+    });
+
+    await organizationRepository.updateOrganizationInvoiceEmail(
+      "org_1",
+      null,
+      tx,
+    );
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "org_1" },
+      data: {
+        metadata: JSON.stringify({
+          designMdUrl: "https://blob.example/design.md",
+        }),
+      },
+    });
+  });
+
+  it("collapses metadata to null when clearing the only key", async () => {
+    findUniqueMock.mockResolvedValue({
+      metadata: JSON.stringify({ invoiceEmail: "old@acme.example" }),
+    });
+
+    await organizationRepository.updateOrganizationInvoiceEmail(
+      "org_1",
+      null,
+      tx,
+    );
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "org_1" },
+      data: { metadata: null },
+    });
   });
 });
 
