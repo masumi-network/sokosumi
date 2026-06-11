@@ -89,5 +89,5 @@ Do **not** add chat-only draft lines, `[repo=…]`, `## Spec`, verification comm
 ## Post-create
 
 1. Return issue identifier and URL.
-2. Continue to `HANDOFF.md` when handoff is enabled — default **true** unless the user set `handoffToSapphire: false` **or** legacy `handoffToPrd: false`.
+2. Continue to `HANDOFF.md` when `handoffToSapphire` is true (default).
 3. If handoff is skipped, tell the user to run `_team-sapphire` with the issue id.

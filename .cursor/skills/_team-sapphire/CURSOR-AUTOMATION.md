@@ -1,33 +1,18 @@
-# Cursor Automation (Team Sapphire)
+# Cursor Automation (optional)
 
-Optional Linear-triggered Cloud Agents. **Disable legacy `feature-spec` automations** before using Team Sapphire — they conflict with the single-issue model.
+Optional Linear-triggered Cloud Agents for Team Sapphire. Default path is MCP handoff in `../_task/HANDOFF.md`.
 
-## Why this matters
+## One issue, one trigger
 
-`_task` delegates **Cursor on the requirement issue** at handoff. Later, Tech Lead adds `[repo=masumi-network/sokosumi]` to the **same issue** when writing `## Spec`.
+`_task` delegates **Cursor on the issue** at handoff. Tech Lead later adds `[repo=masumi-network/sokosumi]` to the **same issue** when writing `## Spec`.
 
-Legacy automations from the removed `feature-spec` skill can start a **second** coding agent when:
+Do **not** add Cursor Automations that trigger on description contains `[repo=…]` alone — that can start a second agent when the spec is written and race Sapphire's Coder phase.
 
-- Description is updated to include `[repo=…]`, or
-- Delegate is already `Cursor` and an "implementation issue" automation fires.
+Use **at most one** trigger per issue: MCP `delegate`, optional automation below, or manual `@Cursor` — not combined.
 
-That races Team Sapphire's Coder phase (Phase 3).
+## Optional automation
 
-## Disable these legacy automations
-
-Turn off any Cursor Automation that matches the old pipeline:
-
-| Legacy automation | Old trigger | Why disable |
-|-------------------|-------------|-------------|
-| SOK Write PRD → feature-spec | Issue created; title `chore(spec): write implementation PRD` | No Write PRD sub-task in Sapphire model |
-| SOK implementation → Cloud Agent | Delegate `Cursor` + description contains `[repo=…]`; title not `chore(spec):` / `chore(review):` | Same issue gets `[repo=…]` during Tech Lead — fires duplicate coder |
-| Reviewer on parent **In Review** (old verify sub-task flow) | Status → In Review | Reviewer runs inside Sapphire orchestrator on same issue |
-
-If unsure, search Cursor Automations for filters on `[repo=masumi-network/sokosumi]` or `chore(spec): write implementation PRD` and disable them.
-
-## Recommended setup (optional)
-
-Prefer MCP handoff in `_task/HANDOFF.md` (delegate on create). Use **at most one** optional automation:
+Prefer MCP `delegate` from `_task/HANDOFF.md`. If the team uses automation instead, omit MCP `delegate` on the same issue.
 
 | Field | Value |
 |-------|--------|
@@ -37,9 +22,7 @@ Prefer MCP handoff in `_task/HANDOFF.md` (delegate on create). Use **at most one
 | Tools | Linear, GitHub |
 | Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue: Investigator → Tech Lead → Coder → Reviewer. Single issue only — no child issues. Do not re-delegate or `@Cursor` on the same issue. |
 
-Do **not** also set MCP `delegate` **and** this automation on the same issue — pick one trigger.
-
-Filter on `## Sapphire status`, **not** `[repo=…]` alone — the repo hint appears later on the same ticket.
+Filter on `## Sapphire status`, **not** `[repo=…]` alone — the repo hint is added later on the same ticket.
 
 ## Manual path
 

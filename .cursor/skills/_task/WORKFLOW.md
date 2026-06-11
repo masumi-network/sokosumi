@@ -44,8 +44,6 @@ flowchart LR
 
 Default: `delegate: "Cursor"` on the **main issue** per `HANDOFF.md` — no child issues.
 
-Disable legacy `feature-spec` Cursor Automations before handoff — see `../_team-sapphire/CURSOR-AUTOMATION.md`.
-
 Manual: `Run _team-sapphire for SOK-XXX`.
 
 Full squad pipeline: `../_team-sapphire/WORKFLOW.md`.
@@ -54,6 +52,6 @@ Full squad pipeline: `../_team-sapphire/WORKFLOW.md`.
 
 - Do not post to Linear before user approval.
 - Do not write `## Spec` in the requirement draft.
-- Do not create Write PRD or implementation child issues.
+- Do not create child issues for Sapphire phases.
 - Do not `@Cursor` and `delegate` on the same issue.
 - Do not run Sapphire in the same turn as the initial draft (before approval).

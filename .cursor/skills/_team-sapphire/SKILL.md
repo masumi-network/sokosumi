@@ -30,7 +30,7 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 
 - Required: Linear issue id/URL (e.g. `SOK-XXX`) — usually from `_task` handoff on the same issue.
 - Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run.
-- Load issue with `get_issue`. Read `## Requirement` (or legacy requirement body before Sapphire sections).
+- Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
 - If description already has `## Spec` and phase is not specified, resume from the first incomplete phase in `## Sapphire status`.
 
 ## Workflow
@@ -95,4 +95,4 @@ Return issue id/URL, phases completed, PR link (if any), and current Linear stat
 - `SPEC-TEMPLATE.md` — Tech Lead output shape
 - `SUBAGENT-RUBRIC.md` — when to split coders
 - `LINEAR-MCP.md` — single-issue updates
-- `CURSOR-AUTOMATION.md` — disable legacy automations; optional Sapphire automation
+- `CURSOR-AUTOMATION.md` — optional Linear-triggered Cloud Agent setup

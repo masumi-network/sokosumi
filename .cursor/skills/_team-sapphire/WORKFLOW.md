@@ -62,7 +62,7 @@ Phase transitions also post structured comments (`**Sapphire · … complete**`)
 
 ## Handoff from _task
 
-Default: `_task` posts the issue and delegates **Cursor on the same issue** — see `../_task/HANDOFF.md`. No Write PRD sub-task. No implementation child issue.
+Default: `_task` posts the issue and delegates **Cursor on the same issue** — see `../_task/HANDOFF.md`.
 
 Manual: `Run _team-sapphire for SOK-XXX` in Cursor.
 

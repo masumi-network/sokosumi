@@ -1,6 +1,6 @@
 # Handoff to Team Sapphire
 
-Run after the requirement issue is created in Linear. Default unless user set `handoffToSapphire: false` (legacy alias: `handoffToPrd: false`).
+Run after the requirement issue is created in Linear. Default unless user set `handoffToSapphire: false`.
 
 ## Goal
 
@@ -19,27 +19,7 @@ Start Cloud Agent **once** on the main issue.
 
 Duplicate triggers (delegate + `@Cursor`) can start two Sapphire runs on one issue.
 
-## Legacy automations (required team check)
-
-The old `feature-spec` pipeline used separate issues and `[repo=…]`-triggered coding automations. Team Sapphire uses **one issue**; Tech Lead adds `[repo=…]` to that same issue during Phase 2.
-
-**Before relying on MCP handoff**, confirm legacy Cursor Automations are disabled — see `../_team-sapphire/CURSOR-AUTOMATION.md`. At minimum, disable:
-
-- Write PRD / `chore(spec): write implementation PRD` issue-created automations
-- Implementation automations whose filter is description contains `[repo=…]` (with or without delegate)
-
-If those stay enabled, a second Cloud Agent can start when the spec is written and race Sapphire's Coder phase.
-
-When posting the optional handoff comment (step 3), you may note: _Verify legacy feature-spec automations are off — see `_team-sapphire/CURSOR-AUTOMATION.md`._
-
-## Handoff enabled?
-
-Run handoff when **both** are not explicitly false:
-
-- `handoffToSapphire` (default true)
-- legacy `handoffToPrd` (default true)
-
-If either is `false`, skip to **Opt-out** below.
+Skip handoff when `handoffToSapphire: false` — see **Opt-out** below.
 
 ## Steps
 
@@ -117,7 +97,7 @@ To continue in this chat instead of Cloud Agent, say: run _team-sapphire for SOK
 
 ## Opt-out
 
-When `handoffToSapphire: false` **or** legacy `handoffToPrd: false`:
+When `handoffToSapphire: false`:
 
 - Post requirement only.
 - Return issue URL.

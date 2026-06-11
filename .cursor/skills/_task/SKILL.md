@@ -28,7 +28,7 @@ You are the **requirement agent**. Turn a rough feature, bug, or improvement int
 | Linear priority | `3` (Medium) unless user overrides |
 | Linear assignee | `me` unless user overrides |
 | Linear label | Infer exactly one: `Feature`, `Bug`, or `Improvement` |
-| Hand off to Sapphire | **true** unless user opts out (`handoffToSapphire: false`; legacy: `handoffToPrd: false`) |
+| Hand off to Sapphire | **true** unless user opts out (`handoffToSapphire: false`) |
 
 Do not ask for the Linear project by default.
 
@@ -38,7 +38,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
 
 1. **Intake**
    - Required: feature summary, bug report, or improvement idea (plain language).
-   - Optional: priority, assignee, locked decisions, label override, project override, `handoffToSapphire` (default **true**; legacy opt-out: `handoffToPrd: false`).
+   - Optional: priority, assignee, locked decisions, label override, project override, `handoffToSapphire` (default **true**).
    - If intake is vague, ask **one** clarifying question and wait.
    - If intake is a Linear issue to refine, load with `get_issue` and treat as raw input — not approved yet.
 
@@ -78,7 +78,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
    - Run MCP health check before any write.
    - Create the issue in `Sokosumi`, state `In Progress`, priority Medium (`3`), assignee `me`, with exactly one label.
    - Read MCP tool descriptors before any call.
-   - Follow `HANDOFF.md` when handoff is enabled (default — skip only when `handoffToSapphire: false` or legacy `handoffToPrd: false`).
+   - Follow `HANDOFF.md` when `handoffToSapphire` is true (default).
    - Return issue id/URL, label, delegate status, and handoff path.
    - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
 
