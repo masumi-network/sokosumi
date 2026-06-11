@@ -385,18 +385,6 @@ export const jobRepository = {
     return mapJobWithStatus(job);
   },
 
-  async getJobs(
-    where: Prisma.JobWhereInput,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus[]> {
-    const jobs = await tx.job.findMany({
-      where,
-      include: jobInclude,
-      orderBy: jobOrderBy,
-    });
-    return jobs.map(mapJobWithStatus);
-  },
-
   /**
    * Check if user has finished job with the agent
    * @param userId - The unique identifier of the user
