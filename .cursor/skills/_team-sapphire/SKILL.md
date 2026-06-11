@@ -1,0 +1,97 @@
+---
+name: _team-sapphire
+description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — from requirement through PR and /goal review. Use after _task posts a requirement, when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue is delegated with Sapphire handoff footer.
+disable-model-invocation: true
+---
+
+# Team Sapphire
+
+You are the **Sapphire orchestrator**. One Linear issue. Four roles. No child issues.
+
+Run the squad in order on the **same issue** `_task` created (or any SOK issue the user points at with a requirement body).
+
+## Runtime
+
+| Agent | How to use |
+|-------|------------|
+| Cursor | Load `.cursor/skills/_team-sapphire/SKILL.md`. |
+| Claude Code / Codex | Read this file and linked docs in this directory. |
+
+## Defaults
+
+| Field | Value |
+|-------|-------|
+| Repo hint | `[repo=masumi-network/sokosumi]` — Tech Lead adds near top of issue when spec is written |
+| Linear team | `SOK` |
+| Linear project | `Sokosumi` |
+| Issue model | **Single issue** — requirement, investigation, spec, and progress live on one issue |
+
+## Intake
+
+- Required: Linear issue id/URL (e.g. `SOK-XXX`) — usually from `_task` handoff on the same issue.
+- Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run.
+- Load issue with `get_issue`. Read `## Requirement` (or legacy requirement body before Sapphire sections).
+- If description already has `## Spec` and phase is not specified, resume from the first incomplete phase in `## Sapphire status`.
+
+## Workflow
+
+See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, `REVIEWER.md`. Linear updates: `LINEAR-MCP.md`.
+
+### Phase 1 — Investigator
+
+1. Run Investigator per `INVESTIGATOR.md` (codebase search, pitfalls, patterns — **not** a final spec).
+2. Append `## Investigation` to the issue description via `save_issue`.
+3. Post comment `**Sapphire · Investigator complete**` with a 3–5 bullet summary.
+4. Update `## Sapphire status` — Investigator → done.
+
+### Phase 2 — Tech Lead
+
+1. Read Requirement + Investigation.
+2. Write final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
+3. Append `## Spec` to the issue description. Include `[repo=…]`, data flow, contracts, verification hints, coder breakdown when rubric score ≥ 2.
+4. Post comment `**Sapphire · Tech Lead complete**` with execution order and coder count.
+5. Update status — Tech Lead → done.
+
+### Phase 3 — Coder(s)
+
+1. Read `## Spec` only (plus Investigation for context).
+2. If Tech Lead defined multiple coders, launch **parallel** Task subagents — one per coder block — with non-overlapping file ownership.
+3. If single coder, implement in this run.
+4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**).
+5. Open PR; PR body must reference the Linear issue id.
+6. Post `**PR handoff**` comment per `REVIEWER.md`.
+7. Post `**Sapphire · Coder complete**`. Update status — Coder → done. Stay **In Progress** — do not set In Review yet.
+
+### Phase 4 — Reviewer
+
+1. Run `/goal` per `REVIEWER.md` until all criteria pass.
+2. Fix on PR branch when needed; loop.
+3. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done.
+4. Do **not** mark issue **Done** — human merges PR.
+
+## MCP
+
+- Read `LINEAR-MCP.md` before any write.
+- Health check before first call — same message as `_task` if `user-linear` is missing.
+- Use `save_issue` to update description sections and state; use `save_comment` for phase markers.
+
+## Resume and idempotency
+
+| Already on issue | Action |
+|------------------|--------|
+| `## Investigation` present | Skip Investigator unless user asked to re-run |
+| `## Spec` present | Skip Tech Lead unless user asked to re-spec |
+| `**PR handoff**` comment + open PR | Skip Coder; run Reviewer |
+| Issue `In Review` + Reviewer done | Stop — await human merge |
+
+## Output
+
+Return issue id/URL, phases completed, PR link (if any), and current Linear state.
+
+## Supporting files
+
+- `WORKFLOW.md` — pipeline diagram and status lifecycle
+- `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, `REVIEWER.md` — role contracts
+- `SPEC-TEMPLATE.md` — Tech Lead output shape
+- `SUBAGENT-RUBRIC.md` — when to split coders
+- `LINEAR-MCP.md` — single-issue updates
