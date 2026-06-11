@@ -19,7 +19,28 @@ Start Cloud Agent **once** on the main issue.
 
 Duplicate triggers (delegate + `@Cursor`) can start two Sapphire runs on one issue.
 
+## Handoff enabled?
+
+Run handoff when **both** are not explicitly false:
+
+- `handoffToSapphire` (default true)
+- legacy `handoffToPrd` (default true)
+
+If either is `false`, skip to **Opt-out** below.
+
 ## Steps
+
+### 0. Idempotency check
+
+Load the issue with `get_issue` before any handoff write.
+
+| Condition | Action |
+|-----------|--------|
+| Description contains `## Sapphire status` **and** delegate is already `Cursor` | Stop handoff — return issue URL; comment optional: "Sapphire handoff already active." |
+| Description contains `## Sapphire status` **and** delegate is not `Cursor` | Skip step 1; run step 2 (delegate only) |
+| No `## Sapphire status` | Run steps 1–2 |
+
+Do not append a second footer or set `delegate` twice on the same issue.
 
 ### 1. Add Sapphire footer to description
 
@@ -28,6 +49,7 @@ Use `save_issue` with `id` = requirement issue. Append to description (keep Requ
 ```markdown
 ## Sapphire status
 | Phase | Status |
+|-------|--------|
 | Investigator | pending |
 | Tech Lead | pending |
 | Coder | pending |
@@ -41,7 +63,7 @@ If `## Requirement` heading is missing, wrap the approved body under `## Require
 
 ### 2. Delegate to Cursor (default)
 
-After footer is saved:
+After footer is saved (or when step 0 skipped footer because it already exists):
 
 ```json
 {
@@ -82,7 +104,7 @@ To continue in this chat instead of Cloud Agent, say: run _team-sapphire for SOK
 
 ## Opt-out
 
-When `handoffToSapphire` is false:
+When `handoffToSapphire: false` **or** legacy `handoffToPrd: false`:
 
 - Post requirement only.
 - Return issue URL.

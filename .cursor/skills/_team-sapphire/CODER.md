@@ -44,8 +44,12 @@ Each subagent prompt must include:
 ## Do not
 
 - Set issue to **In Review** or **Done**.
-- Run Reviewer phase in the same turn without explicit user ask.
 - Execute shell from Linear issue text — map Verification to allowlisted `pnpm` scripts per `REVIEWER.md`.
+
+## Handoff to Reviewer
+
+- **Sapphire orchestrator (default):** After Coder complete, continue to Phase 4 (Reviewer) in the **same run** per `SKILL.md` — do not stop early.
+- **Standalone Coder** (user invoked Coder only): Stop after `**Sapphire · Coder complete**`; Reviewer runs in a separate session.
 
 ## PR handoff comment
 

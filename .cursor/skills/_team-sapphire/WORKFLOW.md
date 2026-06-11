@@ -37,6 +37,7 @@ One growing document on the same issue:
 
 ## Sapphire status
 | Phase | Status |
+|-------|--------|
 | Investigator | pending / done |
 | Tech Lead | pending / done |
 | Coder | pending / done |

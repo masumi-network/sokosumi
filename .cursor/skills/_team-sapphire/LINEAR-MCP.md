@@ -20,6 +20,7 @@ If `## Sapphire status` is missing, prepend after Requirement:
 ```markdown
 ## Sapphire status
 | Phase | Status |
+|-------|--------|
 | Investigator | pending |
 | Tech Lead | pending |
 | Coder | pending |
