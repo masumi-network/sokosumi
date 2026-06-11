@@ -1,7 +1,10 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveMemberOrganizationById } from "./organization";
+import {
+  resolveMemberOrganizationById,
+  resolveMemberOrganizationBySlug,
+} from "./organization";
 
 function createTransactionClient() {
   return {
@@ -156,6 +159,76 @@ describe("resolveMemberOrganizationById", () => {
     await expect(
       resolveMemberOrganizationById({
         id: "org_123",
+        userId: "user_123",
+        tx,
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
+    ).rejects.toThrow("You must be owner, admin");
+  });
+});
+
+describe("resolveMemberOrganizationBySlug", () => {
+  it("resolves organization by slug", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(createMember());
+
+    const result = await resolveMemberOrganizationBySlug({
+      slug: "my-org",
+      userId: "user_123",
+      tx,
+    });
+
+    expect(result.organization.id).toBe("org_123");
+    expect(result.role).toBe("member");
+    expect(tx.organization.findUnique).toHaveBeenCalledTimes(1);
+    expect(tx.organization.findUnique).toHaveBeenCalledWith({
+      where: { slug: "my-org" },
+    });
+  });
+
+  it("throws when no organization matches the slug", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(null);
+
+    await expect(
+      resolveMemberOrganizationBySlug({
+        slug: "missing-org",
+        userId: "user_123",
+        tx,
+      }),
+    ).rejects.toThrow("Organization not found");
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("throws when user is not a member of the organization", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
+
+    await expect(
+      resolveMemberOrganizationBySlug({
+        slug: "my-org",
+        userId: "user_123",
+        tx,
+      }),
+    ).rejects.toThrow("You are not a member of this organization");
+  });
+
+  it("throws when member role is not allowed", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce(
+      createOrganization(),
+    );
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(createMember());
+
+    await expect(
+      resolveMemberOrganizationBySlug({
+        slug: "my-org",
         userId: "user_123",
         tx,
         allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],

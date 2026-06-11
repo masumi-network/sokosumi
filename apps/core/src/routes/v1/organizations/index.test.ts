@@ -21,6 +21,24 @@ describe("organizations routes OpenAPI contract", () => {
     expect(getOperation?.responses).toHaveProperty("404");
   });
 
+  it("exposes the organization-by-slug endpoint", () => {
+    const doc = organizationsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Organizations API",
+        version: "1.0.0",
+      },
+    });
+
+    const getOperation = doc.paths?.["/slug/{slug}"]?.get;
+
+    expect(getOperation).toBeDefined();
+    expect(getOperation?.responses).toHaveProperty("200");
+    expect(getOperation?.responses).toHaveProperty("401");
+    expect(getOperation?.responses).toHaveProperty("403");
+    expect(getOperation?.responses).toHaveProperty("404");
+  });
+
   it("exposes the organization members endpoint", () => {
     const doc = organizationsRouter.getOpenAPI31Document({
       openapi: "3.1.0",

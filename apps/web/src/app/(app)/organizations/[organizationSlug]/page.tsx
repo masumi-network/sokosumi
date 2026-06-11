@@ -1,13 +1,11 @@
 import { type Invitation, MemberRole } from "@sokosumi/database";
-import { organizationRepository } from "@sokosumi/database/repositories";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { coreClient } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import {
   organizationSeatService,
   organizationService,
@@ -23,6 +21,27 @@ interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
 }
 
+/**
+ * Resolves the organization record for `slug` via the member-gated Core
+ * endpoint. Returns null when no organization matches the slug; redirects to
+ * the home page when the caller has no (valid) membership — mirroring the
+ * previous in-page membership check.
+ */
+async function getMemberOrganizationBySlug(slug: string) {
+  try {
+    const response = await coreClient.getOrganizationBySlug(slug);
+    return response?.data ?? null;
+  } catch (error) {
+    if (
+      error instanceof CoreApiRequestError &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      redirect("/");
+    }
+    throw error;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: OrganizationPageProps): Promise<Metadata> {
@@ -33,11 +52,7 @@ export async function generateMetadata({
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
-  const organization =
-    await organizationRepository.getOrganizationWithRelationsBySlug(
-      normalizedSlug,
-      prisma,
-    );
+  const organization = await getMemberOrganizationBySlug(normalizedSlug);
   if (!organization) {
     return notFound();
   }
@@ -58,11 +73,7 @@ export default async function OrganizationPage({
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
-  const organization =
-    await organizationRepository.getOrganizationWithRelationsBySlug(
-      normalizedSlug,
-      prisma,
-    );
+  const organization = await getMemberOrganizationBySlug(normalizedSlug);
   if (!organization) {
     return notFound();
   }

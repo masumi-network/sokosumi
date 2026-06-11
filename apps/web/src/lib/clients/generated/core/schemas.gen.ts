@@ -4435,56 +4435,7 @@ export const MemberWithOrganizationSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         organization: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'org_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'My Organization'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'my-org'
-                },
-                logo: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/logo.png'
-                },
-                metadata: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: '{"url":"https://example.com"}'
-                },
-                createdAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                stripeCustomerId: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'cus_123'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'slug',
-                'logo',
-                'metadata',
-                'createdAt',
-                'stripeCustomerId'
-            ]
+            $ref: '#/components/schemas/OrganizationRecord'
         }
     },
     required: [
@@ -4495,6 +4446,59 @@ export const MemberWithOrganizationSchema = {
         'seatAssignedAt',
         'createdAt',
         'organization'
+    ]
+} as const;
+
+export const OrganizationRecordSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'My Organization'
+        },
+        slug: {
+            type: 'string',
+            example: 'my-org'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/logo.png'
+        },
+        metadata: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '{"url":"https://example.com"}'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        stripeCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cus_123'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'logo',
+        'metadata',
+        'createdAt',
+        'stripeCustomerId'
     ]
 } as const;
 
