@@ -156,6 +156,7 @@ import {
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
+  putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -700,6 +701,29 @@ export function createCoreClient(getClient: GetClient) {
           path: { id: organizationId, memberId },
         }),
       "Failed to unassign organization seat",
+    );
+  }
+
+  /**
+   * Immediately updates the purchased seat count on an organization's active
+   * subscription. Core enforces that the caller is an organization owner or
+   * admin, blocks self-serve changes while an enterprise contract is active,
+   * and keeps seats at or above the assigned member count. Stripe-backed
+   * subscriptions are invoiced for the change right away.
+   */
+  async function updateOrganizationSubscriptionSeats(
+    organizationId: string,
+    seats: number,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutOrganizationsByIdSubscriptionSeats({
+          client,
+          path: { id: organizationId },
+          body: { seats },
+        }),
+      "Failed to update organization subscription seats",
     );
   }
 
@@ -2137,6 +2161,7 @@ export function createCoreClient(getClient: GetClient) {
     updateConversation,
     updateHermesInstance,
     updateOrganizationInvoiceEmail,
+    updateOrganizationSubscriptionSeats,
   };
 }
 
