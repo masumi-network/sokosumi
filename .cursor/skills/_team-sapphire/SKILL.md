@@ -29,7 +29,7 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 
 **Never** treat Investigator, Tech Lead, or Coder as standalone jobs when you were delegated from `_task` or invoked as `_team-sapphire` on a full issue. Phase comments (`**Sapphire · … complete**`) mark progress — they are **not** exit signals.
 
-Resume runs: start at the first phase still `pending` in `## Sapphire status`, then **continue through all later phases in the same session** unless a stop condition above applies.
+Resume runs: pick start phase with **artifact-aware resume** (below) — not status table alone — then **continue through all later phases in the same session** unless a stop condition above applies.
 
 ## Runtime
 
@@ -60,15 +60,21 @@ Investigation and spec are **working documents for this agent run**. Keep them i
 
 When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and the Sapphire footer. Strip legacy `## Investigation` / `## Spec` blocks if present — do not re-add them.
 
-**Resume in a new session:** `## Sapphire status` shows progress, but investigation/spec are not on Linear. Re-run from the first `pending` phase; if Coder or Reviewer is pending without session artifacts, re-run Tech Lead (and Investigator if needed) before implementing or reviewing.
+**Resume in a new session:** `## Sapphire status` shows progress, but investigation/spec are not on Linear. A row marked `done` does **not** skip a phase when its session artifact is missing — rebuild artifacts before downstream phases (Investigator → Tech Lead → Coder/Reviewer).
 
 ## Intake
 
 - Required: Linear issue id/URL (e.g. `SOK-XXX`) — usually from `_task` handoff on the same issue.
-- Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run.
+- Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run — still apply **artifact-aware resume** when downstream phases need session investigation or spec (unless user explicitly asked to run that phase only).
 - Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
 - If `## Sapphire status` is **missing**, insert the initial status block per `LINEAR-MCP.md` (full-description merge via `save_issue`) **first** — do not run resume or cleanup rules until the table exists; then start Investigator (or the user’s explicit start phase).
-- If start phase is not specified **and** `## Sapphire status` is present, read the table and resume at the **first** phase whose status is not `done`, in order: Investigator → Tech Lead → Coder → Reviewer.
+- If start phase is not specified **and** `## Sapphire status` is present, compute start phase with **artifact-aware resume** (do not use status table alone):
+  1. Let `candidate` = first row not `done` (Investigator → Tech Lead → Coder → Reviewer).
+  2. If `candidate` is Coder or Reviewer and there is no **session spec** in this run → set start to **Tech Lead** (even when Tech Lead = `done` on Linear).
+  3. If start is Tech Lead (from step 1 or 2) and there is no **session investigation** in this run → set start to **Investigator** (even when Investigator = `done` on Linear).
+  4. If `**PR handoff**` + open PR exist and Coder = `done`, start **Reviewer** — session spec optional; use PR + Requirement per `REVIEWER.md`.
+  5. Run from start phase through all later phases in this session.
+- If user **did** specify start phase, apply steps 2–4 above before starting (unless they explicitly requested that phase only).
 - If **every** status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — verify PR + `/goal`; on pass set `In Review` and post `**Sapphire · Reviewer complete**`; do not re-run earlier phases unless the user asked.
 - If **every** status row is `done` and issue is **`In Review`**, stop — await human merge.
 
@@ -120,13 +126,14 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 ## Resume and idempotency
 
-Use `## Sapphire status` as the source of truth for which phase to run. Legacy `## Investigation` / `## Spec` on Linear (older runs) are ignored — strip on the next status write.
+Use `## Sapphire status` for progress on Linear; **session artifacts** decide whether a `done` row can be skipped. Legacy `## Investigation` / `## Spec` on Linear (older runs) are ignored — strip on the next status write.
 
 | Condition | Action |
 |-----------|--------|
-| `## Sapphire status` — Investigator = done | Skip Investigator unless user asked to re-run |
-| `## Sapphire status` — Tech Lead = done | Skip Tech Lead unless user asked to re-spec |
-| Tech Lead = done but no **session spec** (new session) | Re-run Tech Lead before Coder |
+| Same session — Investigator = done + **session investigation** in context | Skip Investigator unless user asked to re-run |
+| Same session — Tech Lead = done + **session spec** in context | Skip Tech Lead unless user asked to re-spec |
+| New session — Investigator = `done` on Linear but no **session investigation** | Re-run Investigator before Tech Lead |
+| New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder (Investigator first if investigation missing) |
 | `**PR handoff**` comment + open PR | Skip Coder; run Reviewer (use session spec if same run; else PR + Requirement) |
 | All status rows = `done`, issue not `In Review` | Reviewer cleanup — set `In Review` when criteria pass; do not restart Investigator–Coder |
 | Issue `In Review` + Reviewer done | Stop — await human merge |
