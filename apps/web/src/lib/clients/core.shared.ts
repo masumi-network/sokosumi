@@ -63,6 +63,7 @@ import {
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -727,6 +728,24 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch user Stripe customer",
+    );
+  }
+
+  /**
+   * Revokes the current user's OAuth consent: Core deletes the consent,
+   * revokes the client's refresh tokens, and deletes its access tokens in a
+   * single transaction.
+   */
+  async function revokeMyOauthConsent(consentId: string, clientId: string) {
+    await executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteUsersByIdOauthConsentsByConsentId({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, consentId },
+          query: { clientId },
+        }),
+      "Failed to revoke OAuth client access",
     );
   }
 
@@ -2021,6 +2040,7 @@ export function createCoreClient(getClient: GetClient) {
     postProjectsByIdTasks,
     provisionHermesInstance,
     requestJobRefund,
+    revokeMyOauthConsent,
     setHermesSecret,
     getTaskById,
     getTaskLinks,
