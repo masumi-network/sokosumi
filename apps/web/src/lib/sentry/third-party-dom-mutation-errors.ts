@@ -14,3 +14,9 @@ export const thirdPartyDomMutationIgnoreErrors: RegExp[] = [
   /Node\.removeChild: The node to be removed is not a child of this node/,
   /Node\.insertBefore: Child to insert before is not a child of this node/,
 ];
+
+export function isThirdPartyDomMutationError(message: string): boolean {
+  return thirdPartyDomMutationIgnoreErrors.some((pattern) =>
+    pattern.test(message),
+  );
+}

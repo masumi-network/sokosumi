@@ -1,17 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-mutation-errors";
+import { isThirdPartyDomMutationError } from "@/lib/sentry/third-party-dom-mutation-errors";
 
-function matchesAnyPattern(message: string): boolean {
-  return thirdPartyDomMutationIgnoreErrors.some((pattern) =>
-    pattern.test(message),
-  );
-}
-
-describe("thirdPartyDomMutationIgnoreErrors", () => {
+describe("isThirdPartyDomMutationError", () => {
   it("matches Chromium removeChild errors", () => {
     expect(
-      matchesAnyPattern(
+      isThirdPartyDomMutationError(
         "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
       ),
     ).toBe(true);
@@ -19,7 +13,7 @@ describe("thirdPartyDomMutationIgnoreErrors", () => {
 
   it("matches Chromium insertBefore errors", () => {
     expect(
-      matchesAnyPattern(
+      isThirdPartyDomMutationError(
         "Failed to execute 'insertBefore' on 'Node': The node before which the new node is to be inserted is not a child of this node.",
       ),
     ).toBe(true);
@@ -27,7 +21,7 @@ describe("thirdPartyDomMutationIgnoreErrors", () => {
 
   it("matches Firefox removeChild errors", () => {
     expect(
-      matchesAnyPattern(
+      isThirdPartyDomMutationError(
         "Node.removeChild: The node to be removed is not a child of this node",
       ),
     ).toBe(true);
@@ -35,7 +29,7 @@ describe("thirdPartyDomMutationIgnoreErrors", () => {
 
   it("matches Firefox insertBefore errors", () => {
     expect(
-      matchesAnyPattern(
+      isThirdPartyDomMutationError(
         "Node.insertBefore: Child to insert before is not a child of this node",
       ),
     ).toBe(true);
@@ -43,15 +37,15 @@ describe("thirdPartyDomMutationIgnoreErrors", () => {
 
   it("does not match unrelated DOM errors", () => {
     expect(
-      matchesAnyPattern(
+      isThirdPartyDomMutationError(
         "Failed to execute 'appendChild' on 'Node': This node type does not support this method.",
       ),
     ).toBe(false);
   });
 
   it("does not match application errors", () => {
-    expect(matchesAnyPattern("TypeError: Cannot read properties of null")).toBe(
-      false,
-    );
+    expect(
+      isThirdPartyDomMutationError("TypeError: Cannot read properties of null"),
+    ).toBe(false);
   });
 });
