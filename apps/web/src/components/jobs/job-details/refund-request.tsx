@@ -41,12 +41,17 @@ import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /**
- * Core `Job` narrowed to the paid variant with the Masumi chain timestamps the
- * refund flow relies on (mirrors the former Prisma `PaidJobWithStatus`).
+ * Core `Job` narrowed to the paid variant the refund flow renders (mirrors the
+ * former Prisma `PaidJobWithStatus`).
+ *
+ * `unlockTime` is checked by `canRenderRefundRequest` for the COMPLETED and
+ * FAILED branches — the only statuses that reach a read (the refund/dispute
+ * statuses early-return via `STATUS_CONFIGS` first). `submitResultTime` is
+ * only guaranteed on the FAILED branch, so it keeps the core nullability and
+ * the FAILED readers narrow it locally.
  */
 type PaidJob = Job & {
   jobType: "PAID";
-  submitResultTime: Date;
   unlockTime: Date;
 };
 
@@ -178,7 +183,7 @@ function makeTitleAndDescription(
 ) {
   const isEnabled = isRefundEnabled(job);
 
-  if (job.status === SokosumiJobStatus.FAILED) {
+  if (job.status === SokosumiJobStatus.FAILED && job.submitResultTime != null) {
     // For failed jobs, use submitResultTime as the unlock time for refunds
     const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
       dateStyle: "medium",
@@ -232,7 +237,11 @@ function isRefundEnabled(job: PaidJob): boolean {
   const now = new Date();
   switch (job.status) {
     case SokosumiJobStatus.FAILED:
-      return now > job.submitResultTime && now < job.unlockTime;
+      return (
+        job.submitResultTime != null &&
+        now > job.submitResultTime &&
+        now < job.unlockTime
+      );
     case SokosumiJobStatus.COMPLETED:
       return now < job.unlockTime;
     default:
