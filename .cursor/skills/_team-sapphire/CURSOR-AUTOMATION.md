@@ -19,8 +19,8 @@ Prefer MCP `delegate` from `_task/HANDOFF.md`. If the team uses automation inste
 | Name | SOK Team Sapphire → orchestrator |
 | Trigger | Linear — Delegate assigned → `Cursor` |
 | Filter | Team SOK; description contains `## Sapphire status` |
-| Tools | Linear, GitHub |
-| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue: Investigator → Tech Lead → Coder → Reviewer. Single issue only — no child issues. Do not re-delegate or `@Cursor` on the same issue. |
+| Tools | Linear, GitHub, **Browser** (see `VISUAL-CAPTURE.md`) |
+| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue: Investigator → Tech Lead → Coder → Reviewer. Single issue only — no child issues. Reviewer: capture UI evidence per `VISUAL-CAPTURE.md`. Do not re-delegate or `@Cursor` on the same issue. |
 
 Filter on `## Sapphire status`, **not** `[repo=…]` alone — the repo hint is added later on the same ticket.
 
@@ -32,3 +32,4 @@ No automation: `_task` handoff uses MCP `delegate` or one `@Cursor` comment per 
 
 - Cursor admin: connect Linear in [Cursor integrations](https://cursor.com/docs/integrations/linear).
 - Cloud Agent: enable Linear MCP on the agent run (first delegated run may need once per agent).
+- Reviewer visuals: enable **shell** + install `agent-browser` (`VISUAL-CAPTURE.md`), or **cursor-ide-browser** MCP for screenshots in Cursor.

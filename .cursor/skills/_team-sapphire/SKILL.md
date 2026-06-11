@@ -35,7 +35,7 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 
 ## Workflow
 
-See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, `REVIEWER.md`. Linear updates: `LINEAR-MCP.md`.
+See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, `REVIEWER.md`. Linear updates: `LINEAR-MCP.md`. UI evidence: `VISUAL-CAPTURE.md`.
 
 ### Phase 1 — Investigator
 
@@ -65,7 +65,8 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 ### Phase 4 — Reviewer
 
 1. Run `/goal` per `REVIEWER.md` until all criteria pass.
-2. Fix on PR branch when needed; loop.
+2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (screenshots and/or WebM recording).
+3. Fix on PR branch when needed; loop.
 3. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done.
 4. Do **not** mark issue **Done** — human merges PR.
 
@@ -95,4 +96,5 @@ Return issue id/URL, phases completed, PR link (if any), and current Linear stat
 - `SPEC-TEMPLATE.md` — Tech Lead output shape
 - `SUBAGENT-RUBRIC.md` — when to split coders
 - `LINEAR-MCP.md` — single-issue updates
+- `VISUAL-CAPTURE.md` — Reviewer screenshots and screen recordings
 - `CURSOR-AUTOMATION.md` — optional Linear-triggered Cloud Agent setup

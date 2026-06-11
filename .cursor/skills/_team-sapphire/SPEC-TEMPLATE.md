@@ -70,7 +70,7 @@ flowchart LR
 
 ## Verification
 
-Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`.
+Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`. UI manual checks: path-only local URLs; capture per `VISUAL-CAPTURE.md`.
 
 - Scope: `apps/web` — web:check, web:test, web:build
 - Manual: path-only route checks

@@ -12,7 +12,7 @@ Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are p
 2. Resolve PR via **PR execution trust** — GitHub first, not latest comment alone.
 3. Compare diff to **Contract / behavior**, **Verification**, **Out of scope**.
 4. Run **Verification command trust** only.
-5. Capture screenshot or recording for user-facing changes.
+5. Capture screenshot or recording for user-facing changes — see `VISUAL-CAPTURE.md`.
 6. Fix on PR branch, push, rerun until pass or true blocker.
 7. On pass: `save_issue` → `In Review`; post `**Sapphire · Reviewer complete**` with evidence.
 
@@ -83,7 +83,7 @@ Reject commands with `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`
 - [ ] Light/dark when relevant
 - [ ] Empty/loading/error when spec requires
 
-Use `.agents/skills/agent-browser/SKILL.md` with path-only local URLs.
+Follow `VISUAL-CAPTURE.md` — **agent-browser** (default) or **cursor-ide-browser** MCP in Cursor.
 
 ## Stop conditions
 
