@@ -1,13 +1,12 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import prisma from "@/lib/db/prisma";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
@@ -18,6 +17,7 @@ import {
 } from "@/lib/services/organization.service";
 import { preferredOrganizationService } from "@/lib/services/preferred-organization.service";
 import { stripeService } from "@/lib/services/stripe.service";
+import { userService } from "@/lib/services/user.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -143,7 +143,7 @@ function parseBulkInviteEmails(rawEmails: string): string[] | null {
 export const inviteOrganizationMembersBulk = withSession<
   InviteOrganizationMembersBulkParameters,
   Result<{ results: BulkInviteResultRow[] }, ActionError>
->(async ({ organizationId, rawEmails, session }) => {
+>(async ({ organizationId, rawEmails }) => {
   const parsedResult = bulkInviteEmailsSchema.safeParse({
     organizationId,
     rawEmails,
@@ -171,27 +171,25 @@ export const inviteOrganizationMembersBulk = withSession<
     });
   }
 
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    session.user.id,
-    parsedResult.data.organizationId,
-    prisma,
-  );
-
-  if (!member) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "You are not a member of this organization",
-    });
-  }
-
-  if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "Only organization owners and admins can invite members",
-    });
-  }
-
   try {
+    const member = await userService.getMyMemberInOrganization(
+      parsedResult.data.organizationId,
+    );
+
+    if (!member) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      });
+    }
+
+    if (!isOrganizationOwnerOrAdmin(member.role)) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can invite members",
+      });
+    }
+
     return Ok(
       await organizationService.inviteMultipleMembers(
         parsedResult.data.organizationId,
