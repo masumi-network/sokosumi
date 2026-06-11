@@ -1,11 +1,8 @@
 import "server-only";
 
 import {
-  assertOrganizationSubscriptionChangeAllowed,
   ensureLocalFreeSubscriptionPeriod,
-  ensurePurchasedSeatsSufficient,
   grantFreeOrganizationMemberSubscriptionCredits,
-  OrganizationSubscriptionExclusivityError,
   resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
@@ -14,13 +11,9 @@ import {
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
 import { APIError } from "better-auth/api";
-import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.secrets";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
-import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 interface ActiveOrganizationSubscription {
   createdAt: Date;
@@ -54,81 +47,35 @@ async function resolveActiveOrganizationSubscription(
   };
 }
 
-async function getAssignedMemberCount(organizationId: string): Promise<number> {
-  return await memberRepository.getAssignedMemberCount(organizationId, prisma);
-}
-
-async function increaseSubscriptionSeats(
-  stripeSubscriptionId: string,
-  seats: number,
-): Promise<void> {
-  const stripeSubscription = await stripeInstance.subscriptions.retrieve(
-    stripeSubscriptionId,
-    { expand: ["items"] },
-  );
-
-  const firstItem = stripeSubscription.items.data[0];
-  if (!firstItem) {
-    throw new APIError("INTERNAL_SERVER_ERROR", {
-      message:
-        "Unable to update organization subscription seats: missing Stripe subscription item",
-    });
+/**
+ * Maps Core subscription-seat write errors back onto the APIError statuses
+ * callers (the subscription action) expect. Core responds 403 when the caller
+ * is not an owner or admin and 404 when the organization is missing — both
+ * surfaced as FORBIDDEN like the previous in-process guard. A 400 (no active
+ * subscription, seats below assigned members, or enterprise exclusivity)
+ * keeps Core's message.
+ */
+function mapCoreSubscriptionSeatsWriteError(error: unknown): never {
+  if (!(error instanceof CoreApiRequestError)) {
+    throw error;
   }
 
-  const updatePayload: Stripe.SubscriptionUpdateParams = {
-    items: [
-      {
-        id: firstItem.id,
-        quantity: seats,
-      },
-    ],
-    payment_behavior: "error_if_incomplete",
-    proration_behavior: "always_invoice",
-  };
-  await stripeInstance.subscriptions.update(
-    stripeSubscriptionId,
-    updatePayload,
-  );
-}
-
-function ensureValidPurchasedSeatCount(
-  seats: number,
-  assignedCount?: number,
-): void {
-  if (!Number.isInteger(seats) || seats < 1) {
-    throw new APIError("BAD_REQUEST", {
-      message: "Please provide valid plan and seat values",
-    });
-  }
-
-  if (assignedCount !== undefined) {
-    try {
-      ensurePurchasedSeatsSufficient(seats, assignedCount);
-    } catch (error) {
-      throw new APIError("BAD_REQUEST", {
-        message:
-          error instanceof Error
-            ? error.message
-            : `Seats must be at least ${assignedCount} to cover all assigned members`,
-      });
-    }
-  }
-}
-
-async function ensureCanManageOrganizationSubscription(
-  userId: string,
-  organizationId: string,
-): Promise<void> {
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    userId,
-    organizationId,
-    prisma,
-  );
-  if (!member || !isOrganizationOwnerOrAdmin(member.role)) {
+  if (
+    error.status === 403 ||
+    (error.status === 404 && error.message === "Organization not found")
+  ) {
     throw new APIError("FORBIDDEN", {
       message: "Only organization owners and admins can manage subscriptions",
     });
   }
+
+  if (error.status === 400) {
+    throw new APIError("BAD_REQUEST", {
+      message: error.message,
+    });
+  }
+
+  throw error;
 }
 
 async function ensureActiveOrganizationSubscription(
@@ -144,44 +91,6 @@ async function ensureActiveOrganizationSubscription(
   }
 
   return activeSubscription;
-}
-
-function ensureStripeSubscriptionId(
-  activeSubscription: ActiveOrganizationSubscription,
-): string {
-  if (!activeSubscription.stripeSubscriptionId) {
-    throw new APIError("INTERNAL_SERVER_ERROR", {
-      message:
-        "Organization subscription is missing its Stripe reference. Please contact support.",
-    });
-  }
-
-  return activeSubscription.stripeSubscriptionId;
-}
-
-async function syncOrganizationSeatCount(
-  activeSubscription: ActiveOrganizationSubscription,
-  seats: number,
-): Promise<void> {
-  if (!activeSubscription.stripeSubscriptionId) {
-    await prisma.subscription.update({
-      where: { id: activeSubscription.id },
-      data: {
-        seats,
-      },
-    });
-    return;
-  }
-
-  const stripeSubscriptionId = ensureStripeSubscriptionId(activeSubscription);
-  await increaseSubscriptionSeats(stripeSubscriptionId, seats);
-
-  await prisma.subscription.update({
-    where: { id: activeSubscription.id },
-    data: {
-      seats,
-    },
-  });
 }
 
 function ensureSubscriptionPeriodDate(
@@ -297,48 +206,27 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
 
 export const organizationSubscriptionService = (() => {
   return {
+    /**
+     * Immediately updates the purchased seat count via the Core API. Core
+     * owns the authorization (owner/admin), the enterprise-contract
+     * exclusivity and assigned-member guards, the Stripe quantity update,
+     * and the local seat write.
+     */
     async updateOrganizationSeatsImmediately(
-      userId: string,
+      _userId: string,
       organizationId: string,
       seats: number,
     ): Promise<{ seats: number }> {
-      await ensureCanManageOrganizationSubscription(userId, organizationId);
-
       try {
-        await assertOrganizationSubscriptionChangeAllowed(
+        const { data } = await coreClient.updateOrganizationSubscriptionSeats(
           organizationId,
-          prisma,
+          seats,
         );
+
+        return { seats: data.seats };
       } catch (error) {
-        if (error instanceof OrganizationSubscriptionExclusivityError) {
-          throw new APIError("BAD_REQUEST", {
-            message: error.message,
-          });
-        }
-
-        throw error;
+        mapCoreSubscriptionSeatsWriteError(error);
       }
-
-      const activeSubscription = await ensureActiveOrganizationSubscription(
-        organizationId,
-        "An active organization subscription is required before updating seats.",
-      );
-      const assignedCount = await getAssignedMemberCount(organizationId);
-      ensureValidPurchasedSeatCount(seats, assignedCount);
-
-      if (!activeSubscription.stripeSubscriptionId) {
-        await syncOrganizationSeatCount(activeSubscription, seats);
-        return { seats };
-      }
-
-      const currentSeats = resolvePurchasedSeats(activeSubscription.seats);
-      if (currentSeats === seats) {
-        return { seats: currentSeats };
-      }
-
-      await syncOrganizationSeatCount(activeSubscription, seats);
-
-      return { seats };
     },
 
     async ensureCanCreateInvitation(_organizationId: string): Promise<void> {

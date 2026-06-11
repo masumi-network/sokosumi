@@ -5418,6 +5418,35 @@ export const EnterpriseContractBillingSummarySchema = {
     ]
 } as const;
 
+export const OrganizationSubscriptionSeatsSchema = {
+    type: 'object',
+    properties: {
+        seats: {
+            type: 'integer',
+            description: 'Purchased seat count on the active subscription',
+            example: 3
+        }
+    },
+    required: [
+        'seats'
+    ]
+} as const;
+
+export const UpdateOrganizationSubscriptionSeatsSchema = {
+    type: 'object',
+    properties: {
+        seats: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Desired purchased seat count',
+            example: 3
+        }
+    },
+    required: [
+        'seats'
+    ]
+} as const;
+
 export const OrganizationInvoiceEmailSchema = {
     type: 'object',
     properties: {

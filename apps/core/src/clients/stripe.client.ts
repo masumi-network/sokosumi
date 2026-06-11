@@ -78,6 +78,39 @@ export const stripeClient = {
     return await stripe.products.retrieve(productId, {}, requestOptions);
   },
 
+  async retrieveSubscriptionWithItems(
+    subscriptionId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.retrieve(
+      subscriptionId,
+      { expand: ["items"] },
+      requestOptions,
+    );
+  },
+
+  async updateSubscriptionItemQuantity(
+    subscriptionId: string,
+    itemId: string,
+    quantity: number,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        items: [
+          {
+            id: itemId,
+            quantity,
+          },
+        ],
+        payment_behavior: "error_if_incomplete",
+        proration_behavior: "always_invoice",
+      },
+      requestOptions,
+    );
+  },
+
   async updateSubscriptionCancelAtPeriodEnd(
     subscriptionId: string,
     cancelAtPeriodEnd: boolean,

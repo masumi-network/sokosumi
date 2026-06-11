@@ -13,6 +13,7 @@ import mountGetOrganizationMembers from "./[id]/members/get.js";
 import mountGetOrganizationSeatSummary from "./[id]/seat-summary/get.js";
 import mountGetOrganizationStripeCustomer from "./[id]/stripe-customer/get.js";
 import mountGetOrganizationSubscription from "./[id]/subscription/get.js";
+import mountPutOrganizationSubscriptionSeats from "./[id]/subscription/seats/put.js";
 import mountGetOrganizationBySlug from "./slug/[slug]/get.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -30,6 +31,7 @@ mountGetOrganizationBillingPlan(app);
 mountGetOrganizationEnterpriseContractSummary(app);
 mountGetOrganizationStripeCustomer(app);
 mountGetOrganizationSubscription(app);
+mountPutOrganizationSubscriptionSeats(app);
 mountGetOrganizationDesignMd(app);
 mountPutOrganizationDesignMd(app);
 mountPatchOrganizationInvoiceEmail(app);

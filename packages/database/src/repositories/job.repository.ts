@@ -11,7 +11,6 @@ import {
   finalizedAgentJobStatuses,
   type JobWithSokosumiStatus,
   jobInclude,
-  jobOrderBy,
 } from "../types/job.js";
 import { creditBucketRepository } from "./credit-bucket.repository.js";
 
@@ -67,96 +66,6 @@ type CreateJobData = CreatePaidJobData | CreateFreeJobData;
  * creating new jobs, updating job status, and handling job lifecycle operations.
  */
 export const jobRepository = {
-  /**
-   * Retrieves all jobs associated with a specific user
-   * @param userId - The unique identifier of the user
-   * @returns Promise containing an array of jobs with their relations
-   */
-  async getJobsByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: { userId },
-      include: jobInclude,
-      orderBy: jobOrderBy,
-    });
-    return jobs.map(mapJobWithStatus);
-  },
-
-  /**
-   * Retrieves the average execution duration in seconds for a specific agent
-   * @param agentId - The unique identifier of the agent
-   * @returns Promise containing the average execution duration in seconds
-   */
-  async getAverageExecutionDurationByAgentId(
-    agentId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<number | null> {
-    const result = await tx.$queryRaw<
-      [{ avg_duration_seconds: Prisma.Decimal | null }]
-    >`
-    SELECT 
-      COALESCE(AVG(EXTRACT(EPOCH FROM (completed."createdAt" - initiated."createdAt"))), 0) as avg_duration_seconds
-    FROM "Job" j
-    INNER JOIN "jobEvent" initiated ON initiated."jobId" = j.id
-      AND initiated."status" = 'INITIATED'::"AgentJobStatus"
-    INNER JOIN "jobEvent" completed ON completed."jobId" = j.id
-      AND completed."status" = 'COMPLETED'::"AgentJobStatus"
-    WHERE j."agentId" = ${agentId}
-    AND j."jobType" != 'DEMO'
-    AND j."createdAt" >= NOW() - INTERVAL '90 days'
-  `;
-    const averageDurationSeconds = result[0]?.avg_duration_seconds;
-    if (!averageDurationSeconds) {
-      return null;
-    }
-    return averageDurationSeconds.toNumber();
-  },
-
-  /**
-   * Retrieves the number of executed jobs for a specific agent (not demo jobs)
-   * @param agentId - The unique identifier of the agent
-   * @returns Promise containing the number of executed jobs
-   */
-  async getExecutedJobsCountByAgentId(
-    agentId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<number> {
-    return await tx.job.count({
-      where: {
-        agentId,
-        jobType: {
-          not: JobType.DEMO,
-        },
-      },
-    });
-  },
-
-  /**
-   * Retrieves all jobs associated with a specific agent and user (not demo jobs)
-   * @param agentId - The unique identifier of the agent
-   * @param userId - The unique identifier of the user
-   * @returns Promise containing an array of jobs with their relations
-   */
-  async getJobsByAgentIdAndUserId(
-    agentId: string,
-    userId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: { agentId, userId },
-      include: jobInclude,
-      orderBy: jobOrderBy,
-    });
-
-    if (!jobs) {
-      return [];
-    }
-
-    return jobs.map(mapJobWithStatus);
-  },
-
   async getJobById(
     jobId: string,
     tx: Prisma.TransactionClient,
@@ -169,17 +78,6 @@ export const jobRepository = {
       return null;
     }
     return mapJobWithStatus(job);
-  },
-
-  async getJobByBlockchainIdentifier(
-    blockchainIdentifier: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus | null> {
-    const job = await tx.job.findUnique({
-      where: { blockchainIdentifier },
-      include: jobInclude,
-    });
-    return job ? mapJobWithStatus(job) : null;
   },
 
   async createDemoJob(
@@ -370,19 +268,6 @@ export const jobRepository = {
         throw new Error(`Unsupported job type: ${_exhaustive}`);
       }
     }
-  },
-
-  async updateJobNameById(
-    jobId: string,
-    name: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus> {
-    const job = await tx.job.update({
-      where: { id: jobId },
-      data: { name },
-      include: jobInclude,
-    });
-    return mapJobWithStatus(job);
   },
 
   /**
