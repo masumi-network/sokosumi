@@ -25,11 +25,13 @@ const updateSubscriptionRecordMock = vi.fn();
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
+  kind?: string;
   status?: number;
 
-  constructor(message: string, options?: { status?: number }) {
+  constructor(message: string, options?: { kind?: string; status?: number }) {
     super(message);
     this.name = "CoreApiRequestError";
+    this.kind = options?.kind;
     this.status = options?.status;
   }
 }
@@ -289,6 +291,29 @@ describe("organizationSubscriptionService", () => {
     it("maps a missing organization to the owner/admin FORBIDDEN error", async () => {
       updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
         new MockCoreApiRequestError("Organization not found", {
+          status: 404,
+        }),
+      );
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          3,
+        ),
+      ).rejects.toThrow(
+        "Only organization owners and admins can manage subscriptions",
+      );
+    });
+
+    it("maps the organization_not_found kind to FORBIDDEN even when the message is reworded", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        new MockCoreApiRequestError("We could not find that organization", {
+          kind: "organization_not_found",
           status: 404,
         }),
       );

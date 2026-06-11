@@ -13,11 +13,13 @@ const syncOrganizationInvoiceEmailWithStripeMock = vi.fn();
 const updateOrganizationInvoiceEmailMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
+  kind?: string;
   status?: number;
 
-  constructor(message: string, options?: { status?: number }) {
+  constructor(message: string, options?: { kind?: string; status?: number }) {
     super(message);
     this.name = "CoreApiRequestError";
+    this.kind = options?.kind;
     this.status = options?.status;
   }
 }
@@ -383,6 +385,31 @@ describe("updateOrganizationInvoiceEmail", () => {
       error: {
         code: "UNAUTHORIZED",
         message: "Organization not found",
+      },
+    });
+    expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
+  });
+
+  it("maps the organization_role_forbidden kind to UNAUTHORIZED even when the message is reworded", async () => {
+    updateOrganizationInvoiceEmailMock.mockRejectedValue(
+      new MockCoreApiRequestError("Owners and admins only", {
+        kind: "organization_role_forbidden",
+        status: 403,
+      }),
+    );
+    const { updateOrganizationInvoiceEmail } = await import("../action");
+
+    const result = await updateOrganizationInvoiceEmail({
+      organizationId: "org-1",
+      invoiceEmail: "billing@acme.example",
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Owners and admins only",
       },
     });
     expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();

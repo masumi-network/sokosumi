@@ -15,7 +15,11 @@ import {
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
-import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  convertCreditsToCents,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import { badRequest, notFound } from "@/helpers/error";
@@ -45,12 +49,15 @@ export function mapSeatRepositoryError(error: unknown): never {
   }
 
   if (error.message === "Member not found") {
-    throw notFound("Member not found");
+    throw notFound("Member not found", {
+      kind: CORE_API_ERROR_KINDS.MEMBER_NOT_FOUND,
+    });
   }
 
   if (error.message.includes("exceeds purchased seats")) {
     throw badRequest(
       "No unused seats available. Purchase more seats or unassign another member.",
+      { kind: CORE_API_ERROR_KINDS.SEAT_CAPACITY_EXCEEDED },
     );
   }
 

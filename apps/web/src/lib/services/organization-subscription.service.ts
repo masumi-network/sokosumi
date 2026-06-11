@@ -10,6 +10,7 @@ import {
   memberRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -54,6 +55,10 @@ async function resolveActiveOrganizationSubscription(
  * surfaced as FORBIDDEN like the previous in-process guard. A 400 (no active
  * subscription, seats below assigned members, or enterprise exclusivity)
  * keeps Core's message.
+ *
+ * Disambiguation matches the machine-readable `kind` from the Core error
+ * envelope first; the legacy status(+message) checks remain as a fallback for
+ * responses without a kind.
  */
 function mapCoreSubscriptionSeatsWriteError(error: unknown): never {
   if (!(error instanceof CoreApiRequestError)) {
@@ -61,6 +66,7 @@ function mapCoreSubscriptionSeatsWriteError(error: unknown): never {
   }
 
   if (
+    error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND ||
     error.status === 403 ||
     (error.status === 404 && error.message === "Organization not found")
   ) {

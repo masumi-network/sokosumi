@@ -1,6 +1,7 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -91,9 +92,16 @@ export const updateOrganizationInvoiceEmail = withSession<
     );
     persisted = data;
   } catch (error) {
+    // Core reports missing access via stable kinds (organization missing, no
+    // membership, insufficient role); the status fallback covers responses
+    // without a kind.
     if (
       error instanceof CoreApiRequestError &&
-      (error.status === 403 || error.status === 404)
+      (error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND ||
+        error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED ||
+        error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN ||
+        error.status === 403 ||
+        error.status === 404)
     ) {
       return Err({
         code: CommonErrorCode.UNAUTHORIZED,
