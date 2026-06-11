@@ -1,8 +1,4 @@
-import {
-  type Member,
-  MemberRole,
-  type OrganizationWithRelations,
-} from "@sokosumi/database";
+import { type Member, MemberRole, type Organization } from "@sokosumi/database";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -24,7 +20,7 @@ import { OrganizationMetadataProvider } from "./organization-metadata-context";
 import OrganizationRemoveButton from "./organization-remove-button";
 
 interface OrganizationInformationProps {
-  organization: OrganizationWithRelations;
+  organization: Organization;
   member: Member;
 }
 

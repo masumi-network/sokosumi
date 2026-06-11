@@ -92,6 +92,7 @@ import {
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
@@ -1311,6 +1312,31 @@ export function createCoreClient(getClient: GetClient) {
     }
   }
 
+  /**
+   * Fetches the raw organization record by slug for the current member,
+   * returning null when no organization matches the slug (Core responds 404).
+   * A 403 (the caller is not a member) propagates as CoreApiRequestError.
+   */
+  async function getOrganizationBySlug(slug: string) {
+    try {
+      return await executeOperation(
+        getClient,
+        (client) =>
+          coreGetOrganizationBySlug({
+            client,
+            path: { slug },
+            cache: "no-store",
+          }),
+        "Failed to fetch organization",
+      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async function getHermesInstance() {
     return executeOperation(
       getClient,
@@ -1914,6 +1940,7 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     getMyStripeCustomer,
     getOrganizationById,
+    getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,

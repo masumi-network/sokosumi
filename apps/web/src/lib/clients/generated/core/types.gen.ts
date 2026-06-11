@@ -1302,15 +1302,17 @@ export type MemberWithOrganization = {
     role: string;
     seatAssignedAt: Date | null;
     createdAt: Date;
-    organization: {
-        id: string;
-        name: string;
-        slug: string;
-        logo: string | null;
-        metadata: string | null;
-        createdAt: Date;
-        stripeCustomerId: string | null;
-    };
+    organization: OrganizationRecord;
+};
+
+export type OrganizationRecord = {
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    metadata: string | null;
+    createdAt: Date;
+    stripeCustomerId: string | null;
 };
 
 export type Organization = {
@@ -11701,6 +11703,91 @@ export type GetUsersByIdResponses = {
 };
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
+
+export type GetOrganizationBySlugData = {
+    body?: never;
+    path: {
+        /**
+         * Organization slug
+         */
+        slug: string;
+    };
+    query?: never;
+    url: '/organizations/slug/{slug}';
+};
+
+export type GetOrganizationBySlugErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationBySlugError = GetOrganizationBySlugErrors[keyof GetOrganizationBySlugErrors];
+
+export type GetOrganizationBySlugResponses = {
+    /**
+     * Retrieve organization by slug
+     */
+    200: {
+        data: OrganizationRecord;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationBySlugResponse = GetOrganizationBySlugResponses[keyof GetOrganizationBySlugResponses];
 
 export type GetOrganizationsByIdData = {
     body?: never;
