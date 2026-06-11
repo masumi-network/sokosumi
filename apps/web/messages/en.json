@@ -265,7 +265,7 @@
       "admin": "Admin",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
-      "credit-grants": "Grant credits",
+      "invoices": "Invoices",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
       "tasks": "Tasks",
@@ -2611,9 +2611,11 @@
         }
       },
       "CreditGrants": {
-        "title": "Grant credits",
+        "title": "Invoices",
         "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
-        "cardTitle": "New credit grant",
+        "cardTitle": "New invoice",
+        "newGrant": "New invoice",
+        "backToList": "Back to list",
         "Form": {
           "Fields": {
             "target": "Recipient",
@@ -2660,7 +2662,40 @@
           "marking": "Granting credits…",
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
-          "openInStripe": "Open in Stripe"
+          "openInStripe": "Open in Stripe",
+          "loadError": "Failed to load invoice"
+        },
+        "InvoiceList": {
+          "empty": "No credit-grant invoices match the current filters.",
+          "loadError": "Failed to load invoices",
+          "recipient": "Recipient",
+          "typeUser": "User",
+          "typeOrganization": "Organization",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "created": "Created",
+          "actions": "Actions",
+          "view": "View",
+          "Filters": {
+            "status": "Status",
+            "recipient": "Recipient",
+            "recipientAll": "All recipients",
+            "tabOrganization": "Organization",
+            "tabUser": "User"
+          },
+          "Status": {
+            "unfinished": "Unfinished",
+            "all": "All statuses",
+            "draft": "Draft",
+            "open": "Open",
+            "paid": "Paid",
+            "void": "Void",
+            "uncollectible": "Uncollectible"
+          }
         }
       },
       "Overview": {
@@ -2672,8 +2707,8 @@
             "description": "Create and manage draft, active, and canceled enterprise contracts."
           },
           "creditGrants": {
-            "title": "Grant credits",
-            "description": "Grant one-time credits to an organization via a Stripe invoice."
+            "title": "Invoices",
+            "description": "View credit-grant invoices and grant one-time credits to a user or organization."
           }
         }
       }
@@ -3099,6 +3134,34 @@
         "clientSecretLabel": "Client Secret",
         "clientSecretPlaceholder": "Enter your OAuth Client Secret",
         "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
+      },
+      "BrandProfile": {
+        "title": "Brand profile",
+        "description": "Set the brand details used when creating a personal DESIGN.md.",
+        "logoLabel": "Brand logo",
+        "logoDescription": "Upload a logo up to {maxSize}. This does not change your personal avatar.",
+        "logoUpload": "Upload",
+        "logoReplace": "Replace",
+        "logoRemove": "Remove logo",
+        "logoPreviewAlt": "Brand logo preview",
+        "logoUploadSuccess": "Brand logo updated",
+        "logoUploadError": "Failed to upload brand logo",
+        "logoSaveError": "Failed to save brand logo",
+        "logoRemoveSuccess": "Brand logo removed",
+        "logoRemoveError": "Failed to remove brand logo",
+        "fileTooLarge": "File is too large",
+        "fileTypeNotAccepted": "File type is not accepted",
+        "maxFilesExceeded": "Upload one logo at a time",
+        "websiteLabel": "Website URL",
+        "websitePlaceholder": "https://example.com",
+        "websiteDescription": "Masumi uses this website to generate your DESIGN.md.",
+        "submit": "Save brand profile",
+        "saving": "Saving...",
+        "saveSuccess": "Brand profile saved",
+        "saveError": "Failed to save brand profile",
+        "Schema": {
+          "websiteUrl": "Enter a valid http or https URL"
+        }
       }
     },
     "Organizations": {
@@ -3240,6 +3303,63 @@
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "An AI-powered coworker ready to assist you."
       }
+    },
+    "DesignMd": {
+      "title": "DESIGN.md",
+      "statusReady": "Ready",
+      "statusEmpty": "Not set",
+      "readyTitle": "DESIGN.md attached to this profile",
+      "readyDescription": "New tasks can include this brand guide automatically. You can download, preview, replace, or remove it.",
+      "emptyTitle": "No DESIGN.md yet",
+      "emptyDescription": "Generate one from the website URL or upload an existing markdown file.",
+      "websiteSource": "Source website: {websiteUrl}",
+      "missingWebsiteHint": "Add a website URL before generating a DESIGN.md.",
+      "generateButton": "Generate",
+      "regenerateButton": "Regenerate",
+      "downloadButton": "Download",
+      "previewButton": "Preview",
+      "removeButton": "Remove",
+      "autoLabel": "Auto",
+      "autoDescription": "Generate from the website URL. Turn off to upload manually.",
+      "actionsMenuLabel": "Open DESIGN.md actions",
+      "menuDownload": "Download",
+      "menuPreview": "Preview",
+      "menuRegenerate": "Regenerate",
+      "menuRemove": "Remove",
+      "removing": "Removing...",
+      "removeSuccess": "DESIGN.md removed",
+      "removeError": "Failed to remove DESIGN.md",
+      "removeDialogTitle": "Remove DESIGN.md?",
+      "removeDialogDescription": "New tasks will no longer attach this file automatically. You can generate or upload another one later.",
+      "confirmRemove": "Remove DESIGN.md",
+      "cancel": "Cancel",
+      "generateDialogTitle": "Generate DESIGN.md",
+      "generateDialogDescription": "Masumi will read {websiteUrl} and create a canonical brand guide.",
+      "missingWebsite": "Add a website URL before generating a DESIGN.md.",
+      "forceRegenerateAria": "Bypass cached DESIGN.md result",
+      "forceRegenerateLabel": "Force a fresh generation",
+      "forceRegenerateDescription": "Use this when the website changed recently and the cached result may be stale.",
+      "confirmGenerate": "Start generation",
+      "generating": "Generating...",
+      "starting": "Starting generation...",
+      "polling": "Waiting for Masumi to finish...",
+      "finalizing": "Saving DESIGN.md...",
+      "generateSuccess": "DESIGN.md generated",
+      "generateErrorTitle": "Generation failed",
+      "generateError": "DESIGN.md generation failed",
+      "saveError": "Failed to save DESIGN.md",
+      "startGenerateError": "Failed to start DESIGN.md generation",
+      "uploadLabel": "Upload DESIGN.md",
+      "uploadTitle": "Upload markdown file",
+      "uploadDescription": ".md or .markdown up to {maxSize}",
+      "uploadButton": "Upload",
+      "uploading": "Uploading...",
+      "uploadSuccess": "DESIGN.md uploaded",
+      "uploadError": "Failed to upload DESIGN.md",
+      "uploadRejected": "File is not accepted",
+      "removeSelectedUpload": "Remove selected file",
+      "descriptionPersonal": "Create and manage the DESIGN.md used for tasks from your personal workspace.",
+      "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization."
     }
   },
   "Share": {

@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { v4 as uuidv4 } from "uuid";
-
+import { pinCoworkerConversationBinding } from "@/helpers/access-control";
 import { conflict, internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -81,17 +81,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw conflict("Conversation already exists");
         }
 
+        // A delegated coworker owns the conversations it creates: pin the
+        // binding so later per-resource checks recognize it (no-op for users).
+        const metadata = pinCoworkerConversationBinding(c.var.authContext, {
+          ...(body.metadata ?? {}),
+          userId: userContext.userId, // Store userId in metadata for reference
+        });
+
         // Create conversation in database with title and metadata
         const conversationData = {
           openaiId,
           userId: userContext.userId,
           title: body.title,
-          metadata: body.metadata
-            ? {
-                ...body.metadata,
-                userId: userContext.userId, // Store userId in metadata for reference
-              }
-            : { userId: userContext.userId },
+          metadata,
         };
 
         return tx.conversation.create({ data: conversationData });

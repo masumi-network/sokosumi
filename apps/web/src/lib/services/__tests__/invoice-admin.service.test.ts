@@ -15,6 +15,7 @@ const getCreditTopUpPriceByIdMock = vi.fn();
 const getInvoiceMock = vi.fn();
 const payInvoiceOutOfBandMock = vi.fn();
 const getAccountIdMock = vi.fn();
+const searchInvoicesMock = vi.fn();
 
 const handleInvoicePaidEventMock = vi.fn();
 const creditBucketFindFirstMock = vi.fn();
@@ -64,6 +65,7 @@ vi.mock("@/lib/clients/stripe.client", () => ({
     payInvoiceOutOfBand: (...args: unknown[]) =>
       payInvoiceOutOfBandMock(...args),
     getAccountId: (...args: unknown[]) => getAccountIdMock(...args),
+    searchInvoices: (...args: unknown[]) => searchInvoicesMock(...args),
   },
 }));
 
@@ -98,10 +100,10 @@ vi.mock("@/config/env.secrets", () => ({
 
 import {
   CreditGrantValidationError,
-  creditGrantAdminService,
-} from "../credit-grant-admin.service";
+  invoiceAdminService,
+} from "../invoice-admin.service";
 
-describe("creditGrantAdminService.createGrantInvoice", () => {
+describe("invoiceAdminService.createGrantInvoice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getBaseCreditTopUpPriceMock.mockResolvedValue({
@@ -127,7 +129,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
       metadata: null,
     });
 
-    const summary = await creditGrantAdminService.createGrantInvoice({
+    const summary = await invoiceAdminService.createGrantInvoice({
       target: { targetType: "organization", targetId: "org_1" },
       credits: 10,
       ttlDays: null,
@@ -157,7 +159,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
       stripeCustomerId: "cus_user",
     });
 
-    const summary = await creditGrantAdminService.createGrantInvoice({
+    const summary = await invoiceAdminService.createGrantInvoice({
       target: { targetType: "user", targetId: "user_1" },
       credits: 5,
       ttlDays: null,
@@ -192,7 +194,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     });
     creditBucketFindFirstMock.mockResolvedValue({ id: "cb_free" });
 
-    await creditGrantAdminService.createGrantInvoice({
+    await invoiceAdminService.createGrantInvoice({
       target: { targetType: "organization", targetId: "org_1" },
       credits: 10,
       ttlDays: null,
@@ -221,7 +223,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     });
     creditBucketFindFirstMock.mockResolvedValue({ id: "cb_free" });
 
-    const summary = await creditGrantAdminService.createGrantInvoice({
+    const summary = await invoiceAdminService.createGrantInvoice({
       target: { targetType: "organization", targetId: "org_1" },
       credits: 10,
       ttlDays: null,
@@ -243,7 +245,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
       metadata: null,
     });
     // Default mock returns status "open".
-    await creditGrantAdminService.createGrantInvoice({
+    await invoiceAdminService.createGrantInvoice({
       target: { targetType: "organization", targetId: "org_1" },
       credits: 10,
       ttlDays: null,
@@ -272,7 +274,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     creditBucketFindFirstMock.mockResolvedValue(null);
 
     await expect(
-      creditGrantAdminService.createGrantInvoice({
+      invoiceAdminService.createGrantInvoice({
         target: { targetType: "organization", targetId: "org_1" },
         credits: 10,
         ttlDays: null,
@@ -299,7 +301,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     });
 
     await expect(
-      creditGrantAdminService.createGrantInvoice({
+      invoiceAdminService.createGrantInvoice({
         target: { targetType: "organization", targetId: "org_1" },
         credits: 10,
         ttlDays: null,
@@ -328,7 +330,7 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
     });
 
     await expect(
-      creditGrantAdminService.createGrantInvoice({
+      invoiceAdminService.createGrantInvoice({
         target: { targetType: "organization", targetId: "org_1" },
         credits: 1,
         ttlDays: null,
@@ -341,7 +343,274 @@ describe("creditGrantAdminService.createGrantInvoice", () => {
   });
 });
 
-describe("creditGrantAdminService.markGrantInvoicePaid", () => {
+describe("invoiceAdminService.listGrantInvoices", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAccountIdMock.mockResolvedValue("acct_1");
+  });
+
+  function getSearchQueries(): string[] {
+    return searchInvoicesMock.mock.calls.map((call) => call[0]?.query ?? "");
+  }
+
+  it("runs one AND-only query per status (never mixing AND and OR), defaulting to unfinished", async () => {
+    searchInvoicesMock.mockResolvedValue([]);
+
+    await invoiceAdminService.listGrantInvoices();
+
+    const queries = getSearchQueries();
+    expect(searchInvoicesMock).toHaveBeenCalledTimes(2);
+    for (const query of queries) {
+      expect(query).toContain(
+        'metadata["grant_source"]:"admin_one_time_credit"',
+      );
+      // Stripe rejects a mix of AND and OR — each query must use AND only.
+      expect(query).not.toContain(" OR ");
+      expect(query).not.toContain("(");
+      expect(query).not.toContain("customer:");
+    }
+    expect(queries.some((query) => query.includes('status:"draft"'))).toBe(
+      true,
+    );
+    expect(queries.some((query) => query.includes('status:"open"'))).toBe(true);
+  });
+
+  it("runs a single status-less query when filtering by 'all'", async () => {
+    searchInvoicesMock.mockResolvedValue([]);
+
+    await invoiceAdminService.listGrantInvoices({ status: "all" });
+
+    expect(searchInvoicesMock).toHaveBeenCalledTimes(1);
+    const query = getSearchQueries()[0];
+    expect(query).toContain('metadata["grant_source"]:"admin_one_time_credit"');
+    expect(query).not.toContain("status:");
+  });
+
+  it("runs a single AND-only query when filtering by a specific status", async () => {
+    searchInvoicesMock.mockResolvedValue([]);
+
+    await invoiceAdminService.listGrantInvoices({ status: "paid" });
+
+    expect(searchInvoicesMock).toHaveBeenCalledTimes(1);
+    const query = getSearchQueries()[0];
+    expect(query).toContain('status:"paid"');
+    expect(query).not.toContain(" OR ");
+  });
+
+  it("scopes the search to the recipient's Stripe customer", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user_1",
+      name: "Ada",
+      stripeCustomerId: "cus_user",
+    });
+    searchInvoicesMock.mockResolvedValue([]);
+
+    await invoiceAdminService.listGrantInvoices({
+      recipient: { targetType: "user", targetId: "user_1" },
+    });
+
+    for (const query of getSearchQueries()) {
+      expect(query).toContain('customer:"cus_user"');
+    }
+  });
+
+  it("returns an empty list when the recipient has no Stripe customer", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      stripeCustomerId: null,
+    });
+
+    const items = await invoiceAdminService.listGrantInvoices({
+      recipient: { targetType: "organization", targetId: "org_1" },
+    });
+
+    expect(items).toEqual([]);
+    expect(searchInvoicesMock).not.toHaveBeenCalled();
+  });
+
+  it("caps the result at the requested limit", async () => {
+    searchInvoicesMock.mockResolvedValue(
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `in_${index}`,
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: index,
+        metadata: { grant_source: "admin_one_time_credit", credits: "1" },
+        customer: { name: "Acme", metadata: { customerType: "organization" } },
+      })),
+    );
+
+    const items = await invoiceAdminService.listGrantInvoices({ limit: 2 });
+
+    // The display limit is applied after sorting newest-first, not pushed down
+    // to the Stripe search call — search has no guaranteed ordering, so the cap
+    // must select the newest from the full set rather than the first page.
+    expect(searchInvoicesMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 2 }),
+    );
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.invoiceId)).toEqual(["in_4", "in_3"]);
+  });
+
+  it("returns only admin credit-grant invoices, mapped and sorted newest first", async () => {
+    searchInvoicesMock.mockResolvedValue([
+      {
+        id: "in_old",
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: 100,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: {
+          name: "Acme",
+          metadata: { customerType: "organization" },
+        },
+      },
+      {
+        id: "in_other",
+        status: "open",
+        currency: "usd",
+        amount_due: 2000,
+        created: 200,
+        // Not an admin grant invoice (e.g. a checkout invoice) — excluded.
+        metadata: { credits: "5" },
+        customer: { name: "Someone", metadata: { customerType: "user" } },
+      },
+      {
+        id: "in_new",
+        status: "draft",
+        currency: "eur",
+        amount_due: 500,
+        created: 300,
+        metadata: {
+          grant_source: "admin_one_time_credit",
+          credits: "3",
+          ttl_days: "30",
+        },
+        customer: { name: "Ada", metadata: { customerType: "user" } },
+      },
+    ]);
+
+    const items = await invoiceAdminService.listGrantInvoices();
+
+    expect(items.map((item) => item.invoiceId)).toEqual(["in_new", "in_old"]);
+    expect(items[0]).toMatchObject({
+      invoiceId: "in_new",
+      targetType: "user",
+      targetName: "Ada",
+      credits: 3,
+      ttlDays: 30,
+      currency: "eur",
+      amountDue: 500,
+      status: "draft",
+      createdAt: 300_000,
+      dashboardUrl: "https://dashboard.stripe.com/acct_1/invoices/in_new",
+    });
+    expect(items[1]).toMatchObject({
+      invoiceId: "in_old",
+      targetType: "organization",
+      targetName: "Acme",
+      ttlDays: null,
+    });
+  });
+
+  it("handles unexpanded or deleted customers without throwing", async () => {
+    searchInvoicesMock.mockResolvedValue([
+      {
+        id: "in_str",
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: 100,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: "cus_unexpanded",
+      },
+      {
+        id: "in_deleted",
+        status: "open",
+        currency: "usd",
+        amount_due: 1000,
+        created: 50,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: { deleted: true },
+      },
+    ]);
+
+    const items = await invoiceAdminService.listGrantInvoices();
+
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(item.targetType).toBeNull();
+      expect(item.targetName).toBeNull();
+    }
+  });
+});
+
+describe("invoiceAdminService.getGrantInvoice", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAccountIdMock.mockResolvedValue("acct_1");
+  });
+
+  it("returns null when the invoice is not an admin credit grant", async () => {
+    getInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      metadata: {},
+      customer: "cus_user",
+      status: "open",
+      currency: "usd",
+      amount_due: 1000,
+    });
+
+    const summary = await invoiceAdminService.getGrantInvoice("in_1");
+
+    expect(summary).toBeNull();
+  });
+
+  it("returns null when the invoice cannot be retrieved", async () => {
+    getInvoiceMock.mockRejectedValue(new Error("No such invoice"));
+
+    const summary = await invoiceAdminService.getGrantInvoice("missing");
+
+    expect(summary).toBeNull();
+  });
+
+  it("returns a summary resolving the user target", async () => {
+    getInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      metadata: {
+        grant_source: "admin_one_time_credit",
+        credits: "10",
+        ttl_days: "30",
+      },
+      customer: "cus_user",
+      status: "open",
+      currency: "usd",
+      amount_due: 1000,
+    });
+    getUserByStripeCustomerIdMock.mockResolvedValue({
+      id: "user_1",
+      name: "Ada",
+    });
+
+    const summary = await invoiceAdminService.getGrantInvoice("in_1");
+
+    expect(summary).toMatchObject({
+      invoiceId: "in_1",
+      targetType: "user",
+      targetId: "user_1",
+      targetName: "Ada",
+      credits: 10,
+      ttlDays: 30,
+      status: "open",
+      dashboardUrl: "https://dashboard.stripe.com/acct_1/invoices/in_1",
+    });
+  });
+});
+
+describe("invoiceAdminService.markGrantInvoicePaid", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getAccountIdMock.mockResolvedValue("acct_1");
@@ -365,7 +634,7 @@ describe("creditGrantAdminService.markGrantInvoicePaid", () => {
     });
     creditBucketFindFirstMock.mockResolvedValue({ id: "cb_1" });
 
-    const summary = await creditGrantAdminService.markGrantInvoicePaid("in_1");
+    const summary = await invoiceAdminService.markGrantInvoicePaid("in_1");
 
     expect(getOrganizationByStripeCustomerIdMock).not.toHaveBeenCalled();
     expect(payInvoiceOutOfBandMock).not.toHaveBeenCalled();
@@ -400,7 +669,7 @@ describe("creditGrantAdminService.markGrantInvoicePaid", () => {
     });
     creditBucketFindFirstMock.mockResolvedValue({ id: "cb_1" });
 
-    const summary = await creditGrantAdminService.markGrantInvoicePaid("in_1");
+    const summary = await invoiceAdminService.markGrantInvoicePaid("in_1");
 
     expect(creditBucketFindFirstMock).toHaveBeenCalledWith({
       where: { organizationId: "org_1", referenceId: "org:ref" },

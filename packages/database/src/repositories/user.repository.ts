@@ -196,4 +196,23 @@ export const userRepository = {
       data: { preferredOrganizationId },
     });
   },
+
+  /**
+   * Updates the metadata JSON string for a user.
+   *
+   * @param userId - The unique identifier of the user.
+   * @param metadata - Serialized metadata JSON, or null to clear.
+   * @param tx - The Prisma transaction client to use.
+   * @returns A promise that resolves to the updated User object.
+   */
+  updateUserMetadata: async (
+    userId: string,
+    metadata: string | null,
+    tx: Prisma.TransactionClient,
+  ): Promise<User> => {
+    return tx.user.update({
+      where: { id: userId },
+      data: { metadata },
+    });
+  },
 };

@@ -21,6 +21,7 @@ import { getSession } from "@/lib/auth/utils";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -137,7 +138,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         ? jobsListFilters.projectId
         : null,
   };
-  const [jobsPage, columnPages] = await Promise.all([
+  const [jobsPage, columnPages, initialDesignMdAttachment] = await Promise.all([
     taskService.listJobs({
       scope: activeJobsListFilters.scope,
       agentId: activeJobsListFilters.agentId ?? undefined,
@@ -162,6 +163,12 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         return [column.id, page] as const;
       }),
     ),
+    session?.user.id
+      ? designMdService.resolveEffectiveDesignMd({
+          activeOrganizationId,
+          userId: session.user.id,
+        })
+      : null,
   ]);
   const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
   const columnNextCursorById = Object.fromEntries(
@@ -221,6 +228,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         defaultViewMode={defaultViewMode}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
+        initialDesignMdAttachment={initialDesignMdAttachment}
         createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}`}
         labels={{
           tabs: {

@@ -16,7 +16,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { jobSummariesSchema } from "@/schemas/job.schema.js";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -123,6 +123,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { scope } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
+    // Delegated coworkers only see jobs whose task is assigned to them.
+    const coworkerId = isCoworkerAuthContext(c.var.authContext)
+      ? c.var.authContext.coworkerId
+      : undefined;
+
     const { jobs, count, hasMore } = await getUserJobs(
       {
         userContext,
@@ -131,6 +136,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       {
         agentId: id,
         scope,
+        coworkerId,
         cursor,
         take,
         skip,

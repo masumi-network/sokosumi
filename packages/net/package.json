@@ -1,0 +1,45 @@
+{
+  "name": "@sokosumi/net",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
+    "prepare": "pnpm build",
+    "lint": "biome lint .",
+    "lint:write": "biome lint --write .",
+    "check": "biome check .",
+    "check:write": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "request-filtering-agent": "3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.2",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

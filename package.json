@@ -16,6 +16,7 @@
     "ai-provider:build": "pnpm --filter @sokosumi/ai-provider build",
     "ai-provider:typecheck": "pnpm --filter @sokosumi/ai-provider typecheck",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
+    "net:build": "pnpm --filter @sokosumi/net build",
     "typecheck": "pnpm -r typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
@@ -24,6 +25,7 @@
     "masumi:typecheck": "pnpm --filter @sokosumi/masumi typecheck",
     "email:typecheck": "pnpm --filter @sokosumi/email typecheck",
     "utils:typecheck": "pnpm --filter @sokosumi/utils typecheck",
+    "net:typecheck": "pnpm --filter @sokosumi/net typecheck",
     "start": "pnpm -r start",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
@@ -82,7 +84,7 @@
   },
   "devDependencies": {
     "chrome-launcher": "1.2.1",
-    "lighthouse": "13.3.0",
+    "lighthouse": "13.4.0",
     "@biomejs/biome": "2.4.16"
   }
 }

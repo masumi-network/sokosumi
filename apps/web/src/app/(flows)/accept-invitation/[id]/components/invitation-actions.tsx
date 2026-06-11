@@ -1,6 +1,5 @@
 "use client";
 
-import type { Invitation } from "@sokosumi/database";
 import type { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -14,10 +13,11 @@ import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
+import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 interface InvitationActionsProps {
-  invitation: Invitation;
+  invitation: Pick<PendingInvitationDetail, "id" | "email">;
   organizationSlug: string;
   user: User | undefined;
 }

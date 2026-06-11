@@ -1,4 +1,5 @@
 import { BlobStatus } from "@sokosumi/database";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { getUrlBasename } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
@@ -100,8 +101,12 @@ async function importBlob(
 
   try {
     const abortSignal = createImportAbortSignal(options);
-    const response = await fetch(blob.sourceUrl, {
-      redirect: "follow",
+    // SSRF guard: validate the source URL (and every redirect hop) against
+    // private/loopback/link-local/metadata addresses before fetching. The
+    // result is uploaded to a public blob store, so an unguarded fetch on a
+    // URL derived from untrusted job output would be an SSRF + exfiltration
+    // primitive.
+    const response = await ssrfSafeFetch(blob.sourceUrl, {
       signal: abortSignal,
     });
 

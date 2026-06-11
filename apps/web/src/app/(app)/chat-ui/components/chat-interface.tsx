@@ -72,6 +72,7 @@ import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
 import { createTask } from "@/lib/actions/task/action";
+import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 
 import MessageList from "./message-list";
 
@@ -202,6 +203,7 @@ interface ChatInterfaceProps {
   navigationMode?: "route" | "controlled";
   controlledConversationId?: string | null;
   onConversationCreated?: (conversationId: string) => void;
+  initialDesignMdAttachment?: TaskDesignMdAttachmentSeed | null;
 }
 
 export default function ChatInterface({
@@ -213,6 +215,7 @@ export default function ChatInterface({
   navigationMode = "route",
   controlledConversationId = null,
   onConversationCreated,
+  initialDesignMdAttachment = null,
 }: ChatInterfaceProps) {
   const t = useTranslations("App.Chat.Chat");
   const params = useParams<{ conversationId?: string }>();
@@ -1474,6 +1477,7 @@ export default function ChatInterface({
             const result = await createTask({
               description: messageText,
               coworkerId: selectedTaskCoworker.id,
+              skipDesignMdAttachment: options?.skipDesignMdAttachment,
               status:
                 options?.taskStatus === "DRAFT"
                   ? TaskStatus.DRAFT
@@ -1783,6 +1787,7 @@ export default function ChatInterface({
             onCoworkerChange={handleWelcomeCoworkerChange}
             selectedModel={welcomeSelectedModel}
             onSelectModel={handleWelcomeModelChange}
+            initialDesignMdAttachment={initialDesignMdAttachment}
           />
         )}
       </div>

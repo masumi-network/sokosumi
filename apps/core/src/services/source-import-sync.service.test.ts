@@ -36,6 +36,13 @@ vi.mock("@vercel/blob", () => ({
   put: blobPutMock,
 }));
 
+// The SSRF guard is unit-tested in `@sokosumi/net`. Here we stub it to
+// delegate straight to the mocked `global.fetch` so these orchestration tests
+// keep exercising the worker's scheduling/cancellation behavior.
+vi.mock("@sokosumi/net", () => ({
+  ssrfSafeFetch: (url: string, init?: RequestInit) => global.fetch(url, init),
+}));
+
 const originalFetch = global.fetch;
 
 interface PendingBlobStub {

@@ -15,12 +15,14 @@ import {
 } from "@/app/chat-ui/utils/chat-route-base";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
+import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 
 interface ChatLayoutClientProps {
   mobileKeyboardOptimized?: boolean;
   organizationSlug: string | null;
   userImageUrl: string;
   userName: string | undefined;
+  initialDesignMdAttachment?: TaskDesignMdAttachmentSeed | null;
 }
 
 export function ChatLayoutClient({
@@ -28,6 +30,7 @@ export function ChatLayoutClient({
   organizationSlug,
   userImageUrl,
   userName,
+  initialDesignMdAttachment = null,
 }: ChatLayoutClientProps) {
   const pathname = usePathname();
   const { conversations } = useConversationsContext();
@@ -147,6 +150,7 @@ export function ChatLayoutClient({
             organizationSlug={organizationSlug}
             userImageUrl={userImageUrl}
             userName={userName}
+            initialDesignMdAttachment={initialDesignMdAttachment}
           />
         </div>
       </div>

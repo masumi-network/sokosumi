@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { TIME } from "@/config/constants.js";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
 
+import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
 import categoriesRouter from "./categories/index.js";
 import chatRouter from "./chat/index.js";
@@ -13,6 +14,7 @@ import creditCostsRouter from "./credit-costs/index.js";
 import enterpriseRouter from "./enterprise/index.js";
 import hermesRouter from "./hermes/index.js";
 import historyRouter from "./history/index.js";
+import invitationsRouter from "./invitations/index.js";
 import jobsRouter from "./jobs/index.js";
 import organizationsRouter from "./organizations/index.js";
 import projectsRouter from "./projects/index.js";
@@ -103,6 +105,7 @@ app.doc31("/openapi.json", {
 });
 
 // Mount Routes
+app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
 app.route("/categories", categoriesRouter);
 app.route("/chat", chatRouter);
@@ -115,6 +118,7 @@ app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/projects", projectsRouter);
 app.route("/jobs", jobsRouter);
+app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);

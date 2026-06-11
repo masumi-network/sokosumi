@@ -1,0 +1,223 @@
+"use client";
+
+import { isDesignMdJobInProgress } from "@sokosumi/masumi/tools";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  finalizeDesignMdGeneration,
+  pollDesignMdGeneration,
+  startDesignMdGeneration,
+} from "@/lib/actions/design-md";
+import type { PersistedDesignMd } from "@/lib/services/design-md.service";
+
+import type { DesignMdOwner } from "./types";
+
+const DEFAULT_POLL_INTERVAL_MS = 3000;
+
+type DesignMdGenerationStatus =
+  | "completed"
+  | "failed"
+  | "finalizing"
+  | "idle"
+  | "polling"
+  | "starting";
+
+interface GenerateDesignMdInput {
+  force?: boolean;
+  url: string;
+}
+
+interface UseDesignMdGenerationOptions {
+  messages: {
+    generationFailed: string;
+    saveFailed: string;
+    startFailed: string;
+  };
+  onCompleted?: (designMd: PersistedDesignMd) => void;
+  owner: DesignMdOwner;
+  pollIntervalMs?: number;
+}
+
+interface DesignMdGenerationState {
+  errorMessage: null | string;
+  status: DesignMdGenerationStatus;
+}
+
+function getUnknownErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+export function useDesignMdGeneration({
+  messages,
+  onCompleted,
+  owner,
+  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+}: UseDesignMdGenerationOptions) {
+  const [{ errorMessage, status }, setState] =
+    useState<DesignMdGenerationState>({
+      errorMessage: null,
+      status: "idle",
+    });
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const clearPollTimeout = useCallback(() => {
+    if (!timeoutRef.current) return;
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }, []);
+
+  const safeSetState = useCallback((nextState: DesignMdGenerationState) => {
+    if (mountedRef.current) setState(nextState);
+  }, []);
+
+  const completeGeneration = useCallback(
+    (designMd: PersistedDesignMd) => {
+      onCompleted?.(designMd);
+      safeSetState({ errorMessage: null, status: "completed" });
+      inFlightRef.current = false;
+    },
+    [onCompleted, safeSetState],
+  );
+
+  const failGeneration = useCallback(
+    (message: string) => {
+      clearPollTimeout();
+      safeSetState({ errorMessage: message, status: "failed" });
+      inFlightRef.current = false;
+    },
+    [clearPollTimeout, safeSetState],
+  );
+
+  const pollUntilDone = useCallback(
+    (jobId: string, jobToken: string) => {
+      clearPollTimeout();
+      timeoutRef.current = setTimeout(async () => {
+        safeSetState({ errorMessage: null, status: "polling" });
+
+        try {
+          const pollResult = await pollDesignMdGeneration({
+            jobId,
+            jobToken,
+            owner,
+          });
+
+          if (!pollResult.ok) {
+            failGeneration(
+              pollResult.error.message ?? messages.generationFailed,
+            );
+            return;
+          }
+
+          if (pollResult.data.status === "failed") {
+            failGeneration(
+              pollResult.data.error ??
+                pollResult.data.message ??
+                messages.generationFailed,
+            );
+            return;
+          }
+
+          if (isDesignMdJobInProgress(pollResult.data)) {
+            pollUntilDone(jobId, jobToken);
+            return;
+          }
+
+          safeSetState({ errorMessage: null, status: "finalizing" });
+          const finalizeResult = await finalizeDesignMdGeneration({
+            jobId,
+            jobToken,
+            owner,
+          });
+
+          if (!finalizeResult.ok) {
+            failGeneration(finalizeResult.error.message ?? messages.saveFailed);
+            return;
+          }
+
+          completeGeneration(finalizeResult.data);
+        } catch (error) {
+          failGeneration(
+            getUnknownErrorMessage(error, messages.generationFailed),
+          );
+        }
+      }, pollIntervalMs);
+    },
+    [
+      clearPollTimeout,
+      completeGeneration,
+      failGeneration,
+      messages,
+      owner,
+      pollIntervalMs,
+      safeSetState,
+    ],
+  );
+
+  const generate = useCallback(
+    async ({ force, url }: GenerateDesignMdInput) => {
+      if (inFlightRef.current) return;
+
+      clearPollTimeout();
+      inFlightRef.current = true;
+      safeSetState({ errorMessage: null, status: "starting" });
+
+      try {
+        const startResult = await startDesignMdGeneration({
+          force,
+          owner,
+          url,
+        });
+
+        if (!startResult.ok) {
+          failGeneration(startResult.error.message ?? messages.startFailed);
+          return;
+        }
+
+        if (startResult.data.kind === "completed") {
+          completeGeneration(startResult.data.data);
+          return;
+        }
+
+        safeSetState({ errorMessage: null, status: "polling" });
+        pollUntilDone(startResult.data.jobId, startResult.data.jobToken);
+      } catch (error) {
+        failGeneration(
+          getUnknownErrorMessage(error, messages.generationFailed),
+        );
+      }
+    },
+    [
+      clearPollTimeout,
+      completeGeneration,
+      failGeneration,
+      messages,
+      owner,
+      pollUntilDone,
+      safeSetState,
+    ],
+  );
+
+  const reset = useCallback(() => {
+    clearPollTimeout();
+    inFlightRef.current = false;
+    safeSetState({ errorMessage: null, status: "idle" });
+  }, [clearPollTimeout, safeSetState]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      clearPollTimeout();
+    };
+  }, [clearPollTimeout]);
+
+  return {
+    errorMessage,
+    generate,
+    isRunning:
+      status === "starting" || status === "polling" || status === "finalizing",
+    reset,
+    status,
+  };
+}

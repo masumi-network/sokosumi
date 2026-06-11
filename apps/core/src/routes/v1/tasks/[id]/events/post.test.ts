@@ -588,4 +588,264 @@ describe("POST /{id}/events", () => {
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
+
+  it("attributes a delegated coworker's comment to the user and the acting coworker", async () => {
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            comment: "On behalf of the user",
+            userId: USER_ID,
+            coworkerId: COWORKER_ID,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "On behalf of the user",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    // Recorded against the delegated user, but the acting coworker is retained
+    // so the audit trail is not a forged user-only record.
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          comment: "On behalf of the user",
+          userId: USER_ID,
+          coworkerId: COWORKER_ID,
+        }),
+      }),
+    );
+  });
+
+  it("rejects an agent-only transition for a delegated coworker", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.RUNNING,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects credits from a delegated coworker canceling a task", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY, coworkerId: null }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        credits: 5,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("lets a delegated coworker cancel a task without charging", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY, coworkerId: null }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            userId: USER_ID,
+            coworkerId: COWORKER_ID,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.CANCELED,
+          userId: USER_ID,
+          coworkerId: COWORKER_ID,
+        }),
+      }),
+    );
+  });
+
+  it("rejects credits from a user session canceling a task", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY, coworkerId: null }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        credits: 5,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects masumiPayment from a delegated coworker", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY, coworkerId: null }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    // masumiPayment is schema-restricted to COMPLETED, which a delegated
+    // coworker can never reach; the request is rejected before any charge.
+    expect(response.status).not.toBe(201);
+    expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
 });

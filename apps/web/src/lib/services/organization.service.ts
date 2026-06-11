@@ -1,20 +1,12 @@
 import "server-only";
 
-import type {
-  Invitation,
-  InvitationWithRelations,
-  MemberRole,
-} from "@sokosumi/database";
-import {
-  invitationRepository,
-  memberRepository,
-} from "@sokosumi/database/repositories";
+import type { Invitation, MemberRole } from "@sokosumi/database";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 
 export type BulkInviteResultRow = {
   email: string;
@@ -22,8 +14,26 @@ export type BulkInviteResultRow = {
 };
 
 /**
- * Service for organization and invitations related operations.
- * Provides methods to get members and pending invitations for the current user.
+ * A pending invitation resolved for the accept-invitation flow, carrying the
+ * organization and inviter fields the invitation card renders.
+ */
+export type PendingInvitationDetail = {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: string | null;
+  status: string;
+  expiresAt: Date;
+  inviterId: string;
+  createdAt: Date;
+  organization: { id: string; name: string; slug: string };
+  inviter: { id: string; email: string };
+};
+
+/**
+ * Service for organization and invitation related operations: reading pending
+ * invitations (via core) and creating organizations / sending invites (via
+ * Better Auth).
  */
 export const organizationService = (() => {
   /**
@@ -45,7 +55,8 @@ export const organizationService = (() => {
    * Retrieves a pending invitation by its ID.
    *
    * @param id - The ID of the invitation to retrieve.
-   * @returns A promise that resolves to the invitation if found, or an error if not found or expired.
+   * @returns A promise that resolves to the invitation if usable, or an error
+   *   if it is not found, expired, or its inviter is no longer a member.
    */
   async function getPendingInvitation(id: string): Promise<
     | {
@@ -53,60 +64,33 @@ export const organizationService = (() => {
       }
     | {
         error?: never;
-        invitation: InvitationWithRelations;
+        invitation: PendingInvitationDetail;
       }
   > {
-    const invitation = await invitationRepository.getPendingInvitationById(
-      id,
-      prisma,
-    );
+    const { data } = await coreClient.getInvitationById(id);
 
-    if (!invitation) {
-      return {
-        error: PendingInvitationErrorCode.NOT_FOUND,
-      };
+    switch (data.kind) {
+      case "not_found":
+        return { error: PendingInvitationErrorCode.NOT_FOUND };
+      case "expired":
+        return { error: PendingInvitationErrorCode.EXPIRED };
+      case "inviter_not_found":
+        return { error: PendingInvitationErrorCode.INVITER_NOT_FOUND };
+      case "ok":
+        return { invitation: data.invitation };
+      default:
+        throw new Error(
+          `Unexpected invitation lookup result: ${JSON.stringify(data)}`,
+        );
     }
-
-    if (invitation.expiresAt < new Date()) {
-      return {
-        error: PendingInvitationErrorCode.EXPIRED,
-      };
-    }
-
-    const inviterMember =
-      await memberRepository.getMemberByUserIdAndOrganizationId(
-        invitation.inviterId,
-        invitation.organizationId,
-        prisma,
-      );
-
-    if (!inviterMember) {
-      return {
-        error: PendingInvitationErrorCode.INVITER_NOT_FOUND,
-      };
-    }
-
-    return {
-      invitation,
-    };
   }
 
   async function getPendingInvitations(
     organizationId: string,
   ): Promise<Invitation[]> {
-    const invitations =
-      await invitationRepository.getPendingInvitationsByOrganizationId(
-        organizationId,
-        prisma,
-      );
-    // Group by email and take the first (latest) invitation per email
-    const emailMap = new Map<string, Invitation>();
-    for (const invitation of invitations) {
-      if (!emailMap.has(invitation.email)) {
-        emailMap.set(invitation.email, invitation);
-      }
-    }
-    return Array.from(emailMap.values());
+    const { data } =
+      await coreClient.getOrganizationPendingInvitations(organizationId);
+    return data;
   }
 
   /**

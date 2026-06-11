@@ -1,7 +1,7 @@
 "use client";
 
 import type { JobType } from "@sokosumi/database";
-import { hashInput } from "@sokosumi/masumi";
+import { hashInput } from "@sokosumi/masumi/hash";
 import {
   type InputFieldSchemaType,
   normalizeAndValidateInputSchema,

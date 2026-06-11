@@ -1,8 +1,16 @@
-interface OrganizationMetadataRecord {
-  [key: string]: unknown;
-}
+import {
+  buildMetadataWithDesignMd,
+  buildMetadataWithUrl,
+  getNormalizedStringField,
+  type MetadataRecord,
+  parseMetadataRecord,
+} from "./metadata-record.js";
+
+interface OrganizationMetadataRecord extends MetadataRecord {}
 
 export interface OrganizationMetadata {
+  designMdExtractionId: null | string;
+  designMdUrl: null | string;
   invoiceEmail: null | string;
   url: null | string;
 }
@@ -10,54 +18,7 @@ export interface OrganizationMetadata {
 export function parseOrganizationMetadata(
   metadata: unknown,
 ): OrganizationMetadataRecord | null {
-  if (!metadata) {
-    return null;
-  }
-
-  if (typeof metadata === "object" && !Array.isArray(metadata)) {
-    return metadata as OrganizationMetadataRecord;
-  }
-
-  if (typeof metadata !== "string") {
-    return null;
-  }
-
-  const trimmedMetadata = metadata.trim();
-  if (!trimmedMetadata) {
-    return null;
-  }
-
-  try {
-    const parsedMetadata = JSON.parse(trimmedMetadata) as unknown;
-    if (
-      parsedMetadata &&
-      typeof parsedMetadata === "object" &&
-      !Array.isArray(parsedMetadata)
-    ) {
-      return parsedMetadata as OrganizationMetadataRecord;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function getNormalizedStringMetadataValue(
-  metadata: OrganizationMetadataRecord | null,
-  key: keyof OrganizationMetadata,
-): string | null {
-  if (!metadata) {
-    return null;
-  }
-
-  const fieldValue = metadata[key];
-  if (typeof fieldValue !== "string") {
-    return null;
-  }
-
-  const normalizedValue = fieldValue.trim();
-  return normalizedValue.length > 0 ? normalizedValue : null;
+  return parseMetadataRecord(metadata);
 }
 
 export function getOrganizationMetadata(
@@ -66,10 +27,29 @@ export function getOrganizationMetadata(
   const parsedMetadata = parseOrganizationMetadata(metadata);
 
   return {
-    invoiceEmail: getNormalizedStringMetadataValue(
+    designMdExtractionId: getNormalizedStringField(
       parsedMetadata,
-      "invoiceEmail",
+      "designMdExtractionId",
     ),
-    url: getNormalizedStringMetadataValue(parsedMetadata, "url"),
+    designMdUrl: getNormalizedStringField(parsedMetadata, "designMdUrl"),
+    invoiceEmail: getNormalizedStringField(parsedMetadata, "invoiceEmail"),
+    url: getNormalizedStringField(parsedMetadata, "url"),
   };
+}
+
+export function buildOrganizationMetadataWithUrl(
+  metadata: OrganizationMetadataRecord | null | undefined,
+  rawUrl: string | null | undefined,
+): OrganizationMetadataRecord | null {
+  return buildMetadataWithUrl(metadata, rawUrl);
+}
+
+export function buildOrganizationMetadataWithDesignMd(
+  metadata: OrganizationMetadataRecord | null | undefined,
+  designMd: {
+    extractionId?: null | string;
+    url?: null | string;
+  },
+): OrganizationMetadataRecord | null {
+  return buildMetadataWithDesignMd(metadata, designMd);
 }

@@ -10,6 +10,7 @@ fetchRetryMaxtimeout: 120000
 networkConcurrency: 8
 
 overrides:
+  docx: "9.7.1"
   lodash: 4.18.1
   zod: 4.4.3
   samlify: 2.13.1
@@ -20,6 +21,13 @@ overrides:
   # by @prisma/dev. Patch within the 1.x line (fix backported to 1.19.13) rather
   # than forcing @prisma/dev onto a major bump.
   "@hono/node-server@<1.19.13": ">=1.19.13 <2"
+  # ws GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) — @vercel/functions@3.7.0
+  # ships ws@8.20.0 (vulnerable). Force all ws 8.x resolutions to the patched line.
+  "ws@>=8.0.0 <8.20.1": "8.21.0"
+  # @better-auth/* plugins resolved their @better-auth/core peer dep against 1.6.16
+  # after a brief install of better-auth@1.6.16. Pin core to 1.6.15 so all plugin
+  # instances resolve against the same version as better-auth@1.6.15 itself.
+  "@better-auth/core": "1.6.15"
 
 allowBuilds:
   # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).

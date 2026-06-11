@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireConversationCoworkerAccess } from "@/helpers/access-control";
 import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -67,18 +68,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       // Database is the source of truth - fetch conversation directly from DB
       const conversation = await prisma.$transaction(async (tx) => {
-        return tx.conversation.findFirst({
+        const found = await tx.conversation.findFirst({
           where: {
             id,
             userId: userContext.userId,
             archivedAt: null,
           },
         });
-      });
 
-      if (!conversation) {
-        throw notFound("Conversation not found");
-      }
+        if (!found) {
+          throw notFound("Conversation not found");
+        }
+
+        // Per-resource delegation check: a delegated coworker may only read a
+        // conversation bound to it (no-op for real user sessions).
+        await requireConversationCoworkerAccess(
+          c.var.authContext,
+          found.metadata,
+          tx,
+        );
+
+        return found;
+      });
 
       // Map to response schema (excludes internal conversation identifier)
       const response = {

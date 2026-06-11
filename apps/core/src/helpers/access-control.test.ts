@@ -10,16 +10,20 @@ import type {
 import type { WorkspaceContext } from "@/middleware/workspace";
 
 import {
+  requireConversationCoworkerAccess,
   requireCoworkerCapability,
   requireCoworkerChatCapability,
   requireCoworkerTaskCollaboration,
+  requireJobCollaboration,
   requireJobOwnership,
   requireJobRead,
+  requireJobReadForRouteVars,
   requireTaskAssignableCoworker,
   requireTaskCollaboration,
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
+  resolveConversationCoworkerId,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -291,6 +295,7 @@ describe("requireTaskReadForRouteVars", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      coworkerId: "cow_123",
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -351,6 +356,39 @@ describe("requireTaskReadForRouteVars", () => {
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
     expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker reading a task not assigned to it", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    // Task is in the delegated user's workspace but assigned to another coworker.
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_123", tx),
+    ).rejects.toThrow("You can only access tasks assigned to your coworker");
   });
 });
 
@@ -557,5 +595,400 @@ describe("requireJobOwnership", () => {
     await expect(
       requireJobOwnership(sessionUserContext, "job_123", tx),
     ).rejects.toThrow("You can only access your own jobs");
+  });
+});
+
+const delegatedCoworkerContext: CoworkerAuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  delegation: {
+    userId: "user_delegate",
+    organizationId: "org_123",
+  },
+};
+
+describe("resolveConversationCoworkerId", () => {
+  it("prefers the stable coworker_id without a DB lookup", async () => {
+    const tx = createTransactionClient();
+
+    const result = await resolveConversationCoworkerId(
+      { coworker_id: "cow_123", coworker_slug: "ops-agent" },
+      tx,
+    );
+
+    expect(result).toBe("cow_123");
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("falls back to resolving coworker_slug to an id", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+
+    const result = await resolveConversationCoworkerId(
+      { coworker_slug: "ops-agent" },
+      tx,
+    );
+
+    expect(result).toBe("cow_123");
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: { slug: "ops-agent", archivedAt: null },
+      select: { id: true },
+    });
+  });
+
+  it("returns null when there is no coworker binding", async () => {
+    const tx = createTransactionClient();
+
+    expect(await resolveConversationCoworkerId(null, tx)).toBeNull();
+    expect(await resolveConversationCoworkerId({ userId: "u" }, tx)).toBeNull();
+  });
+
+  it("returns null when the slug resolves to no coworker", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    expect(
+      await resolveConversationCoworkerId({ coworker_slug: "ghost" }, tx),
+    ).toBeNull();
+  });
+});
+
+describe("requireConversationCoworkerAccess", () => {
+  it("is a no-op for user sessions", async () => {
+    const tx = createTransactionClient();
+
+    await requireConversationCoworkerAccess(userAuthContext, null, tx);
+
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows a delegated coworker on its own conversation (coworker_id)", async () => {
+    const tx = createTransactionClient();
+
+    await requireConversationCoworkerAccess(
+      delegatedCoworkerContext,
+      { coworker_id: "cow_123" },
+      tx,
+    );
+
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("allows a delegated coworker when only coworker_slug is set", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+
+    await requireConversationCoworkerAccess(
+      delegatedCoworkerContext,
+      { coworker_slug: "ops-agent" },
+      tx,
+    );
+
+    expect(tx.coworker.findFirst).toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker on another coworker's conversation", async () => {
+    const tx = createTransactionClient();
+
+    await expect(
+      requireConversationCoworkerAccess(
+        delegatedCoworkerContext,
+        { coworker_id: "cow_other" },
+        tx,
+      ),
+    ).rejects.toThrow(
+      "You can only access conversations assigned to your coworker",
+    );
+  });
+
+  it("rejects a delegated coworker on a conversation with no binding", async () => {
+    const tx = createTransactionClient();
+
+    await expect(
+      requireConversationCoworkerAccess(
+        delegatedCoworkerContext,
+        { userId: "delegated_user_123" },
+        tx,
+      ),
+    ).rejects.toThrow(
+      "You can only access conversations assigned to your coworker",
+    );
+  });
+
+  it("rejects a coworker without delegation", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    await expect(
+      requireConversationCoworkerAccess(
+        coworkerContext,
+        { coworker_id: "cow_123" },
+        tx,
+      ),
+    ).rejects.toThrow("Delegation is required for this resource");
+  });
+});
+
+describe("requireJobReadForRouteVars", () => {
+  it("delegates to workspace read for users", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireJobReadForRouteVars(vars, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", workspaceId },
+    });
+    expect(tx.coworker.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns not found for a user when the job is not in the workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: userAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireJobReadForRouteVars(vars, "job_123", tx),
+    ).rejects.toThrow("Job not found");
+  });
+
+  it("allows a delegated coworker to read a job assigned to it", async () => {
+    const tx = createTransactionClient();
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      coworkerId: "cow_123",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: delegatedCoworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireJobReadForRouteVars(vars, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", workspaceId },
+    });
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      select: { coworkerId: true },
+    });
+  });
+
+  it("rejects a delegated coworker reading a job assigned to another coworker", async () => {
+    const tx = createTransactionClient();
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      coworkerId: "cow_other",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: delegatedCoworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireJobReadForRouteVars(vars, "job_123", tx),
+    ).rejects.toThrow("You can only access jobs assigned to your coworker");
+  });
+
+  it("rejects a delegated coworker reading a job with no task", async () => {
+    const tx = createTransactionClient();
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: delegatedCoworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireJobReadForRouteVars(vars, "job_123", tx),
+    ).rejects.toThrow("You can only access jobs assigned to your coworker");
+
+    expect(tx.task.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delegated coworker without tasks capability before loading the job", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: delegatedCoworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireJobReadForRouteVars(vars, "job_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects a bare coworker without delegation", async () => {
+    const tx = createTransactionClient();
+    const bareCoworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: bareCoworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireJobReadForRouteVars(vars, "job_123", tx),
+    ).rejects.toThrow("Delegation headers");
+
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireJobCollaboration", () => {
+  it("uses ownership for users", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+    } as never);
+
+    await requireJobCollaboration(userAuthContext, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", userId: "user_123" },
+    });
+  });
+
+  it("rejects users that do not own the job", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobCollaboration(userAuthContext, "job_123", tx),
+    ).rejects.toThrow("You can only access your own jobs");
+  });
+
+  it("allows a delegated coworker to act on a job assigned to it", async () => {
+    const tx = createTransactionClient();
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      coworkerId: "cow_123",
+    } as never);
+
+    await requireJobCollaboration(delegatedCoworkerContext, "job_123", tx);
+
+    expect(tx.job.findFirst).toHaveBeenCalledWith({
+      where: { id: "job_123", userId: "user_delegate" },
+    });
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: { id: "tsk_123" },
+      select: { coworkerId: true },
+    });
+  });
+
+  it("rejects a delegated coworker acting on a job assigned to another coworker", async () => {
+    const tx = createTransactionClient();
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      coworkerId: "cow_other",
+    } as never);
+
+    await expect(
+      requireJobCollaboration(delegatedCoworkerContext, "job_123", tx),
+    ).rejects.toThrow("You can only access jobs assigned to your coworker");
+  });
+
+  it("rejects a delegated coworker without tasks capability before loading the job", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireJobCollaboration(delegatedCoworkerContext, "job_123", tx),
+    ).rejects.toThrow("Coworker is not allowed to use tasks");
+
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects a bare coworker without delegation", async () => {
+    const tx = createTransactionClient();
+    const bareCoworkerContext: CoworkerAuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+    };
+
+    await expect(
+      requireJobCollaboration(bareCoworkerContext, "job_123", tx),
+    ).rejects.toThrow("Delegation headers");
+
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 });

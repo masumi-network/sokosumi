@@ -39,9 +39,12 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchProjectsByIdData,
+  PostAgentsByIdDemoJobsData,
+  PostAgentsByIdDemoJobsError,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
+  PostJobsByIdInputsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -61,6 +64,7 @@ import {
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -83,9 +87,13 @@ import {
   getHermesMeMessages as coreGetHermesMeMessages,
   getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getHistory as coreGetHistory,
+  getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
+  getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -94,8 +102,11 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getUsersByIdCredits as coreGetUsersByIdCredits,
+  getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
+  getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
+  getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -104,6 +115,7 @@ import {
   patchJobsById as corePatchJobsById,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  postAgentsByIdDemoJobs as corePostAgentsByIdDemoJobs,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -119,6 +131,7 @@ import {
   postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
   postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
   postHermesMeSecrets as corePostHermesMeSecrets,
+  postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
@@ -132,6 +145,8 @@ import {
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
+  searchAdminOrganizations as coreSearchAdminOrganizations,
+  searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -487,6 +502,58 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function searchAdminUsers(query: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreSearchAdminUsers({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search users",
+    );
+  }
+
+  async function searchAdminOrganizations(query: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreSearchAdminOrganizations({
+          client,
+          query: { query },
+          cache: "no-store",
+        }),
+      "Failed to search organizations",
+    );
+  }
+
+  async function getAdminOrganizationBySlug(slug: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAdminOrganizationBySlug({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    );
+  }
+
+  async function getOrganizationEnterpriseContractSummary(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationEnterpriseContractSummary({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch enterprise contract summary",
+    );
+  }
+
   async function getJobById(id: string) {
     return executeOperation(
       getClient,
@@ -548,6 +615,58 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization members",
+    );
+  }
+
+  async function getOrganizationPendingInvitations(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdInvitations({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization invitations",
+    );
+  }
+
+  async function getInvitationById(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetInvitationsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch invitation",
+    );
+  }
+
+  async function getOrganizationStripeCustomer(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdStripeCustomer({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization Stripe customer",
+    );
+  }
+
+  async function getMyStripeCustomer() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdStripeCustomer({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user Stripe customer",
     );
   }
 
@@ -819,6 +938,32 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createDemoJob(
+    id: string,
+    body: NonNullable<PostAgentsByIdDemoJobsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      async (client) => {
+        const result = await corePostAgentsByIdDemoJobs({
+          client,
+          path: { id },
+          body,
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error as PostAgentsByIdDemoJobsError,
+            response: result.response,
+          };
+        }
+
+        return result;
+      },
+      "Failed to create demo job",
+    );
+  }
+
   async function getAgentInputSchema(id: string) {
     return executeOperation(
       getClient,
@@ -1042,6 +1187,43 @@ export function createCoreClient(getClient: GetClient) {
         }),
       "Failed to fetch user organizations",
     );
+  }
+
+  async function getMyMembersWithOrganizations() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdMembers({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user memberships",
+    );
+  }
+
+  /**
+   * Returns the current user's membership in `organizationId`, or `null` when
+   * the user is not a member (Core responds 404 in that case).
+   */
+  async function getMyMemberInOrganization(organizationId: string) {
+    try {
+      return await executeOperation(
+        getClient,
+        (client) =>
+          coreGetUsersByIdOrganizationsByOrganizationIdMember({
+            client,
+            path: { id: CURRENT_USER_PATH_ID, organizationId },
+            cache: "no-store",
+          }),
+        "Failed to fetch organization membership",
+      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async function getHermesInstance() {
@@ -1327,6 +1509,22 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function provideJobInput(
+    id: string,
+    body: NonNullable<PostJobsByIdInputsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostJobsByIdInputs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to provide job input",
+    );
+  }
+
   async function putJobShare(
     id: string,
     body: { allowSearchIndexing: boolean },
@@ -1579,6 +1777,7 @@ export function createCoreClient(getClient: GetClient) {
     archiveConversation,
     createConversation,
     createAgentJob,
+    createDemoJob,
     createMyFileUploadSession,
     createTask,
     createTaskLink,
@@ -1617,11 +1816,21 @@ export function createCoreClient(getClient: GetClient) {
     createAgentRating,
     getCategories,
     getCoworkers,
+    searchAdminUsers,
+    searchAdminOrganizations,
+    getAdminOrganizationBySlug,
+    getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,
+    getInvitationById,
     getMyCredits,
+    getMyMemberInOrganization,
+    getMyMembersWithOrganizations,
     getMyOrganizations,
+    getMyStripeCustomer,
     getOrganizationMembers,
+    getOrganizationPendingInvitations,
+    getOrganizationStripeCustomer,
     getPendingNotices,
     getProjects,
     getProjectsById,
@@ -1632,6 +1841,7 @@ export function createCoreClient(getClient: GetClient) {
     moveJobToWorkspace,
     moveTaskToWorkspace,
     patchJob,
+    provideJobInput,
     patchProjectsById,
     postProjects,
     postProjectsByIdJobs,

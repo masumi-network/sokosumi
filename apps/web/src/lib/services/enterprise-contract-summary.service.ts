@@ -1,138 +1,28 @@
 import "server-only";
 
-import type { Prisma } from "@sokosumi/database";
-import type { OrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  creditBucketRepository,
-  enterpriseContractRepository,
-} from "@sokosumi/database/repositories";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { EnterpriseContractBillingSummary } from "@/lib/clients/generated/core/types.gen";
 
-export interface EnterpriseContractBillingSummary {
-  activatedAt: Date;
-  endsAt: Date;
-  currentPeriodEnd: Date | null;
-  isConsumable: boolean;
-  monthlyCredits: number | null;
-  nextActivationAt: Date | null;
-  poolRemainingCredits: number;
-  purchasedSeats: number;
-}
+export type { EnterpriseContractBillingSummary };
 
-interface EnterprisePoolBalances {
-  remainingCents: bigint;
-}
-
-export function buildEnterpriseContractBillingSummaryFallback(
-  billingPlan: Extract<
-    OrganizationBillingPlan,
-    { mode: "enterprise_contract" }
-  >,
-  poolBalances: EnterprisePoolBalances,
-): EnterpriseContractBillingSummary {
-  return {
-    activatedAt: billingPlan.activatedAt,
-    endsAt: billingPlan.endsAt,
-    currentPeriodEnd: null,
-    isConsumable: billingPlan.isConsumable,
-    monthlyCredits: null,
-    nextActivationAt: null,
-    poolRemainingCredits: convertCentsToCredits(poolBalances.remainingCents),
-    purchasedSeats: billingPlan.purchasedSeats,
-  };
-}
-
-interface EnterpriseContractPeriodWindow {
-  periodEnd: Date;
-  periodStart: Date;
-}
-
-export function resolveCurrentEnterprisePeriodEnd(
-  periods: EnterpriseContractPeriodWindow[],
-  now: Date,
-): Date | null {
-  const currentPeriod = periods.find(
-    (period) => period.periodStart <= now && now <= period.periodEnd,
-  );
-
-  return currentPeriod?.periodEnd ?? null;
-}
-
-export function resolveNextEnterpriseActivationAt(
-  periods: EnterpriseContractPeriodWindow[],
-  now: Date,
-): Date | null {
-  const upcomingPeriods = periods
-    .filter((period) => period.periodStart > now)
-    .toSorted(
-      (left, right) => left.periodStart.getTime() - right.periodStart.getTime(),
-    );
-
-  return upcomingPeriods[0]?.periodStart ?? null;
-}
-
-export function resolveEnterprisePeriodEndForDisplay(
-  periods: EnterpriseContractPeriodWindow[],
-  now: Date,
-  isConsumable: boolean,
-): Date | null {
-  const currentPeriodEnd = resolveCurrentEnterprisePeriodEnd(periods, now);
-  if (currentPeriodEnd) {
-    return currentPeriodEnd;
-  }
-
-  if (!isConsumable && periods.length > 0) {
-    return periods.at(-1)?.periodEnd ?? null;
-  }
-
-  return null;
-}
-
+/**
+ * Fetches the enterprise contract billing summary for an organization via the
+ * core API. Returns null when the organization is not on an active enterprise
+ * contract (core responds 404).
+ */
 export async function getEnterpriseContractBillingSummary(
-  billingPlan: Extract<
-    OrganizationBillingPlan,
-    { mode: "enterprise_contract" }
-  >,
   organizationId: string,
-  tx: Prisma.TransactionClient,
-  now: Date = new Date(),
-): Promise<EnterpriseContractBillingSummary> {
-  const [contract, poolBalances] = await Promise.all([
-    enterpriseContractRepository.getContractWithPeriods(
-      billingPlan.contractId,
-      tx,
-    ),
-    creditBucketRepository.sumOrganizationEnterprisePoolBalances(
-      organizationId,
-      tx,
-      now,
-    ),
-  ]);
+): Promise<EnterpriseContractBillingSummary | null> {
+  try {
+    const result =
+      await coreClient.getOrganizationEnterpriseContractSummary(organizationId);
 
-  if (!contract || contract.organizationId !== organizationId) {
-    return buildEnterpriseContractBillingSummaryFallback(
-      billingPlan,
-      poolBalances,
-    );
+    return result.data;
+  } catch (error) {
+    if (error instanceof CoreApiRequestError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
   }
-
-  const periodWindows = contract.periods.map((period) => ({
-    periodEnd: period.periodEnd,
-    periodStart: period.periodStart,
-  }));
-
-  return {
-    activatedAt: billingPlan.activatedAt,
-    endsAt: billingPlan.endsAt,
-    currentPeriodEnd: resolveEnterprisePeriodEndForDisplay(
-      periodWindows,
-      now,
-      billingPlan.isConsumable,
-    ),
-    isConsumable: billingPlan.isConsumable,
-    monthlyCredits: convertCentsToCredits(contract.centsPerMonth),
-    nextActivationAt: resolveNextEnterpriseActivationAt(periodWindows, now),
-    poolRemainingCredits: convertCentsToCredits(poolBalances.remainingCents),
-    purchasedSeats: billingPlan.purchasedSeats,
-  };
 }

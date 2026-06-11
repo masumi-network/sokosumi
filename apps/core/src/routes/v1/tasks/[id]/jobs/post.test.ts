@@ -27,17 +27,14 @@ vi.mock("@/types/job", () => ({
 }));
 
 describe("POST /tasks/{id}/jobs", () => {
-  function createApp() {
+  function createApp(authContext: AuthVariables["authContext"]) {
     const app = new OpenAPIHono<{
       Variables: AuthVariables;
     }>();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
-      c.set("authContext", {
-        actor: "coworker",
-        coworkerId: "cow_123",
-      });
+      c.set("authContext", authContext);
 
       return await next();
     });
@@ -98,30 +95,35 @@ describe("POST /tasks/{id}/jobs", () => {
     });
   });
 
+  const requestBody = JSON.stringify({
+    agentId: "agent_123",
+    inputSchema: {
+      input_data: [
+        {
+          id: "prompt",
+          type: "string",
+          name: "Prompt",
+        },
+      ],
+    },
+    inputData: {
+      prompt: "hello",
+    },
+    maxCredits: 5,
+  });
+
   it("inherits workspace placement from the parent task", async () => {
-    const app = createApp();
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+    });
 
     const response = await app.request("http://localhost/tsk_123/jobs", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        agentId: "agent_123",
-        inputSchema: {
-          input_data: [
-            {
-              id: "prompt",
-              type: "string",
-              name: "Prompt",
-            },
-          ],
-        },
-        inputData: {
-          prompt: "hello",
-        },
-        maxCredits: 5,
-      }),
+      body: requestBody,
     });
 
     expect(response.status).toBe(201);
@@ -136,6 +138,36 @@ describe("POST /tasks/{id}/jobs", () => {
           taskId: "tsk_123",
         },
       }),
+    );
+  });
+
+  it("uses assigned-agent collaboration, not delegation, to resolve the task", async () => {
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+    });
+
+    const response = await app.request("http://localhost/tsk_123/jobs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: requestBody,
+    });
+
+    // The endpoint is coworker-scoped and routes through the coworker-only
+    // helper, which ignores delegation (assignment is enforced internally).
+    expect(response.status).toBe(201);
+    expect(requireTaskAccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "coworker",
+        coworkerId: "cow_123",
+      }),
+      "tsk_123",
     );
   });
 });

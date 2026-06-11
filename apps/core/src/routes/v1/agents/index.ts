@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import mountPostDemoJob from "./[id]/demo-jobs/post.js";
 import mountGetAgentById from "./[id]/get.js";
 import mountGetAgentInputSchema from "./[id]/input-schema/get.js";
 import mountGetJobsByAgentId from "./[id]/jobs/get.js";
@@ -23,5 +24,6 @@ mountPostAgentRating(app);
 mountGetAgentInputSchema(app);
 mountGetJobsByAgentId(app);
 mountPostAgentJob(app);
+mountPostDemoJob(app);
 
 export default app;

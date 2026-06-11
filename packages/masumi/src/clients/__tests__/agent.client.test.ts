@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { ssrfSafeFetchMock } = vi.hoisted(() => ({
+  ssrfSafeFetchMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/net", () => ({
+  ssrfSafeFetch: ssrfSafeFetchMock,
+}));
 
 import { hashCanonicalJsonValue, hashInputSchema } from "../../hash/hash.js";
 import type { Agent } from "../../types/agent.js";
@@ -15,133 +23,19 @@ function createAgent(overrides: Partial<Agent> = {}): Agent {
   };
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe("createAgentClient URL validation", () => {
-  const originalFetch = global.fetch;
-
-  afterEach(() => {
-    global.fetch = originalFetch;
-    vi.restoreAllMocks();
-  });
-
-  it("blocks localhost hostnames to prevent SSRF", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const client = createAgentClient();
-    const result = await client.startFreeAgentJob(
-      createAgent({ apiBaseUrl: "http://localhost:3000" }),
-      { prompt: "hello" },
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toContain(
-        "Agent API base URL must not point to internal or private addresses",
-      );
-    }
-  });
-
-  it("blocks 127.0.0.1 to prevent SSRF", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const client = createAgentClient();
-    const result = await client.startFreeAgentJob(
-      createAgent({ apiBaseUrl: "http://127.0.0.1:3000" }),
-      { prompt: "hello" },
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toContain(
-        "Agent API base URL must not point to internal or private addresses",
-      );
-    }
-  });
-
-  it("blocks private IP ranges to prevent SSRF", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const client = createAgentClient();
-
-    const privateIPs = [
-      "http://10.0.0.1",
-      "http://172.16.0.1",
-      "http://192.168.1.1",
-    ];
-
-    for (const ip of privateIPs) {
-      const result = await client.startFreeAgentJob(
-        createAgent({ apiBaseUrl: ip }),
-        { prompt: "hello" },
-      );
-
-      expect(fetchMock).not.toHaveBeenCalled();
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error).toContain(
-          "Agent API base URL must not point to internal or private addresses",
-        );
-      }
-      fetchMock.mockClear();
-    }
-  });
-
-  it("blocks cloud metadata endpoints (169.254.x.x) to prevent SSRF", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const client = createAgentClient();
-    const result = await client.startFreeAgentJob(
-      createAgent({ apiBaseUrl: "http://169.254.169.254/latest/meta-data/" }),
-      { prompt: "hello" },
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toContain(
-        "Agent API base URL must not point to internal or private addresses",
-      );
-    }
-  });
-
-  it("blocks override URLs with internal addresses", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const client = createAgentClient();
-    const result = await client.startFreeAgentJob(
-      createAgent({
-        apiBaseUrl: "https://agent.example.com",
-        overrideApiBaseUrl: "http://localhost:3000",
-      }),
-      { prompt: "hello" },
-    );
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error).toContain(
-        "Agent API base URL override must not point to internal or private addresses",
-      );
-    }
-  });
-
   it("rejects API base URLs with query strings", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
     const client = createAgentClient();
     const result = await client.startFreeAgentJob(
       createAgent({ apiBaseUrl: "https://agent.example.com?token=abc" }),
       { prompt: "hello" },
     );
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toContain(
@@ -151,16 +45,13 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("rejects API base URLs with hashes", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
     const client = createAgentClient();
     const result = await client.startFreeAgentJob(
       createAgent({ apiBaseUrl: "https://agent.example.com#fragment" }),
       { prompt: "hello" },
     );
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toContain("Agent API base URL must not have a hash");
@@ -168,16 +59,13 @@ describe("createAgentClient URL validation", () => {
   });
 
   it("rejects non-http/https API base URLs", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
     const client = createAgentClient();
     const result = await client.startFreeAgentJob(
       createAgent({ apiBaseUrl: "ftp://agent.example.com" }),
       { prompt: "hello" },
     );
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error).toContain(
@@ -185,16 +73,28 @@ describe("createAgentClient URL validation", () => {
       );
     }
   });
+
+  it("defers private/internal-address blocking to connect time via ssrfSafeFetch", async () => {
+    // Internal addresses are no longer rejected at URL-validation time; the
+    // request reaches ssrfSafeFetch, which refuses the connection (covered by
+    // @sokosumi/net's own tests). Here we assert the request is handed off.
+    ssrfSafeFetchMock.mockRejectedValue(new Error("connection refused"));
+
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({ apiBaseUrl: "http://10.0.0.1" }),
+      { prompt: "hello" },
+    );
+
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(1);
+    expect(String(ssrfSafeFetchMock.mock.calls[0]?.[0])).toBe(
+      "http://10.0.0.1/start_job",
+    );
+    expect(result.isErr()).toBe(true);
+  });
 });
 
 describe("createAgentClient provideJobInput", () => {
-  const originalFetch = global.fetch;
-
-  afterEach(() => {
-    global.fetch = originalFetch;
-    vi.restoreAllMocks();
-  });
-
   it("sends input_schema_hash in the provide_input request body", async () => {
     const inputSchema = JSON.stringify({
       input_data: [
@@ -206,7 +106,7 @@ describe("createAgentClient provideJobInput", () => {
       ],
     });
 
-    const fetchMock = vi.fn().mockResolvedValue(
+    ssrfSafeFetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
           input_hash: "input-hash",
@@ -220,7 +120,6 @@ describe("createAgentClient provideJobInput", () => {
         },
       ),
     );
-    global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
     const result = await client.provideJobInput(
@@ -233,11 +132,11 @@ describe("createAgentClient provideJobInput", () => {
     );
 
     expect(result.isOk()).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(1);
 
-    const [requestUrl, requestOptions] = fetchMock.mock.calls[0] as [
-      RequestInfo | URL,
-      RequestInit,
+    const [requestUrl, requestOptions] = ssrfSafeFetchMock.mock.calls[0] as [
+      string | URL,
+      { method?: string; body?: string },
     ];
     expect(String(requestUrl)).toBe("https://agent.example.com/provide_input");
     expect(requestOptions.method).toBe("POST");
@@ -251,9 +150,6 @@ describe("createAgentClient provideJobInput", () => {
   });
 
   it("returns error and skips request when input schema hashing fails", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
-
     const client = createAgentClient();
     const result = await client.provideJobInput(
       createAgent(),
@@ -268,14 +164,14 @@ describe("createAgentClient provideJobInput", () => {
     if (result.isErr()) {
       expect(result.error).toBe("Failed to hash input schema");
     }
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });
 
   it("accepts bare-array input schema for backward compatibility", async () => {
     const bareSchema = JSON.stringify([
       { id: "answer", name: "Answer", type: "string" },
     ]);
-    const fetchMock = vi.fn().mockResolvedValue(
+    ssrfSafeFetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
           input_hash: "hash-123",
@@ -289,7 +185,6 @@ describe("createAgentClient provideJobInput", () => {
         },
       ),
     );
-    global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
     const result = await client.provideJobInput(
@@ -307,8 +202,11 @@ describe("createAgentClient provideJobInput", () => {
       });
     }
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, requestOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(1);
+    const [, requestOptions] = ssrfSafeFetchMock.mock.calls[0] as [
+      string | URL,
+      { method?: string; body?: string },
+    ];
     expect(requestOptions.method).toBe("POST");
     expect(JSON.parse(String(requestOptions.body))).toEqual({
       job_id: "job-1",
@@ -321,13 +219,6 @@ describe("createAgentClient provideJobInput", () => {
 });
 
 describe("createAgentClient fetchAgentJobStatus", () => {
-  const originalFetch = global.fetch;
-
-  afterEach(() => {
-    global.fetch = originalFetch;
-    vi.restoreAllMocks();
-  });
-
   it("returns statusHash from canonical parsed status payload", async () => {
     const responseBody = {
       status: "awaiting_input",
@@ -342,7 +233,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       },
       result: null,
     };
-    const fetchMock = vi.fn().mockResolvedValue(
+    ssrfSafeFetchMock.mockResolvedValue(
       new Response(JSON.stringify(responseBody), {
         status: 200,
         headers: {
@@ -350,7 +241,6 @@ describe("createAgentClient fetchAgentJobStatus", () => {
         },
       }),
     );
-    global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
     const result = await client.fetchAgentJobStatus(createAgent(), "job-1");
@@ -381,8 +271,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       timestamp: "2026-03-02T10:05:00.000Z",
       trace_id: "trace-123",
     };
-    const fetchMock = vi
-      .fn()
+    ssrfSafeFetchMock
       .mockResolvedValueOnce(
         new Response(JSON.stringify(firstResponseBody), {
           status: 200,
@@ -399,7 +288,6 @@ describe("createAgentClient fetchAgentJobStatus", () => {
           },
         }),
       );
-    global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
     const firstResult = await client.fetchAgentJobStatus(
@@ -428,7 +316,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       result: null,
     };
     const abortSignal = AbortSignal.timeout(1000);
-    const fetchMock = vi.fn().mockResolvedValue(
+    ssrfSafeFetchMock.mockResolvedValue(
       new Response(JSON.stringify(responseBody), {
         status: 200,
         headers: {
@@ -436,7 +324,6 @@ describe("createAgentClient fetchAgentJobStatus", () => {
         },
       }),
     );
-    global.fetch = fetchMock as unknown as typeof fetch;
 
     const client = createAgentClient();
     const result = await client.fetchAgentJobStatus(createAgent(), "job-1", {
@@ -444,7 +331,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
     });
 
     expect(result.isOk()).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
       expect.any(URL),
       expect.objectContaining({
         method: "GET",

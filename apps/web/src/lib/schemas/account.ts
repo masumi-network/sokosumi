@@ -8,6 +8,8 @@ import {
   passwordSchema,
 } from "@/lib/auth/data";
 
+const emptyOrHttpUrlSchema = z.union([z.literal(""), z.httpUrl()]);
+
 export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     name: nameSchema(t),
@@ -64,4 +66,21 @@ export const deleteAccountSchema = (
 
 export type DeleteAccountFormType = z.infer<
   ReturnType<typeof deleteAccountSchema>
+>;
+
+export const brandProfileFormSchema = (
+  t?: IntlTranslation<"App.Account.BrandProfile.Schema">,
+) =>
+  z.object({
+    logo: z.string().nullable().optional(),
+    websiteUrl: z
+      .string()
+      .trim()
+      .refine((value) => emptyOrHttpUrlSchema.safeParse(value).success, {
+        error: t?.("websiteUrl"),
+      }),
+  });
+
+export type BrandProfileFormType = z.infer<
+  ReturnType<typeof brandProfileFormSchema>
 >;

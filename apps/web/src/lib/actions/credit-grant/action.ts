@@ -6,11 +6,13 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import {
+  type CreditGrantInvoiceListItem,
+  type CreditGrantInvoiceStatusFilter,
   type CreditGrantInvoiceSummary,
   type CreditGrantTargetType,
   CreditGrantValidationError,
-  creditGrantAdminService,
-} from "@/lib/services/credit-grant-admin.service";
+  invoiceAdminService,
+} from "@/lib/services/invoice-admin.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -63,20 +65,64 @@ export const createCreditGrantInvoiceAction = withSession<
   }) => {
     try {
       assertAdminSession(session);
-      const summary = await creditGrantAdminService.createGrantInvoice({
+      const summary = await invoiceAdminService.createGrantInvoice({
         target: { targetType, targetId },
         credits,
         ttlDays,
         priceId,
         markFree,
       });
-      revalidatePath("/admin/credit-grants");
+      revalidatePath("/admin/invoices");
       return Ok(summary);
     } catch (error) {
       return Err(mapError(error));
     }
   },
 );
+
+interface ListCreditGrantInvoicesParameters extends AuthenticatedRequest {
+  status: CreditGrantInvoiceStatusFilter;
+  recipient: { targetType: CreditGrantTargetType; targetId: string } | null;
+}
+
+export const listCreditGrantInvoicesAction = withSession<
+  ListCreditGrantInvoicesParameters,
+  Result<CreditGrantInvoiceListItem[], ActionError>
+>(async ({ session, status, recipient }) => {
+  try {
+    assertAdminSession(session);
+    const invoices = await invoiceAdminService.listGrantInvoices({
+      status,
+      recipient,
+    });
+    return Ok(invoices);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
+
+interface GetCreditGrantInvoiceParameters extends AuthenticatedRequest {
+  invoiceId: string;
+}
+
+export const getCreditGrantInvoiceAction = withSession<
+  GetCreditGrantInvoiceParameters,
+  Result<CreditGrantInvoiceSummary, ActionError>
+>(async ({ session, invoiceId }) => {
+  try {
+    assertAdminSession(session);
+    const summary = await invoiceAdminService.getGrantInvoice(invoiceId);
+    if (!summary) {
+      return Err({
+        code: CommonErrorCode.NOT_FOUND,
+        message: "Credit grant invoice not found",
+      });
+    }
+    return Ok(summary);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
 
 interface MarkCreditGrantInvoicePaidParameters extends AuthenticatedRequest {
   invoiceId: string;
@@ -88,9 +134,8 @@ export const markCreditGrantInvoicePaidAction = withSession<
 >(async ({ session, invoiceId }) => {
   try {
     assertAdminSession(session);
-    const summary =
-      await creditGrantAdminService.markGrantInvoicePaid(invoiceId);
-    revalidatePath("/admin/credit-grants");
+    const summary = await invoiceAdminService.markGrantInvoicePaid(invoiceId);
+    revalidatePath("/admin/invoices");
     return Ok(summary);
   } catch (error) {
     return Err(mapError(error));
