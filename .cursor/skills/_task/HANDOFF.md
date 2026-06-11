@@ -107,10 +107,14 @@ To run the orchestrator in this chat instead, wait for or cancel the Cloud run f
 Do not run both in parallel — duplicate orchestrators race on the same issue.
 ```
 
-When handoff used manual `@Cursor` only (no delegate), omit the Cloud warning and use:
+When handoff used manual `@Cursor` only (step 4, no `delegate`):
 
 ```text
-Requirement posted: SOK-XXX. To continue in this chat, say: run _team-sapphire for SOK-XXX
+Requirement posted: SOK-XXX. A Cloud Agent may start from the `@Cursor` comment on the issue.
+
+To run the orchestrator in this chat instead, wait for or cancel that Cloud run first, then say: run _team-sapphire for SOK-XXX
+
+Do not run both in parallel — duplicate orchestrators race on the same issue.
 ```
 
 ## Opt-out

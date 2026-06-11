@@ -35,7 +35,7 @@ Add a **Cursor Cloud specific instructions** section to root `AGENTS.md` with de
 ### Reviewer workflow (Cloud)
 
 1. **Dev server** — confirm `http://localhost:3000/` (or documented port) responds; start via environment terminal or `pnpm web:dev` in shell.
-2. **Sign in** — use dashboard **Secrets** (same creds as local dev). Browser session persists in the VM during the run.
+2. **Sign in** — read email/password from dashboard **Secrets** (and TOTP secret + `oathtool --totp -b "$TOTP_SECRET"` if 2FA). Open `http://localhost:3000/signin`, fill fields, then **submit with Enter** — the sign-in form is controlled `react-hook-form`; a submit **click** alone often no-ops while values look filled. See `apps/web/AGENTS.md` → **Browser Automation** (selectors: `auth-field-email`, `auth-field-currentPassword`). Session persists in the VM for the run.
 3. **Computer use** — open path-only routes from the spec; click through happy path, dark mode, empty/loading/error when required.
 4. **Artifacts** — let the agent attach screenshots and flow videos to the **PR** (verify in PR conversation / description if GitHub embed is enabled).
 5. **Linear** — Reviewer completion comment links the PR and cites artifact screenshots/video there; do not re-record with a separate CLI unless optional path below applies.
@@ -154,6 +154,7 @@ Post paths or uploaded URLs on the Linear issue and link in the GitHub PR commen
 | No screenshots/video on PR | Cloud | Confirm computer use ran; check PR artifacts; enable “post artifacts to GitHub” in dashboard |
 | Dev server unreachable | Cloud | Fix environment `terminals`/`start`; secrets for web/core `.env` |
 | Login fails in VM | Cloud | Add login + TOTP secrets per [Cloud setup](https://cursor.com/docs/cloud-agent/setup) |
+| Sign-in submit no-ops (fields filled, still on `/signin`) | Cloud / IDE | Submit with **Enter** after fill — not submit click alone; see `apps/web/AGENTS.md` |
 | Browser tools missing | IDE | Toggle Browser Automation off/on; restart Cursor; use Agent mode |
 | `agent-browser: command not found` | Local / optional Cloud | `npm install -g agent-browser@0.27.2` |
 | Missing `auth` / `record` / `doctor` | Local / optional Cloud | Upgrade CLI — old global `0.5.0` lacks these |
