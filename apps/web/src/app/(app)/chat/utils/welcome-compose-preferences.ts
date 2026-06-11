@@ -102,10 +102,7 @@ export function resolveHydratedWelcomeSelection(
   if (!stored) {
     return {
       composeKind: defaultCompose,
-      coworker:
-        defaultCompose === "task"
-          ? firstCoworkerWithCapability(coworkers, "tasks")
-          : null,
+      coworker: null,
       model: null,
     };
   }
