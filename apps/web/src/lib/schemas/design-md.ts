@@ -30,7 +30,7 @@ export const finalizeDesignMdGenerationSchema = z.object({
 
 export const saveDesignMdUploadSchema = z.object({
   owner: designMdOwnerSchema,
-  url: z.httpUrl(),
+  content: z.string().min(1),
 });
 
 export const removeDesignMdSchema = z.object({
