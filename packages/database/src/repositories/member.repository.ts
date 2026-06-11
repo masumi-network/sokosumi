@@ -189,48 +189,6 @@ export const memberRepository = (() => {
     });
   }
 
-  /**
-   * Retrieves the count of members by role for a given organization.
-   *
-   * @param organizationId - The ID of the organization.
-   * @param tx - Optional Prisma transaction client.
-   * @returns An object with the count of members by role.
-   */
-  async function getPerRoleCountByOrganizationId(
-    organizationId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<{ [key in MemberRole]: number }> {
-    const memberCounts = await tx.member.groupBy({
-      by: ["role"],
-      where: { organizationId },
-      _count: {
-        role: true,
-      },
-    });
-
-    const counts: { [key in MemberRole]: number } = Object.values(
-      MemberRole,
-    ).reduce(
-      (acc, role) => {
-        acc[role] = 0;
-        return acc;
-      },
-      {} as { [key in MemberRole]: number },
-    );
-
-    memberCounts.forEach((group) => {
-      const {
-        role,
-        _count: { role: roleCount },
-      } = group;
-      if (role in counts) {
-        counts[role as MemberRole] = roleCount;
-      }
-    });
-
-    return counts;
-  }
-
   async function getAssignedMemberCount(
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -377,7 +335,6 @@ export const memberRepository = (() => {
     getMembersWithUser,
     getMembersWithUserAndLastSeen,
     getMembersByOrganizationId,
-    getPerRoleCountByOrganizationId,
     unassignSeat,
   };
 })();
