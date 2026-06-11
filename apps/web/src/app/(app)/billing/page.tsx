@@ -18,7 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/utils";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
@@ -131,7 +131,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       enterpriseContractSummary,
       seatSummary,
       organizationCredits,
-      organizationStripeCustomer,
+      organizationStripeCustomerId,
     ] = await Promise.all([
       isEnterpriseContract
         ? getEnterpriseContractBillingSummary(activeOrganization.id)
@@ -143,10 +143,23 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       // reports no active contract, 404 -> null) despite the locally resolved
       // plan saying it was an enterprise contract.
       coreClient.getMyOrganizationCredits(activeOrganization.id),
-      coreClient.getOrganizationStripeCustomer(activeOrganization.id),
+      coreClient
+        .getOrganizationStripeCustomer(activeOrganization.id)
+        .then((response) => response.data.stripeCustomerId)
+        .catch((error: unknown) => {
+          // The old code read stripeCustomerId off the locally loaded
+          // organization and had no failure mode here; don't let a stale
+          // membership (403) or missing organization (404) take down the
+          // whole billing page — just hide the billing portal.
+          if (
+            error instanceof CoreApiRequestError &&
+            (error.status === 403 || error.status === 404)
+          ) {
+            return null;
+          }
+          throw error;
+        }),
     ]);
-    const organizationStripeCustomerId =
-      organizationStripeCustomer.data.stripeCustomerId;
     const currentSeats = seatSummary.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
       organizationCredits.data.credits.total,

@@ -52,7 +52,18 @@ vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
+class MockCoreApiRequestError extends Error {
+  status?: number;
+
+  constructor(message: string, options?: { status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.status = options?.status;
+  }
+}
+
 vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
     getMyActiveSubscription: (...args: unknown[]) =>
       getMyActiveSubscriptionMock(...args),
@@ -456,6 +467,35 @@ describe("BillingPage", () => {
 
     expect(balanceBillingPortalLinkMock).toHaveBeenCalled();
     expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
+  });
+
+  it("renders without the billing portal when the org Stripe customer lookup 404s", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getOrganizationStripeCustomerMock.mockRejectedValue(
+      new MockCoreApiRequestError("Organization not found", { status: 404 }),
+    );
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockSelfServeOrganizationBillingPlan("pro", 10);
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
 
   it("shows the enterprise contract summary for consumable enterprise org billing", async () => {

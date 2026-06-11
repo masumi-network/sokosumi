@@ -118,6 +118,8 @@ export async function OnboardingDialogLoader({
   const canManageOrganizationSubscription =
     organizationMember?.role === MemberRole.OWNER ||
     organizationMember?.role === MemberRole.ADMIN;
+  // 0 when the seat summary is unavailable: the core Organization type has no
+  // member count, so there is no local fallback anymore (was _count.members).
   const organizationMemberCount = organizationSeatSummary?.memberCount ?? 0;
   const organizationCurrentPlan = organizationBillingPlan?.plan ?? null;
   const hasActiveOrganization = activeOrganization !== null;
