@@ -98,14 +98,11 @@ export function resolveHydratedWelcomeSelection(
   coworker: Coworker | null;
   model: { id: string; name: string } | null;
 } {
-  const defaultCompose: ChatComposeKind = "task";
+  const defaultCompose: ChatComposeKind = "chat";
   if (!stored) {
     return {
       composeKind: defaultCompose,
-      coworker:
-        defaultCompose === "task"
-          ? firstCoworkerWithCapability(coworkers, "tasks")
-          : null,
+      coworker: null,
       model: null,
     };
   }

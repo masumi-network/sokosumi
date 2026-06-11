@@ -4,7 +4,7 @@ import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
 import { revalidatePath } from "next/cache";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 import {
   type DesignMdOwnerSchemaType,
   type FinalizeDesignMdGenerationSchemaType,
@@ -84,13 +84,12 @@ async function revalidateOwner(owner: DesignMdOwnerSchemaType): Promise<void> {
   revalidatePath("/account");
 
   if (owner.type === "organization") {
-    const organization = await prisma.organization.findUnique({
-      where: { id: owner.organizationId },
-      select: { slug: true },
-    });
+    const organization = await coreClient.getOrganizationById(
+      owner.organizationId,
+    );
 
-    if (organization?.slug) {
-      revalidatePath(`/organizations/${organization.slug}`);
+    if (organization?.data.slug) {
+      revalidatePath(`/organizations/${organization.data.slug}`);
     }
   }
 }
@@ -195,9 +194,8 @@ export const saveDesignMdUpload = withSession<
 
   try {
     const persisted = await designMdService.persistUploadedDesignMd(
-      parameters.session,
       parsedResult.data.owner,
-      parsedResult.data.url,
+      parsedResult.data.content,
     );
 
     await revalidateOwner(parsedResult.data.owner);
@@ -221,10 +219,7 @@ export const removeDesignMd = withSession<
   }
 
   try {
-    await designMdService.removeDesignMd(
-      parameters.session,
-      parsedResult.data.owner,
-    );
+    await designMdService.removeDesignMd(parsedResult.data.owner);
     await revalidateOwner(parsedResult.data.owner);
     return Ok({ removed: true });
   } catch (error) {

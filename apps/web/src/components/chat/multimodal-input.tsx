@@ -193,7 +193,7 @@ function PureMultimodalInput({
   const activeUploadControllersRef = useRef(new Set<AbortController>());
   const [windowWidth, setWindowWidth] = useState<number | undefined>(undefined);
   const [internalComposeKind, setInternalComposeKind] =
-    useState<ChatComposeKind>("task");
+    useState<ChatComposeKind>("chat");
   const isComposeKindControlled = controlledComposeKind !== undefined;
   // Compose-kind toggle is hidden when `chatId` is set; force chat so task-only state cannot block send.
   const storedComposeKind = controlledComposeKind ?? internalComposeKind;

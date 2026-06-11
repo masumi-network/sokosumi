@@ -51,7 +51,9 @@ import type {
   PostTasksByIdLinksData,
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
+  PutOrganizationsByIdDesignMdData,
   PutTasksByIdShareError,
+  PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
@@ -91,6 +93,7 @@ import {
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
+  getOrganizationsById as coreGetOrganizationsById,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
@@ -107,6 +110,7 @@ import {
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
+  getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -143,8 +147,10 @@ import {
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
+  putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
+  putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
@@ -1226,6 +1232,85 @@ export function createCoreClient(getClient: GetClient) {
     }
   }
 
+  /**
+   * Resolves the DESIGN.md in effect for the caller's current workspace. Core
+   * derives the active workspace from the session (the active organization, or
+   * the personal workspace when none).
+   */
+  async function getWorkspaceDesignMd() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesDesignMd({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to resolve workspace DESIGN.md",
+    );
+  }
+
+  /**
+   * Sets (or clears, when `content` is null) the current user's own DESIGN.md.
+   */
+  async function setMyDesignMd(
+    body: NonNullable<PutUsersByIdDesignMdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutUsersByIdDesignMd({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body,
+        }),
+      "Failed to save DESIGN.md",
+    );
+  }
+
+  /**
+   * Sets (or clears, when `content` is null) an organization's DESIGN.md. Core
+   * enforces that the caller is an organization owner or admin.
+   */
+  async function setOrganizationDesignMd(
+    organizationId: string,
+    body: NonNullable<PutOrganizationsByIdDesignMdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutOrganizationsByIdDesignMd({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to save organization DESIGN.md",
+    );
+  }
+
+  /**
+   * Fetches an organization by id, returning null when it does not exist
+   * (Core responds 404).
+   */
+  async function getOrganizationById(organizationId: string) {
+    try {
+      return await executeOperation(
+        getClient,
+        (client) =>
+          coreGetOrganizationsById({
+            client,
+            path: { id: organizationId },
+            cache: "no-store",
+          }),
+        "Failed to fetch organization",
+      );
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async function getHermesInstance() {
     return executeOperation(
       getClient,
@@ -1828,9 +1913,13 @@ export function createCoreClient(getClient: GetClient) {
     getMyMembersWithOrganizations,
     getMyOrganizations,
     getMyStripeCustomer,
+    getOrganizationById,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
     getOrganizationStripeCustomer,
+    getWorkspaceDesignMd,
+    setMyDesignMd,
+    setOrganizationDesignMd,
     getPendingNotices,
     getProjects,
     getProjectsById,
