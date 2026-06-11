@@ -5190,18 +5190,21 @@ export const AssignOrganizationSeatRequestSchema = {
                 pro: {
                     type: 'integer',
                     exclusiveMinimum: 0,
+                    maximum: 1000000,
                     description: 'Credits granted per assigned seat on the pro plan',
                     example: 10000
                 },
                 standard: {
                     type: 'integer',
                     exclusiveMinimum: 0,
+                    maximum: 1000000,
                     description: 'Credits granted per assigned seat on the standard plan',
                     example: 4000
                 },
                 starter: {
                     type: 'integer',
                     exclusiveMinimum: 0,
+                    maximum: 1000000,
                     description: 'Credits granted per assigned seat on the starter plan',
                     example: 1000
                 }

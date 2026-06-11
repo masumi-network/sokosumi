@@ -49,7 +49,18 @@ export type OrganizationSeatSummaryApi = z.infer<
   typeof organizationSeatSummarySchema
 >;
 
-const planSeatCreditsSchema = z.number().int().positive();
+/**
+ * Upper bound for caller-supplied per-seat credits. Catalog values are in the
+ * low thousands; the cap only limits the blast radius of a buggy or malicious
+ * caller since core cannot verify the values against Stripe itself.
+ */
+export const MAX_SEAT_CREDITS_PER_PLAN = 1_000_000;
+
+const planSeatCreditsSchema = z
+  .number()
+  .int()
+  .positive()
+  .max(MAX_SEAT_CREDITS_PER_PLAN);
 
 /**
  * Request body for assigning an organization seat.
@@ -58,6 +69,12 @@ const planSeatCreditsSchema = z.number().int().positive();
  * resolvable by the web app, so callers pass the per-plan seat credits along
  * with the write. Core uses them to grant unused-seat subscription credits
  * inside the same transaction; when omitted, no such credits are granted.
+ *
+ * Trust boundary: core cannot validate these amounts against Stripe and
+ * trusts the web app (the only intended caller) to supply accurate catalog
+ * values. Grant eligibility (active paid subscription, unused seat slots, one
+ * grant per member per period) is still enforced by core; only the granted
+ * amount comes from the caller, bounded by {@link MAX_SEAT_CREDITS_PER_PLAN}.
  */
 export const assignOrganizationSeatRequestSchema = z
   .object({

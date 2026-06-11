@@ -311,4 +311,19 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
       "No unused seats available. Purchase more seats or unassign another member.",
     );
   });
+
+  it("returns 400 when seatCreditsByPlan exceeds the allowed maximum", async () => {
+    setMembership("owner");
+
+    const response = await assignSeat("org_123", "member_456", {
+      seatCreditsByPlan: {
+        pro: 10000,
+        standard: 4000,
+        starter: 1_000_001,
+      },
+    });
+
+    expect(response.status).toBe(400);
+    expect(assignSeatMock).not.toHaveBeenCalled();
+  });
 });
