@@ -37,7 +37,14 @@ Do not append a second footer or set `delegate` twice on the same issue.
 
 ### 1. Add Sapphire footer to description
 
-Use `save_issue` with `id` = requirement issue. Append to description (keep Requirement body):
+**Required:** Use the **full** description from step 0’s `get_issue` as the base. `save_issue` **replaces** the entire `description` field — never post only the footer block or you will wipe the approved requirement.
+
+1. Start from the complete existing description returned by `get_issue`.
+2. If `## Requirement` is missing, add that heading and keep the approved body under it.
+3. Append the footer below (only when step 0 found no `## Sapphire status`).
+4. Call `save_issue` with `id` and the **merged** `description` string.
+
+Footer to append:
 
 ```markdown
 ## Sapphire status
@@ -52,11 +59,11 @@ Use `save_issue` with `id` = requirement issue. Append to description (keep Requ
 _Sapphire squad — run `.cursor/skills/_team-sapphire/SKILL.md` on this issue._
 ```
 
-If `## Requirement` heading is missing, wrap the approved body under `## Requirement` when posting.
-
 ### 2. Delegate to Cursor (default)
 
 After footer is saved (or when step 0 skipped footer because it already exists):
+
+**Skip this step** if the team uses [Cursor Automation](../_team-sapphire/CURSOR-AUTOMATION.md) instead of MCP delegate — that automation also triggers on delegate assigned → Cursor; running both starts two agents.
 
 ```json
 {

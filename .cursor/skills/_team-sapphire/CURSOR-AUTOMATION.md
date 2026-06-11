@@ -10,7 +10,24 @@ Do **not** add Cursor Automations that trigger on description contains `[repo=�
 
 Use **at most one** trigger per issue: MCP `delegate`, optional automation below, or manual `@Cursor` — not combined.
 
+## Do not combine with default `_task` handoff
+
+Default `_task/HANDOFF.md` step 2 sets `delegate: "Cursor"` on every handoff. Linear already starts a Cloud Agent from that delegation.
+
+**Do not enable the automation below** when using default `_task` handoff — trigger **Delegate assigned → Cursor** fires twice and can start **two** Team Sapphire runs on one issue.
+
+Use the automation **only** as a **replacement** for MCP delegate, not an add-on:
+
+| Handoff mode | `_task` step 2 (`delegate`) | Cursor Automation |
+|--------------|----------------------------|-------------------|
+| **Default (recommended)** | Yes | **No** — leave automation disabled |
+| **Automation-only team** | **No** — skip delegate in handoff runbook | Yes |
+
+If the team enables automation, document in the runbook that `_task` must post the footer (step 1) but **omit** step 2 delegate.
+
 ## Optional automation
+
+**Replacement for delegate only** — see **Do not combine with default `_task` handoff** above.
 
 Prefer MCP `delegate` from `_task/HANDOFF.md`. If the team uses automation instead, omit MCP `delegate` on the same issue.
 

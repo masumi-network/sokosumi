@@ -31,7 +31,8 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 - Required: Linear issue id/URL (e.g. `SOK-XXX`) — usually from `_task` handoff on the same issue.
 - Optional: start phase (`investigator`, `tech-lead`, `coder`, `reviewer`) when resuming a stalled run.
 - Load issue with `get_issue`. Read `## Requirement` (or requirement body before Sapphire sections exist).
-- If description already has `## Spec` and phase is not specified, resume from the first incomplete phase in `## Sapphire status`.
+- If start phase is not specified, read `## Sapphire status` and resume at the **first** phase whose status is not `done`, in order: Investigator → Tech Lead → Coder → Reviewer.
+- If `## Sapphire status` is missing, start at Investigator.
 
 ## Workflow
 
@@ -67,8 +68,8 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 1. Run `/goal` per `REVIEWER.md` until all criteria pass.
 2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
 3. Fix on PR branch when needed; loop.
-3. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done.
-4. Do **not** mark issue **Done** — human merges PR.
+4. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done.
+5. Do **not** mark issue **Done** — human merges PR.
 
 ## MCP
 
@@ -78,10 +79,13 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 ## Resume and idempotency
 
-| Already on issue | Action |
-|------------------|--------|
-| `## Investigation` present | Skip Investigator unless user asked to re-run |
-| `## Spec` present | Skip Tech Lead unless user asked to re-spec |
+Use `## Sapphire status` as the source of truth for which phase to run. Section headings (`## Investigation`, `## Spec`) alone do not skip a phase if status is still `pending`.
+
+| Condition | Action |
+|-----------|--------|
+| `## Sapphire status` — Investigator = done | Skip Investigator unless user asked to re-run |
+| `## Sapphire status` — Tech Lead = done | Skip Tech Lead unless user asked to re-spec |
+| `## Spec` present but Tech Lead still `pending` | Run Tech Lead — status table wins |
 | `**PR handoff**` comment + open PR | Skip Coder; run Reviewer |
 | Issue `In Review` + Reviewer done | Stop — await human merge |
 
