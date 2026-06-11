@@ -1536,26 +1536,6 @@ export type OrganizationSeatAssignment = {
     seatAssignedAt: Date;
 };
 
-export type AssignOrganizationSeatRequest = {
-    /**
-     * Subscription credits granted per assigned seat for each self-serve paid plan, resolved by the caller from the Stripe subscription catalog. When omitted, no unused-seat subscription credits are granted.
-     */
-    seatCreditsByPlan?: {
-        /**
-         * Credits granted per assigned seat on the pro plan
-         */
-        pro: number;
-        /**
-         * Credits granted per assigned seat on the standard plan
-         */
-        standard: number;
-        /**
-         * Credits granted per assigned seat on the starter plan
-         */
-        starter: number;
-    };
-};
-
 export type OrganizationSeatUnassignment = {
     /**
      * ID of the member the seat was unassigned from
@@ -12375,7 +12355,7 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatResponses = {
 export type DeleteOrganizationsByIdMembersByMemberIdSeatResponse = DeleteOrganizationsByIdMembersByMemberIdSeatResponses[keyof DeleteOrganizationsByIdMembersByMemberIdSeatResponses];
 
 export type PutOrganizationsByIdMembersByMemberIdSeatData = {
-    body?: AssignOrganizationSeatRequest;
+    body?: never;
     path: {
         /**
          * Organization ID

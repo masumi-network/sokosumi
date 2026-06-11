@@ -860,16 +860,12 @@ export const deleteOrganizationsByIdMembersByMemberIdSeat = <ThrowOnError extend
 });
 
 /**
- * Assign a seat to an organization member. Only organization owners and admins may do this. The assignment, capacity check, and any resulting credit grants happen in a single transaction. `seatCreditsByPlan` carries the per-seat subscription credits resolved from the Stripe catalog by the caller: core cannot verify these amounts against Stripe and trusts the web app (the intended caller) to supply accurate catalog values, while still enforcing grant eligibility itself.
+ * Assign a seat to an organization member. Only organization owners and admins may do this. The assignment, capacity check, and any resulting credit grants (with per-seat amounts resolved from the Stripe subscription catalog) happen in a single transaction.
  */
 export const putOrganizationsByIdMembersByMemberIdSeat = <ThrowOnError extends boolean = false>(options: Options<PutOrganizationsByIdMembersByMemberIdSeatData, ThrowOnError>): RequestResult<PutOrganizationsByIdMembersByMemberIdSeatResponses, PutOrganizationsByIdMembersByMemberIdSeatErrors, ThrowOnError> => (options.client ?? client).put<PutOrganizationsByIdMembersByMemberIdSeatResponses, PutOrganizationsByIdMembersByMemberIdSeatErrors, ThrowOnError>({
     responseTransformer: putOrganizationsByIdMembersByMemberIdSeatResponseTransformer,
     url: '/organizations/{id}/members/{memberId}/seat',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
+    ...options
 });
 
 /**

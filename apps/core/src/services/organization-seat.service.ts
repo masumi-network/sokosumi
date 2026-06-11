@@ -19,17 +19,7 @@ import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import { badRequest, notFound } from "@/helpers/error";
-
-/**
- * Subscription credits granted per assigned seat for each self-serve paid
- * plan. Resolved by the web app from the Stripe subscription catalog (Stripe
- * stays web-side) and passed along with seat-assignment writes.
- */
-export interface SeatCreditsByPlan {
-  pro: number;
-  standard: number;
-  starter: number;
-}
+import { getSubscriptionSeatCredits } from "@/services/subscription-seat-credits.service";
 
 export interface GrantUnusedSeatSubscriptionCreditsResult {
   creditsGranted: number;
@@ -111,16 +101,12 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
   }
 }
 
-function resolveCreditsPerSeatForPlan(
+async function resolveCreditsPerSeatForSubscription(
   plan: string,
-  seatCreditsByPlan: SeatCreditsByPlan | undefined,
-): number | null {
-  if (!seatCreditsByPlan) {
-    return null;
-  }
-
+): Promise<number | null> {
   if (plan === "starter" || plan === "standard" || plan === "pro") {
-    return seatCreditsByPlan[plan];
+    const seatCredits = await getSubscriptionSeatCredits();
+    return seatCredits[plan];
   }
 
   return null;
@@ -129,7 +115,6 @@ function resolveCreditsPerSeatForPlan(
 export async function grantUnusedSeatSubscriptionCreditsIfEligible(
   organizationId: string,
   userId: string,
-  seatCreditsByPlan: SeatCreditsByPlan | undefined,
   tx: Prisma.TransactionClient,
 ): Promise<GrantUnusedSeatSubscriptionCreditsResult> {
   const subscription =
@@ -155,19 +140,17 @@ export async function grantUnusedSeatSubscriptionCreditsIfEligible(
     return { creditsGranted: 0, granted: false };
   }
 
-  const creditsPerSeat = resolveCreditsPerSeatForPlan(
-    subscription.plan,
-    seatCreditsByPlan,
-  );
-  const [grantedSeatSlots, memberAlreadyHasGrant] = await Promise.all([
-    countOrganizationSubscriptionPeriodSeatGrants(organizationId, now, tx),
-    hasOrganizationMemberSubscriptionPeriodGrant(
-      organizationId,
-      userId,
-      now,
-      tx,
-    ),
-  ]);
+  const [grantedSeatSlots, memberAlreadyHasGrant, creditsPerSeat] =
+    await Promise.all([
+      countOrganizationSubscriptionPeriodSeatGrants(organizationId, now, tx),
+      hasOrganizationMemberSubscriptionPeriodGrant(
+        organizationId,
+        userId,
+        now,
+        tx,
+      ),
+      resolveCreditsPerSeatForSubscription(subscription.plan),
+    ]);
 
   if (memberAlreadyHasGrant || creditsPerSeat === null || creditsPerSeat <= 0) {
     return { creditsGranted: 0, granted: false };

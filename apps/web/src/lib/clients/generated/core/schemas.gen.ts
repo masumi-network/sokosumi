@@ -5181,44 +5181,6 @@ export const OrganizationSeatAssignmentSchema = {
     ]
 } as const;
 
-export const AssignOrganizationSeatRequestSchema = {
-    type: 'object',
-    properties: {
-        seatCreditsByPlan: {
-            type: 'object',
-            properties: {
-                pro: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    maximum: 1000000,
-                    description: 'Credits granted per assigned seat on the pro plan',
-                    example: 10000
-                },
-                standard: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    maximum: 1000000,
-                    description: 'Credits granted per assigned seat on the standard plan',
-                    example: 4000
-                },
-                starter: {
-                    type: 'integer',
-                    exclusiveMinimum: 0,
-                    maximum: 1000000,
-                    description: 'Credits granted per assigned seat on the starter plan',
-                    example: 1000
-                }
-            },
-            required: [
-                'pro',
-                'standard',
-                'starter'
-            ],
-            description: 'Subscription credits granted per assigned seat for each self-serve paid plan, resolved by the caller from the Stripe subscription catalog. When omitted, no unused-seat subscription credits are granted.'
-        }
-    }
-} as const;
-
 export const OrganizationSeatUnassignmentSchema = {
     type: 'object',
     properties: {

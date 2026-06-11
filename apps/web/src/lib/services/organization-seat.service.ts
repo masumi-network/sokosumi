@@ -2,11 +2,8 @@ import "server-only";
 
 import type { OrganizationBillingPlanName } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
-import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 export interface OrganizationSeatSummary {
   assignedCount: number;
@@ -16,8 +13,6 @@ export interface OrganizationSeatSummary {
   purchasedSeats: number;
   unusedSeats: number;
 }
-
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 /**
  * Maps Core seat-write errors back onto the APIError statuses callers (the
@@ -56,25 +51,6 @@ function mapCoreSeatWriteError(error: unknown): never {
   throw error;
 }
 
-/**
- * Resolves the per-seat subscription credits for each self-serve paid plan
- * from the Stripe catalog. Core cannot reach the Stripe catalog (the product
- * ids live web-side), so seat assignment passes these along with the write.
- */
-async function resolveSeatCreditsByPlan(): Promise<{
-  pro: number;
-  standard: number;
-  starter: number;
-}> {
-  const catalog = await getSubscriptionCatalog(stripeInstance);
-
-  return {
-    pro: catalog.pro.credits,
-    standard: catalog.standard.credits,
-    starter: catalog.starter.credits,
-  };
-}
-
 export const organizationSeatService = (() => {
   return {
     async getSeatSummary(
@@ -98,13 +74,10 @@ export const organizationSeatService = (() => {
       organizationId: string,
       memberId: string,
     ): Promise<{ memberId: string; seatAssignedAt: Date }> {
-      const seatCreditsByPlan = await resolveSeatCreditsByPlan();
-
       try {
         const { data } = await coreClient.assignOrganizationSeat(
           organizationId,
           memberId,
-          { seatCreditsByPlan },
         );
 
         return {

@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +20,7 @@ const {
   transactionCreateMock,
   taskFindManyMock,
   transactionMock,
+  getSubscriptionSeatCreditsMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -33,6 +35,12 @@ const {
   transactionCreateMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   transactionMock: vi.fn(),
+  getSubscriptionSeatCreditsMock: vi.fn(),
+}));
+
+vi.mock("@/services/subscription-seat-credits.service", () => ({
+  getSubscriptionSeatCredits: (...args: unknown[]) =>
+    getSubscriptionSeatCreditsMock(...args),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -87,12 +95,6 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   role: "user",
 };
 
-const SEAT_CREDITS_BY_PLAN = {
-  pro: 10000,
-  standard: 4000,
-  starter: 1000,
-};
-
 const FUTURE_PERIOD_END = new Date("2099-06-01T00:00:00.000Z");
 
 let mountPutOrganizationMemberSeat: (app: OpenAPIHonoWithAuth) => void;
@@ -123,17 +125,11 @@ function setMembership(role: string | null) {
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
 }
 
-function assignSeat(
-  id: string,
-  memberId: string,
-  body: Record<string, unknown> = { seatCreditsByPlan: SEAT_CREDITS_BY_PLAN },
-) {
+function assignSeat(id: string, memberId: string) {
   return createApp().request(
     `http://localhost/${id}/members/${memberId}/seat`,
     {
       method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
     },
   );
 }
@@ -180,6 +176,11 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     });
     countOrganizationSubscriptionPeriodSeatGrantsMock.mockResolvedValue(0);
     hasOrganizationMemberSubscriptionPeriodGrantMock.mockResolvedValue(false);
+    getSubscriptionSeatCreditsMock.mockResolvedValue({
+      pro: 10000,
+      standard: 4000,
+      starter: 1000,
+    });
     creditBucketFindUniqueMock.mockResolvedValue(null);
     transactionCreateMock.mockResolvedValue({});
     taskFindManyMock.mockResolvedValue([]);
@@ -229,13 +230,20 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
       expect.anything(),
     );
     expect(transactionCreateMock).toHaveBeenCalledOnce();
+    expect(transactionCreateMock.mock.calls[0]?.[0]?.data).toMatchObject({
+      amount: convertCreditsToCents(1000),
+    });
   });
 
-  it("skips the credit grant when seatCreditsByPlan is omitted", async () => {
-    setMembership("admin");
-    const response = await assignSeat("org_123", "member_456", {});
+  it("fails when the Stripe catalog cannot be resolved", async () => {
+    setMembership("owner");
+    getSubscriptionSeatCreditsMock.mockRejectedValue(
+      new Error("Missing credits metadata for starter plan"),
+    );
 
-    expect(response.status).toBe(200);
+    const response = await assignSeat("org_123", "member_456");
+
+    expect(response.status).toBe(500);
     expect(transactionCreateMock).not.toHaveBeenCalled();
   });
 
@@ -310,20 +318,5 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     expect(await response.text()).toContain(
       "No unused seats available. Purchase more seats or unassign another member.",
     );
-  });
-
-  it("returns 400 when seatCreditsByPlan exceeds the allowed maximum", async () => {
-    setMembership("owner");
-
-    const response = await assignSeat("org_123", "member_456", {
-      seatCreditsByPlan: {
-        pro: 10000,
-        standard: 4000,
-        starter: 1_000_001,
-      },
-    });
-
-    expect(response.status).toBe(400);
-    expect(assignSeatMock).not.toHaveBeenCalled();
   });
 });

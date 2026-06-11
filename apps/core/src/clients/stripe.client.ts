@@ -71,6 +71,13 @@ export const stripeClient = {
     );
   },
 
+  async retrieveProduct(
+    productId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Product> {
+    return await stripe.products.retrieve(productId, {}, requestOptions);
+  },
+
   async updateSubscriptionCancelAtPeriodEnd(
     subscriptionId: string,
     cancelAtPeriodEnd: boolean,

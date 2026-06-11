@@ -50,7 +50,6 @@ import type {
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
-  PutOrganizationsByIdMembersByMemberIdSeatData,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
@@ -666,14 +665,12 @@ export function createCoreClient(getClient: GetClient) {
   /**
    * Assigns a seat to an organization member. Core enforces that the caller
    * is an organization owner or admin and runs the assignment, capacity
-   * check, and resulting credit grants in a single transaction. The body
-   * carries the per-seat subscription credits resolved from the Stripe
-   * catalog (Stripe stays web-side).
+   * check, and resulting credit grants (with per-seat amounts resolved from
+   * the Stripe subscription catalog) in a single transaction.
    */
   async function assignOrganizationSeat(
     organizationId: string,
     memberId: string,
-    body: NonNullable<PutOrganizationsByIdMembersByMemberIdSeatData["body"]>,
   ) {
     return executeOperation(
       getClient,
@@ -681,7 +678,6 @@ export function createCoreClient(getClient: GetClient) {
         corePutOrganizationsByIdMembersByMemberIdSeat({
           client,
           path: { id: organizationId, memberId },
-          body,
         }),
       "Failed to assign organization seat",
     );

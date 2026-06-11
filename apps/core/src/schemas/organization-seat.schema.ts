@@ -49,58 +49,6 @@ export type OrganizationSeatSummaryApi = z.infer<
   typeof organizationSeatSummarySchema
 >;
 
-/**
- * Upper bound for caller-supplied per-seat credits. Catalog values are in the
- * low thousands; the cap only limits the blast radius of a buggy or malicious
- * caller since core cannot verify the values against Stripe itself.
- */
-export const MAX_SEAT_CREDITS_PER_PLAN = 1_000_000;
-
-const planSeatCreditsSchema = z
-  .number()
-  .int()
-  .positive()
-  .max(MAX_SEAT_CREDITS_PER_PLAN);
-
-/**
- * Request body for assigning an organization seat.
- *
- * The Stripe subscription catalog (credits-per-seat product metadata) is only
- * resolvable by the web app, so callers pass the per-plan seat credits along
- * with the write. Core uses them to grant unused-seat subscription credits
- * inside the same transaction; when omitted, no such credits are granted.
- *
- * Trust boundary: core cannot validate these amounts against Stripe and
- * trusts the web app (the only intended caller) to supply accurate catalog
- * values. Grant eligibility (active paid subscription, unused seat slots, one
- * grant per member per period) is still enforced by core; only the granted
- * amount comes from the caller, bounded by {@link MAX_SEAT_CREDITS_PER_PLAN}.
- */
-export const assignOrganizationSeatRequestSchema = z
-  .object({
-    seatCreditsByPlan: z
-      .object({
-        pro: planSeatCreditsSchema.openapi({
-          description: "Credits granted per assigned seat on the pro plan",
-          example: 10000,
-        }),
-        standard: planSeatCreditsSchema.openapi({
-          description: "Credits granted per assigned seat on the standard plan",
-          example: 4000,
-        }),
-        starter: planSeatCreditsSchema.openapi({
-          description: "Credits granted per assigned seat on the starter plan",
-          example: 1000,
-        }),
-      })
-      .optional()
-      .openapi({
-        description:
-          "Subscription credits granted per assigned seat for each self-serve paid plan, resolved by the caller from the Stripe subscription catalog. When omitted, no unused-seat subscription credits are granted.",
-      }),
-  })
-  .openapi("AssignOrganizationSeatRequest");
-
 export const organizationSeatAssignmentSchema = z
   .object({
     memberId: z.string().openapi({

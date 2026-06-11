@@ -17,12 +17,10 @@ const {
   getOrganizationSeatSummaryMock,
   assignOrganizationSeatMock,
   unassignOrganizationSeatMock,
-  getSubscriptionCatalogMock,
 } = vi.hoisted(() => ({
   getOrganizationSeatSummaryMock: vi.fn(),
   assignOrganizationSeatMock: vi.fn(),
   unassignOrganizationSeatMock: vi.fn(),
-  getSubscriptionCatalogMock: vi.fn(),
 }));
 
 class MockCoreApiRequestError extends Error {
@@ -47,24 +45,6 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => ({
-    STRIPE_SECRET_KEY: "sk_test_mock",
-  }),
-}));
-
-vi.mock("@/lib/stripe/subscription-catalog", () => ({
-  getSubscriptionCatalog: (...args: unknown[]) =>
-    getSubscriptionCatalogMock(...args),
-}));
-
-vi.mock("stripe", () => ({
-  __esModule: true,
-  default: vi.fn(function MockStripe() {
-    return {};
-  }),
-}));
-
 function coreError(status: number, message: string) {
   return new MockCoreApiRequestError(message, { status });
 }
@@ -72,11 +52,6 @@ function coreError(status: number, message: string) {
 describe("organizationSeatService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSubscriptionCatalogMock.mockResolvedValue({
-      pro: { credits: 10000 },
-      standard: { credits: 4000 },
-      starter: { credits: 1000 },
-    });
   });
 
   it("returns the seat summary resolved by core", async () => {
@@ -108,7 +83,7 @@ describe("organizationSeatService", () => {
     expect(getOrganizationSeatSummaryMock).toHaveBeenCalledWith("org-1");
   });
 
-  it("assigns a seat through core, passing the catalog seat credits", async () => {
+  it("assigns a seat through core", async () => {
     assignOrganizationSeatMock.mockResolvedValue({
       data: {
         memberId: "member-1",
@@ -133,13 +108,6 @@ describe("organizationSeatService", () => {
     expect(assignOrganizationSeatMock).toHaveBeenCalledWith(
       "org-1",
       "member-1",
-      {
-        seatCreditsByPlan: {
-          pro: 10000,
-          standard: 4000,
-          starter: 1000,
-        },
-      },
     );
   });
 

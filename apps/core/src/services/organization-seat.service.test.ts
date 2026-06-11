@@ -5,10 +5,17 @@ const {
   countOrganizationSubscriptionPeriodSeatGrantsMock,
   hasOrganizationMemberSubscriptionPeriodGrantMock,
   resolveActiveSubscriptionByReferenceIdMock,
+  getSubscriptionSeatCreditsMock,
 } = vi.hoisted(() => ({
   countOrganizationSubscriptionPeriodSeatGrantsMock: vi.fn(),
   hasOrganizationMemberSubscriptionPeriodGrantMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
+  getSubscriptionSeatCreditsMock: vi.fn(),
+}));
+
+vi.mock("@/services/subscription-seat-credits.service", () => ({
+  getSubscriptionSeatCredits: (...args: unknown[]) =>
+    getSubscriptionSeatCreditsMock(...args),
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -30,12 +37,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
       resolveActiveSubscriptionByReferenceIdMock(...args),
   },
 }));
-
-const SEAT_CREDITS_BY_PLAN = {
-  pro: 10000,
-  standard: 4000,
-  starter: 100,
-};
 
 describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
   const periodEnd = new Date("2099-06-01T00:00:00.000Z");
@@ -62,6 +63,11 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     });
     countOrganizationSubscriptionPeriodSeatGrantsMock.mockResolvedValue(3);
     hasOrganizationMemberSubscriptionPeriodGrantMock.mockResolvedValue(false);
+    getSubscriptionSeatCreditsMock.mockResolvedValue({
+      pro: 10000,
+      standard: 4000,
+      starter: 100,
+    });
     tx.creditBucket.findUnique.mockResolvedValue(null);
     tx.task.findMany.mockResolvedValue([]);
     tx.transaction.create.mockResolvedValue({});
@@ -75,7 +81,6 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
-      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 
@@ -100,22 +105,22 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     });
   });
 
-  it("skips grant when no seat credits are provided", async () => {
+  it("propagates Stripe catalog failures so the transaction aborts", async () => {
+    getSubscriptionSeatCreditsMock.mockRejectedValue(
+      new Error("Missing credits metadata for starter plan"),
+    );
+
     const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
       "./organization-seat.service"
     );
 
-    const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
-      "org-1",
-      "user-2",
-      undefined,
-      tx as never,
-    );
-
-    expect(result).toEqual({
-      creditsGranted: 0,
-      granted: false,
-    });
+    await expect(
+      grantUnusedSeatSubscriptionCreditsIfEligible(
+        "org-1",
+        "user-2",
+        tx as never,
+      ),
+    ).rejects.toThrow("Missing credits metadata for starter plan");
     expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 
@@ -129,7 +134,6 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
-      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 
@@ -150,7 +154,6 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
-      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 
@@ -177,7 +180,6 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
-      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 

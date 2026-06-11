@@ -13,10 +13,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
-import {
-  assignOrganizationSeatRequestSchema,
-  organizationSeatAssignmentSchema,
-} from "@/schemas/organization-seat.schema";
+import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
 import {
   grantUnusedSeatSubscriptionCreditsIfEligible,
   mapSeatRepositoryError,
@@ -40,17 +37,10 @@ const route = createRoute({
   method: "put",
   path: "/{id}/members/{memberId}/seat",
   description:
-    "Assign a seat to an organization member. Only organization owners and admins may do this. The assignment, capacity check, and any resulting credit grants happen in a single transaction. `seatCreditsByPlan` carries the per-seat subscription credits resolved from the Stripe catalog by the caller: core cannot verify these amounts against Stripe and trusts the web app (the intended caller) to supply accurate catalog values, while still enforcing grant eligibility itself.",
+    "Assign a seat to an organization member. Only organization owners and admins may do this. The assignment, capacity check, and any resulting credit grants (with per-seat amounts resolved from the Stripe subscription catalog) happen in a single transaction.",
   tags: ["Organizations"],
   request: {
     params,
-    body: {
-      content: {
-        "application/json": {
-          schema: assignOrganizationSeatRequestSchema,
-        },
-      },
-    },
   },
   responses: {
     200: jsonSuccessResponse(
@@ -81,7 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserContext(c.var.authContext);
     const { id, memberId } = c.req.valid("param");
-    const { seatCreditsByPlan } = c.req.valid("json");
 
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -124,7 +113,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           await grantUnusedSeatSubscriptionCreditsIfEligible(
             organization.id,
             member.userId,
-            seatCreditsByPlan,
             tx,
           );
         }
