@@ -1,45 +1,53 @@
 # Cursor Automation (optional)
 
-Optional Linear-triggered Cloud Agents for Team Sapphire. Default path is MCP handoff in `../_task/HANDOFF.md`.
+Reference for Linear-triggered Cloud Agents. **Default path:** MCP `delegate` from `../_task/HANDOFF.md` — do **not** enable the automation below.
 
 ## One issue, one trigger
 
-`_task` delegates **Cursor on the issue** at handoff. Tech Lead later adds `[repo=masumi-network/sokosumi]` to the **same issue** when writing `## Spec`.
+`_task` handoff sets `delegate: "Cursor"` on the issue after posting `## Sapphire status`. That alone starts Team Sapphire on a Cloud Agent.
 
-Do **not** add Cursor Automations that trigger on description contains `[repo=…]` alone — that can start a second agent when the spec is written and race Sapphire's Coder phase.
+Use **at most one** start path per issue:
 
-Use **at most one** trigger per issue: MCP `delegate`, optional automation below, or manual `@Cursor` — not combined.
+| Path | When to use |
+|------|-------------|
+| **MCP delegate (default)** | `_task/HANDOFF.md` step 2 — recommended |
+| **Manual `@Cursor`** | MCP delegate unavailable — one comment per `../_task/HANDOFF.md` |
+| **Cursor Automation below** | **Do not use** with default handoff — see next section |
 
-## Do not combine with default `_task` handoff
+Do **not** add automations that trigger on description contains `[repo=…]` alone — Tech Lead adds that later and can race the Coder phase.
 
-Default `_task/HANDOFF.md` step 2 sets `delegate: "Cursor"` on every handoff. Linear already starts a Cloud Agent from that delegation.
+## Do not enable with default `_task` handoff
 
-**Do not enable the automation below** when using default `_task` handoff — trigger **Delegate assigned → Cursor** fires twice and can start **two** Team Sapphire runs on one issue.
+The automation below uses trigger **Linear — Delegate assigned → `Cursor`**. That is the **same** event as `_task/HANDOFF.md` step 2.
 
-Use the automation **only** as a **replacement** for MCP delegate, not an add-on:
+Enabling it while `_task` sets `delegate: "Cursor"` can start **two** Team Sapphire runs on one issue.
 
-| Handoff mode | `_task` step 2 (`delegate`) | Cursor Automation |
-|--------------|----------------------------|-------------------|
-| **Default (recommended)** | Yes | **No** — leave automation disabled |
-| **Automation-only team** | **No** — skip delegate in handoff runbook | Yes |
+**Keep this automation disabled** when using default `_task` handoff.
 
-If the team enables automation, document in the runbook that `_task` must post the footer (step 1) but **omit** step 2 delegate.
+### No automation-only handoff
 
-## Optional automation
+There is **no** supported path where `_task` omits `delegate` and this automation starts Sapphire:
 
-**Replacement for delegate only** — see **Do not combine with default `_task` handoff** above.
+- Trigger requires **Delegate assigned → `Cursor`**.
+- Footer-only handoff (step 1 without step 2) never assigns a delegate, so the automation **never fires**.
 
-Prefer MCP `delegate` from `_task/HANDOFF.md`. If the team uses automation instead, omit MCP `delegate` on the same issue.
+To start without MCP delegate, use the **manual `@Cursor`** comment in `../_task/HANDOFF.md` — not this automation.
+
+## Reference automation (disabled by default)
+
+Documented for teams that **stop using `_task` MCP delegate entirely** and accept maintaining a separate Linear→Cursor integration. Even then, prefer manual `@Cursor` unless Cursor adds a trigger that does not duplicate delegation (e.g. issue updated with `## Sapphire status` only).
 
 | Field | Value |
 |-------|--------|
 | Name | SOK Team Sapphire → orchestrator |
 | Trigger | Linear — Delegate assigned → `Cursor` |
 | Filter | Team SOK; description contains `## Sapphire status` |
-| Tools | Linear MCP, GitHub MCP — computer use is built into Cloud Agents (no separate Browser MCP required) |
-| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue: Investigator → Tech Lead → Coder → Reviewer. Single issue only — no child issues. Reviewer: verify UI via **computer use**; attach evidence as **PR artifacts** per `VISUAL-CAPTURE.md`. Do not re-delegate or `@Cursor` on the same issue. |
+| Tools | Linear MCP, GitHub MCP — computer use is built into Cloud Agents |
+| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. Reviewer: PR artifacts per `VISUAL-CAPTURE.md`. |
 
-Filter on `## Sapphire status`, **not** `[repo=…]` alone — the repo hint is added later on the same ticket.
+Filter on `## Sapphire status`, **not** `[repo=…]` alone.
+
+**If enabled:** `_task` must **not** set `delegate` on the same issues, and something else must assign delegate to `Cursor` — otherwise nothing runs. Default teams should use MCP delegate only and leave this **off**.
 
 ## Cloud environment (Reviewer visuals)
 
@@ -54,12 +62,8 @@ Cloud Agents need a configured environment before Reviewer can capture UI. See [
 
 Reviewer does **not** need `agent-browser` or IDE Browser MCP on Cloud — **computer use** produces screenshots and videos on the PR automatically.
 
-## Manual path
-
-No automation: `_task` handoff uses MCP `delegate` or one `@Cursor` comment per `../_task/HANDOFF.md`.
-
 ## Auth notes
 
 - Cursor admin: connect Linear in [Cursor integrations](https://cursor.com/docs/integrations/linear).
 - Cloud Agent: enable Linear + GitHub MCP on the agent run (first delegated run may need OAuth once per user).
-- Reviewer visuals: configure **environment + Secrets**; capture via **PR artifacts** (`VISUAL-CAPTURE.md`). Use `agent-browser` only as an optional fallback documented there.
+- Reviewer visuals: configure **environment + Secrets**; capture via **PR artifacts** (`VISUAL-CAPTURE.md`).

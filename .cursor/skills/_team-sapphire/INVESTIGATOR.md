@@ -4,7 +4,7 @@
 
 ## You produce
 
-Append `## Investigation` to the Linear issue. Comment summary when done.
+Append `## Investigation` to the Linear issue (merge full description per `LINEAR-MCP.md`). Comment summary when done.
 
 ## Do
 

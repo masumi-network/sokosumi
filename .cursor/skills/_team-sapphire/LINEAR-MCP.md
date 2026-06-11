@@ -11,7 +11,18 @@ Single-issue updates only. No child issues.
 
 ## Issue description updates
 
-Use `save_issue` with `id` = issue identifier. Merge sections — do not wipe Requirement.
+Use `save_issue` with `id` = issue identifier.
+
+### Description merge (required)
+
+Every `save_issue` that sets `description` must:
+
+1. Call `get_issue` first.
+2. Start from the **full** existing `description`.
+3. Insert or update only the target parts (`## Sapphire status` row, `## Investigation`, `## Spec`).
+4. Pass the **entire** merged markdown in `description`.
+
+Linear **replaces** the whole field — never send only a new section or you wipe `## Requirement` and the Sapphire footer.
 
 ### Initial Sapphire block (orchestrator start)
 
@@ -81,7 +92,16 @@ Reviewer sets In Review:
 
 ## Idempotency
 
-Before appending a section, read `get_issue`. Skip phase if section already exists unless user asked to re-run.
+Use `## Sapphire status` as the source of truth — same rules as `SKILL.md` **Resume and idempotency**.
+
+| Condition | Action |
+|-----------|--------|
+| Status Investigator = `done` | Skip Investigator unless user asked to re-run |
+| Status Tech Lead = `done` | Skip Tech Lead unless user asked to re-spec |
+| `## Investigation` or `## Spec` exists but status still `pending` | Run that phase; merge full description; set status → `done` |
+| `**PR handoff**` + open PR | Skip Coder; run Reviewer |
+
+Section headings alone do not skip a phase when status is still `pending`.
 
 ## Post-run response
 

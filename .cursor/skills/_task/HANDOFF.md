@@ -63,8 +63,6 @@ _Sapphire squad — run `.cursor/skills/_team-sapphire/SKILL.md` on this issue._
 
 After footer is saved (or when step 0 skipped footer because it already exists):
 
-**Skip this step** if the team uses [Cursor Automation](../_team-sapphire/CURSOR-AUTOMATION.md) instead of MCP delegate — that automation also triggers on delegate assigned → Cursor; running both starts two agents.
-
 ```json
 {
   "server": "user-linear",

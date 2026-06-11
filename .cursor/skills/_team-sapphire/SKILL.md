@@ -41,17 +41,17 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 ### Phase 1 — Investigator
 
 1. Run Investigator per `INVESTIGATOR.md` (codebase search, pitfalls, patterns — **not** a final spec).
-2. Append `## Investigation` to the issue description via `save_issue`.
+2. Merge `## Investigation` into the **full** issue description via `save_issue` per `LINEAR-MCP.md` — never post the section alone.
 3. Post comment `**Sapphire · Investigator complete**` with a 3–5 bullet summary.
-4. Update `## Sapphire status` — Investigator → done.
+4. Update `## Sapphire status` — Investigator → `done` (same merged `save_issue` or follow-up write with full body).
 
 ### Phase 2 — Tech Lead
 
 1. Read Requirement + Investigation.
 2. Write final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
-3. Append `## Spec` to the issue description. Include `[repo=…]`, data flow, contracts, verification hints, coder breakdown when rubric score ≥ 2.
+3. Merge `## Spec` into the **full** issue description per `LINEAR-MCP.md`. Include `[repo=…]`, data flow, contracts, verification hints, coder breakdown when rubric score ≥ 2.
 4. Post comment `**Sapphire · Tech Lead complete**` with execution order and coder count.
-5. Update status — Tech Lead → done.
+5. Update status — Tech Lead → `done` (in the same merged write when possible).
 
 ### Phase 3 — Coder(s)
 
