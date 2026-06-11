@@ -1,4 +1,3 @@
-import { subscriptionRepository } from "@sokosumi/database/repositories";
 import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { notFound } from "next/navigation";
@@ -19,8 +18,8 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/utils";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
-import prisma from "@/lib/db/prisma";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
@@ -423,13 +422,23 @@ async function getCurrentPlan(
     return "free";
   }
 
-  const latestSubscription =
-    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-      organizationId ?? session.user.id,
-      prisma,
-    );
+  try {
+    const { data } = organizationId
+      ? await coreClient.getOrganizationActiveSubscription(organizationId)
+      : await coreClient.getMyActiveSubscription();
 
-  return parsePlanName(latestSubscription?.plan) ?? "free";
+    return parsePlanName(data.subscription?.plan) ?? "free";
+  } catch (error) {
+    // Tasks can be viewed in workspaces the caller can no longer resolve a
+    // subscription for (e.g. revoked membership) — treat those as free.
+    if (
+      error instanceof CoreApiRequestError &&
+      (error.status === 403 || error.status === 404)
+    ) {
+      return "free";
+    }
+    throw error;
+  }
 }
 
 function buildTaskDetailContext(

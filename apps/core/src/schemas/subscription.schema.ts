@@ -28,3 +28,27 @@ export const subscriptionSchema = z.object({
 });
 
 export type Subscription = z.infer<typeof subscriptionSchema>;
+
+/**
+ * Active subscription resolved for a billing reference (a user or an
+ * organization). `subscription` is `null` when the reference has no active
+ * subscription — callers typically fall back to the free plan.
+ */
+export const activeSubscriptionResponseSchema = z
+  .object({
+    subscription: z
+      .object({
+        plan: z.string().openapi({ example: "starter" }),
+        status: z.string().openapi({ example: "active" }),
+        cancelAtPeriodEnd: z.boolean().nullish().openapi({ example: false }),
+        periodStart: dateTimeSchema.nullish(),
+        periodEnd: dateTimeSchema.nullish(),
+        seats: z.number().int().nullish().openapi({ example: 3 }),
+      })
+      .nullable(),
+  })
+  .openapi("ActiveSubscriptionResponse");
+
+export type ActiveSubscriptionResponse = z.infer<
+  typeof activeSubscriptionResponseSchema
+>;

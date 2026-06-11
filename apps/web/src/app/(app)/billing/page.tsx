@@ -1,14 +1,5 @@
 import { MemberRole } from "@sokosumi/database";
-import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  creditBucketRepository,
-  subscriptionRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
-import {
-  convertCentsToCredits,
-  type SelfServeSubscriptionPlanName,
-} from "@sokosumi/utils";
+import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
@@ -27,7 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { coreClient } from "@/lib/clients/core.client";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
@@ -83,7 +74,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   if (!session) {
     return null;
   }
-  const userId = session.user.id;
   const creditsPriceLookupKeyOverride = isZeroMarginTopUpEnabled
     ? ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY
     : undefined;
@@ -118,9 +108,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       );
     }
 
-    const billingPlan = await resolveOrganizationBillingPlan(
+    const { data: billingPlan } = await coreClient.getOrganizationBillingPlan(
       activeOrganization.id,
-      prisma,
     );
     const currentPlan = billingPlan.plan;
     const isEnterpriseContract = billingPlan.mode === "enterprise_contract";
@@ -138,7 +127,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         ? { cancel: query.cancel, session_id: query.session_id }
         : undefined;
 
-    const [enterpriseContractSummary, seatSummary, balanceInCents] =
+    const [enterpriseContractSummary, seatSummary, organizationCredits] =
       await Promise.all([
         isEnterpriseContract
           ? getEnterpriseContractBillingSummary(activeOrganization.id)
@@ -148,15 +137,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         // real figure. It is unused when the enterprise summary renders, but is
         // the correct fallback if core reports the org is not on an enterprise
         // contract (404 -> null) while the locally resolved plan said it was.
-        creditBucketRepository.getBalance(
-          userId,
-          activeOrganization.id,
-          prisma,
-        ),
+        coreClient.getMyOrganizationCredits(activeOrganization.id),
       ]);
     const currentSeats = seatSummary.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
-      convertCentsToCredits(balanceInCents),
+      organizationCredits.data.credits.total,
     );
     const organizationBillingPortal =
       activeOrganization.stripeCustomerId && showOrganizationBillingPortal ? (
@@ -254,22 +239,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   }
 
   const [
-    balanceInCents,
-    latestPersonalSubscription,
+    personalCredits,
+    personalSubscription,
     subscriptionCatalog,
-    user,
+    stripeCustomer,
   ] = await Promise.all([
-    creditBucketRepository.getBalance(userId, null, prisma),
-    subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-      userId,
-      prisma,
-    ),
+    coreClient.getMyCredits(),
+    coreClient.getMyActiveSubscription(),
     getSubscriptionCatalog(stripeInstance),
-    userRepository.getUserById(userId, prisma),
+    coreClient.getMyStripeCustomer(),
   ]);
+  const latestPersonalSubscription = personalSubscription.data.subscription;
+  const stripeCustomerId = stripeCustomer.data.stripeCustomerId;
   const currentPlan = parsePlanName(latestPersonalSubscription?.plan) ?? "free";
-  const credits = convertCentsToCredits(balanceInCents);
-  const displayCredits = formatCreditsForDisplay(credits);
+  const displayCredits = formatCreditsForDisplay(
+    personalCredits.data.credits.total,
+  );
   const personalPlans: SubscriptionPlanView[] = PLAN_ORDER.map((planName) => {
     const plan = subscriptionCatalog[planName];
     return {
@@ -300,10 +285,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           creditsLabel={t("balanceCreditsLabel", {
             credits: displayCredits,
           })}
-          stripeCustomerId={user?.stripeCustomerId ?? null}
+          stripeCustomerId={stripeCustomerId}
           stripeCustomerLabel={t("stripeCustomerIdLabel")}
           billingPortal={
-            user?.stripeCustomerId ? (
+            stripeCustomerId ? (
               <BalanceBillingPortalLink
                 baseReturnPath="/billing"
                 description={t("billingPortalDescription")}
