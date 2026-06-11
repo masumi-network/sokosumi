@@ -1,13 +1,15 @@
 import { buildOrganizationSeatAssignmentSubscriptionReferenceId } from "@sokosumi/database/helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("server-only", () => ({}));
-
-const countOrganizationSubscriptionPeriodSeatGrantsMock = vi.fn();
-const hasOrganizationMemberSubscriptionPeriodGrantMock = vi.fn();
-const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
-const getSubscriptionCatalogMock = vi.fn();
-const subscriptionsRetrieveMock = vi.fn();
+const {
+  countOrganizationSubscriptionPeriodSeatGrantsMock,
+  hasOrganizationMemberSubscriptionPeriodGrantMock,
+  resolveActiveSubscriptionByReferenceIdMock,
+} = vi.hoisted(() => ({
+  countOrganizationSubscriptionPeriodSeatGrantsMock: vi.fn(),
+  hasOrganizationMemberSubscriptionPeriodGrantMock: vi.fn(),
+  resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
+}));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
@@ -29,27 +31,11 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => ({
-    STRIPE_SECRET_KEY: "sk_test_mock",
-  }),
-}));
-
-vi.mock("@/lib/stripe/subscription-catalog", () => ({
-  getSubscriptionCatalog: (...args: unknown[]) =>
-    getSubscriptionCatalogMock(...args),
-}));
-
-vi.mock("stripe", () => ({
-  __esModule: true,
-  default: vi.fn(function MockStripe() {
-    return {
-      subscriptions: {
-        retrieve: (...args: unknown[]) => subscriptionsRetrieveMock(...args),
-      },
-    };
-  }),
-}));
+const SEAT_CREDITS_BY_PLAN = {
+  pro: 10000,
+  standard: 4000,
+  starter: 100,
+};
 
 describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
   const periodEnd = new Date("2099-06-01T00:00:00.000Z");
@@ -67,9 +53,6 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    getSubscriptionCatalogMock.mockResolvedValue({
-      starter: { credits: 100 },
-    });
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
       plan: "starter",
       periodEnd,
@@ -80,17 +63,19 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     countOrganizationSubscriptionPeriodSeatGrantsMock.mockResolvedValue(3);
     hasOrganizationMemberSubscriptionPeriodGrantMock.mockResolvedValue(false);
     tx.creditBucket.findUnique.mockResolvedValue(null);
+    tx.task.findMany.mockResolvedValue([]);
     tx.transaction.create.mockResolvedValue({});
   });
 
   it("grants one seat of subscription credits when unused slots remain", async () => {
     const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
-      "../organization-seat-credits.service"
+      "./organization-seat.service"
     );
 
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
+      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 
@@ -115,16 +100,36 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     });
   });
 
-  it("skips grant when all purchased seat slots already received credits", async () => {
-    countOrganizationSubscriptionPeriodSeatGrantsMock.mockResolvedValue(5);
-
+  it("skips grant when no seat credits are provided", async () => {
     const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
-      "../organization-seat-credits.service"
+      "./organization-seat.service"
     );
 
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
+      undefined,
+      tx as never,
+    );
+
+    expect(result).toEqual({
+      creditsGranted: 0,
+      granted: false,
+    });
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("skips grant when all purchased seat slots already received credits", async () => {
+    countOrganizationSubscriptionPeriodSeatGrantsMock.mockResolvedValue(5);
+
+    const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
+      "./organization-seat.service"
+    );
+
+    const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
+      "org-1",
+      "user-2",
+      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 
@@ -139,12 +144,13 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     hasOrganizationMemberSubscriptionPeriodGrantMock.mockResolvedValue(true);
 
     const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
-      "../organization-seat-credits.service"
+      "./organization-seat.service"
     );
 
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
+      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 
@@ -165,12 +171,13 @@ describe("grantUnusedSeatSubscriptionCreditsIfEligible", () => {
     });
 
     const { grantUnusedSeatSubscriptionCreditsIfEligible } = await import(
-      "../organization-seat-credits.service"
+      "./organization-seat.service"
     );
 
     const result = await grantUnusedSeatSubscriptionCreditsIfEligible(
       "org-1",
       "user-2",
+      SEAT_CREDITS_BY_PLAN,
       tx as never,
     );
 

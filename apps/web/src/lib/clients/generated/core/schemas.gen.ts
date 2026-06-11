@@ -5160,6 +5160,76 @@ export const MemberSchema = {
     ]
 } as const;
 
+export const OrganizationSeatAssignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was assigned to',
+            example: 'member_123'
+        },
+        seatAssignedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the seat was assigned'
+        }
+    },
+    required: [
+        'memberId',
+        'seatAssignedAt'
+    ]
+} as const;
+
+export const AssignOrganizationSeatRequestSchema = {
+    type: 'object',
+    properties: {
+        seatCreditsByPlan: {
+            type: 'object',
+            properties: {
+                pro: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Credits granted per assigned seat on the pro plan',
+                    example: 10000
+                },
+                standard: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Credits granted per assigned seat on the standard plan',
+                    example: 4000
+                },
+                starter: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Credits granted per assigned seat on the starter plan',
+                    example: 1000
+                }
+            },
+            required: [
+                'pro',
+                'standard',
+                'starter'
+            ],
+            description: 'Subscription credits granted per assigned seat for each self-serve paid plan, resolved by the caller from the Stripe subscription catalog. When omitted, no unused-seat subscription credits are granted.'
+        }
+    }
+} as const;
+
+export const OrganizationSeatUnassignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was unassigned from',
+            example: 'member_123'
+        }
+    },
+    required: [
+        'memberId'
+    ]
+} as const;
+
 export const PendingInvitationSchema = {
     type: 'object',
     properties: {
@@ -5210,6 +5280,60 @@ export const PendingInvitationSchema = {
         'expiresAt',
         'inviterId',
         'createdAt'
+    ]
+} as const;
+
+export const OrganizationSeatSummarySchema = {
+    type: 'object',
+    properties: {
+        assignedCount: {
+            type: 'integer',
+            description: 'Number of members with an assigned seat (0 when the organization has no paid plan)',
+            example: 2
+        },
+        memberCount: {
+            type: 'integer',
+            description: 'Total number of organization members',
+            example: 5
+        },
+        isEnterpriseContract: {
+            type: 'boolean',
+            description: 'Whether the organization is billed via an active enterprise contract',
+            example: false
+        },
+        paidPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'starter',
+                'standard',
+                'pro',
+                'enterprise',
+                null
+            ],
+            description: 'Resolved paid billing plan name (null when the organization is on the free plan)',
+            example: 'starter'
+        },
+        purchasedSeats: {
+            type: 'integer',
+            description: 'Number of purchased seats',
+            example: 3
+        },
+        unusedSeats: {
+            type: 'integer',
+            description: 'Purchased seats without an assigned member (0 when the organization has no paid plan)',
+            example: 1
+        }
+    },
+    required: [
+        'assignedCount',
+        'memberCount',
+        'isEnterpriseContract',
+        'paidPlan',
+        'purchasedSeats',
+        'unusedSeats'
     ]
 } as const;
 
