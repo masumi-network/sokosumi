@@ -678,9 +678,25 @@ export const stripeClient = (() => {
       });
     },
 
+    /**
+     * Grants free credits by creating discounted invoice items and a
+     * zero-total invoice.
+     *
+     * `idempotencyKeyBase` makes the whole grant idempotent against retries
+     * (e.g. Stripe webhook redeliveries): every Stripe call derives its own
+     * key from the base (`-item-N`, `-invoice`, `-finalize`), so a replayed
+     * grant returns the original invoice instead of creating a second one.
+     * The base MUST be stable across retries of the same logical grant and
+     * unique per legitimately distinct grant — derive it from domain
+     * identifiers (user id, coupon id, …), never from timestamps or
+     * randomness. Stripe rejects a reused key whose request params differ
+     * (`idempotency_error`), so anything that changes the params (e.g. the
+     * coupon's `credits` metadata) must also change the base.
+     */
     async applyInvoiceCreditsToCustomer(
       customerId: string,
       couponId: string,
+      idempotencyKeyBase: string,
       metadata?: Record<string, string>,
       referralCount: number = 1,
     ): Promise<Stripe.Invoice> {
@@ -699,41 +715,55 @@ export const stripeClient = (() => {
       const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);
       await Promise.all(
         Array.from({ length: itemsToCreate }).map((_, index) =>
-          stripe.invoiceItems.create({
-            customer: customerId,
-            pricing: { price: price.id },
-            currency: price.currency,
-            quantity: credits,
-            description: `Referral credit redemption (${credits} credits) - ${index + 1} of ${itemsToCreate}`,
-            metadata: {
-              coupon_id: couponId,
-              redemption_type: "free_coupon",
-              ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
-              ...(metadata ?? {}),
+          stripe.invoiceItems.create(
+            {
+              customer: customerId,
+              pricing: { price: price.id },
+              currency: price.currency,
+              quantity: credits,
+              description: `Referral credit redemption (${credits} credits) - ${index + 1} of ${itemsToCreate}`,
+              metadata: {
+                coupon_id: couponId,
+                redemption_type: "free_coupon",
+                ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
+                ...(metadata ?? {}),
+              },
+              discounts: [{ coupon: couponId }],
             },
-            discounts: [{ coupon: couponId }],
-          }),
+            {
+              idempotencyKey: `${idempotencyKeyBase}-item-${index + 1}`,
+            },
+          ),
         ),
       );
 
       // 2) Create & finalize zero-total invoice with the coupon discount
-      const invoice = await stripe.invoices.create({
-        customer: customerId,
-        currency: price.currency,
-        pending_invoice_items_behavior: "include",
-        collection_method: "charge_automatically",
-        auto_advance: true,
-        metadata: {
-          coupon_id: couponId,
-          price_id: price.id,
-          ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
-          ...(metadata ?? {}),
+      const invoice = await stripe.invoices.create(
+        {
+          customer: customerId,
+          currency: price.currency,
+          pending_invoice_items_behavior: "include",
+          collection_method: "charge_automatically",
+          auto_advance: true,
+          metadata: {
+            coupon_id: couponId,
+            price_id: price.id,
+            ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
+            ...(metadata ?? {}),
+          },
+          expand: ["lines.data.price.product"],
         },
-        expand: ["lines.data.price.product"],
-      });
+        {
+          idempotencyKey: `${idempotencyKeyBase}-invoice`,
+        },
+      );
 
       const finalizedInvoice = await stripe.invoices.finalizeInvoice(
         invoice.id!,
+        {},
+        {
+          idempotencyKey: `${idempotencyKeyBase}-finalize`,
+        },
       );
 
       return finalizedInvoice;
