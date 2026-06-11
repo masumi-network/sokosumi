@@ -24,11 +24,13 @@ const {
 }));
 
 class MockCoreApiRequestError extends Error {
+  kind?: string;
   status?: number;
 
-  constructor(message: string, options?: { status?: number }) {
+  constructor(message: string, options?: { kind?: string; status?: number }) {
     super(message);
     this.name = "CoreApiRequestError";
+    this.kind = options?.kind;
     this.status = options?.status;
   }
 }
@@ -45,8 +47,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-function coreError(status: number, message: string) {
-  return new MockCoreApiRequestError(message, { status });
+function coreError(status: number, message: string, kind?: string) {
+  return new MockCoreApiRequestError(message, { kind, status });
 }
 
 describe("organizationSeatService", () => {
@@ -81,6 +83,47 @@ describe("organizationSeatService", () => {
       unusedSeats: 2,
     });
     expect(getOrganizationSeatSummaryMock).toHaveBeenCalledWith("org-1");
+  });
+
+  it("resolves the seat summary to null when core responds 403", async () => {
+    getOrganizationSeatSummaryMock.mockRejectedValue(
+      coreError(403, "You are not a member of this organization"),
+    );
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.getSeatSummary("org-1"),
+    ).resolves.toBeNull();
+  });
+
+  it("resolves the seat summary to null when core responds 404", async () => {
+    getOrganizationSeatSummaryMock.mockRejectedValue(
+      coreError(404, "Organization not found", "organization_not_found"),
+    );
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.getSeatSummary("org-1"),
+    ).resolves.toBeNull();
+  });
+
+  it("rethrows other seat summary errors", async () => {
+    const failure = coreError(500, "Internal Server Error");
+    getOrganizationSeatSummaryMock.mockRejectedValue(failure);
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(organizationSeatService.getSeatSummary("org-1")).rejects.toBe(
+      failure,
+    );
   });
 
   it("assigns a seat through core", async () => {
@@ -144,6 +187,67 @@ describe("organizationSeatService", () => {
       status: "FORBIDDEN",
       message:
         "Only organization owners and admins can manage seat assignments",
+    });
+  });
+
+  it("maps the organization_not_found kind to FORBIDDEN even when the message is reworded", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(
+        404,
+        "We could not find that organization",
+        "organization_not_found",
+      ),
+    );
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "FORBIDDEN",
+      message:
+        "Only organization owners and admins can manage seat assignments",
+    });
+  });
+
+  it("maps the member_not_found kind to NOT_FOUND", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(404, "Member not found", "member_not_found"),
+    );
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "NOT_FOUND",
+      message: "Member not found",
+    });
+  });
+
+  it("maps the seat_capacity_exceeded kind to BAD_REQUEST", async () => {
+    assignOrganizationSeatMock.mockRejectedValue(
+      coreError(
+        400,
+        "No unused seats available. Purchase more seats or unassign another member.",
+        "seat_capacity_exceeded",
+      ),
+    );
+
+    const { organizationSeatService } = await import(
+      "../organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.assignSeat("user-1", "org-1", "member-1"),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      message:
+        "No unused seats available. Purchase more seats or unassign another member.",
     });
   });
 

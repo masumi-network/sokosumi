@@ -10,6 +10,7 @@ import {
   memberRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { badRequest, internalServerError } from "@/helpers/error";
@@ -131,7 +132,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         } catch (error) {
           if (error instanceof OrganizationSubscriptionExclusivityError) {
-            throw badRequest(error.message);
+            throw badRequest(error.message, {
+              kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
+            });
           }
           throw error;
         }
@@ -144,6 +147,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!subscription) {
           throw badRequest(
             "An active organization subscription is required before updating seats.",
+            { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE },
           );
         }
 
@@ -158,6 +162,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             error instanceof Error
               ? error.message
               : `Seats must be at least ${assignedCount} to cover all assigned members`,
+            { kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_SEATS_BELOW_ASSIGNED },
           );
         }
 

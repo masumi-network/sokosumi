@@ -18,6 +18,10 @@ export {
   CHAT_UI_NON_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
 } from "./chat-ui-non-reasoning-part-types.js";
+export {
+  CORE_API_ERROR_KINDS,
+  type CoreApiErrorKind,
+} from "./core-api-error-kind.js";
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
 export {
   FILE_EXTENSION_ALLOWLIST,

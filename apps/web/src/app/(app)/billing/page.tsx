@@ -160,7 +160,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           throw error;
         }),
     ]);
-    const currentSeats = seatSummary.purchasedSeats;
+    // `getSeatSummary` resolves null when core reports a stale membership
+    // (403/404); fall back to zero counts so the page still renders, matching
+    // the onboarding loader's behavior.
+    const seatCounts = seatSummary ?? {
+      assignedCount: 0,
+      memberCount: 0,
+      purchasedSeats: 0,
+      unusedSeats: 0,
+    };
+    const currentSeats = seatCounts.purchasedSeats;
     const displayCredits = formatCreditsForDisplay(
       organizationCredits.data.credits.total,
     );
@@ -200,11 +209,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             <BalanceSection
               title={t("balanceTitle")}
               description={t("balanceDescriptionOrganization", {
-                assigned: seatSummary.assignedCount,
-                members: seatSummary.memberCount,
+                assigned: seatCounts.assignedCount,
+                members: seatCounts.memberCount,
                 organization: activeOrganization.name,
-                purchased: seatSummary.purchasedSeats,
-                unused: seatSummary.unusedSeats,
+                purchased: seatCounts.purchasedSeats,
+                unused: seatCounts.unusedSeats,
               })}
               creditsLabel={t("balanceCreditsLabel", {
                 credits: displayCredits,
@@ -224,14 +233,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
-                assignedSeatCount={seatSummary.assignedCount}
+                assignedSeatCount={seatCounts.assignedCount}
                 cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
                 currentPlan={currentPlan}
                 currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
                 isEnterpriseConsumable={isEnterpriseConsumable}
                 isEnterpriseContract={isEnterpriseContract}
-                memberCount={seatSummary.memberCount}
+                memberCount={seatCounts.memberCount}
                 organizationId={activeOrganization.id}
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"

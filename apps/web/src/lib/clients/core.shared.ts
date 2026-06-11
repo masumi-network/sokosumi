@@ -180,15 +180,23 @@ export interface CoreApiResponse<T> {
 
 export class CoreApiRequestError extends Error {
   details?: unknown;
+  /**
+   * Stable machine-readable error kind from the Core error envelope (e.g.
+   * `organization_not_found`). Prefer matching on this over `message`, which
+   * may be reworded at any time. See `CORE_API_ERROR_KINDS` in
+   * `@sokosumi/utils`.
+   */
+  kind?: string;
   status?: number;
 
   constructor(
     message: string,
-    options?: { details?: unknown; status?: number },
+    options?: { details?: unknown; kind?: string; status?: number },
   ) {
     super(message);
     this.name = "CoreApiRequestError";
     this.details = options?.details;
+    this.kind = options?.kind;
     this.status = options?.status;
   }
 }
@@ -283,6 +291,18 @@ function extractErrorMessage(error: unknown, status?: number): string {
   return "Failed to communicate with Core API";
 }
 
+function extractErrorKind(error: unknown): string | undefined {
+  if (error && typeof error === "object") {
+    const typedError = error as { kind?: unknown };
+
+    if (typeof typedError.kind === "string" && typedError.kind.length > 0) {
+      return typedError.kind;
+    }
+  }
+
+  return undefined;
+}
+
 async function executeOperation<TData, TError>(
   getClient: GetClient,
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
@@ -304,6 +324,7 @@ async function executeOperation<TData, TError>(
     const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
+      kind: extractErrorKind(result.error),
       status: result.response?.status,
     });
   }
