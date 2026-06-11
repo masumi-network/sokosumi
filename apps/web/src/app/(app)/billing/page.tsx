@@ -135,8 +135,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         organizationSeatService.getSeatSummary(activeOrganization.id),
         // Always load the org credit balance so the balance section shows the
         // real figure. It is unused when the enterprise summary renders, but is
-        // the correct fallback if core reports the org is not on an enterprise
-        // contract (404 -> null) while the locally resolved plan said it was.
+        // the correct fallback when the enterprise summary is absent (core
+        // reports no active contract, 404 -> null) despite the locally resolved
+        // plan saying it was an enterprise contract.
         coreClient.getMyOrganizationCredits(activeOrganization.id),
       ]);
     const currentSeats = seatSummary.purchasedSeats;
