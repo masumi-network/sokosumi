@@ -387,21 +387,23 @@ describe("core.client", () => {
       data: {
         data: {
           kind: "job",
-          // Mirrors the generated SDK envelope after its response
-          // transformer has revived date strings into Date instances.
+          // Wire-shaped ISO strings: the generated `getShareByToken`
+          // transformer only revives `meta.timestamp` (the union payload is
+          // skipped by the generator), so date revival is the mapper's job —
+          // the Date assertions below prove it.
           share: {
             id: "share_1",
             jobId: "job_1",
             token: "public-share-token",
             allowSearchIndexing: false,
-            createdAt: new Date("2026-03-26T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:00:00.000Z",
           },
           job: {
             id: "job_1",
-            createdAt: new Date("2026-03-26T10:00:00.000Z"),
-            updatedAt: new Date("2026-03-26T10:05:00.000Z"),
-            completedAt: new Date("2026-03-26T10:10:00.000Z"),
+            createdAt: "2026-03-26T10:00:00.000Z",
+            updatedAt: "2026-03-26T10:05:00.000Z",
+            completedAt: "2026-03-26T10:10:00.000Z",
             agentId: "agent_1",
             userId: "user_1",
             organizationId: "org_1",
@@ -457,8 +459,8 @@ describe("core.client", () => {
             events: [
               {
                 id: "event_completed",
-                createdAt: new Date("2026-03-26T10:10:00.000Z"),
-                updatedAt: new Date("2026-03-26T10:10:00.000Z"),
+                createdAt: "2026-03-26T10:10:00.000Z",
+                updatedAt: "2026-03-26T10:10:00.000Z",
                 status: "COMPLETED",
                 inputSchema: null,
                 input: null,
@@ -468,8 +470,8 @@ describe("core.client", () => {
               },
               {
                 id: "event_initiated",
-                createdAt: new Date("2026-03-26T10:00:00.000Z"),
-                updatedAt: new Date("2026-03-26T10:00:00.000Z"),
+                createdAt: "2026-03-26T10:00:00.000Z",
+                updatedAt: "2026-03-26T10:00:00.000Z",
                 status: "INITIATED",
                 inputSchema: '{"input_data":[]}',
                 input: {

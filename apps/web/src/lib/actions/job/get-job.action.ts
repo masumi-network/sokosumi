@@ -20,9 +20,13 @@ interface GetJobParameters extends AuthenticatedRequest {
  * `Date` fields, and React's RSC serializer transports them natively across
  * the server-action boundary.
  *
- * Error contract mirrors the route it replaces: no session / Core 401 throws
- * `UnAuthenticatedError` (the query relies on this), Core 403/404 throws a
- * not-found `Error`, and any other failure rethrows as a generic `Error`.
+ * Error contract: no session / Core 401 throws `UnAuthenticatedError`, Core
+ * 403/404 throws a not-found `Error`, any other failure rethrows. Note that in
+ * production Next.js masks server-action errors (generic message + digest), so
+ * the error TYPE does not survive to the client — unlike the HTTP status of
+ * the route this replaces. That is fine for this consumer: the queryFn's own
+ * session pre-check covers the visible unauthenticated path, and the job query
+ * surfaces `data`, not errors.
  */
 export const getJob = withSession<GetJobParameters, Job>(async ({ jobId }) => {
   if (!jobId) {
