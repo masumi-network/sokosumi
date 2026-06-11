@@ -112,17 +112,19 @@ Reviewer sets In Review (state only, after status table saved):
 
 ## Idempotency
 
-Use `## Sapphire status` as the source of truth — same rules as `SKILL.md` **Resume and idempotency**.
+Use `## Sapphire status` for progress on Linear; **session artifacts** decide whether a `done` row can be skipped — same rules as `SKILL.md` **Resume and idempotency**.
 
 Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; strip them on the next description write.
 
 | Condition | Action |
 |-----------|--------|
-| Status Investigator = `done` | Skip Investigator unless user asked to re-run |
-| Status Tech Lead = `done` | Skip Tech Lead unless user asked to re-spec |
-| Tech Lead = `done`, Coder pending, **no session spec** | Re-run Tech Lead (new session) before Coder |
-| `**PR handoff**` + open PR | Skip Coder; run Reviewer |
-| All status rows = `done`, issue not `In Review` | Reviewer cleanup |
+| Same session — Investigator = `done` + **session investigation** in context | Skip Investigator unless user asked to re-run |
+| Same session — Tech Lead = `done` + **session spec** in context | Skip Tech Lead unless user asked to re-spec |
+| New session — Investigator = `done` on Linear but no **session investigation** | Re-run Investigator before Tech Lead |
+| New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
+| `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
+| `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, then set `In Review` when criteria pass |
 
 ## Post-run response
 

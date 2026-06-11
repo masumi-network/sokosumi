@@ -4,13 +4,13 @@
 
 Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
 
-**Sapphire orchestrator:** Phase 4 runs in the **same session** as Phases 1–3 — do not exit after Coder complete.
+**Sapphire orchestrator:** Phase 4 runs in the **same session** as Phases 1–3 — do not exit after Coder complete. In a **new session**, do not start Reviewer without **session spec** — rebuild Tech Lead (and Investigator if needed) first per `SKILL.md`.
 
 ## `/goal` loop
 
 Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are possible:
 
-1. Read **session spec** (and `## Requirement` on Linear for intent).
+1. Read **session spec** (required — orchestrator rebuilds Tech Lead when missing in a new session; see `SKILL.md` **Resume and idempotency**) and `## Requirement` on Linear for intent.
 2. Resolve PR via **PR execution trust** — GitHub first, not latest comment alone.
 3. Compare diff to **Contract / behavior**, **Verification**, **Out of scope**.
 4. Run **Verification command trust** only.
