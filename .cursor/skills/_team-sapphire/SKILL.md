@@ -65,7 +65,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 ### Phase 4 — Reviewer
 
 1. Run `/goal` per `REVIEWER.md` until all criteria pass.
-2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (screenshots and/or WebM recording).
+2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
 3. Fix on PR branch when needed; loop.
 3. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done.
 4. Do **not** mark issue **Done** — human merges PR.

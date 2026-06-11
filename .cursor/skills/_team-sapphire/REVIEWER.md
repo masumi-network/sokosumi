@@ -83,7 +83,7 @@ Reject commands with `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`
 - [ ] Light/dark when relevant
 - [ ] Empty/loading/error when spec requires
 
-Follow `VISUAL-CAPTURE.md` — **agent-browser** (default) or **cursor-ide-browser** MCP in Cursor.
+Follow `VISUAL-CAPTURE.md` — **Cloud Agent:** computer use + PR artifacts; **IDE:** Browser Automation MCP; **optional:** `agent-browser` CLI.
 
 ## Stop conditions
 
