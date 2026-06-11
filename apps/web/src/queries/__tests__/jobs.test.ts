@@ -1,23 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type Session } from "@/lib/auth/auth";
+import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { getJobQueryOptions } from "@/queries/jobs";
 
-vi.mock("superjson", () => ({
-  __esModule: true,
-  default: {
-    parse: (value: unknown) => value,
-    stringify: (value: unknown) => value,
-  },
+const getJobMock = vi.fn();
+
+vi.mock("@/lib/actions/job", () => ({
+  getJob: (...args: unknown[]) => getJobMock(...args),
 }));
 
 describe("getJobQueryOptions", () => {
-  it("fetches internal jobs route with credentials included", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: "Internal Server Error",
-    });
-    global.fetch = fetchMock as unknown as typeof fetch;
+  beforeEach(() => {
+    getJobMock.mockReset();
+  });
+
+  it("calls the getJob server action with the job id", async () => {
+    const job = { id: "job-1", cents: BigInt(42) };
+    getJobMock.mockResolvedValue(job);
 
     const options = getJobQueryOptions("job-1", {
       user: { id: "user-1" },
@@ -28,13 +27,39 @@ describe("getJobQueryOptions", () => {
       throw new Error("queryFn is required");
     }
 
-    await expect(queryFn({} as never)).rejects.toThrow(
-      "Failed to fetch job: Internal Server Error",
-    );
-
-    expect(fetchMock).toHaveBeenCalledWith("/api/internal/jobs/job-1", {
-      credentials: "include",
-    });
+    await expect(queryFn({} as never)).resolves.toBe(job);
+    expect(getJobMock).toHaveBeenCalledWith({ jobId: "job-1" });
     expect(options.refetchOnWindowFocus).toBe(false);
+  });
+
+  it("throws UnAuthenticatedError when there is no session", async () => {
+    const options = getJobQueryOptions("job-1", null);
+
+    const queryFn = options.queryFn;
+    if (!queryFn) {
+      throw new Error("queryFn is required");
+    }
+
+    await expect(queryFn({} as never)).rejects.toBeInstanceOf(
+      UnAuthenticatedError,
+    );
+    expect(getJobMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates errors thrown by the getJob action", async () => {
+    getJobMock.mockRejectedValue(new UnAuthenticatedError());
+
+    const options = getJobQueryOptions("job-1", {
+      user: { id: "user-1" },
+    } as Session);
+
+    const queryFn = options.queryFn;
+    if (!queryFn) {
+      throw new Error("queryFn is required");
+    }
+
+    await expect(queryFn({} as never)).rejects.toBeInstanceOf(
+      UnAuthenticatedError,
+    );
   });
 });

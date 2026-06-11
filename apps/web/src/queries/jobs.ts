@@ -1,8 +1,6 @@
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { queryOptions } from "@tanstack/react-query";
-import superJson from "superjson";
 
-import { apiSuccessResponseSchema } from "@/lib/api/schemas";
+import { getJob } from "@/lib/actions/job";
 import type { Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
@@ -25,21 +23,10 @@ export const getJobQueryOptions = (jobId: string, session: Session | null) =>
         throw new UnAuthenticatedError();
       }
 
-      const response = await fetch(`/api/internal/jobs/${jobId}`, {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        switch (response.status) {
-          case 401:
-            throw new UnAuthenticatedError();
-          default:
-            throw new Error(`Failed to fetch job: ${response.statusText}`);
-        }
-      }
-      const parsedResponse = apiSuccessResponseSchema.parse(
-        await response.json(),
-      );
-      const job = superJson.parse<JobWithSokosumiStatus>(parsedResponse.data);
-      return job;
+      // `getJob` is a server action. React's RSC serializer transports the
+      // mapped payload's `bigint`/`Date` fields natively, so no superjson
+      // round-trip is needed. It throws `UnAuthenticatedError` on 401 (which
+      // this query relies on) and a generic `Error` otherwise.
+      return await getJob({ jobId });
     },
   });
