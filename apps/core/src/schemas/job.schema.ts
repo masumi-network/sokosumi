@@ -13,6 +13,7 @@ import { userSummarySchema } from "@/schemas/user.schema";
 
 import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
+import { jobShareSchema } from "./share.schema.js";
 import { workspaceSummarySchema } from "./workspace.schema.js";
 
 export const JOB_NAME_MAX_LENGTH = 120;
@@ -220,6 +221,7 @@ export const jobSchema = z
     workspace: workspaceSummarySchema,
     agent: jobDetailsAgentSchema,
     events: z.array(jobDetailsEventSchema),
+    share: z.union([jobShareSchema, z.null()]).openapi({ example: null }),
   })
   .openapi("Job");
 

@@ -9,7 +9,7 @@ import {
   jobSummariesSchema,
 } from "@/schemas/job.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
-import { taskShareSchema } from "@/schemas/public-share.schema";
+import { taskShareSchema } from "@/schemas/share.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";

@@ -139,6 +139,7 @@ function createJobApi(overrides: Partial<Record<string, unknown>> = {}) {
       overrideLegalTerms: null,
     },
     events: [],
+    share: null,
     ...overrides,
   };
 }

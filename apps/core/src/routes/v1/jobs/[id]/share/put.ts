@@ -9,10 +9,8 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import {
-  jobShareSchema,
-  putJobShareRequestSchema,
-} from "@/schemas/public-share.schema.js";
+import { putJobShareRequestSchema } from "@/schemas/public-share.schema.js";
+import { jobShareSchema } from "@/schemas/share.schema.js";
 
 const paramsSchema = z.object({
   id: z.string().openapi({

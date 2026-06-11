@@ -1,10 +1,10 @@
-import { jobRepository } from "@sokosumi/database/repositories";
 import type { NextRequest, NextResponse } from "next/server";
 import superJson from "superjson";
 
+import { mapCoreJobToJobWithSokosumiStatus } from "@/lib/agents/core-dto-mappers";
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 interface RouteParams {
   params: Promise<{
@@ -14,7 +14,7 @@ interface RouteParams {
 
 /**
  * Get job by ID internally
- * @description Retrieves a specific job by ID belonging to the authenticated user
+ * @description Retrieves a specific job by ID readable by the authenticated user
  */
 export async function GET(
   request: NextRequest,
@@ -31,10 +31,20 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const job = await jobRepository.getJobById(jobId, prisma);
-
-    if (!job || job.userId !== session.user.id) {
-      throw new Error("JOB_NOT_FOUND");
+    let job;
+    try {
+      const response = await coreClient.getJobById(jobId);
+      job = mapCoreJobToJobWithSokosumiStatus(response.data);
+    } catch (error) {
+      if (error instanceof CoreApiRequestError) {
+        if (error.status === 401) {
+          throw new Error("UNAUTHORIZED");
+        }
+        if (error.status === 403 || error.status === 404) {
+          throw new Error("JOB_NOT_FOUND");
+        }
+      }
+      throw error;
     }
 
     // Format and return the job

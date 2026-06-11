@@ -1,7 +1,9 @@
 import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
-import { mapCoreJobToJobWithSokosumiStatus } from "@/lib/agents/core-dto-mappers";
+import {
+  mapCoreJobShare,
+  mapCoreJobToJobWithSokosumiStatus,
+} from "@/lib/agents/core-dto-mappers";
 import type {
-  JobShare as CoreJobShare,
   PublicSharedJobResource as CorePublicSharedJobResource,
   TaskShare as CoreTaskShare,
   PublicSharedResourceResponse,
@@ -26,17 +28,6 @@ export type PublicSharedResource =
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
-}
-
-export function mapCoreJobShare(share: CoreJobShare): JobShare {
-  return {
-    id: share.id,
-    jobId: share.jobId,
-    token: share.token,
-    allowSearchIndexing: share.allowSearchIndexing,
-    createdAt: toDate(share.createdAt),
-    updatedAt: toDate(share.updatedAt),
-  } as JobShare;
 }
 
 function mapCoreTaskShare(share: CoreTaskShare): CoreTaskShare {

@@ -93,6 +93,7 @@ describe("GET /share/{token}", () => {
           overrideLegalOther: null,
         },
         events: [],
+        share: null,
       },
     });
 
@@ -210,6 +211,7 @@ describe("GET /share/{token}", () => {
             ],
           },
         ],
+        share: null,
       },
     });
 

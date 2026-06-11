@@ -494,6 +494,7 @@ describe("core dto mappers", () => {
           ],
         },
       ],
+      share: null,
     };
 
     const mappedJob = mapCoreJobToJobWithSokosumiStatus(job, { share });
@@ -585,6 +586,7 @@ describe("core dto mappers", () => {
         overrideLegalOther: null,
       },
       events: [],
+      share: null,
     } as Job;
 
     expect(mapCoreJobToJobWithSokosumiStatus(job).jobStatusSettled).toBe(true);

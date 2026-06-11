@@ -129,5 +129,6 @@ export function serializeJobDetails(job: JobWithSokosumiStatus) {
         jobId: job.id,
       })),
     })),
+    share: job.share ?? null,
   };
 }

@@ -16,6 +16,7 @@ import type {
   AgentReviews as CoreAgentReviews,
   Category as CoreCategory,
   Job as CoreJob,
+  JobShare as CoreJobShare,
   JobSummary as CoreJobSummary,
 } from "@/lib/clients/generated/core";
 import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
@@ -560,6 +561,17 @@ export function mapCoreJobSummaryToJobWithSokosumiStatus(
   return mappedJob as unknown as JobWithSokosumiStatus;
 }
 
+export function mapCoreJobShare(share: CoreJobShare): JobShare {
+  return {
+    id: share.id,
+    jobId: share.jobId,
+    token: share.token,
+    allowSearchIndexing: share.allowSearchIndexing,
+    createdAt: toDate(share.createdAt),
+    updatedAt: toDate(share.updatedAt),
+  } as JobShare;
+}
+
 export function mapCoreJobToJobWithSokosumiStatus(
   job: CoreJob,
   options?: { share?: JobShare | null },
@@ -571,7 +583,7 @@ export function mapCoreJobToJobWithSokosumiStatus(
     inputSchema: job.inputSchema ?? null,
     agentJobId: job.agentJobId,
     identifierFromPurchaser: job.identifierFromPurchaser ?? null,
-    share: options?.share ?? null,
+    share: options?.share ?? (job.share ? mapCoreJobShare(job.share) : null),
     agent: mapCoreJobAgent(job.agentId, job.agent),
     events: job.events.map(mapCoreJobEvent),
     // Token-based public share pages are read-only; keep "unsettled" so
