@@ -2,17 +2,20 @@ import Link from "next/link";
 
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import type { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";
+import HeaderProfileSection from "./header/header-profile-section";
 import HeaderUserSection from "./header-user-section";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 
 interface HeaderProps {
   className?: string | undefined;
+  session: Session;
 }
 
-export default function Header({ className }: HeaderProps) {
+export default function Header({ className, session }: HeaderProps) {
   return (
     <header
       className={cn(
@@ -38,6 +41,7 @@ export default function Header({ className }: HeaderProps) {
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
         <div className="flex items-center gap-2">
+          <HeaderProfileSection session={session} />
           <HeaderUserSection>
             <ChatRailTrigger />
           </HeaderUserSection>

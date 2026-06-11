@@ -10,29 +10,34 @@ import type {
 } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 
-import ProfileSwitchClient from "./profile-switch.client";
+import HeaderProfileSectionClient from "./header-profile-section.client";
 
-interface ProfileSwitchProps {
+interface HeaderProfileSectionProps {
   session: Session;
 }
 
-function ProfileSwitchSkeleton() {
+function HeaderProfileSectionSkeleton() {
   return (
-    <div className="px-4 py-2.5">
-      <div className="bg-muted h-10 w-full animate-pulse rounded-md" />
+    <div className="flex items-center gap-2">
+      <div className="bg-muted h-8 w-32 animate-pulse rounded-md" />
+      <div className="bg-muted size-8 animate-pulse rounded-full" />
     </div>
   );
 }
 
-export default function ProfileSwitch({ session }: ProfileSwitchProps) {
+export default function HeaderProfileSection({
+  session,
+}: HeaderProfileSectionProps) {
   return (
-    <Suspense fallback={<ProfileSwitchSkeleton />}>
-      <ProfileSwitchInner session={session} />
+    <Suspense fallback={<HeaderProfileSectionSkeleton />}>
+      <HeaderProfileSectionInner session={session} />
     </Suspense>
   );
 }
 
-async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
+async function HeaderProfileSectionInner({
+  session,
+}: HeaderProfileSectionProps) {
   const tCredit = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const tSubscriptions = await getTranslations("App.Subscriptions");
@@ -98,7 +103,7 @@ async function ProfileSwitchInner({ session }: ProfileSwitchProps) {
   }
 
   return (
-    <ProfileSwitchClient
+    <HeaderProfileSectionClient
       sessionUser={session.user}
       members={members}
       activeOrganizationId={activeOrganizationId}
