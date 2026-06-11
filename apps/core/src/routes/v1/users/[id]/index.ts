@@ -18,6 +18,7 @@ import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
 import mountPatchUserPreferences from "./preferences/patch.js";
 import mountGetUserStripeCustomer from "./stripe-customer/get.js";
+import mountGetUserSubscription from "./subscription/get.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
 import mountPostUserUtmAttribution from "./utm-attribution/post.js";
@@ -43,6 +44,7 @@ mountGetUserUploads(app);
 mountPostUserUploads(app);
 mountPostUserUtmAttribution(app);
 mountGetUserStripeCustomer(app);
+mountGetUserSubscription(app);
 mountGetUserById(app);
 
 export default app;

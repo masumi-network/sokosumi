@@ -1,5 +1,4 @@
 import { MemberRole, type OrganizationWithRelations } from "@sokosumi/database";
-import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import { Suspense } from "react";
@@ -11,7 +10,7 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth } from "@/lib/auth/auth";
-import prisma from "@/lib/db/prisma";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
@@ -89,7 +88,20 @@ export async function OnboardingDialogLoader({
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
   const organizationBillingPlanPromise = activeOrganization
-    ? resolveOrganizationBillingPlan(activeOrganization.id, prisma)
+    ? coreClient
+        .getOrganizationBillingPlan(activeOrganization.id)
+        .then((response) => response.data)
+        .catch((error: unknown) => {
+          // A stale active organization (e.g. revoked membership) must not
+          // break onboarding — fall back to no organization plan.
+          if (
+            error instanceof CoreApiRequestError &&
+            (error.status === 403 || error.status === 404)
+          ) {
+            return null;
+          }
+          throw error;
+        })
     : Promise.resolve(null);
   const organizationSeatSummaryPromise = activeOrganization
     ? organizationSeatService.getSeatSummary(activeOrganization.id)

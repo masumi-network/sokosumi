@@ -95,9 +95,11 @@ import {
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
+  getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
+  getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -109,8 +111,10 @@ import {
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
+  getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
+  getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
@@ -661,6 +665,58 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization Stripe customer",
+    );
+  }
+
+  async function getOrganizationBillingPlan(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdBillingPlan({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization billing plan",
+    );
+  }
+
+  async function getOrganizationActiveSubscription(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSubscription({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization subscription",
+    );
+  }
+
+  async function getMyActiveSubscription() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdSubscription({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user subscription",
+    );
+  }
+
+  async function getMyOrganizationCredits(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdOrganizationsByOrganizationIdCredits({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization credits",
     );
   }
 
@@ -1934,11 +1990,15 @@ export function createCoreClient(getClient: GetClient) {
     getJobById,
     getJobs,
     getInvitationById,
+    getMyActiveSubscription,
     getMyCredits,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
+    getMyOrganizationCredits,
     getMyOrganizations,
     getMyStripeCustomer,
+    getOrganizationActiveSubscription,
+    getOrganizationBillingPlan,
     getOrganizationById,
     getOrganizationBySlug,
     getOrganizationMembers,

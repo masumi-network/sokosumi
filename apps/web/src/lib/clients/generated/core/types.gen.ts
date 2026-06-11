@@ -1475,6 +1475,17 @@ export type StripeCustomer = {
     stripeCustomerId: string | null;
 };
 
+export type ActiveSubscriptionResponse = {
+    subscription: {
+        plan: string;
+        status: string;
+        cancelAtPeriodEnd?: boolean | null;
+        periodStart?: Date | null;
+        periodEnd?: Date | null;
+        seats?: number | null;
+    } | null;
+};
+
 export type User = {
     id: string;
     createdAt: Date;
@@ -1513,6 +1524,33 @@ export type PendingInvitation = {
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
+};
+
+export type OrganizationBillingPlan = {
+    /**
+     * Billing mode: active enterprise contract or self-serve subscription
+     */
+    mode: 'enterprise_contract' | 'self_serve';
+    /**
+     * Resolved billing plan name
+     */
+    plan: 'free' | 'starter' | 'standard' | 'pro' | 'enterprise';
+    /**
+     * Whether the enterprise contract is still within its consumable term (always false for self-serve)
+     */
+    isConsumable: boolean;
+    /**
+     * Number of purchased seats
+     */
+    purchasedSeats: number;
+    /**
+     * Whether the self-serve subscription cancels at the period end (always false for enterprise contracts)
+     */
+    cancelAtPeriodEnd: boolean;
+    /**
+     * End of the current self-serve billing period (null for enterprise contracts or when unknown)
+     */
+    periodEnd: Date | null;
 };
 
 export type EnterpriseContractBillingSummary = {
@@ -11619,6 +11657,105 @@ export type GetUsersByIdStripeCustomerResponses = {
 
 export type GetUsersByIdStripeCustomerResponse = GetUsersByIdStripeCustomerResponses[keyof GetUsersByIdStripeCustomerResponses];
 
+export type GetUsersByIdSubscriptionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/subscription';
+};
+
+export type GetUsersByIdSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdSubscriptionError = GetUsersByIdSubscriptionErrors[keyof GetUsersByIdSubscriptionErrors];
+
+export type GetUsersByIdSubscriptionResponses = {
+    /**
+     * The user's active personal subscription (null when none)
+     */
+    200: {
+        data: ActiveSubscriptionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdSubscriptionResponse = GetUsersByIdSubscriptionResponses[keyof GetUsersByIdSubscriptionResponses];
+
 export type GetUsersByIdData = {
     body?: never;
     path: {
@@ -12044,6 +12181,91 @@ export type GetOrganizationsByIdInvitationsResponses = {
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
 
+export type GetOrganizationsByIdBillingPlanData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/billing-plan';
+};
+
+export type GetOrganizationsByIdBillingPlanErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingPlanError = GetOrganizationsByIdBillingPlanErrors[keyof GetOrganizationsByIdBillingPlanErrors];
+
+export type GetOrganizationsByIdBillingPlanResponses = {
+    /**
+     * The organization's resolved billing plan
+     */
+    200: {
+        data: OrganizationBillingPlan;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingPlanResponse = GetOrganizationsByIdBillingPlanResponses[keyof GetOrganizationsByIdBillingPlanResponses];
+
 export type GetOrganizationEnterpriseContractSummaryData = {
     body?: never;
     path: {
@@ -12213,6 +12435,91 @@ export type GetOrganizationsByIdStripeCustomerResponses = {
 };
 
 export type GetOrganizationsByIdStripeCustomerResponse = GetOrganizationsByIdStripeCustomerResponses[keyof GetOrganizationsByIdStripeCustomerResponses];
+
+export type GetOrganizationsByIdSubscriptionData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription';
+};
+
+export type GetOrganizationsByIdSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionError = GetOrganizationsByIdSubscriptionErrors[keyof GetOrganizationsByIdSubscriptionErrors];
+
+export type GetOrganizationsByIdSubscriptionResponses = {
+    /**
+     * The organization's active subscription (null when none)
+     */
+    200: {
+        data: ActiveSubscriptionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
 
 export type GetOrganizationsByIdDesignMdData = {
     body?: never;
