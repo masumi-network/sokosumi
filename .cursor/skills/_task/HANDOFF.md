@@ -1,111 +1,135 @@
-# Handoff to PRD Agent (feature-spec)
+# Handoff to Team Sapphire
 
-Run after the requirement issue is created in Linear. Default unless user set `handoffToPrd: false`.
+Run after the requirement issue is created in Linear. Default unless user set `handoffToSapphire: false`.
 
 ## Goal
 
-Trigger the **feature-spec** skill on the new requirement so it:
+Start **Team Sapphire** on the **same issue** — one ticket from requirement through PR and review.
 
-1. Discovers codebase context
-2. Writes the full implementation PRD
-3. Creates the implementation issue (child of requirement)
-4. Creates **Confirm PRD** and **Verify implementation** sub-tasks under the implementation issue
-5. Delegates to Cursor Cloud Agent for coding — **after** both sub-tasks exist
-
-The _task agent does **not** write the PRD.
+The _task agent does **not** run Investigator, Tech Lead, Coder, or Reviewer.
 
 ## One trigger rule
 
-Start Cloud Agent for feature-spec **once** on the Write PRD sub-task.
+Start Cloud Agent **once** on the main issue.
 
 | Path | Trigger | Do not also |
 |------|---------|-------------|
-| **Default (MCP)** | `delegate: "Cursor"` on Write PRD `save_issue` | `@Cursor` on requirement or sub-task |
-| **Cursor Automation** | Issue-created automation on title `chore(spec): write implementation PRD` | `delegate` or `@Cursor` — see `../feature-spec/CURSOR-AUTOMATION.md` |
-| **Manual fallback** | `@Cursor` comment on Write PRD sub-task only | `delegate` on the same sub-task |
+| **Default (MCP)** | `save_issue` with `id` + `delegate: "Cursor"` on the requirement issue | `@Cursor` comment on the same issue |
+| **Manual fallback** | One `@Cursor` comment on the issue only | `delegate` on the same issue |
 
-Each extra trigger (delegate + comment, requirement + sub-task, MCP + automation) can start a separate agent and publish duplicate implementation issues for the same requirement.
+Duplicate triggers (delegate + `@Cursor`) can start two Sapphire runs on one issue.
+
+Skip handoff when `handoffToSapphire: false` — see **Opt-out** below.
 
 ## Steps
 
-### 1. Create Write PRD sub-task
+### 0. Idempotency check
 
-Use `save_issue` (no `id`):
+Load the issue with `get_issue` before any handoff write. **Re-call `get_issue` immediately before steps 1 and 2** — do not reuse an earlier snapshot; another agent may have updated the issue.
 
-| Field | Value |
-|-------|-------|
-| `title` | `chore(spec): write implementation PRD` |
-| `team` | `SOK` |
-| `project` | `Sokosumi` |
-| `state` | `Todo` |
-| `labels` | `["Improvement"]` |
-| `parentId` | requirement issue identifier (e.g. `SOK-XXX`) |
-| `delegate` | `"Cursor"` — **omit** when the team uses Write PRD Cursor Automation instead |
+| Condition | Action |
+|-----------|--------|
+| `## Sapphire status` **and** delegate is `Cursor` | Stop handoff — return issue URL; optional comment: "Sapphire handoff already active." |
+| `## Sapphire status` **and** delegate is not `Cursor` | Skip step 1; run step 2 (delegate only) |
+| No `## Sapphire status` **and** delegate is `Cursor` | Run step 1 only — **skip step 2** (delegate already set; do not delegate again) |
+| No `## Sapphire status` **and** delegate is not `Cursor` | Run steps 1 then 2 |
 
-**Description:**
+Do not append a second footer or call `save_issue` with `delegate: "Cursor"` when delegate is already `Cursor`.
 
-```markdown
-**Goal:** Produce implementation PRD from parent requirement and hand off to coding agent.
+### 1. Add Sapphire footer to description
 
-**Requirement:** SOK-XXX (parent — read description)
+Skip when a fresh `get_issue` shows `## Sapphire status` already present.
 
-**Agent instructions:**
-1. Read repo `.cursor/skills/feature-spec/SKILL.md` and linked files (especially `LINEAR-MCP.md`).
-2. Intake requirement SOK-XXX via Linear MCP `get_issue`.
-3. Follow feature-spec workflow per `LINEAR-MCP.md`: discovery → PRD → publish implementation issue with `parentId` (no `delegate` on create) → create Confirm PRD sub-task → create Verify implementation sub-task → delegate Cursor on implementation issue.
-4. Do not wait for PRD approval (feature-spec default).
-5. If an implementation issue already exists under the requirement (description contains `[repo=…]`), stop — do not publish a second PRD.
+**Required:** Call `get_issue` **immediately before** merging and saving — not the snapshot from step 0. `save_issue` **replaces** the entire `description` field — never post only the footer block or you will wipe the approved requirement.
 
-**Done when:** Implementation issue exists (child of requirement, PRD in description), Confirm PRD and Verify implementation sub-tasks exist under it, and Cursor is delegated on the implementation issue.
-```
+1. Start from the complete description returned by that fresh `get_issue`.
+2. If `## Requirement` is missing, add that heading and keep the approved body under it.
+3. Append the footer below.
+4. Call `save_issue` with `id` and the **merged** `description` string.
 
-### 2. Comment on requirement issue (informational only)
-
-Use `save_comment` on the **requirement** issue. **Do not** mention `@Cursor` — that can start Cloud Agent on the requirement and publish a duplicate implementation PRD.
+Footer to append:
 
 ```markdown
-Requirement approved and filed. PRD agent handoff: SOK-YYY (Write implementation PRD).
+## Sapphire status
+| Phase | Status |
+|-------|--------|
+| Investigator | pending |
+| Tech Lead | pending |
+| Coder | pending |
+| Reviewer | pending |
+
+---
+_Sapphire squad — run `.cursor/skills/_team-sapphire/SKILL.md` on this issue._
 ```
 
-Replace `SOK-YYY` with Write PRD sub-task id when known.
+### 2. Delegate to Cursor (default)
 
-### 3. Manual fallback only (no `delegate` on step 1)
+Skip when a fresh `get_issue` shows delegate is already `Cursor`.
 
-When `delegate: "Cursor"` is unavailable or the team does not use automation, post **one** `@Cursor` comment on the Write PRD sub-task — and do **not** set `delegate` on step 1:
+After footer is saved (or step 1 was skipped because footer already exists):
+
+```json
+{
+  "server": "user-linear",
+  "toolName": "save_issue",
+  "arguments": {
+    "id": "SOK-XXX",
+    "delegate": "Cursor"
+  }
+}
+```
+
+Ensure Linear MCP is enabled on the Cloud Agent run (first delegated run may need one-time enable in agent MCP/tools).
+
+### 3. Informational comment (optional)
 
 ```markdown
-@Cursor Run feature-spec skill. Intake parent requirement SOK-XXX. Publish implementation PRD per `.cursor/skills/feature-spec/WORKFLOW.md` and `LINEAR-MCP.md` — create Confirm PRD and Verify implementation sub-tasks before delegating Cursor on the implementation issue. If an implementation issue already exists under the requirement, stop.
+Requirement filed. Team Sapphire handoff — orchestrator runs Investigator → Tech Lead → Coder → Reviewer on this issue.
 ```
 
-Replace `SOK-XXX` with requirement id.
+Do **not** include `@Cursor` when `delegate` is set.
 
-## In-session handoff (same Cursor chat)
+### 4. Manual fallback only (no `delegate`)
 
-When the user approved in this chat and Linear MCP posted successfully, also tell the user:
+```markdown
+@Cursor Run _team-sapphire skill for SOK-XXX. Single issue — Investigator, Tech Lead, Coder, Reviewer per `.cursor/skills/_team-sapphire/SKILL.md`. Do not create child issues.
+```
+
+## In-session handoff
+
+When the user approved in this chat **and** step 2 set `delegate: "Cursor"`:
 
 ```text
-Requirement posted: SOK-XXX.
-PRD sub-task: SOK-YYY (delegated to Cursor).
+Requirement posted: SOK-XXX (delegated to Cursor — a Cloud Agent may already be running Team Sapphire).
 
-To continue in this chat instead of Cloud Agent, say: run feature-spec for SOK-XXX
+To run the orchestrator in this chat instead, wait for or cancel the Cloud run first, then say: run _team-sapphire for SOK-XXX
+
+Do not run both in parallel — duplicate orchestrators race on the same issue.
 ```
 
-If the user prefers local spec agent in the same session, they can invoke feature-spec manually — Cloud Agent on the sub-task may run in parallel; user should stop one path if duplicate work is a concern.
+When handoff used manual `@Cursor` only (step 4, no `delegate`):
+
+```text
+Requirement posted: SOK-XXX. A Cloud Agent may start from the `@Cursor` comment on the issue.
+
+To run the orchestrator in this chat instead, wait for or cancel that Cloud run first, then say: run _team-sapphire for SOK-XXX
+
+Do not run both in parallel — duplicate orchestrators race on the same issue.
+```
 
 ## Opt-out
 
-When `handoffToPrd` is false:
+When `handoffToSapphire: false`:
 
 - Post requirement only.
 - Return issue URL.
-- Tell user: `Run feature-spec skill with intake SOK-XXX when ready for PRD.`
+- Tell user: `Run _team-sapphire for SOK-XXX when ready.`
 
 ## Post-handoff response
 
 Return:
 
-- Requirement issue id and URL
-- Write PRD sub-task id and URL
-- Label and project
-- Delegate: Cursor yes/no on sub-task
-- Trigger path used: MCP delegate / automation / manual `@Cursor`
+- Issue id and URL
+- Label, project, assignee, priority, state
+- Delegate: Cursor yes/no
+- Trigger path: MCP delegate / manual `@Cursor`

@@ -1,14 +1,14 @@
 ---
 name: _task
-description: Refine a feature, bug, or improvement into a Sokosumi Linear requirement issue with user approval before posting, then hand off to the feature-spec agent for PRD and implementation. Use when the user describes a new feature, bug fix, or improvement and wants a requirement task drafted, reviewed, posted to Linear, and passed to the PRD agent.
+description: Refine a feature, bug, or improvement into a Sokosumi Linear issue with user approval before posting, then hand off to Team Sapphire for investigation, spec, implementation, and review on the same issue. Use when the user describes a new feature, bug fix, or improvement and wants a requirement drafted, reviewed, posted to Linear, and passed to the Sapphire squad.
 disable-model-invocation: true
 ---
 
 # _task
 
-You are the **requirement agent**. Turn a rough feature, bug, or improvement description into a concise **Linear requirement issue** — enough context for the spec agent, not a PRD.
+You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough for Team Sapphire to start, not a final spec.
 
-**Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write or PRD handoff.
+**Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write or Sapphire handoff.
 
 ## Runtime compatibility
 
@@ -24,19 +24,21 @@ You are the **requirement agent**. Turn a rough feature, bug, or improvement des
 |-------|-------|
 | Linear team | `SOK` |
 | Linear project | `Sokosumi` |
-| Linear state | `Todo` |
+| Linear state | `In Progress` |
+| Linear priority | `3` (Medium) unless user overrides |
+| Linear assignee | `me` unless user overrides |
 | Linear label | Infer exactly one: `Feature`, `Bug`, or `Improvement` |
-| Hand off to PRD agent | **true** unless user opts out |
+| Hand off to Sapphire | **true** unless user opts out (`handoffToSapphire: false`) |
 
 Do not ask for the Linear project by default.
 
 ## Workflow
 
-See `WORKFLOW.md` for the full intake → PRD pipeline.
+See `WORKFLOW.md` for the full intake → Sapphire pipeline.
 
 1. **Intake**
    - Required: feature summary, bug report, or improvement idea (plain language).
-   - Optional: priority, assignee, locked decisions, label override, project override, `handoffToPrd` (default **true**).
+   - Optional: priority, assignee, locked decisions, label override, project override, `handoffToSapphire` (default **true**).
    - If intake is vague, ask **one** clarifying question and wait.
    - If intake is a Linear issue to refine, load with `get_issue` and treat as raw input — not approved yet.
 
@@ -48,15 +50,15 @@ See `WORKFLOW.md` for the full intake → PRD pipeline.
    - Keep notes short. No research report.
 
 3. **Draft requirement**
-   - Fill `../feature-spec/REQUIREMENT-TEMPLATE.md`.
-   - Infer label and a Conventional Commit-style **proposed title** (not necessarily the final PRD title).
-   - Show near the top (chat draft only — do **not** post this line to Linear; requirement bodies use `REQUIREMENT-TEMPLATE.md` only):
+   - Fill `REQUIREMENT-TEMPLATE.md`.
+   - Infer label and a Conventional Commit-style **proposed title** (not necessarily the final implementation title).
+   - Show near the top (chat draft only — do **not** post this line to Linear):
 
      ```markdown
-     **Requirement draft:** project Sokosumi · state Todo · label Feature
+     **Requirement draft:** project Sokosumi · state In Progress · priority Medium · assignee me · label Feature
      ```
 
-   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or subagent blocks. Those belong on the implementation issue (feature-spec skill).
+   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Team Sapphire adds those under `## Spec`.
 
 4. **Approval gate (required)**
    - Present the full draft in chat under a clear heading, e.g. `## Draft requirement — review before Linear`.
@@ -64,19 +66,20 @@ See `WORKFLOW.md` for the full intake → PRD pipeline.
    - End with:
 
      ```text
-     Reply **approve** to post to Linear and hand off to the PRD agent.
+     Reply **approve** to post to Linear and hand off to Team Sapphire.
      Reply with edits to revise the draft.
      ```
 
-   - **Stop.** Do not call Linear MCP. Do not hand off to feature-spec until the user approves.
+   - **Stop.** Do not call Linear MCP. Do not hand off until the user approves.
    - On edits: revise and show the draft again. Repeat until approved.
 
 5. **Publish and hand off (only after approval)**
    - Read `LINEAR-MCP.md`.
-   - Create the **requirement** issue in `Sokosumi`, state `Todo`, with exactly one label.
+   - Run MCP health check before any write.
+   - Create the issue in `Sokosumi`, state `In Progress`, priority Medium (`3`), assignee `me`, with exactly one label.
    - Read MCP tool descriptors before any call.
-   - Follow `HANDOFF.md` when `handoffToPrd` is true (default).
-   - Return requirement issue id/URL, label, PRD sub-task id/URL (if created), and handoff status.
+   - Follow `HANDOFF.md` when `handoffToSapphire` is true (default).
+   - Return issue id/URL, label, delegate status, and handoff path.
    - If Linear MCP is unavailable, say what must be reloaded. Do not use browser automation or raw API fallback.
 
 ## Writing style
@@ -85,11 +88,9 @@ See `WORKFLOW.md` for the full intake → PRD pipeline.
 - Bullets over paragraphs.
 - Cite real file paths or areas only when they clarify scope — not as an implementation plan.
 - Keep **Out of scope** explicit.
-- Do not over-specify architecture; leave resolution to the spec agent.
+- Do not over-specify architecture; Investigator and Tech Lead resolve details.
 
 ## Label classification
-
-Same rules as feature-spec:
 
 | Label | Use when |
 |-------|----------|
@@ -113,8 +114,8 @@ Align proposed title prefix with label when helpful: `feat` / `fix` / `refactor`
 
 ## Supporting files
 
-- `WORKFLOW.md` — _task agent vs spec agent in the pipeline.
-- `LINEAR-MCP.md` — create requirement issue after approval.
-- `HANDOFF.md` — delegate PRD writing to feature-spec / Cursor.
-- `../feature-spec/REQUIREMENT-TEMPLATE.md` — requirement body shape.
-- `../feature-spec/SKILL.md` — downstream spec agent (do not run in the same turn before approval).
+- `WORKFLOW.md` — _task vs Team Sapphire in the pipeline.
+- `REQUIREMENT-TEMPLATE.md` — requirement body shape.
+- `LINEAR-MCP.md` — create issue after approval.
+- `HANDOFF.md` — delegate Team Sapphire on the same issue.
+- `../_team-sapphire/SKILL.md` — downstream squad (do not run before approval).

@@ -1,6 +1,6 @@
 # Subagent Rubric
 
-Use this before adding `Current state`, `Target architecture`, or `Subagent breakdown`.
+Tech Lead uses this before adding `Current state`, `Target architecture`, or **Coder breakdown** in `## Spec`.
 
 ## Architecture sections
 
@@ -20,7 +20,7 @@ Skip `Current state` and `Target architecture` for:
 - Simple bug fixes with an obvious local change.
 - Tests-only or docs-only work.
 
-## Subagent scoring
+## Coder scoring
 
 Score one point for each signal:
 
@@ -37,56 +37,54 @@ Decision:
 
 | Score | Output |
 |-------|--------|
-| 0-1 | Single-agent plan. No subagent section. Use short implementation notes if useful. |
-| 2+ | Add subagent breakdown. |
+| 0-1 | Single coder. No **Coder breakdown** section. |
+| 2+ | Add **Coder breakdown** with named coders. |
 
-## Subagent block format
+## Coder block format
 
-Each subagent must be paste-ready and isolated.
+Each coder block must be paste-ready for `CODER.md`.
 
 ```markdown
-### Subagent A - Short scope
+### Coder A — Short scope
 
 **Scope:** One line.
 
 **Context:**
 - Product decision or user requirement.
 - Existing file/pattern to reuse.
-- Dependency on another subagent, if any.
+- Dependency on another coder, if any.
 
 **Deliverables:**
 - [`path/to/file.ts`](path/to/file.ts)
-- Test or generated artifact if required.
 
 **Do not:** Explicit boundaries to avoid overlap.
 ```
 
 ## File ownership table
 
-Add this table when subagents can run in parallel or may conflict:
+Add when coders can run in parallel or may conflict:
 
 ```markdown
-| Subagent | Owns | Do not edit |
-|----------|------|-------------|
+| Coder | Owns | Do not edit |
+|-------|------|-------------|
 | A | [`path/a.ts`](path/a.ts) | `path/b.ts` |
 | B | [`path/b.ts`](path/b.ts) | `path/a.ts` |
 ```
 
 ## Execution order
 
-Add an execution diagram when any subagent depends on another:
+Add a diagram when any coder depends on another:
 
 ```mermaid
 flowchart LR
-  A[Subagent A Contract] --> B[Subagent B Data]
-  B --> C[Subagent C API]
-  C --> D[Subagent D UI]
+  A[Coder A] --> B[Coder B]
+  B --> C[Coder C]
 ```
 
 ## Boundaries
 
 - Do not split work just to look parallel.
 - Keep tightly coupled files together.
-- Keep generated files with the workstream that owns generation.
+- Keep generated files with the coder that owns generation.
 - Prefer foundations first: schema, contract, service, UI, cleanup.
-- If one subagent blocks another, say it plainly.
+- If one coder blocks another, say it plainly.

@@ -1,6 +1,6 @@
-# Requirement → PRD Pipeline
+# Requirement → Sapphire Pipeline
 
-Two agents. **_task has an approval gate.** Spec agent runs after Linear post.
+Two skills. One Linear issue. Approval gate on `_task` only.
 
 ```mermaid
 flowchart LR
@@ -8,62 +8,50 @@ flowchart LR
   intake --> draft["Draft requirement\n(chat only)"]
   draft --> approve{"User\napproves?"}
   approve -->|no| intake
-  approve -->|yes| req["Requirement issue\n(Linear)"]
-  req --> prdTask["Write PRD sub-task\n(optional, delegated)"]
-  req --> specAgent["Spec agent\nfeature-spec skill"]
-  prdTask --> specAgent
-  specAgent --> impl["Implementation issue\n(full PRD)"]
-  specAgent --> confirm["Confirm PRD sub-task"]
-  specAgent --> verify["Verify implementation sub-task"]
-  impl --> cursor["Coding agent\nCursor Cloud Agent"]
+  approve -->|yes| issue["Single Linear issue"]
+  issue --> sapphire["Team Sapphire\n_team-sapphire"]
+  sapphire --> done["PR + In Review"]
 ```
 
 ## Agent roles
 
 | Agent | Skill | Output | Approval gate |
 |-------|-------|--------|---------------|
-| **Requirement** | `_task` | Linear requirement issue (high level) | **Yes** — user must approve draft in chat |
-| **Spec** | `feature-spec` | Implementation PRD + sub-tasks + Cursor delegate | No — publishes immediately |
+| **Requirement** | `_task` | Linear issue with `## Requirement` | **Yes** — user must approve draft |
+| **Sapphire squad** | `_team-sapphire` | Investigation, Spec, code, review on **same issue** | No — runs after handoff |
 
-## _task agent workflow
+## _task workflow
 
 1. **Intake** — plain-language description or rough Linear issue.
-2. **Light discovery** — just enough codebase/issue context to sharpen problem, goal, scope.
-3. **Draft** — `REQUIREMENT-TEMPLATE.md` shape in chat only.
+2. **Light discovery** — sharpen problem, goal, scope.
+3. **Draft** — `REQUIREMENT-TEMPLATE.md` in chat only.
 4. **Wait for approval** — do not touch Linear.
-5. **Publish** — create requirement issue per `LINEAR-MCP.md`.
-6. **Hand off** — per `HANDOFF.md`, trigger feature-spec on the new issue.
+5. **Publish** — create issue per `LINEAR-MCP.md`.
+6. **Hand off** — `HANDOFF.md` delegates Team Sapphire on the same issue.
 
-## What belongs on a requirement issue
+## What belongs on the issue at create time
 
-- Problem, goal, locked decisions
-- Rough architecture ideas and open questions for the spec agent
-- References and out of scope
+- `## Requirement` — problem, goal, decisions, out of scope
+- After handoff: `## Sapphire status` footer
 
-## What does not belong (spec agent adds these)
+## What Sapphire adds (same issue)
 
-- File add/change lists
-- API contract tables
-- Verification commands
-- Mermaid data-flow diagrams
-- Subagent workstream blocks
+- `## Investigation` — Investigator
+- `## Spec` — Tech Lead
+- PR + review comments — Coder and Reviewer
 
-## Handoff to spec agent
+## Handoff
 
-After the requirement is posted:
+Default: `delegate: "Cursor"` on the **main issue** per `HANDOFF.md` — no child issues.
 
-- Default: create **Write implementation PRD** sub-task with `delegate: "Cursor"` only, plus informational comment on requirement per `HANDOFF.md` — **one** trigger; no `@Cursor` on requirement or sub-task (feature-spec runs next — **not** the coding agent on the requirement).
-- User can opt out of auto handoff and run `feature-spec` manually with the issue id.
+Manual: `Run _team-sapphire for SOK-XXX`.
 
-Optional Cursor Automations must match Write PRD title or `[repo=…]` on implementation issues — not team/label alone. See `../feature-spec/CURSOR-AUTOMATION.md`.
-
-Full spec → code pipeline (implementation issue, confirm, verify, coding agent): `../feature-spec/WORKFLOW.md`.
+Full squad pipeline: `../_team-sapphire/WORKFLOW.md`.
 
 ## What not to do
 
 - Do not post to Linear before user approval.
-- Do not write a full PRD in the requirement draft.
-- Do not run feature-spec in the same turn as the initial draft.
-- Do not delegate the coding agent on the requirement issue — only the PRD sub-task or spec handoff.
-- Do not `@Cursor` on the requirement issue or Write PRD sub-task when `delegate: "Cursor"` is set — duplicate triggers publish multiple implementation PRDs.
-- Do not combine MCP `delegate`, `@Cursor` comments, and Write PRD Cursor Automation on the same sub-task.
+- Do not write `## Spec` in the requirement draft.
+- Do not create child issues for Sapphire phases.
+- Do not `@Cursor` and `delegate` on the same issue.
+- Do not run Sapphire in the same turn as the initial draft (before approval).
