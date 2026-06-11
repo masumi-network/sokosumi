@@ -44,7 +44,7 @@ flowchart LR
 
 Default: `delegate: "Cursor"` on the **main issue** per `HANDOFF.md` — no child issues.
 
-Manual: `Run _team-sapphire for SOK-XXX`.
+Disable legacy `feature-spec` Cursor Automations before handoff — see `../_team-sapphire/CURSOR-AUTOMATION.md`.
 
 Full squad pipeline: `../_team-sapphire/WORKFLOW.md`.
 

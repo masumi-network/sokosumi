@@ -9,6 +9,7 @@ Single-issue squad: Investigator → Tech Lead → Coder(s) → Reviewer.
 3. Read role file for the current phase: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, or `REVIEWER.md`.
 4. Read `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md` before Tech Lead phase.
 5. Read `LINEAR-MCP.md` before Linear writes.
+6. Read `CURSOR-AUTOMATION.md` when configuring or troubleshooting Linear-triggered Cloud Agents (disable legacy `feature-spec` automations).
 
 ## Upstream
 

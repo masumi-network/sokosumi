@@ -19,6 +19,19 @@ Start Cloud Agent **once** on the main issue.
 
 Duplicate triggers (delegate + `@Cursor`) can start two Sapphire runs on one issue.
 
+## Legacy automations (required team check)
+
+The old `feature-spec` pipeline used separate issues and `[repo=…]`-triggered coding automations. Team Sapphire uses **one issue**; Tech Lead adds `[repo=…]` to that same issue during Phase 2.
+
+**Before relying on MCP handoff**, confirm legacy Cursor Automations are disabled — see `../_team-sapphire/CURSOR-AUTOMATION.md`. At minimum, disable:
+
+- Write PRD / `chore(spec): write implementation PRD` issue-created automations
+- Implementation automations whose filter is description contains `[repo=…]` (with or without delegate)
+
+If those stay enabled, a second Cloud Agent can start when the spec is written and race Sapphire's Coder phase.
+
+When posting the optional handoff comment (step 3), you may note: _Verify legacy feature-spec automations are off — see `_team-sapphire/CURSOR-AUTOMATION.md`._
+
 ## Handoff enabled?
 
 Run handoff when **both** are not explicitly false:

@@ -95,3 +95,4 @@ Return issue id/URL, phases completed, PR link (if any), and current Linear stat
 - `SPEC-TEMPLATE.md` — Tech Lead output shape
 - `SUBAGENT-RUBRIC.md` — when to split coders
 - `LINEAR-MCP.md` — single-issue updates
+- `CURSOR-AUTOMATION.md` — disable legacy automations; optional Sapphire automation
