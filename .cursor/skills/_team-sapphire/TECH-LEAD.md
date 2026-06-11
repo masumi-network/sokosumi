@@ -1,15 +1,15 @@
 # Tech Lead
 
-**Goal:** Write the **final implementable spec** in `## Spec` on the same Linear issue, using Requirement + Investigation.
+**Goal:** Write the **final implementable spec** in session, using Requirement (Linear) + Investigation (session).
 
 ## Inputs
 
-- `## Requirement` — product intent and locked decisions
-- `## Investigation` — technical context and recommendations
+- `## Requirement` on Linear — product intent and locked decisions
+- Investigation markdown — session artifact from Investigator
 
 ## You produce
 
-- Full `## Spec` section from `SPEC-TEMPLATE.md` — merge or **replace in place** per `LINEAR-MCP.md`; never post the section alone or duplicate `## Spec`
+- Full spec from `SPEC-TEMPLATE.md` — keep **in orchestrator session**; pass to Coder and Reviewer. Do **not** write `## Spec` to Linear.
 - Apply `SUBAGENT-RUBRIC.md` for architecture sections and **Coder breakdown**
 - When rubric score ≥ 2: define named coders (`Coder A — …`) with file ownership — Tech Lead decides parallel vs sequential
 
@@ -19,14 +19,15 @@
 - Include **Data flow** mermaid always.
 - Add **Current state** / **Target architecture** when rubric says so.
 - Split work into multiple coders only when rubric score ≥ 2 — each block must be paste-ready for `CODER.md`.
-- Add `[repo=masumi-network/sokosumi]` at the top of `## Spec`.
-- Preserve `## Requirement` and `## Investigation` unchanged when updating description.
+- Add `[repo=masumi-network/sokosumi]` at the top of the session spec.
+- Do not modify `## Requirement` on Linear.
 
 ## Do not
 
 - Implement code.
-- Wait for human PRD approval — publish spec and hand to Coder in the same Sapphire run.
+- Wait for human PRD approval — finalize spec and hand to Coder in the same Sapphire run.
 - Create child Linear issues.
+- Merge investigation or spec into the Linear issue description.
 
 ## Coder breakdown format
 
@@ -40,4 +41,9 @@ Post `**Sapphire · Tech Lead complete**` with:
 
 - Coder count (1 or N)
 - Execution order one-liner
-- Link to spec section (issue URL)
+- 3–5 bullet spec summary (not the full spec — that stays in session)
+
+## Handoff to Coder
+
+- **Sapphire orchestrator (default):** After Tech Lead complete, continue to Phase 3 (Coder) in the **same run** per `SKILL.md` — do not stop early.
+- **Standalone Tech Lead** (user invoked Tech Lead only): Stop after `**Sapphire · Tech Lead complete**`; Coder runs in a separate session.

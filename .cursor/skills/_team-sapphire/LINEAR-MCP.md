@@ -2,31 +2,49 @@
 
 Single-issue updates only. No child issues.
 
+## What goes on Linear
+
+| Write to Linear | Do not write to Linear |
+|-----------------|------------------------|
+| `## Requirement` (from `_task` — preserve) | `## Investigation` — session only |
+| `## Sapphire status` table | `## Spec` — session only |
+| Sapphire footer | Full investigation or spec in comments |
+| Issue **state** (`In Progress` → `In Review`) | |
+| Phase summary **comments** | |
+| `**PR handoff**` comment | |
+
+Investigation and spec pass **in orchestrator session** to Tech Lead → Coder → Reviewer. See `SKILL.md` **Session artifacts**.
+
 ## Hard rules
 
 - MCP only. Inspect `user-linear/tools/*.json` before writes.
 - Never call a write tool without a complete `arguments` object.
 - Stop if Linear MCP is not loaded — same reload message as `../_task/LINEAR-MCP.md`.
 - Optional smoke test: `get_user` with `{ "query": "me" }`.
+- **Never** append `## Investigation` or `## Spec` to the issue description.
 
 ## Issue description updates
 
 Use `save_issue` with `id` = issue identifier.
 
-### Description merge (required)
+### Status-only merge (required)
 
 Every `save_issue` that sets `description` must:
 
 1. Call `get_issue` first.
 2. Start from the **full** existing `description`.
-3. Insert, update, or **replace in place** the target parts (`## Sapphire status` row, `## Investigation`, `## Spec`). If a phase section already exists and you re-run that phase, replace the existing section — do not duplicate the heading.
-4. Pass the **entire** merged markdown in `description`.
+3. Keep **only** `## Requirement`, `## Sapphire status`, and the Sapphire footer (if present).
+4. **Remove** `## Investigation`, `## Spec`, and any other Sapphire phase sections — legacy or new.
+5. Update the status table row for the completed phase (or insert the initial table).
+6. Pass the **entire** trimmed markdown in `description`.
 
-Linear **replaces** the whole field — never send only a new section or you wipe `## Requirement` and the Sapphire footer.
+Linear **replaces** the whole field — never send only a status block or you wipe `## Requirement`.
+
+Prefer separate calls when possible: `save_issue` with `id` + `state` only (no `description`) for Reviewer **In Review** transition after status table is already saved.
 
 ### Initial Sapphire block (orchestrator start)
 
-If `## Sapphire status` is missing, prepend after Requirement:
+If `## Sapphire status` is missing, append after Requirement:
 
 ```markdown
 ## Sapphire status
@@ -38,9 +56,11 @@ If `## Sapphire status` is missing, prepend after Requirement:
 | Reviewer | pending |
 ```
 
+Do not add Investigation or Spec sections.
+
 ### After each phase
 
-Update the status table row to `done` and append the phase section (`## Investigation` or `## Spec`).
+Update the status table row to `done`. Post a **short summary comment** — not the full investigation or spec.
 
 ### State transitions
 
@@ -56,15 +76,15 @@ Use structured headers for audit trail:
 
 | Phase | Comment header |
 |-------|----------------|
-| Investigator | `**Sapphire · Investigator complete**` |
-| Tech Lead | `**Sapphire · Tech Lead complete**` |
+| Investigator | `**Sapphire · Investigator complete**` — 3–5 bullets |
+| Tech Lead | `**Sapphire · Tech Lead complete**` — coder count, order, 3–5 bullets |
 | Coder | `**Sapphire · Coder complete**` + `**PR handoff**` |
 | Reviewer pass | `**Sapphire · Reviewer complete**` |
 | Reviewer fail | `**Sapphire · Review failed**` |
 
 ## Write examples
 
-Update description after Investigation:
+Update status after Investigator (no investigation body on issue):
 
 ```json
 {
@@ -72,12 +92,12 @@ Update description after Investigation:
   "toolName": "save_issue",
   "arguments": {
     "id": "SOK-549",
-    "description": "<full merged markdown with Requirement, status, Investigation>"
+    "description": "## Requirement\n\n…\n\n## Sapphire status\n| Phase | Status |\n|-------|--------|\n| Investigator | done |\n| Tech Lead | pending |\n| Coder | pending |\n| Reviewer | pending |\n\n---\n_Sapphire squad …_"
   }
 }
 ```
 
-Reviewer sets In Review:
+Reviewer sets In Review (state only, after status table saved):
 
 ```json
 {
@@ -94,14 +114,15 @@ Reviewer sets In Review:
 
 Use `## Sapphire status` as the source of truth — same rules as `SKILL.md` **Resume and idempotency**.
 
+Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; strip them on the next description write.
+
 | Condition | Action |
 |-----------|--------|
 | Status Investigator = `done` | Skip Investigator unless user asked to re-run |
 | Status Tech Lead = `done` | Skip Tech Lead unless user asked to re-spec |
-| `## Investigation` or `## Spec` exists but status still `pending` | Run that phase; **replace** existing section in merged description; set status → `done` |
+| Tech Lead = `done`, Coder pending, **no session spec** | Re-run Tech Lead (new session) before Coder |
 | `**PR handoff**` + open PR | Skip Coder; run Reviewer |
-
-Section headings alone do not skip a phase when status is still `pending`.
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup |
 
 ## Post-run response
 

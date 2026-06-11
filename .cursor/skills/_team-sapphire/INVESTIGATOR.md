@@ -4,7 +4,7 @@
 
 ## You produce
 
-Merge or **replace** `## Investigation` in the full issue description per `LINEAR-MCP.md`. If `## Investigation` already exists, update that section in place — do not append a second block. Comment summary when done.
+Investigation markdown per the output template below. Keep it **in orchestrator session** — pass the full text to Tech Lead. Post a short summary comment when done; do **not** merge `## Investigation` into Linear.
 
 ## Do
 
@@ -44,3 +44,8 @@ Merge or **replace** `## Investigation` in the full issue description per `LINEA
 ```
 
 Keep it scannable. Bullets over paragraphs. Real paths as markdown links.
+
+## Handoff to Tech Lead
+
+- **Sapphire orchestrator (default):** After Investigator complete, continue to Phase 2 (Tech Lead) in the **same run** per `SKILL.md` — do not stop early.
+- **Standalone Investigator** (user invoked Investigator only): Stop after `**Sapphire · Investigator complete**`; Tech Lead runs in a separate session.
