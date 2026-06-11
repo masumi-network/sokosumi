@@ -47,3 +47,4 @@ Post `**Sapphire · Tech Lead complete**` with:
 
 - **Sapphire orchestrator (default):** After Tech Lead complete, continue to Phase 3 (Coder) in the **same run** per `SKILL.md` — do not stop early.
 - **Standalone Tech Lead** (user invoked Tech Lead only): Stop after `**Sapphire · Tech Lead complete**`; Coder runs in a separate session.
+- **New session resume:** Linear may show Tech Lead = `done` without a **session spec**, or Investigator = `done` without **session investigation** — orchestrator re-runs missing upstream phases first per `SKILL.md` **Resume and idempotency**.

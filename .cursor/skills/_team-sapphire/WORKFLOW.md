@@ -22,7 +22,7 @@ flowchart LR
 
 The orchestrator runs **Investigator → Tech Lead → Coder → Reviewer** in one agent session. Phase completion comments are audit markers — not handoff to a new run.
 
-Resume: start at the first `pending` row in `## Sapphire status`, then finish every later phase in the same session. Investigation and spec are **not** on Linear — re-run Tech Lead (and Investigator if needed) when resuming Coder or Reviewer in a new session.
+Resume: use **artifact-aware resume** in `SKILL.md` — status `done` does not skip a phase when session investigation or spec is missing. Rebuild Investigator → Tech Lead before Coder or Reviewer in a new session; then finish every later phase in the same session.
 
 ## Roles
 
