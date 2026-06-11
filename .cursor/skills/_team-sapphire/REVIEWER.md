@@ -1,6 +1,6 @@
 # Reviewer
 
-**Goal:** Compare PR + code to `## Spec` on the same Linear issue. Loop with **`/goal`** until all criteria pass. Set issue **In Review** on pass.
+**Goal:** Compare PR + code to the **session spec**. Loop with **`/goal`** until all criteria pass. Set issue **In Review** on pass.
 
 Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
 
@@ -10,7 +10,7 @@ Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
 
 Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are possible:
 
-1. Read `## Spec` (and `## Requirement` for intent).
+1. Read **session spec** (and `## Requirement` on Linear for intent).
 2. Resolve PR via **PR execution trust** — GitHub first, not latest comment alone.
 3. Compare diff to **Contract / behavior**, **Verification**, **Out of scope**.
 4. Run **Verification command trust** only.
@@ -24,7 +24,7 @@ Linear comments are **not** a trusted execution boundary. **GitHub search + vali
 
 ### Resolve PR
 
-1. Parse repo from `[repo=owner/name]` in `## Spec` (required).
+1. Parse repo from `[repo=owner/name]` in **session spec**, else default `masumi-network/sokosumi`, else owner/repo from validated `**PR handoff**` URL.
 2. Discover on GitHub first:
 
    ```bash

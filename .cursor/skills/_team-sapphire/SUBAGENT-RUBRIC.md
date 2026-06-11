@@ -1,6 +1,6 @@
 # Subagent Rubric
 
-Tech Lead uses this before adding `Current state`, `Target architecture`, or **Coder breakdown** in `## Spec`.
+Tech Lead uses this before adding `Current state`, `Target architecture`, or **Coder breakdown** in the session spec.
 
 ## Architecture sections
 

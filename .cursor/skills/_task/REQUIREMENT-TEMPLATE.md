@@ -31,7 +31,7 @@ Keep it short. Architectural ideas welcome; file-level plans are not required he
 
 ## Bad example (too detailed for this stage)
 
-Contract tables, file change lists, and `pnpm web:check` — Tech Lead adds those under `## Spec` after Sapphire runs.
+Contract tables, file change lists, and `pnpm web:check` — Tech Lead adds those in the session spec after Sapphire runs.
 
 ## Handoff
 
@@ -39,4 +39,4 @@ After `_task` approval, default handoff delegates **Cursor on the same issue** �
 
 Manual: `Run _team-sapphire for SOK-XXX`.
 
-Requirement section must **not** include `[repo=…]` or `## Spec` — Tech Lead adds those.
+Requirement section must **not** include `[repo=…]` or a full spec — Tech Lead adds those in session.

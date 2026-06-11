@@ -4,7 +4,7 @@
 
 ## You produce
 
-Merge or **replace** `## Investigation` in the full issue description per `LINEAR-MCP.md`. If `## Investigation` already exists, update that section in place — do not append a second block. Comment summary when done.
+Investigation markdown per the output template below. Keep it **in orchestrator session** — pass the full text to Tech Lead. Post a short summary comment when done; do **not** merge `## Investigation` into Linear.
 
 ## Do
 

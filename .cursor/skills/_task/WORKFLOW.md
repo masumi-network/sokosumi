@@ -18,7 +18,7 @@ flowchart LR
 | Agent | Skill | Output | Approval gate |
 |-------|-------|--------|---------------|
 | **Requirement** | `_task` | Linear issue with `## Requirement` | **Yes** — user must approve draft |
-| **Sapphire squad** | `_team-sapphire` | Investigation, Spec, code, review on **same issue** | No — runs after handoff |
+| **Sapphire squad** | `_team-sapphire` | Session investigation + spec, PR, review; Linear gets status + comments | No — runs after handoff |
 
 ## _task workflow
 
@@ -34,11 +34,12 @@ flowchart LR
 - `## Requirement` — problem, goal, decisions, out of scope
 - After handoff: `## Sapphire status` footer
 
-## What Sapphire adds (same issue)
+## What Sapphire adds
 
-- `## Investigation` — Investigator
-- `## Spec` — Tech Lead
-- PR + review comments — Coder and Reviewer
+- `## Sapphire status` updates on Linear
+- Phase summary comments + PR handoff on Linear
+- Investigation + spec **in orchestrator session only** (passed to Coder / Reviewer)
+- PR + review — Coder and Reviewer
 
 ## Handoff
 

@@ -58,7 +58,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
      **Requirement draft:** project Sokosumi · state In Progress · priority Medium · assignee me · label Feature
      ```
 
-   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Team Sapphire adds those under `## Spec`.
+   - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Tech Lead adds those in the **session spec**.
 
 4. **Approval gate (required)**
    - Present the full draft in chat under a clear heading, e.g. `## Draft requirement — review before Linear`.

@@ -42,10 +42,25 @@ Resume runs: start at the first phase still `pending` in `## Sapphire status`, t
 
 | Field | Value |
 |-------|-------|
-| Repo hint | `[repo=masumi-network/sokosumi]` — Tech Lead adds near top of issue when spec is written |
+| Repo hint | `[repo=masumi-network/sokosumi]` — Tech Lead puts at top of **session spec** (not Linear) |
 | Linear team | `SOK` |
 | Linear project | `Sokosumi` |
-| Issue model | **Single issue** — requirement, investigation, spec, and progress live on one issue |
+| Issue model | **Single issue** — `## Requirement` + `## Sapphire status` on Linear; investigation and spec stay **in session** only |
+
+## Session artifacts (critical)
+
+Investigation and spec are **working documents for this agent run**. Keep them in orchestrator context and pass them to the next phase — **do not** write `## Investigation` or `## Spec` to the Linear issue description.
+
+| Artifact | Produced by | Passed to | On Linear |
+|----------|-------------|-----------|-----------|
+| Investigation | Investigator | Tech Lead (same session) | Comment summary only |
+| Spec | Tech Lead | Coder, Reviewer (same session) | Comment summary only |
+| Requirement | `_task` | All phases | Description (unchanged) |
+| Status table | Orchestrator | Resume / humans | Description |
+
+When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and the Sapphire footer. Strip legacy `## Investigation` / `## Spec` blocks if present — do not re-add them.
+
+**Resume in a new session:** `## Sapphire status` shows progress, but investigation/spec are not on Linear. Re-run from the first `pending` phase; if Coder or Reviewer is pending without session artifacts, re-run Tech Lead (and Investigator if needed) before implementing or reviewing.
 
 ## Intake
 
@@ -64,29 +79,29 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 ### Phase 1 — Investigator
 
 1. Run Investigator per `INVESTIGATOR.md` (codebase search, pitfalls, patterns — **not** a final spec).
-2. Merge `## Investigation` into the **full** issue description via `save_issue` per `LINEAR-MCP.md` — never post the section alone.
-3. Post comment `**Sapphire · Investigator complete**` with a 3–5 bullet summary.
-4. Update `## Sapphire status` — Investigator → `done` (same merged `save_issue` or follow-up write with full body).
+2. Keep the investigation markdown **in session** — pass the full text to Tech Lead. Do **not** merge `## Investigation` into the Linear description.
+3. Post comment `**Sapphire · Investigator complete**` with a 3–5 bullet summary (not the full investigation).
+4. Update `## Sapphire status` — Investigator → `done` (status-only `save_issue` per `LINEAR-MCP.md`).
 5. **Continue in this run** — proceed to Phase 2 without stopping.
 
 ### Phase 2 — Tech Lead
 
-1. Read Requirement + Investigation.
+1. Read Requirement (Linear) + Investigation (**session**).
 2. Write final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
-3. Merge `## Spec` into the **full** issue description per `LINEAR-MCP.md`. Include `[repo=…]`, data flow, contracts, verification hints, coder breakdown when rubric score ≥ 2.
-4. Post comment `**Sapphire · Tech Lead complete**` with execution order and coder count.
-5. Update status — Tech Lead → `done` (in the same merged write when possible).
+3. Keep the spec markdown **in session** — pass the full text to Coder and Reviewer. Do **not** merge `## Spec` into the Linear description.
+4. Post comment `**Sapphire · Tech Lead complete**` with coder count, execution order, and 3–5 bullet spec summary (not the full spec).
+5. Update status — Tech Lead → `done` (status-only `save_issue`).
 6. **Continue in this run** — proceed to Phase 3 without stopping.
 
 ### Phase 3 — Coder(s)
 
-1. Read `## Spec` only (plus Investigation for context).
+1. Read **session spec** (plus session investigation for context). Requirement from Linear when needed.
 2. If Tech Lead defined multiple coders, launch **parallel** Task subagents — one per coder block — with non-overlapping file ownership.
 3. If single coder, implement in this run.
 4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**).
 5. Open PR; PR body must reference the Linear issue id.
 6. Post `**PR handoff**` comment per `REVIEWER.md`.
-7. Post `**Sapphire · Coder complete**`. Update status — Coder → done. Stay **In Progress** — do not set In Review yet.
+7. Post `**Sapphire · Coder complete**`. Update status — Coder → done (status-only `save_issue`). Stay **In Progress** — do not set In Review yet.
 8. **Continue in this run** — proceed to Phase 4 without stopping.
 
 ### Phase 4 — Reviewer
@@ -94,25 +109,25 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 1. Run `/goal` per `REVIEWER.md` until all criteria pass.
 2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
 3. Fix on PR branch when needed; loop.
-4. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done.
+4. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done (status-only `save_issue` + state).
 5. Do **not** mark issue **Done** — human merges PR.
 
 ## MCP
 
 - Read `LINEAR-MCP.md` before any write.
 - Health check before first call — same message as `_task` if `user-linear` is missing.
-- Use `save_issue` to update description sections and state; use `save_comment` for phase markers.
+- Use `save_issue` for **status table**, **state**, and legacy section cleanup only — not investigation or spec; use `save_comment` for phase markers.
 
 ## Resume and idempotency
 
-Use `## Sapphire status` as the source of truth for which phase to run. Section headings (`## Investigation`, `## Spec`) alone do not skip a phase if status is still `pending`.
+Use `## Sapphire status` as the source of truth for which phase to run. Legacy `## Investigation` / `## Spec` on Linear (older runs) are ignored — strip on the next status write.
 
 | Condition | Action |
 |-----------|--------|
 | `## Sapphire status` — Investigator = done | Skip Investigator unless user asked to re-run |
 | `## Sapphire status` — Tech Lead = done | Skip Tech Lead unless user asked to re-spec |
-| `## Spec` present but Tech Lead still `pending` | Run Tech Lead — status table wins |
-| `**PR handoff**` comment + open PR | Skip Coder; run Reviewer |
+| Tech Lead = done but no **session spec** (new session) | Re-run Tech Lead before Coder |
+| `**PR handoff**` comment + open PR | Skip Coder; run Reviewer (use session spec if same run; else PR + Requirement) |
 | All status rows = `done`, issue not `In Review` | Reviewer cleanup — set `In Review` when criteria pass; do not restart Investigator–Coder |
 | Issue `In Review` + Reviewer done | Stop — await human merge |
 
