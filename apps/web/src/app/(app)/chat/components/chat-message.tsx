@@ -83,13 +83,23 @@ export default function ChatMessage({
     setShowPromptToggle(overflow);
   }, [isUser, isPromptExpanded, displayContent]);
 
-  const timestamp = createdAt
-    ? formatter.dateTime(createdAt, {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      })
-    : null;
+  // Resolve the timezone after mount so server and first client render agree
+  // (the server renders in UTC, which would otherwise cause a hydration
+  // mismatch for users in other timezones).
+  const [timeZone, setTimeZone] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
+
+  const timestamp =
+    createdAt && timeZone
+      ? formatter.dateTime(createdAt, {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone,
+        })
+      : null;
 
   const getAssistantAvatar = () => {
     if (modelId) {
