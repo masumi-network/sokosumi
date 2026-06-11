@@ -1525,6 +1525,24 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
+export type OrganizationSeatAssignment = {
+    /**
+     * ID of the member the seat was assigned to
+     */
+    memberId: string;
+    /**
+     * When the seat was assigned
+     */
+    seatAssignedAt: Date;
+};
+
+export type OrganizationSeatUnassignment = {
+    /**
+     * ID of the member the seat was unassigned from
+     */
+    memberId: string;
+};
+
 export type PendingInvitation = {
     id: string;
     organizationId: string;
@@ -1534,6 +1552,33 @@ export type PendingInvitation = {
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
+};
+
+export type OrganizationSeatSummary = {
+    /**
+     * Number of members with an assigned seat (0 when the organization has no paid plan)
+     */
+    assignedCount: number;
+    /**
+     * Total number of organization members
+     */
+    memberCount: number;
+    /**
+     * Whether the organization is billed via an active enterprise contract
+     */
+    isEnterpriseContract: boolean;
+    /**
+     * Resolved paid billing plan name (null when the organization is on the free plan)
+     */
+    paidPlan: 'starter' | 'standard' | 'pro' | 'enterprise' | null;
+    /**
+     * Number of purchased seats
+     */
+    purchasedSeats: number;
+    /**
+     * Purchased seats without an assigned member (0 when the organization has no paid plan)
+     */
+    unusedSeats: number;
 };
 
 export type OrganizationBillingPlan = {
@@ -12220,6 +12265,197 @@ export type GetOrganizationsByIdMembersResponses = {
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
 
+export type DeleteOrganizationsByIdMembersByMemberIdSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Member ID
+         */
+        memberId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/{memberId}/seat';
+};
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization or member not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatError = DeleteOrganizationsByIdMembersByMemberIdSeatErrors[keyof DeleteOrganizationsByIdMembersByMemberIdSeatErrors];
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatResponses = {
+    /**
+     * The unassigned seat
+     */
+    200: {
+        data: OrganizationSeatUnassignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatResponse = DeleteOrganizationsByIdMembersByMemberIdSeatResponses[keyof DeleteOrganizationsByIdMembersByMemberIdSeatResponses];
+
+export type PutOrganizationsByIdMembersByMemberIdSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Member ID
+         */
+        memberId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/{memberId}/seat';
+};
+
+export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
+    /**
+     * Bad Request - No unused seats available
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization or member not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdMembersByMemberIdSeatError = PutOrganizationsByIdMembersByMemberIdSeatErrors[keyof PutOrganizationsByIdMembersByMemberIdSeatErrors];
+
+export type PutOrganizationsByIdMembersByMemberIdSeatResponses = {
+    /**
+     * The assigned seat
+     */
+    200: {
+        data: OrganizationSeatAssignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdMembersByMemberIdSeatResponse = PutOrganizationsByIdMembersByMemberIdSeatResponses[keyof PutOrganizationsByIdMembersByMemberIdSeatResponses];
+
 export type GetOrganizationsByIdInvitationsData = {
     body?: never;
     path: {
@@ -12304,6 +12540,91 @@ export type GetOrganizationsByIdInvitationsResponses = {
 };
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
+
+export type GetOrganizationsByIdSeatSummaryData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/seat-summary';
+};
+
+export type GetOrganizationsByIdSeatSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSeatSummaryError = GetOrganizationsByIdSeatSummaryErrors[keyof GetOrganizationsByIdSeatSummaryErrors];
+
+export type GetOrganizationsByIdSeatSummaryResponses = {
+    /**
+     * The organization's seat usage summary
+     */
+    200: {
+        data: OrganizationSeatSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSeatSummaryResponse = GetOrganizationsByIdSeatSummaryResponses[keyof GetOrganizationsByIdSeatSummaryResponses];
 
 export type GetOrganizationsByIdBillingPlanData = {
     body?: never;

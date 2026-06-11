@@ -1,5 +1,3 @@
-import "server-only";
-
 import {
   CreditBucketReferenceType,
   type Prisma,
@@ -8,7 +6,9 @@ import {
 import {
   buildOrganizationSeatAssignmentSubscriptionReferenceId,
   countOrganizationSubscriptionPeriodSeatGrants,
+  ensureLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
+  fetchOrganizationMemberUserIds,
   getUnusedSubscriptionSeatCreditSlots,
   hasOrganizationMemberSubscriptionPeriodGrant,
   isActiveSubscriptionStatus,
@@ -16,12 +16,15 @@ import {
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
-import Stripe from "stripe";
+import { HTTPException } from "hono/http-exception";
 
-import { getEnvSecrets } from "@/config/env.secrets";
-import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
+import { badRequest, notFound } from "@/helpers/error";
+import { getSubscriptionSeatCredits } from "@/services/subscription-seat-credits.service";
 
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+export interface GrantUnusedSeatSubscriptionCreditsResult {
+  creditsGranted: number;
+  granted: boolean;
+}
 
 function isPrismaRecordNotFoundError(error: unknown): boolean {
   return (
@@ -32,9 +35,26 @@ function isPrismaRecordNotFoundError(error: unknown): boolean {
   );
 }
 
-export interface GrantUnusedSeatSubscriptionCreditsResult {
-  creditsGranted: number;
-  granted: boolean;
+/**
+ * Maps member-repository seat errors to HTTP exceptions; rethrows everything
+ * else (including HTTP exceptions thrown by guards inside the transaction).
+ */
+export function mapSeatRepositoryError(error: unknown): never {
+  if (error instanceof HTTPException || !(error instanceof Error)) {
+    throw error;
+  }
+
+  if (error.message === "Member not found") {
+    throw notFound("Member not found");
+  }
+
+  if (error.message.includes("exceeds purchased seats")) {
+    throw badRequest(
+      "No unused seats available. Purchase more seats or unassign another member.",
+    );
+  }
+
+  throw error;
 }
 
 async function markOutOfCreditsTasksAsToppedUp(params: {
@@ -84,14 +104,9 @@ async function markOutOfCreditsTasksAsToppedUp(params: {
 async function resolveCreditsPerSeatForSubscription(
   plan: string,
 ): Promise<number | null> {
-  if (plan === FREE_SUBSCRIPTION_PLAN) {
-    return null;
-  }
-
-  const catalog = await getSubscriptionCatalog(stripeInstance);
-
   if (plan === "starter" || plan === "standard" || plan === "pro") {
-    return catalog[plan].credits;
+    const seatCredits = await getSubscriptionSeatCredits();
+    return seatCredits[plan];
   }
 
   return null;
@@ -212,4 +227,42 @@ export async function grantUnusedSeatSubscriptionCreditsIfEligible(
     creditsGranted: creditsPerSeat,
     granted: true,
   };
+}
+
+export async function syncLocalFreeOrganizationCreditsIfNeeded(
+  organizationId: string,
+  subscription: {
+    createdAt: Date;
+    periodEnd: Date;
+    periodStart: Date;
+    seats: number | null;
+    status: string;
+    stripeSubscriptionId: string | null;
+  },
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (
+    subscription.stripeSubscriptionId ||
+    !isActiveSubscriptionStatus(subscription.status)
+  ) {
+    return;
+  }
+
+  const memberUserIds = await fetchOrganizationMemberUserIds(
+    organizationId,
+    tx,
+  );
+
+  await ensureLocalFreeSubscriptionPeriod(
+    {
+      billingAnchorDate: subscription.createdAt,
+      memberUserIds,
+      organizationId,
+      periodEnd: subscription.periodEnd,
+      periodStart: subscription.periodStart,
+      purchasedSeats: resolvePurchasedSeats(subscription.seats),
+      referenceId: organizationId,
+    },
+    tx,
+  );
 }

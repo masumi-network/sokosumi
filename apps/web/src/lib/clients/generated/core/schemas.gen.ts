@@ -5160,6 +5160,41 @@ export const MemberSchema = {
     ]
 } as const;
 
+export const OrganizationSeatAssignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was assigned to',
+            example: 'member_123'
+        },
+        seatAssignedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the seat was assigned'
+        }
+    },
+    required: [
+        'memberId',
+        'seatAssignedAt'
+    ]
+} as const;
+
+export const OrganizationSeatUnassignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was unassigned from',
+            example: 'member_123'
+        }
+    },
+    required: [
+        'memberId'
+    ]
+} as const;
+
 export const PendingInvitationSchema = {
     type: 'object',
     properties: {
@@ -5210,6 +5245,60 @@ export const PendingInvitationSchema = {
         'expiresAt',
         'inviterId',
         'createdAt'
+    ]
+} as const;
+
+export const OrganizationSeatSummarySchema = {
+    type: 'object',
+    properties: {
+        assignedCount: {
+            type: 'integer',
+            description: 'Number of members with an assigned seat (0 when the organization has no paid plan)',
+            example: 2
+        },
+        memberCount: {
+            type: 'integer',
+            description: 'Total number of organization members',
+            example: 5
+        },
+        isEnterpriseContract: {
+            type: 'boolean',
+            description: 'Whether the organization is billed via an active enterprise contract',
+            example: false
+        },
+        paidPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'starter',
+                'standard',
+                'pro',
+                'enterprise',
+                null
+            ],
+            description: 'Resolved paid billing plan name (null when the organization is on the free plan)',
+            example: 'starter'
+        },
+        purchasedSeats: {
+            type: 'integer',
+            description: 'Number of purchased seats',
+            example: 3
+        },
+        unusedSeats: {
+            type: 'integer',
+            description: 'Purchased seats without an assigned member (0 when the organization has no paid plan)',
+            example: 1
+        }
+    },
+    required: [
+        'assignedCount',
+        'memberCount',
+        'isEnterpriseContract',
+        'paidPlan',
+        'purchasedSeats',
+        'unusedSeats'
     ]
 } as const;
 

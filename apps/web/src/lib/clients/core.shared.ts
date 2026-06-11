@@ -58,6 +58,7 @@ import {
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
@@ -97,6 +98,7 @@ import {
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
   getProjects as coreGetProjects,
@@ -153,6 +155,7 @@ import {
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
+  putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -639,6 +642,64 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization invitations",
+    );
+  }
+
+  /**
+   * Seat usage summary for an organization the caller is a member of:
+   * assigned and purchased seat counts alongside the resolved paid plan.
+   */
+  async function getOrganizationSeatSummary(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSeatSummary({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization seat summary",
+    );
+  }
+
+  /**
+   * Assigns a seat to an organization member. Core enforces that the caller
+   * is an organization owner or admin and runs the assignment, capacity
+   * check, and resulting credit grants (with per-seat amounts resolved from
+   * the Stripe subscription catalog) in a single transaction.
+   */
+  async function assignOrganizationSeat(
+    organizationId: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutOrganizationsByIdMembersByMemberIdSeat({
+          client,
+          path: { id: organizationId, memberId },
+        }),
+      "Failed to assign organization seat",
+    );
+  }
+
+  /**
+   * Unassigns an organization member's seat. Core enforces that the caller is
+   * an organization owner or admin and runs the unassignment and resulting
+   * credit grants in a single transaction.
+   */
+  async function unassignOrganizationSeat(
+    organizationId: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteOrganizationsByIdMembersByMemberIdSeat({
+          client,
+          path: { id: organizationId, memberId },
+        }),
+      "Failed to unassign organization seat",
     );
   }
 
@@ -1980,6 +2041,7 @@ export function createCoreClient(getClient: GetClient) {
     acknowledgeNotice,
     addConversationMessage,
     archiveConversation,
+    assignOrganizationSeat,
     createConversation,
     createAgentJob,
     createDemoJob,
@@ -2041,6 +2103,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
     setMyDesignMd,
@@ -2070,6 +2133,7 @@ export function createCoreClient(getClient: GetClient) {
     patchTask,
     putJobShare,
     putTaskShare,
+    unassignOrganizationSeat,
     updateConversation,
     updateHermesInstance,
     updateOrganizationInvoiceEmail,
