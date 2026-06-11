@@ -42,7 +42,32 @@ type AgentWithOverrides = Agent & {
   overrideLegalTerms?: string | null;
 };
 
-export function getAgentName(agent: Agent | AgentWithCreditsPrice): string {
+/**
+ * Structural subsets accepted by the resolved-field helpers so both Prisma
+ * agents and the core job/agent DTOs (e.g. `Job["agent"]`) can be passed.
+ */
+interface AgentNameSource {
+  name: string;
+  overrideName?: string | null;
+}
+
+interface AgentImageSource {
+  image?: string | null;
+  overrideImage?: string | null;
+}
+
+interface AgentLegalSource {
+  legalDpa?: string | null;
+  legalOther?: string | null;
+  legalPrivacyPolicy?: string | null;
+  legalTerms?: string | null;
+  overrideLegalDpa?: string | null;
+  overrideLegalOther?: string | null;
+  overrideLegalPrivacyPolicy?: string | null;
+  overrideLegalTerms?: string | null;
+}
+
+export function getAgentName(agent: AgentNameSource): string {
   return agent.overrideName ?? agent.name;
 }
 
@@ -52,9 +77,7 @@ export function getAgentDescription(
   return agent.overrideDescription ?? agent.description;
 }
 
-export function getAgentResolvedImage(
-  agent: Agent | AgentWithCreditsPrice,
-): string | null {
+export function getAgentResolvedImage(agent: AgentImageSource): string | null {
   const image = agent.overrideImage ?? agent.image;
   if (!image) {
     return null;
@@ -62,9 +85,9 @@ export function getAgentResolvedImage(
   return resolveIpfsOrHttpUrl(image);
 }
 
-export function getAgentResolvedIcon(
-  agent: Agent | AgentWithCreditsPrice,
-): string | null {
+export function getAgentResolvedIcon(agent: {
+  icon?: string | null;
+}): string | null {
   if (!agent.icon) {
     return null;
   }
@@ -94,7 +117,7 @@ export function isAgentNew(agent: AgentWithCategories): boolean {
   );
 }
 
-export function getAgentLegal(agent: Agent): AgentLegal | null {
+export function getAgentLegal(agent: AgentLegalSource): AgentLegal | null {
   const privacyPolicy = getAgentLegalPrivacyPolicy(agent);
   const terms = getAgentLegalTerms(agent);
   const dpa = getAgentLegalDpa(agent);
@@ -104,24 +127,22 @@ export function getAgentLegal(agent: Agent): AgentLegal | null {
     : null;
 }
 
-export function getAgentLegalPrivacyPolicy(agent: Agent): string | null {
-  const a = agent as AgentWithOverrides;
-  return a.overrideLegalPrivacyPolicy ?? a.legalPrivacyPolicy ?? null;
+export function getAgentLegalPrivacyPolicy(
+  agent: AgentLegalSource,
+): string | null {
+  return agent.overrideLegalPrivacyPolicy ?? agent.legalPrivacyPolicy ?? null;
 }
 
-export function getAgentLegalTerms(agent: Agent): string | null {
-  const a = agent as AgentWithOverrides;
-  return a.overrideLegalTerms ?? a.legalTerms ?? null;
+export function getAgentLegalTerms(agent: AgentLegalSource): string | null {
+  return agent.overrideLegalTerms ?? agent.legalTerms ?? null;
 }
 
-export function getAgentLegalDpa(agent: Agent): string | null {
-  const a = agent as AgentWithOverrides;
-  return a.overrideLegalDpa ?? a.legalDpa ?? null;
+export function getAgentLegalDpa(agent: AgentLegalSource): string | null {
+  return agent.overrideLegalDpa ?? agent.legalDpa ?? null;
 }
 
-export function getAgentLegalOther(agent: Agent): string | null {
-  const a = agent as AgentWithOverrides;
-  return a.overrideLegalOther ?? a.legalOther ?? null;
+export function getAgentLegalOther(agent: AgentLegalSource): string | null {
+  return agent.overrideLegalOther ?? agent.legalOther ?? null;
 }
 
 export function getAgentAuthorOrganization(agent: Agent): string | null {

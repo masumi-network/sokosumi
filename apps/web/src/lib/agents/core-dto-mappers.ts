@@ -1,7 +1,6 @@
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
-  JobShare,
   JobWithSokosumiStatus,
   UserAgentRatingWithUser,
 } from "@sokosumi/database";
@@ -15,8 +14,6 @@ import type {
   AgentReview as CoreAgentReview,
   AgentReviews as CoreAgentReviews,
   Category as CoreCategory,
-  Job as CoreJob,
-  JobShare as CoreJobShare,
   JobSummary as CoreJobSummary,
 } from "@/lib/clients/generated/core";
 import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
@@ -139,25 +136,23 @@ function mapCoreAgentExampleOutputs(agent: CoreAgentDto) {
   }));
 }
 
-function mapCoreJobAgent(
-  agentId: string,
-  agent?: Partial<CoreJob["agent"]> | null,
-) {
+/** Placeholder agent for job summaries, which carry no agent payload. */
+function mapCoreJobAgent(agentId: string) {
   return {
     id: agentId,
-    name: agent?.name ?? agentId,
-    overrideName: agent?.overrideName ?? null,
-    icon: agent?.icon ?? null,
-    image: agent?.image ?? null,
-    overrideImage: agent?.overrideImage ?? null,
-    legalPrivacyPolicy: agent?.legalPrivacyPolicy ?? null,
-    overrideLegalPrivacyPolicy: agent?.overrideLegalPrivacyPolicy ?? null,
-    legalTerms: agent?.legalTerms ?? null,
-    overrideLegalTerms: agent?.overrideLegalTerms ?? null,
-    legalDpa: agent?.legalDpa ?? null,
-    overrideLegalDpa: agent?.overrideLegalDpa ?? null,
-    legalOther: agent?.legalOther ?? null,
-    overrideLegalOther: agent?.overrideLegalOther ?? null,
+    name: agentId,
+    overrideName: null,
+    icon: null,
+    image: null,
+    overrideImage: null,
+    legalPrivacyPolicy: null,
+    overrideLegalPrivacyPolicy: null,
+    legalTerms: null,
+    overrideLegalTerms: null,
+    legalDpa: null,
+    overrideLegalDpa: null,
+    legalOther: null,
+    overrideLegalOther: null,
   };
 }
 
@@ -178,45 +173,6 @@ function isJobSettled(job: {
     default:
       return false;
   }
-}
-
-function mapCoreJobEvent(event: CoreJob["events"][number]) {
-  return {
-    id: event.id,
-    createdAt: toDate(event.createdAt),
-    updatedAt: toDate(event.updatedAt),
-    status: event.status,
-    inputSchema: event.inputSchema ?? null,
-    input: event.input
-      ? {
-          id: event.input.id,
-          input: event.input.input,
-          inputHash: event.input.inputHash ?? null,
-          signature: event.input.signature ?? null,
-        }
-      : null,
-    result: event.result ?? null,
-    blobs: event.blobs.map((blob) => ({
-      id: blob.id,
-      createdAt: toDate(blob.createdAt),
-      updatedAt: toDate(blob.updatedAt),
-      jobId: blob.jobId,
-      sourceUrl: blob.sourceUrl,
-      name: blob.name ?? null,
-      status: blob.status,
-      size: blob.size != null ? BigInt(blob.size) : null,
-      mimeType: blob.mimeType ?? null,
-      fileUrl: blob.fileUrl ?? null,
-    })),
-    links: event.links.map((link) => ({
-      id: link.id,
-      createdAt: toDate(link.createdAt),
-      updatedAt: toDate(link.updatedAt),
-      jobId: link.jobId,
-      url: link.url,
-      title: link.title ?? null,
-    })),
-  };
 }
 
 export function mapCoreAgentMetricsToRatingStats(
@@ -556,40 +512,6 @@ export function mapCoreJobSummaryToJobWithSokosumiStatus(
         : null,
     },
     agent: mapCoreJobAgent(job.agentId),
-  };
-
-  return mappedJob as unknown as JobWithSokosumiStatus;
-}
-
-export function mapCoreJobShare(share: CoreJobShare): JobShare {
-  return {
-    id: share.id,
-    jobId: share.jobId,
-    token: share.token,
-    allowSearchIndexing: share.allowSearchIndexing,
-    createdAt: toDate(share.createdAt),
-    updatedAt: toDate(share.updatedAt),
-  } as JobShare;
-}
-
-export function mapCoreJobToJobWithSokosumiStatus(
-  job: CoreJob,
-  options?: { share?: JobShare | null },
-): JobWithSokosumiStatus {
-  const mappedJob = {
-    ...mapCoreJobSummaryToJobWithSokosumiStatus(job),
-    input: job.input ?? null,
-    inputHash: job.inputHash ?? null,
-    inputSchema: job.inputSchema ?? null,
-    agentJobId: job.agentJobId,
-    identifierFromPurchaser: job.identifierFromPurchaser ?? null,
-    share: options?.share ?? (job.share ? mapCoreJobShare(job.share) : null),
-    agent: mapCoreJobAgent(job.agentId, job.agent),
-    events: job.events.map(mapCoreJobEvent),
-    // Token-based public share pages are read-only; keep "unsettled" so
-    // downstream UI matches the legacy mapCoreSharedJob contract (no
-    // post-dispute / settled-only affordances for anonymous viewers).
-    ...(options?.share != null ? { jobStatusSettled: false } : {}),
   };
 
   return mappedJob as unknown as JobWithSokosumiStatus;

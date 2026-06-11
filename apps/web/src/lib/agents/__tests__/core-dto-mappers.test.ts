@@ -1,4 +1,3 @@
-import type { JobShare } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 import {
   mapCoreAgentMetricsToRatingStats,
@@ -8,14 +7,12 @@ import {
   mapCoreAgentToAgentWithCreditsPrice,
   mapCoreCategoriesToCategories,
   mapCoreJobSummaryToJobWithSokosumiStatus,
-  mapCoreJobToJobWithSokosumiStatus,
 } from "@/lib/agents/core-dto-mappers";
 import type {
   Agent,
   AgentDetail,
   AgentReviews,
   Category,
-  Job,
   JobSummary,
 } from "@/lib/clients/generated/core";
 
@@ -392,206 +389,5 @@ describe("core dto mappers", () => {
     expect(mappedJob.unlockTime).toEqual(unlock);
     expect(mappedJob.externalDisputeUnlockTime).toEqual(disputeUnlock);
     expect(mappedJob.sellerVkey).toBe("vkey-1");
-  });
-
-  it("maps a core job detail into the current job detail shape", () => {
-    const share: JobShare = {
-      id: "share-1",
-      jobId: "job-1",
-      taskId: null,
-      token: "token-1",
-      allowSearchIndexing: false,
-      createdAt: new Date("2026-04-21T09:00:00.000Z"),
-      updatedAt: new Date("2026-04-21T09:30:00.000Z"),
-    };
-    const job: Job = {
-      id: "job-1",
-      createdAt: new Date("2026-04-20T10:00:00.000Z"),
-      updatedAt: new Date("2026-04-21T10:00:00.000Z"),
-      completedAt: new Date("2026-04-21T12:00:00.000Z"),
-      agentId: "agent-1",
-      userId: "user-1",
-      user: {
-        id: "user-1",
-        name: "Ada Lovelace",
-        image: null,
-      },
-      organizationId: null,
-      organization: null,
-      projectId: null,
-      taskId: null,
-      name: "Weekly summary",
-      jobType: "PAID",
-      status: "completed",
-      credits: 9,
-      onChainStatus: "RESULT_SUBMITTED",
-      onChainTransactionHash: "tx-123",
-      result: '{"ok":true}',
-      resultHash: "result-hash",
-      input: '{"topic":"sales"}',
-      inputHash: "input-hash",
-      inputSchema: '{"type":"object"}',
-      agentJobId: "agent-job-1",
-      identifierFromPurchaser: "buyer-1",
-      workspace: {
-        id: "workspace-1",
-        organizationId: null,
-        organization: null,
-      },
-      agent: {
-        id: "agent-1",
-        name: "Research Copilot",
-        overrideName: "Research Copilot",
-        icon: "https://example.com/icon.svg",
-        image: "https://example.com/agent.png",
-        overrideImage: null,
-        legalPrivacyPolicy: "https://example.com/privacy",
-        overrideLegalPrivacyPolicy: null,
-        legalTerms: "https://example.com/terms",
-        overrideLegalTerms: null,
-        legalDpa: null,
-        overrideLegalDpa: null,
-        legalOther: null,
-        overrideLegalOther: null,
-      },
-      events: [
-        {
-          id: "event-1",
-          createdAt: new Date("2026-04-20T10:00:00.000Z"),
-          updatedAt: new Date("2026-04-20T10:05:00.000Z"),
-          status: "COMPLETED",
-          inputSchema: '{"type":"object"}',
-          input: {
-            id: "input-1",
-            input: '{"topic":"sales"}',
-            inputHash: "input-hash",
-            signature: null,
-          },
-          result: '{"ok":true}',
-          blobs: [
-            {
-              id: "file-1",
-              createdAt: new Date("2026-04-20T10:10:00.000Z"),
-              updatedAt: new Date("2026-04-20T10:11:00.000Z"),
-              jobId: "job-1",
-              sourceUrl: "https://example.com/source",
-              name: "report.pdf",
-              status: "READY",
-              size: 512,
-              mimeType: "application/pdf",
-              fileUrl: "https://example.com/report.pdf",
-            },
-          ],
-          links: [
-            {
-              id: "link-1",
-              createdAt: new Date("2026-04-20T10:10:00.000Z"),
-              updatedAt: new Date("2026-04-20T10:11:00.000Z"),
-              jobId: "job-1",
-              url: "https://example.com",
-              title: "Source",
-            },
-          ],
-        },
-      ],
-      share: null,
-    };
-
-    const mappedJob = mapCoreJobToJobWithSokosumiStatus(job, { share });
-
-    expect(mappedJob.share).toEqual(share);
-    expect(mappedJob.agent.name).toBe("Research Copilot");
-    expect(mappedJob.agent.legalTerms).toBe("https://example.com/terms");
-    expect(mappedJob.input).toBe('{"topic":"sales"}');
-    expect(mappedJob.identifierFromPurchaser).toBe("buyer-1");
-    expect(mappedJob.events).toEqual([
-      expect.objectContaining({
-        id: "event-1",
-        blobs: [
-          expect.objectContaining({
-            id: "file-1",
-            size: BigInt(512),
-          }),
-        ],
-        links: [
-          expect.objectContaining({
-            id: "link-1",
-            title: "Source",
-          }),
-        ],
-      }),
-    ]);
-  });
-
-  it("forces jobStatusSettled false for public shared job views even after dispute unlock", () => {
-    const share: JobShare = {
-      id: "share-1",
-      jobId: "job-paid-shared",
-      taskId: null,
-      token: "token-1",
-      allowSearchIndexing: false,
-      createdAt: new Date("2026-04-21T09:00:00.000Z"),
-      updatedAt: new Date("2026-04-21T09:30:00.000Z"),
-    };
-
-    const job = {
-      id: "job-paid-shared",
-      createdAt: new Date("2026-04-20T10:00:00.000Z"),
-      updatedAt: new Date("2026-04-21T10:00:00.000Z"),
-      completedAt: new Date("2026-04-21T11:00:00.000Z"),
-      agentId: "agent-1",
-      userId: "user-1",
-      user: {
-        id: "user-1",
-        name: "Ada Lovelace",
-        image: null,
-      },
-      organizationId: null,
-      organization: null,
-      projectId: null,
-      taskId: null,
-      name: "Paid shared",
-      jobType: "PAID" as const,
-      status: "completed" as const,
-      credits: 1,
-      onChainStatus: "RESULT_SUBMITTED" as const,
-      onChainTransactionHash: "tx-1",
-      result: "{}",
-      resultHash: "rh",
-      externalDisputeUnlockTime: new Date("2020-01-01T00:00:00.000Z"),
-      input: null,
-      inputHash: null,
-      inputSchema: null,
-      agentJobId: "agent-job-paid",
-      identifierFromPurchaser: null,
-      workspace: {
-        id: "workspace-1",
-        organizationId: null,
-        organization: null,
-      },
-      agent: {
-        id: "agent-1",
-        name: "Agent",
-        overrideName: null,
-        icon: null,
-        image: null,
-        overrideImage: null,
-        legalPrivacyPolicy: null,
-        overrideLegalPrivacyPolicy: null,
-        legalTerms: null,
-        overrideLegalTerms: null,
-        legalDpa: null,
-        overrideLegalDpa: null,
-        legalOther: null,
-        overrideLegalOther: null,
-      },
-      events: [],
-      share: null,
-    } as Job;
-
-    expect(mapCoreJobToJobWithSokosumiStatus(job).jobStatusSettled).toBe(true);
-    expect(
-      mapCoreJobToJobWithSokosumiStatus(job, { share }).jobStatusSettled,
-    ).toBe(false);
   });
 });

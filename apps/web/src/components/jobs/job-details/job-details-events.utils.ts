@@ -1,21 +1,24 @@
 "use client";
 
-import { AgentJobStatus, type JobEventWithRelations } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
+
+import type { Job } from "@/lib/clients/generated/core";
+
+/** Event payload of the core `Job` detail DTO consumed by job details. */
+export type JobEvent = Job["events"][number];
 
 export interface JobTimelineEvents {
-  initiatedEvent: JobEventWithRelations | null;
-  timelineEvents: JobEventWithRelations[];
+  initiatedEvent: JobEvent | null;
+  timelineEvents: JobEvent[];
 }
 
 export interface VisibleJobTimelineEvents {
   shouldCollapse: boolean;
   collapsedCount: number;
-  visibleEvents: JobEventWithRelations[];
+  visibleEvents: JobEvent[];
 }
 
-export function splitInitiatedEvent(
-  events: JobEventWithRelations[],
-): JobTimelineEvents {
+export function splitInitiatedEvent(events: JobEvent[]): JobTimelineEvents {
   const initiatedCandidate = events.at(-1);
   if (!initiatedCandidate) {
     return {
@@ -38,7 +41,7 @@ export function splitInitiatedEvent(
 }
 
 export function getVisibleTimelineEvents(
-  events: JobEventWithRelations[],
+  events: JobEvent[],
   showAllEvents: boolean,
 ): VisibleJobTimelineEvents {
   const shouldCollapse = events.length > 2 && !showAllEvents;
@@ -58,7 +61,7 @@ export function getVisibleTimelineEvents(
 }
 
 export function shouldRenderAwaitingInputForm(
-  event: JobEventWithRelations,
+  event: JobEvent,
   isLatestEvent: boolean,
 ): boolean {
   return (
@@ -69,7 +72,7 @@ export function shouldRenderAwaitingInputForm(
 }
 
 export function shouldRenderAwaitingInputFormForViewer(
-  event: JobEventWithRelations,
+  event: JobEvent,
   isLatestEvent: boolean,
   readOnly: boolean,
 ): boolean {
@@ -77,7 +80,7 @@ export function shouldRenderAwaitingInputFormForViewer(
 }
 
 export function shouldHighlightJobEventBorder(
-  event: JobEventWithRelations,
+  event: JobEvent,
   isLatestEvent: boolean,
 ): boolean {
   if (!isLatestEvent) {

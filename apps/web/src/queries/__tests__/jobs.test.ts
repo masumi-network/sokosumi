@@ -15,7 +15,7 @@ describe("getJobQueryOptions", () => {
   });
 
   it("calls the getJob server action with the job id", async () => {
-    const job = { id: "job-1", cents: BigInt(42) };
+    const job = { id: "job-1", credits: 42 };
     getJobMock.mockResolvedValue(job);
 
     const options = getJobQueryOptions("job-1", {

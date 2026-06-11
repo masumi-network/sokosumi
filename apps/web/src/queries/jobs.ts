@@ -23,8 +23,8 @@ export const getJobQueryOptions = (jobId: string, session: Session | null) =>
         throw new UnAuthenticatedError();
       }
 
-      // `getJob` is a server action. React's RSC serializer transports the
-      // mapped payload's `bigint`/`Date` fields natively, so no superjson
+      // `getJob` is a server action returning the core `Job` DTO. React's
+      // RSC serializer transports its `Date` fields natively, so no superjson
       // round-trip is needed. It throws `UnAuthenticatedError` on 401 (which
       // this query relies on) and a generic `Error` otherwise.
       return await getJob({ jobId });

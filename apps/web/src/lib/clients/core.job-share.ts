@@ -1,30 +1,8 @@
-import type { JobShare, JobWithSokosumiStatus } from "@sokosumi/database";
-import {
-  mapCoreJobShare,
-  mapCoreJobToJobWithSokosumiStatus,
-} from "@/lib/agents/core-dto-mappers";
 import type {
-  PublicSharedJobResource as CorePublicSharedJobResource,
   TaskShare as CoreTaskShare,
   PublicSharedResourceResponse,
   PublicSharedTask,
 } from "@/lib/clients/generated/core";
-
-export interface PublicSharedJobResource {
-  kind: "job";
-  job: JobWithSokosumiStatus;
-  share: JobShare;
-}
-
-export interface PublicSharedTaskResource {
-  kind: "task";
-  task: PublicSharedTask;
-  share: CoreTaskShare;
-}
-
-export type PublicSharedResource =
-  | PublicSharedJobResource
-  | PublicSharedTaskResource;
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
@@ -56,28 +34,16 @@ function mapCorePublicSharedTask(task: PublicSharedTask): PublicSharedTask {
   };
 }
 
-export function mapCorePublicSharedJobResponse(
-  data: CorePublicSharedJobResource,
-): {
-  job: JobWithSokosumiStatus;
-  share: JobShare;
-} {
-  const share = mapCoreJobShare(data.share);
-  const job = mapCoreJobToJobWithSokosumiStatus(data.job, { share });
-
-  return { job, share };
-}
-
 export function mapCorePublicSharedResourceResponse(
   data: PublicSharedResourceResponse,
-): PublicSharedResource {
+): PublicSharedResourceResponse {
   if (data.kind === "job") {
-    const { job, share } = mapCorePublicSharedJobResponse(data);
-
     return {
       kind: "job",
-      job,
-      share,
+      // The share fetched with the token is canonical for this view; pin it
+      // onto the job payload so consumers see a consistent share state.
+      job: { ...data.job, share: data.share },
+      share: data.share,
     };
   }
 

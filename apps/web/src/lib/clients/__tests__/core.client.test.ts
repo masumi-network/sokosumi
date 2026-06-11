@@ -387,19 +387,21 @@ describe("core.client", () => {
       data: {
         data: {
           kind: "job",
+          // Mirrors the generated SDK envelope after its response
+          // transformer has revived date strings into Date instances.
           share: {
             id: "share_1",
             jobId: "job_1",
             token: "public-share-token",
             allowSearchIndexing: false,
-            createdAt: "2026-03-26T10:00:00.000Z",
-            updatedAt: "2026-03-26T10:00:00.000Z",
+            createdAt: new Date("2026-03-26T10:00:00.000Z"),
+            updatedAt: new Date("2026-03-26T10:00:00.000Z"),
           },
           job: {
             id: "job_1",
-            createdAt: "2026-03-26T10:00:00.000Z",
-            updatedAt: "2026-03-26T10:05:00.000Z",
-            completedAt: "2026-03-26T10:10:00.000Z",
+            createdAt: new Date("2026-03-26T10:00:00.000Z"),
+            updatedAt: new Date("2026-03-26T10:05:00.000Z"),
+            completedAt: new Date("2026-03-26T10:10:00.000Z"),
             agentId: "agent_1",
             userId: "user_1",
             organizationId: "org_1",
@@ -455,8 +457,8 @@ describe("core.client", () => {
             events: [
               {
                 id: "event_completed",
-                createdAt: "2026-03-26T10:10:00.000Z",
-                updatedAt: "2026-03-26T10:10:00.000Z",
+                createdAt: new Date("2026-03-26T10:10:00.000Z"),
+                updatedAt: new Date("2026-03-26T10:10:00.000Z"),
                 status: "COMPLETED",
                 inputSchema: null,
                 input: null,
@@ -466,8 +468,8 @@ describe("core.client", () => {
               },
               {
                 id: "event_initiated",
-                createdAt: "2026-03-26T10:00:00.000Z",
-                updatedAt: "2026-03-26T10:00:00.000Z",
+                createdAt: new Date("2026-03-26T10:00:00.000Z"),
+                updatedAt: new Date("2026-03-26T10:00:00.000Z"),
                 status: "INITIATED",
                 inputSchema: '{"input_data":[]}',
                 input: {
@@ -523,8 +525,6 @@ describe("core.client", () => {
       name: "Acme Labs",
       slug: "acme-labs",
     });
-    expect(response.job.transaction).toBeNull();
-    expect(response.job.purchase).toBeNull();
     expect(response.job.share?.token).toBe("public-share-token");
     expect(response.job.events[0]?.createdAt).toEqual(
       new Date("2026-03-26T10:10:00.000Z"),

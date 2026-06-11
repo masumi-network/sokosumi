@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getSessionMock = vi.fn();
 const getAgentByIdMock = vi.fn();
 const getJobByIdMock = vi.fn();
-const mapCoreJobToJobWithSokosumiStatusMock = vi.fn();
 const setQueryDataMock = vi.fn();
 const notFoundMock = vi.fn(() => {
   throw new Error("notFound");
@@ -18,11 +17,6 @@ class MockCoreApiRequestError extends Error {
     this.status = options?.status;
   }
 }
-
-vi.mock("@/lib/agents/core-dto-mappers", () => ({
-  mapCoreJobToJobWithSokosumiStatus: (...args: unknown[]) =>
-    mapCoreJobToJobWithSokosumiStatusMock(...args),
-}));
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: getSessionMock,
@@ -63,11 +57,12 @@ describe("loadJobDetails", () => {
       session: { activeOrganizationId: "org-1" },
     });
     getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
-    getJobByIdMock.mockResolvedValue({ data: { id: "job-core-1" } });
-    mapCoreJobToJobWithSokosumiStatusMock.mockReturnValue({
-      id: "job-1",
-      agent: { id: "agent-1" },
-      userId: "other-user",
+    getJobByIdMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+        agent: { id: "agent-1" },
+        userId: "other-user",
+      },
     });
 
     const { loadJobDetails } = await import("../load-job-details");
@@ -95,11 +90,12 @@ describe("loadJobDetails", () => {
       session: { activeOrganizationId: "org-1" },
     });
     getAgentByIdMock.mockResolvedValue({ data: { id: "agent-1" } });
-    getJobByIdMock.mockResolvedValue({ data: { id: "job-core-1" } });
-    mapCoreJobToJobWithSokosumiStatusMock.mockReturnValue({
-      id: "job-1",
-      agent: { id: "agent-1" },
-      userId: "user-1",
+    getJobByIdMock.mockResolvedValue({
+      data: {
+        id: "job-1",
+        agent: { id: "agent-1" },
+        userId: "user-1",
+      },
     });
 
     const { loadJobDetails } = await import("../load-job-details");

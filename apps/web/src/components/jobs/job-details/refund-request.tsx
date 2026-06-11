@@ -1,10 +1,5 @@
 "use client";
 
-import {
-  JobType,
-  type JobWithSokosumiStatus,
-  type PaidJobWithStatus,
-} from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import {
   ExternalLink,
@@ -42,10 +37,21 @@ import {
   JobErrorCode,
   requestRefundJob,
 } from "@/lib/actions";
+import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
+/**
+ * Core `Job` narrowed to the paid variant with the Masumi chain timestamps the
+ * refund flow relies on (mirrors the former Prisma `PaidJobWithStatus`).
+ */
+type PaidJob = Job & {
+  jobType: "PAID";
+  submitResultTime: Date;
+  unlockTime: Date;
+};
+
 interface RequestRefundButtonProps {
-  initialJob: PaidJobWithStatus;
+  initialJob: PaidJob;
   className?: string;
 }
 
@@ -80,18 +86,16 @@ const STATUS_CONFIGS: Partial<Record<SokosumiJobStatus, StatusConfig>> = {
   },
 };
 
-export function canRenderRefundRequest(
-  job: JobWithSokosumiStatus,
-): job is PaidJobWithStatus {
-  if (job.jobType !== JobType.PAID) {
+export function canRenderRefundRequest(job: Job): job is PaidJob {
+  if (job.jobType !== "PAID") {
     return false;
   }
 
   switch (job.status) {
     case SokosumiJobStatus.COMPLETED:
-      return job.unlockTime !== null;
+      return job.unlockTime != null;
     case SokosumiJobStatus.FAILED:
-      return job.submitResultTime !== null && job.unlockTime !== null;
+      return job.submitResultTime != null && job.unlockTime != null;
     case SokosumiJobStatus.REFUND_PENDING:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_PENDING:
@@ -168,7 +172,7 @@ function RefundErrorButton({
  * @returns An object with `title` and `description` for the tooltip.
  */
 function makeTitleAndDescription(
-  job: PaidJobWithStatus,
+  job: PaidJob,
   t: IntlTranslation<"Components.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
@@ -224,7 +228,7 @@ function makeTitleAndDescription(
  * @param job - The job object containing status and relevant timestamps.
  * @returns True if refund is currently enabled, false otherwise.
  */
-function isRefundEnabled(job: PaidJobWithStatus): boolean {
+function isRefundEnabled(job: PaidJob): boolean {
   const now = new Date();
   switch (job.status) {
     case SokosumiJobStatus.FAILED:
@@ -268,7 +272,7 @@ export default function RequestRefundButton({
   // Handle complex interactive states (default case)
   const { title, description } = makeTitleAndDescription(job, t, formatter);
 
-  const handleRefundRequest = async (job: PaidJobWithStatus) => {
+  const handleRefundRequest = async (job: PaidJob) => {
     setIsLoading(true);
     setError(null);
 

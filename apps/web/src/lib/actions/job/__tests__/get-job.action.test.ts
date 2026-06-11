@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getJobByIdMock = vi.fn();
-const mapCoreJobToJobWithSokosumiStatusMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
   status?: number;
@@ -18,11 +17,6 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getJobById: (...args: unknown[]) => getJobByIdMock(...args),
   },
-}));
-
-vi.mock("@/lib/agents/core-dto-mappers", () => ({
-  mapCoreJobToJobWithSokosumiStatus: (...args: unknown[]) =>
-    mapCoreJobToJobWithSokosumiStatusMock(...args),
 }));
 
 // Pass-through session middleware: the action body runs with an injected
@@ -44,24 +38,26 @@ describe("getJob", () => {
     vi.clearAllMocks();
   });
 
-  it("returns the mapped job with bigint and Date fields intact", async () => {
-    const mappedJob = {
+  it("returns the core job as-is with Date fields intact", async () => {
+    // The core `Job` DTO carries no bigint (credits is a number); the bigint
+    // `cents` field left the payload together with the Prisma-derived
+    // `JobWithSokosumiStatus` type. Dates are revived by the generated client
+    // transformers and must survive the server-action boundary.
+    const coreJob = {
       id: "job-1",
-      cents: BigInt(4200),
+      credits: 42,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
-      events: [{ size: BigInt(10) }],
+      events: [],
     };
-    getJobByIdMock.mockResolvedValue({ data: { id: "job-1" } });
-    mapCoreJobToJobWithSokosumiStatusMock.mockReturnValue(mappedJob);
+    getJobByIdMock.mockResolvedValue({ data: coreJob });
 
     const { getJob } = await import("../get-job.action");
     const result = await getJob({ jobId: "job-1" });
 
     expect(getJobByIdMock).toHaveBeenCalledWith("job-1");
-    expect(result).toBe(mappedJob);
-    // Round-trip sanity: non-JSON-primitive fields the route used superjson for.
-    expect(typeof result.cents).toBe("bigint");
+    expect(result).toBe(coreJob);
     expect(result.createdAt).toBeInstanceOf(Date);
+    expect(typeof result.credits).toBe("number");
   });
 
   it("throws UnAuthenticatedError when core responds 401", async () => {

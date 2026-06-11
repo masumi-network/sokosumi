@@ -1,10 +1,10 @@
-import { JobWithSokosumiStatus } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import JobDetails from "@/components/jobs/job-details/job-details";
+import type { Job } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -61,9 +61,7 @@ vi.mock("@/components/jobs/job-details/job-details-view", () => ({
   },
 }));
 
-function createJob(
-  overrides?: Partial<JobWithSokosumiStatus>,
-): JobWithSokosumiStatus {
+function createJob(overrides?: Partial<Job>): Job {
   return {
     id: "job-1",
     createdAt: new Date("2026-03-26T10:00:00.000Z"),
@@ -72,12 +70,13 @@ function createJob(
     agentId: "agent-1",
     userId: "user-1",
     organizationId: null,
+    organization: null,
+    projectId: null,
     taskId: null,
     name: "Initial Job",
     jobType: "FREE",
     status: SokosumiJobStatus.PROCESSING,
     credits: 0,
-    cents: BigInt(0),
     onChainStatus: null,
     onChainTransactionHash: null,
     result: null,
@@ -87,28 +86,18 @@ function createJob(
     inputSchema: null,
     agentJobId: "agent-job-1",
     identifierFromPurchaser: null,
-    blockchainIdentifier: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
-    externalDisputeUnlockTime: null,
-    sellerVkey: null,
-    purchaseId: null,
-    transactionId: null,
-    refundedTransaction: null,
-    refundedTransactionId: null,
     share: null,
-    task: null,
-    purchase: null,
-    transaction: null,
     events: [],
-    jobStatusSettled: false,
     user: {
       id: "user-1",
       name: "Ada Lovelace",
       image: null,
     },
-    organization: null,
+    workspace: {
+      id: "workspace-1",
+      organizationId: null,
+      organization: null,
+    },
     agent: {
       id: "agent-1",
       name: "Research Agent",
@@ -126,7 +115,7 @@ function createJob(
       overrideLegalOther: null,
     },
     ...overrides,
-  } as unknown as JobWithSokosumiStatus;
+  };
 }
 
 describe("JobDetails", () => {

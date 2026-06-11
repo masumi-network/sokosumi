@@ -1,8 +1,9 @@
-import { AgentJobStatus, type JobEventWithRelations } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
 import {
   getVisibleTimelineEvents,
+  type JobEvent,
   shouldHighlightJobEventBorder,
   shouldRenderAwaitingInputForm,
   shouldRenderAwaitingInputFormForViewer,
@@ -12,11 +13,10 @@ import {
 function createEvent(
   id: string,
   status: AgentJobStatus,
-  overrides?: Partial<JobEventWithRelations>,
-): JobEventWithRelations {
+  overrides?: Partial<JobEvent>,
+): JobEvent {
   return {
     id,
-    jobId: "job-1",
     status,
     inputSchema: null,
     result: null,
@@ -26,7 +26,7 @@ function createEvent(
     blobs: [],
     links: [],
     ...overrides,
-  } as JobEventWithRelations;
+  };
 }
 
 describe("job-details-events utils", () => {
@@ -117,7 +117,8 @@ describe("job-details-events utils", () => {
     const event = createEvent("awaiting-input", AgentJobStatus.AWAITING_INPUT, {
       input: {
         id: "input-1",
-      } as JobEventWithRelations["input"],
+        input: "{}",
+      },
     });
 
     expect(shouldHighlightJobEventBorder(event, true)).toBe(false);
