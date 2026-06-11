@@ -59,6 +59,40 @@ export const organizationRecordSchema = z
 
 export type OrganizationRecord = z.infer<typeof organizationRecordSchema>;
 
+/**
+ * Request body for setting (or clearing) an organization's invoice email.
+ * Pass a null `invoiceEmail` to clear it.
+ */
+export const organizationInvoiceEmailWriteSchema = z
+  .object({
+    invoiceEmail: z.email().nullable().openapi({
+      example: "billing@acme.example",
+      description: "Invoice email to set, or null to clear it",
+    }),
+  })
+  .openapi("OrganizationInvoiceEmailWrite");
+
+export type OrganizationInvoiceEmailWrite = z.infer<
+  typeof organizationInvoiceEmailWriteSchema
+>;
+
+/**
+ * The persisted invoice email of an organization, or `null` when none is
+ * configured.
+ */
+export const organizationInvoiceEmailSchema = z
+  .object({
+    invoiceEmail: z.string().nullable().openapi({
+      example: "billing@acme.example",
+      description: "The persisted invoice email, or null when none",
+    }),
+  })
+  .openapi("OrganizationInvoiceEmail");
+
+export type OrganizationInvoiceEmail = z.infer<
+  typeof organizationInvoiceEmailSchema
+>;
+
 export const organizationSummarySchema = z
   .object({
     id: z.string().openapi({ example: "org_123" }),

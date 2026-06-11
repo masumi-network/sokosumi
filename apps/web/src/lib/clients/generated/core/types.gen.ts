@@ -1574,6 +1574,20 @@ export type EnterpriseContractBillingSummary = {
     purchasedSeats: number;
 };
 
+export type OrganizationInvoiceEmail = {
+    /**
+     * The persisted invoice email, or null when none
+     */
+    invoiceEmail: string | null;
+};
+
+export type OrganizationInvoiceEmailWrite = {
+    /**
+     * Invoice email to set, or null to clear it
+     */
+    invoiceEmail: string | null;
+};
+
 export type ProjectListItem = Project & {
     taskCount: number;
     jobCount: number;
@@ -12826,6 +12840,104 @@ export type PutOrganizationsByIdDesignMdResponses = {
 };
 
 export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
+
+export type PatchOrganizationsByIdInvoiceEmailData = {
+    body?: OrganizationInvoiceEmailWrite;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/invoice-email';
+};
+
+export type PatchOrganizationsByIdInvoiceEmailErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchOrganizationsByIdInvoiceEmailError = PatchOrganizationsByIdInvoiceEmailErrors[keyof PatchOrganizationsByIdInvoiceEmailErrors];
+
+export type PatchOrganizationsByIdInvoiceEmailResponses = {
+    /**
+     * The persisted invoice email for the organization
+     */
+    200: {
+        data: OrganizationInvoiceEmail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchOrganizationsByIdInvoiceEmailResponse = PatchOrganizationsByIdInvoiceEmailResponses[keyof PatchOrganizationsByIdInvoiceEmailResponses];
 
 export type GetProjectsData = {
     body?: never;

@@ -5329,6 +5329,41 @@ export const EnterpriseContractBillingSummarySchema = {
     ]
 } as const;
 
+export const OrganizationInvoiceEmailSchema = {
+    type: 'object',
+    properties: {
+        invoiceEmail: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'billing@acme.example',
+            description: 'The persisted invoice email, or null when none'
+        }
+    },
+    required: [
+        'invoiceEmail'
+    ]
+} as const;
+
+export const OrganizationInvoiceEmailWriteSchema = {
+    type: 'object',
+    properties: {
+        invoiceEmail: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'email',
+            example: 'billing@acme.example',
+            description: 'Invoice email to set, or null to clear it'
+        }
+    },
+    required: [
+        'invoiceEmail'
+    ]
+} as const;
+
 export const ProjectListItemSchema = {
     allOf: [
         {

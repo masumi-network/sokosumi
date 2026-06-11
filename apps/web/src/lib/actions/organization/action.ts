@@ -1,15 +1,12 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/database";
-import {
-  memberRepository,
-  organizationRepository,
-} from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import { memberRepository } from "@sokosumi/database/repositories";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import prisma from "@/lib/db/prisma";
 import {
   type OrganizationInformationFormSchemaType,
@@ -71,8 +68,6 @@ export const updateOrganizationInvoiceEmail = withSession<
   UpdateOrganizationInvoiceEmailParameters,
   Result<{ invoiceEmail: string | null }, ActionError>
 >(async (parameters) => {
-  const userId = parameters.session.user.id;
-
   // Validate input
   const parsedResult = updateInvoiceEmailSchema.safeParse({
     organizationId: parameters.organizationId,
@@ -86,36 +81,27 @@ export const updateOrganizationInvoiceEmail = withSession<
   }
   const { organizationId, invoiceEmail } = parsedResult.data;
 
-  // Check if user is an owner or admin of the organization
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    userId,
-    organizationId,
-    prisma,
-  );
-
-  if (!member) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "You are not a member of this organization",
-    });
-  }
-
-  // Only owners and admins can update invoice email
-  if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message:
-        "Only organization owners and admins can update the invoice email",
-    });
-  }
-
-  // Update the invoice email in the database
-  const updatedOrganization =
-    await organizationRepository.updateOrganizationInvoiceEmail(
+  // Update the invoice email via Core, which enforces that the caller is an
+  // organization owner or admin.
+  let persisted: { invoiceEmail: string | null };
+  try {
+    const { data } = await coreClient.updateOrganizationInvoiceEmail(
       organizationId,
-      invoiceEmail,
-      prisma,
+      { invoiceEmail },
     );
+    persisted = data;
+  } catch (error) {
+    if (
+      error instanceof CoreApiRequestError &&
+      (error.status === 403 || error.status === 404)
+    ) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: error.message,
+      });
+    }
+    throw error;
+  }
 
   // Sync with Stripe if the organization has a Stripe customer
   await stripeService.syncOrganizationInvoiceEmailWithStripe(
@@ -124,8 +110,7 @@ export const updateOrganizationInvoiceEmail = withSession<
   );
 
   return Ok({
-    invoiceEmail: getOrganizationMetadata(updatedOrganization.metadata)
-      .invoiceEmail,
+    invoiceEmail: persisted.invoiceEmail,
   });
 });
 
