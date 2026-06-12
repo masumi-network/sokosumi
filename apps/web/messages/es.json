@@ -2586,6 +2586,10 @@
           "users": {
             "title": "Usuarios",
             "description": "Resumen con búsqueda de todos los usuarios con créditos, suscripción y actividad."
+          },
+          "tasks": {
+            "title": "Tareas",
+            "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           }
         }
       },
@@ -2648,6 +2652,22 @@
           "paidSuccess": "Créditos otorgados",
           "paidError": "No se pudo marcar la factura como pagada",
           "openInStripe": "Abrir en Stripe"
+        }
+      },
+      "Tasks": {
+        "title": "Tareas",
+        "description": "Lista de todas las tareas con búsqueda",
+        "TaskList": {
+          "searchPlaceholder": "Buscar por tarea, usuario u organización…",
+          "totalCount": "{count, plural, one {# tarea} other {# tareas}}",
+          "empty": "No se encontraron tareas.",
+          "task": "Tarea",
+          "user": "Usuario",
+          "organization": "Organización",
+          "status": "Estado",
+          "created": "Creada",
+          "loadMore": "Cargar más",
+          "loadError": "No se pudieron cargar las tareas."
         }
       }
     },

@@ -120,6 +120,7 @@ import {
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminTasks as coreListAdminTasks,
   listAdminUserOverview as coreListAdminUserOverview,
   listCreditPrices as coreListCreditPrices,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
@@ -644,6 +645,23 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to list users",
+    );
+  }
+
+  async function listAdminTasks(query: {
+    query?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminTasks({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list tasks",
     );
   }
 
@@ -2296,6 +2314,7 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkers,
     searchAdminUsers,
     listAdminUserOverview,
+    listAdminTasks,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
     listAdminInvoices,

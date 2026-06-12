@@ -2617,6 +2617,10 @@
           "users": {
             "title": "Utilisateurs",
             "description": "Vue d'ensemble consultable de tous les utilisateurs avec crédits, abonnement et activité."
+          },
+          "tasks": {
+            "title": "Tâches",
+            "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
           }
         }
       },
@@ -2679,6 +2683,22 @@
           "paidSuccess": "Crédits accordés",
           "paidError": "Échec du marquage de la facture comme payée",
           "openInStripe": "Ouvrir dans Stripe"
+        }
+      },
+      "Tasks": {
+        "title": "Tâches",
+        "description": "Liste consultable de toutes les tâches",
+        "TaskList": {
+          "searchPlaceholder": "Rechercher par tâche, utilisateur ou organisation…",
+          "totalCount": "{count, plural, one {# tâche} other {# tâches}}",
+          "empty": "Aucune tâche trouvée.",
+          "task": "Tâche",
+          "user": "Utilisateur",
+          "organization": "Organisation",
+          "status": "Statut",
+          "created": "Créée",
+          "loadMore": "Charger plus",
+          "loadError": "Échec du chargement des tâches."
         }
       }
     },

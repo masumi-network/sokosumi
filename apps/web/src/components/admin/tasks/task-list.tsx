@@ -5,7 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
-import { Badge } from "@/components/ui/badge";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,29 +17,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { listAdminUsersAction } from "@/lib/actions/admin-users/action";
+import { listAdminTasksAction } from "@/lib/actions/admin-tasks/action";
 import type {
-  AdminUserOverviewItem,
-  AdminUserOverviewPage,
-} from "@/lib/services/admin-user.service";
+  AdminTaskListItem,
+  AdminTaskListPage,
+} from "@/lib/services/admin-task.service";
 
-interface UserListProps {
-  initialPage: AdminUserOverviewPage;
+interface TaskListProps {
+  initialPage: AdminTaskListPage;
 }
 
 /**
- * Searchable admin list of all users. The page server-renders the first
+ * Searchable admin list of all tasks. The page server-renders the first
  * (unfiltered) page as `initialPage`; the search input re-fetches through a
- * server action so the name/email filter runs against the full user table,
- * and "load more" appends the next cursor page for the active query.
+ * server action so the task/user/organization filter runs against the full
+ * task table, and "load more" appends the next cursor page for the active
+ * query.
  */
-export function UserList({ initialPage }: UserListProps) {
-  const t = useTranslations("App.Admin.Users.UserList");
+export function TaskList({ initialPage }: TaskListProps) {
+  const t = useTranslations("App.Admin.Tasks.TaskList");
   const formatter = useFormatter();
 
-  const [users, setUsers] = useState<AdminUserOverviewItem[]>(
-    initialPage.users,
-  );
+  const [tasks, setTasks] = useState<AdminTaskListItem[]>(initialPage.tasks);
   const [total, setTotal] = useState(initialPage.total);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [search, setSearch] = useState("");
@@ -62,7 +61,7 @@ export function UserList({ initialPage }: UserListProps) {
       setActiveQuery(query);
     }
     startTransition(async () => {
-      const result = await listAdminUsersAction({
+      const result = await listAdminTasksAction({
         query: query.trim() || undefined,
         cursor,
       });
@@ -73,8 +72,8 @@ export function UserList({ initialPage }: UserListProps) {
         toast.error(result.error.message ?? t("loadError"));
         return;
       }
-      setUsers((current) =>
-        cursor ? [...current, ...result.data.users] : result.data.users,
+      setTasks((current) =>
+        cursor ? [...current, ...result.data.tasks] : result.data.tasks,
       );
       setTotal(result.data.total);
       setNextCursor(result.data.nextCursor);
@@ -114,7 +113,7 @@ export function UserList({ initialPage }: UserListProps) {
         </p>
       </div>
 
-      {users.length === 0 ? (
+      {tasks.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
         <div
@@ -124,54 +123,44 @@ export function UserList({ initialPage }: UserListProps) {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="pl-4">{t("user")}</TableHead>
-                <TableHead className="text-right">{t("credits")}</TableHead>
-                <TableHead>{t("subscription")}</TableHead>
-                <TableHead className="text-right">
-                  {t("startedTasks")}
-                </TableHead>
-                <TableHead className="pr-4">{t("registered")}</TableHead>
+                <TableHead className="pl-4">{t("task")}</TableHead>
+                <TableHead>{t("user")}</TableHead>
+                <TableHead>{t("organization")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+                <TableHead className="pr-4">{t("created")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
+              {tasks.map((task) => (
+                <TableRow key={task.id}>
                   <TableCell className="pl-4">
                     <span className="flex flex-col">
-                      <span className="font-medium">{user.name}</span>
+                      <span className="font-medium">{task.name}</span>
                       <span className="text-muted-foreground text-xs">
-                        {user.email}
+                        {task.id}
                       </span>
                     </span>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatter.number(user.credits)}
+                  <TableCell>
+                    <span className="flex flex-col">
+                      <span>{task.user.name}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {task.user.email}
+                      </span>
+                    </span>
                   </TableCell>
                   <TableCell>
-                    {user.subscriptionPlan ? (
-                      <span className="flex items-center gap-2">
-                        <span>{user.subscriptionPlan}</span>
-                        {user.subscriptionStatus ? (
-                          <Badge
-                            variant={
-                              user.subscriptionStatus === "active"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {user.subscriptionStatus}
-                          </Badge>
-                        ) : null}
-                      </span>
+                    {task.organization ? (
+                      task.organization.name
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatter.number(user.startedTaskCount)}
+                  <TableCell>
+                    <TaskStatusBadge status={task.status} />
                   </TableCell>
                   <TableCell className="pr-4">
-                    {formatter.dateTime(user.createdAt, {
+                    {formatter.dateTime(task.createdAt, {
                       dateStyle: "medium",
                     })}
                   </TableCell>

@@ -2617,6 +2617,10 @@
           "users": {
             "title": "ユーザー",
             "description": "クレジット、サブスクリプション、アクティビティを含む全ユーザーの検索可能な一覧。"
+          },
+          "tasks": {
+            "title": "タスク",
+            "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
           }
         }
       },
@@ -2679,6 +2683,22 @@
           "paidSuccess": "クレジットを付与しました",
           "paidError": "請求書を支払い済みにできませんでした",
           "openInStripe": "Stripe で開く"
+        }
+      },
+      "Tasks": {
+        "title": "タスク",
+        "description": "検索可能なすべてのタスクの一覧",
+        "TaskList": {
+          "searchPlaceholder": "タスク、ユーザー、組織で検索…",
+          "totalCount": "{count, plural, other {# 件のタスク}}",
+          "empty": "タスクが見つかりません。",
+          "task": "タスク",
+          "user": "ユーザー",
+          "organization": "組織",
+          "status": "ステータス",
+          "created": "作成日",
+          "loadMore": "さらに読み込む",
+          "loadError": "タスクの読み込みに失敗しました。"
         }
       }
     },
