@@ -1,484 +1,842 @@
 import "server-only";
 
-import { oauthProviderClient } from "@better-auth/oauth-provider/client";
-import { stripeClient } from "@better-auth/stripe/client";
+import { apiKey } from "@better-auth/api-key";
+import { i18n } from "@better-auth/i18n";
+import { oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { stripe } from "@better-auth/stripe";
+import * as Sentry from "@sentry/nextjs";
+import { MemberRole, type User } from "@sokosumi/database";
 import {
-  betterAuthOrganizationAdditionalFields,
-  betterAuthUserAdditionalFields,
+  memberRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
+import {
+  renderMagicLinkEmail,
+  renderOrganizationInvitationEmail,
+  renderResetPasswordEmail,
+  renderVerificationEmail,
+} from "@sokosumi/email";
+import { authTranslations } from "@sokosumi/masumi/auth";
+import {
+  getOrganizationMetadata,
+  getStoredUserName,
+  resolveBetterAuthCookieName,
+  resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
-import { APIError } from "better-auth/api";
-import { createAuthClient } from "better-auth/client";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { betterAuth } from "better-auth/minimal";
+import { nextCookies } from "better-auth/next-js";
 import {
-  inferAdditionalFields,
-  magicLinkClient,
-  organizationClient,
-} from "better-auth/client/plugins";
-import { cookies } from "next/headers";
+  admin,
+  jwt,
+  lastLoginMethod,
+  magicLink,
+  oAuthProxy,
+  organization,
+} from "better-auth/plugins";
+import pTimeout from "p-timeout";
+import Stripe from "stripe";
+import * as z from "zod";
 
-import { getServerCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url";
+import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
+import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { resolveRequestLocale } from "@/i18n/locale-resolution";
+import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
+import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
+import { uploadProfileImage } from "@/lib/blob/utils";
+import { stripeClient } from "@/lib/clients/stripe.client";
+import prisma from "@/lib/db/prisma";
+import { postmarkClient } from "@/lib/email/postmark";
+import { marketingOptInUserSchema } from "@/lib/schemas";
+import {
+  callAccountCreatedWebHook,
+  callUserCreatedWebHook,
+  callUserUpdatedWebHook,
+  organizationSubscriptionService,
+  preferredOrganizationService,
+  stripeService,
+} from "@/lib/services";
+import { getBetterAuthSubscriptionPlans } from "@/lib/stripe/subscription-catalog";
+import {
+  handleSubscriptionDeletedEvent,
+  reconcileActiveStripeBackedSubscription,
+} from "@/lib/stripe/webhook-handlers";
 
-/**
- * Server-side facade over core's Better Auth instance.
- *
- * The Better Auth instance itself lives in `apps/core/src/lib/auth.ts`; web is
- * a pure HTTP consumer. This module preserves the `auth.api.*` call shapes the
- * app used when the instance ran in-process:
- *
- * - failures throw `APIError` with the same `{ body: { code, message } }`
- *   shape, so existing `betterAuthApiErrorSchema` error mapping is unchanged;
- * - auth-state-changing calls relay core's `Set-Cookie` headers onto the
- *   Next.js response (replacing the `nextCookies()` plugin, which only works
- *   with an in-process instance);
- * - date fields are revived from the JSON wire format (the in-process API
- *   returned `Date` instances).
- */
-
-function createServerAuthClient() {
-  return createAuthClient({
-    baseURL: getServerCoreAuthBaseUrl(),
-    plugins: [
-      inferAdditionalFields({ user: betterAuthUserAdditionalFields }),
-      organizationClient({
-        schema: {
-          organization: {
-            additionalFields: betterAuthOrganizationAdditionalFields,
-          },
-        },
-      }),
-      magicLinkClient(),
-      oauthProviderClient(),
-      stripeClient({
-        subscription: true,
-      }),
-    ],
-  });
-}
-
-type ServerAuthClient = ReturnType<typeof createServerAuthClient>;
-
-let cachedServerAuthClient: ServerAuthClient | null = null;
-
-function getServerAuthClient(): ServerAuthClient {
-  cachedServerAuthClient ??= createServerAuthClient();
-  return cachedServerAuthClient;
-}
-
-export type Session = ServerAuthClient["$Infer"]["Session"];
-export type SessionUser = ServerAuthClient["$Infer"]["Session"]["user"];
-export type Invitation = ServerAuthClient["$Infer"]["Invitation"];
-export type Account = NonNullable<
-  Awaited<ReturnType<ServerAuthClient["listAccounts"]>>["data"]
+export type Session = typeof auth.$Infer.Session;
+export type SessionUser = typeof auth.$Infer.Session.user;
+export type Invitation = typeof auth.$Infer.Invitation;
+export type Account = Awaited<
+  ReturnType<typeof auth.api.listUserAccounts>
 >[number];
 
-const FORWARDED_HEADER_NAMES = [
-  "cookie",
-  "accept-language",
-  "user-agent",
-  "x-forwarded-for",
-  "x-vercel-forwarded-for",
-] as const;
+const secrets = getEnvSecrets();
+const env = getEnvPublicConfig();
 
-function buildForwardHeaders(requestHeaders?: Headers): Headers {
-  const forwarded = new Headers();
-  if (!requestHeaders) {
-    return forwarded;
+const stripeInstance = new Stripe(secrets.STRIPE_SECRET_KEY);
+
+const fromEmail = secrets.POSTMARK_FROM_EMAIL;
+const betterAuthProductionUrl = getBetterAuthProductionUrl();
+
+async function ensureWorkspaceForCreatedUser(user: {
+  email: string;
+  id: string;
+  name: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertPersonalWorkspace({
+      userId: user.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_user_creation",
+      },
+      extra: {
+        email: user.email,
+        name: user.name,
+        userId: user.id,
+      },
+    });
+  }
+}
+
+async function ensureWorkspaceForCreatedOrganization(organization: {
+  id: string;
+  name: string;
+  slug: string;
+}): Promise<void> {
+  try {
+    await workspaceRepository.upsertOrganizationWorkspace({
+      organizationId: organization.id,
+      tx: prisma,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "workspace_organization_creation",
+      },
+      extra: {
+        organizationId: organization.id,
+        organizationName: organization.name,
+        organizationSlug: organization.slug,
+      },
+    });
+  }
+}
+
+function getEmailLocaleCookieValue(
+  cookieHeader?: null | string,
+): null | string {
+  if (!cookieHeader) {
+    return null;
   }
 
-  for (const name of FORWARDED_HEADER_NAMES) {
-    const value = requestHeaders.get(name);
-    if (value) {
-      forwarded.set(name, value);
+  let legacyLocale: null | string = null;
+
+  for (const rawCookie of cookieHeader.split(";")) {
+    const separatorIndex = rawCookie.indexOf("=");
+
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const cookieName = rawCookie.slice(0, separatorIndex).trim();
+    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
+
+    if (!cookieValue) {
+      continue;
+    }
+
+    const decoded = (() => {
+      try {
+        return decodeURIComponent(cookieValue);
+      } catch {
+        return cookieValue;
+      }
+    })();
+
+    if (cookieName === LOCALE_COOKIE_NAME) {
+      return decoded;
+    }
+
+    if (cookieName === "locale" && legacyLocale === null) {
+      legacyLocale = decoded;
     }
   }
 
-  return forwarded;
+  return legacyLocale;
 }
 
-interface ServerAuthClientError {
-  code?: string | undefined;
-  message?: string | undefined;
-  status: number;
-  statusText: string;
-}
+function getEmailLocale(
+  request?: Request,
+  fallbackHeaders?: Headers,
+): string | undefined {
+  const cookieHeader =
+    request?.headers.get("cookie") ?? fallbackHeaders?.get("cookie") ?? null;
+  const acceptLanguageHeader =
+    request?.headers.get("accept-language") ??
+    fallbackHeaders?.get("accept-language") ??
+    null;
 
-const STATUS_NAME_BY_CODE: Record<number, string> = {
-  400: "BAD_REQUEST",
-  401: "UNAUTHORIZED",
-  403: "FORBIDDEN",
-  404: "NOT_FOUND",
-  409: "CONFLICT",
-  422: "UNPROCESSABLE_ENTITY",
-  429: "TOO_MANY_REQUESTS",
-  500: "INTERNAL_SERVER_ERROR",
-  503: "SERVICE_UNAVAILABLE",
-};
-
-type ApiErrorStatus = ConstructorParameters<typeof APIError>[0];
-
-function throwAsApiError(error: ServerAuthClientError): never {
-  const status = (STATUS_NAME_BY_CODE[error.status] ??
-    "INTERNAL_SERVER_ERROR") as ApiErrorStatus;
-
-  throw new APIError(status, {
-    code: error.code,
-    message: error.message,
+  return resolveRequestLocale({
+    cookieLocale: getEmailLocaleCookieValue(cookieHeader),
+    acceptLanguageHeader,
+    defaultLocale: DEFAULT_LOCALE,
   });
 }
 
-function unwrap<T>(result: {
-  data: T | null;
-  error: ServerAuthClientError | null;
-}): T {
-  if (result.error) {
-    throwAsApiError(result.error);
-  }
-  // better-fetch yields data XOR error; with no error the data is present.
-  return result.data as T;
-}
-
-interface ParsedSetCookie {
+async function ensureStripeCustomerForCreatedUser(user: {
+  email: string;
+  id: string;
   name: string;
-  value: string;
-  options: {
-    domain?: string;
-    expires?: Date;
-    httpOnly?: boolean;
-    maxAge?: number;
-    path?: string;
-    sameSite?: "lax" | "none" | "strict";
-    secure?: boolean;
+}): Promise<void> {
+  await stripeClient.createUserCustomer(user.id, user.name, user.email);
+}
+
+async function ensureStripeCustomerForCreatedOrganization(organization: {
+  id: string;
+  metadata?: string | null;
+  name: string;
+  slug: string;
+}): Promise<void> {
+  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+  await stripeClient.createOrganizationCustomer(
+    organization.id,
+    organization.slug,
+    organization.name,
+    invoiceEmail,
+  );
+}
+
+type StripeBackedLocalSubscription = NonNullable<
+  Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
+>;
+
+async function handleStripeBackedSubscriptionLifecycle({
+  event,
+  subscription,
+}: {
+  event: {
+    id: string;
+    type: string;
   };
+  subscription: StripeBackedLocalSubscription;
+}): Promise<void> {
+  try {
+    await reconcileActiveStripeBackedSubscription(subscription);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        stripeEventType: event.type,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+      },
+      extra: {
+        eventId: event.id,
+        localSubscriptionId: subscription.id,
+        referenceId: subscription.referenceId,
+      },
+    });
+    throw error;
+  }
 }
 
-function parseSetCookie(raw: string): ParsedSetCookie | null {
-  const [nameValue, ...attributeParts] = raw.split(";");
-  if (!nameValue) {
-    return null;
+async function ensureOrganizationHasNoAdditionalMembers(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  const members = await memberRepository.getMembersByOrganizationId(
+    organizationId,
+    prisma,
+  );
+  const hasAdditionalMembers = members.some(
+    (member) => member.userId !== userId,
+  );
+
+  if (hasAdditionalMembers) {
+    throw new APIError("BAD_REQUEST", {
+      code: ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+      message: "Remove all other members before deleting this organization.",
+    });
   }
+}
 
-  const separatorIndex = nameValue.indexOf("=");
-  if (separatorIndex < 0) {
-    return null;
-  }
+const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
+const betterAuthCookiePrefixParams = {
+  network: secrets.NETWORK,
+  vercelEnv: secrets.VERCEL_ENV,
+  vercelGitCommitRef: secrets.VERCEL_GIT_COMMIT_REF,
+};
 
-  const name = nameValue.slice(0, separatorIndex).trim();
-  const value = nameValue.slice(separatorIndex + 1).trim();
-  if (!name) {
-    return null;
-  }
-
-  const options: ParsedSetCookie["options"] = {};
-  for (const part of attributeParts) {
-    const [rawKey, rawValue] = part.split("=");
-    const key = rawKey?.trim().toLowerCase();
-    const attributeValue = rawValue?.trim();
-
-    switch (key) {
-      case "domain":
-        if (attributeValue) options.domain = attributeValue;
-        break;
-      case "expires": {
-        const parsed = attributeValue ? new Date(attributeValue) : null;
-        if (parsed && !Number.isNaN(parsed.getTime())) {
-          options.expires = parsed;
+export const auth = betterAuth({
+  appName: "Sokosumi",
+  baseURL: betterAuthBaseUrl,
+  advanced: {
+    database: {
+      generateId: "uuid",
+    },
+    cookiePrefix: resolveBetterAuthCookiePrefix(betterAuthCookiePrefixParams),
+    ...(secrets.BETTER_AUTH_COOKIE_DOMAIN
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: secrets.BETTER_AUTH_COOKIE_DOMAIN,
+          },
         }
-        break;
-      }
-      case "httponly":
-        options.httpOnly = true;
-        break;
-      case "max-age": {
-        const parsed = attributeValue
-          ? Number.parseInt(attributeValue, 10)
-          : Number.NaN;
-        if (Number.isFinite(parsed)) {
-          options.maxAge = parsed;
-        }
-        break;
-      }
-      case "path":
-        if (attributeValue) options.path = attributeValue;
-        break;
-      case "samesite": {
-        const normalized = attributeValue?.toLowerCase();
-        if (
-          normalized === "lax" ||
-          normalized === "none" ||
-          normalized === "strict"
-        ) {
-          options.sameSite = normalized;
-        }
-        break;
-      }
-      case "secure":
-        options.secure = true;
-        break;
-    }
-  }
-
-  return { name, value, options };
-}
-
-/**
- * Re-sets cookies issued by core onto the Next.js response. Next only allows
- * cookie writes in server actions and route handlers; in RSC render paths
- * `cookies().set` throws, and — exactly like the `nextCookies()` plugin this
- * replaces — the write is silently skipped there (e.g. a cookie-cache
- * refresh during render is lost, the session cookie itself stays valid).
- */
-async function relaySetCookies(response: Response): Promise<void> {
-  const setCookieHeaders = response.headers.getSetCookie();
-  if (setCookieHeaders.length === 0) {
-    return;
-  }
-
-  const cookieStore = await cookies();
-  for (const raw of setCookieHeaders) {
-    const parsed = parseSetCookie(raw);
-    if (!parsed) {
-      continue;
-    }
-    try {
-      cookieStore.set(parsed.name, parsed.value, parsed.options);
-    } catch {
-      // Read-only context (RSC render) — skip, matching nextCookies().
-    }
-  }
-}
-
-function relayingFetchOptions(requestHeaders?: Headers) {
-  return {
-    headers: buildForwardHeaders(requestHeaders),
-    onResponse: async (context: { response: Response }) => {
-      await relaySetCookies(context.response);
-    },
-  };
-}
-
-const DATE_FIELD_NAMES = new Set([
-  "accessTokenExpiresAt",
-  "banExpires",
-  "createdAt",
-  "expiresAt",
-  "periodEnd",
-  "periodStart",
-  "refreshTokenExpiresAt",
-  "trialEnd",
-  "trialStart",
-  "updatedAt",
-]);
-
-const ISO_DATE_TIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
-
-/**
- * Revives ISO date strings in known date fields. The in-process API returned
- * `Date` instances; over HTTP they arrive as strings while the types still
- * say `Date`.
- */
-function reviveDates<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((entry) => reviveDates(entry)) as T;
-  }
-
-  if (value === null || typeof value !== "object") {
-    return value;
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  const result: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (
-      DATE_FIELD_NAMES.has(key) &&
-      typeof entry === "string" &&
-      ISO_DATE_TIME_REGEX.test(entry)
-    ) {
-      result[key] = new Date(entry);
-    } else {
-      result[key] = reviveDates(entry);
-    }
-  }
-  return result as T;
-}
-
-interface HeadersOption {
-  headers?: Headers;
-}
-
-export const auth = {
-  api: {
-    async getSession(options: {
-      headers: Headers;
-      query?: { disableCookieCache?: boolean };
-    }): Promise<Session | null> {
-      const result = await getServerAuthClient().getSession({
-        fetchOptions: {
-          headers: buildForwardHeaders(options.headers),
-        },
-        ...(options.query ? { query: options.query } : {}),
-      });
-
-      if (result.error) {
-        if (result.error.status === 401) {
-          return null;
-        }
-        throwAsApiError(result.error);
-      }
-
-      return result.data ? reviveDates(result.data as Session) : null;
-    },
-
-    async listUserAccounts(options: HeadersOption) {
-      const result = await getServerAuthClient().listAccounts({
-        fetchOptions: {
-          headers: buildForwardHeaders(options.headers),
-        },
-      });
-      return reviveDates(unwrap(result));
-    },
-
-    async updateUser(
-      options: HeadersOption & {
-        body: Record<string, unknown>;
-      },
-    ) {
-      const result = await getServerAuthClient().updateUser(
-        options.body,
-        relayingFetchOptions(options.headers),
-      );
-      return unwrap(result);
-    },
-
-    async signUpEmail(
-      options: HeadersOption & {
-        body: Record<string, unknown>;
-      },
-    ) {
-      const result = await getServerAuthClient().signUp.email(
-        options.body as never,
-        relayingFetchOptions(options.headers),
-      );
-      return reviveDates(unwrap(result));
-    },
-
-    async signInEmail(
-      options: HeadersOption & {
-        body: {
-          callbackURL?: string;
-          email: string;
-          password: string;
-          rememberMe?: boolean;
-        };
-      },
-    ) {
-      const result = await getServerAuthClient().signIn.email(
-        options.body,
-        relayingFetchOptions(options.headers),
-      );
-      return reviveDates(unwrap(result));
-    },
-
-    async signInMagicLink(
-      options: HeadersOption & {
-        body: {
-          callbackURL?: string;
-          email: string;
-          name?: string;
-        };
-      },
-    ) {
-      const result = await getServerAuthClient().signIn.magicLink(
-        options.body,
-        relayingFetchOptions(options.headers),
-      );
-      return unwrap(result);
-    },
-
-    async getOAuthClientPublic(
-      options: HeadersOption & {
-        query: { client_id: string };
-      },
-    ): Promise<Record<string, unknown>> {
-      const result = await getServerAuthClient().$fetch(
-        "/oauth2/public-client",
-        {
-          headers: buildForwardHeaders(options.headers),
-          query: options.query,
-        },
-      );
-      return unwrap(
-        result as {
-          data: Record<string, unknown>;
-          error: ServerAuthClientError | null;
-        },
-      );
-    },
-
-    async listActiveSubscriptions(
-      options: HeadersOption & {
-        query?: Record<string, string>;
-      },
-    ) {
-      const result = await getServerAuthClient().subscription.list({
-        fetchOptions: {
-          headers: buildForwardHeaders(options.headers),
-        },
-        ...(options.query ? { query: options.query } : {}),
-      });
-      return reviveDates(unwrap(result));
-    },
-
-    async upgradeSubscription(
-      options: HeadersOption & {
-        body: Record<string, unknown>;
-      },
-    ) {
-      type UpgradeArgs = Parameters<
-        ServerAuthClient["subscription"]["upgrade"]
-      >[0];
-      const result = await getServerAuthClient().subscription.upgrade({
-        ...(options.body as UpgradeArgs),
-        fetchOptions: relayingFetchOptions(options.headers),
-      });
-      return unwrap(result);
-    },
-
-    async createBillingPortal(
-      options: HeadersOption & {
-        body: Record<string, unknown>;
-      },
-    ) {
-      type BillingPortalArgs = Parameters<
-        ServerAuthClient["subscription"]["billingPortal"]
-      >[0];
-      const result = await getServerAuthClient().subscription.billingPortal({
-        ...(options.body as BillingPortalArgs),
-        fetchOptions: relayingFetchOptions(options.headers),
-      });
-      return unwrap(result);
-    },
-
-    async createInvitation(
-      options: HeadersOption & {
-        body: {
-          email: string;
-          organizationId: string;
-          resend?: boolean;
-          /** Better Auth organization role (the MemberRole enum values). */
-          role: string;
-        };
-      },
-    ) {
-      const result = await getServerAuthClient().organization.inviteMember({
-        ...options.body,
-        role: options.body.role as "admin" | "member" | "owner",
-        fetchOptions: {
-          headers: buildForwardHeaders(options.headers),
-        },
-      });
-      return reviveDates(unwrap(result));
+      : {}),
+    ipAddress: {
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
     },
   },
-};
+  experimental: {
+    joins: true,
+  },
+
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: secrets.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+    },
+    storeSessionInDatabase: true,
+  },
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
+  socialProviders: {
+    google: {
+      clientId: secrets.GOOGLE_CLIENT_ID,
+      clientSecret: secrets.GOOGLE_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
+    },
+    microsoft: {
+      clientId: secrets.MICROSOFT_CLIENT_ID,
+      clientSecret: secrets.MICROSOFT_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
+    },
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "microsoft"],
+    },
+  },
+  databaseHooks: {
+    account: {
+      create: {
+        after: async (account, _ctx) => {
+          callAccountCreatedWebHook(account.userId, account.providerId);
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session, _ctx) => {
+          try {
+            const activeOrganizationId =
+              await preferredOrganizationService.resolveActiveOrganizationIdForSession(
+                session.userId,
+              );
+
+            return {
+              data: {
+                ...session,
+                activeOrganizationId,
+              },
+            };
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                context: "session_create_preferred_organization",
+              },
+              extra: {
+                userId: session.userId,
+              },
+            });
+            return { data: session };
+          }
+        },
+      },
+    },
+    user: {
+      create: {
+        before: async (user, _ctx) => {
+          return {
+            data: {
+              ...user,
+              name: getStoredUserName(user.name, user.email),
+            },
+          };
+        },
+        after: async (user, _ctx) => {
+          await ensureWorkspaceForCreatedUser(user);
+          void ensureStripeCustomerForCreatedUser(user).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "stripe_user_customer_creation",
+              },
+              extra: {
+                email: user.email,
+                name: user.name,
+                userId: user.id,
+              },
+            });
+          });
+
+          // Validate user data before calling webhook
+          const { success, data, error } =
+            marketingOptInUserSchema.safeParse(user);
+          if (success) {
+            callUserCreatedWebHook(
+              data.id,
+              data.email,
+              data.name,
+              data.marketingOptIn,
+            );
+          } else {
+            console.error("Invalid user data for user created webhook:", error);
+          }
+        },
+      },
+      update: {
+        after: async (user, _ctx) => {
+          // Validate user data before calling webhook
+          // Fires on any user update to keep marketing system synchronized
+          const { success, data, error } =
+            marketingOptInUserSchema.safeParse(user);
+          if (success) {
+            callUserUpdatedWebHook(
+              data.id,
+              data.email,
+              data.name,
+              data.marketingOptIn,
+            );
+          } else {
+            console.error("Invalid user data for user updated webhook:", error);
+          }
+        },
+      },
+    },
+  },
+  trustedOrigins: [
+    "https://sokosumi.com",
+    "https://*.sokosumi.com",
+    ...(secrets.NODE_ENV === "development"
+      ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
+      : []),
+  ],
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      switch (ctx.path) {
+        case "/sign-up/email": {
+          if (!ctx.body?.termsAccepted) {
+            throw new APIError("BAD_REQUEST", {
+              code: "TERMS_NOT_ACCEPTED",
+            });
+          }
+
+          break;
+        }
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-in")) {
+        const user = ctx.context.newSession?.user;
+        if (user && !user.termsAccepted) {
+          throw new APIError("BAD_REQUEST", {
+            code: "TERMS_NOT_ACCEPTED",
+          });
+        }
+      }
+
+      // Sync user email with Stripe after email change verification
+      if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
+        const user = ctx.context.newSession?.user;
+        if (user.stripeCustomerId) {
+          // Fire and forget - don't wait for sync to complete
+          stripeService
+            .syncUserEmailWithStripe(user.id, user.email)
+            .catch((error) => {
+              console.error("Failed to sync user email with Stripe:", error);
+            });
+        }
+      }
+    }),
+  },
+  disabledPaths: ["/sign-up/email", "/sign-in", "/token"],
+  emailAndPassword: {
+    enabled: true,
+    maxPasswordLength: env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
+    minPasswordLength: env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
+    requireEmailVerification: false,
+    autoSignIn: true,
+    sendResetPassword: async ({ user, url }, request) => {
+      const email = await renderResetPasswordEmail({
+        locale: getEmailLocale(request),
+        name: user.name,
+        resetLink: url,
+      });
+
+      postmarkClient.sendEmail({
+        From: fromEmail,
+        To: user.email,
+        Tag: "reset-password",
+        Subject: email.subject,
+        HtmlBody: email.html,
+        MessageStream: "authentications",
+      });
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }, request) => {
+      const email = await renderVerificationEmail({
+        locale: getEmailLocale(request),
+        name: user.name,
+        verificationLink: url,
+      });
+
+      postmarkClient.sendEmail({
+        From: fromEmail,
+        To: user.email,
+        Tag: "verification-email",
+        Subject: email.subject,
+        HtmlBody: email.html,
+        MessageStream: "authentications",
+      });
+    },
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    expiresIn: secrets.BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
+    autoSignInAfterVerification: true,
+  },
+  user: {
+    changeEmail: {
+      enabled: true,
+    },
+    deleteUser: {
+      enabled: true,
+    },
+    additionalFields: {
+      termsAccepted: {
+        type: "boolean",
+        required: true,
+        defaultValue: true,
+      },
+      marketingOptIn: {
+        type: "boolean",
+        required: true,
+        defaultValue: true,
+      },
+      notificationsOptIn: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
+      logo: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      metadata: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      onboardingCompleted: {
+        type: "boolean",
+        required: true,
+        defaultValue: false,
+      },
+    },
+  },
+  rateLimit: {
+    storage: "database",
+  },
+  plugins: [
+    admin(),
+    apiKey({
+      configId: "default",
+      references: "user",
+      rateLimit: {
+        enabled: true,
+        timeWindow: 60, // 60 seconds
+        maxRequests: 100, // 100 requests per minute
+      },
+      enableMetadata: true,
+      enableSessionForAPIKeys: true,
+    }),
+    jwt({ disableSettingJwtHeader: true }),
+    magicLink({
+      disableSignUp: false,
+      expiresIn: 60 * 10, // 10 minutes
+      storeToken: "hashed",
+      sendMagicLink: async ({ email, url }, ctx) => {
+        const locale = getEmailLocale(ctx?.request, ctx?.headers);
+        const name =
+          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+        const renderedEmail = await renderMagicLinkEmail({
+          locale,
+          magicLink: url,
+          name,
+        });
+
+        await postmarkClient.sendEmail({
+          From: fromEmail,
+          To: email,
+          Tag: "magic-link",
+          Subject: renderedEmail.subject,
+          HtmlBody: renderedEmail.html,
+          MessageStream: "authentications",
+        });
+      },
+    }),
+    passkey({
+      rpID: secrets.BETTER_AUTH_RP_ID,
+      rpName: "Sokosumi",
+    }),
+    lastLoginMethod({
+      cookieName: resolveBetterAuthCookieName(
+        betterAuthCookiePrefixParams,
+        "last_used_login_method",
+      ),
+    }),
+    oauthProvider({
+      loginPage: "/signin",
+      consentPage: "/oauth/consent",
+      scopes: ["openid"],
+      clientRegistrationDefaultScopes: ["openid"],
+      grantTypes: ["authorization_code"],
+      accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
+      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      codeExpiresIn: 600, // 10 minutes (default: 600)
+      prefix: {
+        opaqueAccessToken: "soko_access_token_",
+        refreshToken: "soko_refresh_token_",
+        clientSecret: "soko_client_secret_",
+      },
+      silenceWarnings: {
+        oauthAuthServerConfig: true,
+      },
+    }),
+    oAuthProxy({
+      productionURL: betterAuthProductionUrl,
+    }),
+    organization({
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization }) => {
+          await ensureWorkspaceForCreatedOrganization(organization);
+          void ensureStripeCustomerForCreatedOrganization(organization).catch(
+            (error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_organization_customer_creation",
+                },
+                extra: {
+                  organizationId: organization.id,
+                  organizationName: organization.name,
+                  organizationSlug: organization.slug,
+                },
+              });
+            },
+          );
+        },
+        beforeAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        afterAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+            organization.id,
+          );
+        },
+        afterAddMember: async ({ organization }) => {
+          await organizationSubscriptionService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+            organization.id,
+          );
+        },
+        beforeDeleteOrganization: async ({ organization, user }) => {
+          await ensureOrganizationHasNoAdditionalMembers(
+            organization.id,
+            user.id,
+          );
+        },
+      },
+      schema: {
+        organization: {
+          additionalFields: {
+            stripeCustomerId: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+              input: false,
+            },
+          },
+        },
+      },
+      async sendInvitationEmail(data, request) {
+        const inviteLink = `${betterAuthBaseUrl}/accept-invitation/${data.id}`;
+        const email = await renderOrganizationInvitationEmail({
+          invitationLink: inviteLink,
+          invitorUsername: data.inviter.user.name,
+          locale: getEmailLocale(request),
+          organizationName: data.organization.name,
+        });
+
+        postmarkClient.sendEmail({
+          From: fromEmail,
+          To: data.email,
+          Tag: "invitation-email",
+          Subject: email.subject,
+          HtmlBody: email.html,
+          MessageStream: "organizations",
+        });
+      },
+      invitationLimit: secrets.BETTER_AUTH_ORG_INVITATION_LIMIT,
+      cancelPendingInvitationsOnReInvite: true,
+      allowUserToCreateOrganization(user) {
+        return user.emailVerified;
+      },
+      organizationLimit: secrets.BETTER_AUTH_ORG_LIMIT,
+      invitationExpiresIn: secrets.BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
+    }),
+    i18n({
+      translations: authTranslations,
+      defaultLocale: "en",
+      detection: ["header", "cookie"],
+    }),
+    nextCookies(),
+    stripe({
+      stripeClient: stripeInstance,
+      stripeWebhookSecret: secrets.STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: false,
+      subscription: {
+        enabled: true,
+        plans: async () => await getBetterAuthSubscriptionPlans(stripeInstance),
+        onSubscriptionCreated: handleStripeBackedSubscriptionLifecycle,
+        onSubscriptionUpdate: handleStripeBackedSubscriptionLifecycle,
+        getCheckoutSessionParams: async () => ({
+          params: {
+            billing_address_collection: "required",
+            customer_update: {
+              address: "auto",
+              name: "auto",
+            },
+            tax_id_collection: {
+              enabled: true,
+            },
+          },
+        }),
+        authorizeReference: async ({ referenceId, user }) => {
+          const member =
+            await memberRepository.getMemberByUserIdAndOrganizationId(
+              user.id,
+              referenceId,
+              prisma,
+            );
+
+          if (!member) {
+            return false;
+          }
+
+          return (
+            member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN
+          );
+        },
+      },
+      organization: {
+        enabled: true,
+      },
+      onEvent: async (event) => {
+        // invoice.paid, customer.updated, and customer.created moved to the
+        // core webhook receiver (POST /webhooks/stripe) — the Stripe dashboard
+        // endpoint for web no longer subscribes to them.
+        switch (event.type) {
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object as Stripe.Subscription;
+            try {
+              await handleSubscriptionDeletedEvent(subscription);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.subscription.deleted",
+                  stripeSubscriptionId: subscription.id,
+                },
+                extra: {
+                  customer:
+                    typeof subscription.customer === "string"
+                      ? subscription.customer
+                      : subscription.customer.id,
+                  eventId: event.id,
+                  subscription: subscription.id,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          default: {
+            console.info(`Unhandled Stripe event type: ${event.type}`);
+            break;
+          }
+        }
+      },
+    }),
+  ],
+});
+
+async function mapProfileToUser(profile: { name: string; picture: string }) {
+  try {
+    return pTimeout(mapProfileToUserInner(profile), {
+      milliseconds: secrets.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
+    });
+  } catch (error) {
+    Sentry.captureException(error);
+    console.error(
+      `Failed to map profile to user: ${JSON.stringify(profile)}`,
+      error,
+    );
+    return {
+      name: profile.name,
+      image: undefined,
+    };
+  }
+}
+
+async function mapProfileToUserInner(profile: {
+  name: string;
+  picture: string;
+}): Promise<Partial<User>> {
+  const profilePicture = profile.picture;
+
+  if (!profilePicture) {
+    return {
+      name: profile.name,
+      image: undefined,
+    };
+  }
+
+  if (z.httpUrl().safeParse(profilePicture).success) {
+    return {
+      name: profile.name,
+      image: profilePicture,
+    };
+  } else {
+    const imageURL = await uploadProfileImage(profilePicture);
+    return {
+      name: profile.name,
+      image: imageURL,
+    };
+  }
+}
