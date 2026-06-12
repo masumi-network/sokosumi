@@ -38,6 +38,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
     500: jsonErrorResponse("Internal Server Error"),
   },

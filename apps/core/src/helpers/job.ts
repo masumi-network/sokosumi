@@ -33,6 +33,7 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import {
@@ -446,43 +447,38 @@ export async function createAgentJobForUser(
       throw unprocessableEntity("Agent pricing type not supported");
   }
 
-  const job = await prisma.$transaction(
-    async (tx) => {
-      await validateCreditBalance(
-        owner.userId,
-        owner.organizationId,
-        cost.cents,
-        tx,
-      );
+  const job = await serializableTransaction(async (tx) => {
+    await validateCreditBalance(
+      owner.userId,
+      owner.organizationId,
+      cost.cents,
+      tx,
+    );
 
-      if (agent.pricing.pricingType === PricingType.FREE) {
-        if (!freeJobResult) {
-          throw unprocessableEntity("Free agent job start failed");
-        }
-
-        return await createFreeJob(
-          { ...jobInput, name: jobName },
-          freeJobResult,
-          tx,
-        );
+    if (agent.pricing.pricingType === PricingType.FREE) {
+      if (!freeJobResult) {
+        throw unprocessableEntity("Free agent job start failed");
       }
 
-      if (!paidJobResult || !identifierFromPurchaser) {
-        throw unprocessableEntity("Paid agent job start failed");
-      }
-
-      return await createPaidJob(
+      return await createFreeJob(
         { ...jobInput, name: jobName },
-        agent.cost,
-        paidJobResult,
-        identifierFromPurchaser,
+        freeJobResult,
         tx,
       );
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    },
-  );
+    }
+
+    if (!paidJobResult || !identifierFromPurchaser) {
+      throw unprocessableEntity("Paid agent job start failed");
+    }
+
+    return await createPaidJob(
+      { ...jobInput, name: jobName },
+      agent.cost,
+      paidJobResult,
+      identifierFromPurchaser,
+      tx,
+    );
+  }, "Job creation conflicted with a concurrent request. Please retry.");
 
   if (
     agent.pricing.pricingType === PricingType.FIXED &&

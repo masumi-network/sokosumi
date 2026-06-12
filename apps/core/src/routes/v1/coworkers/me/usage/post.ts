@@ -10,7 +10,7 @@ import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
@@ -93,115 +93,108 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.req.valid("json");
     const coworkerId = authContext.coworkerId;
 
-    const result = await prisma.$transaction(
-      async (tx) => {
-        const existing = await tx.coworkerUsage.findUnique({
-          where: {
-            coworkerId_idempotencyKey: {
-              coworkerId,
-              idempotencyKey,
-            },
-          },
-        });
-
-        if (existing) {
-          const requestedCents = convertCreditsToCents(credits);
-
-          if (existing.userId !== userId) {
-            throw conflict(
-              "Idempotency key already used with different user id",
-            );
-          }
-          if (existing.cents !== requestedCents) {
-            throw conflict(
-              "Idempotency key already used with different parameters",
-            );
-          }
-          if (existing.referenceId !== (referenceId ?? null)) {
-            throw conflict(
-              "Idempotency key already used with different reference id",
-            );
-          }
-          if (existing.organizationId !== organizationId) {
-            throw conflict(
-              "Idempotency key already used with different organization id",
-            );
-          }
-
-          return { usage: existing, created: false };
-        }
-
-        if (organizationId !== null) {
-          const member = await tx.member.findUnique({
-            where: {
-              userId_organizationId: {
-                userId,
-                organizationId,
-              },
-            },
-            select: { userId: true },
-          });
-
-          if (!member) {
-            throw badRequest(
-              "User is not a member of the specified organization",
-            );
-          }
-        }
-
-        const cents = convertCreditsToCents(credits);
-        const consumptions = await prepareConsumptions(
-          userId,
-          organizationId,
-          cents,
-          tx,
-        );
-
-        const transaction = await tx.transaction.create({
-          data: {
-            amount: cents * BigInt(-1),
-            user: { connect: { id: userId } },
-            ...(organizationId
-              ? {
-                  organization: { connect: { id: organizationId } },
-                }
-              : {}),
-            creditConsumptions: {
-              createMany: {
-                data: consumptions.map((consumption) => ({
-                  bucketId: consumption.bucketId,
-                  amount: consumption.amount,
-                })),
-              },
-            },
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        const usage = await tx.coworkerUsage.create({
-          data: {
+    const result = await serializableTransaction(async (tx) => {
+      const existing = await tx.coworkerUsage.findUnique({
+        where: {
+          coworkerId_idempotencyKey: {
+            coworkerId,
             idempotencyKey,
-            referenceId: referenceId ?? null,
-            cents,
-            coworker: { connect: { id: coworkerId } },
-            user: { connect: { id: userId } },
-            ...(organizationId
-              ? {
-                  organization: { connect: { id: organizationId } },
-                }
-              : {}),
-            transaction: { connect: { id: transaction.id } },
           },
+        },
+      });
+
+      if (existing) {
+        const requestedCents = convertCreditsToCents(credits);
+
+        if (existing.userId !== userId) {
+          throw conflict("Idempotency key already used with different user id");
+        }
+        if (existing.cents !== requestedCents) {
+          throw conflict(
+            "Idempotency key already used with different parameters",
+          );
+        }
+        if (existing.referenceId !== (referenceId ?? null)) {
+          throw conflict(
+            "Idempotency key already used with different reference id",
+          );
+        }
+        if (existing.organizationId !== organizationId) {
+          throw conflict(
+            "Idempotency key already used with different organization id",
+          );
+        }
+
+        return { usage: existing, created: false };
+      }
+
+      if (organizationId !== null) {
+        const member = await tx.member.findUnique({
+          where: {
+            userId_organizationId: {
+              userId,
+              organizationId,
+            },
+          },
+          select: { userId: true },
         });
 
-        return { usage, created: true };
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+        if (!member) {
+          throw badRequest(
+            "User is not a member of the specified organization",
+          );
+        }
+      }
+
+      const cents = convertCreditsToCents(credits);
+      const consumptions = await prepareConsumptions(
+        userId,
+        organizationId,
+        cents,
+        tx,
+      );
+
+      const transaction = await tx.transaction.create({
+        data: {
+          amount: cents * BigInt(-1),
+          user: { connect: { id: userId } },
+          ...(organizationId
+            ? {
+                organization: { connect: { id: organizationId } },
+              }
+            : {}),
+          creditConsumptions: {
+            createMany: {
+              data: consumptions.map((consumption) => ({
+                bucketId: consumption.bucketId,
+                amount: consumption.amount,
+              })),
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const usage = await tx.coworkerUsage.create({
+        data: {
+          idempotencyKey,
+          referenceId: referenceId ?? null,
+          cents,
+          coworker: { connect: { id: coworkerId } },
+          user: { connect: { id: userId } },
+          ...(organizationId
+            ? {
+                organization: { connect: { id: organizationId } },
+              }
+            : {}),
+          transaction: { connect: { id: transaction.id } },
+        },
+      });
+
+      return { usage, created: true };
+    }, "Usage recording conflicted with a concurrent request. Please retry.");
 
     const response = serializeUsage(result.usage);
 
