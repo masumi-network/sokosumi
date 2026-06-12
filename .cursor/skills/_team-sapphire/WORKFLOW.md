@@ -52,7 +52,7 @@ Only requirement and progress on the issue:
 
 Investigation and spec stay in the orchestrator session — not in this document.
 
-Phase transitions post structured **summary** comments (`**Sapphire · … complete**`) for audit trail.
+Phase transitions post structured **summary** comments (`**Sapphire · … complete**`) for audit trail. These are **blocking gates** — see `PHASE-GATE.md`. Do not defer them to the end of the run.
 
 ## Status lifecycle
 
@@ -75,3 +75,4 @@ Manual: `Run _team-sapphire for SOK-XXX` in Cursor.
 - Do not run Coder before **session spec** exists.
 - Do not set **In Review** when the PR opens — Reviewer sets it on pass.
 - Do not mark **Done** before human merge.
+- Do not batch phase comments or status updates at the end — each phase gate must pass before the next phase (`PHASE-GATE.md`).
