@@ -94,6 +94,9 @@ const envSchema = z.object({
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
   STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
 
+  // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+
   // Sync lock configuration
   LOCK_TIMEOUT: z.coerce
     .number()
