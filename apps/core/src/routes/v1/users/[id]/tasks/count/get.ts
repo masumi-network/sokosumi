@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
+import { requireCoworkerCapability } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -25,7 +26,7 @@ const params = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/tasks/count",
+    path: "/count",
     description:
       "Get task count for the user. Returns the number of non-archived tasks in the active workspace owned by the user. Use path `me` for the session user, or a user id when authorized.",
     tags: ["Tasks", "Users"],
@@ -63,6 +64,8 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     // Build where clause matching task list filters
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
+      await requireCoworkerCapability(authContext.coworkerId, "tasks");
+
       if (authContext.delegation) {
         const workspaceContext = requireWorkspaceContext(
           c.var.workspaceContext,
