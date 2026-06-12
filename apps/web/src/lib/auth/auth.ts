@@ -666,11 +666,6 @@ export const auth = betterAuth({
             organization.id,
           );
         },
-        beforeCreateInvitation: async ({ organization }) => {
-          await organizationSubscriptionService.ensureCanCreateInvitation(
-            organization.id,
-          );
-        },
         beforeDeleteOrganization: async ({ organization, user }) => {
           await ensureOrganizationHasNoAdditionalMembers(
             organization.id,

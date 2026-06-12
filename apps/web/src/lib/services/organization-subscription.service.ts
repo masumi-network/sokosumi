@@ -235,10 +235,6 @@ export const organizationSubscriptionService = (() => {
       }
     },
 
-    async ensureCanCreateInvitation(_organizationId: string): Promise<void> {
-      return;
-    },
-
     async ensureCanAcceptInvitation(organizationId: string): Promise<void> {
       const billingPlan = await resolveOrganizationBillingPlan(
         organizationId,

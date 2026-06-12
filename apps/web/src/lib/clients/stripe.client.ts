@@ -26,7 +26,6 @@ export type CreditTopUpPriceCatalog = Record<
 
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-  let cachedStripeAccountId: string | null = null;
   const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
   const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
     SUPPORTED_CREDIT_PRICE_CURRENCIES,
@@ -175,55 +174,6 @@ export const stripeClient = (() => {
       );
     },
 
-    async listSubscriptions(
-      customerId: string,
-    ): Promise<Stripe.Subscription[]> {
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: "all",
-        limit: 100,
-      });
-      return subscriptions.data;
-    },
-
-    async createSubscription(
-      customerId: string,
-      priceId: string,
-      quantity: number,
-      metadata: {
-        organizationId?: string;
-        referenceId: string;
-        userId?: string;
-      },
-      idempotencyKey?: string,
-    ): Promise<Stripe.Subscription> {
-      return await stripe.subscriptions.create(
-        {
-          customer: customerId,
-          items: [
-            {
-              price: priceId,
-              ...(quantity > 0 ? { quantity } : {}),
-            },
-          ],
-          metadata: {
-            referenceId: metadata.referenceId,
-            ...(metadata.userId ? { userId: metadata.userId } : {}),
-            ...(metadata.organizationId
-              ? { organizationId: metadata.organizationId }
-              : {}),
-          },
-        },
-        {
-          ...(idempotencyKey ? { idempotencyKey } : {}),
-        },
-      );
-    },
-
-    async deleteCustomer(customerId: string): Promise<void> {
-      await stripe.customers.del(customerId);
-    },
-
     async getPromotionCode(
       customerId: string,
       couponId: string,
@@ -264,42 +214,11 @@ export const stripeClient = (() => {
       return promotionCode;
     },
 
-    async getCouponByPromotionCode(
-      code: string,
-    ): Promise<Stripe.Coupon | null> {
-      try {
-        const promotionCode = await stripe.promotionCodes.retrieve(code);
-        const promotion = promotionCode.promotion;
-        if (!promotion) {
-          return null;
-        }
-        if (!promotion.coupon) {
-          return null;
-        }
-        if (promotion.type !== "coupon") {
-          return null;
-        }
-        return promotionCode.promotion.coupon as Stripe.Coupon;
-      } catch {
-        return null;
-      }
-    },
-
     async getCouponById(couponId: string): Promise<Stripe.Coupon | null> {
       try {
         return await stripe.coupons.retrieve(couponId);
       } catch {
         return null;
-      }
-    },
-
-    async getPriceById(priceId: string): Promise<Price> {
-      try {
-        const price = await stripe.prices.retrieve(priceId);
-        return validatePrice(price);
-      } catch (error) {
-        console.error("Error retrieving price", error);
-        throw error;
       }
     },
 
@@ -340,66 +259,6 @@ export const stripeClient = (() => {
       return await this.getPriceByLookupKey(BASE_CREDIT_TOPUP_LOOKUP_KEY);
     },
 
-    /**
-     * Returns the Stripe account id the configured API key belongs to (the
-     * sandbox account id when running against a sandbox key). Cached for the
-     * lifetime of the process. Used to build account-scoped dashboard links
-     * that resolve to the correct sandbox/live account.
-     */
-    async getAccountId(): Promise<string> {
-      if (cachedStripeAccountId) {
-        return cachedStripeAccountId;
-      }
-      // GET /v1/account — the account the configured API key belongs to.
-      const account = await stripe.accounts.retrieveCurrent();
-      cachedStripeAccountId = account.id;
-      return cachedStripeAccountId;
-    },
-
-    /**
-     * Lists all active one-time prices configured on the credit product, for
-     * admin selection. Invalid prices (unsupported currency, zero amount,
-     * recurring) are skipped. Sorted by currency, then amount per credit.
-     */
-    async listCreditTopUpPrices(): Promise<
-      Array<Price & { nickname: string | null }>
-    > {
-      const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
-      const prices = await stripe.prices.list({
-        product: productId,
-        active: true,
-        limit: 100,
-      });
-
-      return prices.data
-        .filter(
-          (price) => price.recurring === null && isValidCreditPrice(price),
-        )
-        .map((price) => ({
-          ...validatePrice(price),
-          nickname: price.nickname ?? null,
-        }))
-        .sort((a, b) =>
-          a.currency === b.currency
-            ? a.amountPerCredit - b.amountPerCredit
-            : a.currency.localeCompare(b.currency),
-        );
-    },
-
-    /**
-     * Retrieves a single price by id and verifies it belongs to the credit
-     * product before validating it. Throws otherwise.
-     */
-    async getCreditTopUpPriceById(priceId: string): Promise<Price> {
-      const price = await stripe.prices.retrieve(priceId);
-      const productId =
-        typeof price.product === "string" ? price.product : price.product?.id;
-      if (productId !== getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID) {
-        throw new Error("Price does not belong to the credit product");
-      }
-      return validatePrice(price);
-    },
-
     async getCreditTopUpPriceCatalog(): Promise<CreditTopUpPriceCatalog> {
       const prices = await Promise.all(
         CREDIT_TOPUP_LOOKUP_KEYS.map(async (lookupKey) => [
@@ -409,59 +268,6 @@ export const stripeClient = (() => {
       );
 
       return Object.fromEntries(prices) as CreditTopUpPriceCatalog;
-    },
-
-    async constructEvent(req: Request, stripeSignature: string) {
-      return stripe.webhooks.constructEvent(
-        await req.text(),
-        stripeSignature,
-        getEnvSecrets().STRIPE_WEBHOOK_SECRET,
-      );
-    },
-
-    async getInvoice(invoiceId: string): Promise<Stripe.Invoice> {
-      return await stripe.invoices.retrieve(invoiceId, {
-        expand: ["lines.data.price.product"],
-      });
-    },
-
-    /**
-     * Searches invoices with the customer expanded, using Stripe's invoice
-     * search query language. Search filters server-side on metadata, status,
-     * and customer — unlike `invoices.list`, which can only filter by a single
-     * status and ignores metadata — so the admin invoice list reliably
-     * returns grant invoices instead of having them crowded out of the most
-     * recent page by unrelated checkout/subscription invoices.
-     *
-     * Paginates through all matches up to `maxResults` because Stripe's search
-     * API does not guarantee an ordering (unlike `invoices.list`, which is
-     * newest-first). Callers that need "most recent first" must therefore
-     * gather every match and sort themselves rather than trusting the first
-     * page to hold the newest results.
-     *
-     * Note: Stripe's search index is eventually consistent, so an invoice
-     * created moments ago may take a short while to appear.
-     */
-    async searchInvoices(params: {
-      query: string;
-      maxResults?: number;
-    }): Promise<Stripe.Invoice[]> {
-      const maxResults = params.maxResults ?? 100;
-      const invoices: Stripe.Invoice[] = [];
-      let page: string | undefined;
-
-      do {
-        const result = await stripe.invoices.search({
-          query: params.query,
-          limit: 100,
-          expand: ["data.customer"],
-          ...(page ? { page } : {}),
-        });
-        invoices.push(...result.data);
-        page = result.has_more ? (result.next_page ?? undefined) : undefined;
-      } while (page && invoices.length < maxResults);
-
-      return invoices;
     },
 
     async getCheckoutSession(
@@ -557,18 +363,6 @@ export const stripeClient = (() => {
 
       const session = await stripe.checkout.sessions.create(sessionParams);
       return session;
-    },
-
-    /**
-     * Marks an invoice as paid out of band (i.e. payment recorded outside of
-     * Stripe). Returns the updated invoice with line items expanded so callers
-     * can run the invoice-paid automation directly.
-     */
-    async payInvoiceOutOfBand(invoiceId: string): Promise<Stripe.Invoice> {
-      return await stripe.invoices.pay(invoiceId, {
-        paid_out_of_band: true,
-        expand: ["lines.data.price.product"],
-      });
     },
   };
 })();

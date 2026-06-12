@@ -244,7 +244,6 @@ vi.mock("@/lib/services", () => ({
   callUserUpdatedWebHook: callUserUpdatedWebHookMock,
   organizationSubscriptionService: {
     ensureCanAcceptInvitation: vi.fn(),
-    ensureCanCreateInvitation: vi.fn(),
     syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
   },
