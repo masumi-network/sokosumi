@@ -5179,6 +5179,20 @@ export const StripeCustomerSchema = {
     ]
 } as const;
 
+export const ProvisionedStripeCustomerSchema = {
+    type: 'object',
+    properties: {
+        stripeCustomerId: {
+            type: 'string',
+            example: 'cus_123',
+            description: 'Stripe customer id'
+        }
+    },
+    required: [
+        'stripeCustomerId'
+    ]
+} as const;
+
 export const ActiveSubscriptionResponseSchema = {
     type: 'object',
     properties: {
