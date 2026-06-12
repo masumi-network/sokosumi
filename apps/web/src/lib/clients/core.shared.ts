@@ -167,6 +167,7 @@ import {
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
+  putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
@@ -1576,6 +1577,26 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   /**
+   * Sets the current user's preferred organization workspace (null for the
+   * personal workspace). Core verifies membership and persists the write in
+   * one transaction; a 403 with kind `organization_membership_required` means
+   * the user is not a member of the organization.
+   */
+  async function setMyPreferredOrganization(organizationId: string | null) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutUsersByIdPreferredOrganization({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body: { organizationId },
+          cache: "no-store",
+        }),
+      "Failed to set preferred organization",
+    );
+  }
+
+  /**
    * Sets (or clears, when `content` is null) an organization's DESIGN.md. Core
    * enforces that the caller is an organization owner or admin.
    */
@@ -2286,6 +2307,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
     setMyDesignMd,
+    setMyPreferredOrganization,
     setOrganizationDesignMd,
     getPendingNotices,
     getProjects,

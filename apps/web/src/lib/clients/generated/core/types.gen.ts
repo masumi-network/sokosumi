@@ -1386,6 +1386,13 @@ export type MemberRecord = {
     createdAt: Date;
 };
 
+export type PreferredOrganization = {
+    /**
+     * Organization id of the preferred workspace, or null for the personal workspace
+     */
+    organizationId: string | null;
+};
+
 export type Notice = {
     id: string;
     kind: 'LEGAL_TERMS' | 'ANNOUNCEMENT';
@@ -11620,6 +11627,109 @@ export type PatchUsersByIdPreferencesResponses = {
 };
 
 export type PatchUsersByIdPreferencesResponse = PatchUsersByIdPreferencesResponses[keyof PatchUsersByIdPreferencesResponses];
+
+export type PutUsersByIdPreferredOrganizationData = {
+    body?: PreferredOrganization;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/preferred-organization';
+};
+
+export type PutUsersByIdPreferredOrganizationErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - The user is not a member of the organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutUsersByIdPreferredOrganizationError = PutUsersByIdPreferredOrganizationErrors[keyof PutUsersByIdPreferredOrganizationErrors];
+
+export type PutUsersByIdPreferredOrganizationResponses = {
+    /**
+     * The persisted preferred organization
+     */
+    200: {
+        data: PreferredOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutUsersByIdPreferredOrganizationResponse = PutUsersByIdPreferredOrganizationResponses[keyof PutUsersByIdPreferredOrganizationResponses];
 
 export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
