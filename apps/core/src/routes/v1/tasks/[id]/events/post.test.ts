@@ -304,6 +304,28 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(409);
   });
 
+  it("rethrows non-conflict transaction errors as 500", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(new Error("Connection lost"));
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.OUT_OF_CREDITS,
+        comment: "Need top-up",
+      }),
+    });
+
+    expect(response.status).toBe(500);
+  });
+
   it("rejects OUT_OF_CREDITS for users", async () => {
     const tx: TransactionMock = {
       taskEvent: {
