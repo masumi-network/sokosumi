@@ -1,0 +1,152 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { errorHandler } from "@/helpers/error-handler.js";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import {
+  type UserRouteVariables,
+  usersPathUserContextMiddleware,
+} from "@/routes/v1/users/user-route-context";
+
+import mountPutUserPreferredOrganization from "./put";
+
+const {
+  updatePreferredOrganizationIdMock,
+  getMemberByUserIdAndOrganizationIdMock,
+  transactionMock,
+  userFindUniqueMock,
+} = vi.hoisted(() => ({
+  updatePreferredOrganizationIdMock: vi.fn(),
+  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+  transactionMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  userRepository: {
+    updatePreferredOrganizationId: updatePreferredOrganizationIdMock,
+  },
+  memberRepository: {
+    getMemberByUserIdAndOrganizationId: getMemberByUserIdAndOrganizationIdMock,
+  },
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: transactionMock,
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+  },
+}));
+
+const SESSION_USER: AuthenticationContext = {
+  actor: "user",
+  userId: "user_123",
+  organizationId: null,
+  role: "user",
+};
+
+function createApp(authContext: AuthenticationContext = SESSION_USER) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & { requestId: string };
+  }>();
+
+  app.onError(errorHandler);
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+    return await next();
+  });
+
+  const userByIdApp = new OpenAPIHono<{
+    Variables: AuthVariables & UserRouteVariables;
+  }>();
+  userByIdApp.use("*", usersPathUserContextMiddleware);
+  mountPutUserPreferredOrganization(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
+  app.route("/:id", userByIdApp);
+  return app;
+}
+
+function putPreferredOrganization(
+  app: ReturnType<typeof createApp>,
+  pathId: string,
+  organizationId: string | null,
+) {
+  return app.request(`http://localhost/${pathId}/preferred-organization`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ organizationId }),
+  });
+}
+
+describe("PUT /users/{id}/preferred-organization", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    transactionMock.mockImplementation(async (callback) => {
+      return await callback("tx");
+    });
+  });
+
+  it("returns 403 when the caller may not access the target user", async () => {
+    const response = await putPreferredOrganization(
+      createApp(),
+      "other_user",
+      "org_1",
+    );
+    expect(response.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the preferred organization without a membership check", async () => {
+    updatePreferredOrganizationIdMock.mockResolvedValue(undefined);
+    const response = await putPreferredOrganization(createApp(), "me", null);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ organizationId: null });
+    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      null,
+      expect.anything(),
+    );
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 with a membership kind when the user is not a member", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+    const response = await putPreferredOrganization(createApp(), "me", "org_1");
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.kind).toBe("organization_membership_required");
+    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("persists the preferred organization inside the membership transaction", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      id: "member_1",
+      role: "member",
+    });
+    updatePreferredOrganizationIdMock.mockResolvedValue(undefined);
+    const response = await putPreferredOrganization(createApp(), "me", "org_1");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual({ organizationId: "org_1" });
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_1",
+      "tx",
+    );
+    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_1",
+      "tx",
+    );
+  });
+});

@@ -224,7 +224,7 @@ interface UpdatePreferredOrganizationParameters extends AuthenticatedRequest {
 export const updatePreferredOrganization = withSession<
   UpdatePreferredOrganizationParameters,
   Result<{ organizationId: string | null }, ActionError>
->(async ({ organizationId, session }) => {
+>(async ({ organizationId }) => {
   const parsedResult = updatePreferredOrganizationSchema.safeParse({
     organizationId,
   });
@@ -238,7 +238,6 @@ export const updatePreferredOrganization = withSession<
 
   const result =
     await preferredOrganizationService.persistPreferredOrganizationId(
-      session.user.id,
       parsedResult.data.organizationId,
     );
 
