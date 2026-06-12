@@ -1,6 +1,7 @@
 "use client";
 
 import { PanelLeft } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import {
@@ -41,7 +42,9 @@ export default function SidebarLogo() {
 
   return (
     <div className="flex h-8 items-center pl-2">
-      <ThemedLogo LogoComponent={SokosumiLogo} height={16} width={123} />
+      <Link href="/" className="hover:opacity-80 transition-opacity">
+        <ThemedLogo LogoComponent={SokosumiLogo} height={16} width={123} />
+      </Link>
     </div>
   );
 }
