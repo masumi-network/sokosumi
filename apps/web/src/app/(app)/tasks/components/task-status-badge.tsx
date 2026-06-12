@@ -7,12 +7,12 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.DRAFT]: "Draft",
   [TaskStatus.READY]: "Ready",
   [TaskStatus.INPUT_REQUIRED]: "Approval required",
-  [TaskStatus.AUTHENTICATION_REQUIRED]: "Auth",
+  [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
   [TaskStatus.OUT_OF_CREDITS]: "Paused: credits needed",
   [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
   [TaskStatus.RUNNING]: "Running",
   [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
-  [TaskStatus.COMPLETED]: "Done",
+  [TaskStatus.COMPLETED]: "Complete",
   [TaskStatus.FAILED]: "Failed",
   [TaskStatus.CANCEL_REQUESTED]: "Cancel requested",
   [TaskStatus.CANCELED]: "Canceled",
@@ -52,9 +52,9 @@ const STATUS_PILL_STYLES: Partial<
     dot: "bg-cyan-500",
   },
   [TaskStatus.RUNNING]: {
-    bg: "bg-success/10",
-    text: "text-success",
-    dot: "bg-amber-500",
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500",
   },
   [TaskStatus.AWAITING_EXTERNAL]: {
     bg: "bg-sky-500/10",
@@ -62,8 +62,8 @@ const STATUS_PILL_STYLES: Partial<
     dot: "bg-sky-500",
   },
   [TaskStatus.COMPLETED]: {
-    bg: "bg-success/10",
-    text: "text-success",
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
     dot: "bg-emerald-500",
   },
   [TaskStatus.FAILED]: {
@@ -105,6 +105,25 @@ function shouldShowWarningIcon(status: TaskStatus): boolean {
   );
 }
 
+function shouldShowStatusDot(
+  status: TaskStatus,
+  showDot: boolean | undefined,
+): boolean {
+  if (showDot === true) {
+    return true;
+  }
+
+  if (showDot === false) {
+    return false;
+  }
+
+  return status === TaskStatus.RUNNING;
+}
+
+function getBadgeShapeClasses(): string {
+  return "rounded-sm py-1";
+}
+
 interface TaskStatusBadgeProps {
   status: TaskStatus;
   /** When set, overrides the default English label (e.g. from next-intl). */
@@ -118,7 +137,7 @@ export function TaskStatusBadge({
   status,
   label,
   className,
-  showDot = false,
+  showDot,
   showLabel = true,
 }: TaskStatusBadgeProps) {
   const styles = STATUS_PILL_STYLES[status] ?? {
@@ -126,19 +145,21 @@ export function TaskStatusBadge({
     text: "text-muted-foreground",
   };
   const showIcon = shouldShowWarningIcon(status);
+  const showStatusDot = shouldShowStatusDot(status, showDot);
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center gap-1.5 px-2.5 text-xs font-medium",
+        getBadgeShapeClasses(),
         styles.bg,
         styles.text,
         className,
       )}
     >
-      {showDot && !showIcon ? (
+      {showStatusDot && !showIcon ? (
         <span
-          className={cn("size-1.5 shrink-0 rounded-full", styles.text)}
+          className={cn("size-1.5 shrink-0 rounded-full", styles.dot)}
           aria-hidden
         />
       ) : null}

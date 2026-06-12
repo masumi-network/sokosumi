@@ -307,10 +307,66 @@ describe("TaskActivitySection", () => {
 
     const dot = screen.getByTestId("status-dot-latest-running");
     expect(dot).toHaveClass("size-1.5");
-    expect(dot).toHaveClass("bg-amber-500");
+    expect(dot).toHaveClass("bg-emerald-500");
     expect(
       screen.queryByRole("img", { name: "Alice" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("highlights completed comment events with an emerald border", () => {
+    const events: TaskEvent[] = [
+      createEvent("completed-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+        comment: "Task finished successfully.",
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    const row = container.querySelector(".border-emerald-500\\/40");
+    expect(row).toBeInTheDocument();
+  });
+
+  it("does not highlight completed status-only events", () => {
+    const events: TaskEvent[] = [
+      createEvent("completed-status-only", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    expect(
+      container.querySelector(".border-emerald-500\\/40"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the running status dot when a newer status event exists", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-complete", {
+        createdAt: "2026-01-01T13:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+      }),
+      createEvent("older-running", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(
+      screen.queryByTestId("status-dot-older-running"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("status-dot-latest-complete"),
+    ).toBeInTheDocument();
   });
 
   it("renders embedded user data without relying on current session maps", () => {

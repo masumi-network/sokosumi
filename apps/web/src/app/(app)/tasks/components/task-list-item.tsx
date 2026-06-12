@@ -1,3 +1,5 @@
+import type { TaskStatus } from "@sokosumi/utils";
+
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
@@ -10,6 +12,7 @@ interface TaskListItemProps {
   dragHandleProps?: DragHandleProps;
   isOverlay?: boolean;
   compact?: boolean;
+  statusLabels?: Record<TaskStatus, string>;
 }
 
 export function TaskListItem({
@@ -17,6 +20,7 @@ export function TaskListItem({
   dragHandleProps,
   isOverlay = false,
   compact = false,
+  statusLabels,
 }: TaskListItemProps) {
   const handleProps = dragHandleProps
     ? {
@@ -58,7 +62,11 @@ export function TaskListItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          <TaskStatusBadge status={task.status} />
+          <TaskStatusBadge
+            status={task.status}
+            label={statusLabels?.[task.status]}
+            className="w-fit shrink-0 rounded-sm"
+          />
           <TaskMetaDetails
             owner={task.user}
             coworker={task.coworker}

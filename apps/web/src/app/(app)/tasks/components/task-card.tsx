@@ -1,3 +1,5 @@
+import type { TaskStatus } from "@sokosumi/utils";
+
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
@@ -9,12 +11,14 @@ interface TaskCardProps {
   task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
   compact?: boolean;
+  statusLabels?: Record<TaskStatus, string>;
 }
 
 export function TaskCard({
   task,
   dragHandleProps,
   compact = false,
+  statusLabels,
 }: TaskCardProps) {
   const handleProps = dragHandleProps
     ? {
@@ -45,7 +49,11 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="flex flex-col gap-2">
-              <TaskStatusBadge status={task.status} />
+              <TaskStatusBadge
+                status={task.status}
+                label={statusLabels?.[task.status]}
+                className="w-fit self-start rounded-sm"
+              />
               <h3 className="text-foreground line-clamp-2 text-md leading-snug font-medium">
                 {task.name}
               </h3>

@@ -15,6 +15,7 @@ import {
   getTaskStatusDotColorClass,
   TaskStatusBadge,
 } from "@/app/tasks/components/task-status-badge";
+import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SourcesGrid } from "@/components/sources/sources-grid";
@@ -48,17 +49,21 @@ function getLinkedJobStatus(status: string): SokosumiJobStatus {
 }
 
 export async function SharedTaskView({ task }: SharedTaskViewProps) {
-  const [locale, tTaskDetail, tTaskShare] = await Promise.all([
+  const [locale, tTaskDetail, tTaskShare, tStatus] = await Promise.all([
     getLocale(),
     getTranslations("App.Tasks.Detail"),
     getTranslations("Share.Tasks.Page"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
   ]);
+  const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const visibleEvents = [...task.events]
     .filter((event) => event.status !== TaskStatus.AUTHENTICATION_REQUIRED)
     .sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  const latestStatusEventId =
+    visibleEvents.find((event) => event.status)?.id ?? null;
 
   function TaskSharePropertiesPanel() {
     const formatter = useFormatter();
@@ -79,7 +84,10 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             <span className="text-muted-foreground text-sm">
               {tTaskDetail("status")}
             </span>
-            <TaskStatusBadge status={task.status} />
+            <TaskStatusBadge
+              status={task.status}
+              label={statusLabels[task.status]}
+            />
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground text-sm">
@@ -135,7 +143,10 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                 <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
                   {tTaskShare("eyebrow")}
                 </span>
-                <TaskStatusBadge status={task.status} />
+                <TaskStatusBadge
+                  status={task.status}
+                  label={statusLabels[task.status]}
+                />
               </div>
               <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
                 {task.name}
@@ -277,6 +288,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                         isCommentEvent && event.status === TaskStatus.COMPLETED;
                       const isStatusOnlyEvent =
                         !isCommentEvent && Boolean(event.status);
+                      const isLatestStatusEvent =
+                        Boolean(event.status) &&
+                        event.id === latestStatusEventId;
 
                       return (
                         <div
@@ -298,7 +312,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               isCommentEvent && "py-3",
                             )}
                           >
-                            {isStatusOnlyEvent && event.status ? (
+                            {isStatusOnlyEvent &&
+                            event.status &&
+                            isLatestStatusEvent ? (
                               <div className="flex size-6 shrink-0 items-center justify-center">
                                 <span
                                   data-testid={`status-dot-${event.id}`}
@@ -346,7 +362,11 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                     <>
                                       <TaskStatusBadge
                                         status={event.status}
-                                        showDot={!isStatusOnlyEvent}
+                                        label={statusLabels[event.status]}
+                                        showDot={
+                                          isLatestStatusEvent &&
+                                          !isStatusOnlyEvent
+                                        }
                                       />
                                       <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                                         <span>{originFromLabel}</span>

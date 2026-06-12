@@ -1714,7 +1714,7 @@
             "CREDITS_TOPPED_UP": "Funded",
             "RUNNING": "Running",
             "AWAITING_EXTERNAL": "Waiting",
-            "COMPLETED": "Done",
+            "COMPLETED": "Complete",
             "FAILED": "Failed",
             "CANCEL_REQUESTED": "Canceling",
             "CANCELED": "Canceled"

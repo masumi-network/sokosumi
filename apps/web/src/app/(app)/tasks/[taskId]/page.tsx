@@ -16,6 +16,7 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
+import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/utils";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -206,11 +207,12 @@ async function TaskOverviewSection({
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
-  const [coworkers, agents, project, t] = await Promise.all([
+  const [coworkers, agents, project, t, tStatus] = await Promise.all([
     coworkersPromise,
     agentsPromise,
     projectPromise,
     getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
   ]);
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
     task,
@@ -234,6 +236,7 @@ async function TaskOverviewSection({
         labels={{
           propertiesTitle: t("properties"),
           status: t("status"),
+          statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
           owner: t("owner"),
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),

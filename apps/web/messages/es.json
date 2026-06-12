@@ -1703,7 +1703,7 @@
             "CREDITS_TOPPED_UP": "Recargado",
             "RUNNING": "En curso",
             "AWAITING_EXTERNAL": "En espera",
-            "COMPLETED": "Hecho",
+            "COMPLETED": "Completo",
             "FAILED": "Error",
             "CANCEL_REQUESTED": "Cancelando",
             "CANCELED": "Cancelada"

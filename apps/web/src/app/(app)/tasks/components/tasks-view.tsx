@@ -997,6 +997,7 @@ export function TasksView({
                     columns={columns}
                     columnFooterById={columnFooterById}
                     compact={density === "compact"}
+                    statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
                       isTaskDraggableForViewFilters(
                         task,
@@ -1018,6 +1019,7 @@ export function TasksView({
                     columns={columns}
                     sectionFooterById={columnFooterById}
                     compact={density === "compact"}
+                    statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
                       isTaskDraggableForViewFilters(
                         task,
@@ -1047,12 +1049,14 @@ export function TasksView({
                         <TaskCard
                           task={activeDragTask}
                           compact={density === "compact"}
+                          statusLabels={labels.filters.statusOptions}
                         />
                       ) : (
                         <TaskListItem
                           task={activeDragTask}
                           isOverlay
                           compact={density === "compact"}
+                          statusLabels={labels.filters.statusOptions}
                         />
                       )}
                     </div>
@@ -1064,6 +1068,7 @@ export function TasksView({
                 tasks={items}
                 columns={columns}
                 columnFooterById={columnFooterById}
+                statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
                   addTask: labels.addTask,
@@ -1076,6 +1081,7 @@ export function TasksView({
                 tasks={items}
                 columns={columns}
                 sectionFooterById={columnFooterById}
+                statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
                   emptyList: labels.listPlaceholder,

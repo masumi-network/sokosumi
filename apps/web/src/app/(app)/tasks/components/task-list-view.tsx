@@ -1,3 +1,5 @@
+import type { TaskStatus } from "@sokosumi/utils";
+
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import type {
   KanbanColumnDefinition,
@@ -21,6 +23,7 @@ interface TaskListViewProps {
   isDragEnabled?: boolean;
   canDragTask?: (task: TaskWithCoworker) => boolean;
   compact?: boolean;
+  statusLabels?: Record<TaskStatus, string>;
 }
 
 export function TaskListView({
@@ -31,6 +34,7 @@ export function TaskListView({
   isDragEnabled = true,
   canDragTask = () => true,
   compact = false,
+  statusLabels,
 }: TaskListViewProps) {
   const orderedColumns = [...columns].reverse();
   const hasAnyTasks = tasks.length > 0;
@@ -65,11 +69,17 @@ export function TaskListView({
                           task={task}
                           dragHandleProps={dragHandleProps}
                           compact={compact}
+                          statusLabels={statusLabels}
                         />
                       )}
                     </DraggableTask>
                   ) : (
-                    <TaskListItem key={task.id} task={task} compact={compact} />
+                    <TaskListItem
+                      key={task.id}
+                      task={task}
+                      compact={compact}
+                      statusLabels={statusLabels}
+                    />
                   )
                 }
               />
