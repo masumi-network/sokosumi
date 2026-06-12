@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   captureExceptionMock,
   getOrganizationWithRelationsByIdMock,
+  handleInvoicePaidEventMock,
   updateOrganizationInvoiceEmailMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   getOrganizationWithRelationsByIdMock: vi.fn(),
+  handleInvoicePaidEventMock: vi.fn(),
   updateOrganizationInvoiceEmailMock: vi.fn(),
 }));
 
@@ -24,6 +26,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
+}));
+
+vi.mock("@/services/stripe-invoice-credit.service", () => ({
+  handleInvoicePaidEvent: handleInvoicePaidEventMock,
 }));
 
 async function getStripeWebhookService() {
@@ -60,6 +66,19 @@ function createOrganizationCustomer(
   };
 }
 
+function createInvoicePaidEvent(): Stripe.Event {
+  return {
+    id: "evt_inv_123",
+    type: "invoice.paid",
+    data: {
+      object: {
+        id: "in_123",
+        customer: "cus_123",
+      },
+    },
+  } as Stripe.Event;
+}
+
 describe("stripeWebhookService.handleEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,6 +90,42 @@ describe("stripeWebhookService.handleEvent", () => {
       id: "org_123",
       metadata: JSON.stringify({ invoiceEmail: "new@example.com" }),
     });
+    handleInvoicePaidEventMock.mockResolvedValue(undefined);
+  });
+
+  it("dispatches invoice.paid events to the invoice credit handler", async () => {
+    const service = await getStripeWebhookService();
+
+    await service.handleEvent(createInvoicePaidEvent());
+
+    expect(handleInvoicePaidEventMock).toHaveBeenCalledTimes(1);
+    expect(handleInvoicePaidEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "in_123" }),
+    );
+  });
+
+  it("reports to Sentry and rethrows when the invoice.paid handler fails", async () => {
+    const failure = new Error("unknown customer");
+    handleInvoicePaidEventMock.mockRejectedValue(failure);
+    const service = await getStripeWebhookService();
+
+    await expect(service.handleEvent(createInvoicePaidEvent())).rejects.toThrow(
+      "unknown customer",
+    );
+
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          stripeEventType: "invoice.paid",
+          invoiceId: "in_123",
+        }),
+        extra: expect.objectContaining({
+          eventId: "evt_inv_123",
+          customer: "cus_123",
+        }),
+      }),
+    );
   });
 
   it("updates the organization invoice email when the customer email changed", async () => {
@@ -189,13 +244,14 @@ describe("stripeWebhookService.handleEvent", () => {
 
       await service.handleEvent({
         id: "evt_456",
-        type: "invoice.paid",
+        type: "charge.succeeded",
         data: { object: {} },
       } as Stripe.Event);
 
       expect(getOrganizationWithRelationsByIdMock).not.toHaveBeenCalled();
+      expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
       expect(consoleInfoSpy).toHaveBeenCalledWith(
-        "[webhooks/stripe] Unhandled Stripe event type: invoice.paid",
+        "[webhooks/stripe] Unhandled Stripe event type: charge.succeeded",
       );
     } finally {
       consoleInfoSpy.mockRestore();
