@@ -10,7 +10,6 @@ import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
   buildUserInvoiceCreditReferenceId,
-  ensureInitialLocalFreeSubscriptionPeriod,
   escapeStringForLike,
   FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
@@ -29,14 +28,12 @@ import {
 import {
   convertCentsToCredits,
   convertCreditsToCents,
-  getOrganizationMetadata,
   TaskStatus,
 } from "@sokosumi/utils";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import prisma from "@/lib/db/prisma";
-import { stripeService } from "@/lib/services";
 import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -881,115 +878,6 @@ export async function handleInvoicePaidEvent(
       });
     }
   });
-}
-
-export async function handleCustomerCreatedEvent(
-  customer: Stripe.Customer,
-): Promise<void> {
-  const metadata = customer.metadata;
-  switch (metadata?.customerType) {
-    case "user": {
-      const userId = metadata.userId;
-      const user = await prisma.user.update({
-        where: { id: userId },
-        data: { stripeCustomerId: customer.id },
-      });
-      console.log(`✅ Set user ${userId} stripe customer id to ${customer.id}`);
-
-      await prisma.$transaction(async (tx) => {
-        await ensureInitialLocalFreeSubscriptionPeriod(
-          {
-            createdAt: user.createdAt,
-            kind: "user",
-            stripeCustomerId: customer.id,
-            userId,
-          },
-          tx,
-        );
-      });
-
-      const { couponApplied, invoiceId } =
-        await stripeService.claimWelcomeCoupon(userId);
-      if (couponApplied && invoiceId) {
-        console.log(
-          `✅ Claimed welcome coupon for user ${userId}, invoice: ${invoiceId}`,
-        );
-      } else {
-        console.log(`⚠️ Failed to claim welcome coupon for user ${userId}`);
-      }
-      break;
-    }
-    case "organization": {
-      const organization = await prisma.organization.update({
-        where: { id: metadata.organizationId },
-        data: { stripeCustomerId: customer.id },
-      });
-      console.log(
-        `✅ Set organization ${metadata.organizationId} stripe customer id to ${customer.id}`,
-      );
-
-      await prisma.$transaction(async (tx) => {
-        await ensureInitialLocalFreeSubscriptionPeriod(
-          {
-            createdAt: organization.createdAt,
-            kind: "organization",
-            organizationId: metadata.organizationId,
-            stripeCustomerId: customer.id,
-          },
-          tx,
-        );
-      });
-      break;
-    }
-    default: {
-      console.log(`Unknown customer type ${metadata?.customerType}`);
-      break;
-    }
-  }
-}
-
-export async function handleCustomerUpdatedEvent(
-  customer: Stripe.Customer,
-): Promise<void> {
-  // Check if this is an organization customer
-  const metadata = customer.metadata;
-  if (metadata?.customerType === "organization" && metadata?.organizationId) {
-    const organizationId = metadata.organizationId;
-    const customerEmail =
-      typeof customer.email === "string" ? customer.email : null;
-
-    // Get the current organization to compare emails
-    const organization =
-      await organizationRepository.getOrganizationWithRelationsById(
-        organizationId,
-        prisma,
-      );
-
-    if (!organization) {
-      console.log(
-        `Organization ${organizationId} not found for customer ${customer.id}`,
-      );
-      return;
-    }
-
-    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
-
-    // Only update if the email has actually changed
-    if (invoiceEmail !== customerEmail) {
-      await organizationRepository.updateOrganizationInvoiceEmail(
-        organizationId,
-        customerEmail,
-        prisma,
-      );
-      console.log(
-        `✅ Updated organization ${organizationId} invoice email from ${invoiceEmail} to ${customerEmail}`,
-      );
-    }
-  } else if (metadata?.type === "user" && metadata?.userId) {
-    // For user customers, we could update the user email if needed
-    // Currently, user emails are managed through the auth system
-    console.log(`User customer ${customer.id} updated, no action taken`);
-  }
 }
 
 export async function reconcileActiveStripeBackedSubscription(
