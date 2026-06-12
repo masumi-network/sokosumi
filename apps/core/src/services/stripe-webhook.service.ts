@@ -4,6 +4,7 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import prisma from "@/lib/db/prisma";
+import { handleCustomerCreatedEvent } from "@/services/stripe-customer-created.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
 /**
@@ -74,6 +75,26 @@ export const stripeWebhookService = {
                 typeof invoice.customer === "string"
                   ? invoice.customer
                   : invoice.customer?.id,
+            },
+          });
+          throw error;
+        }
+        break;
+      }
+      case "customer.created": {
+        const customer = event.data.object;
+        try {
+          await handleCustomerCreatedEvent(customer);
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: {
+              stripeEventType: event.type,
+              customerId: customer.id,
+            },
+            extra: {
+              eventId: event.id,
+              customer: customer.id,
+              email: customer.email,
             },
           });
           throw error;
