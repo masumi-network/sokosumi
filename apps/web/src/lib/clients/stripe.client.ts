@@ -11,7 +11,6 @@ import {
   getCreditTopUpTotalMinorUnits,
   type StandardCreditTopUpLookupKey,
 } from "@/lib/stripe/credit-topup-pricing";
-import { getCreditsForCoupon } from "@/lib/utils/credits";
 
 export interface Price {
   id: string;
@@ -28,7 +27,6 @@ export type CreditTopUpPriceCatalog = Record<
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
   let cachedStripeAccountId: string | null = null;
-  const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
   const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
   const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
     SUPPORTED_CREDIT_PRICE_CURRENCIES,
@@ -413,39 +411,6 @@ export const stripeClient = (() => {
       return Object.fromEntries(prices) as CreditTopUpPriceCatalog;
     },
 
-    async getPriceByProductId(productId: string): Promise<Price> {
-      try {
-        const product = await stripe.products.retrieve(productId, {
-          expand: ["default_price"],
-        });
-
-        if (
-          typeof product.default_price === "object" &&
-          product.default_price !== null &&
-          isValidCreditPrice(product.default_price)
-        ) {
-          return validatePrice(product.default_price);
-        }
-
-        const productPrices = await stripe.prices.list({
-          product: productId,
-          active: true,
-          limit: 100,
-        });
-        const fallbackPrice = selectPreferredCreditPrice(productPrices.data);
-        if (!fallbackPrice) {
-          throw new Error(
-            `No valid credit price found for product ${productId}. Expected currencies: ${SUPPORTED_CREDIT_PRICE_CURRENCIES.join(", ")}`,
-          );
-        }
-
-        return validatePrice(fallbackPrice);
-      } catch (error) {
-        console.error("Error retrieving price", error);
-        throw error;
-      }
-    },
-
     async constructEvent(req: Request, stripeSignature: string) {
       return stripe.webhooks.constructEvent(
         await req.text(),
@@ -676,97 +641,6 @@ export const stripeClient = (() => {
         paid_out_of_band: true,
         expand: ["lines.data.price.product"],
       });
-    },
-
-    /**
-     * Grants free credits by creating discounted invoice items and a
-     * zero-total invoice.
-     *
-     * `idempotencyKeyBase` makes the whole grant idempotent against retries
-     * (e.g. Stripe webhook redeliveries): every Stripe call derives its own
-     * key from the base (`-item-N`, `-invoice`, `-finalize`), so a replayed
-     * grant returns the original invoice instead of creating a second one.
-     * The base MUST be stable across retries of the same logical grant and
-     * unique per legitimately distinct grant — derive it from domain
-     * identifiers (user id, coupon id, …), never from timestamps or
-     * randomness. Stripe rejects a reused key whose request params differ
-     * (`idempotency_error`), so anything that changes the params (e.g. the
-     * coupon's `credits` metadata) must also change the base.
-     */
-    async applyInvoiceCreditsToCustomer(
-      customerId: string,
-      couponId: string,
-      idempotencyKeyBase: string,
-      metadata?: Record<string, string>,
-      referralCount: number = 1,
-    ): Promise<Stripe.Invoice> {
-      const productId = getEnvSecrets().STRIPE_CREDIT_PRODUCT_ID;
-      const price = await this.getPriceByProductId(productId);
-
-      const coupon = await stripe.coupons.retrieve(couponId);
-      if (!coupon) throw new Error("Coupon not found");
-      if (!coupon.percent_off) {
-        throw new Error("Coupon must have percent_off");
-      }
-      const credits = getCreditsForCoupon(coupon);
-      const couponTtlDays = coupon.metadata?.ttl_days;
-
-      // 1) Add invoice items representing the free credits
-      const itemsToCreate = Math.min(referralCount, MAX_REFERRAL_COUNT);
-      await Promise.all(
-        Array.from({ length: itemsToCreate }).map((_, index) =>
-          stripe.invoiceItems.create(
-            {
-              customer: customerId,
-              pricing: { price: price.id },
-              currency: price.currency,
-              quantity: credits,
-              description: `Referral credit redemption (${credits} credits) - ${index + 1} of ${itemsToCreate}`,
-              metadata: {
-                coupon_id: couponId,
-                redemption_type: "free_coupon",
-                ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
-                ...(metadata ?? {}),
-              },
-              discounts: [{ coupon: couponId }],
-            },
-            {
-              idempotencyKey: `${idempotencyKeyBase}-item-${index + 1}`,
-            },
-          ),
-        ),
-      );
-
-      // 2) Create & finalize zero-total invoice with the coupon discount
-      const invoice = await stripe.invoices.create(
-        {
-          customer: customerId,
-          currency: price.currency,
-          pending_invoice_items_behavior: "include",
-          collection_method: "charge_automatically",
-          auto_advance: true,
-          metadata: {
-            coupon_id: couponId,
-            price_id: price.id,
-            ...(couponTtlDays ? { ttl_days: couponTtlDays } : {}),
-            ...(metadata ?? {}),
-          },
-          expand: ["lines.data.price.product"],
-        },
-        {
-          idempotencyKey: `${idempotencyKeyBase}-invoice`,
-        },
-      );
-
-      const finalizedInvoice = await stripe.invoices.finalizeInvoice(
-        invoice.id!,
-        {},
-        {
-          idempotencyKey: `${idempotencyKeyBase}-finalize`,
-        },
-      );
-
-      return finalizedInvoice;
     },
   };
 })();

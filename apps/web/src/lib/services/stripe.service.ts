@@ -8,7 +8,6 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
@@ -245,99 +244,6 @@ export const stripeService = (() => {
         throw new CouponNotFoundError(couponId);
       }
       return coupon;
-    },
-
-    async createAndApplyReferralCredits(
-      userId: string,
-      organizationId: string | null,
-      referralCount: number,
-    ): Promise<{
-      personalCoupon?: Stripe.Coupon;
-      orgCoupon?: Stripe.Coupon;
-    }> {
-      const user = await userRepository.getUserById(userId, prisma);
-      if (!user || !user.stripeCustomerId) {
-        throw new Error("User or Stripe customer not found");
-      }
-
-      const personalCoupon = await this.getCoupon(
-        getEnvSecrets().STRIPE_ONBOARD_PERSONAL_COUPON,
-      );
-
-      // Scoped to user+coupon+count: retries of the same redemption replay
-      // the original grant, while a later redemption with a higher referral
-      // count is a legitimately distinct grant (and distinct request params).
-      const personalInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
-        user.stripeCustomerId,
-        personalCoupon.id,
-        `referral-${personalCoupon.id}-user-${user.id}-${referralCount}`,
-        {
-          referral_user_id: String(user.id),
-          referral_email: String(user.email ?? ""),
-        },
-        referralCount,
-      );
-      if (!personalInvoice || !personalInvoice?.id) {
-        throw new Error("Failed to apply personal coupon");
-      }
-
-      if (personalInvoice.status !== "paid") {
-        throw new Error("Personal invoice is not paid");
-      }
-
-      // Create and apply organization coupon if organizationId provided
-      let orgCoupon: Stripe.Coupon | undefined;
-      if (organizationId) {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            organizationId,
-            prisma,
-          );
-
-        if (!organization) {
-          throw new Error("Organization not found");
-        }
-
-        let orgStripeCustomerId = organization.stripeCustomerId;
-        if (!orgStripeCustomerId) {
-          const { invoiceEmail } = getOrganizationMetadata(
-            organization.metadata,
-          );
-          const orgCustomer = await stripeClient.createOrganizationCustomer(
-            organization.id,
-            organization.slug,
-            organization.name,
-            invoiceEmail,
-          );
-          if (!orgCustomer) {
-            throw new Error("Failed to create organization Stripe customer");
-          }
-          orgStripeCustomerId = orgCustomer.id;
-        }
-
-        orgCoupon = await this.getCoupon(
-          getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
-        );
-
-        const orgInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
-          orgStripeCustomerId,
-          orgCoupon.id,
-          `referral-${orgCoupon.id}-org-${organizationId}-${referralCount}`,
-          {
-            referral_user_id: String(userId),
-            referral_email: String(user?.email ?? ""),
-          },
-          referralCount,
-        );
-        if (!orgInvoice || !orgInvoice?.id) {
-          throw new Error("Failed to apply organization coupon");
-        }
-        if (orgInvoice.status !== "paid") {
-          throw new Error("Organization invoice is not paid");
-        }
-      }
-
-      return { personalCoupon, orgCoupon };
     },
   };
 })();
