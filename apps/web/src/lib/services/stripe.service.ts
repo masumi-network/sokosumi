@@ -8,7 +8,6 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { coreClient } from "@/lib/clients/core.client";
