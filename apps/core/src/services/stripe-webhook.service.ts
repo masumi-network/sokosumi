@@ -4,6 +4,7 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import prisma from "@/lib/db/prisma";
+import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
 /**
  * Sync an organization's stored invoice email when its Stripe customer
@@ -56,6 +57,29 @@ export const stripeWebhookService = {
    */
   async handleEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
+      case "invoice.paid": {
+        const invoice = event.data.object;
+        try {
+          await handleInvoicePaidEvent(invoice);
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: {
+              stripeEventType: event.type,
+              invoiceId: invoice.id,
+            },
+            extra: {
+              eventId: event.id,
+              invoice: invoice.id,
+              customer:
+                typeof invoice.customer === "string"
+                  ? invoice.customer
+                  : invoice.customer?.id,
+            },
+          });
+          throw error;
+        }
+        break;
+      }
       case "customer.updated": {
         const customer = event.data.object;
         try {
