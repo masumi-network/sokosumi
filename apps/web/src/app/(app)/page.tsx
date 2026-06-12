@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { getDefaultAuthenticatedLandingPath } from "@/lib/utils/landing-path";
+
 export default async function Page() {
-  redirect("/tasks");
+  const path = await getDefaultAuthenticatedLandingPath();
+  redirect(path);
 }

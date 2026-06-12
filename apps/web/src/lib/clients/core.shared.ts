@@ -118,6 +118,7 @@ import {
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
+  getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
   listCreditPrices as coreListCreditPrices,
@@ -500,6 +501,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch tasks",
+    );
+  }
+
+  async function getUserTasksCount(userId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdTasksCount({
+          client,
+          path: { id: userId },
+          cache: "no-store",
+        }),
+      "Failed to fetch user task count",
     );
   }
 
@@ -2331,6 +2345,7 @@ export function createCoreClient(getClient: GetClient) {
     getTaskById,
     getTaskLinks,
     getTasks,
+    getUserTasksCount,
     patchTask,
     putJobShare,
     putTaskShare,

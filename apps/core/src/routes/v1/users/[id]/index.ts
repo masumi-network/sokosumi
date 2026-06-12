@@ -22,6 +22,7 @@ import mountPutUserPreferredOrganization from "./preferred-organization/put.js";
 import mountGetUserStripeCustomer from "./stripe-customer/get.js";
 import mountPostUserStripeCustomer from "./stripe-customer/post.js";
 import mountGetUserSubscription from "./subscription/get.js";
+import mountGetUserTasksCount from "./tasks/count/get.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
 import mountPostUserUtmAttribution from "./utm-attribution/post.js";
@@ -51,6 +52,7 @@ mountPostUserUtmAttribution(app);
 mountGetUserStripeCustomer(app);
 mountPostUserStripeCustomer(app);
 mountGetUserSubscription(app);
+mountGetUserTasksCount(app);
 mountGetUserById(app);
 
 export default app;
