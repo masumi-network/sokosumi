@@ -143,6 +143,7 @@ export function TaskStatusBadge({
   const styles = STATUS_PILL_STYLES[status] ?? {
     bg: "bg-muted",
     text: "text-muted-foreground",
+    dot: "bg-muted-foreground",
   };
   const showIcon = shouldShowWarningIcon(status);
   const showStatusDot = shouldShowStatusDot(status, showDot);
