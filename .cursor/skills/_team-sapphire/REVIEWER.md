@@ -98,10 +98,12 @@ Follow `VISUAL-CAPTURE.md` — **Cloud Agent:** computer use + PR artifacts; **I
 
 ## Completion
 
-1. `save_comment` — checklist, command summary, screenshot links
-2. `save_issue` with `id` + `state: "In Review"`
-3. Post `**Sapphire · Reviewer complete**`
+1. `save_comment` — `**Sapphire · Reviewer complete**` with checklist, command summary, screenshot links
+2. `save_issue` — Reviewer row → `done` (full description merge; all four rows must be `done`)
+3. `save_issue` — `state: "In Review"` only (no `description`)
 4. Do **not** mark **Done** — human merges PR
+
+Run **Exit gate** in `PHASE-GATE.md` before the orchestrator returns to the user.
 
 ## Failure comment
 

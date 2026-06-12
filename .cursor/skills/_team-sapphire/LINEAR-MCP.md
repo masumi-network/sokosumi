@@ -2,6 +2,8 @@
 
 Single-issue updates only. No child issues.
 
+**Phase gates:** Every phase ends with `save_comment` + status row update before the next phase. See `PHASE-GATE.md` — skipping gates is a failed run.
+
 ## What goes on Linear
 
 | Write to Linear | Do not write to Linear |
@@ -61,6 +63,12 @@ Do not add Investigation or Spec sections.
 ### After each phase
 
 Update the status table row to `done`. Post a **short summary comment** — not the full investigation or spec.
+
+**Order:** `save_comment` first, then `save_issue` with merged description. Do **not** start the next Sapphire phase until both succeed.
+
+### Exit verification
+
+Before the orchestrator returns to the user, `get_issue` + `list_comments` must confirm every completed phase has its comment header and matching `done` row. If the table still shows `pending` for a completed phase, repair per `PHASE-GATE.md` **Repair** — do not exit.
 
 ### State transitions
 
@@ -129,3 +137,5 @@ Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; s
 ## Post-run response
 
 Return issue id/URL, phases completed, Linear state, PR URL if any.
+
+Confirm exit gate passed: all completed phases have comments + status rows `done`. If not, say what was repaired or what is still missing.

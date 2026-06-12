@@ -65,3 +65,13 @@ Each subagent prompt must include:
 ## Pre-PR verification
 
 Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verification command trust**. Run the narrowest set covering your deliverables.
+
+## Phase gate (blocking)
+
+Before Reviewer starts:
+
+1. `save_comment` — `**PR handoff**` (PR URL, branch, one-line summary)
+2. `save_comment` — `**Sapphire · Coder complete**`
+3. `save_issue` — Coder row → `done` (issue stays **In Progress**)
+
+Do **not** run `/goal` or set **In Review** until all three succeed. See `PHASE-GATE.md`.

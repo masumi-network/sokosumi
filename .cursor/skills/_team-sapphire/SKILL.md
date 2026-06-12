@@ -1,6 +1,6 @@
 ---
 name: _team-sapphire
-description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — in one session from requirement through PR and /goal review until In Review. Use after _task posts a requirement, when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue is delegated with Sapphire handoff footer.
+description: Run the Sapphire squad on a single Linear issue — Investigator, Tech Lead, Coder(s), and Reviewer — in one session from requirement through PR and /goal review until In Review. Mandatory phase gates (comment + status table per phase) per PHASE-GATE.md. Use after _task posts a requirement, when the user says run team-sapphire or Sapphire for SOK-XXX, or when a Linear issue is delegated with Sapphire handoff footer.
 disable-model-invocation: true
 ---
 
@@ -13,6 +13,8 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 ## Continuous orchestration (critical)
 
 **Do not stop after one phase.** You are the orchestrator — run every remaining phase in **this same agent session** until the pipeline finishes or you hit an unrecoverable blocker.
+
+**Do not batch Linear updates.** Each phase ends with a **blocking gate** — `save_comment` + status row `done` via `save_issue` — before the next phase starts. See `PHASE-GATE.md`. Skipping gates (e.g. only posting a final Reviewer comment while the status table stays `pending`) is a **failed run** — repair before exit.
 
 | After phase completes | Next action |
 |----------------------|-------------|
@@ -86,18 +88,16 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 1. Run Investigator per `INVESTIGATOR.md` (codebase search, pitfalls, patterns — **not** a final spec).
 2. Keep the investigation markdown **in session** — pass the full text to Tech Lead. Do **not** merge `## Investigation` into the Linear description.
-3. Post comment `**Sapphire · Investigator complete**` with a 3–5 bullet summary (not the full investigation).
-4. Update `## Sapphire status` — Investigator → `done` (status-only `save_issue` per `LINEAR-MCP.md`).
-5. **Continue in this run** — proceed to Phase 2 without stopping.
+3. **Gate (blocking):** `save_comment` → `**Sapphire · Investigator complete**` (3–5 bullets). Then `save_issue` → Investigator row `done`. Do **not** open Phase 2 until both succeed (`PHASE-GATE.md`).
+4. **Continue in this run** — proceed to Phase 2 without stopping.
 
 ### Phase 2 — Tech Lead
 
 1. Read Requirement (Linear) + Investigation (**session**).
 2. Write final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
 3. Keep the spec markdown **in session** — pass the full text to Coder and Reviewer. Do **not** merge `## Spec` into the Linear description.
-4. Post comment `**Sapphire · Tech Lead complete**` with coder count, execution order, and 3–5 bullet spec summary (not the full spec).
-5. Update status — Tech Lead → `done` (status-only `save_issue`).
-6. **Continue in this run** — proceed to Phase 3 without stopping.
+4. **Gate (blocking):** `save_comment` → `**Sapphire · Tech Lead complete**` (coder count, order, 3–5 bullets). Then `save_issue` → Tech Lead row `done`. Do **not** open Phase 3 until both succeed.
+5. **Continue in this run** — proceed to Phase 3 without stopping.
 
 ### Phase 3 — Coder(s)
 
@@ -106,20 +106,24 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 3. If single coder, implement in this run.
 4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**).
 5. Open PR; PR body must reference the Linear issue id.
-6. Post `**PR handoff**` comment per `REVIEWER.md`.
-7. Post `**Sapphire · Coder complete**`. Update status — Coder → done (status-only `save_issue`). Stay **In Progress** — do not set In Review yet.
-8. **Continue in this run** — proceed to Phase 4 without stopping.
+6. **Gate (blocking):** `save_comment` → `**PR handoff**`. Then `save_comment` → `**Sapphire · Coder complete**`. Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until all three succeed.
+7. **Continue in this run** — proceed to Phase 4 without stopping.
 
 ### Phase 4 — Reviewer
 
 1. Run `/goal` per `REVIEWER.md` until all criteria pass.
 2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
 3. Fix on PR branch when needed; loop.
-4. On pass: set issue `In Review`, post `**Sapphire · Reviewer complete**` with evidence, update status — Reviewer → done (status-only `save_issue` + state).
+4. **Gate (blocking):** On pass — `save_comment` → `**Sapphire · Reviewer complete**` with evidence; `save_issue` → Reviewer row `done` (full description merge); then `save_issue` → `state: "In Review"` only. All four status rows must be `done` before exit.
 5. Do **not** mark issue **Done** — human merges PR.
+
+### Exit gate (blocking)
+
+Before returning to the user, run **Exit gate** in `PHASE-GATE.md`: `get_issue` + `list_comments`. If any completed phase lacks its comment or status row, **repair retroactively** — do not report success with a stale `pending` table.
 
 ## MCP
 
+- Read `PHASE-GATE.md` before the first phase — gates are blocking.
 - Read `LINEAR-MCP.md` before any write.
 - Health check before first call — same message as `_task` if `user-linear` is missing.
 - Use `save_issue` for **status table**, **state**, and legacy section cleanup only — not investigation or spec; use `save_comment` for phase markers.
@@ -145,6 +149,7 @@ Return issue id/URL, **all phases completed in this run**, PR link (if any), and
 
 ## Supporting files
 
+- `PHASE-GATE.md` — blocking comment + status writes per phase; exit verification
 - `WORKFLOW.md` — pipeline diagram and status lifecycle
 - `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, `REVIEWER.md` — role contracts
 - `SPEC-TEMPLATE.md` — Tech Lead output shape

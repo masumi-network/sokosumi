@@ -50,3 +50,12 @@ Keep it scannable. Bullets over paragraphs. Real paths as markdown links.
 - **Sapphire orchestrator (default):** After Investigator complete, continue to Phase 2 (Tech Lead) in the **same run** per `SKILL.md` — do not stop early.
 - **Standalone Investigator** (user invoked Investigator only): Stop after `**Sapphire · Investigator complete**`; Tech Lead runs in a separate session.
 - **New session resume:** Linear may show Investigator = `done` without **session investigation** — orchestrator re-runs Investigator before Tech Lead per `SKILL.md` **Resume and idempotency**.
+
+## Phase gate (blocking)
+
+Before Tech Lead starts:
+
+1. `save_comment` — `**Sapphire · Investigator complete**` + 3–5 bullets
+2. `save_issue` — Investigator row → `done` (full description merge per `LINEAR-MCP.md`)
+
+Do **not** write code or start Tech Lead until both succeed. See `PHASE-GATE.md`.
