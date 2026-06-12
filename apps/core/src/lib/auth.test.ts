@@ -90,7 +90,7 @@ const {
 
 function getDefaultEnv() {
   return {
-    BETTER_AUTH_COOKIE_DOMAIN: undefined,
+    BETTER_AUTH_COOKIE_DOMAIN: "localhost",
     BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: 172800,
     BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 604800,
     BETTER_AUTH_ORG_INVITATION_LIMIT: 100,
@@ -548,16 +548,14 @@ describe("core auth config", () => {
     });
   });
 
-  it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
-    getEnvMock.mockReturnValue({
-      ...getDefaultEnv(),
-      BETTER_AUTH_COOKIE_DOMAIN: undefined,
-    });
-
+  it("always enables cross-subdomain cookies with the default localhost domain", async () => {
     await import("./auth");
 
     const config = getBetterAuthConfig();
-    expect(config.advanced.crossSubDomainCookies).toBeUndefined();
+    expect(config.advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "localhost",
+    });
     expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-preprod");
   });
 
