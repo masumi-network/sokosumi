@@ -64,7 +64,8 @@ describe("proxy", () => {
     );
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
-  describe("session-rescope shim", () => {
+
+  describe("shared auth session cookie shim", () => {
     function buildEnv(cookieDomain: string | undefined) {
       return {
         BETTER_AUTH_COOKIE_DOMAIN: cookieDomain,
@@ -75,7 +76,7 @@ describe("proxy", () => {
       };
     }
 
-    it("re-scopes the host-only session cookie and sets the marker", async () => {
+    it("re-scopes the host-only session cookie on a matching remote host", async () => {
       getEnvSecretsMock.mockReturnValue(buildEnv("sokosumi.com"));
       const { NextRequest } = await import("next/server");
       const { proxy } = await import("../proxy");
@@ -97,6 +98,51 @@ describe("proxy", () => {
       ).toMatchObject({
         value: "1",
         domain: "sokosumi.com",
+      });
+    });
+
+    it("re-scopes host-only session cookies on localhost for cross-port core access", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv(undefined));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("http://localhost:3000/tasks");
+      request.cookies.set("sokosumi.session_token", "tok");
+
+      const response = await proxy(request);
+
+      expect(response.cookies.get("sokosumi.session_token")).toMatchObject({
+        value: "tok",
+        domain: "localhost",
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+      });
+      expect(
+        response.cookies.get("sokosumi.session_token_rescoped"),
+      ).toMatchObject({
+        value: "1",
+        domain: "localhost",
+      });
+    });
+
+    it("uses localhost on local dev even when a production cookie domain is configured", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv("sokosumi.com"));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("http://localhost:3000/dashboard");
+      request.cookies.set("sokosumi.session_token", "tok");
+
+      const response = await proxy(request);
+
+      expect(response.cookies.get("sokosumi.session_token")).toMatchObject({
+        value: "tok",
+        domain: "localhost",
+      });
+      expect(
+        response.cookies.get("sokosumi.session_token_rescoped"),
+      ).toMatchObject({
+        value: "1",
+        domain: "localhost",
       });
     });
 
@@ -131,11 +177,38 @@ describe("proxy", () => {
       expect(response.cookies.get("sokosumi.session_token")).toBeUndefined();
     });
 
-    it("does nothing without a configured cookie domain", async () => {
+    it("does nothing when the legacy localhost marker cookie is already present", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv(undefined));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("http://localhost:3000/tasks");
+      request.cookies.set("sokosumi.session_token", "tok");
+      request.cookies.set("sokosumi.session_cross_port_scoped", "1");
+
+      const response = await proxy(request);
+
+      expect(response.cookies.get("sokosumi.session_token")).toBeUndefined();
+    });
+
+    it("does nothing on remote hosts without a configured cookie domain", async () => {
       getEnvSecretsMock.mockReturnValue(buildEnv(undefined));
       const { NextRequest } = await import("next/server");
       const { proxy } = await import("../proxy");
       const request = new NextRequest("https://app.sokosumi.com/dashboard");
+      request.cookies.set("sokosumi.session_token", "tok-123");
+
+      const response = await proxy(request);
+
+      expect(response.cookies.get("sokosumi.session_token")).toBeUndefined();
+    });
+
+    it("does nothing when the remote host does not match the configured cookie domain", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv("sokosumi.com"));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest(
+        "https://my-app.example.vercel.app/dashboard",
+      );
       request.cookies.set("sokosumi.session_token", "tok-123");
 
       const response = await proxy(request);

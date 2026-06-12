@@ -559,6 +559,21 @@ describe("core auth config", () => {
     expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-preprod");
   });
 
+  it("forces localhost cookie domain in development even when env says sokosumi.com", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "development",
+      BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.com",
+    });
+
+    await import("./auth");
+
+    expect(getBetterAuthConfig().advanced.crossSubDomainCookies).toEqual({
+      enabled: true,
+      domain: "localhost",
+    });
+  });
+
   it("uses the configured cookie domain when provided", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),

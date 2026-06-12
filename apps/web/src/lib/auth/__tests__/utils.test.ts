@@ -13,6 +13,12 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/forward-cookies", () => ({
+  buildAuthRequestHeadersForForwarding: vi.fn(async () =>
+    Promise.resolve(new Headers({ cookie: "session=abc" })),
+  ),
+}));
+
 vi.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {

@@ -1,7 +1,6 @@
 "use server";
 
 import type { User } from "better-auth";
-import { headers } from "next/headers";
 
 import {
   type ActionError,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
 import { emailSchema } from "@/lib/auth/data";
+import { buildAuthRequestHeadersForForwarding } from "@/lib/auth/forward-cookies";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import {
   type NewPasswordFormType,
@@ -99,7 +99,7 @@ export async function signUpEmail(
         termsAccepted: parsed.termsAccepted,
         onboardingCompleted: false,
       },
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
     });
     const user = signUpResult.user;
     if (!user) {
@@ -184,7 +184,7 @@ export async function signInEmail(
         rememberMe: parsed.rememberMe,
         callbackURL: safeCallbackURL,
       },
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
     });
 
     const oauthResponse = signInResult as {
@@ -245,7 +245,7 @@ export async function requestMagicLinkSignIn(
         email: parsedResult.data,
         callbackURL: safeCallbackURL,
       },
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
     });
 
     return Ok();

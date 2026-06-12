@@ -1,10 +1,10 @@
 import "server-only";
 
 import type { Member, MemberWithOrganization } from "@sokosumi/database";
-import { headers } from "next/headers";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
+import { buildAuthRequestHeadersForForwarding } from "@/lib/auth/forward-cookies";
 import { getSession } from "@/lib/auth/utils";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
@@ -127,7 +127,7 @@ export const userService = (() => {
         // the session cookie cache stays in sync — same approach as
         // markOnboardingCompleteForMe below.
         await auth.api.updateUser({
-          headers: await headers(),
+          headers: await buildAuthRequestHeadersForForwarding(),
           body: { onboardingCompleted: true },
         });
         return false;
@@ -158,7 +158,7 @@ export const userService = (() => {
     // Update via Better Auth to keep session in sync (cookie cache, etc.)
     // This has to be done, because the screen wasn't getting synced with the DB causing users to keep in the same screen.
     await auth.api.updateUser({
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
       body: { onboardingCompleted: true },
     });
   }

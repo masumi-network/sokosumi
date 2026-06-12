@@ -47,7 +47,7 @@ describe("auth facade", () => {
     createAuthClientMock.mockReturnValue(buildClientStub());
   });
 
-  it("forwards only allow-listed headers and revives session dates", async () => {
+  it("forwards only allow-listed headers, sanitizes cookies, and revives session dates", async () => {
     const expiresAt = "2026-06-19T12:00:00.000Z";
     getSessionMock.mockResolvedValue({
       data: {
@@ -60,7 +60,8 @@ describe("auth facade", () => {
     const { auth } = await import("../auth");
     const requestHeaders = new Headers({
       authorization: "Bearer should-not-forward",
-      cookie: "sokosumi.session_token=abc",
+      cookie:
+        "sokosumi.session_token=stale; __Secure-sokosumi.session_token=abc",
       "accept-language": "de-DE",
       "x-internal-header": "nope",
     });
@@ -74,11 +75,30 @@ describe("auth facade", () => {
       headers: Headers;
     };
     expect(fetchOptions.headers.get("cookie")).toBe(
-      "sokosumi.session_token=abc",
+      "__Secure-sokosumi.session_token=abc",
     );
     expect(fetchOptions.headers.get("accept-language")).toBe("de-DE");
     expect(fetchOptions.headers.get("authorization")).toBeNull();
     expect(fetchOptions.headers.get("x-internal-header")).toBeNull();
+  });
+
+  it("synthesizes origin from host when server actions omit origin", async () => {
+    getSessionMock.mockResolvedValue({
+      data: null,
+      error: { status: 401, statusText: "Unauthorized" },
+    });
+
+    const { auth } = await import("../auth");
+    const requestHeaders = new Headers({
+      host: "localhost:3000",
+    });
+
+    await auth.api.getSession({ headers: requestHeaders });
+
+    const fetchOptions = getSessionMock.mock.calls[0]?.[0]?.fetchOptions as {
+      headers: Headers;
+    };
+    expect(fetchOptions.headers.get("origin")).toBe("http://localhost:3000");
   });
 
   it("returns null from getSession when core responds 401", async () => {
@@ -142,10 +162,10 @@ describe("auth facade", () => {
     const { auth } = await import("../auth");
     await auth.api.signInEmail({
       body: { email: "jane@example.com", password: "pw-123456" },
-      headers: new Headers(),
+      headers: new Headers({ host: "localhost:3000" }),
     });
 
-    expect(cookieSetMock).toHaveBeenCalledTimes(2);
+    expect(cookieSetMock).toHaveBeenCalledTimes(3);
     expect(cookieSetMock).toHaveBeenCalledWith(
       "sokosumi.session_token",
       "tok",
@@ -165,6 +185,92 @@ describe("auth facade", () => {
         path: "/",
         sameSite: "lax",
         secure: true,
+      },
+    );
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      "__Secure-sokosumi.session_data",
+      "",
+      {
+        maxAge: 0,
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      },
+    );
+  });
+
+  it("scopes host-only relayed cookies to localhost in development", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi-localhost-preprod.session_token=tok; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+    await auth.api.signInEmail({
+      body: { email: "jane@example.com", password: "pw-123456" },
+      headers: new Headers({ host: "localhost:3000" }),
+    });
+
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      "sokosumi-localhost-preprod.session_token",
+      "tok",
+      {
+        domain: "localhost",
+        httpOnly: true,
+        maxAge: 604800,
+        path: "/",
+        sameSite: "lax",
+      },
+    );
+  });
+
+  it("does not clear host-only duplicates when relaying localhost domain cookies", async () => {
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi-localhost-preprod.session_token=tok; Domain=localhost; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+    await auth.api.signInEmail({
+      body: { email: "jane@example.com", password: "pw-123456" },
+      headers: new Headers({ host: "localhost:3000" }),
+    });
+
+    expect(cookieSetMock).toHaveBeenCalledTimes(1);
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      "sokosumi-localhost-preprod.session_token",
+      "tok",
+      {
+        domain: "localhost",
+        httpOnly: true,
+        maxAge: 604800,
+        path: "/",
+        sameSite: "lax",
       },
     );
   });

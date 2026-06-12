@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import * as z from "zod";
 import {
   type ActionError,
@@ -9,6 +8,7 @@ import {
 } from "@/lib/actions/errors";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import { auth } from "@/lib/auth/auth";
+import { buildAuthRequestHeadersForForwarding } from "@/lib/auth/forward-cookies";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -130,7 +130,7 @@ export const upgradePersonalSubscription = withSession<
       parsed.data.returnPath ?? "/billing?tab=subscription";
 
     const result = await auth.api.upgradeSubscription({
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
       body: {
         plan: parsed.data.plan,
         customerType: "user",
@@ -172,7 +172,7 @@ export const openPersonalBillingPortal = withSession<
 
   try {
     const result = await auth.api.createBillingPortal({
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
       body: {
         customerType: "user",
         returnUrl: parsedReturnPath.data ?? "/billing?tab=subscription",
@@ -218,7 +218,7 @@ export const upgradeOrganizationSubscription = withSession<
 
   try {
     const result = await auth.api.upgradeSubscription({
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
       body: {
         plan: parsed.data.plan,
         customerType: "organization",
@@ -270,7 +270,7 @@ export const openOrganizationBillingPortal = withSession<
 
   try {
     const result = await auth.api.createBillingPortal({
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
       body: {
         customerType: "organization",
         referenceId: parsed.data.organizationId,

@@ -8,25 +8,64 @@ import { getEnvSecrets } from "@/config/env.secrets";
 /**
  * TEMPORARY session-survival shim for the Better Auth web → core migration.
  *
- * Before the migration the session cookie was host-only on the web origin, so
- * browsers would not send it to core's host and every existing session would
- * be logged out at cutover. This re-sets the same cookie value scoped to the
- * shared parent domain (BETTER_AUTH_COOKIE_DOMAIN) so core — which signs with
- * the same BETTER_AUTH_SECRET — accepts it. A companion marker cookie
- * prevents re-setting on every request.
+ * Auth cookies must be visible to both origins:
+ * - **Local dev**: web (:3000) and core (:8787) share `Domain=localhost`.
+ * - **Deployed**: web (e.g. app.sokosumi.com) and core (e.g. core.sokosumi.com)
+ *   share `BETTER_AUTH_COOKIE_DOMAIN`.
+ *
+ * Sign-in often leaves a host-only cookie on the web origin; browsers will not
+ * send it to core's host. This re-sets the same value with the shared domain
+ * core uses (`crossSubDomainCookies`), plus a marker cookie so we only do it
+ * once per session.
  *
  * REMOVE after one full session max-age window (Better Auth default: 7 days)
  * has passed in production — by then every live session cookie has either
  * been re-scoped or expired.
- *
- * The host-only original is deliberately left in place: browsers send both
- * (older first) and Better Auth's cookie parsing is last-occurrence-wins, so
- * the re-scoped cookie takes effect; the original expires with its session.
  */
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // Better Auth default session expiry
 const MARKER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const LEGACY_CROSS_PORT_MARKER_SUFFIX = "session_cross_port_scoped";
 
-function applySessionCookieRescopeShim(
+function resolveSharedAuthCookieDomain(
+  request: NextRequest,
+  configuredDomain: string | undefined,
+): string | undefined {
+  const hostname = request.nextUrl.hostname.toLowerCase();
+
+  // Mirror apps/core/src/lib/auth.ts: development cookies always use localhost,
+  // even when .env copies production `sokosumi.com` (browsers reject that here).
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "localhost";
+  }
+
+  if (!configuredDomain) {
+    return undefined;
+  }
+
+  const domain = configuredDomain.replace(/^\./, "").toLowerCase();
+  if (hostname === domain || hostname.endsWith(`.${domain}`)) {
+    return domain;
+  }
+
+  return undefined;
+}
+
+function hasSharedAuthCookieShimMarker(
+  request: NextRequest,
+  cookiePrefix: string,
+): boolean {
+  const markerName = `${cookiePrefix}.session_token_rescoped`;
+  if (request.cookies.has(markerName)) {
+    return true;
+  }
+
+  // Legacy marker from an earlier localhost-only shim — treat as done.
+  return request.cookies.has(
+    `${cookiePrefix}.${LEGACY_CROSS_PORT_MARKER_SUFFIX}`,
+  );
+}
+
+function applySharedAuthSessionCookieShim(
   request: NextRequest,
   response: NextResponse,
   cookiePrefix: string,
@@ -36,8 +75,7 @@ function applySessionCookieRescopeShim(
     return;
   }
 
-  const markerName = `${cookiePrefix}.session_token_rescoped`;
-  if (request.cookies.has(markerName)) {
+  if (hasSharedAuthCookieShimMarker(request, cookiePrefix)) {
     return;
   }
 
@@ -52,6 +90,15 @@ function applySessionCookieRescopeShim(
   }
 
   const secure = Boolean(secureCookie);
+  const markerName = `${cookiePrefix}.session_token_rescoped`;
+
+  response.cookies.set(sessionCookie.name, "", {
+    httpOnly: true,
+    maxAge: 0,
+    path: "/",
+    sameSite: "lax",
+    secure,
+  });
   response.cookies.set(sessionCookie.name, sessionCookie.value, {
     domain: cookieDomain,
     httpOnly: true,
@@ -123,11 +170,11 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
   applyDocumentSecurityHeaders(response);
-  applySessionCookieRescopeShim(
+  applySharedAuthSessionCookieShim(
     request,
     response,
     betterAuthCookiePrefix,
-    env.BETTER_AUTH_COOKIE_DOMAIN,
+    resolveSharedAuthCookieDomain(request, env.BETTER_AUTH_COOKIE_DOMAIN),
   );
 
   // Skip session check for excluded paths (but still set headers above)

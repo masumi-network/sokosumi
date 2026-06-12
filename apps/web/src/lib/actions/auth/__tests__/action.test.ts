@@ -19,15 +19,16 @@ const signInEmailMock = vi.fn();
 const signInMagicLinkMock = vi.fn();
 const setPasswordMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
-const headersMock = vi.fn();
+const buildAuthRequestHeadersForForwardingMock = vi.fn();
 const betterAuthApiErrorSafeParseMock = vi.fn<
   (value: unknown) => BetterAuthApiErrorParseResult
 >(() => ({
   success: false,
 }));
 
-vi.mock("next/headers", () => ({
-  headers: headersMock,
+vi.mock("@/lib/auth/forward-cookies", () => ({
+  buildAuthRequestHeadersForForwarding: () =>
+    buildAuthRequestHeadersForForwardingMock(),
 }));
 
 vi.mock("@/lib/actions", () => ({
@@ -64,7 +65,7 @@ vi.mock("@/lib/services/utm.service", () => ({
 describe("auth actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    headersMock.mockResolvedValue(new Headers());
+    buildAuthRequestHeadersForForwardingMock.mockResolvedValue(new Headers());
     betterAuthApiErrorSafeParseMock.mockReturnValue({ success: false });
   });
 
@@ -219,7 +220,7 @@ describe("auth actions", () => {
 
     const cookieHeaders = new Headers();
     cookieHeaders.set("cookie", "session_token=fake-session");
-    headersMock.mockResolvedValue(cookieHeaders);
+    buildAuthRequestHeadersForForwardingMock.mockResolvedValue(cookieHeaders);
 
     const { signUpEmail } = await import("../action");
 

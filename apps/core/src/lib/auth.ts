@@ -78,6 +78,10 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
+// Local .env files often copy production `sokosumi.com`; browsers reject that
+// domain on localhost, which breaks sign-in. Development always uses localhost.
+const betterAuthCookieDomain =
+  env.NODE_ENV === "development" ? "localhost" : env.BETTER_AUTH_COOKIE_DOMAIN;
 
 const fromEmail = env.POSTMARK_FROM_EMAIL;
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
@@ -242,7 +246,7 @@ export const auth = betterAuth({
     cookiePrefix: betterAuthCookiePrefix,
     crossSubDomainCookies: {
       enabled: true,
-      domain: env.BETTER_AUTH_COOKIE_DOMAIN,
+      domain: betterAuthCookieDomain,
     },
     ipAddress: {
       ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],

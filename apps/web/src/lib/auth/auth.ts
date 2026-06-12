@@ -15,6 +15,7 @@ import {
 } from "better-auth/client/plugins";
 import { cookies } from "next/headers";
 
+import { sanitizeForwardCookieHeader } from "@/lib/auth/forward-cookies";
 import { getServerCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 /**
@@ -82,6 +83,43 @@ const FORWARDED_HEADER_NAMES = [
   "x-vercel-forwarded-for",
 ] as const;
 
+function resolveRequestOrigin(requestHeaders: Headers): string | null {
+  const origin = requestHeaders.get("origin");
+  if (origin) {
+    return origin;
+  }
+
+  const referer = requestHeaders.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // ignore invalid referer
+    }
+  }
+
+  const host =
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  if (!host) {
+    return null;
+  }
+
+  const hostname = host.split(",")[0]?.trim();
+  if (!hostname) {
+    return null;
+  }
+
+  const proto = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const protocol =
+    proto === "https" || proto === "http"
+      ? proto
+      : hostname.includes("localhost") || hostname.startsWith("127.")
+        ? "http"
+        : "https";
+
+  return `${protocol}://${hostname}`;
+}
+
 function buildForwardHeaders(requestHeaders?: Headers): Headers {
   const forwarded = new Headers();
   if (!requestHeaders) {
@@ -90,8 +128,20 @@ function buildForwardHeaders(requestHeaders?: Headers): Headers {
 
   for (const name of FORWARDED_HEADER_NAMES) {
     const value = requestHeaders.get(name);
-    if (value) {
-      forwarded.set(name, value);
+    if (!value) {
+      continue;
+    }
+    if (name === "cookie") {
+      forwarded.set("cookie", sanitizeForwardCookieHeader(value));
+      continue;
+    }
+    forwarded.set(name, value);
+  }
+
+  if (!forwarded.has("origin")) {
+    const origin = resolveRequestOrigin(requestHeaders);
+    if (origin) {
+      forwarded.set("origin", origin);
     }
   }
 
@@ -223,6 +273,27 @@ function parseSetCookie(raw: string): ParsedSetCookie | null {
   return { name, value, options };
 }
 
+function shouldClearHostOnlySessionDuplicate(
+  domain: string | undefined,
+): boolean {
+  if (!domain) {
+    return false;
+  }
+
+  const normalized = domain.replace(/^\./, "").toLowerCase();
+  return normalized !== "localhost" && normalized !== "127.0.0.1";
+}
+
+function withLocalhostRelayCookieDomain(
+  options: ParsedSetCookie["options"],
+): ParsedSetCookie["options"] {
+  if (options.domain || process.env.NODE_ENV !== "development") {
+    return options;
+  }
+
+  return { ...options, domain: "localhost" };
+}
+
 /**
  * Re-sets cookies issued by core onto the Next.js response. Next only allows
  * cookie writes in server actions and route handlers; in RSC render paths
@@ -243,7 +314,20 @@ async function relaySetCookies(response: Response): Promise<void> {
       continue;
     }
     try {
-      cookieStore.set(parsed.name, parsed.value, parsed.options);
+      const options = withLocalhostRelayCookieDomain(parsed.options);
+      cookieStore.set(parsed.name, parsed.value, options);
+      if (shouldClearHostOnlySessionDuplicate(options.domain)) {
+        // Production migration only: drop stale host-only duplicates after
+        // re-scoping to the shared parent domain. Never do this for localhost
+        // — it races with the domain cookie we just set on email sign-in.
+        cookieStore.set(parsed.name, "", {
+          httpOnly: options.httpOnly,
+          maxAge: 0,
+          path: options.path ?? "/",
+          sameSite: options.sameSite,
+          secure: options.secure,
+        });
+      }
     } catch {
       // Read-only context (RSC render) — skip, matching nextCookies().
     }

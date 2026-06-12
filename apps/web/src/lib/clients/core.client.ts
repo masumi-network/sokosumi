@@ -1,7 +1,9 @@
 import "server-only";
 
-import { headers } from "next/headers";
-
+import {
+  buildAuthRequestHeadersForForwarding,
+  sanitizeForwardCookieHeader,
+} from "@/lib/auth/forward-cookies";
 import { createClient } from "@/lib/clients/generated/core/client";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
@@ -21,7 +23,7 @@ export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
   const cookie = requestHeaders.get("cookie");
 
   if (cookie) {
-    authHeaders.cookie = cookie;
+    authHeaders.cookie = sanitizeForwardCookieHeader(cookie);
   }
 
   return authHeaders;
@@ -30,7 +32,7 @@ export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
 async function createCoreGeneratedClient() {
   return createClient({
     baseUrl: getServerCoreApiBaseUrl(),
-    headers: buildAuthHeaders(await headers()),
+    headers: buildAuthHeaders(await buildAuthRequestHeadersForForwarding()),
   });
 }
 

@@ -6,11 +6,13 @@
  * on outbound requests with `InvalidArgumentError: invalid transfer-encoding header`,
  * which surfaces as `TypeError: fetch failed` and a 500 from `/api/chat`.
  */
+import { sanitizeForwardCookieHeader } from "@/lib/auth/forward-cookies";
+
 export function buildCoreChatProxyHeaders(headerSource: Headers): Headers {
   const out = new Headers();
   const cookie = headerSource.get("cookie");
   if (cookie) {
-    out.set("cookie", cookie);
+    out.set("cookie", sanitizeForwardCookieHeader(cookie));
   }
   const authorization = headerSource.get("authorization");
   if (authorization) {

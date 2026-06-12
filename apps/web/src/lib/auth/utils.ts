@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
+import { buildAuthRequestHeadersForForwarding } from "@/lib/auth/forward-cookies";
 
 interface GetSessionOptions {
   refresh?: boolean;
@@ -19,7 +20,7 @@ interface GetSessionOptions {
  */
 const getCachedSession = cache(async (): Promise<Session | null> => {
   const session = await auth.api.getSession({
-    headers: await headers(),
+    headers: await buildAuthRequestHeadersForForwarding(),
   });
 
   return session;
@@ -33,7 +34,7 @@ export async function getSession(
       query: {
         disableCookieCache: true,
       },
-      headers: await headers(),
+      headers: await buildAuthRequestHeadersForForwarding(),
     });
   }
 
