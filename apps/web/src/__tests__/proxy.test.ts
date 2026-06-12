@@ -64,4 +64,83 @@ describe("proxy", () => {
     );
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
+  describe("session-rescope shim", () => {
+    function buildEnv(cookieDomain: string | undefined) {
+      return {
+        BETTER_AUTH_COOKIE_DOMAIN: cookieDomain,
+        MAINTENANCE_MODE: false,
+        NETWORK: "Mainnet",
+        VERCEL_ENV: "production",
+        VERCEL_GIT_COMMIT_REF: "",
+      };
+    }
+
+    it("re-scopes the host-only session cookie and sets the marker", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv("sokosumi.com"));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("https://app.sokosumi.com/dashboard");
+      request.cookies.set("sokosumi.session_token", "tok-123");
+
+      const response = await proxy(request);
+
+      const sessionCookie = response.cookies.get("sokosumi.session_token");
+      expect(sessionCookie).toMatchObject({
+        value: "tok-123",
+        domain: "sokosumi.com",
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+      });
+      expect(
+        response.cookies.get("sokosumi.session_token_rescoped"),
+      ).toMatchObject({
+        value: "1",
+        domain: "sokosumi.com",
+      });
+    });
+
+    it("re-scopes the __Secure- session cookie with the secure flag", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv("sokosumi.com"));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("https://app.sokosumi.com/dashboard");
+      request.cookies.set("__Secure-sokosumi.session_token", "tok-secure");
+
+      const response = await proxy(request);
+
+      expect(
+        response.cookies.get("__Secure-sokosumi.session_token"),
+      ).toMatchObject({
+        value: "tok-secure",
+        domain: "sokosumi.com",
+        secure: true,
+      });
+    });
+
+    it("does nothing when the marker cookie is already present", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv("sokosumi.com"));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("https://app.sokosumi.com/dashboard");
+      request.cookies.set("sokosumi.session_token", "tok-123");
+      request.cookies.set("sokosumi.session_token_rescoped", "1");
+
+      const response = await proxy(request);
+
+      expect(response.cookies.get("sokosumi.session_token")).toBeUndefined();
+    });
+
+    it("does nothing without a configured cookie domain", async () => {
+      getEnvSecretsMock.mockReturnValue(buildEnv(undefined));
+      const { NextRequest } = await import("next/server");
+      const { proxy } = await import("../proxy");
+      const request = new NextRequest("https://app.sokosumi.com/dashboard");
+      request.cookies.set("sokosumi.session_token", "tok-123");
+
+      const response = await proxy(request);
+
+      expect(response.cookies.get("sokosumi.session_token")).toBeUndefined();
+    });
+  });
 });

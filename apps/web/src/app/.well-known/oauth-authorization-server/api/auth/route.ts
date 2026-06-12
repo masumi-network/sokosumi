@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
+import { getServerCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 function getOAuthAuthorizationServerMetadata() {
-  const issuer = `${getBetterAuthPublicBaseUrl()}/api/auth`;
+  // The Better Auth instance (and its OAuth provider) lives on core.
+  const issuer = getServerCoreAuthBaseUrl();
   const oauthBasePath = `${issuer}/oauth2`;
 
   return {

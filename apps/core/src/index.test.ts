@@ -69,10 +69,6 @@ vi.mock("@/routes/sync/index", () => {
   return { default: new Hono() };
 });
 
-vi.mock("@/routes/webhooks/index", () => {
-  return { default: new Hono() };
-});
-
 vi.mock("@/routes/v1/index", () => {
   const app = new Hono();
   app.get("/openapi.json", (c) => {

@@ -1,5 +1,3 @@
-import "server-only";
-
 import {
   FREE_SUBSCRIPTION_PLAN,
   isActiveSubscriptionStatus,
@@ -9,6 +7,14 @@ import { subscriptionRepository } from "@sokosumi/database/repositories";
 import type Stripe from "stripe";
 
 import prisma from "@/lib/db/prisma";
+
+/**
+ * Port of the web app's `apps/web/src/lib/stripe/webhook-handlers.ts`
+ * (post-#3135 rump): the Better Auth stripe plugin's subscription lifecycle
+ * handlers. `reconcileActiveStripeBackedSubscription` runs on
+ * onSubscriptionCreated/Update; `handleSubscriptionDeletedEvent` runs on the
+ * plugin's `customer.subscription.deleted` event.
+ */
 
 interface StripeBackedSubscriptionForReconciliation {
   id: string;
