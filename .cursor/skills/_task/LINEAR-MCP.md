@@ -8,12 +8,16 @@ Creates **one** Linear issue with `## Requirement`. Team Sapphire runs on the sa
 
 ```typescript
 const LINEAR_TEAM = "SOK";
-const LINEAR_PROJECT = "Sokosumi";
+// Marketplace project — pass slug/ID to save_issue, not "Sokosumi" (ambiguous; wrong spelling).
+const LINEAR_PROJECT = "sokosumi-6357694ddd23"; // display name: Sōkosumi
+const LINEAR_PROJECT_ID = "a51c9d61-b1a4-457e-a382-1277e1f7be4a";
 const LINEAR_STATE = "In Progress";
 const LINEAR_PRIORITY = 3; // Medium — 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
 const LINEAR_ASSIGNEE = "me";
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```
+
+Also in repo: `.linear.toml` → `project_id = "sokosumi-6357694ddd23"`.
 
 ## Required on create (never omit)
 
@@ -24,7 +28,7 @@ Every `save_issue` **create** call (no `id`) must include **all** of:
 | `title` | user-approved proposed title |
 | `description` | approved requirement (`## Requirement`) |
 | `team` | `SOK` |
-| `project` | `Sokosumi` |
+| `project` | `sokosumi-6357694ddd23` (Sōkosumi marketplace) |
 | `state` | `In Progress` |
 | `priority` | `3` (Medium) |
 | `assignee` | `me` |
@@ -32,7 +36,9 @@ Every `save_issue` **create** call (no `id`) must include **all** of:
 
 Override only when the user explicitly passed a different value during intake.
 
-**Never omit `project`.** If the user did not name a project, always pass `"project": "Sokosumi"`. Linear leaves issues unscoped when `project` is missing.
+**Never omit `project`.** If the user did not name a project, always pass `"project": "sokosumi-6357694ddd23"`.
+
+**Do not pass `"Sokosumi"`.** Linear’s marketplace project is **Sōkosumi** (macron on the first o). The plain string `Sokosumi` does not resolve — the workspace also has Sokosumi Social Media, Sokosumi Task Board, etc. Use the slug (or `LINEAR_PROJECT_ID`) in every `save_issue` call.
 
 Do **not** set `delegate` on create — `HANDOFF.md` sets delegate after Sapphire footer.
 
@@ -65,7 +71,7 @@ Expected tools: `list_teams`, `list_projects`, `list_issue_statuses`, `list_issu
 ## Resolution order
 
 1. Team → `SOK`
-2. Project → `Sokosumi` (or override)
+2. Project → `sokosumi-6357694ddd23` / Sōkosumi (or user override)
 3. State → `In Progress`
 4. Priority → `3` (Medium) unless user override
 5. Assignee → `me` unless user override
@@ -78,7 +84,7 @@ Immediately after create:
 
 1. `get_issue` with the new identifier.
 2. If any default is missing or wrong and the user did not override it, patch with `save_issue` + `id`:
-   - `project` null/empty → `"Sokosumi"`
+   - `projectId` not `a51c9d61-b1a4-457e-a382-1277e1f7be4a` (or `project` not `Sōkosumi`) → `"project": "sokosumi-6357694ddd23"`
    - no assignee → `"me"`
    - state not `In Progress` → `"In Progress"`
    - priority not Medium (`3`) → `3`
@@ -94,7 +100,7 @@ Immediately after create:
     "title": "feat(scope): concise requirement title",
     "description": "## Requirement\n\n**Problem:** …",
     "team": "SOK",
-    "project": "Sokosumi",
+    "project": "sokosumi-6357694ddd23",
     "state": "In Progress",
     "priority": 3,
     "assignee": "me",
