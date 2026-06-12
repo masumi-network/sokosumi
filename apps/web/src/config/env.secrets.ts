@@ -51,8 +51,6 @@ const envSecretsSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
-  STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
-  STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
   // 100%-off coupon used to issue admin credit grants free of charge.
   STRIPE_SUPPORT_COUPON: z.string().min(1),
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
