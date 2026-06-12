@@ -27,6 +27,10 @@ import { taskService } from "@/lib/services/task.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { KANBAN_COLUMNS, type KanbanColumnId } from "@/lib/types/task";
 import {
+  parseTasksDensity,
+  TASKS_DENSITY_COOKIE_NAME,
+} from "@/lib/ui-preferences/tasks-density";
+import {
   parseTasksViewMode,
   TASKS_VIEW_MODE_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-view-mode";
@@ -70,6 +74,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const defaultViewMode =
     parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
     "board";
+  const defaultDensity =
+    parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
+    "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const [taskCoworkers, agents, projectsPage] = await Promise.all([
     coworkerService.listCoworkers("tasks"),
@@ -221,6 +228,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         initialFilters={activeFilters}
         initialJobsListFilters={activeJobsListFilters}
         defaultViewMode={defaultViewMode}
+        defaultDensity={defaultDensity}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
         initialDesignMdAttachment={initialDesignMdAttachment}
