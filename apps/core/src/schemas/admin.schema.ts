@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -102,3 +103,58 @@ export const adminOrganizationSlugParamSchema = z.object({
     example: "acme-corp",
   }),
 });
+
+/**
+ * Same rationale as the user overview cap: keep admin list pages bounded.
+ */
+export const ADMIN_TASK_LIST_MAX_LIMIT = 50;
+
+export const adminTaskListQuerySchema = z
+  .object({
+    query: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "query", in: "query" },
+        description:
+          "Optional search term matched against task ID (exact), task name, user name and email, and organization name and slug (case-insensitive). Empty or missing lists all tasks.",
+        example: "acme",
+      }),
+  })
+  .extend(cursorPaginationQuerySchema.shape)
+  .extend({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(ADMIN_TASK_LIST_MAX_LIMIT)
+      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Number of items to return (max ${ADMIN_TASK_LIST_MAX_LIMIT})`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+      }),
+  });
+
+export const adminTaskListItemSchema = z
+  .object({
+    id: z.string().openapi({ example: "0195b9f4-7d35-7a4e-b14e-111111111111" }),
+    name: z.string().openapi({ example: "Quarterly report" }),
+    status: z.enum(TaskStatus).openapi({ example: TaskStatus.RUNNING }),
+    createdAt: dateTimeSchema,
+    user: z.object({
+      id: z.string().openapi({ example: "user_123" }),
+      name: z.string().openapi({ example: "Ada Lovelace" }),
+      email: z.string().openapi({ example: "ada@example.com" }),
+    }),
+    organization: z
+      .object({
+        id: z.string().openapi({ example: "org_123" }),
+        name: z.string().openapi({ example: "Acme Corp" }),
+        slug: z.string().openapi({ example: "acme-corp" }),
+      })
+      .nullable(),
+  })
+  .openapi("AdminTaskListItem");
+
+export const adminTaskListSchema = z.array(adminTaskListItemSchema);
