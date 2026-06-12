@@ -175,10 +175,14 @@ describe("stripeClient", () => {
       "grant-coupon_1-user-1",
     );
 
+    // The description is part of Stripe's idempotent request body — it must
+    // stay byte-identical to the web client so cross-app replays of the same
+    // key succeed instead of failing with idempotency_error.
     expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: "cus_1",
         quantity: 500,
+        description: "Referral credit redemption (500 credits) - 1 of 1",
       }),
       expect.anything(),
     );
