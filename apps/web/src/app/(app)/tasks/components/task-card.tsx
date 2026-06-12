@@ -52,6 +52,7 @@ export function TaskCard({
               <TaskStatusBadge
                 status={task.status}
                 label={statusLabels?.[task.status]}
+                showDot={task.columnId === "in-progress"}
                 className="w-fit self-start rounded-sm"
               />
               <h3 className="text-foreground line-clamp-2 text-md leading-snug font-medium">
