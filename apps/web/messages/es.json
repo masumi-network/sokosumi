@@ -2579,7 +2579,27 @@
           "invoices": {
             "title": "Facturas",
             "description": "Consulta las facturas de administración y otorga créditos únicos a un usuario u organización."
+          },
+          "users": {
+            "title": "Usuarios",
+            "description": "Resumen con búsqueda de todos los usuarios con créditos, suscripción y actividad."
           }
+        }
+      },
+      "Users": {
+        "title": "Usuarios",
+        "description": "Resumen con búsqueda de todos los usuarios",
+        "UserList": {
+          "searchPlaceholder": "Buscar por nombre o correo…",
+          "totalCount": "{count, plural, one {# usuario} other {# usuarios}}",
+          "empty": "No se encontraron usuarios.",
+          "user": "Usuario",
+          "credits": "Créditos",
+          "subscription": "Suscripción",
+          "startedTasks": "Tareas iniciadas",
+          "registered": "Registrado",
+          "loadMore": "Cargar más",
+          "loadError": "No se pudieron cargar los usuarios."
         }
       },
       "Invoices": {

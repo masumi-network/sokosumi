@@ -2709,7 +2709,27 @@
           "invoices": {
             "title": "Invoices",
             "description": "View admin invoices and grant one-time credits to a user or organization."
+          },
+          "users": {
+            "title": "Users",
+            "description": "Searchable overview of all users with credits, subscription, and activity."
           }
+        }
+      },
+      "Users": {
+        "title": "Users",
+        "description": "Searchable overview of all users",
+        "UserList": {
+          "searchPlaceholder": "Search by name or email…",
+          "totalCount": "{count, plural, one {# user} other {# users}}",
+          "empty": "No users found.",
+          "user": "User",
+          "credits": "Credits",
+          "subscription": "Subscription",
+          "startedTasks": "Started tasks",
+          "registered": "Registered",
+          "loadMore": "Load more",
+          "loadError": "Failed to load users."
         }
       }
     },

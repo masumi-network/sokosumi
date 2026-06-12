@@ -29,6 +29,26 @@ export type PaginationMetadata = {
     nextCursor: string | null;
 };
 
+export type AdminUserOverviewItem = {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: Date;
+    /**
+     * Available personal credits
+     */
+    credits: number;
+    /**
+     * Active subscription plan, if any
+     */
+    subscriptionPlan: string | null;
+    subscriptionStatus: string | null;
+    /**
+     * Number of tasks the user has started (status beyond DRAFT)
+     */
+    startedTaskCount: number;
+};
+
 export type AdminOrganizationOption = {
     id: string;
     name: string;
@@ -2183,6 +2203,75 @@ export type SearchAdminUsersResponses = {
 };
 
 export type SearchAdminUsersResponse = SearchAdminUsersResponses[keyof SearchAdminUsersResponses];
+
+export type ListAdminUserOverviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched case-insensitively against user name and email. Empty or missing lists all users.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/users/overview';
+};
+
+export type ListAdminUserOverviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminUserOverviewError = ListAdminUserOverviewErrors[keyof ListAdminUserOverviewErrors];
+
+export type ListAdminUserOverviewResponses = {
+    /**
+     * Paginated list of users for the admin overview
+     */
+    200: {
+        data: Array<AdminUserOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminUserOverviewResponse = ListAdminUserOverviewResponses[keyof ListAdminUserOverviewResponses];
 
 export type SearchAdminOrganizationsData = {
     body?: never;
