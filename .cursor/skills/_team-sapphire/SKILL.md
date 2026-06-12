@@ -14,14 +14,14 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 
 **Do not stop after one phase.** You are the orchestrator — run every remaining phase in **this same agent session** until the pipeline finishes or you hit an unrecoverable blocker.
 
-**Do not batch Linear updates.** Each phase ends with a **blocking gate** — `save_comment` + status row `done` via `save_issue` — before the next phase starts. See `PHASE-GATE.md`. Skipping gates (e.g. only posting a final Reviewer comment while the status table stays `pending`) is a **failed run** — repair before exit.
+**Do not batch Linear updates.** Each phase ends with a **blocking gate** before the next phase starts — typically `save_comment` then `save_issue` to mark the row `done` (Coder: `**PR handoff**` comment, then Coder complete comment, then `save_issue`). See `PHASE-GATE.md`. Skipping gates (e.g. only posting a final Reviewer comment while the status table stays `pending`) is a **failed run** — repair before exit.
 
 | After phase completes | Next action |
 |----------------------|-------------|
 | Investigator → `done` | **Immediately** start Phase 2 (Tech Lead) — do not return to the user yet |
 | Tech Lead → `done` | **Immediately** start Phase 3 (Coder) |
 | Coder → `done` + PR open | **Immediately** start Phase 4 (Reviewer) |
-| Reviewer → `done` | Set issue **In Review**, then return summary to user |
+| Reviewer → `done` | Run **Completion** gate — comment, all status rows `done`, then `state: "In Review"`; return summary to user |
 
 **Only stop early when:**
 

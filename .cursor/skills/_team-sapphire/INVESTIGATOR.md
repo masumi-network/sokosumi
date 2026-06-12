@@ -48,7 +48,7 @@ Keep it scannable. Bullets over paragraphs. Real paths as markdown links.
 ## Handoff to Tech Lead
 
 - **Sapphire orchestrator (default):** After Investigator complete, continue to Phase 2 (Tech Lead) in the **same run** per `SKILL.md` — do not stop early.
-- **Standalone Investigator** (user invoked Investigator only): Stop after `**Sapphire · Investigator complete**`; Tech Lead runs in a separate session.
+- **Standalone Investigator** (user invoked Investigator only): Complete **Phase gate (blocking)** below (comment + status row), then stop; Tech Lead runs in a separate session.
 - **New session resume:** Linear may show Investigator = `done` without **session investigation** — orchestrator re-runs Investigator before Tech Lead per `SKILL.md` **Resume and idempotency**.
 
 ## Phase gate (blocking)

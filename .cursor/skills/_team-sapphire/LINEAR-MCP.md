@@ -86,7 +86,7 @@ Use structured headers for audit trail:
 |-------|----------------|
 | Investigator | `**Sapphire · Investigator complete**` — 3–5 bullets |
 | Tech Lead | `**Sapphire · Tech Lead complete**` — coder count, order, 3–5 bullets |
-| Coder | `**Sapphire · Coder complete**` + `**PR handoff**` |
+| Coder | `**PR handoff**` + `**Sapphire · Coder complete**` |
 | Reviewer pass | `**Sapphire · Reviewer complete**` |
 | Reviewer fail | `**Sapphire · Review failed**` |
 
