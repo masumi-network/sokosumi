@@ -67,6 +67,52 @@ export const userRepository = {
   },
 
   /**
+   * Paginated user listing for the admin user overview. An empty or missing
+   * query lists all users (unlike `searchUsers`, which is a picker and returns
+   * nothing for blank queries). Ordered newest-first.
+   *
+   * @param params - Optional case-insensitive name/email filter plus cursor pagination arguments.
+   * @param tx - The Prisma transaction client to use.
+   * @returns A promise that resolves to the page of users and the total count for the filter.
+   */
+  listUsersForAdminOverview: async (
+    params: {
+      query?: string;
+      cursor?: string;
+      take: number;
+      skip?: number;
+    },
+    tx: Prisma.TransactionClient,
+  ): Promise<{
+    users: Array<Pick<User, "id" | "name" | "email" | "createdAt">>;
+    total: number;
+  }> => {
+    const trimmed = params.query?.trim();
+    const where: Prisma.UserWhereInput = trimmed
+      ? {
+          OR: [
+            { name: { contains: trimmed, mode: "insensitive" } },
+            { email: { contains: trimmed, mode: "insensitive" } },
+          ],
+        }
+      : {};
+
+    const [users, total] = await Promise.all([
+      tx.user.findMany({
+        where,
+        select: { id: true, name: true, email: true, createdAt: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: params.take,
+        skip: params.skip,
+        cursor: params.cursor ? { id: params.cursor } : undefined,
+      }),
+      tx.user.count({ where }),
+    ]);
+
+    return { users, total };
+  },
+
+  /**
    * Updates the onboarding completed flag for a user.
    *
    * @param userId - The unique identifier of the user.
