@@ -5,6 +5,70 @@ import { type NextRequest, NextResponse } from "next/server";
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
 
+/**
+ * TEMPORARY session-survival shim for the Better Auth web → core migration.
+ *
+ * Before the migration the session cookie was host-only on the web origin, so
+ * browsers would not send it to core's host and every existing session would
+ * be logged out at cutover. This re-sets the same cookie value scoped to the
+ * shared parent domain (BETTER_AUTH_COOKIE_DOMAIN) so core — which signs with
+ * the same BETTER_AUTH_SECRET — accepts it. A companion marker cookie
+ * prevents re-setting on every request.
+ *
+ * REMOVE after one full session max-age window (Better Auth default: 7 days)
+ * has passed in production — by then every live session cookie has either
+ * been re-scoped or expired.
+ *
+ * The host-only original is deliberately left in place: browsers send both
+ * (older first) and Better Auth's cookie parsing is last-occurrence-wins, so
+ * the re-scoped cookie takes effect; the original expires with its session.
+ */
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // Better Auth default session expiry
+const MARKER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+function applySessionCookieRescopeShim(
+  request: NextRequest,
+  response: NextResponse,
+  cookiePrefix: string,
+  cookieDomain: string | undefined,
+): void {
+  if (!cookieDomain) {
+    return;
+  }
+
+  const markerName = `${cookiePrefix}.session_token_rescoped`;
+  if (request.cookies.has(markerName)) {
+    return;
+  }
+
+  const secureCookie = request.cookies.get(
+    `__Secure-${cookiePrefix}.session_token`,
+  );
+  const sessionCookie =
+    secureCookie ?? request.cookies.get(`${cookiePrefix}.session_token`);
+
+  if (!sessionCookie?.value) {
+    return;
+  }
+
+  const secure = Boolean(secureCookie);
+  response.cookies.set(sessionCookie.name, sessionCookie.value, {
+    domain: cookieDomain,
+    httpOnly: true,
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    path: "/",
+    sameSite: "lax",
+    secure,
+  });
+  response.cookies.set(markerName, "1", {
+    domain: cookieDomain,
+    maxAge: MARKER_MAX_AGE_SECONDS,
+    path: "/",
+    sameSite: "lax",
+    secure,
+  });
+}
+
 const EXCLUDED_PATHS = [
   "/auth/",
   "/signin",
@@ -59,6 +123,12 @@ export async function proxy(request: NextRequest) {
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
   applyDocumentSecurityHeaders(response);
+  applySessionCookieRescopeShim(
+    request,
+    response,
+    betterAuthCookiePrefix,
+    env.BETTER_AUTH_COOKIE_DOMAIN,
+  );
 
   // Skip session check for excluded paths (but still set headers above)
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {

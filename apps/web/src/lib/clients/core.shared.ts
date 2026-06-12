@@ -122,6 +122,7 @@ import {
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminTasks as coreListAdminTasks,
   listAdminUserOverview as coreListAdminUserOverview,
   listCreditPrices as coreListCreditPrices,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
@@ -160,6 +161,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdPassword as corePostUsersByIdPassword,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
@@ -666,6 +668,23 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listAdminTasks(query: {
+    query?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminTasks({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list tasks",
+    );
+  }
+
   async function searchAdminUsers(query: string) {
     return executeOperation(
       getClient,
@@ -983,6 +1002,26 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch user Stripe customer",
+    );
+  }
+
+  /**
+   * Sets a password for the session user's credential account (used by social
+   * sign-up users who have no password yet). Core wraps Better Auth's
+   * server-only setPassword endpoint; a 400 means a credential account
+   * already exists.
+   */
+  async function setMyPassword(newPassword: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdPassword({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body: { newPassword },
+          cache: "no-store",
+        }),
+      "Failed to set password",
     );
   }
 
@@ -2315,6 +2354,7 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkers,
     searchAdminUsers,
     listAdminUserOverview,
+    listAdminTasks,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
     listAdminInvoices,
@@ -2345,6 +2385,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
     setMyDesignMd,
+    setMyPassword,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
     getPendingNotices,

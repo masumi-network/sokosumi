@@ -1,6 +1,5 @@
 import "server-only";
 
-import type { StripePlan } from "@better-auth/stripe";
 import {
   FREE_SUBSCRIPTION_MONTHLY_CREDITS,
   type PaidSubscriptionPlanName,
@@ -166,30 +165,4 @@ export async function getSubscriptionCatalog(
     });
   }
   return await catalogCache;
-}
-
-export async function getBetterAuthSubscriptionPlans(
-  stripe: Stripe,
-): Promise<StripePlan[]> {
-  const catalog = await getSubscriptionCatalog(stripe);
-  const selfServePlans: PaidSubscriptionPlanName[] = [
-    "starter",
-    "standard",
-    "pro",
-  ];
-
-  return selfServePlans.flatMap((name) => {
-    const plan = catalog[name];
-    if (!plan) return [];
-
-    return [
-      {
-        limits: {
-          credits: plan.credits,
-        },
-        name,
-        priceId: plan.priceId,
-      },
-    ];
-  });
 }

@@ -1,8 +1,5 @@
 import * as z from "zod";
 
-export const ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE =
-  "ORGANIZATION_HAS_ADDITIONAL_MEMBERS";
-
 export const betterAuthApiErrorSchema = z.object({
   status: z.string(),
   statusCode: z.number(),

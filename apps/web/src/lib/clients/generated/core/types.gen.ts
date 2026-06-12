@@ -93,6 +93,23 @@ export type CreateInvoice = {
     markFree: boolean;
 };
 
+export type AdminTaskListItem = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    createdAt: Date;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
+
 export type Agent = {
     id: string;
     createdAt: Date;
@@ -1411,6 +1428,17 @@ export type PreferredOrganization = {
      * Organization id of the preferred workspace, or null for the personal workspace
      */
     organizationId: string | null;
+};
+
+export type PasswordSet = {
+    status: boolean;
+};
+
+export type PasswordWrite = {
+    /**
+     * The new password to set for the credential account
+     */
+    newPassword: string;
 };
 
 export type Notice = {
@@ -2773,6 +2801,75 @@ export type GetAdminInvoiceResponses = {
 };
 
 export type GetAdminInvoiceResponse = GetAdminInvoiceResponses[keyof GetAdminInvoiceResponses];
+
+export type ListAdminTasksData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched against task ID (exact), task name, user name and email, and organization name and slug (case-insensitive). Empty or missing lists all tasks.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/tasks';
+};
+
+export type ListAdminTasksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminTasksError = ListAdminTasksErrors[keyof ListAdminTasksErrors];
+
+export type ListAdminTasksResponses = {
+    /**
+     * Paginated list of tasks for the admin task list
+     */
+    200: {
+        data: Array<AdminTaskListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminTasksResponse = ListAdminTasksResponses[keyof ListAdminTasksResponses];
 
 export type GetAgentsData = {
     body?: never;
@@ -12125,6 +12222,123 @@ export type PostUsersByIdOnboardingResponses = {
 };
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
+
+export type PostUsersByIdPasswordData = {
+    body?: PasswordWrite;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/password';
+};
+
+export type PostUsersByIdPasswordErrors = {
+    /**
+     * Bad Request - e.g. password already set
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdPasswordError = PostUsersByIdPasswordErrors[keyof PostUsersByIdPasswordErrors];
+
+export type PostUsersByIdPasswordResponses = {
+    /**
+     * Password set
+     */
+    200: {
+        data: PasswordSet;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdPasswordResponse = PostUsersByIdPasswordResponses[keyof PostUsersByIdPasswordResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;
