@@ -121,13 +121,6 @@ const envSecretsSchema = z.object({
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
   BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
   BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_API_KEY: z
-    .string()
-    .optional()
-    .transform((val: string | undefined) => {
-      const trimmed = val?.trim();
-      return trimmed ? trimmed : undefined;
-    }),
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
     .number()
     .min(0)

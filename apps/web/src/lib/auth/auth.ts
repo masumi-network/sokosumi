@@ -47,7 +47,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { resolveRequestLocale } from "@/i18n/locale-resolution";
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
 import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
-import { getInfraAuthPlugins } from "@/lib/auth/infra-plugins";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
@@ -83,7 +82,6 @@ const env = getEnvPublicConfig();
 const stripeInstance = new Stripe(secrets.STRIPE_SECRET_KEY);
 
 const fromEmail = secrets.POSTMARK_FROM_EMAIL;
-const betterAuthApiKey = secrets.BETTER_AUTH_API_KEY;
 const betterAuthProductionUrl = getBetterAuthProductionUrl();
 
 async function ensureWorkspaceForCreatedUser(user: {
@@ -727,7 +725,6 @@ export const auth = betterAuth({
       detection: ["header", "cookie"],
     }),
     nextCookies(),
-    ...getInfraAuthPlugins(betterAuthApiKey),
     stripe({
       stripeClient: stripeInstance,
       stripeWebhookSecret: secrets.STRIPE_WEBHOOK_SECRET,

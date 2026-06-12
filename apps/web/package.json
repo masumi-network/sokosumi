@@ -32,7 +32,6 @@
     "@ai-sdk/react": "3.0.204",
     "@better-auth/api-key": "1.6.17",
     "@better-auth/i18n": "1.6.17",
-    "@better-auth/infra": "0.2.14",
     "@better-auth/oauth-provider": "1.6.17",
     "@better-auth/passkey": "1.6.17",
     "@better-auth/prisma-adapter": "1.6.17",

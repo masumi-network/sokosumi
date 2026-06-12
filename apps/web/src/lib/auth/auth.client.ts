@@ -1,5 +1,4 @@
 import { apiKeyClient } from "@better-auth/api-key/client";
-import { dashClient, sentinelClient } from "@better-auth/infra/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { stripeClient } from "@better-auth/stripe/client";
@@ -17,10 +16,6 @@ import { createAuthClient } from "better-auth/react";
 import { getEnvPublicConfig } from "@/config/env.public";
 
 import type { auth } from "./auth";
-
-function getSentinelIdentifyUrl(): string | undefined {
-  return getEnvPublicConfig().NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL;
-}
 
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
@@ -51,10 +46,6 @@ export const authClient = createAuthClient({
     jwtClient(),
     stripeClient({
       subscription: true,
-    }),
-    dashClient(),
-    sentinelClient({
-      identifyUrl: getSentinelIdentifyUrl(),
     }),
   ],
 });
