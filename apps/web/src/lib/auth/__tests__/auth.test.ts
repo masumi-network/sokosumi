@@ -37,9 +37,6 @@ const stripeSdkMock = vi.fn(function MockStripe() {
   return { __stripe: true };
 });
 const sentryCaptureExceptionMock = vi.fn();
-const handleCustomerCreatedEventMock = vi.fn();
-const handleCustomerUpdatedEventMock = vi.fn();
-const handleInvoicePaidEventMock = vi.fn();
 const handleSubscriptionDeletedEventMock = vi.fn();
 const reconcileActiveStripeBackedSubscriptionMock = vi.fn();
 const workspaceUpsertMock = vi.fn();
@@ -262,12 +259,6 @@ vi.mock("@/lib/stripe/subscription-catalog", () => ({
 }));
 
 vi.mock("@/lib/stripe/webhook-handlers", () => ({
-  handleCustomerCreatedEvent: (...args: unknown[]) =>
-    handleCustomerCreatedEventMock(...args),
-  handleCustomerUpdatedEvent: (...args: unknown[]) =>
-    handleCustomerUpdatedEventMock(...args),
-  handleInvoicePaidEvent: (...args: unknown[]) =>
-    handleInvoicePaidEventMock(...args),
   handleSubscriptionDeletedEvent: (...args: unknown[]) =>
     handleSubscriptionDeletedEventMock(...args),
   reconcileActiveStripeBackedSubscription: (...args: unknown[]) =>
@@ -335,9 +326,6 @@ describe("web auth config", () => {
       subject: "Sokosumi - E-Mail-Adresse bestätigen",
     });
     stripePluginMock.mockReturnValue("stripe-plugin");
-    handleCustomerCreatedEventMock.mockResolvedValue(undefined);
-    handleCustomerUpdatedEventMock.mockResolvedValue(undefined);
-    handleInvoicePaidEventMock.mockResolvedValue(undefined);
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
     sentryCaptureExceptionMock.mockReset();
   });

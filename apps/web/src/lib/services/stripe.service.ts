@@ -247,52 +247,6 @@ export const stripeService = (() => {
       return coupon;
     },
 
-    async claimWelcomeCoupon(
-      userId: string,
-    ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
-      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
-
-      try {
-        const user = await userRepository.getUserById(userId, prisma);
-        if (!user) {
-          throw new Error("User not found");
-        }
-        if (!user.stripeCustomerId) {
-          throw new Error("User does not have a stripe customer id");
-        }
-
-        const coupon = await this.getCoupon(welcomeCouponId);
-        // Stable per user+coupon: a `customer.created` webhook redelivery
-        // replays the original grant instead of issuing a second invoice.
-        const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
-          user.stripeCustomerId,
-          coupon.id,
-          `welcome-${coupon.id}-${user.id}`,
-          {
-            redemption_type: "welcome_coupon",
-            welcome_source: "customer.created",
-            user_id: user.id,
-            user_email: user.email ?? "",
-          },
-        );
-
-        if (!invoice?.id) {
-          throw new Error("Failed to apply welcome coupon");
-        }
-        if (invoice.status !== "paid") {
-          throw new Error("Welcome coupon invoice is not paid");
-        }
-
-        return { couponApplied: true, invoiceId: invoice.id };
-      } catch (error) {
-        console.error(
-          `Failed to claim welcome coupon for user ${userId}:`,
-          error,
-        );
-        return { couponApplied: false, invoiceId: null };
-      }
-    },
-
     async createAndApplyReferralCredits(
       userId: string,
       organizationId: string | null,

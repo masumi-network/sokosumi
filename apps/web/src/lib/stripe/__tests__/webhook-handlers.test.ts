@@ -22,15 +22,11 @@ const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
-const claimWelcomeCouponMock = vi.fn();
-const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const subscriptionUpdateManyMock = vi.fn();
 const resolveOrganizationBillingPlanMock = vi.fn();
-const prismaOrganizationUpdateMock = vi.fn();
-const prismaUserUpdateMock = vi.fn();
 
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
@@ -67,8 +63,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
-    ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
-      ensureInitialLocalFreeSubscriptionPeriodMock(...args),
     transitionToNextLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
       transitionToNextLocalFreeSubscriptionPeriodMock(...args),
     resolveOrganizationBillingPlan: (...args: unknown[]) =>
@@ -88,8 +82,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
       getOrganizationByStripeCustomerIdMock(...args),
-    getOrganizationWithRelationsById: vi.fn(),
-    updateOrganizationInvoiceEmail: vi.fn(),
   },
   subscriptionRepository: {
     resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
@@ -112,18 +104,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: (...args: unknown[]) =>
         findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
     },
-    organization: {
-      update: (...args: unknown[]) => prismaOrganizationUpdateMock(...args),
-    },
-    user: {
-      update: (...args: unknown[]) => prismaUserUpdateMock(...args),
-    },
-  },
-}));
-
-vi.mock("@/lib/services", () => ({
-  stripeService: {
-    claimWelcomeCoupon: (...args: unknown[]) => claimWelcomeCouponMock(...args),
   },
 }));
 
@@ -1627,79 +1607,6 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).toHaveBeenCalledTimes(1);
     expect(updateTaskMock).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("handleCustomerCreatedEvent", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    claimWelcomeCouponMock.mockResolvedValue({
-      couponApplied: false,
-      invoiceId: null,
-    });
-    ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
-    prismaUserUpdateMock.mockResolvedValue({
-      createdAt: new Date("2026-04-09T07:03:48.591Z"),
-      id: "user-1",
-    });
-    prismaOrganizationUpdateMock.mockResolvedValue({
-      createdAt: new Date("2026-04-09T07:03:48.591Z"),
-      id: "org-1",
-    });
-  });
-
-  it("stores Stripe customer ids for newly created organization customers without creating a Stripe free subscription", async () => {
-    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
-
-    await handleCustomerCreatedEvent({
-      id: "cus_org_1",
-      metadata: {
-        customerType: "organization",
-        organizationId: "org-1",
-      },
-    } as never);
-
-    expect(prismaOrganizationUpdateMock).toHaveBeenCalledWith({
-      where: { id: "org-1" },
-      data: { stripeCustomerId: "cus_org_1" },
-    });
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      {
-        createdAt: new Date("2026-04-09T07:03:48.591Z"),
-        kind: "organization",
-        organizationId: "org-1",
-        stripeCustomerId: "cus_org_1",
-      },
-      expect.anything(),
-    );
-    expect(claimWelcomeCouponMock).not.toHaveBeenCalled();
-  });
-
-  it("claims the welcome coupon for user customers without creating a Stripe free subscription", async () => {
-    const { handleCustomerCreatedEvent } = await import("../webhook-handlers");
-
-    await handleCustomerCreatedEvent({
-      id: "cus_user_1",
-      metadata: {
-        customerType: "user",
-        userId: "user-1",
-      },
-    } as never);
-
-    expect(prismaUserUpdateMock).toHaveBeenCalledWith({
-      where: { id: "user-1" },
-      data: { stripeCustomerId: "cus_user_1" },
-    });
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      {
-        createdAt: new Date("2026-04-09T07:03:48.591Z"),
-        kind: "user",
-        stripeCustomerId: "cus_user_1",
-        userId: "user-1",
-      },
-      expect.anything(),
-    );
-    expect(claimWelcomeCouponMock).toHaveBeenCalledWith("user-1");
   });
 });
 

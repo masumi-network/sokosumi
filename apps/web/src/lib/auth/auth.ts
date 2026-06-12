@@ -62,9 +62,6 @@ import {
 } from "@/lib/services";
 import { getBetterAuthSubscriptionPlans } from "@/lib/stripe/subscription-catalog";
 import {
-  handleCustomerCreatedEvent,
-  handleCustomerUpdatedEvent,
-  handleInvoicePaidEvent,
   handleSubscriptionDeletedEvent,
   reconcileActiveStripeBackedSubscription,
 } from "@/lib/stripe/webhook-handlers";
@@ -767,70 +764,10 @@ export const auth = betterAuth({
         enabled: true,
       },
       onEvent: async (event) => {
+        // invoice.paid, customer.updated, and customer.created moved to the
+        // core webhook receiver (POST /webhooks/stripe) — the Stripe dashboard
+        // endpoint for web no longer subscribes to them.
         switch (event.type) {
-          case "invoice.paid": {
-            const invoice = event.data.object as Stripe.Invoice;
-            try {
-              await handleInvoicePaidEvent(invoice);
-            } catch (error) {
-              Sentry.captureException(error, {
-                tags: {
-                  stripeEventType: "invoice.paid",
-                  invoiceId: invoice.id,
-                },
-                extra: {
-                  eventId: event.id,
-                  invoice: invoice.id,
-                  customer:
-                    typeof invoice.customer === "string"
-                      ? invoice.customer
-                      : invoice.customer?.id,
-                },
-              });
-              throw error;
-            }
-            break;
-          }
-          case "customer.updated": {
-            const customer = event.data.object as Stripe.Customer;
-            try {
-              await handleCustomerUpdatedEvent(customer);
-            } catch (error) {
-              Sentry.captureException(error, {
-                tags: {
-                  stripeEventType: "customer.updated",
-                  customerId: customer.id,
-                },
-                extra: {
-                  eventId: event.id,
-                  customer: customer.id,
-                  email: customer.email,
-                },
-              });
-              throw error;
-            }
-            break;
-          }
-          case "customer.created": {
-            const customer = event.data.object as Stripe.Customer;
-            try {
-              await handleCustomerCreatedEvent(customer);
-            } catch (error) {
-              Sentry.captureException(error, {
-                tags: {
-                  stripeEventType: "customer.created",
-                  customerId: customer.id,
-                },
-                extra: {
-                  eventId: event.id,
-                  customer: customer.id,
-                  email: customer.email,
-                },
-              });
-              throw error;
-            }
-            break;
-          }
           case "customer.subscription.deleted": {
             const subscription = event.data.object as Stripe.Subscription;
             try {
