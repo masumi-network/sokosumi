@@ -39,6 +39,7 @@ const {
   webhookCallUserCreatedMock,
   webhookCallUserUpdatedMock,
   workspaceUpsertMock,
+  stripeWebhookHandleEventMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -78,6 +79,7 @@ const {
   webhookCallUserCreatedMock: vi.fn(),
   webhookCallUserUpdatedMock: vi.fn(),
   workspaceUpsertMock: vi.fn(),
+  stripeWebhookHandleEventMock: vi.fn(),
 }));
 
 function getDefaultEnv() {
@@ -91,7 +93,6 @@ function getDefaultEnv() {
     BETTER_AUTH_RP_ID: "sokosumi.com",
     BETTER_AUTH_SECRET: "test-secret",
     BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 300,
-    BETTER_AUTH_STRIPE_WEBHOOK_SECRET: "whsec_better_auth_test",
     GOOGLE_CLIENT_ID: "google-client-id",
     GOOGLE_CLIENT_SECRET: "google-client-secret",
     MICROSOFT_CLIENT_ID: "microsoft-client-id",
@@ -103,6 +104,7 @@ function getDefaultEnv() {
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     POSTMARK_SERVER_ID: "postmark-server-id",
     STRIPE_SECRET_KEY: "sk_test_123",
+    STRIPE_WEBHOOK_SECRET: "whsec_test_single",
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
   };
@@ -217,8 +219,13 @@ vi.mock("@/services/organization-subscription-hooks.service", () => ({
 }));
 
 vi.mock("@/services/stripe-subscription-lifecycle.service", () => ({
-  handleSubscriptionDeletedEvent: vi.fn(),
   reconcileActiveStripeBackedSubscription: vi.fn(),
+}));
+
+vi.mock("@/services/stripe-webhook.service", () => ({
+  stripeWebhookService: {
+    handleEvent: (...args: unknown[]) => stripeWebhookHandleEventMock(...args),
+  },
 }));
 
 vi.mock("@/services/subscription-catalog.service", () => ({
@@ -459,7 +466,20 @@ describe("core auth config", () => {
     });
   });
 
-  it("configures the stripe plugin with the dedicated webhook secret and no customer-on-signup", async () => {
+  it("delegates every stripe plugin event to the webhook service", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [{ onEvent: (event: unknown) => Promise<void> }]
+    >;
+
+    const event = { id: "evt_1", type: "invoice.paid" };
+    await config.onEvent(event);
+
+    expect(stripeWebhookHandleEventMock).toHaveBeenCalledWith(event);
+  });
+
+  it("configures the stripe plugin with the single webhook secret and no customer-on-signup", async () => {
     await import("./auth");
 
     const [[config]] = stripePluginMock.mock.calls as Array<
@@ -472,7 +492,7 @@ describe("core auth config", () => {
       ]
     >;
 
-    expect(config.stripeWebhookSecret).toBe("whsec_better_auth_test");
+    expect(config.stripeWebhookSecret).toBe("whsec_test_single");
     expect(config.createCustomerOnSignUp).toBe(false);
     expect(config.subscription.enabled).toBe(true);
   });

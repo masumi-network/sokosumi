@@ -36,7 +36,6 @@ const envDefaults: Record<string, string> = {
   STRIPE_WELCOME_COUPON: "coupon_welcome_test",
   STRIPE_SUPPORT_COUPON: "coupon_support_test",
   STRIPE_WEBHOOK_SECRET: "whsec_test_example",
-  BETTER_AUTH_STRIPE_WEBHOOK_SECRET: "whsec_test_better_auth_example",
   GOOGLE_CLIENT_ID: "test-google-client-id",
   GOOGLE_CLIENT_SECRET: "test-google-client-secret",
   MICROSOFT_CLIENT_ID: "test-microsoft-client-id",

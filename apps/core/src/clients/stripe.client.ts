@@ -249,22 +249,6 @@ export const stripeClient = {
     );
   },
 
-  /**
-   * Verify a Stripe webhook payload against the core endpoint's signing
-   * secret and parse it into a typed event. Throws when the signature is
-   * invalid or the payload is malformed.
-   */
-  async constructWebhookEvent(
-    payload: string,
-    signature: string,
-  ): Promise<Stripe.Event> {
-    return await stripe.webhooks.constructEventAsync(
-      payload,
-      signature,
-      getEnv().STRIPE_WEBHOOK_SECRET,
-    );
-  },
-
   async getCouponById(couponId: string): Promise<Stripe.Coupon | null> {
     try {
       return await stripe.coupons.retrieve(couponId);

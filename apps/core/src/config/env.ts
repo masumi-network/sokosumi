@@ -77,10 +77,6 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
-  // Signing secret for the Better Auth stripe plugin's webhook endpoint
-  // (<core-host>/auth/stripe/webhook) — distinct from STRIPE_WEBHOOK_SECRET,
-  // which signs core's own POST /webhooks/stripe receiver.
-  BETTER_AUTH_STRIPE_WEBHOOK_SECRET: z.string().min(1),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 
@@ -132,7 +128,8 @@ const envSchema = z.object({
   // 100%-off coupon used to issue admin credit grants free of charge
   STRIPE_SUPPORT_COUPON: z.string().min(1),
 
-  // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
+  // Signing secret for core's single Stripe webhook endpoint — the Better
+  // Auth stripe plugin route (<core-host>/auth/stripe/webhook)
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 
   // Sync lock configuration

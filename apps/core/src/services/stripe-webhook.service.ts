@@ -6,6 +6,7 @@ import type Stripe from "stripe";
 import prisma from "@/lib/db/prisma";
 import { handleCustomerCreatedEvent } from "@/services/stripe-customer-created.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
+import { handleSubscriptionDeletedEvent } from "@/services/stripe-subscription-lifecycle.service";
 
 /**
  * Sync an organization's stored invoice email when its Stripe customer
@@ -53,8 +54,10 @@ async function handleCustomerUpdatedEvent(
 
 export const stripeWebhookService = {
   /**
-   * Dispatch a verified Stripe event to its handler. Throws on handler
-   * failure so the route can respond 5xx and Stripe retries the event.
+   * Dispatch a verified Stripe event to its handler. Runs inside the Better
+   * Auth stripe plugin's `onEvent` — core's single Stripe webhook endpoint.
+   * Throws on handler failure so the plugin responds non-2xx and Stripe
+   * retries the event.
    */
   async handleEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
@@ -115,6 +118,29 @@ export const stripeWebhookService = {
               eventId: event.id,
               customer: customer.id,
               email: customer.email,
+            },
+          });
+          throw error;
+        }
+        break;
+      }
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        try {
+          await handleSubscriptionDeletedEvent(subscription);
+        } catch (error) {
+          Sentry.captureException(error, {
+            tags: {
+              stripeEventType: event.type,
+              stripeSubscriptionId: subscription.id,
+            },
+            extra: {
+              customer:
+                typeof subscription.customer === "string"
+                  ? subscription.customer
+                  : subscription.customer.id,
+              eventId: event.id,
+              subscription: subscription.id,
             },
           });
           throw error;
