@@ -2704,7 +2704,6 @@
           "backToList": "Retour aux tâches",
           "created": "Créée",
           "open": "Ouvrir",
-          "openUnavailable": "Cette tâche ne peut pas être ouverte dans la vue utilisateur car vous n'êtes pas membre de son espace de travail.",
           "organization": "Organisation",
           "personalWorkspace": "Espace de travail personnel",
           "status": "Statut",

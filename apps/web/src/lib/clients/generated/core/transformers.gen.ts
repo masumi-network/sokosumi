@@ -59,8 +59,70 @@ export const listAdminTasksResponseTransformer = async (data: any): Promise<List
     return data;
 };
 
+const taskEventSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    return data;
+};
+
+const jobSummarySchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    if (data.completedAt) {
+        data.completedAt = new Date(data.completedAt);
+    }
+    if (data.payByTime) {
+        data.payByTime = new Date(data.payByTime);
+    }
+    if (data.submitResultTime) {
+        data.submitResultTime = new Date(data.submitResultTime);
+    }
+    if (data.unlockTime) {
+        data.unlockTime = new Date(data.unlockTime);
+    }
+    if (data.externalDisputeUnlockTime) {
+        data.externalDisputeUnlockTime = new Date(data.externalDisputeUnlockTime);
+    }
+    return data;
+};
+
+const nullableTaskShareSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    return data;
+};
+
+const taskLinkPeerTaskSchemaResponseTransformer = (data: any) => {
+    if (data.archivedAt) {
+        data.archivedAt = new Date(data.archivedAt);
+    }
+    return data;
+};
+
+const taskLinkSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    data.peerTask = taskLinkPeerTaskSchemaResponseTransformer(data.peerTask);
+    return data;
+};
+
+const taskSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
+    data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
+    data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
+    data.share = nullableTaskShareSchemaResponseTransformer(data.share);
+    data.links = data.links.map((item: any) => taskLinkSchemaResponseTransformer(item));
+    return data;
+};
+
+const adminTaskDetailSchemaResponseTransformer = (data: any) => {
+    data.task = taskSchemaResponseTransformer(data.task);
+    return data;
+};
+
 export const getAdminTaskResponseTransformer = async (data: any): Promise<GetAdminTaskResponse> => {
-    data.data = adminTaskListItemSchemaResponseTransformer(data.data);
+    data.data = adminTaskDetailSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
@@ -123,27 +185,6 @@ export const postAgentsByIdRatingsResponseTransformer = async (data: any): Promi
 
 export const getAgentsByIdInputSchemaResponseTransformer = async (data: any): Promise<GetAgentsByIdInputSchemaResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-const jobSummarySchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    if (data.completedAt) {
-        data.completedAt = new Date(data.completedAt);
-    }
-    if (data.payByTime) {
-        data.payByTime = new Date(data.payByTime);
-    }
-    if (data.submitResultTime) {
-        data.submitResultTime = new Date(data.submitResultTime);
-    }
-    if (data.unlockTime) {
-        data.unlockTime = new Date(data.unlockTime);
-    }
-    if (data.externalDisputeUnlockTime) {
-        data.externalDisputeUnlockTime = new Date(data.externalDisputeUnlockTime);
-    }
     return data;
 };
 
@@ -1110,12 +1151,6 @@ export const getCoworkersMeResponseTransformer = async (data: any): Promise<GetC
     return data;
 };
 
-const taskEventSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    return data;
-};
-
 export const getCoworkersMeEventsResponseTransformer = async (data: any): Promise<GetCoworkersMeEventsResponse> => {
     data.data = data.data.map((item: any) => taskEventSchemaResponseTransformer(item));
     data.meta.timestamp = new Date(data.meta.timestamp);
@@ -1203,36 +1238,6 @@ export const getTasksResponseTransformer = async (data: any): Promise<GetTasksRe
     return data;
 };
 
-const taskShareSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    return data;
-};
-
-const taskLinkPeerTaskSchemaResponseTransformer = (data: any) => {
-    if (data.archivedAt) {
-        data.archivedAt = new Date(data.archivedAt);
-    }
-    return data;
-};
-
-const taskLinkSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    data.peerTask = taskLinkPeerTaskSchemaResponseTransformer(data.peerTask);
-    return data;
-};
-
-const taskSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
-    data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
-    data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
-    data.share = taskShareSchemaResponseTransformer(data.share);
-    data.links = data.links.map((item: any) => taskLinkSchemaResponseTransformer(item));
-    return data;
-};
-
 export const postTasksResponseTransformer = async (data: any): Promise<PostTasksResponse> => {
     data.data = taskSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
@@ -1282,6 +1287,12 @@ export const patchTasksByIdResponseTransformer = async (data: any): Promise<Patc
 
 export const deleteTasksByIdShareResponseTransformer = async (data: any): Promise<DeleteTasksByIdShareResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+const taskShareSchemaResponseTransformer = (data: any) => {
+    data.createdAt = new Date(data.createdAt);
+    data.updatedAt = new Date(data.updatedAt);
     return data;
 };
 

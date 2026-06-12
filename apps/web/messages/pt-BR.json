@@ -2704,7 +2704,6 @@
           "backToList": "Voltar às tarefas",
           "created": "Criada",
           "open": "Abrir",
-          "openUnavailable": "Esta tarefa não pode ser aberta na visão do usuário porque você não é membro do espaço de trabalho dela.",
           "organization": "Organização",
           "personalWorkspace": "Espaço de trabalho pessoal",
           "status": "Status",

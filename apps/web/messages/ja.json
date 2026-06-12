@@ -2704,7 +2704,6 @@
           "backToList": "タスク一覧に戻る",
           "created": "作成日",
           "open": "開く",
-          "openUnavailable": "このタスクのワークスペースのメンバーではないため、ユーザービューで開くことはできません。",
           "organization": "組織",
           "personalWorkspace": "個人ワークスペース",
           "status": "ステータス",

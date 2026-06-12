@@ -2673,7 +2673,6 @@
           "backToList": "Zurück zu Aufgaben",
           "created": "Erstellt",
           "open": "Öffnen",
-          "openUnavailable": "Diese Aufgabe kann nicht in der Nutzeransicht geöffnet werden, da du kein Mitglied ihres Workspace bist.",
           "organization": "Organisation",
           "personalWorkspace": "Persönlicher Workspace",
           "status": "Status",

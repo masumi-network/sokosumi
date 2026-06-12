@@ -18,10 +18,12 @@ import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
+import { isAdminSession } from "@/lib/auth/admin-access";
 import { getSession } from "@/lib/auth/utils";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
+import { adminTaskService } from "@/lib/services/admin-task.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
@@ -46,7 +48,7 @@ export default async function TaskDetailPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const task = await taskService.getTaskById(taskId);
+  const task = await getTaskForViewer(taskId);
 
   if (!task) {
     return notFound();
@@ -71,6 +73,7 @@ export default async function TaskDetailPage({
         <Suspense fallback={null}>
           <TaskDetailEffects
             taskId={taskId}
+            taskUserId={task.userId}
             targetOrganizationId={task.workspace.organizationId ?? null}
             membersPromise={membersPromise}
             sessionPromise={sessionPromise}
@@ -157,11 +160,13 @@ export default async function TaskDetailPage({
 
 async function TaskDetailEffects({
   taskId,
+  taskUserId,
   targetOrganizationId,
   membersPromise,
   sessionPromise,
 }: {
   taskId: string;
+  taskUserId: string;
   targetOrganizationId: string | null;
   membersPromise: Promise<MembersResult>;
   sessionPromise: Promise<SessionResult>;
@@ -178,16 +183,24 @@ async function TaskDetailEffects({
     members,
     tOrganizationSwitcher("personalAccount"),
   );
+  // Admins can read tasks in workspaces they are not part of; switching the
+  // active workspace would fail (org membership) or be wrong (someone else's
+  // personal workspace), so only switch when the viewer belongs there.
+  const canSwitchToTargetWorkspace = targetOrganizationId
+    ? members.some((member) => member.organizationId === targetOrganizationId)
+    : session?.user.id === taskUserId;
 
   return (
     <>
-      <AutoContextSwitch
-        activeOrganizationId={activeOrganizationId}
-        targetOrganizationId={targetOrganizationId}
-        successMessage={t("switchedWorkspace", {
-          account: targetAccountName,
-        })}
-      />
+      {canSwitchToTargetWorkspace ? (
+        <AutoContextSwitch
+          activeOrganizationId={activeOrganizationId}
+          targetOrganizationId={targetOrganizationId}
+          successMessage={t("switchedWorkspace", {
+            account: targetAccountName,
+          })}
+        />
+      ) : null}
       {session?.user.id ? (
         <TaskStatusRealtimeListener userId={session.user.id} taskId={taskId} />
       ) : null}
@@ -279,8 +292,9 @@ async function TaskDetailActionsSlot({
     agentNameById,
     coworkerOptions,
   } = buildTaskDetailContext(task, coworkers, agents);
-  const isReadOnlyWorkspaceView =
-    task.workspace.organizationId !== null && session?.user.id !== task.userId;
+  // Read-only for anyone who is not the task owner — workspace collaborators
+  // and admins viewing tasks outside their own workspaces.
+  const isReadOnlyWorkspaceView = session?.user.id !== task.userId;
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -389,8 +403,9 @@ async function TaskActivitySectionContent({
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
   const isFreePlan = currentPlan === "free";
-  const isReadOnlyWorkspaceView =
-    task.workspace.organizationId !== null && session?.user.id !== task.userId;
+  // Read-only for anyone who is not the task owner — workspace collaborators
+  // and admins viewing tasks outside their own workspaces.
+  const isReadOnlyWorkspaceView = session?.user.id !== task.userId;
 
   return (
     <TaskActivitySection
@@ -415,6 +430,26 @@ async function TaskActivitySectionContent({
       canComment={!isReadOnlyWorkspaceView}
     />
   );
+}
+
+/**
+ * Loads the task through the workspace-scoped read; when that misses and the
+ * viewer is a Sokosumi admin, falls back to the admin-only Core endpoint so
+ * admins can open any task. The view stays read-only for non-owners.
+ */
+async function getTaskForViewer(taskId: string): Promise<Task | null> {
+  const task = await taskService.getTaskById(taskId);
+  if (task) {
+    return task;
+  }
+
+  const session = await getSession();
+  if (!isAdminSession(session)) {
+    return null;
+  }
+
+  const adminTaskDetail = await adminTaskService.getTask(taskId);
+  return adminTaskDetail?.task ?? null;
 }
 
 async function getCurrentPlan(

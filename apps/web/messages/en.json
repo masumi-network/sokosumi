@@ -2758,7 +2758,6 @@
           "backToList": "Back to tasks",
           "created": "Created",
           "open": "Open",
-          "openUnavailable": "This task can't be opened in the user view because you are not a member of its workspace.",
           "organization": "Organization",
           "personalWorkspace": "Personal workspace",
           "status": "Status",

@@ -2704,7 +2704,6 @@
           "backToList": "返回任务列表",
           "created": "创建时间",
           "open": "打开",
-          "openUnavailable": "您不是该任务所在工作区的成员，因此无法在用户视图中打开此任务。",
           "organization": "组织",
           "personalWorkspace": "个人工作区",
           "status": "状态",

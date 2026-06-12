@@ -104,14 +104,19 @@ describe("adminTaskService", () => {
     expect(result.total).toBe(25);
   });
 
-  it("returns a single task by id", async () => {
-    const createdAt = new Date("2025-01-01T00:00:00.000Z");
+  it("returns the full task detail by id", async () => {
+    const task = {
+      id: "task_1",
+      name: "Quarterly report",
+      status: "RUNNING",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      jobs: [],
+      events: [],
+      links: [],
+    };
     getAdminTaskMock.mockResolvedValue({
       data: {
-        id: "task_1",
-        name: "Quarterly report",
-        status: "RUNNING",
-        createdAt,
+        task,
         user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
         organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
       },
@@ -121,10 +126,7 @@ describe("adminTaskService", () => {
 
     expect(getAdminTaskMock).toHaveBeenCalledWith("task_1");
     expect(result).toEqual({
-      id: "task_1",
-      name: "Quarterly report",
-      status: "RUNNING",
-      createdAt,
+      task,
       user: { id: "user_1", name: "Ada Lovelace", email: "ada@example.com" },
       organization: { id: "org_1", name: "Acme Corp", slug: "acme-corp" },
     });

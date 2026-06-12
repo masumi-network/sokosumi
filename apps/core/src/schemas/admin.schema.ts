@@ -4,6 +4,7 @@ import { TaskStatus } from "@sokosumi/utils";
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import { taskSchema } from "@/schemas/task.schema";
 
 /**
  * Lower page-size cap than the global pagination limit: every overview row
@@ -166,3 +167,25 @@ export const adminTaskIdParamSchema = z.object({
     example: "0195b9f4-7d35-7a4e-b14e-111111111111",
   }),
 });
+
+/**
+ * Full task payload (same shape the user-facing task view consumes) plus the
+ * owner and organization context the admin views need.
+ */
+export const adminTaskDetailSchema = z
+  .object({
+    task: taskSchema,
+    user: z.object({
+      id: z.string().openapi({ example: "user_123" }),
+      name: z.string().openapi({ example: "Ada Lovelace" }),
+      email: z.string().openapi({ example: "ada@example.com" }),
+    }),
+    organization: z
+      .object({
+        id: z.string().openapi({ example: "org_123" }),
+        name: z.string().openapi({ example: "Acme Corp" }),
+        slug: z.string().openapi({ example: "acme-corp" }),
+      })
+      .nullable(),
+  })
+  .openapi("AdminTaskDetail");

@@ -6,10 +6,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getSession } from "@/lib/auth/utils";
 import { adminTaskService } from "@/lib/services/admin-task.service";
-import { userService } from "@/lib/services/user.service";
-import { canOpenAdminTaskAsUser } from "@/lib/utils/admin-task-open";
 
 export const metadata: Metadata = {
   title: "Task",
@@ -24,24 +21,17 @@ export default async function AdminTaskDetailPage({
   params,
 }: AdminTaskDetailPageProps) {
   const { taskId } = await params;
-  const [task, session, members, t, formatter] = await Promise.all([
+  const [taskDetail, t, formatter] = await Promise.all([
     adminTaskService.getTask(taskId),
-    getSession(),
-    userService.getMyMembersWithOrganizations(),
     getTranslations("App.Admin.Tasks.TaskDetail"),
     getFormatter(),
   ]);
 
-  if (!task) {
+  if (!taskDetail) {
     notFound();
   }
 
-  const canOpen = canOpenAdminTaskAsUser({
-    taskUserId: task.user.id,
-    taskOrganizationId: task.organization?.id ?? null,
-    sessionUserId: session?.user.id ?? null,
-    memberOrganizationIds: members.map((member) => member.organizationId),
-  });
+  const { task, user, organization } = taskDetail;
 
   return (
     <div className="min-h-full w-full">
@@ -52,21 +42,11 @@ export default async function AdminTaskDetailPage({
             <Button variant="outline" asChild>
               <Link href="/admin/tasks">{t("backToList")}</Link>
             </Button>
-            {canOpen ? (
-              <Button asChild>
-                <Link href={`/tasks/${task.id}`}>{t("open")}</Link>
-              </Button>
-            ) : (
-              <Button disabled>{t("open")}</Button>
-            )}
+            <Button asChild>
+              <Link href={`/tasks/${task.id}`}>{t("open")}</Link>
+            </Button>
           </div>
         </div>
-
-        {!canOpen && (
-          <p className="text-muted-foreground text-sm">
-            {t("openUnavailable")}
-          </p>
-        )}
 
         <Card>
           <CardContent>
@@ -90,9 +70,9 @@ export default async function AdminTaskDetailPage({
                   {t("user")}
                 </dt>
                 <dd className="text-sm">
-                  {task.user.name}
+                  {user.name}
                   <span className="text-muted-foreground block text-xs">
-                    {task.user.email}
+                    {user.email}
                   </span>
                 </dd>
               </div>
@@ -101,7 +81,7 @@ export default async function AdminTaskDetailPage({
                   {t("organization")}
                 </dt>
                 <dd className="text-sm">
-                  {task.organization?.name ?? t("personalWorkspace")}
+                  {organization?.name ?? t("personalWorkspace")}
                 </dd>
               </div>
               <div>

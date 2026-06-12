@@ -3,26 +3,28 @@ import { createRoute } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { mapTask } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  adminTaskDetailSchema,
   adminTaskIdParamSchema,
-  adminTaskListItemSchema,
 } from "@/schemas/admin.schema";
+import { taskInclude } from "@/types/task";
 
 const route = createRoute({
   method: "get",
   path: "/{id}",
   operationId: "getAdminTask",
   description:
-    "Single task with owner and organization context for the admin task detail view (admin only).",
+    "Full task detail with owner and organization context. Admin only; not scoped to the caller's workspaces.",
   tags: ["Admin"],
   request: {
     params: adminTaskIdParamSchema,
   },
   responses: {
     200: jsonSuccessResponse(
-      adminTaskListItemSchema,
+      adminTaskDetailSchema,
       "Task detail for the admin task view",
     ),
     401: jsonErrorResponse("Unauthorized"),
@@ -38,8 +40,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.task.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, name: true, email: true } },
-        organization: { select: { id: true, name: true, slug: true } },
+        ...taskInclude,
+        user: { select: { id: true, name: true, email: true, image: true } },
       },
     });
 
@@ -49,12 +51,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      adminTaskListItemSchema.parse({
-        id: task.id,
-        name: task.name,
-        status: task.status,
-        createdAt: task.createdAt,
-        user: task.user,
+      adminTaskDetailSchema.parse({
+        task: mapTask(task),
+        user: {
+          id: task.user.id,
+          name: task.user.name,
+          email: task.user.email,
+        },
         organization: task.organization,
       }),
     );

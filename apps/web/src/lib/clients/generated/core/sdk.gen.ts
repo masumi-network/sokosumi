@@ -105,7 +105,7 @@ export const listAdminTasks = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Single task with owner and organization context for the admin task detail view (admin only).
+ * Full task detail with owner and organization context. Admin only; not scoped to the caller's workspaces.
  */
 export const getAdminTask = <ThrowOnError extends boolean = false>(options: Options<GetAdminTaskData, ThrowOnError>): RequestResult<GetAdminTaskResponses, GetAdminTaskErrors, ThrowOnError> => (options.client ?? client).get<GetAdminTaskResponses, GetAdminTaskErrors, ThrowOnError>({
     responseTransformer: getAdminTaskResponseTransformer,

@@ -447,6 +447,874 @@ export const AdminTaskListItemSchema = {
     ]
 } as const;
 
+export const AdminTaskDetailSchema = {
+    type: 'object',
+    properties: {
+        task: {
+            $ref: '#/components/schemas/Task'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                email: {
+                    type: 'string',
+                    example: 'ada@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Corp'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-corp'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'task',
+        'user',
+        'organization'
+    ]
+} as const;
+
+export const TaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123'
+        },
+        coworker: {
+            $ref: '#/components/schemas/CoworkerSummary'
+        },
+        name: {
+            type: 'string',
+            example: 'Review onboarding'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Notes go here'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        },
+        credits: {
+            type: 'number',
+            example: 5
+        },
+        events: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskEvent'
+            },
+            example: []
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/JobSummary'
+            },
+            example: []
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
+        share: {
+            $ref: '#/components/schemas/NullableTaskShare'
+        },
+        links: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskLink'
+            },
+            example: []
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'userId',
+        'user',
+        'organizationId',
+        'organization',
+        'projectId',
+        'coworkerId',
+        'coworker',
+        'name',
+        'description',
+        'status',
+        'credits',
+        'events',
+        'jobs',
+        'workspace',
+        'share',
+        'links'
+    ]
+} as const;
+
+export const UserSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const OrganizationSummarySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Acme Labs'
+        },
+        slug: {
+            type: 'string',
+            example: 'acme-labs'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const CoworkerSummarySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ops Agent'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/logo'
+        },
+        slug: {
+            type: 'string',
+            example: 'ops-agent'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const TaskEventSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'evt_123'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        userId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'user_123'
+        },
+        user: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/avatar.png'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Mirrors userId: omitted, null, or set when the actor user was loaded.'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cow_123'
+        },
+        coworker: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ops Agent'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/logo'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'ops-agent'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ],
+            description: 'Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.'
+        },
+        transactionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'txn_123'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 2.5
+        },
+        comment: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Looks good.'
+        },
+        authenticationUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/oauth/authorize'
+        },
+        origin: {
+            type: 'string',
+            enum: [
+                'SLACK',
+                'TEAMS',
+                'EMAIL',
+                'LINEAR',
+                'GITHUB',
+                'WHATSAPP',
+                'TELEGRAM',
+                'SIGNAL',
+                'DISCORD',
+                'CHAT',
+                'MESSENGER',
+                'SOKOSUMI',
+                'UNKNOWN'
+            ],
+            example: 'SLACK'
+        },
+        status: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED',
+                null
+            ],
+            example: 'RUNNING'
+        }
+    },
+    required: [
+        'id',
+        'taskId',
+        'createdAt',
+        'updatedAt',
+        'origin'
+    ]
+} as const;
+
+export const JobSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        agentId: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'organization_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'task_123'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'My Job'
+        },
+        jobType: {
+            type: 'string',
+            enum: [
+                'FREE',
+                'PAID',
+                'DEMO'
+            ],
+            example: 'PAID'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'processing'
+        },
+        credits: {
+            type: 'number',
+            example: 5
+        },
+        onChainStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'FUNDS_LOCKED',
+                'FUNDS_OR_DATUM_INVALID',
+                'FUNDS_WITHDRAWN',
+                'RESULT_SUBMITTED',
+                'REFUND_REQUESTED',
+                'REFUND_WITHDRAWN',
+                'DISPUTED',
+                'DISPUTED_WITHDRAWN',
+                null
+            ],
+            example: 'RESULT_SUBMITTED'
+        },
+        onChainTransactionHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0x123abc'
+        },
+        result: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Markdown text'
+        },
+        resultHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'result_hash'
+        },
+        blockchainIdentifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0b00e04c0860a60c61066056281180462d0b12'
+        },
+        payByTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submitResultTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        externalDisputeUnlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sellerVkey: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'seller_vkey_hex'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'agentId',
+        'userId',
+        'user',
+        'workspace',
+        'jobType',
+        'status',
+        'credits'
+    ]
+} as const;
+
+export const WorkspaceSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '11111111-1111-7111-8111-111111111111'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: '11111111-1111-7111-8111-111111111111'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Labs'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-labs'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'organization'
+    ]
+} as const;
+
+export const NullableTaskShareSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        id: {
+            type: 'string',
+            example: 'share_123'
+        },
+        token: {
+            type: 'string',
+            example: 'public-share-token'
+        },
+        allowSearchIndexing: {
+            type: 'boolean',
+            example: true
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_123'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'allowSearchIndexing',
+        'createdAt',
+        'updatedAt',
+        'taskId'
+    ],
+    example: null
+} as const;
+
+export const TaskLinkSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tl_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        relation: {
+            $ref: '#/components/schemas/TaskLinkRelation'
+        },
+        peerTask: {
+            $ref: '#/components/schemas/TaskLinkPeerTask'
+        },
+        note: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Blocked until onboarding copy is approved'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'relation',
+        'peerTask',
+        'note'
+    ],
+    example: {
+        id: 'tl_123',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        updatedAt: '2026-03-25T10:05:00.000Z',
+        relation: 'blocked_by',
+        peerTask: {
+            id: 'tsk_b',
+            name: 'Review onboarding copy',
+            status: 'READY',
+            archivedAt: null
+        },
+        note: 'Blocked until onboarding copy is approved'
+    }
+} as const;
+
+export const TaskLinkRelationSchema = {
+    type: 'string',
+    enum: [
+        'related',
+        'blocks',
+        'blocked_by',
+        'parent',
+        'child',
+        'duplicate'
+    ],
+    example: 'blocked_by'
+} as const;
+
+export const TaskLinkPeerTaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'tsk_b'
+        },
+        name: {
+            type: 'string',
+            example: 'Review onboarding copy'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'READY'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'archivedAt'
+    ],
+    example: {
+        id: 'tsk_b',
+        name: 'Review onboarding copy',
+        status: 'READY',
+        archivedAt: null
+    }
+} as const;
+
 export const AgentSchema = {
     type: 'object',
     properties: {
@@ -1375,306 +2243,6 @@ export const AgentRatingRequestSchema = {
     },
     required: [
         'rating'
-    ]
-} as const;
-
-export const JobSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cmi4gmksz000104l8wps8p7fp'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        completedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        agentId: {
-            type: 'string',
-            example: 'agent_123'
-        },
-        userId: {
-            type: 'string',
-            example: 'user_123'
-        },
-        user: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'organization_123'
-        },
-        organization: {
-            $ref: '#/components/schemas/OrganizationSummary'
-        },
-        projectId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
-        },
-        workspace: {
-            $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        taskId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'task_123'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'My Job'
-        },
-        jobType: {
-            type: 'string',
-            enum: [
-                'FREE',
-                'PAID',
-                'DEMO'
-            ],
-            example: 'PAID'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'processing'
-        },
-        credits: {
-            type: 'number',
-            example: 5
-        },
-        onChainStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'FUNDS_LOCKED',
-                'FUNDS_OR_DATUM_INVALID',
-                'FUNDS_WITHDRAWN',
-                'RESULT_SUBMITTED',
-                'REFUND_REQUESTED',
-                'REFUND_WITHDRAWN',
-                'DISPUTED',
-                'DISPUTED_WITHDRAWN',
-                null
-            ],
-            example: 'RESULT_SUBMITTED'
-        },
-        onChainTransactionHash: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '0x123abc'
-        },
-        result: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Markdown text'
-        },
-        resultHash: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'result_hash'
-        },
-        blockchainIdentifier: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '0b00e04c0860a60c61066056281180462d0b12'
-        },
-        payByTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        submitResultTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        unlockTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        externalDisputeUnlockTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        sellerVkey: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'seller_vkey_hex'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'agentId',
-        'userId',
-        'user',
-        'workspace',
-        'jobType',
-        'status',
-        'credits'
-    ]
-} as const;
-
-export const UserSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'user_123'
-        },
-        name: {
-            type: 'string',
-            example: 'Ada Lovelace'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/avatar.png'
-        }
-    },
-    required: [
-        'id',
-        'name'
-    ]
-} as const;
-
-export const OrganizationSummarySchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        id: {
-            type: 'string',
-            example: 'org_123'
-        },
-        name: {
-            type: 'string',
-            example: 'Acme Labs'
-        },
-        slug: {
-            type: 'string',
-            example: 'acme-labs'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'slug'
-    ]
-} as const;
-
-export const WorkspaceSummarySchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '11111111-1111-7111-8111-111111111111'
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'org_123'
-        },
-        organization: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: '11111111-1111-7111-8111-111111111111'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Acme Labs'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'acme-labs'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'slug'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'organizationId',
-        'organization'
     ]
 } as const;
 
@@ -6929,181 +7497,6 @@ export const CoworkerMetadataSchema = {
     ]
 } as const;
 
-export const TaskEventSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'evt_123'
-        },
-        taskId: {
-            type: 'string',
-            example: 'tsk_123'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        userId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'user_123'
-        },
-        user: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'user_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Ada Lovelace'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/avatar.png'
-                }
-            },
-            required: [
-                'id',
-                'name'
-            ],
-            description: 'Mirrors userId: omitted, null, or set when the actor user was loaded.'
-        },
-        coworkerId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'cow_123'
-        },
-        coworker: {
-            type: [
-                'object',
-                'null'
-            ],
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'cow_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Ops Agent'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/logo'
-                },
-                slug: {
-                    type: 'string',
-                    example: 'ops-agent'
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'slug'
-            ],
-            description: 'Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.'
-        },
-        transactionId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'txn_123'
-        },
-        credits: {
-            type: [
-                'number',
-                'null'
-            ],
-            example: 2.5
-        },
-        comment: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Looks good.'
-        },
-        authenticationUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/oauth/authorize'
-        },
-        origin: {
-            type: 'string',
-            enum: [
-                'SLACK',
-                'TEAMS',
-                'EMAIL',
-                'LINEAR',
-                'GITHUB',
-                'WHATSAPP',
-                'TELEGRAM',
-                'SIGNAL',
-                'DISCORD',
-                'CHAT',
-                'MESSENGER',
-                'SOKOSUMI',
-                'UNKNOWN'
-            ],
-            example: 'SLACK'
-        },
-        status: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'DRAFT',
-                'READY',
-                'INPUT_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED',
-                null
-            ],
-            example: 'RUNNING'
-        }
-    },
-    required: [
-        'id',
-        'taskId',
-        'createdAt',
-        'updatedAt',
-        'origin'
-    ]
-} as const;
-
 export const CoworkerUsageSchema = {
     type: 'object',
     properties: {
@@ -7388,305 +7781,6 @@ export const TaskListItemSchema = {
         'jobs',
         'workspace'
     ]
-} as const;
-
-export const CoworkerSummarySchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cow_123'
-        },
-        name: {
-            type: 'string',
-            example: 'Ops Agent'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/logo'
-        },
-        slug: {
-            type: 'string',
-            example: 'ops-agent'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'slug'
-    ]
-} as const;
-
-export const TaskSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'tsk_123'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        userId: {
-            type: 'string',
-            example: 'user_123'
-        },
-        user: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'org_123'
-        },
-        organization: {
-            $ref: '#/components/schemas/OrganizationSummary'
-        },
-        projectId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
-        },
-        coworkerId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'cow_123'
-        },
-        coworker: {
-            $ref: '#/components/schemas/CoworkerSummary'
-        },
-        name: {
-            type: 'string',
-            example: 'Review onboarding'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Notes go here'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'READY',
-                'INPUT_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY'
-        },
-        credits: {
-            type: 'number',
-            example: 5
-        },
-        events: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/TaskEvent'
-            },
-            example: []
-        },
-        jobs: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/JobSummary'
-            },
-            example: []
-        },
-        workspace: {
-            $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        share: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/TaskShare'
-                },
-                {
-                    type: [
-                        'object',
-                        'null'
-                    ],
-                    example: null
-                }
-            ]
-        },
-        links: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/TaskLink'
-            },
-            example: []
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'userId',
-        'user',
-        'organizationId',
-        'organization',
-        'projectId',
-        'coworkerId',
-        'coworker',
-        'name',
-        'description',
-        'status',
-        'credits',
-        'events',
-        'jobs',
-        'workspace',
-        'share',
-        'links'
-    ]
-} as const;
-
-export const TaskLinkSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'tl_123'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        relation: {
-            $ref: '#/components/schemas/TaskLinkRelation'
-        },
-        peerTask: {
-            $ref: '#/components/schemas/TaskLinkPeerTask'
-        },
-        note: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Blocked until onboarding copy is approved'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'relation',
-        'peerTask',
-        'note'
-    ],
-    example: {
-        id: 'tl_123',
-        createdAt: '2026-03-25T10:00:00.000Z',
-        updatedAt: '2026-03-25T10:05:00.000Z',
-        relation: 'blocked_by',
-        peerTask: {
-            id: 'tsk_b',
-            name: 'Review onboarding copy',
-            status: 'READY',
-            archivedAt: null
-        },
-        note: 'Blocked until onboarding copy is approved'
-    }
-} as const;
-
-export const TaskLinkRelationSchema = {
-    type: 'string',
-    enum: [
-        'related',
-        'blocks',
-        'blocked_by',
-        'parent',
-        'child',
-        'duplicate'
-    ],
-    example: 'blocked_by'
-} as const;
-
-export const TaskLinkPeerTaskSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'tsk_b'
-        },
-        name: {
-            type: 'string',
-            example: 'Review onboarding copy'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'DRAFT',
-                'READY',
-                'INPUT_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCEL_REQUESTED',
-                'CANCELED'
-            ],
-            example: 'READY'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: null
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'status',
-        'archivedAt'
-    ],
-    example: {
-        id: 'tsk_b',
-        name: 'Review onboarding copy',
-        status: 'READY',
-        archivedAt: null
-    }
 } as const;
 
 export const TaskLinkDeletedSchema = {

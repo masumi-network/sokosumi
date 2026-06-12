@@ -2704,7 +2704,6 @@
           "backToList": "Torna alle attività",
           "created": "Creata",
           "open": "Apri",
-          "openUnavailable": "Questa attività non può essere aperta nella vista utente perché non sei membro del suo spazio di lavoro.",
           "organization": "Organizzazione",
           "personalWorkspace": "Spazio di lavoro personale",
           "status": "Stato",

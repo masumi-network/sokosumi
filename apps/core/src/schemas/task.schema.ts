@@ -82,7 +82,11 @@ export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");
 
 export const taskSchema = taskBaseSchema
   .extend({
-    share: taskShareSchema.nullable().openapi({ example: null }),
+    // Registered under its own component name so the bare `TaskShare`
+    // component stays non-nullable regardless of route traversal order.
+    share: taskShareSchema
+      .nullable()
+      .openapi("NullableTaskShare", { example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
   })
   .openapi("Task");
