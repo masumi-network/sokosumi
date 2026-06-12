@@ -1,7 +1,8 @@
-import type { TaskStatus } from "@sokosumi/utils";
+import type { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import { ListTodo, Sparkles } from "lucide-react";
 import { getTaskStatusDotColorClass } from "@/app/tasks/components/task-status-badge";
+import { getJobStatusDotColorClass } from "@/components/jobs/job-status-badge";
 import type {
   ProjectJobStatusCount,
   ProjectStatsEntry,
@@ -114,7 +115,7 @@ function getJobStatusChips(
     key: entry.status,
     label: labels.jobStatusLabels[entry.status],
     count: entry.count,
-    dotClassName: getJobStatusDotColorClass(entry.status),
+    dotClassName: getJobStatusDotColorClass(entry.status as SokosumiJobStatus),
   }));
 }
 
@@ -125,26 +126,4 @@ function getTopStatusCounts<TStatus extends string>(
     .filter((entry) => entry.count > 0)
     .toSorted((a, b) => b.count - a.count)
     .slice(0, 3);
-}
-
-function getJobStatusDotColorClass(status: ProjectJobStatus): string {
-  switch (status) {
-    case "completed":
-    case "refund_resolved":
-    case "dispute_resolved":
-      return "bg-green-500";
-    case "failed":
-    case "payment_failed":
-      return "bg-red-500";
-    case "input_required":
-      return "bg-yellow-500";
-    case "refund_pending":
-    case "dispute_pending":
-      return "bg-orange-500";
-    case "started":
-    case "payment_pending":
-    case "processing":
-    case "result_pending":
-      return "bg-sky-500";
-  }
 }

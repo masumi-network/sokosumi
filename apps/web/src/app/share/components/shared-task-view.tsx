@@ -312,9 +312,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               isCommentEvent && "py-3",
                             )}
                           >
-                            {isStatusOnlyEvent &&
-                            event.status &&
-                            isLatestStatusEvent ? (
+                            {isStatusOnlyEvent && event.status ? (
                               <div className="flex size-6 shrink-0 items-center justify-center">
                                 <span
                                   data-testid={`status-dot-${event.id}`}

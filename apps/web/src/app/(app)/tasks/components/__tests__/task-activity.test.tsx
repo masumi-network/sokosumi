@@ -347,7 +347,7 @@ describe("TaskActivitySection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides the running status dot when a newer status event exists", () => {
+  it("renders status dots for all status-only events", () => {
     const events: TaskEvent[] = [
       createEvent("latest-complete", {
         createdAt: "2026-01-01T13:00:00.000Z",
@@ -361,12 +361,13 @@ describe("TaskActivitySection", () => {
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    expect(
-      screen.queryByTestId("status-dot-older-running"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-dot-older-running")).toBeInTheDocument();
     expect(
       screen.getByTestId("status-dot-latest-complete"),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "Alice" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders embedded user data without relying on current session maps", () => {
