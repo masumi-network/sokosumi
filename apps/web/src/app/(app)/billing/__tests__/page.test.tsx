@@ -13,6 +13,7 @@ const getMyOrganizationCreditsMock = vi.fn();
 const getMyActiveSubscriptionMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const getMyStripeCustomerMock = vi.fn();
+const getOrganizationStripeCustomerMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
 const zeroMarginTopUpEnabledMock = vi.fn();
 const balanceBillingPortalLinkMock = vi.fn();
@@ -51,7 +52,18 @@ vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
+class MockCoreApiRequestError extends Error {
+  status?: number;
+
+  constructor(message: string, options?: { status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.status = options?.status;
+  }
+}
+
 vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
     getMyActiveSubscription: (...args: unknown[]) =>
       getMyActiveSubscriptionMock(...args),
@@ -62,6 +74,8 @@ vi.mock("@/lib/clients/core.client", () => ({
       getMyStripeCustomerMock(...args),
     getOrganizationBillingPlan: (...args: unknown[]) =>
       getOrganizationBillingPlanMock(...args),
+    getOrganizationStripeCustomer: (...args: unknown[]) =>
+      getOrganizationStripeCustomerMock(...args),
   },
 }));
 
@@ -232,6 +246,9 @@ describe("BillingPage", () => {
     getMyStripeCustomerMock.mockResolvedValue({
       data: { stripeCustomerId: "cus_user_1" },
     });
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: null },
+    });
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 1,
       memberCount: 1,
@@ -277,9 +294,9 @@ describe("BillingPage", () => {
 
   it("passes the zero-margin override to organization billing credits when the flag is enabled", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-1",
       name: "Org One",
+      slug: "org-one",
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
@@ -380,10 +397,9 @@ describe("BillingPage", () => {
 
   it("uses the local subscription row for organization seats and hides the billing portal without a Stripe customer", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-1",
       name: "Org One",
-      stripeCustomerId: null,
+      slug: "org-one",
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
@@ -426,10 +442,12 @@ describe("BillingPage", () => {
 
   it("shows the billing portal for organization plans with a Stripe customer", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-1",
       name: "Org One",
-      stripeCustomerId: "cus_org_1",
+      slug: "org-one",
+    });
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: "cus_org_1" },
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
@@ -451,12 +469,43 @@ describe("BillingPage", () => {
     expect(view.getByTestId("balance-billing-portal-link")).toBeTruthy();
   });
 
+  it("renders without the billing portal when the org Stripe customer lookup 404s", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getOrganizationStripeCustomerMock.mockRejectedValue(
+      new MockCoreApiRequestError("Organization not found", { status: 404 }),
+    );
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    mockSelfServeOrganizationBillingPlan("pro", 10);
+
+    const { default: BillingPage } = await import("../page");
+
+    const view = render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
+    expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
+  });
+
   it("shows the enterprise contract summary for consumable enterprise org billing", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-enterprise",
       name: "Enterprise Org",
-      stripeCustomerId: "cus_org_enterprise",
+      slug: "enterprise-org",
+    });
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: "cus_org_enterprise" },
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
@@ -502,10 +551,12 @@ describe("BillingPage", () => {
 
   it("falls back to the balance section when the enterprise summary is unavailable", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-enterprise",
       name: "Enterprise Org",
-      stripeCustomerId: "cus_org_enterprise",
+      slug: "enterprise-org",
+    });
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: "cus_org_enterprise" },
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
@@ -541,10 +592,12 @@ describe("BillingPage", () => {
 
   it("shows the enterprise contract summary when contract details cannot be loaded", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-enterprise-missing-contract",
       name: "Enterprise Org Missing Contract",
-      stripeCustomerId: "cus_org_enterprise_missing_contract",
+      slug: "enterprise-org-missing-contract",
+    });
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: "cus_org_enterprise_missing_contract" },
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
@@ -587,10 +640,12 @@ describe("BillingPage", () => {
 
   it("shows the enterprise contract summary after the commercial term with contact us", async () => {
     getActiveOrganizationMock.mockResolvedValue({
-      _count: { members: 2 },
       id: "org-enterprise-post-term",
       name: "Enterprise Org Post Term",
-      stripeCustomerId: "cus_org_enterprise_post_term",
+      slug: "enterprise-org-post-term",
+    });
+    getOrganizationStripeCustomerMock.mockResolvedValue({
+      data: { stripeCustomerId: "cus_org_enterprise_post_term" },
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,

@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobInclude, Prisma } from "@sokosumi/database";
+import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
@@ -8,7 +8,7 @@ import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -61,90 +61,85 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
-    const job = await prisma.$transaction(
-      async (tx) => {
-        // A delegated coworker may only move a job whose task is assigned to it.
-        await requireJobCollaboration(c.var.authContext, id, tx);
+    const job = await serializableTransaction(async (tx) => {
+      // A delegated coworker may only move a job whose task is assigned to it.
+      await requireJobCollaboration(c.var.authContext, id, tx);
 
-        const currentJob = await tx.job.findFirst({
-          where: {
-            id,
-            userId: userContext.userId,
-          },
-          select: {
-            taskId: true,
-            workspace: {
-              select: {
-                organizationId: true,
-              },
+      const currentJob = await tx.job.findFirst({
+        where: {
+          id,
+          userId: userContext.userId,
+        },
+        select: {
+          taskId: true,
+          workspace: {
+            select: {
+              organizationId: true,
             },
           },
-        });
+        },
+      });
 
-        if (!currentJob) {
-          throw forbidden("You can only access your own jobs");
-        }
+      if (!currentJob) {
+        throw forbidden("You can only access your own jobs");
+      }
 
-        if (currentJob.taskId !== null) {
-          throw conflict("Task-attached jobs inherit their task workspace");
-        }
+      if (currentJob.taskId !== null) {
+        throw conflict("Task-attached jobs inherit their task workspace");
+      }
 
-        const workspaceChanged =
-          targetOrganizationId !== currentJob.workspace.organizationId;
+      const workspaceChanged =
+        targetOrganizationId !== currentJob.workspace.organizationId;
 
-        if (!workspaceChanged) {
-          const existingJob = await tx.job.findUnique({
-            where: { id },
-            include: jobInclude,
-          });
-
-          if (!existingJob) {
-            throw notFound("Job not found");
-          }
-
-          return serializeJobDetails(mapJobWithStatus(existingJob));
-        }
-
-        // `null` targets the authenticated user's personal workspace.
-        if (targetOrganizationId !== null) {
-          await resolveMemberOrganizationById({
-            id: targetOrganizationId,
-            userId: userContext.userId,
-            tx,
-          });
-        }
-
-        const workspace = await workspaceRepository.upsertWorkspaceForContext(
-          userContext.userId,
-          targetOrganizationId ?? null,
-          tx,
-        );
-
-        await tx.job.update({
-          where: {
-            id,
-          },
-          data: {
-            workspaceId: workspace.id,
-            projectId: null,
-          },
-        });
-
-        const updatedJob = await tx.job.findUnique({
+      if (!workspaceChanged) {
+        const existingJob = await tx.job.findUnique({
           where: { id },
           include: jobInclude,
         });
 
-        if (!updatedJob) {
+        if (!existingJob) {
           throw notFound("Job not found");
         }
 
-        return serializeJobDetails(mapJobWithStatus(updatedJob));
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+        return serializeJobDetails(mapJobWithStatus(existingJob));
+      }
+
+      // `null` targets the authenticated user's personal workspace.
+      if (targetOrganizationId !== null) {
+        await resolveMemberOrganizationById({
+          id: targetOrganizationId,
+          userId: userContext.userId,
+          tx,
+        });
+      }
+
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        userContext.userId,
+        targetOrganizationId ?? null,
+        tx,
+      );
+
+      await tx.job.update({
+        where: {
+          id,
+        },
+        data: {
+          workspaceId: workspace.id,
+          projectId: null,
+        },
+      });
+
+      const updatedJob = await tx.job.findUnique({
+        where: { id },
+        include: jobInclude,
+      });
+
+      if (!updatedJob) {
+        throw notFound("Job not found");
+      }
+
+      return serializeJobDetails(mapJobWithStatus(updatedJob));
+    }, "Job changed by a concurrent request. Please retry.");
 
     return ok(c, jobSchema.parse(job));
   });

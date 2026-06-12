@@ -4,14 +4,15 @@ vi.mock("server-only", () => ({}));
 
 vi.mock("better-auth/api", () => ({
   APIError: class APIError extends Error {
-    constructor(_code: string, options?: { message?: string }) {
+    status?: string;
+    constructor(code: string, options?: { message?: string }) {
       super(options?.message ?? "API error");
       this.name = "APIError";
+      this.status = code;
     }
   },
 }));
 
-const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getAssignedMemberCountMock = vi.fn();
 const getOrganizationMemberUserIdsMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
@@ -21,8 +22,27 @@ const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
 const resolveOrganizationBillingPlanMock = vi.fn();
 const prismaTransactionMock = vi.fn();
 const updateSubscriptionRecordMock = vi.fn();
-const retrieveStripeSubscriptionMock = vi.fn();
-const updateStripeSubscriptionMock = vi.fn();
+const updateOrganizationSubscriptionSeatsMock = vi.fn();
+
+class MockCoreApiRequestError extends Error {
+  kind?: string;
+  status?: number;
+
+  constructor(message: string, options?: { kind?: string; status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.kind = options?.kind;
+    this.status = options?.status;
+  }
+}
+
+vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: MockCoreApiRequestError,
+  coreClient: {
+    updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
+      updateOrganizationSubscriptionSeatsMock(...args),
+  },
+}));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -32,8 +52,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
       getOrganizationMemberUserIdsMock(...args),
     getUnassignedMemberUserIds: (...args: unknown[]) =>
       getUnassignedMemberUserIdsMock(...args),
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
   },
   subscriptionRepository: {
     resolveActiveSubscriptionByReferenceId: (...args: unknown[]) =>
@@ -46,25 +64,10 @@ vi.mock("@sokosumi/database/helpers", () => ({
     ensureLocalFreeSubscriptionPeriodMock(...args),
   grantFreeOrganizationMemberSubscriptionCredits: (...args: unknown[]) =>
     grantFreeOrganizationMemberSubscriptionCreditsMock(...args),
-  ensurePurchasedSeatsSufficient: (purchased: number, assigned: number) => {
-    if (purchased < assigned) {
-      throw new Error(
-        `Purchased seats (${purchased}) must be at least ${assigned} to cover all assigned members`,
-      );
-    }
-  },
   resolvePurchasedSeats: (seats: number | null | undefined) =>
     seats && seats > 0 ? seats : 1,
   resolveOrganizationBillingPlan: (...args: unknown[]) =>
     resolveOrganizationBillingPlanMock(...args),
-  assertOrganizationSubscriptionChangeAllowed: vi.fn(),
-  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
-}));
-
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => ({
-    STRIPE_SECRET_KEY: "sk_test_mock",
-  }),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -79,21 +82,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
-
-vi.mock("stripe", () => {
-  return {
-    __esModule: true,
-    default: vi.fn(function MockStripe() {
-      return {
-        subscriptions: {
-          retrieve: (...args: unknown[]) =>
-            retrieveStripeSubscriptionMock(...args),
-          update: (...args: unknown[]) => updateStripeSubscriptionMock(...args),
-        },
-      };
-    }),
-  };
-});
 
 describe("organizationSubscriptionService", () => {
   beforeEach(() => {
@@ -137,8 +125,7 @@ describe("organizationSubscriptionService", () => {
 
       expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
       expect(getAssignedMemberCountMock).not.toHaveBeenCalled();
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateOrganizationSubscriptionSeatsMock).not.toHaveBeenCalled();
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
   });
@@ -192,8 +179,6 @@ describe("organizationSubscriptionService", () => {
       );
 
       expect(getAssignedMemberCountMock).not.toHaveBeenCalled();
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
@@ -224,8 +209,6 @@ describe("organizationSubscriptionService", () => {
         expect.any(Object),
       );
       expect(getAssignedMemberCountMock).not.toHaveBeenCalled();
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
 
@@ -252,17 +235,43 @@ describe("organizationSubscriptionService", () => {
       await organizationSubscriptionService.ensureCanAcceptInvitation("org-1");
 
       expect(getAssignedMemberCountMock).not.toHaveBeenCalled();
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
+      expect(updateOrganizationSubscriptionSeatsMock).not.toHaveBeenCalled();
       expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
     });
   });
 
   describe("updateOrganizationSeatsImmediately", () => {
-    it("throws when the user is not owner or admin", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "member",
+    it("returns the seat count resolved by core", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
+        data: { seats: 6 },
       });
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          6,
+        ),
+      ).resolves.toEqual({
+        seats: 6,
+      });
+
+      expect(updateOrganizationSubscriptionSeatsMock).toHaveBeenCalledWith(
+        "org-1",
+        6,
+      );
+    });
+
+    it("maps a core 403 to the owner/admin FORBIDDEN error", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        new MockCoreApiRequestError("You must be owner, admin", {
+          status: 403,
+        }),
+      );
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -279,11 +288,58 @@ describe("organizationSubscriptionService", () => {
       );
     });
 
-    it("throws when no active organization subscription exists", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "owner",
-      });
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    it("maps a missing organization to the owner/admin FORBIDDEN error", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        new MockCoreApiRequestError("Organization not found", {
+          status: 404,
+        }),
+      );
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          3,
+        ),
+      ).rejects.toThrow(
+        "Only organization owners and admins can manage subscriptions",
+      );
+    });
+
+    it("maps the organization_not_found kind to FORBIDDEN even when the message is reworded", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        new MockCoreApiRequestError("We could not find that organization", {
+          kind: "organization_not_found",
+          status: 404,
+        }),
+      );
+
+      const { organizationSubscriptionService } = await import(
+        "../organization-subscription.service"
+      );
+
+      await expect(
+        organizationSubscriptionService.updateOrganizationSeatsImmediately(
+          "user-1",
+          "org-1",
+          3,
+        ),
+      ).rejects.toThrow(
+        "Only organization owners and admins can manage subscriptions",
+      );
+    });
+
+    it("keeps core's message when no active subscription exists", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        new MockCoreApiRequestError(
+          "An active organization subscription is required before updating seats.",
+          { status: 400 },
+        ),
+      );
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -300,47 +356,13 @@ describe("organizationSubscriptionService", () => {
       );
     });
 
-    it("returns current seats without calling Stripe when seats are unchanged", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "owner",
-      });
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "starter",
-        seats: 4,
-        stripeSubscriptionId: "sub_stripe_1",
-      });
-
-      const { organizationSubscriptionService } = await import(
-        "../organization-subscription.service"
-      );
-
-      await expect(
-        organizationSubscriptionService.updateOrganizationSeatsImmediately(
-          "user-1",
-          "org-1",
-          4,
+    it("keeps core's message when decreasing seats below assigned count", async () => {
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+        new MockCoreApiRequestError(
+          "Purchased seats (3) must be at least 4 to cover all assigned members",
+          { status: 400 },
         ),
-      ).resolves.toEqual({
-        seats: 4,
-      });
-
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
-    });
-
-    it("throws when decreasing seats below assigned count", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "owner",
-      });
-      getAssignedMemberCountMock.mockResolvedValue(4);
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "starter",
-        seats: 6,
-        stripeSubscriptionId: "sub_stripe_1",
-      });
+      );
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -357,64 +379,12 @@ describe("organizationSubscriptionService", () => {
       );
     });
 
-    it("updates Stripe and local seats immediately", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "admin",
-      });
-      getAssignedMemberCountMock.mockResolvedValue(2);
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "starter",
-        seats: 2,
-        stripeSubscriptionId: "sub_stripe_1",
-      });
-      retrieveStripeSubscriptionMock.mockResolvedValue({
-        items: {
-          data: [{ id: "si_1" }],
-        },
-      });
-      updateStripeSubscriptionMock.mockResolvedValue({});
-      updateSubscriptionRecordMock.mockResolvedValue({});
-
-      const { organizationSubscriptionService } = await import(
-        "../organization-subscription.service"
+    it("rethrows unexpected core errors unchanged", async () => {
+      const coreError = new MockCoreApiRequestError(
+        "Unable to update organization subscription seats: missing Stripe subscription item",
+        { status: 500 },
       );
-
-      await expect(
-        organizationSubscriptionService.updateOrganizationSeatsImmediately(
-          "user-1",
-          "org-1",
-          6,
-        ),
-      ).resolves.toEqual({
-        seats: 6,
-      });
-
-      expect(updateStripeSubscriptionMock).toHaveBeenCalledWith(
-        "sub_stripe_1",
-        {
-          items: [{ id: "si_1", quantity: 6 }],
-          payment_behavior: "error_if_incomplete",
-          proration_behavior: "always_invoice",
-        },
-      );
-      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
-        where: { id: "sub-row-1" },
-        data: { seats: 6 },
-      });
-    });
-
-    it("throws when decreasing local free seats below assigned count", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "owner",
-      });
-      getAssignedMemberCountMock.mockResolvedValue(4);
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "free",
-        seats: 6,
-        stripeSubscriptionId: null,
-      });
+      updateOrganizationSubscriptionSeatsMock.mockRejectedValue(coreError);
 
       const { organizationSubscriptionService } = await import(
         "../organization-subscription.service"
@@ -426,52 +396,11 @@ describe("organizationSubscriptionService", () => {
           "org-1",
           3,
         ),
-      ).rejects.toThrow(
-        "Purchased seats (3) must be at least 4 to cover all assigned members",
-      );
-
-      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
+      ).rejects.toBe(coreError);
     });
+  });
 
-    it("updates purchased seats for local free subscriptions without syncing member count", async () => {
-      getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-        role: "admin",
-      });
-      const periodStart = new Date("2026-04-08T00:00:00.000Z");
-      const periodEnd = new Date("2026-05-08T00:00:00.000Z");
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        createdAt: periodStart,
-        id: "sub-row-1",
-        plan: "free",
-        seats: 2,
-        periodEnd,
-        periodStart,
-        stripeSubscriptionId: null,
-      });
-      updateSubscriptionRecordMock.mockResolvedValue({});
-
-      const { organizationSubscriptionService } = await import(
-        "../organization-subscription.service"
-      );
-
-      await expect(
-        organizationSubscriptionService.updateOrganizationSeatsImmediately(
-          "user-1",
-          "org-1",
-          6,
-        ),
-      ).resolves.toEqual({
-        seats: 6,
-      });
-
-      expect(retrieveStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateStripeSubscriptionMock).not.toHaveBeenCalled();
-      expect(updateSubscriptionRecordMock).toHaveBeenCalledWith({
-        where: { id: "sub-row-1" },
-        data: { seats: 6 },
-      });
-    });
-
+  describe("syncLocalFreeSeatsAndCreditsForCurrentMembers", () => {
     it("syncs local free credits for all organization members", async () => {
       const periodStart = new Date("2026-04-08T00:00:00.000Z");
       const periodEnd = new Date("2026-05-08T00:00:00.000Z");

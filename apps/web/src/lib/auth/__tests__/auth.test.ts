@@ -7,7 +7,6 @@ const createAuthMiddlewareMock = vi.fn((callback) => callback);
 const getBetterAuthProductionUrlMock = vi.fn();
 const getEnvPublicConfigMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
-const getInfraAuthPluginsMock = vi.fn();
 const i18nPluginMock = vi.fn();
 const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
 const jwtPluginMock = vi.fn();
@@ -47,7 +46,6 @@ const workspaceUpsertMock = vi.fn();
 
 function getDefaultEnvSecrets() {
   return {
-    BETTER_AUTH_API_KEY: "test-api-key",
     BETTER_AUTH_COOKIE_DOMAIN: undefined,
     BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: 900,
     BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 86_400,
@@ -204,10 +202,6 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("@/lib/auth/infra-plugins", () => ({
-  getInfraAuthPlugins: (...args: unknown[]) => getInfraAuthPluginsMock(...args),
-}));
-
 vi.mock("@/lib/blob/utils", () => ({
   uploadProfileImage: vi.fn(),
 }));
@@ -294,7 +288,6 @@ describe("web auth config", () => {
     });
     getEnvSecretsMock.mockReturnValue(getDefaultEnvSecrets());
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
-    getInfraAuthPluginsMock.mockReturnValue([]);
     i18nPluginMock.mockReturnValue("i18n-plugin");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");

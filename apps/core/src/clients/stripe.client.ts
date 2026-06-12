@@ -71,6 +71,57 @@ export const stripeClient = {
     );
   },
 
+  async retrieveProduct(
+    productId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Product> {
+    return await stripe.products.retrieve(productId, {}, requestOptions);
+  },
+
+  async retrieveProductWithDefaultPrice(
+    productId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Product> {
+    return await stripe.products.retrieve(
+      productId,
+      { expand: ["default_price"] },
+      requestOptions,
+    );
+  },
+
+  async retrieveSubscriptionWithItems(
+    subscriptionId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.retrieve(
+      subscriptionId,
+      { expand: ["items"] },
+      requestOptions,
+    );
+  },
+
+  async updateSubscriptionItemQuantity(
+    subscriptionId: string,
+    itemId: string,
+    quantity: number,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        items: [
+          {
+            id: itemId,
+            quantity,
+          },
+        ],
+        payment_behavior: "error_if_incomplete",
+        proration_behavior: "always_invoice",
+      },
+      requestOptions,
+    );
+  },
+
   async updateSubscriptionCancelAtPeriodEnd(
     subscriptionId: string,
     cancelAtPeriodEnd: boolean,
@@ -82,6 +133,22 @@ export const stripeClient = {
         cancel_at_period_end: cancelAtPeriodEnd,
       },
       requestOptions,
+    );
+  },
+
+  /**
+   * Verify a Stripe webhook payload against the core endpoint's signing
+   * secret and parse it into a typed event. Throws when the signature is
+   * invalid or the payload is malformed.
+   */
+  async constructWebhookEvent(
+    payload: string,
+    signature: string,
+  ): Promise<Stripe.Event> {
+    return await stripe.webhooks.constructEventAsync(
+      payload,
+      signature,
+      getEnv().STRIPE_WEBHOOK_SECRET,
     );
   },
 };

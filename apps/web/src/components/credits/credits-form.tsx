@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Organization } from "@sokosumi/database";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -9,7 +8,6 @@ import { useCallback, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +31,7 @@ import {
   CreditsErrorCode,
   purchaseCredits,
 } from "@/lib/actions";
+import type { Organization } from "@/lib/clients/generated/core";
 import type {
   CreditTopUpPriceCatalog,
   Price,

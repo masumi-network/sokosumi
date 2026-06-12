@@ -3,6 +3,8 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Organization } from "@/lib/clients/generated/core";
+
 const getMyMemberInOrganizationMock = vi.fn();
 const getOrganizationBillingPlanMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
@@ -80,6 +82,18 @@ vi.mock("../onboarding-subscription-return-handler", () => ({
   ),
 }));
 
+function createActiveOrganization(): Organization {
+  return {
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    id: "org-1",
+    logo: null,
+    metadata: null,
+    name: "Org One",
+    role: "member",
+    slug: "org-one",
+  };
+}
+
 function createSubscriptionCatalog() {
   return {
     free: { credits: 250, currency: "eur", monthlyAmount: 0 },
@@ -133,11 +147,7 @@ describe("OnboardingDialogLoader", () => {
 
     render(
       (await OnboardingDialogLoader({
-        activeOrganization: {
-          _count: { members: 3 },
-          id: "org-1",
-          name: "Org One",
-        } as never,
+        activeOrganization: createActiveOrganization(),
         loginId: "session-1",
         subscriptionOnly: false,
       })) as ReactNode,
@@ -173,11 +183,7 @@ describe("OnboardingDialogLoader", () => {
 
     const { getByTestId, queryByTestId } = render(
       (await OnboardingDialogLoader({
-        activeOrganization: {
-          _count: { members: 3 },
-          id: "org-1",
-          name: "Org One",
-        } as never,
+        activeOrganization: createActiveOrganization(),
         loginId: "session-1",
         subscriptionOnly: true,
       })) as ReactNode,
@@ -207,11 +213,7 @@ describe("OnboardingDialogLoader", () => {
 
     const { getByTestId, queryByTestId } = render(
       (await OnboardingDialogLoader({
-        activeOrganization: {
-          _count: { members: 3 },
-          id: "org-1",
-          name: "Org One",
-        } as never,
+        activeOrganization: createActiveOrganization(),
         loginId: "session-1",
         subscriptionOnly: true,
       })) as ReactNode,

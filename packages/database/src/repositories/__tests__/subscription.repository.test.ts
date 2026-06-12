@@ -66,35 +66,6 @@ describe("subscriptionRepository", () => {
     assert.equal(call.where.periodEnd.gt, now);
   });
 
-  it("getLatestActiveSubscriptionByReferenceId orders by periodEnd only", async () => {
-    const fallbackRow = { id: "fallback" };
-    let findFirstCall: unknown;
-    const tx = {
-      subscription: {
-        findFirst: async (args: unknown) => {
-          findFirstCall = args;
-          return fallbackRow;
-        },
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    const result =
-      await subscriptionRepository.getLatestActiveSubscriptionByReferenceId(
-        "reference-1",
-        tx,
-      );
-
-    assert.equal(result, fallbackRow);
-    assert.deepEqual((findFirstCall as { orderBy: unknown }).orderBy, [
-      { periodEnd: { sort: "desc", nulls: "last" } },
-      { updatedAt: "desc" },
-    ]);
-    assert.equal(
-      (findFirstCall as { where: { periodStart?: unknown } }).where.periodStart,
-      undefined,
-    );
-  });
-
   it("resolveActiveSubscriptionByReferenceId prefers in-period over latest by periodEnd", async () => {
     const inPeriodRow = { id: "current-period" };
     const calls: unknown[] = [];

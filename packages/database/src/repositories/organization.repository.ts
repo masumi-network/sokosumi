@@ -67,20 +67,6 @@ export const organizationRepository = {
   },
 
   /**
-   * Retrieves an organization with its relations by organization slug.
-   *
-   * @param slug - The slug of the organization.
-   * @param tx - Optional Prisma transaction client.
-   * @returns The OrganizationWithRelations object if found, otherwise null.
-   */
-  async getOrganizationWithRelationsBySlug(
-    slug: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<OrganizationWithRelations | null> {
-    return await this.getUniqueOrganizationWithRelations({ slug }, tx);
-  },
-
-  /**
    * Updates an organization by its ID with the provided data.
    *
    * @param organizationId - The ID of the organization to update.
@@ -203,53 +189,6 @@ export const organizationRepository = {
   ): Promise<Organization | null> {
     return await tx.organization.findUnique({
       where: { stripeCustomerId },
-    });
-  },
-
-  /**
-   * Retrieves all organizations that do not have a Stripe customer ID.
-   *
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to an array of Organization objects without Stripe customer IDs.
-   */
-  async getOrganizationsWithoutStripeCustomerId(
-    tx: Prisma.TransactionClient,
-  ): Promise<Organization[]> {
-    return await tx.organization.findMany({
-      where: {
-        stripeCustomerId: null,
-      },
-    });
-  },
-
-  /**
-   * Retrieves a page of organization IDs ordered by ID, starting after an optional cursor.
-   *
-   * @param cursorId - The last processed organization ID, or null to start from the beginning.
-   * @param limit - The maximum number of organizations to return.
-   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
-   * @returns A promise that resolves to an array of organizations containing only IDs.
-   */
-  async getOrganizationsBatchAfterCursor(
-    cursorId: string | null,
-    limit: number,
-    tx: Prisma.TransactionClient,
-  ): Promise<Array<Pick<Organization, "id">>> {
-    return await tx.organization.findMany({
-      where: cursorId
-        ? {
-            id: {
-              gt: cursorId,
-            },
-          }
-        : undefined,
-      orderBy: {
-        id: "asc",
-      },
-      select: {
-        id: true,
-      },
-      take: limit,
     });
   },
 };
