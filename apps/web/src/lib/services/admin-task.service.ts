@@ -1,12 +1,14 @@
 import "server-only";
 
+import type { TaskStatus } from "@sokosumi/utils";
+
 import { coreClient } from "@/lib/clients/core.client";
 
 /** A task row in the admin task list. */
 export interface AdminTaskListItem {
   id: string;
   name: string;
-  status: string;
+  status: TaskStatus;
   createdAt: Date;
   user: {
     id: string;
