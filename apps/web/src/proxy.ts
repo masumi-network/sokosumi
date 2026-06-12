@@ -18,6 +18,10 @@ import { getEnvSecrets } from "@/config/env.secrets";
  * REMOVE after one full session max-age window (Better Auth default: 7 days)
  * has passed in production — by then every live session cookie has either
  * been re-scoped or expired.
+ *
+ * The host-only original is deliberately left in place: browsers send both
+ * (older first) and Better Auth's cookie parsing is last-occurrence-wins, so
+ * the re-scoped cookie takes effect; the original expires with its session.
  */
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // Better Auth default session expiry
 const MARKER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;

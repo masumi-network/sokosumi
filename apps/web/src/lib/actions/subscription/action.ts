@@ -54,7 +54,9 @@ function getErrorStatus(error: unknown): string | null {
 
 function parseBetterAuthActionError(error: unknown): ActionError {
   // Enterprise-contract exclusivity is enforced by core's auth instance and
-  // arrives as a BAD_REQUEST APIError, covered by the schema parse below.
+  // arrives as a message-only BAD_REQUEST APIError — no `code`, so the schema
+  // parse below fails for it and the status-based BAD_REQUEST fallback maps
+  // it to BAD_INPUT with the original message.
   const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
   if (parsedBetterAuthError.success) {
     return {

@@ -40,6 +40,9 @@ const {
   webhookCallUserUpdatedMock,
   workspaceUpsertMock,
   stripeWebhookHandleEventMock,
+  getSessionFromCtxMock,
+  assertOrganizationChangeAllowedMock,
+  assertPersonalChangeAllowedMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -80,6 +83,9 @@ const {
   webhookCallUserUpdatedMock: vi.fn(),
   workspaceUpsertMock: vi.fn(),
   stripeWebhookHandleEventMock: vi.fn(),
+  getSessionFromCtxMock: vi.fn(),
+  assertOrganizationChangeAllowedMock: vi.fn(),
+  assertPersonalChangeAllowedMock: vi.fn(),
 }));
 
 function getDefaultEnv() {
@@ -151,6 +157,27 @@ vi.mock("@better-auth/i18n", () => ({
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
 }));
+
+vi.mock("better-auth/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("better-auth/api")>();
+  return {
+    ...actual,
+    createAuthMiddleware: (handler: unknown) => handler,
+    getSessionFromCtx: (...args: unknown[]) => getSessionFromCtxMock(...args),
+  };
+});
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    assertOrganizationSubscriptionChangeAllowed: (...args: unknown[]) =>
+      assertOrganizationChangeAllowedMock(...args),
+    assertPersonalSubscriptionChangeAllowed: (...args: unknown[]) =>
+      assertPersonalChangeAllowedMock(...args),
+  };
+});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -1067,6 +1094,122 @@ describe("core auth config", () => {
       name: "Org One",
       organizationId: "org_123",
       slug: "org-one",
+    });
+  });
+  describe("auth hooks", () => {
+    type BeforeHook = (ctx: {
+      body?: Record<string, unknown>;
+      path: string;
+    }) => Promise<void>;
+    type AfterHook = (ctx: {
+      context: { newSession?: { user: Record<string, unknown> } };
+      path: string;
+    }) => Promise<void>;
+
+    function getHooks() {
+      const config = getBetterAuthConfig() as unknown as {
+        hooks: { after: AfterHook; before: BeforeHook };
+      };
+      return config.hooks;
+    }
+
+    it("rejects email sign-up without accepted terms", async () => {
+      await import("./auth");
+
+      await expect(
+        getHooks().before({ path: "/sign-up/email", body: {} }),
+      ).rejects.toMatchObject({ body: { code: "TERMS_NOT_ACCEPTED" } });
+
+      await expect(
+        getHooks().before({
+          path: "/sign-up/email",
+          body: { termsAccepted: true },
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it("guards personal subscription changes via the personal exclusivity assert", async () => {
+      getSessionFromCtxMock.mockResolvedValue({ user: { id: "user_1" } });
+      assertPersonalChangeAllowedMock.mockResolvedValue(undefined);
+
+      await import("./auth");
+      await getHooks().before({ path: "/subscription/upgrade", body: {} });
+
+      expect(assertPersonalChangeAllowedMock).toHaveBeenCalledWith("user_1", {
+        __prisma: true,
+      });
+      expect(assertOrganizationChangeAllowedMock).not.toHaveBeenCalled();
+    });
+
+    it("guards organization subscription changes and maps exclusivity to BAD_REQUEST", async () => {
+      const { OrganizationSubscriptionExclusivityError } = await import(
+        "@sokosumi/database/helpers"
+      );
+      getSessionFromCtxMock.mockResolvedValue({ user: { id: "user_1" } });
+      assertOrganizationChangeAllowedMock.mockRejectedValue(
+        new OrganizationSubscriptionExclusivityError("exclusive contract"),
+      );
+
+      await import("./auth");
+
+      await expect(
+        getHooks().before({
+          path: "/subscription/billing-portal",
+          body: { referenceId: "org_1" },
+        }),
+      ).rejects.toMatchObject({
+        body: { message: "exclusive contract" },
+        statusCode: 400,
+      });
+      expect(assertOrganizationChangeAllowedMock).toHaveBeenCalledWith(
+        "org_1",
+        { __prisma: true },
+      );
+    });
+
+    it("skips the subscription guard when unauthenticated", async () => {
+      getSessionFromCtxMock.mockResolvedValue(null);
+
+      await import("./auth");
+      await getHooks().before({ path: "/subscription/upgrade", body: {} });
+
+      expect(assertPersonalChangeAllowedMock).not.toHaveBeenCalled();
+      expect(assertOrganizationChangeAllowedMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects sign-in for users without accepted terms", async () => {
+      await import("./auth");
+
+      await expect(
+        getHooks().after({
+          path: "/sign-in/email",
+          context: { newSession: { user: { termsAccepted: false } } },
+        }),
+      ).rejects.toMatchObject({ body: { code: "TERMS_NOT_ACCEPTED" } });
+    });
+
+    it("syncs the user email with Stripe after email verification", async () => {
+      syncUserEmailWithStripeMock.mockResolvedValue(true);
+
+      await import("./auth");
+      await getHooks().after({
+        path: "/verify-email",
+        context: {
+          newSession: {
+            user: {
+              email: "new@example.com",
+              id: "user_1",
+              stripeCustomerId: "cus_1",
+              termsAccepted: true,
+            },
+          },
+        },
+      });
+
+      expect(syncUserEmailWithStripeMock).toHaveBeenCalledWith(
+        "user_1",
+        "new@example.com",
+      );
     });
   });
 });

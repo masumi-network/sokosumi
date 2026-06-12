@@ -220,9 +220,11 @@ function parseSetCookie(raw: string): ParsedSetCookie | null {
 }
 
 /**
- * Re-sets cookies issued by core onto the Next.js response. Only works where
- * Next allows cookie writes (server actions, route handlers) — callers in
- * RSC render paths must not pass responses through this.
+ * Re-sets cookies issued by core onto the Next.js response. Next only allows
+ * cookie writes in server actions and route handlers; in RSC render paths
+ * `cookies().set` throws, and — exactly like the `nextCookies()` plugin this
+ * replaces — the write is silently skipped there (e.g. a cookie-cache
+ * refresh during render is lost, the session cookie itself stays valid).
  */
 async function relaySetCookies(response: Response): Promise<void> {
   const setCookieHeaders = response.headers.getSetCookie();
@@ -233,8 +235,13 @@ async function relaySetCookies(response: Response): Promise<void> {
   const cookieStore = await cookies();
   for (const raw of setCookieHeaders) {
     const parsed = parseSetCookie(raw);
-    if (parsed) {
+    if (!parsed) {
+      continue;
+    }
+    try {
       cookieStore.set(parsed.name, parsed.value, parsed.options);
+    } catch {
+      // Read-only context (RSC render) — skip, matching nextCookies().
     }
   }
 }

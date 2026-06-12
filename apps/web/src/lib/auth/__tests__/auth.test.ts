@@ -168,4 +168,36 @@ describe("auth facade", () => {
       },
     );
   });
+  it("skips the Set-Cookie relay in read-only (RSC) contexts instead of failing the call", async () => {
+    cookieSetMock.mockImplementation(() => {
+      throw new Error(
+        "Cookies can only be modified in a Server Action or Route Handler.",
+      );
+    });
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi.session_data=cache; Path=/; SameSite=Lax",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+
+    await expect(
+      auth.api.signInEmail({
+        body: { email: "jane@example.com", password: "pw-123456" },
+        headers: new Headers(),
+      }),
+    ).resolves.toEqual({ redirect: false });
+  });
 });
