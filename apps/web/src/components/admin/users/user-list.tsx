@@ -43,6 +43,11 @@ export function UserList({ initialPage }: UserListProps) {
   const [total, setTotal] = useState(initialPage.total);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [search, setSearch] = useState("");
+  // The query the current list was fetched with. "Load more" must use this,
+  // not the live input value: between a keystroke and the debounce firing the
+  // input no longer matches the list, and mixing the new text with the old
+  // query's cursor would splice two different result sets.
+  const [activeQuery, setActiveQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
   // Monotonic id so out-of-order responses from rapid typing are ignored —
@@ -53,6 +58,9 @@ export function UserList({ initialPage }: UserListProps) {
   // it appends the next page for the active query.
   function fetchPage(query: string, cursor?: string) {
     const requestId = ++latestRequestId.current;
+    if (!cursor) {
+      setActiveQuery(query);
+    }
     startTransition(async () => {
       const result = await listAdminUsersAction({
         query: query.trim() || undefined,
@@ -87,7 +95,7 @@ export function UserList({ initialPage }: UserListProps) {
     if (!nextCursor) {
       return;
     }
-    fetchPage(search, nextCursor);
+    fetchPage(activeQuery, nextCursor);
   }
 
   return (

@@ -5,7 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
-import { Badge } from "@/components/ui/badge";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,6 +42,11 @@ export function TaskList({ initialPage }: TaskListProps) {
   const [total, setTotal] = useState(initialPage.total);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [search, setSearch] = useState("");
+  // The query the current list was fetched with. "Load more" must use this,
+  // not the live input value: between a keystroke and the debounce firing the
+  // input no longer matches the list, and mixing the new text with the old
+  // query's cursor would splice two different result sets.
+  const [activeQuery, setActiveQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
   // Monotonic id so out-of-order responses from rapid typing are ignored —
@@ -52,6 +57,9 @@ export function TaskList({ initialPage }: TaskListProps) {
   // it appends the next page for the active query.
   function fetchPage(query: string, cursor?: string) {
     const requestId = ++latestRequestId.current;
+    if (!cursor) {
+      setActiveQuery(query);
+    }
     startTransition(async () => {
       const result = await listAdminTasksAction({
         query: query.trim() || undefined,
@@ -86,7 +94,7 @@ export function TaskList({ initialPage }: TaskListProps) {
     if (!nextCursor) {
       return;
     }
-    fetchPage(search, nextCursor);
+    fetchPage(activeQuery, nextCursor);
   }
 
   return (
@@ -149,7 +157,7 @@ export function TaskList({ initialPage }: TaskListProps) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{task.status}</Badge>
+                    <TaskStatusBadge status={task.status} />
                   </TableCell>
                   <TableCell className="pr-4">
                     {formatter.dateTime(task.createdAt, {

@@ -113,6 +113,7 @@ export const adminTaskListQuerySchema = z
   .object({
     query: z
       .string()
+      .max(255)
       .optional()
       .openapi({
         param: { name: "query", in: "query" },

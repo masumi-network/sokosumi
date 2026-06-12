@@ -193,6 +193,14 @@ describe("GET /v1/admin/tasks", () => {
     );
   });
 
+  it("rejects queries longer than 255 characters", async () => {
+    const app = createApp(mountListAdminTasks);
+    const res = await app.request(`/?query=${"a".repeat(256)}`);
+
+    expect(res.status).toBe(422);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("rejects limits above the admin list cap", async () => {
     const app = createApp(mountListAdminTasks);
     const res = await app.request("/?limit=51");
