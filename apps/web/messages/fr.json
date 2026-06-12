@@ -2613,7 +2613,27 @@
           "invoices": {
             "title": "Factures",
             "description": "Consultez les factures d'administration et accordez des crédits uniques à un utilisateur ou une organisation."
+          },
+          "users": {
+            "title": "Utilisateurs",
+            "description": "Vue d'ensemble consultable de tous les utilisateurs avec crédits, abonnement et activité."
           }
+        }
+      },
+      "Users": {
+        "title": "Utilisateurs",
+        "description": "Vue d'ensemble consultable de tous les utilisateurs",
+        "UserList": {
+          "searchPlaceholder": "Rechercher par nom ou e-mail…",
+          "totalCount": "{count, plural, one {# utilisateur} other {# utilisateurs}}",
+          "empty": "Aucun utilisateur trouvé.",
+          "user": "Utilisateur",
+          "credits": "Crédits",
+          "subscription": "Abonnement",
+          "startedTasks": "Tâches démarrées",
+          "registered": "Inscrit",
+          "loadMore": "Charger plus",
+          "loadError": "Échec du chargement des utilisateurs."
         }
       },
       "Invoices": {

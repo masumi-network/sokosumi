@@ -2613,7 +2613,27 @@
           "invoices": {
             "title": "Faturas",
             "description": "Veja as faturas de administração e conceda créditos únicos a um utilizador ou organização."
+          },
+          "users": {
+            "title": "Utilizadores",
+            "description": "Visão geral pesquisável de todos os utilizadores com créditos, subscrição e atividade."
           }
+        }
+      },
+      "Users": {
+        "title": "Utilizadores",
+        "description": "Visão geral pesquisável de todos os utilizadores",
+        "UserList": {
+          "searchPlaceholder": "Pesquisar por nome ou e-mail…",
+          "totalCount": "{count, plural, one {# utilizador} other {# utilizadores}}",
+          "empty": "Nenhum utilizador encontrado.",
+          "user": "Utilizador",
+          "credits": "Créditos",
+          "subscription": "Subscrição",
+          "startedTasks": "Tarefas iniciadas",
+          "registered": "Registado",
+          "loadMore": "Carregar mais",
+          "loadError": "Falha ao carregar os utilizadores."
         }
       },
       "Invoices": {

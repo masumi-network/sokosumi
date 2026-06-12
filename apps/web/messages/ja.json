@@ -2613,7 +2613,27 @@
           "invoices": {
             "title": "請求書",
             "description": "管理者請求書を確認し、ユーザーまたは組織に一度限りのクレジットを付与します。"
+          },
+          "users": {
+            "title": "ユーザー",
+            "description": "クレジット、サブスクリプション、アクティビティを含む全ユーザーの検索可能な一覧。"
           }
+        }
+      },
+      "Users": {
+        "title": "ユーザー",
+        "description": "全ユーザーの検索可能な一覧",
+        "UserList": {
+          "searchPlaceholder": "名前またはメールで検索…",
+          "totalCount": "{count, plural, other {# 人のユーザー}}",
+          "empty": "ユーザーが見つかりません。",
+          "user": "ユーザー",
+          "credits": "クレジット",
+          "subscription": "サブスクリプション",
+          "startedTasks": "開始したタスク",
+          "registered": "登録日",
+          "loadMore": "さらに読み込む",
+          "loadError": "ユーザーの読み込みに失敗しました。"
         }
       },
       "Invoices": {

@@ -1,31 +1,46 @@
 import "server-only";
 
-import {
-  organizationRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import { userRepository } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { headers } from "next/headers";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { type Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
 
+function isEntityNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof CoreApiRequestError &&
+    (error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND ||
+      error.status === 404)
+  );
+}
+
 export const stripeService = (() => {
-  async function getStripeCustomerId(
+  /**
+   * Ensures a Stripe customer exists for the current session user or the
+   * given organization and returns its id. Core creates the customer when
+   * missing; persistence of the id happens via the `customer.created`
+   * webhook. Returns null when the user/organization does not exist.
+   */
+  async function ensureStripeCustomerId(
     organizationId: string | null,
   ): Promise<string | null> {
-    if (organizationId) {
-      const { data } =
-        await coreClient.getOrganizationStripeCustomer(organizationId);
+    try {
+      const { data } = organizationId
+        ? await coreClient.createOrganizationStripeCustomer(organizationId)
+        : await coreClient.createMyStripeCustomer();
       return data.stripeCustomerId;
+    } catch (error) {
+      if (isEntityNotFoundError(error)) {
+        return null;
+      }
+      throw error;
     }
-    const { data } = await coreClient.getMyStripeCustomer();
-    return data.stripeCustomerId;
   }
 
   return {
@@ -43,16 +58,9 @@ export const stripeService = (() => {
         throw new UnAuthenticatedError("User not authorized");
       }
       try {
-        let stripeCustomerId = await getStripeCustomerId(organizationId);
+        const stripeCustomerId = await ensureStripeCustomerId(organizationId);
         if (!stripeCustomerId) {
-          const customer = organizationId
-            ? await this.createStripeCustomerForOrganization(organizationId)
-            : await this.createStripeCustomerForUser(userId);
-          if (!customer) {
-            throw new Error("Stripe customer not found");
-          }
-
-          stripeCustomerId = customer.id;
+          throw new Error("Stripe customer not found");
         }
 
         const headerList = await headers();
@@ -95,18 +103,11 @@ export const stripeService = (() => {
       scope: { userId: string; organizationId: string | null },
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      let stripeCustomerId = await getStripeCustomerId(scope.organizationId);
-
-      // Create Stripe customer if doesn't exist
+      const stripeCustomerId = await ensureStripeCustomerId(
+        scope.organizationId,
+      );
       if (!stripeCustomerId) {
-        const customer = scope.organizationId
-          ? await this.createStripeCustomerForOrganization(scope.organizationId)
-          : await this.createStripeCustomerForUser(scope.userId);
-
-        if (!customer) {
-          return null;
-        }
-        stripeCustomerId = customer.id;
+        return null;
       }
 
       try {
@@ -143,61 +144,31 @@ export const stripeService = (() => {
       }
     },
 
-    async createStripeCustomerForUser(
-      userId: string,
-    ): Promise<Stripe.Customer | null> {
-      const user = await userRepository.getUserById(userId, prisma);
-      if (!user) {
-        return null;
-      }
-      return await stripeClient.createUserCustomer(
-        user.id,
-        user.name,
-        user.email,
-      );
-    },
-
-    async createStripeCustomerForOrganization(
-      organizationId: string,
-    ): Promise<Stripe.Customer | null> {
-      const organization =
-        await organizationRepository.getOrganizationWithRelationsById(
-          organizationId,
-          prisma,
-        );
-      if (!organization) {
-        return null;
-      }
-      const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
-      return await stripeClient.createOrganizationCustomer(
-        organization.id,
-        organization.slug,
-        organization.name,
-        invoiceEmail,
-      );
-    },
-
     async syncOrganizationInvoiceEmailWithStripe(
       organizationId: string,
       invoiceEmail: string | null,
     ): Promise<boolean> {
       try {
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            organizationId,
-            prisma,
-          );
+        let stripeCustomerId: string | null;
+        try {
+          const { data } =
+            await coreClient.getOrganizationStripeCustomer(organizationId);
+          stripeCustomerId = data.stripeCustomerId;
+        } catch (error) {
+          if (isEntityNotFoundError(error)) {
+            // No organization to update
+            return true;
+          }
+          throw error;
+        }
 
-        if (!organization || !organization.stripeCustomerId) {
+        if (!stripeCustomerId) {
           // No Stripe customer to update
           return true;
         }
 
         // Update Stripe customer email
-        await stripeClient.updateCustomerEmail(
-          organization.stripeCustomerId,
-          invoiceEmail,
-        );
+        await stripeClient.updateCustomerEmail(stripeCustomerId, invoiceEmail);
 
         return true;
       } catch (error) {

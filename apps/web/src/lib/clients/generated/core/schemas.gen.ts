@@ -63,6 +63,65 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
+export const AdminUserOverviewItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        email: {
+            type: 'string',
+            example: 'ada@example.com'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        credits: {
+            type: 'number',
+            description: 'Available personal credits',
+            example: 42.5
+        },
+        subscriptionPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Active subscription plan, if any',
+            example: 'pro'
+        },
+        subscriptionStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'active'
+        },
+        startedTaskCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of tasks the user has started (status beyond DRAFT)',
+            example: 7
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'createdAt',
+        'credits',
+        'subscriptionPlan',
+        'subscriptionStatus',
+        'startedTaskCount'
+    ]
+} as const;
+
 export const AdminOrganizationOptionSchema = {
     type: 'object',
     properties: {
@@ -4886,6 +4945,23 @@ export const MemberRecordSchema = {
     ]
 } as const;
 
+export const PreferredOrganizationSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123',
+            description: 'Organization id of the preferred workspace, or null for the personal workspace'
+        }
+    },
+    required: [
+        'organizationId'
+    ]
+} as const;
+
 export const NoticeSchema = {
     type: 'object',
     properties: {
@@ -5170,6 +5246,20 @@ export const StripeCustomerSchema = {
                 'string',
                 'null'
             ],
+            example: 'cus_123',
+            description: 'Stripe customer id'
+        }
+    },
+    required: [
+        'stripeCustomerId'
+    ]
+} as const;
+
+export const ProvisionedStripeCustomerSchema = {
+    type: 'object',
+    properties: {
+        stripeCustomerId: {
+            type: 'string',
             example: 'cus_123',
             description: 'Stripe customer id'
         }

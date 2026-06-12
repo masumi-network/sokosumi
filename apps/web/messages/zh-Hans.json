@@ -2613,7 +2613,27 @@
           "invoices": {
             "title": "发票",
             "description": "查看管理发票，并通过发票向用户或组织授予一次性积分。"
+          },
+          "users": {
+            "title": "用户",
+            "description": "可搜索的全部用户概览，包含积分、订阅和活动。"
           }
+        }
+      },
+      "Users": {
+        "title": "用户",
+        "description": "可搜索的全部用户概览",
+        "UserList": {
+          "searchPlaceholder": "按姓名或邮箱搜索…",
+          "totalCount": "{count, plural, other {# 位用户}}",
+          "empty": "未找到用户。",
+          "user": "用户",
+          "credits": "积分",
+          "subscription": "订阅",
+          "startedTasks": "已开始的任务",
+          "registered": "注册日期",
+          "loadMore": "加载更多",
+          "loadError": "加载用户失败。"
         }
       },
       "Invoices": {

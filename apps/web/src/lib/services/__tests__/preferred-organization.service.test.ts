@@ -6,7 +6,7 @@ vi.mock("server-only", () => ({}));
 
 const getMemberByUserIdAndOrganizationIdMock = vi.fn();
 const getUserByIdMock = vi.fn();
-const updatePreferredOrganizationIdMock = vi.fn();
+const setMyPreferredOrganizationMock = vi.fn();
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
@@ -15,19 +15,41 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
   userRepository: {
     getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-    updatePreferredOrganizationId: (...args: unknown[]) =>
-      updatePreferredOrganizationIdMock(...args),
   },
 }));
 
-const mockPrisma = {} as {
-  $transaction: (callback: (tx: unknown) => unknown) => Promise<unknown>;
-};
-mockPrisma.$transaction = (callback) => Promise.resolve(callback(mockPrisma));
+const mockPrisma = {};
 vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: mockPrisma,
 }));
+
+vi.mock("@/lib/clients/core.client", () => {
+  class CoreApiRequestError extends Error {
+    details?: unknown;
+    status?: number;
+    kind?: string;
+
+    constructor(
+      message: string,
+      options?: { details?: unknown; status?: number; kind?: string },
+    ) {
+      super(message);
+      this.name = "CoreApiRequestError";
+      this.details = options?.details;
+      this.status = options?.status;
+      this.kind = options?.kind;
+    }
+  }
+
+  return {
+    CoreApiRequestError,
+    coreClient: {
+      setMyPreferredOrganization: (...args: unknown[]) =>
+        setMyPreferredOrganizationMock(...args),
+    },
+  };
+});
 
 describe("preferredOrganizationService", () => {
   beforeEach(() => {
@@ -101,40 +123,27 @@ describe("preferredOrganizationService", () => {
     );
   });
 
-  it("persists a personal workspace preference without checking membership", async () => {
-    updatePreferredOrganizationIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: null,
+  it("persists a personal workspace preference via core", async () => {
+    setMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: null },
     });
 
     const { preferredOrganizationService } = await import(
       "../preferred-organization.service"
     );
     const result =
-      await preferredOrganizationService.persistPreferredOrganizationId(
-        "user-1",
-        null,
-      );
+      await preferredOrganizationService.persistPreferredOrganizationId(null);
 
     expect(result).toEqual({
       ok: true,
       organizationId: null,
     });
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
-    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      null,
-      mockPrisma,
-    );
+    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith(null);
   });
 
-  it("persists an organization preference when the user is a member", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
-      id: "member-1",
-    });
-    updatePreferredOrganizationIdMock.mockResolvedValue({
-      id: "user-1",
-      preferredOrganizationId: "org-1",
+  it("persists an organization preference via core", async () => {
+    setMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: "org-1" },
     });
 
     const { preferredOrganizationService } = await import(
@@ -142,7 +151,6 @@ describe("preferredOrganizationService", () => {
     );
     const result =
       await preferredOrganizationService.persistPreferredOrganizationId(
-        "user-1",
         "org-1",
       );
 
@@ -150,27 +158,23 @@ describe("preferredOrganizationService", () => {
       ok: true,
       organizationId: "org-1",
     });
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      mockPrisma,
-    );
-    expect(updatePreferredOrganizationIdMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-      mockPrisma,
-    );
+    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
   });
 
-  it("rejects persisting an organization preference when the user is not a member", async () => {
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+  it("rejects persisting when core reports a missing membership", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", {
+        status: 403,
+        kind: "organization_membership_required",
+      }),
+    );
 
     const { preferredOrganizationService } = await import(
       "../preferred-organization.service"
     );
     const result =
       await preferredOrganizationService.persistPreferredOrganizationId(
-        "user-1",
         "org-1",
       );
 
@@ -178,6 +182,35 @@ describe("preferredOrganizationService", () => {
       ok: false,
       organizationId: null,
     });
-    expect(updatePreferredOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rethrows a 403 without the membership kind", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
+
+    await expect(
+      preferredOrganizationService.persistPreferredOrganizationId("org-1"),
+    ).rejects.toThrow("Forbidden");
+  });
+
+  it("rethrows unexpected core errors", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new CoreApiRequestError("Internal Server Error", { status: 500 }),
+    );
+
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
+
+    await expect(
+      preferredOrganizationService.persistPreferredOrganizationId("org-1"),
+    ).rejects.toThrow("Internal Server Error");
   });
 });

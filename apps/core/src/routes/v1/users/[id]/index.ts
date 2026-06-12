@@ -18,7 +18,9 @@ import mountGetUserOrganizationMember from "./organizations/[organizationId]/mem
 import mountGetUserOrganizations from "./organizations/get.js";
 import mountGetUserPreferences from "./preferences/get.js";
 import mountPatchUserPreferences from "./preferences/patch.js";
+import mountPutUserPreferredOrganization from "./preferred-organization/put.js";
 import mountGetUserStripeCustomer from "./stripe-customer/get.js";
+import mountPostUserStripeCustomer from "./stripe-customer/post.js";
 import mountGetUserSubscription from "./subscription/get.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
@@ -37,6 +39,7 @@ mountGetUserOrganizationCredits(app);
 mountGetUserOrganizationMember(app);
 mountGetUserPreferences(app);
 mountPatchUserPreferences(app);
+mountPutUserPreferredOrganization(app);
 mountDeleteUserOauthConsent(app);
 mountGetUserOnboarding(app);
 mountPostUserOnboarding(app);
@@ -46,6 +49,7 @@ mountGetUserUploads(app);
 mountPostUserUploads(app);
 mountPostUserUtmAttribution(app);
 mountGetUserStripeCustomer(app);
+mountPostUserStripeCustomer(app);
 mountGetUserSubscription(app);
 mountGetUserById(app);
 
