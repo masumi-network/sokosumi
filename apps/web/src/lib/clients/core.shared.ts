@@ -159,6 +159,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdPassword as corePostUsersByIdPassword,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
@@ -982,6 +983,26 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch user Stripe customer",
+    );
+  }
+
+  /**
+   * Sets a password for the session user's credential account (used by social
+   * sign-up users who have no password yet). Core wraps Better Auth's
+   * server-only setPassword endpoint; a 400 means a credential account
+   * already exists.
+   */
+  async function setMyPassword(newPassword: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdPassword({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body: { newPassword },
+          cache: "no-store",
+        }),
+      "Failed to set password",
     );
   }
 
@@ -2345,6 +2366,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
     setMyDesignMd,
+    setMyPassword,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
     getPendingNotices,
