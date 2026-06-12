@@ -52,3 +52,31 @@ export const activeSubscriptionResponseSchema = z
 export type ActiveSubscriptionResponse = z.infer<
   typeof activeSubscriptionResponseSchema
 >;
+
+/** Request body for immediately updating an organization's purchased seats. */
+export const updateOrganizationSubscriptionSeatsSchema = z
+  .object({
+    seats: z.number().int().min(1).openapi({
+      description: "Desired purchased seat count",
+      example: 3,
+    }),
+  })
+  .openapi("UpdateOrganizationSubscriptionSeats");
+
+export type UpdateOrganizationSubscriptionSeats = z.infer<
+  typeof updateOrganizationSubscriptionSeatsSchema
+>;
+
+/** Purchased seat count after an organization seat update. */
+export const organizationSubscriptionSeatsSchema = z
+  .object({
+    seats: z.number().int().openapi({
+      description: "Purchased seat count on the active subscription",
+      example: 3,
+    }),
+  })
+  .openapi("OrganizationSubscriptionSeats");
+
+export type OrganizationSubscriptionSeats = z.infer<
+  typeof organizationSubscriptionSeatsSchema
+>;

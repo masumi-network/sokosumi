@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Session } from "@/lib/auth/auth";
+
 export {};
 
 vi.mock("server-only", () => ({}));
@@ -7,15 +9,37 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
+const getOrganizationByIdMock = vi.fn();
+const updateUserMock = vi.fn();
 
-vi.mock("@/lib/clients/core.client", () => ({
-  coreClient: {
-    getMyMembersWithOrganizations: (...args: unknown[]) =>
-      getMyMembersWithOrganizationsMock(...args),
-    getMyMemberInOrganization: (...args: unknown[]) =>
-      getMyMemberInOrganizationMock(...args),
-  },
-}));
+vi.mock("@/lib/clients/core.client", () => {
+  class CoreApiRequestError extends Error {
+    details?: unknown;
+    status?: number;
+
+    constructor(
+      message: string,
+      options?: { details?: unknown; status?: number },
+    ) {
+      super(message);
+      this.name = "CoreApiRequestError";
+      this.details = options?.details;
+      this.status = options?.status;
+    }
+  }
+
+  return {
+    CoreApiRequestError,
+    coreClient: {
+      getMyMembersWithOrganizations: (...args: unknown[]) =>
+        getMyMembersWithOrganizationsMock(...args),
+      getMyMemberInOrganization: (...args: unknown[]) =>
+        getMyMemberInOrganizationMock(...args),
+      getOrganizationById: (...args: unknown[]) =>
+        getOrganizationByIdMock(...args),
+    },
+  };
+});
 
 vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
@@ -24,28 +48,102 @@ vi.mock("@/lib/auth/utils", () => ({
 vi.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {
-      updateUser: vi.fn(),
+      updateUser: (...args: unknown[]) => updateUserMock(...args),
     },
   },
 }));
 
 vi.mock("next/headers", () => ({
-  headers: vi.fn(),
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  memberRepository: {},
-  organizationRepository: {},
-  userRepository: {},
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
+  headers: vi.fn(async () => new Headers()),
 }));
 
 describe("user.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("getActiveOrganization", () => {
+    it("returns the organization from Core for the active organization id", async () => {
+      getSessionMock.mockResolvedValue({
+        session: { activeOrganizationId: "org-1" },
+        user: { id: "user-1" },
+      });
+      const organization = { id: "org-1", name: "Org", slug: "org" };
+      getOrganizationByIdMock.mockResolvedValue({ data: organization });
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(getOrganizationByIdMock).toHaveBeenCalledWith("org-1");
+      expect(result).toEqual(organization);
+    });
+
+    it("returns null when there is no session", async () => {
+      getSessionMock.mockResolvedValue(null);
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(getOrganizationByIdMock).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("returns null when the session has no active organization", async () => {
+      getSessionMock.mockResolvedValue({
+        session: { activeOrganizationId: null },
+        user: { id: "user-1" },
+      });
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(getOrganizationByIdMock).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("returns null when Core does not know the organization (404 -> null)", async () => {
+      getSessionMock.mockResolvedValue({
+        session: { activeOrganizationId: "org-gone" },
+        user: { id: "user-1" },
+      });
+      getOrganizationByIdMock.mockResolvedValue(null);
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(result).toBeNull();
+    });
+
+    it("returns null when the user is no longer a member (Core 403)", async () => {
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      getSessionMock.mockResolvedValue({
+        session: { activeOrganizationId: "org-stale" },
+        user: { id: "user-1" },
+      });
+      getOrganizationByIdMock.mockRejectedValue(
+        new CoreApiRequestError("Forbidden", { status: 403 }),
+      );
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getActiveOrganization();
+
+      expect(result).toBeNull();
+    });
+
+    it("rethrows unexpected Core errors", async () => {
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      getSessionMock.mockResolvedValue({
+        session: { activeOrganizationId: "org-1" },
+        user: { id: "user-1" },
+      });
+      getOrganizationByIdMock.mockRejectedValue(
+        new CoreApiRequestError("Boom", { status: 500 }),
+      );
+
+      const { userService } = await import("../user.service");
+
+      await expect(userService.getActiveOrganization()).rejects.toThrow("Boom");
+    });
   });
 
   describe("getMyMembersWithOrganizations", () => {
@@ -105,6 +203,68 @@ describe("user.service", () => {
 
       expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
       expect(result).toBeNull();
+    });
+  });
+
+  describe("showOnboarding", () => {
+    // Minimal session double narrowed to the fields showOnboarding reads.
+    const session = {
+      session: { id: "session-1" },
+      user: { id: "user-1", onboardingCompleted: false },
+    } as Session;
+
+    it("returns false when onboarding is already completed", async () => {
+      const { userService } = await import("../user.service");
+      const result = await userService.showOnboarding({
+        ...session,
+        user: { id: "user-1", onboardingCompleted: true },
+      } as Session);
+
+      expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
+      expect(result).toBe(false);
+    });
+
+    it("marks onboarding complete via Better Auth and returns false when the user has a membership", async () => {
+      getSessionMock.mockResolvedValue(session);
+      getMyMembersWithOrganizationsMock.mockResolvedValue({
+        data: [{ id: "member-1", organizationId: "org-1", role: "member" }],
+      });
+      updateUserMock.mockResolvedValue({});
+
+      const { userService } = await import("../user.service");
+      const result = await userService.showOnboarding(session);
+
+      expect(updateUserMock).toHaveBeenCalledWith(
+        expect.objectContaining({ body: { onboardingCompleted: true } }),
+      );
+      expect(result).toBe(false);
+    });
+
+    it("returns true (show onboarding) when the user has no memberships", async () => {
+      getSessionMock.mockResolvedValue(session);
+      getMyMembersWithOrganizationsMock.mockResolvedValue({ data: [] });
+
+      const { userService } = await import("../user.service");
+      const result = await userService.showOnboarding(session);
+
+      expect(updateUserMock).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it("returns true as a safe default when the membership check fails", async () => {
+      getSessionMock.mockResolvedValue(session);
+      getMyMembersWithOrganizationsMock.mockRejectedValue(
+        new Error("Core unavailable"),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const { userService } = await import("../user.service");
+      const result = await userService.showOnboarding(session);
+
+      expect(result).toBe(true);
+      consoleErrorSpy.mockRestore();
     });
   });
 });

@@ -450,14 +450,97 @@ describe("stripe.client lookup-key pricing", () => {
     });
 
     const { stripeClient } = await import("../stripe.client");
-    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "grant-coupon_1-user-1",
+    );
 
     expect(invoiceItemsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         customer: "cus_1",
         quantity: 500,
       }),
+      expect.anything(),
     );
+  });
+
+  it("passes derived idempotency keys to every stripe call", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "welcome-coupon_1-user-1",
+    );
+
+    expect(invoiceItemsCreateMock).toHaveBeenCalledWith(expect.anything(), {
+      idempotencyKey: "welcome-coupon_1-user-1-item-1",
+    });
+    expect(invoicesCreateMock).toHaveBeenCalledWith(expect.anything(), {
+      idempotencyKey: "welcome-coupon_1-user-1-invoice",
+    });
+    expect(invoicesFinalizeInvoiceMock).toHaveBeenCalledWith(
+      "in_1",
+      {},
+      { idempotencyKey: "welcome-coupon_1-user-1-finalize" },
+    );
+  });
+
+  it("derives a distinct idempotency key per referral invoice item", async () => {
+    productsRetrieveMock.mockResolvedValue({
+      default_price: createMockStripePrice({
+        currency: "eur",
+        id: "price_credits",
+        unitAmount: 120,
+      }),
+    });
+    couponsRetrieveMock.mockResolvedValue({
+      id: "coupon_1",
+      metadata: { credits: "500" },
+      percent_off: 100,
+    });
+    invoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    invoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    invoicesFinalizeInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      status: "paid",
+    });
+
+    const { stripeClient } = await import("../stripe.client");
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "referral-coupon_1-user-1-2",
+      undefined,
+      2,
+    );
+
+    expect(invoiceItemsCreateMock).toHaveBeenCalledTimes(2);
+    expect(invoiceItemsCreateMock).toHaveBeenCalledWith(expect.anything(), {
+      idempotencyKey: "referral-coupon_1-user-1-2-item-1",
+    });
+    expect(invoiceItemsCreateMock).toHaveBeenCalledWith(expect.anything(), {
+      idempotencyKey: "referral-coupon_1-user-1-2-item-2",
+    });
   });
 
   it("propagates custom coupon metadata onto invoice metadata", async () => {
@@ -481,10 +564,15 @@ describe("stripe.client lookup-key pricing", () => {
     });
 
     const { stripeClient } = await import("../stripe.client");
-    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1", {
-      redemption_type: "welcome_coupon",
-      welcome_source: "customer.created",
-    });
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "welcome-coupon_1-user-1",
+      {
+        redemption_type: "welcome_coupon",
+        welcome_source: "customer.created",
+      },
+    );
 
     expect(invoicesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -495,6 +583,7 @@ describe("stripe.client lookup-key pricing", () => {
           welcome_source: "customer.created",
         }),
       }),
+      expect.anything(),
     );
   });
 
@@ -519,7 +608,11 @@ describe("stripe.client lookup-key pricing", () => {
     });
 
     const { stripeClient } = await import("../stripe.client");
-    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "grant-coupon_1-user-1",
+    );
 
     expect(invoicesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -529,6 +622,7 @@ describe("stripe.client lookup-key pricing", () => {
           ttl_days: "90",
         }),
       }),
+      expect.anything(),
     );
   });
 
@@ -553,7 +647,11 @@ describe("stripe.client lookup-key pricing", () => {
     });
 
     const { stripeClient } = await import("../stripe.client");
-    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "grant-coupon_1-user-1",
+    );
 
     expect(invoicesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -563,6 +661,7 @@ describe("stripe.client lookup-key pricing", () => {
           ttl_days: "0",
         }),
       }),
+      expect.anything(),
     );
   });
 
@@ -587,7 +686,11 @@ describe("stripe.client lookup-key pricing", () => {
     });
 
     const { stripeClient } = await import("../stripe.client");
-    await stripeClient.applyInvoiceCreditsToCustomer("cus_1", "coupon_1");
+    await stripeClient.applyInvoiceCreditsToCustomer(
+      "cus_1",
+      "coupon_1",
+      "grant-coupon_1-user-1",
+    );
 
     expect(invoicesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -597,6 +700,7 @@ describe("stripe.client lookup-key pricing", () => {
           ttl_days: "null",
         }),
       }),
+      expect.anything(),
     );
   });
 });

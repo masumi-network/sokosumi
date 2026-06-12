@@ -262,9 +262,12 @@ export const stripeService = (() => {
         }
 
         const coupon = await this.getCoupon(welcomeCouponId);
+        // Stable per user+coupon: a `customer.created` webhook redelivery
+        // replays the original grant instead of issuing a second invoice.
         const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
           user.stripeCustomerId,
           coupon.id,
+          `welcome-${coupon.id}-${user.id}`,
           {
             redemption_type: "welcome_coupon",
             welcome_source: "customer.created",
@@ -307,9 +310,13 @@ export const stripeService = (() => {
         getEnvSecrets().STRIPE_ONBOARD_PERSONAL_COUPON,
       );
 
+      // Scoped to user+coupon+count: retries of the same redemption replay
+      // the original grant, while a later redemption with a higher referral
+      // count is a legitimately distinct grant (and distinct request params).
       const personalInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
         user.stripeCustomerId,
         personalCoupon.id,
+        `referral-${personalCoupon.id}-user-${user.id}-${referralCount}`,
         {
           referral_user_id: String(user.id),
           referral_email: String(user.email ?? ""),
@@ -361,6 +368,7 @@ export const stripeService = (() => {
         const orgInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
           orgStripeCustomerId,
           orgCoupon.id,
+          `referral-${orgCoupon.id}-org-${organizationId}-${referralCount}`,
           {
             referral_user_id: String(userId),
             referral_email: String(user?.email ?? ""),

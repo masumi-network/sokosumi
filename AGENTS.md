@@ -303,6 +303,20 @@ docs(readme): update setup instructions
 - Reference existing code rather than duplicating it
 - Use `@/lib/*` aliases for imports
 
+## Agent skills
+
+### Issue tracker
+
+Issues live in Linear (team "Sokosumi", key `SOK`), accessed via the Linear MCP tools. See [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Canceled); labels `needs-info` / `ready-for-agent` / `ready-for-human`. See [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). See [`docs/agents/domain.md`](./docs/agents/domain.md).
+
 ## Additional Rules
 
 - [Linting](.cursor/rules/lint.mdc)

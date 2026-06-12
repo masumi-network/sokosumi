@@ -58,6 +58,7 @@ import {
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
+  deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
@@ -97,6 +98,7 @@ import {
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
+  getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
   getProjects as coreGetProjects,
@@ -153,6 +155,8 @@ import {
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
+  putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
+  putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -176,15 +180,23 @@ export interface CoreApiResponse<T> {
 
 export class CoreApiRequestError extends Error {
   details?: unknown;
+  /**
+   * Stable machine-readable error kind from the Core error envelope (e.g.
+   * `organization_not_found`). Prefer matching on this over `message`, which
+   * may be reworded at any time. See `CORE_API_ERROR_KINDS` in
+   * `@sokosumi/utils`.
+   */
+  kind?: string;
   status?: number;
 
   constructor(
     message: string,
-    options?: { details?: unknown; status?: number },
+    options?: { details?: unknown; kind?: string; status?: number },
   ) {
     super(message);
     this.name = "CoreApiRequestError";
     this.details = options?.details;
+    this.kind = options?.kind;
     this.status = options?.status;
   }
 }
@@ -279,6 +291,18 @@ function extractErrorMessage(error: unknown, status?: number): string {
   return "Failed to communicate with Core API";
 }
 
+function extractErrorKind(error: unknown): string | undefined {
+  if (error && typeof error === "object") {
+    const typedError = error as { kind?: unknown };
+
+    if (typeof typedError.kind === "string" && typedError.kind.length > 0) {
+      return typedError.kind;
+    }
+  }
+
+  return undefined;
+}
+
 async function executeOperation<TData, TError>(
   getClient: GetClient,
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
@@ -300,6 +324,7 @@ async function executeOperation<TData, TError>(
     const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
+      kind: extractErrorKind(result.error),
       status: result.response?.status,
     });
   }
@@ -639,6 +664,87 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization invitations",
+    );
+  }
+
+  /**
+   * Seat usage summary for an organization the caller is a member of:
+   * assigned and purchased seat counts alongside the resolved paid plan.
+   */
+  async function getOrganizationSeatSummary(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdSeatSummary({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization seat summary",
+    );
+  }
+
+  /**
+   * Assigns a seat to an organization member. Core enforces that the caller
+   * is an organization owner or admin and runs the assignment, capacity
+   * check, and resulting credit grants (with per-seat amounts resolved from
+   * the Stripe subscription catalog) in a single transaction.
+   */
+  async function assignOrganizationSeat(
+    organizationId: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutOrganizationsByIdMembersByMemberIdSeat({
+          client,
+          path: { id: organizationId, memberId },
+        }),
+      "Failed to assign organization seat",
+    );
+  }
+
+  /**
+   * Unassigns an organization member's seat. Core enforces that the caller is
+   * an organization owner or admin and runs the unassignment and resulting
+   * credit grants in a single transaction.
+   */
+  async function unassignOrganizationSeat(
+    organizationId: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteOrganizationsByIdMembersByMemberIdSeat({
+          client,
+          path: { id: organizationId, memberId },
+        }),
+      "Failed to unassign organization seat",
+    );
+  }
+
+  /**
+   * Immediately updates the purchased seat count on an organization's active
+   * subscription. Core enforces that the caller is an organization owner or
+   * admin, blocks self-serve changes while an enterprise contract is active,
+   * and keeps seats at or above the assigned member count. Stripe-backed
+   * subscriptions are invoiced for the change right away.
+   */
+  async function updateOrganizationSubscriptionSeats(
+    organizationId: string,
+    seats: number,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutOrganizationsByIdSubscriptionSeats({
+          client,
+          path: { id: organizationId },
+          body: { seats },
+        }),
+      "Failed to update organization subscription seats",
     );
   }
 
@@ -1980,6 +2086,7 @@ export function createCoreClient(getClient: GetClient) {
     acknowledgeNotice,
     addConversationMessage,
     archiveConversation,
+    assignOrganizationSeat,
     createConversation,
     createAgentJob,
     createDemoJob,
@@ -2041,6 +2148,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
     setMyDesignMd,
@@ -2070,9 +2178,11 @@ export function createCoreClient(getClient: GetClient) {
     patchTask,
     putJobShare,
     putTaskShare,
+    unassignOrganizationSeat,
     updateConversation,
     updateHermesInstance,
     updateOrganizationInvoiceEmail,
+    updateOrganizationSubscriptionSeats,
   };
 }
 

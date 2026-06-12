@@ -89,6 +89,14 @@ const envSchema = z.object({
   CRON_SECRET: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().min(1),
 
+  // Stripe subscription products (per-seat credits live in product metadata)
+  STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
+  STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
+  STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
+
+  // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+
   // Sync lock configuration
   LOCK_TIMEOUT: z.coerce
     .number()

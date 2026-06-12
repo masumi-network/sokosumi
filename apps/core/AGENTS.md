@@ -109,6 +109,10 @@ For low-frequency, user-triggered mutations that are easy to retry, last-write-w
 
 Examples include workspace move operations for tasks and jobs. Do not add `updateMany`-style stale-write guards there unless the product requirement explicitly needs conflict detection.
 
+#### Serializable Transactions
+
+When a flow does need `Serializable` isolation (e.g. credit consumption, idempotency checks), use `serializableTransaction()` from `@/lib/db/transaction` instead of calling `prisma.$transaction` with `isolationLevel` directly. Postgres aborts serializable transactions with a serialization failure (Prisma `P2034`) under concurrent writes; the helper maps that to a retryable 409 conflict (`kind: "concurrency_conflict"`) instead of an unhandled 500. Routes using it must declare `409: jsonErrorResponse("Conflict")` in their OpenAPI responses.
+
 ### Authentication Classes
 
 Use type-safe Hono classes that automatically apply authentication:

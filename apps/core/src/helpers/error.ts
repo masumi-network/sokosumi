@@ -21,6 +21,13 @@ export const errorResponseSchema = z.object({
   /** Human-readable description of the error */
   message: z.string().openapi({ example: "Authentication required" }),
 
+  /**
+   * Optional stable machine-readable error kind (snake_case). Clients should
+   * match on this instead of `message`, which may be reworded at any time.
+   * Omitted when no kind has been assigned to the error.
+   */
+  kind: z.string().optional().openapi({ example: "organization_not_found" }),
+
   /** Metadata about the request and response */
   meta: z.object({
     /** ISO timestamp when the error was generated */
@@ -69,8 +76,11 @@ function createHTTPException(
  * 400 Bad Request
  * The server cannot process the request due to client error
  */
-export const badRequest = (message: string = "Bad Request"): HTTPException => {
-  return createHTTPException(400, message);
+export const badRequest = (
+  message: string = "Bad Request",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(400, message, metadata);
 };
 
 /**
@@ -87,16 +97,22 @@ export const unauthorized = (
  * 403 Forbidden
  * The client does not have access rights to the content
  */
-export const forbidden = (message: string = "Forbidden"): HTTPException => {
-  return createHTTPException(403, message);
+export const forbidden = (
+  message: string = "Forbidden",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(403, message, metadata);
 };
 
 /**
  * 404 Not Found
  * The server cannot find the requested resource
  */
-export const notFound = (message: string = "Not Found"): HTTPException => {
-  return createHTTPException(404, message);
+export const notFound = (
+  message: string = "Not Found",
+  metadata?: HTTPExceptionMetadata,
+): HTTPException => {
+  return createHTTPException(404, message, metadata);
 };
 
 /**

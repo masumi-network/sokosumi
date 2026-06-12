@@ -1525,6 +1525,24 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
+export type OrganizationSeatAssignment = {
+    /**
+     * ID of the member the seat was assigned to
+     */
+    memberId: string;
+    /**
+     * When the seat was assigned
+     */
+    seatAssignedAt: Date;
+};
+
+export type OrganizationSeatUnassignment = {
+    /**
+     * ID of the member the seat was unassigned from
+     */
+    memberId: string;
+};
+
 export type PendingInvitation = {
     id: string;
     organizationId: string;
@@ -1534,6 +1552,33 @@ export type PendingInvitation = {
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
+};
+
+export type OrganizationSeatSummary = {
+    /**
+     * Number of members with an assigned seat (0 when the organization has no paid plan)
+     */
+    assignedCount: number;
+    /**
+     * Total number of organization members
+     */
+    memberCount: number;
+    /**
+     * Whether the organization is billed via an active enterprise contract
+     */
+    isEnterpriseContract: boolean;
+    /**
+     * Resolved paid billing plan name (null when the organization is on the free plan)
+     */
+    paidPlan: 'starter' | 'standard' | 'pro' | 'enterprise' | null;
+    /**
+     * Number of purchased seats
+     */
+    purchasedSeats: number;
+    /**
+     * Purchased seats without an assigned member (0 when the organization has no paid plan)
+     */
+    unusedSeats: number;
 };
 
 export type OrganizationBillingPlan = {
@@ -1572,6 +1617,20 @@ export type EnterpriseContractBillingSummary = {
     nextActivationAt: Date | null;
     poolRemainingCredits: number;
     purchasedSeats: number;
+};
+
+export type OrganizationSubscriptionSeats = {
+    /**
+     * Purchased seat count on the active subscription
+     */
+    seats: number;
+};
+
+export type UpdateOrganizationSubscriptionSeats = {
+    /**
+     * Desired purchased seat count
+     */
+    seats: number;
 };
 
 export type OrganizationInvoiceEmail = {
@@ -2020,6 +2079,7 @@ export type SearchAdminUsersErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2033,6 +2093,7 @@ export type SearchAdminUsersErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2079,6 +2140,7 @@ export type SearchAdminOrganizationsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2092,6 +2154,7 @@ export type SearchAdminOrganizationsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2135,6 +2198,7 @@ export type GetAdminOrganizationBySlugErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2148,6 +2212,7 @@ export type GetAdminOrganizationBySlugErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2161,6 +2226,7 @@ export type GetAdminOrganizationBySlugErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2229,6 +2295,7 @@ export type GetAgentsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2242,6 +2309,7 @@ export type GetAgentsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2299,6 +2367,7 @@ export type GetAgentsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2312,6 +2381,7 @@ export type GetAgentsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2378,6 +2448,7 @@ export type GetAgentsByIdReviewsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2391,6 +2462,7 @@ export type GetAgentsByIdReviewsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2448,6 +2520,7 @@ export type GetAgentsByIdReviewsMeErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2461,6 +2534,7 @@ export type GetAgentsByIdReviewsMeErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2518,6 +2592,7 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2531,6 +2606,7 @@ export type GetAgentsByIdRatingsEligibilityErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2588,6 +2664,7 @@ export type PostAgentsByIdRatingsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2601,6 +2678,7 @@ export type PostAgentsByIdRatingsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2614,6 +2692,7 @@ export type PostAgentsByIdRatingsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2627,6 +2706,7 @@ export type PostAgentsByIdRatingsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2684,6 +2764,7 @@ export type GetAgentsByIdInputSchemaErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2697,6 +2778,7 @@ export type GetAgentsByIdInputSchemaErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2710,6 +2792,7 @@ export type GetAgentsByIdInputSchemaErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3715,6 +3798,7 @@ export type GetAgentsByIdJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3728,6 +3812,7 @@ export type GetAgentsByIdJobsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3741,6 +3826,7 @@ export type GetAgentsByIdJobsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -3754,6 +3840,7 @@ export type GetAgentsByIdJobsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4757,6 +4844,7 @@ export type PostAgentsByIdJobsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4770,6 +4858,7 @@ export type PostAgentsByIdJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4783,6 +4872,7 @@ export type PostAgentsByIdJobsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4796,6 +4886,21 @@ export type PostAgentsByIdJobsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4809,6 +4914,7 @@ export type PostAgentsByIdJobsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4822,6 +4928,7 @@ export type PostAgentsByIdJobsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5823,6 +5930,7 @@ export type PostAgentsByIdDemoJobsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5836,6 +5944,7 @@ export type PostAgentsByIdDemoJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5849,6 +5958,7 @@ export type PostAgentsByIdDemoJobsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5862,6 +5972,7 @@ export type PostAgentsByIdDemoJobsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5875,6 +5986,7 @@ export type PostAgentsByIdDemoJobsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5888,6 +6000,7 @@ export type PostAgentsByIdDemoJobsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -5943,6 +6056,7 @@ export type GetCategoriesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6011,6 +6125,7 @@ export type GetChatErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6024,6 +6139,7 @@ export type GetChatErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6037,6 +6153,7 @@ export type GetChatErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6050,6 +6167,7 @@ export type GetChatErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6063,6 +6181,7 @@ export type GetChatErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6214,6 +6333,7 @@ export type PostChatErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6227,6 +6347,7 @@ export type PostChatErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6240,6 +6361,7 @@ export type PostChatErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6253,6 +6375,7 @@ export type PostChatErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6266,6 +6389,7 @@ export type PostChatErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6279,6 +6403,7 @@ export type PostChatErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6292,6 +6417,7 @@ export type PostChatErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6345,6 +6471,7 @@ export type GetChatStreamByConversationIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6358,6 +6485,7 @@ export type GetChatStreamByConversationIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6371,6 +6499,7 @@ export type GetChatStreamByConversationIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6384,6 +6513,7 @@ export type GetChatStreamByConversationIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6436,6 +6566,7 @@ export type GetConversationsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6449,6 +6580,7 @@ export type GetConversationsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6462,6 +6594,7 @@ export type GetConversationsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6517,6 +6650,7 @@ export type PostConversationsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6530,6 +6664,7 @@ export type PostConversationsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6543,6 +6678,7 @@ export type PostConversationsErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6556,6 +6692,7 @@ export type PostConversationsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6616,6 +6753,7 @@ export type GetConversationsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6629,6 +6767,7 @@ export type GetConversationsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6642,6 +6781,7 @@ export type GetConversationsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6655,6 +6795,7 @@ export type GetConversationsByIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6715,6 +6856,7 @@ export type PatchConversationsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6728,6 +6870,7 @@ export type PatchConversationsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6741,6 +6884,7 @@ export type PatchConversationsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6754,6 +6898,7 @@ export type PatchConversationsByIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6814,6 +6959,7 @@ export type PatchConversationsByIdArchiveErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6827,6 +6973,7 @@ export type PatchConversationsByIdArchiveErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6840,6 +6987,7 @@ export type PatchConversationsByIdArchiveErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6853,6 +7001,7 @@ export type PatchConversationsByIdArchiveErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6922,6 +7071,7 @@ export type GetConversationsByIdMessagesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6935,6 +7085,7 @@ export type GetConversationsByIdMessagesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6948,6 +7099,7 @@ export type GetConversationsByIdMessagesErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -6961,6 +7113,7 @@ export type GetConversationsByIdMessagesErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7021,6 +7174,7 @@ export type PostConversationsByIdMessagesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7034,6 +7188,7 @@ export type PostConversationsByIdMessagesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7047,6 +7202,7 @@ export type PostConversationsByIdMessagesErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7060,6 +7216,7 @@ export type PostConversationsByIdMessagesErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7101,6 +7258,7 @@ export type GetCreditCostsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7114,6 +7272,7 @@ export type GetCreditCostsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7155,6 +7314,7 @@ export type PostCreditCostsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7168,6 +7328,7 @@ export type PostCreditCostsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7181,6 +7342,7 @@ export type PostCreditCostsErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7224,6 +7386,7 @@ export type DeleteCreditCostsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7237,6 +7400,7 @@ export type DeleteCreditCostsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7250,6 +7414,7 @@ export type DeleteCreditCostsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7293,6 +7458,7 @@ export type GetCreditCostsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7306,6 +7472,7 @@ export type GetCreditCostsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7319,6 +7486,7 @@ export type GetCreditCostsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7362,6 +7530,7 @@ export type PatchCreditCostsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7375,6 +7544,7 @@ export type PatchCreditCostsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7388,6 +7558,7 @@ export type PatchCreditCostsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7432,6 +7603,7 @@ export type GetEnterpriseContractsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7445,6 +7617,7 @@ export type GetEnterpriseContractsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7458,6 +7631,7 @@ export type GetEnterpriseContractsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7499,6 +7673,7 @@ export type PostEnterpriseContractsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7512,6 +7687,7 @@ export type PostEnterpriseContractsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7525,6 +7701,7 @@ export type PostEnterpriseContractsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7538,6 +7715,7 @@ export type PostEnterpriseContractsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7586,6 +7764,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7599,6 +7778,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7612,6 +7792,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7625,6 +7806,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7638,6 +7820,7 @@ export type GetEnterpriseContractsByIdPeriodsPreviewErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7681,6 +7864,7 @@ export type GetEnterpriseContractsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7694,6 +7878,7 @@ export type GetEnterpriseContractsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7707,6 +7892,7 @@ export type GetEnterpriseContractsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7750,6 +7936,7 @@ export type PatchEnterpriseContractsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7763,6 +7950,7 @@ export type PatchEnterpriseContractsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7776,6 +7964,7 @@ export type PatchEnterpriseContractsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7789,6 +7978,7 @@ export type PatchEnterpriseContractsByIdErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7802,6 +7992,7 @@ export type PatchEnterpriseContractsByIdErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7845,6 +8036,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7858,6 +8050,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7871,6 +8064,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7888,6 +8082,7 @@ export type PostEnterpriseContractsByIdActivateErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7931,6 +8126,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7944,6 +8140,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7957,6 +8154,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -7970,6 +8168,7 @@ export type PostEnterpriseContractsByIdCancelErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8025,6 +8224,7 @@ export type PostHermesChatErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8038,6 +8238,7 @@ export type PostHermesChatErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8051,6 +8252,7 @@ export type PostHermesChatErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8075,6 +8277,7 @@ export type PostHermesChatErrors = {
     413: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8088,6 +8291,7 @@ export type PostHermesChatErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8143,6 +8347,7 @@ export type DeleteHermesMeInstanceErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8156,6 +8361,7 @@ export type DeleteHermesMeInstanceErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8169,6 +8375,7 @@ export type DeleteHermesMeInstanceErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8224,6 +8431,7 @@ export type GetHermesMeInstanceErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8237,6 +8445,7 @@ export type GetHermesMeInstanceErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8250,6 +8459,7 @@ export type GetHermesMeInstanceErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8305,6 +8515,7 @@ export type PatchHermesMeInstanceErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8318,6 +8529,7 @@ export type PatchHermesMeInstanceErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8331,6 +8543,7 @@ export type PatchHermesMeInstanceErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8344,6 +8557,7 @@ export type PatchHermesMeInstanceErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8357,6 +8571,7 @@ export type PatchHermesMeInstanceErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8412,6 +8627,7 @@ export type PostHermesMeInstanceErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8425,6 +8641,7 @@ export type PostHermesMeInstanceErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8438,6 +8655,7 @@ export type PostHermesMeInstanceErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8451,6 +8669,7 @@ export type PostHermesMeInstanceErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8515,6 +8734,7 @@ export type GetHermesMeMessagesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8528,6 +8748,7 @@ export type GetHermesMeMessagesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8583,6 +8804,7 @@ export type GetHermesMeUnreadCountErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8596,6 +8818,7 @@ export type GetHermesMeUnreadCountErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8651,6 +8874,7 @@ export type PostHermesMeInboxSeenErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8664,6 +8888,7 @@ export type PostHermesMeInboxSeenErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8677,6 +8902,7 @@ export type PostHermesMeInboxSeenErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8732,6 +8958,7 @@ export type PostHermesMeSecretsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8745,6 +8972,7 @@ export type PostHermesMeSecretsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8758,6 +8986,7 @@ export type PostHermesMeSecretsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8771,6 +9000,7 @@ export type PostHermesMeSecretsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8784,6 +9014,7 @@ export type PostHermesMeSecretsErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8839,6 +9070,7 @@ export type PostHermesMeInstanceOnboardErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8852,6 +9084,7 @@ export type PostHermesMeInstanceOnboardErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8865,6 +9098,7 @@ export type PostHermesMeInstanceOnboardErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8878,6 +9112,7 @@ export type PostHermesMeInstanceOnboardErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8933,6 +9168,7 @@ export type GetHermesMeInstanceOnboardingProgressErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8946,6 +9182,7 @@ export type GetHermesMeInstanceOnboardingProgressErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -8959,6 +9196,7 @@ export type GetHermesMeInstanceOnboardingProgressErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9014,6 +9252,7 @@ export type GetHermesMeInstanceIntegrationsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9027,6 +9266,7 @@ export type GetHermesMeInstanceIntegrationsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9040,6 +9280,7 @@ export type GetHermesMeInstanceIntegrationsErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9095,6 +9336,7 @@ export type GetHermesMeInstanceSchedulesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9108,6 +9350,7 @@ export type GetHermesMeInstanceSchedulesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9121,6 +9364,7 @@ export type GetHermesMeInstanceSchedulesErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9178,6 +9422,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9191,6 +9436,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9204,6 +9450,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9217,6 +9464,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9230,6 +9478,7 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9287,6 +9536,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9300,6 +9550,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9313,6 +9564,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9326,6 +9578,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9383,6 +9636,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9396,6 +9650,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9409,6 +9664,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9422,6 +9678,7 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9479,6 +9736,7 @@ export type DeleteHermesMeInstanceIntegrationsByProviderErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9492,6 +9750,7 @@ export type DeleteHermesMeInstanceIntegrationsByProviderErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9505,6 +9764,7 @@ export type DeleteHermesMeInstanceIntegrationsByProviderErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9560,6 +9820,7 @@ export type PostHermesMeInstanceIntegrationsInitiateErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9573,6 +9834,7 @@ export type PostHermesMeInstanceIntegrationsInitiateErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9586,6 +9848,7 @@ export type PostHermesMeInstanceIntegrationsInitiateErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9599,6 +9862,7 @@ export type PostHermesMeInstanceIntegrationsInitiateErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9654,6 +9918,7 @@ export type PostHermesMeInstanceIntegrationsFinalizeErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9667,6 +9932,7 @@ export type PostHermesMeInstanceIntegrationsFinalizeErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9680,6 +9946,7 @@ export type PostHermesMeInstanceIntegrationsFinalizeErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9693,6 +9960,7 @@ export type PostHermesMeInstanceIntegrationsFinalizeErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9777,6 +10045,7 @@ export type GetHistoryErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9790,6 +10059,7 @@ export type GetHistoryErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9803,6 +10073,7 @@ export type GetHistoryErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9816,6 +10087,7 @@ export type GetHistoryErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9862,6 +10134,7 @@ export type GetUsersRegisteredErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9875,6 +10148,7 @@ export type GetUsersRegisteredErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9888,6 +10162,7 @@ export type GetUsersRegisteredErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9957,6 +10232,7 @@ export type GetUsersByIdCreditsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9970,6 +10246,7 @@ export type GetUsersByIdCreditsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9983,6 +10260,7 @@ export type GetUsersByIdCreditsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9996,6 +10274,7 @@ export type GetUsersByIdCreditsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10104,6 +10383,7 @@ export type GetUsersByIdDesignMdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10117,6 +10397,7 @@ export type GetUsersByIdDesignMdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10130,6 +10411,7 @@ export type GetUsersByIdDesignMdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10143,6 +10425,7 @@ export type GetUsersByIdDesignMdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10189,6 +10472,7 @@ export type PutUsersByIdDesignMdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10202,6 +10486,7 @@ export type PutUsersByIdDesignMdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10215,6 +10500,7 @@ export type PutUsersByIdDesignMdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10228,6 +10514,7 @@ export type PutUsersByIdDesignMdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10241,6 +10528,7 @@ export type PutUsersByIdDesignMdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10254,6 +10542,7 @@ export type PutUsersByIdDesignMdErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10300,6 +10589,7 @@ export type GetUsersByIdMembersErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10313,6 +10603,7 @@ export type GetUsersByIdMembersErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10326,6 +10617,7 @@ export type GetUsersByIdMembersErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10339,6 +10631,7 @@ export type GetUsersByIdMembersErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10385,6 +10678,7 @@ export type GetUsersByIdOrganizationsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10398,6 +10692,7 @@ export type GetUsersByIdOrganizationsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10411,6 +10706,7 @@ export type GetUsersByIdOrganizationsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10424,6 +10720,7 @@ export type GetUsersByIdOrganizationsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10474,6 +10771,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10487,6 +10785,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10500,6 +10799,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10513,6 +10813,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10625,6 +10926,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10638,6 +10940,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10651,6 +10954,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10664,6 +10968,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10710,6 +11015,7 @@ export type GetUsersByIdPreferencesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10723,6 +11029,7 @@ export type GetUsersByIdPreferencesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10736,6 +11043,7 @@ export type GetUsersByIdPreferencesErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10749,6 +11057,7 @@ export type GetUsersByIdPreferencesErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10813,6 +11122,7 @@ export type PatchUsersByIdPreferencesErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10826,6 +11136,7 @@ export type PatchUsersByIdPreferencesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10839,6 +11150,7 @@ export type PatchUsersByIdPreferencesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10852,6 +11164,7 @@ export type PatchUsersByIdPreferencesErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10916,6 +11229,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10929,6 +11243,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10942,6 +11257,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10955,6 +11271,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10968,6 +11285,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11016,6 +11334,7 @@ export type GetUsersByIdOnboardingErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11029,6 +11348,7 @@ export type GetUsersByIdOnboardingErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11042,6 +11362,7 @@ export type GetUsersByIdOnboardingErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11055,6 +11376,7 @@ export type GetUsersByIdOnboardingErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11106,6 +11428,7 @@ export type PostUsersByIdOnboardingErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11119,6 +11442,7 @@ export type PostUsersByIdOnboardingErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11132,6 +11456,7 @@ export type PostUsersByIdOnboardingErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11145,6 +11470,7 @@ export type PostUsersByIdOnboardingErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11196,6 +11522,7 @@ export type GetUsersByIdNoticesPendingErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11209,6 +11536,7 @@ export type GetUsersByIdNoticesPendingErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11222,6 +11550,7 @@ export type GetUsersByIdNoticesPendingErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11235,6 +11564,7 @@ export type GetUsersByIdNoticesPendingErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11287,6 +11617,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11300,6 +11631,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11313,6 +11645,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11326,6 +11659,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11339,6 +11673,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11389,6 +11724,7 @@ export type GetUsersByIdUploadsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11402,6 +11738,7 @@ export type GetUsersByIdUploadsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11415,6 +11752,7 @@ export type GetUsersByIdUploadsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11428,6 +11766,7 @@ export type GetUsersByIdUploadsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11441,6 +11780,7 @@ export type GetUsersByIdUploadsErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11492,6 +11832,7 @@ export type PostUsersByIdUploadsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11505,6 +11846,7 @@ export type PostUsersByIdUploadsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11518,6 +11860,7 @@ export type PostUsersByIdUploadsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11531,6 +11874,7 @@ export type PostUsersByIdUploadsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11544,6 +11888,7 @@ export type PostUsersByIdUploadsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11557,6 +11902,7 @@ export type PostUsersByIdUploadsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11570,6 +11916,7 @@ export type PostUsersByIdUploadsErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11616,6 +11963,7 @@ export type PostUsersByIdUtmAttributionErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11629,6 +11977,7 @@ export type PostUsersByIdUtmAttributionErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11642,6 +11991,7 @@ export type PostUsersByIdUtmAttributionErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11655,6 +12005,7 @@ export type PostUsersByIdUtmAttributionErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11715,6 +12066,7 @@ export type GetUsersByIdStripeCustomerErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11728,6 +12080,7 @@ export type GetUsersByIdStripeCustomerErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11741,6 +12094,7 @@ export type GetUsersByIdStripeCustomerErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11754,6 +12108,7 @@ export type GetUsersByIdStripeCustomerErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11814,6 +12169,7 @@ export type GetUsersByIdSubscriptionErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11827,6 +12183,7 @@ export type GetUsersByIdSubscriptionErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11840,6 +12197,7 @@ export type GetUsersByIdSubscriptionErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11853,6 +12211,7 @@ export type GetUsersByIdSubscriptionErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11899,6 +12258,7 @@ export type GetUsersByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11912,6 +12272,7 @@ export type GetUsersByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11925,6 +12286,7 @@ export type GetUsersByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11938,6 +12300,7 @@ export type GetUsersByIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11984,6 +12347,7 @@ export type GetOrganizationBySlugErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -11997,6 +12361,7 @@ export type GetOrganizationBySlugErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12010,6 +12375,7 @@ export type GetOrganizationBySlugErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12023,6 +12389,7 @@ export type GetOrganizationBySlugErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12069,6 +12436,7 @@ export type GetOrganizationsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12082,6 +12450,7 @@ export type GetOrganizationsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12095,6 +12464,7 @@ export type GetOrganizationsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12108,6 +12478,7 @@ export type GetOrganizationsByIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12154,6 +12525,7 @@ export type GetOrganizationsByIdMembersErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12167,6 +12539,7 @@ export type GetOrganizationsByIdMembersErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12180,6 +12553,7 @@ export type GetOrganizationsByIdMembersErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12193,6 +12567,7 @@ export type GetOrganizationsByIdMembersErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12220,6 +12595,206 @@ export type GetOrganizationsByIdMembersResponses = {
 
 export type GetOrganizationsByIdMembersResponse = GetOrganizationsByIdMembersResponses[keyof GetOrganizationsByIdMembersResponses];
 
+export type DeleteOrganizationsByIdMembersByMemberIdSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Member ID
+         */
+        memberId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/{memberId}/seat';
+};
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization or member not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatError = DeleteOrganizationsByIdMembersByMemberIdSeatErrors[keyof DeleteOrganizationsByIdMembersByMemberIdSeatErrors];
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatResponses = {
+    /**
+     * The unassigned seat
+     */
+    200: {
+        data: OrganizationSeatUnassignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteOrganizationsByIdMembersByMemberIdSeatResponse = DeleteOrganizationsByIdMembersByMemberIdSeatResponses[keyof DeleteOrganizationsByIdMembersByMemberIdSeatResponses];
+
+export type PutOrganizationsByIdMembersByMemberIdSeatData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Member ID
+         */
+        memberId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/members/{memberId}/seat';
+};
+
+export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
+    /**
+     * Bad Request - No unused seats available
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization or member not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdMembersByMemberIdSeatError = PutOrganizationsByIdMembersByMemberIdSeatErrors[keyof PutOrganizationsByIdMembersByMemberIdSeatErrors];
+
+export type PutOrganizationsByIdMembersByMemberIdSeatResponses = {
+    /**
+     * The assigned seat
+     */
+    200: {
+        data: OrganizationSeatAssignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdMembersByMemberIdSeatResponse = PutOrganizationsByIdMembersByMemberIdSeatResponses[keyof PutOrganizationsByIdMembersByMemberIdSeatResponses];
+
 export type GetOrganizationsByIdInvitationsData = {
     body?: never;
     path: {
@@ -12239,6 +12814,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12252,6 +12828,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12265,6 +12842,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12278,6 +12856,7 @@ export type GetOrganizationsByIdInvitationsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12305,6 +12884,95 @@ export type GetOrganizationsByIdInvitationsResponses = {
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
 
+export type GetOrganizationsByIdSeatSummaryData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/seat-summary';
+};
+
+export type GetOrganizationsByIdSeatSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not a member of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSeatSummaryError = GetOrganizationsByIdSeatSummaryErrors[keyof GetOrganizationsByIdSeatSummaryErrors];
+
+export type GetOrganizationsByIdSeatSummaryResponses = {
+    /**
+     * The organization's seat usage summary
+     */
+    200: {
+        data: OrganizationSeatSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdSeatSummaryResponse = GetOrganizationsByIdSeatSummaryResponses[keyof GetOrganizationsByIdSeatSummaryResponses];
+
 export type GetOrganizationsByIdBillingPlanData = {
     body?: never;
     path: {
@@ -12324,6 +12992,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12337,6 +13006,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12350,6 +13020,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12363,6 +13034,7 @@ export type GetOrganizationsByIdBillingPlanErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12409,6 +13081,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12422,6 +13095,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12435,6 +13109,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12448,6 +13123,7 @@ export type GetOrganizationEnterpriseContractSummaryErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12494,6 +13170,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12507,6 +13184,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12520,6 +13198,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12533,6 +13212,7 @@ export type GetOrganizationsByIdStripeCustomerErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12579,6 +13259,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12592,6 +13273,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12605,6 +13287,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12618,6 +13301,7 @@ export type GetOrganizationsByIdSubscriptionErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12645,6 +13329,109 @@ export type GetOrganizationsByIdSubscriptionResponses = {
 
 export type GetOrganizationsByIdSubscriptionResponse = GetOrganizationsByIdSubscriptionResponses[keyof GetOrganizationsByIdSubscriptionResponses];
 
+export type PutOrganizationsByIdSubscriptionSeatsData = {
+    body?: UpdateOrganizationSubscriptionSeats;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/subscription/seats';
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsErrors = {
+    /**
+     * Bad Request - No active subscription, seats below assigned members, or enterprise contract exclusivity
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsError = PutOrganizationsByIdSubscriptionSeatsErrors[keyof PutOrganizationsByIdSubscriptionSeatsErrors];
+
+export type PutOrganizationsByIdSubscriptionSeatsResponses = {
+    /**
+     * The purchased seat count after the update
+     */
+    200: {
+        data: OrganizationSubscriptionSeats;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
+
 export type GetOrganizationsByIdDesignMdData = {
     body?: never;
     path: {
@@ -12664,6 +13451,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12677,6 +13465,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12690,6 +13479,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12703,6 +13493,7 @@ export type GetOrganizationsByIdDesignMdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12749,6 +13540,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12762,6 +13554,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12775,6 +13568,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12788,6 +13582,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12801,6 +13596,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12814,6 +13610,7 @@ export type PutOrganizationsByIdDesignMdErrors = {
     503: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12860,6 +13657,7 @@ export type PatchOrganizationsByIdInvoiceEmailErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12873,6 +13671,7 @@ export type PatchOrganizationsByIdInvoiceEmailErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12886,6 +13685,7 @@ export type PatchOrganizationsByIdInvoiceEmailErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12899,6 +13699,7 @@ export type PatchOrganizationsByIdInvoiceEmailErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12912,6 +13713,7 @@ export type PatchOrganizationsByIdInvoiceEmailErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12976,6 +13778,7 @@ export type GetProjectsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -12989,6 +13792,7 @@ export type GetProjectsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13002,6 +13806,7 @@ export type GetProjectsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13057,6 +13862,7 @@ export type PostProjectsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13070,6 +13876,7 @@ export type PostProjectsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13130,6 +13937,7 @@ export type GetProjectsStatsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13143,6 +13951,7 @@ export type GetProjectsStatsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13156,6 +13965,7 @@ export type GetProjectsStatsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13213,6 +14023,7 @@ export type PostProjectsByIdJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13226,6 +14037,7 @@ export type PostProjectsByIdJobsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13239,6 +14051,7 @@ export type PostProjectsByIdJobsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13252,6 +14065,7 @@ export type PostProjectsByIdJobsErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13310,6 +14124,7 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13323,6 +14138,7 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13336,6 +14152,7 @@ export type DeleteProjectsByIdJobsByJobIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13393,6 +14210,7 @@ export type PostProjectsByIdTasksErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13406,6 +14224,7 @@ export type PostProjectsByIdTasksErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13419,6 +14238,7 @@ export type PostProjectsByIdTasksErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13432,6 +14252,7 @@ export type PostProjectsByIdTasksErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13490,6 +14311,7 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13503,6 +14325,7 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13516,6 +14339,7 @@ export type DeleteProjectsByIdTasksByTaskIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13573,6 +14397,7 @@ export type DeleteProjectsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13586,6 +14411,7 @@ export type DeleteProjectsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13599,6 +14425,7 @@ export type DeleteProjectsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13656,6 +14483,7 @@ export type GetProjectsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13669,6 +14497,7 @@ export type GetProjectsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13682,6 +14511,7 @@ export type GetProjectsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13739,6 +14569,7 @@ export type PatchProjectsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13752,6 +14583,7 @@ export type PatchProjectsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13765,6 +14597,7 @@ export type PatchProjectsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13778,6 +14611,7 @@ export type PatchProjectsByIdErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13858,6 +14692,7 @@ export type GetJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13871,6 +14706,7 @@ export type GetJobsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13884,6 +14720,7 @@ export type GetJobsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13941,6 +14778,7 @@ export type GetJobsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13954,6 +14792,7 @@ export type GetJobsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13967,6 +14806,7 @@ export type GetJobsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -13980,6 +14820,7 @@ export type GetJobsByIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14039,6 +14880,7 @@ export type PatchJobsByIdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14052,6 +14894,7 @@ export type PatchJobsByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14065,6 +14908,7 @@ export type PatchJobsByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14078,6 +14922,7 @@ export type PatchJobsByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14091,6 +14936,7 @@ export type PatchJobsByIdErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14148,6 +14994,7 @@ export type PostJobsByIdRefundErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14161,6 +15008,7 @@ export type PostJobsByIdRefundErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14174,6 +15022,7 @@ export type PostJobsByIdRefundErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14187,6 +15036,7 @@ export type PostJobsByIdRefundErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14200,6 +15050,7 @@ export type PostJobsByIdRefundErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14257,6 +15108,7 @@ export type GetJobsByIdFilesErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14270,6 +15122,7 @@ export type GetJobsByIdFilesErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14283,6 +15136,7 @@ export type GetJobsByIdFilesErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14296,6 +15150,7 @@ export type GetJobsByIdFilesErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14353,6 +15208,7 @@ export type GetJobsByIdLinksErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14366,6 +15222,7 @@ export type GetJobsByIdLinksErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14379,6 +15236,7 @@ export type GetJobsByIdLinksErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14392,6 +15250,7 @@ export type GetJobsByIdLinksErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14449,6 +15308,7 @@ export type GetJobsByIdInputRequestErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14462,6 +15322,7 @@ export type GetJobsByIdInputRequestErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14475,6 +15336,7 @@ export type GetJobsByIdInputRequestErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14488,6 +15350,7 @@ export type GetJobsByIdInputRequestErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14560,6 +15423,7 @@ export type PostJobsByIdInputsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14573,6 +15437,7 @@ export type PostJobsByIdInputsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14586,6 +15451,7 @@ export type PostJobsByIdInputsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14599,6 +15465,7 @@ export type PostJobsByIdInputsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14612,6 +15479,7 @@ export type PostJobsByIdInputsErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14625,6 +15493,7 @@ export type PostJobsByIdInputsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14638,6 +15507,7 @@ export type PostJobsByIdInputsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14695,6 +15565,7 @@ export type GetJobsByIdEventsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14708,6 +15579,7 @@ export type GetJobsByIdEventsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14721,6 +15593,7 @@ export type GetJobsByIdEventsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14734,6 +15607,7 @@ export type GetJobsByIdEventsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14791,6 +15665,7 @@ export type DeleteJobsByIdShareErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14804,6 +15679,7 @@ export type DeleteJobsByIdShareErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14817,6 +15693,7 @@ export type DeleteJobsByIdShareErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14878,6 +15755,7 @@ export type PutJobsByIdShareErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14891,6 +15769,7 @@ export type PutJobsByIdShareErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14904,6 +15783,7 @@ export type PutJobsByIdShareErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14963,6 +15843,7 @@ export type PutJobsByIdWorkspaceErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14976,6 +15857,7 @@ export type PutJobsByIdWorkspaceErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -14989,6 +15871,7 @@ export type PutJobsByIdWorkspaceErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15002,6 +15885,7 @@ export type PutJobsByIdWorkspaceErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15015,6 +15899,7 @@ export type PutJobsByIdWorkspaceErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15061,6 +15946,7 @@ export type GetInvitationsByIdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15104,6 +15990,7 @@ export type GetShareByTokenErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15154,6 +16041,7 @@ export type GetCoworkersErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15167,6 +16055,7 @@ export type GetCoworkersErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15229,6 +16118,7 @@ export type PostCoworkersErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15242,6 +16132,7 @@ export type PostCoworkersErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15255,6 +16146,7 @@ export type PostCoworkersErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15296,6 +16188,7 @@ export type GetCoworkersMeErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15309,6 +16202,7 @@ export type GetCoworkersMeErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15322,6 +16216,7 @@ export type GetCoworkersMeErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15372,6 +16267,7 @@ export type GetCoworkersMeEventsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15385,6 +16281,7 @@ export type GetCoworkersMeEventsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15398,6 +16295,7 @@ export type GetCoworkersMeEventsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15445,6 +16343,7 @@ export type PostCoworkersMeUsageErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15458,6 +16357,7 @@ export type PostCoworkersMeUsageErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15471,6 +16371,7 @@ export type PostCoworkersMeUsageErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15484,6 +16385,7 @@ export type PostCoworkersMeUsageErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15497,6 +16399,7 @@ export type PostCoworkersMeUsageErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15551,6 +16454,7 @@ export type GetCoworkersByIdApiKeysErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15564,6 +16468,7 @@ export type GetCoworkersByIdApiKeysErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15577,6 +16482,7 @@ export type GetCoworkersByIdApiKeysErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15623,6 +16529,7 @@ export type PostCoworkersByIdApiKeysErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15636,6 +16543,7 @@ export type PostCoworkersByIdApiKeysErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15649,6 +16557,7 @@ export type PostCoworkersByIdApiKeysErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15693,6 +16602,7 @@ export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15706,6 +16616,7 @@ export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15719,6 +16630,7 @@ export type DeleteCoworkersByIdApiKeysByKeyIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15766,6 +16678,7 @@ export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15779,6 +16692,7 @@ export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15792,6 +16706,7 @@ export type PatchCoworkersByIdApiKeysByKeyIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15835,6 +16750,7 @@ export type DeleteCoworkersByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15848,6 +16764,7 @@ export type DeleteCoworkersByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15861,6 +16778,7 @@ export type DeleteCoworkersByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15904,6 +16822,7 @@ export type GetCoworkersByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15917,6 +16836,7 @@ export type GetCoworkersByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15981,6 +16901,7 @@ export type PatchCoworkersByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -15994,6 +16915,7 @@ export type PatchCoworkersByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16007,6 +16929,7 @@ export type PatchCoworkersByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16052,6 +16975,7 @@ export type PatchCoworkersByIdWhitelistErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16065,6 +16989,7 @@ export type PatchCoworkersByIdWhitelistErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16078,6 +17003,7 @@ export type PatchCoworkersByIdWhitelistErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16162,6 +17088,7 @@ export type GetTasksErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16175,6 +17102,7 @@ export type GetTasksErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16188,6 +17116,7 @@ export type GetTasksErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16253,6 +17182,7 @@ export type PostTasksErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16266,6 +17196,7 @@ export type PostTasksErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16279,6 +17210,7 @@ export type PostTasksErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16292,6 +17224,7 @@ export type PostTasksErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16335,6 +17268,7 @@ export type GetTasksByIdLinksErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16348,6 +17282,7 @@ export type GetTasksByIdLinksErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16395,6 +17330,7 @@ export type PostTasksByIdLinksErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16408,6 +17344,7 @@ export type PostTasksByIdLinksErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16421,6 +17358,7 @@ export type PostTasksByIdLinksErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16434,6 +17372,7 @@ export type PostTasksByIdLinksErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16447,6 +17386,7 @@ export type PostTasksByIdLinksErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16491,6 +17431,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16504,6 +17445,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16517,6 +17459,7 @@ export type DeleteTasksByIdLinksByLinkIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16564,6 +17507,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16577,6 +17521,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16590,6 +17535,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16603,6 +17549,7 @@ export type PatchTasksByIdLinksByLinkIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16646,6 +17593,7 @@ export type DeleteTasksByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16659,6 +17607,7 @@ export type DeleteTasksByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16672,6 +17621,7 @@ export type DeleteTasksByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16685,6 +17635,7 @@ export type DeleteTasksByIdErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16728,6 +17679,7 @@ export type GetTasksByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16741,6 +17693,7 @@ export type GetTasksByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16789,6 +17742,7 @@ export type PatchTasksByIdErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16802,6 +17756,7 @@ export type PatchTasksByIdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16815,6 +17770,7 @@ export type PatchTasksByIdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16828,6 +17784,7 @@ export type PatchTasksByIdErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16841,6 +17798,7 @@ export type PatchTasksByIdErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16884,6 +17842,7 @@ export type DeleteTasksByIdShareErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16897,6 +17856,7 @@ export type DeleteTasksByIdShareErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16910,6 +17870,7 @@ export type DeleteTasksByIdShareErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16957,6 +17918,7 @@ export type PutTasksByIdShareErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16970,6 +17932,7 @@ export type PutTasksByIdShareErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16983,6 +17946,7 @@ export type PutTasksByIdShareErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17028,6 +17992,7 @@ export type PutTasksByIdWorkspaceErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17041,6 +18006,7 @@ export type PutTasksByIdWorkspaceErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17054,6 +18020,7 @@ export type PutTasksByIdWorkspaceErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17067,6 +18034,7 @@ export type PutTasksByIdWorkspaceErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17080,6 +18048,7 @@ export type PutTasksByIdWorkspaceErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17123,6 +18092,7 @@ export type GetTasksByIdEventsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17136,6 +18106,7 @@ export type GetTasksByIdEventsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17192,6 +18163,7 @@ export type PostTasksByIdEventsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17205,6 +18177,7 @@ export type PostTasksByIdEventsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17218,6 +18191,7 @@ export type PostTasksByIdEventsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17231,6 +18205,7 @@ export type PostTasksByIdEventsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17244,6 +18219,7 @@ export type PostTasksByIdEventsErrors = {
     409: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17257,6 +18233,7 @@ export type PostTasksByIdEventsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17270,6 +18247,7 @@ export type PostTasksByIdEventsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17313,6 +18291,7 @@ export type GetTasksByIdJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17326,6 +18305,7 @@ export type GetTasksByIdJobsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18316,6 +19296,7 @@ export type PostTasksByIdJobsErrors = {
     400: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18329,6 +19310,7 @@ export type PostTasksByIdJobsErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18342,6 +19324,7 @@ export type PostTasksByIdJobsErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18355,6 +19338,21 @@ export type PostTasksByIdJobsErrors = {
     404: {
         error: string;
         message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18368,6 +19366,7 @@ export type PostTasksByIdJobsErrors = {
     422: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18381,6 +19380,7 @@ export type PostTasksByIdJobsErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18422,6 +19422,7 @@ export type GetWorkspacesDesignMdErrors = {
     401: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18435,6 +19436,7 @@ export type GetWorkspacesDesignMdErrors = {
     403: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -18448,6 +19450,7 @@ export type GetWorkspacesDesignMdErrors = {
     500: {
         error: string;
         message: string;
+        kind?: string;
         meta: {
             timestamp: Date;
             requestId: string;

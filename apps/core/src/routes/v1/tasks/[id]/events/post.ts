@@ -24,7 +24,7 @@ import {
 } from "@/helpers/task";
 import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
@@ -119,7 +119,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { event, userId, masumiPayment } = await prisma.$transaction(
+    const { event, userId, masumiPayment } = await serializableTransaction(
       async (tx) => {
         const task = await requireTaskCollaboration(authContext, taskId, tx);
         const {
@@ -254,9 +254,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           masumiPayment: null,
         };
       },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
+      "Task changed by a concurrent request. Please retry.",
     );
 
     if (masumiPayment != null) {

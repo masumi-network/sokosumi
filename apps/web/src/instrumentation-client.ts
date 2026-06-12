@@ -4,6 +4,7 @@ import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-
 import {
   beforeSendClientEvent,
   thirdPartyAnalyticsDenyUrls,
+  thirdPartyAnalyticsIgnoreErrors,
 } from "@/lib/sentry/third-party-fetch-errors";
 
 Sentry.init({
@@ -17,7 +18,10 @@ Sentry.init({
   // https://github.com/getsentry/sentry-javascript/issues/16542
 
   denyUrls: thirdPartyAnalyticsDenyUrls,
-  ignoreErrors: thirdPartyDomMutationIgnoreErrors,
+  ignoreErrors: [
+    ...thirdPartyDomMutationIgnoreErrors,
+    ...thirdPartyAnalyticsIgnoreErrors,
+  ],
   beforeSend: beforeSendClientEvent,
 
   integrations: [Sentry.replayIntegration({})],

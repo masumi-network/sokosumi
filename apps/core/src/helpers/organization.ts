@@ -1,4 +1,5 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { forbidden, notFound } from "@/helpers/error";
 
@@ -70,19 +71,25 @@ async function resolveMemberAccess(
   input: ResolveMemberOrganizationInputBase,
 ) {
   if (!organization) {
-    throw notFound("Organization not found");
+    throw notFound("Organization not found", {
+      kind: CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND,
+    });
   }
 
   const member = await getMemberAccess(input.tx, input.userId, organization.id);
   if (!member) {
-    throw forbidden("You are not a member of this organization");
+    throw forbidden("You are not a member of this organization", {
+      kind: CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
+    });
   }
 
   if (
     input.allowedRoles &&
     !input.allowedRoles.includes(member.role as MemberRole)
   ) {
-    throw forbidden(`You must be ${input.allowedRoles.join(", ")}`);
+    throw forbidden(`You must be ${input.allowedRoles.join(", ")}`, {
+      kind: CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN,
+    });
   }
 
   return {

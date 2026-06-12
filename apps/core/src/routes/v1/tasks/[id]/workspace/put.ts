@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { conflict, notFound } from "@/helpers/error";
@@ -7,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
@@ -56,95 +55,90 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
-    const task = await prisma.$transaction(
-      async (tx) => {
-        const task = await tx.task.findFirst({
-          where: {
-            id,
-            userId: userContext.userId,
-            archivedAt: null,
-          },
-          select: {
-            workspaceId: true,
-            workspace: {
-              select: {
-                organizationId: true,
-              },
+    const task = await serializableTransaction(async (tx) => {
+      const task = await tx.task.findFirst({
+        where: {
+          id,
+          userId: userContext.userId,
+          archivedAt: null,
+        },
+        select: {
+          workspaceId: true,
+          workspace: {
+            select: {
+              organizationId: true,
             },
           },
-        });
+        },
+      });
 
-        if (!task) {
-          throw notFound("Task not found");
-        }
+      if (!task) {
+        throw notFound("Task not found");
+      }
 
-        const workspaceChanged =
-          targetOrganizationId !== task.workspace.organizationId;
+      const workspaceChanged =
+        targetOrganizationId !== task.workspace.organizationId;
 
-        if (!workspaceChanged) {
-          return await tx.task.findUniqueOrThrow({
-            where: { id },
-            include: buildTaskIncludeForViewer(authContext, task.workspaceId),
-          });
-        }
-
-        // `null` targets the authenticated user's personal workspace.
-        if (targetOrganizationId !== null) {
-          await resolveMemberOrganizationById({
-            id: targetOrganizationId,
-            userId: userContext.userId,
-            tx,
-          });
-        }
-
-        const workspace = await workspaceRepository.upsertWorkspaceForContext(
-          userContext.userId,
-          targetOrganizationId ?? null,
-          tx,
-        );
-
-        const existingLink = await tx.taskLink.findFirst({
-          where: {
-            OR: [{ fromTaskId: id }, { toTaskId: id }],
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        if (existingLink) {
-          throw conflict(
-            "Cannot move a task with related tasks. Remove its links first.",
-          );
-        }
-
-        await tx.task.update({
-          where: {
-            id,
-          },
-          data: {
-            workspaceId: workspace.id,
-            projectId: null,
-          },
-        });
-
-        await tx.job.updateMany({
-          where: { taskId: id },
-          data: {
-            workspaceId: workspace.id,
-            projectId: null,
-          },
-        });
-
+      if (!workspaceChanged) {
         return await tx.task.findUniqueOrThrow({
           where: { id },
-          include: buildTaskIncludeForViewer(authContext, workspace.id),
+          include: buildTaskIncludeForViewer(authContext, task.workspaceId),
         });
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+      }
+
+      // `null` targets the authenticated user's personal workspace.
+      if (targetOrganizationId !== null) {
+        await resolveMemberOrganizationById({
+          id: targetOrganizationId,
+          userId: userContext.userId,
+          tx,
+        });
+      }
+
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        userContext.userId,
+        targetOrganizationId ?? null,
+        tx,
+      );
+
+      const existingLink = await tx.taskLink.findFirst({
+        where: {
+          OR: [{ fromTaskId: id }, { toTaskId: id }],
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (existingLink) {
+        throw conflict(
+          "Cannot move a task with related tasks. Remove its links first.",
+        );
+      }
+
+      await tx.task.update({
+        where: {
+          id,
+        },
+        data: {
+          workspaceId: workspace.id,
+          projectId: null,
+        },
+      });
+
+      await tx.job.updateMany({
+        where: { taskId: id },
+        data: {
+          workspaceId: workspace.id,
+          projectId: null,
+        },
+      });
+
+      return await tx.task.findUniqueOrThrow({
+        where: { id },
+        include: buildTaskIncludeForViewer(authContext, workspace.id),
+      });
+    }, "Task changed by a concurrent request. Please retry.");
 
     return ok(c, taskSchema.parse(mapTask(task)));
   });
