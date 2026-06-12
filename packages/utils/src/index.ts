@@ -3,6 +3,10 @@ export {
   makeUserTasksChannelName,
 } from "./ably-channel.js";
 export {
+  betterAuthOrganizationAdditionalFields,
+  betterAuthUserAdditionalFields,
+} from "./better-auth-additional-fields.js";
+export {
   type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,

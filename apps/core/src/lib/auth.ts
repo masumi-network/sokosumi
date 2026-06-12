@@ -1,24 +1,44 @@
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/node";
-import { workspaceRepository } from "@sokosumi/database/repositories";
-import { renderMagicLinkEmail } from "@sokosumi/email";
+import { MemberRole } from "@sokosumi/database";
+import {
+  memberRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
+import {
+  renderMagicLinkEmail,
+  renderOrganizationInvitationEmail,
+  renderResetPasswordEmail,
+  renderVerificationEmail,
+} from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
+  betterAuthOrganizationAdditionalFields,
+  betterAuthUserAdditionalFields,
+  getOrganizationMetadata,
   getStoredUserName,
+  ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+  resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
   jwt,
+  lastLoginMethod,
   magicLink,
   oAuthProxy,
   openAPI,
   organization,
 } from "better-auth/plugins";
+import Stripe from "stripe";
+
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
@@ -28,16 +48,32 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import { getEmailLocale } from "@/helpers/email-locale";
+import { mapProfileToUser } from "@/helpers/profile-mapper";
 import prisma from "@/lib/db/prisma";
+import { authSessionService } from "@/services/auth-session.service";
+import { organizationSubscriptionHooksService } from "@/services/organization-subscription-hooks.service";
+import {
+  handleSubscriptionDeletedEvent,
+  reconcileActiveStripeBackedSubscription,
+} from "@/services/stripe-subscription-lifecycle.service";
+import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
+import { webhookService } from "@/services/webhook.service";
 
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
-const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
+const betterAuthCookiePrefixParams = {
   network: env.NETWORK,
   vercelEnv: env.VERCEL_ENV,
   vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
-});
+};
+const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
+  betterAuthCookiePrefixParams,
+);
+
+const fromEmail = env.POSTMARK_FROM_EMAIL;
+const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
 
 async function ensureWorkspaceForCreatedUser(user: {
   email: string;
@@ -85,6 +121,73 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
   }
 }
 
+async function ensureStripeCustomerForCreatedOrganization(organization: {
+  id: string;
+  metadata?: string | null;
+  name: string;
+  slug: string;
+}): Promise<void> {
+  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
+  await stripeClient.createOrganizationCustomer({
+    invoiceEmail,
+    name: organization.name,
+    organizationId: organization.id,
+    slug: organization.slug,
+  });
+}
+
+type StripeBackedLocalSubscription = NonNullable<
+  Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
+>;
+
+async function handleStripeBackedSubscriptionLifecycle({
+  event,
+  subscription,
+}: {
+  event: {
+    id: string;
+    type: string;
+  };
+  subscription: StripeBackedLocalSubscription;
+}): Promise<void> {
+  try {
+    await reconcileActiveStripeBackedSubscription(subscription);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        stripeEventType: event.type,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+      },
+      extra: {
+        eventId: event.id,
+        localSubscriptionId: subscription.id,
+        referenceId: subscription.referenceId,
+      },
+    });
+    throw error;
+  }
+}
+
+async function ensureOrganizationHasNoAdditionalMembers(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  const members = await memberRepository.getMembersByOrganizationId(
+    organizationId,
+    prisma,
+  );
+  const hasAdditionalMembers = members.some(
+    (member) => member.userId !== userId,
+  );
+
+  if (hasAdditionalMembers) {
+    throw new APIError("BAD_REQUEST", {
+      code: ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
+      message: "Remove all other members before deleting this organization.",
+    });
+  }
+}
+
 export const auth = betterAuth({
   appName: "Sokosumi",
   advanced: {
@@ -108,12 +211,75 @@ export const auth = betterAuth({
     joins: true,
   },
   session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: env.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+    },
     storeSessionInDatabase: true,
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
+    },
+    microsoft: {
+      clientId: env.MICROSOFT_CLIENT_ID,
+      clientSecret: env.MICROSOFT_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
+    },
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "microsoft"],
+    },
+  },
   databaseHooks: {
+    account: {
+      create: {
+        after: async (account, _ctx) => {
+          void webhookService.callAccountCreated(
+            account.userId,
+            account.providerId,
+          );
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session, _ctx) => {
+          try {
+            const activeOrganizationId =
+              await authSessionService.resolveActiveOrganizationIdForSession(
+                session.userId,
+              );
+
+            return {
+              data: {
+                ...session,
+                activeOrganizationId,
+              },
+            };
+          } catch (error) {
+            Sentry.captureException(error, {
+              tags: {
+                context: "session_create_preferred_organization",
+              },
+              extra: {
+                userId: session.userId,
+              },
+            });
+            return { data: session };
+          }
+        },
+      },
+    },
     user: {
       create: {
         before: async (user, _ctx) => {
@@ -144,6 +310,14 @@ export const auth = betterAuth({
                 },
               });
             });
+
+          void webhookService.callUserCreated(user);
+        },
+      },
+      update: {
+        after: async (user, _ctx) => {
+          // Fires on any user update to keep the marketing system synchronized
+          void webhookService.callUserUpdated(user);
         },
       },
     },
@@ -161,77 +335,99 @@ export const auth = betterAuth({
       ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
       : []),
   ],
-  user: {
-    emailAndPassword: {
-      enabled: true,
-    },
-    additionalFields: {
-      termsAccepted: {
-        type: "boolean",
-        required: true,
-        defaultValue: true,
-      },
-      marketingOptIn: {
-        type: "boolean",
-        required: true,
-        defaultValue: true,
-      },
-      notificationsOptIn: {
-        type: "boolean",
-        required: false,
-        defaultValue: true,
-      },
-      logo: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      metadata: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      stripeCustomerId: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      onboardingCompleted: {
-        type: "boolean",
-        required: true,
-        defaultValue: false,
-      },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      switch (ctx.path) {
+        case "/sign-up/email": {
+          if (!ctx.body?.termsAccepted) {
+            throw new APIError("BAD_REQUEST", {
+              code: "TERMS_NOT_ACCEPTED",
+            });
+          }
+
+          break;
+        }
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-in")) {
+        const user = ctx.context.newSession?.user;
+        if (user && !user.termsAccepted) {
+          throw new APIError("BAD_REQUEST", {
+            code: "TERMS_NOT_ACCEPTED",
+          });
+        }
+      }
+
+      // Sync user email with Stripe after email change verification
+      if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
+        const user = ctx.context.newSession?.user;
+        if (user.stripeCustomerId) {
+          // Fire and forget - don't wait for sync to complete
+          authSessionService
+            .syncUserEmailWithStripe(user.id, user.email)
+            .catch((error) => {
+              console.error("Failed to sync user email with Stripe:", error);
+            });
+        }
+      }
+    }),
+  },
+  emailAndPassword: {
+    enabled: true,
+    maxPasswordLength: env.PASSWORD_MAX_LENGTH,
+    minPasswordLength: env.PASSWORD_MIN_LENGTH,
+    requireEmailVerification: false,
+    autoSignIn: true,
+    sendResetPassword: async ({ user, url }, request) => {
+      const email = await renderResetPasswordEmail({
+        locale: getEmailLocale(request),
+        name: user.name,
+        resetLink: url,
+      });
+
+      postmarkClient.sendEmail({
+        From: fromEmail,
+        To: user.email,
+        Tag: "reset-password",
+        Subject: email.subject,
+        HtmlBody: email.html,
+        MessageStream: "authentications",
+      });
     },
   },
-  plugins: [
-    magicLink({
-      expiresIn: 60 * 60 * 48, // 48 hours in seconds
-      storeToken: "hashed",
-      sendMagicLink: async ({ email, url }, ctx) => {
-        const name =
-          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
-        const renderedEmail = await renderMagicLinkEmail({
-          locale: "en",
-          magicLink: url,
-          name,
-        });
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }, request) => {
+      const email = await renderVerificationEmail({
+        locale: getEmailLocale(request),
+        name: user.name,
+        verificationLink: url,
+      });
 
-        await postmarkClient.sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: email,
-          Tag: "magic-link",
-          Subject: renderedEmail.subject,
-          HtmlBody: renderedEmail.html,
-          MessageStream: "authentications",
-        });
-      },
-    }),
-    i18n({
-      translations: authTranslations,
-      defaultLocale: "en",
-      detection: ["header", "cookie"],
-    }),
-    openAPI(),
+      postmarkClient.sendEmail({
+        From: fromEmail,
+        To: user.email,
+        Tag: "verification-email",
+        Subject: email.subject,
+        HtmlBody: email.html,
+        MessageStream: "authentications",
+      });
+    },
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    expiresIn: env.BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
+    autoSignInAfterVerification: true,
+  },
+  user: {
+    changeEmail: {
+      enabled: true,
+    },
+    deleteUser: {
+      enabled: true,
+    },
+    additionalFields: betterAuthUserAdditionalFields,
+  },
+  plugins: [
     admin(),
     apiKey({
       configId: "default",
@@ -242,26 +438,42 @@ export const auth = betterAuth({
         maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,
+      enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
-    organization({
-      organizationHooks: {
-        afterCreateOrganization: async ({ organization }) => {
-          await ensureWorkspaceForCreatedOrganization(organization);
-        },
+    magicLink({
+      disableSignUp: false,
+      expiresIn: 60 * 10, // 10 minutes
+      storeToken: "hashed",
+      sendMagicLink: async ({ email, url }, ctx) => {
+        const locale = getEmailLocale(ctx?.request, ctx?.headers);
+        const name =
+          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
+        const renderedEmail = await renderMagicLinkEmail({
+          locale,
+          magicLink: url,
+          name,
+        });
+
+        await postmarkClient.sendEmail({
+          From: fromEmail,
+          To: email,
+          Tag: "magic-link",
+          Subject: renderedEmail.subject,
+          HtmlBody: renderedEmail.html,
+          MessageStream: "authentications",
+        });
       },
-      schema: {
-        organization: {
-          additionalFields: {
-            stripeCustomerId: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-              input: false,
-            },
-          },
-        },
-      },
+    }),
+    passkey({
+      rpID: env.BETTER_AUTH_RP_ID,
+      rpName: "Sokosumi",
+    }),
+    lastLoginMethod({
+      cookieName: resolveBetterAuthCookieName(
+        betterAuthCookiePrefixParams,
+        "last_used_login_method",
+      ),
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
@@ -284,6 +496,161 @@ export const auth = betterAuth({
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
+    }),
+    organization({
+      organizationHooks: {
+        afterCreateOrganization: async ({ organization }) => {
+          await ensureWorkspaceForCreatedOrganization(organization);
+          void ensureStripeCustomerForCreatedOrganization(organization).catch(
+            (error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_organization_customer_creation",
+                },
+                extra: {
+                  organizationId: organization.id,
+                  organizationName: organization.name,
+                  organizationSlug: organization.slug,
+                },
+              });
+            },
+          );
+        },
+        beforeAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionHooksService.ensureCanAcceptInvitation(
+            organization.id,
+          );
+        },
+        afterAcceptInvitation: async ({ organization }) => {
+          await organizationSubscriptionHooksService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+            organization.id,
+          );
+        },
+        afterAddMember: async ({ organization }) => {
+          await organizationSubscriptionHooksService.syncLocalFreeSeatsAndCreditsForCurrentMembers(
+            organization.id,
+          );
+        },
+        beforeDeleteOrganization: async ({ organization, user }) => {
+          await ensureOrganizationHasNoAdditionalMembers(
+            organization.id,
+            user.id,
+          );
+        },
+      },
+      schema: {
+        organization: {
+          additionalFields: betterAuthOrganizationAdditionalFields,
+        },
+      },
+      async sendInvitationEmail(data, request) {
+        const inviteLink = `${webAppBaseUrl}/accept-invitation/${data.id}`;
+        const email = await renderOrganizationInvitationEmail({
+          invitationLink: inviteLink,
+          invitorUsername: data.inviter.user.name,
+          locale: getEmailLocale(request),
+          organizationName: data.organization.name,
+        });
+
+        postmarkClient.sendEmail({
+          From: fromEmail,
+          To: data.email,
+          Tag: "invitation-email",
+          Subject: email.subject,
+          HtmlBody: email.html,
+          MessageStream: "organizations",
+        });
+      },
+      invitationLimit: env.BETTER_AUTH_ORG_INVITATION_LIMIT,
+      cancelPendingInvitationsOnReInvite: true,
+      allowUserToCreateOrganization(user) {
+        return user.emailVerified;
+      },
+      organizationLimit: env.BETTER_AUTH_ORG_LIMIT,
+      invitationExpiresIn: env.BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
+    }),
+    i18n({
+      translations: authTranslations,
+      defaultLocale: "en",
+      detection: ["header", "cookie"],
+    }),
+    openAPI(),
+    stripe({
+      stripeClient: stripeInstance,
+      stripeWebhookSecret: env.BETTER_AUTH_STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: false,
+      subscription: {
+        enabled: true,
+        plans: async () => await getBetterAuthSubscriptionPlans(),
+        onSubscriptionCreated: handleStripeBackedSubscriptionLifecycle,
+        onSubscriptionUpdate: handleStripeBackedSubscriptionLifecycle,
+        getCheckoutSessionParams: async () => ({
+          params: {
+            billing_address_collection: "required",
+            customer_update: {
+              address: "auto",
+              name: "auto",
+            },
+            tax_id_collection: {
+              enabled: true,
+            },
+          },
+        }),
+        authorizeReference: async ({ referenceId, user }) => {
+          const member =
+            await memberRepository.getMemberByUserIdAndOrganizationId(
+              user.id,
+              referenceId,
+              prisma,
+            );
+
+          if (!member) {
+            return false;
+          }
+
+          return (
+            member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN
+          );
+        },
+      },
+      organization: {
+        enabled: true,
+      },
+      onEvent: async (event) => {
+        // invoice.paid, customer.updated, and customer.created are handled by
+        // core's own webhook receiver (POST /webhooks/stripe) — the Better
+        // Auth dashboard endpoint only subscribes to subscription lifecycle
+        // events.
+        switch (event.type) {
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object as Stripe.Subscription;
+            try {
+              await handleSubscriptionDeletedEvent(subscription);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.subscription.deleted",
+                  stripeSubscriptionId: subscription.id,
+                },
+                extra: {
+                  customer:
+                    typeof subscription.customer === "string"
+                      ? subscription.customer
+                      : subscription.customer.id,
+                  eventId: event.id,
+                  subscription: subscription.id,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          default: {
+            console.info(`Unhandled Stripe event type: ${event.type}`);
+            break;
+          }
+        }
+      },
     }),
   ],
 });

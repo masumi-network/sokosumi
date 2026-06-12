@@ -1,19 +1,27 @@
 import { z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import type { User } from "@sokosumi/database";
+import pTimeout from "p-timeout";
 
+import { getEnv } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob.js";
 
 /**
  * Maps OAuth profile data to user fields
- * Hash-based approach to avoid cookie size limits with base64 images
+ * Hash-based approach to avoid cookie size limits with base64 images.
+ * Wrapped in a timeout (BETTER_AUTH_PROFILE_PICTURE_TIMEOUT, web parity) so a
+ * slow blob upload cannot stall the OAuth sign-in.
  */
 export async function mapProfileToUser(profile: {
   name: string;
   picture: string;
 }): Promise<Partial<User>> {
   try {
-    return await mapProfileToUserInner(profile);
+    return await pTimeout(mapProfileToUserInner(profile), {
+      milliseconds: getEnv().BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
+    });
   } catch (error) {
+    Sentry.captureException(error);
     console.error(
       `Failed to map profile to user: ${JSON.stringify(profile)}`,
       error,
