@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const transitionToNextLocalFreeSubscriptionPeriodMock = vi.fn();
 const getSubscriptionByStripeSubscriptionIdMock = vi.fn();
 const resolveActiveSubscriptionByReferenceIdMock = vi.fn();
@@ -48,7 +50,7 @@ describe("reconcileActiveStripeBackedSubscription", () => {
 
   it("cancels active local free rows for the same reference when a Stripe-backed subscription is active", async () => {
     const { reconcileActiveStripeBackedSubscription } = await import(
-      "../stripe-subscription-lifecycle.service"
+      "../webhook-handlers"
     );
 
     await reconcileActiveStripeBackedSubscription({
@@ -81,7 +83,7 @@ describe("reconcileActiveStripeBackedSubscription", () => {
 
   it("does not cancel local free rows for non-active local subscription statuses", async () => {
     const { reconcileActiveStripeBackedSubscription } = await import(
-      "../stripe-subscription-lifecycle.service"
+      "../webhook-handlers"
     );
 
     await reconcileActiveStripeBackedSubscription({
@@ -97,7 +99,7 @@ describe("reconcileActiveStripeBackedSubscription", () => {
 
   it("does not cancel local free rows when the Stripe-backed local row is still free", async () => {
     const { reconcileActiveStripeBackedSubscription } = await import(
-      "../stripe-subscription-lifecycle.service"
+      "../webhook-handlers"
     );
 
     await reconcileActiveStripeBackedSubscription({
@@ -134,7 +136,7 @@ describe("handleSubscriptionDeletedEvent", () => {
 
   it("creates the first local free successor when a Stripe free subscription ends", async () => {
     const { handleSubscriptionDeletedEvent } = await import(
-      "../stripe-subscription-lifecycle.service"
+      "../webhook-handlers"
     );
 
     await handleSubscriptionDeletedEvent({
@@ -183,7 +185,7 @@ describe("handleSubscriptionDeletedEvent", () => {
     });
 
     const { handleSubscriptionDeletedEvent } = await import(
-      "../stripe-subscription-lifecycle.service"
+      "../webhook-handlers"
     );
 
     await handleSubscriptionDeletedEvent({
@@ -217,7 +219,7 @@ describe("handleSubscriptionDeletedEvent", () => {
     });
 
     const { handleSubscriptionDeletedEvent } = await import(
-      "../stripe-subscription-lifecycle.service"
+      "../webhook-handlers"
     );
 
     await handleSubscriptionDeletedEvent({

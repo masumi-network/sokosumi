@@ -11,7 +11,6 @@ import {
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
 import { emailSchema } from "@/lib/auth/data";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import {
   type NewPasswordFormType,
   newPasswordFormSchema,
@@ -49,18 +48,22 @@ export async function createCredentialAccount(
   const parsed = parsedResult.data;
 
   try {
-    await coreClient.setMyPassword(parsed.newPassword);
+    await auth.api.setPassword({
+      body: {
+        newPassword: parsed.newPassword,
+      },
+      headers: await headers(),
+    });
     return Ok();
   } catch (error) {
     console.error("Failed to set password", error);
 
-    if (error instanceof CoreApiRequestError) {
+    const parsedBetterAuthApiErrorResult =
+      betterAuthApiErrorSchema.safeParse(error);
+    if (parsedBetterAuthApiErrorResult.success) {
       return Err({
-        code:
-          error.status === 400
-            ? CommonErrorCode.BAD_INPUT
-            : CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: error.message,
+        code: parsedBetterAuthApiErrorResult.data.body.code,
+        message: parsedBetterAuthApiErrorResult.data.body.message,
       });
     }
 

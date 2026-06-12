@@ -94,6 +94,27 @@ export const organizationService = (() => {
   }
 
   /**
+   * Creates an organization with the specified user as owner.
+   *
+   * @param name - The name of the organization.
+   * @param userId - The ID of the user who will own the organization.
+   * @returns Promise that resolves to the created organization or null if failed.
+   */
+  async function createOrganizationWithOwner(name: string, userId: string) {
+    const slug = await generateOrganizationSlugFromName(name);
+    const headersList = await headers();
+
+    return await auth.api.createOrganization({
+      body: {
+        name,
+        slug,
+        userId,
+      },
+      headers: headersList,
+    });
+  }
+
+  /**
    * Invites multiple members to an organization in batch.
    * Callers must verify the current user can invite members before calling.
    *
@@ -139,6 +160,7 @@ export const organizationService = (() => {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
+    createOrganizationWithOwner,
     inviteMultipleMembers,
   };
 })();
