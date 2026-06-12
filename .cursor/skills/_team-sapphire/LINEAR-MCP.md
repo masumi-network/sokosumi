@@ -2,6 +2,8 @@
 
 Single-issue updates only. No child issues.
 
+**Phase gates:** Every phase ends with `save_comment` + status row update before the next phase. See `PHASE-GATE.md` — skipping gates is a failed run.
+
 ## What goes on Linear
 
 | Write to Linear | Do not write to Linear |
@@ -62,6 +64,12 @@ Do not add Investigation or Spec sections.
 
 Update the status table row to `done`. Post a **short summary comment** — not the full investigation or spec.
 
+**Order:** `save_comment` first, then `save_issue` with merged description. Do **not** start the next Sapphire phase until both succeed.
+
+### Exit verification
+
+Before the orchestrator returns to the user, `get_issue` + `list_comments` must confirm every `done` row has its comment header(s) and issue state matches ( **In Review** when Reviewer row is `done`). If the table still shows `pending` for a completed phase, or state is wrong, repair per `PHASE-GATE.md` **Repair** — do not exit.
+
 ### State transitions
 
 | Action | `save_issue` |
@@ -78,7 +86,7 @@ Use structured headers for audit trail:
 |-------|----------------|
 | Investigator | `**Sapphire · Investigator complete**` — 3–5 bullets |
 | Tech Lead | `**Sapphire · Tech Lead complete**` — coder count, order, 3–5 bullets |
-| Coder | `**Sapphire · Coder complete**` + `**PR handoff**` |
+| Coder | `**PR handoff**` + `**Sapphire · Coder complete**` |
 | Reviewer pass | `**Sapphire · Reviewer complete**` |
 | Reviewer fail | `**Sapphire · Review failed**` |
 
@@ -124,8 +132,10 @@ Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; s
 | New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
 | `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
 | `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
-| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, then set `In Review` when criteria pass |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, verify PR + `/goal`; on pass run **Completion** gate then **Exit gate** |
 
 ## Post-run response
 
 Return issue id/URL, phases completed, Linear state, PR URL if any.
+
+Confirm exit gate passed: every `done` row has comment(s), no stale `pending` rows for finished work, and issue state matches ( **In Review** when Reviewer is `done`). If not, say what was repaired or what is still missing.

@@ -62,6 +62,10 @@ import {
   type TaskWithCoworker,
 } from "@/lib/types/task";
 import {
+  serializeTasksDensityCookie,
+  type TasksDensity,
+} from "@/lib/ui-preferences/tasks-density";
+import {
   serializeTasksViewModeCookie,
   type TasksViewMode,
 } from "@/lib/ui-preferences/tasks-view-mode";
@@ -207,6 +211,7 @@ interface TasksViewProps {
   initialFilters: TasksFilters;
   initialJobsListFilters: JobsListFilters;
   defaultViewMode?: TasksViewMode;
+  defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
@@ -248,6 +253,9 @@ interface TasksViewProps {
       button: string;
       list: string;
       board: string;
+      density: string;
+      normal: string;
+      compact: string;
     };
     listPlaceholder: string;
     loadMore: string;
@@ -290,6 +298,7 @@ export function TasksView({
   initialFilters,
   initialJobsListFilters,
   defaultViewMode,
+  defaultDensity,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
   initialDesignMdAttachment = null,
@@ -320,6 +329,9 @@ export function TasksView({
   );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
+  );
+  const [density, setDensity] = useState<TasksDensity>(
+    defaultDensity ?? "normal",
   );
   const [activeTab, setActiveTab] = useState<TasksTabValue>("tasks");
   const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
@@ -705,6 +717,11 @@ export function TasksView({
     document.cookie = serializeTasksViewModeCookie(next);
   };
 
+  const handleDensityChange = (next: TasksDensity) => {
+    setDensity(next);
+    document.cookie = serializeTasksDensityCookie(next);
+  };
+
   const handleLoadMoreJobs = () => {
     if (!isJobsPaginationInSync) return;
     if (!jobsCursor) return;
@@ -921,6 +938,8 @@ export function TasksView({
             <ViewModeSwitch
               value={viewMode}
               onChange={handleViewModeChange}
+              density={density}
+              onDensityChange={handleDensityChange}
               labels={labels.display}
             />
           ) : null}
@@ -978,6 +997,8 @@ export function TasksView({
                     tasks={items}
                     columns={columns}
                     columnFooterById={columnFooterById}
+                    compact={density === "compact"}
+                    statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
                       isTaskDraggableForViewFilters(
                         task,
@@ -998,6 +1019,8 @@ export function TasksView({
                     tasks={items}
                     columns={columns}
                     sectionFooterById={columnFooterById}
+                    compact={density === "compact"}
+                    statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
                       isTaskDraggableForViewFilters(
                         task,
@@ -1024,9 +1047,18 @@ export function TasksView({
                       }}
                     >
                       {viewMode === "board" ? (
-                        <TaskCard task={activeDragTask} />
+                        <TaskCard
+                          task={activeDragTask}
+                          compact={density === "compact"}
+                          statusLabels={labels.filters.statusOptions}
+                        />
                       ) : (
-                        <TaskListItem task={activeDragTask} isOverlay />
+                        <TaskListItem
+                          task={activeDragTask}
+                          isOverlay
+                          compact={density === "compact"}
+                          statusLabels={labels.filters.statusOptions}
+                        />
                       )}
                     </div>
                   ) : null}
@@ -1037,6 +1069,8 @@ export function TasksView({
                 tasks={items}
                 columns={columns}
                 columnFooterById={columnFooterById}
+                compact={density === "compact"}
+                statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
                   addTask: labels.addTask,
@@ -1049,6 +1083,8 @@ export function TasksView({
                 tasks={items}
                 columns={columns}
                 sectionFooterById={columnFooterById}
+                compact={density === "compact"}
+                statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
                   emptyList: labels.listPlaceholder,

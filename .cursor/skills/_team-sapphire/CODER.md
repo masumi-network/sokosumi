@@ -16,8 +16,9 @@ When Tech Lead defined one coder block (or no breakdown section):
 2. Follow repo conventions (`AGENTS.md`, scoped app guides).
 3. Run allowlisted verification before PR.
 4. Open PR — body references Linear issue id (e.g. `SOK-549`).
-5. Post `**PR handoff**` on the issue (see `REVIEWER.md`).
-6. Post `**Sapphire · Coder complete**`. Issue stays **In Progress**.
+5. Post `**PR handoff**` on the issue (see below).
+6. Post `**Sapphire · Coder complete**`.
+7. `save_issue` — Coder row → `done` (issue stays **In Progress**). See **Phase gate (blocking)**.
 
 ## Multiple coders
 
@@ -49,7 +50,7 @@ Each subagent prompt must include:
 ## Handoff to Reviewer
 
 - **Sapphire orchestrator (default):** After Coder complete, continue to Phase 4 (Reviewer) in the **same run** per `SKILL.md` — do not stop early.
-- **Standalone Coder** (user invoked Coder only): Stop after `**Sapphire · Coder complete**`; Reviewer runs in a separate session.
+- **Standalone Coder** (user invoked Coder only): Complete **Phase gate (blocking)** below (PR handoff + Coder complete + status row), then **Exit gate** (`PHASE-GATE.md`), then stop; Reviewer runs in a separate session.
 
 ## PR handoff comment
 
@@ -65,3 +66,13 @@ Each subagent prompt must include:
 ## Pre-PR verification
 
 Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verification command trust**. Run the narrowest set covering your deliverables.
+
+## Phase gate (blocking)
+
+Before Reviewer starts:
+
+1. `save_comment` — `**PR handoff**` (PR URL, branch, one-line summary)
+2. `save_comment` — `**Sapphire · Coder complete**`
+3. `save_issue` — Coder row → `done` (issue stays **In Progress**)
+
+Do **not** run `/goal` or set **In Review** until all three succeed. See `PHASE-GATE.md`.

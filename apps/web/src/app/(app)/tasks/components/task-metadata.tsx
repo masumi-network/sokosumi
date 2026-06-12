@@ -1,4 +1,4 @@
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { resolveIpfsOrHttpUrl, type TaskStatus } from "@sokosumi/utils";
 import Link from "next/link";
 import { useFormatter } from "next-intl";
 
@@ -12,6 +12,7 @@ import { TaskStatusBadge } from "./task-status-badge";
 interface TaskMetadataLabels {
   propertiesTitle: string;
   status: string;
+  statusLabels: Record<TaskStatus, string>;
   owner: string;
   organization: string;
   personalWorkspace: string;
@@ -59,7 +60,11 @@ export function TaskMetadata({ task, project, labels }: TaskMetadataProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">{labels.status}</span>
-          <TaskStatusBadge status={task.status} showLabel />
+          <TaskStatusBadge
+            status={task.status}
+            label={labels.statusLabels[task.status]}
+            showLabel
+          />
         </div>
 
         <MetadataAvatarValue

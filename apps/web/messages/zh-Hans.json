@@ -1430,7 +1430,10 @@
       "Display": {
         "button": "显示",
         "list": "列表",
-        "board": "看板"
+        "board": "看板",
+        "density": "密度",
+        "normal": "标准",
+        "compact": "紧凑"
       },
       "List": {
         "placeholder": "暂无任务"

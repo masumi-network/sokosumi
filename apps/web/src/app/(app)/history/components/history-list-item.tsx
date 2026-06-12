@@ -7,6 +7,7 @@ import {
   CHAT_APP_ROUTE_PREFIX,
   FALLBACK_BUCKET_SEGMENT,
 } from "@/app/chat-ui/utils/chat-route-base";
+import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import {
   getHistoryRowSubtitle,
   type HistoryBucketLookups,
@@ -302,20 +303,10 @@ function HistoryStatus({
   }
 
   return (
-    <div className="inline-flex shrink-0 items-center gap-1.5">
-      <span
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          item.status === "active"
-            ? "bg-semantic-success"
-            : "bg-muted-foreground",
-        )}
-        aria-hidden
-      />
-      <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-        {labels.conversationStatus[item.status]}
-      </span>
-    </div>
+    <ConversationStatusBadge
+      status={item.status}
+      label={labels.conversationStatus[item.status]}
+    />
   );
 }
 
