@@ -355,6 +355,98 @@ export const CreateInvoiceSchema = {
     ]
 } as const;
 
+export const AdminTaskListItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '0195b9f4-7d35-7a4e-b14e-111111111111'
+        },
+        name: {
+            type: 'string',
+            example: 'Quarterly report'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'READY',
+                'INPUT_REQUIRED',
+                'AUTHENTICATION_REQUIRED',
+                'OUT_OF_CREDITS',
+                'CREDITS_TOPPED_UP',
+                'RUNNING',
+                'AWAITING_EXTERNAL',
+                'COMPLETED',
+                'FAILED',
+                'CANCEL_REQUESTED',
+                'CANCELED'
+            ],
+            example: 'RUNNING'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ada Lovelace'
+                },
+                email: {
+                    type: 'string',
+                    example: 'ada@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        },
+        organization: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Corp'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-corp'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'createdAt',
+        'user',
+        'organization'
+    ]
+} as const;
+
 export const AgentSchema = {
     type: 'object',
     properties: {

@@ -93,6 +93,23 @@ export type CreateInvoice = {
     markFree: boolean;
 };
 
+export type AdminTaskListItem = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    createdAt: Date;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
+
 export type Agent = {
     id: string;
     createdAt: Date;
@@ -2769,6 +2786,75 @@ export type GetAdminInvoiceResponses = {
 };
 
 export type GetAdminInvoiceResponse = GetAdminInvoiceResponses[keyof GetAdminInvoiceResponses];
+
+export type ListAdminTasksData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched against task ID (exact), task name, user name and email, and organization name and slug (case-insensitive). Empty or missing lists all tasks.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/tasks';
+};
+
+export type ListAdminTasksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminTasksError = ListAdminTasksErrors[keyof ListAdminTasksErrors];
+
+export type ListAdminTasksResponses = {
+    /**
+     * Paginated list of tasks for the admin task list
+     */
+    200: {
+        data: Array<AdminTaskListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminTasksResponse = ListAdminTasksResponses[keyof ListAdminTasksResponses];
 
 export type GetAgentsData = {
     body?: never;
