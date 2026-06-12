@@ -40,7 +40,7 @@ export default function SidebarLogo() {
   }
 
   return (
-    <div className="hidden h-8 items-center md:flex">
+    <div className="hidden h-8 items-center md:flex pl-2">
       <ThemedLogo LogoComponent={SokosumiLogo} height={16} width={123} />
     </div>
   );
