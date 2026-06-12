@@ -1,6 +1,7 @@
 "use client";
 
 import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
+import { getStoredUserName } from "@sokosumi/utils";
 import {
   BookOpen,
   Bot,
@@ -20,7 +21,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, useState } from "react";
-
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   DropdownMenu,
@@ -34,6 +34,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import type { SessionUser } from "@/lib/auth/auth";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
@@ -219,7 +220,7 @@ export default function HeaderUserMenu({
       <DropdownMenuContent className="w-72" align="end">
         <DropdownMenuLabel className="truncate">
           <span className="block truncate text-sm font-medium">
-            {sessionUser.email}
+            {getStoredUserName(sessionUser.name, sessionUser.email)}
           </span>
           {secondaryLabel ? (
             <span className="text-muted-foreground mt-0.5 block truncate text-xs font-normal">
