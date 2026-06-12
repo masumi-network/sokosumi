@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   beforeSendClientEvent,
   isThirdPartyAnalyticsFetchFailure,
+  thirdPartyAnalyticsIgnoreErrors,
 } from "@/lib/sentry/third-party-fetch-errors";
 
 describe("isThirdPartyAnalyticsFetchFailure", () => {
@@ -11,6 +12,13 @@ describe("isThirdPartyAnalyticsFetchFailure", () => {
       isThirdPartyAnalyticsFetchFailure(
         "TypeError: Failed to fetch (plausible.io)",
       ),
+    ).toBe(true);
+  });
+
+  it("returns true for exception values without the TypeError prefix", () => {
+    // Sentry stores the type separately, so real events arrive in this shape.
+    expect(
+      isThirdPartyAnalyticsFetchFailure("Failed to fetch (plausible.io)"),
     ).toBe(true);
   });
 
@@ -37,6 +45,30 @@ describe("isThirdPartyAnalyticsFetchFailure", () => {
   });
 });
 
+describe("thirdPartyAnalyticsIgnoreErrors", () => {
+  function matchesIgnoreErrors(message: string): boolean {
+    return thirdPartyAnalyticsIgnoreErrors.some((pattern) =>
+      pattern.test(message),
+    );
+  }
+
+  it("matches the Chromium/Firefox clarity message", () => {
+    expect(matchesIgnoreErrors("window.clarity is not a function")).toBe(true);
+  });
+
+  it("matches the WebKit clarity message", () => {
+    expect(
+      matchesIgnoreErrors(
+        "window.clarity is not a function. (In 'window.clarity(\"event\",\"sign_up\")', 'window.clarity' is undefined)",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not match unrelated not-a-function errors", () => {
+    expect(matchesIgnoreErrors("foo.bar is not a function")).toBe(false);
+  });
+});
+
 describe("beforeSendClientEvent", () => {
   it("drops third-party analytics fetch error events", () => {
     const result = beforeSendClientEvent(
@@ -46,6 +78,25 @@ describe("beforeSendClientEvent", () => {
           values: [
             {
               value: "TypeError: Failed to fetch (plausible.io)",
+            },
+          ],
+        },
+      },
+      {},
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("drops events whose exception value lacks the TypeError prefix", () => {
+    const result = beforeSendClientEvent(
+      {
+        type: undefined,
+        exception: {
+          values: [
+            {
+              type: "TypeError",
+              value: "Failed to fetch (plausible.io)",
             },
           ],
         },
