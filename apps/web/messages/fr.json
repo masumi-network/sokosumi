@@ -257,7 +257,7 @@
       "history": "Historique",
       "new": "Nouveau",
       "projects": "Projets",
-      "credit-grants": "Accorder des crédits"
+      "invoices": "Factures"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2607,16 +2607,16 @@
             "title": "Contrats entreprise",
             "description": "Créez et gérez les contrats entreprise en brouillon, actifs et annulés."
           },
-          "creditGrants": {
-            "title": "Accorder des crédits",
-            "description": "Accordez des crédits uniques à une organisation via une facture Stripe."
+          "invoices": {
+            "title": "Factures",
+            "description": "Consultez les factures d'administration et accordez des crédits uniques à un utilisateur ou une organisation."
           }
         }
       },
-      "CreditGrants": {
-        "title": "Accorder des crédits",
-        "description": "Accordez des crédits uniques à une organisation via une facture Stripe. Marquer la facture comme payée accorde les crédits instantanément.",
-        "cardTitle": "Nouvelle attribution de crédits",
+      "Invoices": {
+        "title": "Factures",
+        "description": "Accordez des crédits uniques à un utilisateur ou une organisation via une facture Stripe. Marquer la facture comme payée accorde les crédits instantanément.",
+        "cardTitle": "Nouvelle facture",
         "Form": {
           "Fields": {
             "organization": "Organisation",
@@ -2640,7 +2640,7 @@
           "priceRequired": "Sélectionnez un prix"
         },
         "Result": {
-          "heading": "Facture d'attribution de crédits",
+          "heading": "Facture",
           "pendingHelper": "Marquez la facture comme payée pour accorder les crédits instantanément, ou laissez-la être payée dans Stripe.",
           "paidHelper": "La facture est payée et les crédits ont été accordés à l'organisation.",
           "organization": "Organisation",

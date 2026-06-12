@@ -342,3 +342,58 @@ describe("stripeClient", () => {
     expect(stripeInvoiceItemsCreateMock).not.toHaveBeenCalled();
   });
 });
+
+describe("stripeClient.createAdminInvoice", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    stripeInvoicesCreateMock.mockResolvedValue({ id: "in_1" });
+    stripeInvoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
+    stripeInvoicesFinalizeMock.mockResolvedValue({
+      id: "in_1",
+      status: "open",
+    });
+  });
+
+  it("bills the line item against the product price and discounts the item", async () => {
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.createAdminInvoice({
+      customerId: "cus_1",
+      credits: 1000,
+      priceId: "price_credit",
+      currency: "eur",
+      couponId: "coupon_support",
+    });
+
+    // The invoice is created empty, so the discount must NOT sit on the invoice
+    // (it would compute against €0); it belongs on the product-priced line item
+    // so a product-scoped coupon applies.
+    expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ discounts: expect.anything() }),
+    );
+    expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoice: "in_1",
+        pricing: { price: "price_credit" },
+        quantity: 1000,
+        discounts: [{ coupon: "coupon_support" }],
+      }),
+    );
+  });
+
+  it("omits the discount when no coupon is provided", async () => {
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.createAdminInvoice({
+      customerId: "cus_1",
+      credits: 1000,
+      priceId: "price_credit",
+      currency: "eur",
+    });
+
+    expect(stripeInvoiceItemsCreateMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "discounts",
+    );
+  });
+});

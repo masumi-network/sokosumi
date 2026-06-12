@@ -257,7 +257,7 @@
       "history": "Cronologia",
       "new": "Nuovo",
       "projects": "Progetti",
-      "credit-grants": "Assegna crediti"
+      "invoices": "Fatture"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2607,16 +2607,16 @@
             "title": "Contratti enterprise",
             "description": "Crea e gestisci contratti enterprise in bozza, attivi e annullati."
           },
-          "creditGrants": {
-            "title": "Assegna crediti",
-            "description": "Assegna crediti una tantum a un'organizzazione tramite una fattura Stripe."
+          "invoices": {
+            "title": "Fatture",
+            "description": "Visualizza le fatture di amministrazione e assegna crediti una tantum a un utente o un'organizzazione."
           }
         }
       },
-      "CreditGrants": {
-        "title": "Assegna crediti",
-        "description": "Assegna crediti una tantum a un'organizzazione tramite una fattura Stripe. Contrassegnando la fattura come pagata, i crediti vengono assegnati immediatamente.",
-        "cardTitle": "Nuova assegnazione di crediti",
+      "Invoices": {
+        "title": "Fatture",
+        "description": "Assegna crediti una tantum a un utente o un'organizzazione tramite una fattura Stripe. Contrassegnando la fattura come pagata, i crediti vengono assegnati immediatamente.",
+        "cardTitle": "Nuova fattura",
         "Form": {
           "Fields": {
             "organization": "Organizzazione",
@@ -2640,7 +2640,7 @@
           "priceRequired": "Seleziona un prezzo"
         },
         "Result": {
-          "heading": "Fattura di assegnazione crediti",
+          "heading": "Fattura",
           "pendingHelper": "Contrassegna la fattura come pagata per assegnare i crediti immediatamente, oppure lasciala pagare in Stripe.",
           "paidHelper": "La fattura è pagata e i crediti sono stati assegnati all'organizzazione.",
           "organization": "Organizzazione",

@@ -28,6 +28,10 @@ const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY, {
 // Mirrors the web stripe client's credit-price selection
 // (`apps/web/src/lib/clients/stripe.client.ts`).
 const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
+const BASE_CREDIT_TOPUP_LOOKUP_KEY = "credit_20_margin";
+/** Known credit top-up lookup keys; widen this union as more keys move to core. */
+type CreditTopUpLookupKey = typeof BASE_CREDIT_TOPUP_LOOKUP_KEY;
+let cachedStripeAccountId: string | null = null;
 const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
 const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
   SUPPORTED_CREDIT_PRICE_CURRENCIES,
@@ -379,5 +383,209 @@ export const stripeClient = {
     );
 
     return finalizedInvoice;
+  },
+
+  async getPriceByLookupKey(
+    lookupKey: CreditTopUpLookupKey,
+  ): Promise<CreditPrice> {
+    try {
+      const matchingPrices = await stripe.prices.list({
+        lookup_keys: [lookupKey],
+        product: getEnv().STRIPE_CREDIT_PRODUCT_ID,
+        active: true,
+        limit: 100,
+      });
+      const matchedPrice = selectPreferredCreditPrice(matchingPrices.data);
+      if (!matchedPrice) {
+        throw new Error(
+          `No valid credit price found for lookup key ${lookupKey}. Expected currencies: ${SUPPORTED_CREDIT_PRICE_CURRENCIES.join(", ")}`,
+        );
+      }
+
+      return validatePrice(matchedPrice);
+    } catch (error) {
+      console.error("Error retrieving price by lookup key", error);
+      throw error;
+    }
+  },
+
+  async getBaseCreditTopUpPrice(): Promise<CreditPrice> {
+    return await this.getPriceByLookupKey(BASE_CREDIT_TOPUP_LOOKUP_KEY);
+  },
+
+  /**
+   * Returns the Stripe account id the configured API key belongs to (the
+   * sandbox account id when running against a sandbox key). Cached for the
+   * lifetime of the process. Used to build account-scoped dashboard links
+   * that resolve to the correct sandbox/live account.
+   */
+  async getAccountId(): Promise<string> {
+    if (cachedStripeAccountId) {
+      return cachedStripeAccountId;
+    }
+    // GET /v1/account — the account the configured API key belongs to.
+    const account = await stripe.accounts.retrieveCurrent();
+    cachedStripeAccountId = account.id;
+    return cachedStripeAccountId;
+  },
+
+  /**
+   * Lists all active one-time prices configured on the credit product, for
+   * admin selection. Invalid prices (unsupported currency, zero amount,
+   * recurring) are skipped. Sorted by currency, then amount per credit.
+   */
+  async listCreditTopUpPrices(): Promise<
+    Array<CreditPrice & { nickname: string | null }>
+  > {
+    const productId = getEnv().STRIPE_CREDIT_PRODUCT_ID;
+    const prices = await stripe.prices.list({
+      product: productId,
+      active: true,
+      limit: 100,
+    });
+
+    return prices.data
+      .filter((price) => price.recurring === null && isValidCreditPrice(price))
+      .map((price) => ({
+        ...validatePrice(price),
+        nickname: price.nickname ?? null,
+      }))
+      .sort((a, b) =>
+        a.currency === b.currency
+          ? a.amountPerCredit - b.amountPerCredit
+          : a.currency.localeCompare(b.currency),
+      );
+  },
+
+  /**
+   * Retrieves a single price by id and verifies it belongs to the credit
+   * product before validating it. Throws otherwise.
+   */
+  async getCreditTopUpPriceById(priceId: string): Promise<CreditPrice> {
+    const price = await stripe.prices.retrieve(priceId);
+    const productId =
+      typeof price.product === "string" ? price.product : price.product?.id;
+    if (productId !== getEnv().STRIPE_CREDIT_PRODUCT_ID) {
+      throw new Error("Price does not belong to the credit product");
+    }
+    return validatePrice(price);
+  },
+
+  async getInvoice(invoiceId: string): Promise<Stripe.Invoice> {
+    return await stripe.invoices.retrieve(invoiceId, {
+      expand: ["lines.data.price.product"],
+    });
+  },
+
+  /**
+   * Searches invoices with the customer expanded, using Stripe's invoice
+   * search query language. Paginates through all matches up to `maxResults`
+   * because Stripe's search API does not guarantee an ordering — callers that
+   * need "most recent first" must gather every match and sort themselves.
+   * Note: Stripe's search index is eventually consistent, so an invoice
+   * created moments ago may take a short while to appear.
+   */
+  async searchInvoices(params: {
+    query: string;
+    maxResults?: number;
+  }): Promise<Stripe.Invoice[]> {
+    const maxResults = params.maxResults ?? 100;
+    const invoices: Stripe.Invoice[] = [];
+    let page: string | undefined;
+
+    do {
+      const result = await stripe.invoices.search({
+        query: params.query,
+        limit: 100,
+        expand: ["data.customer"],
+        ...(page ? { page } : {}),
+      });
+      invoices.push(...result.data);
+      page = result.has_more ? (result.next_page ?? undefined) : undefined;
+    } while (page && invoices.length < maxResults);
+
+    return invoices;
+  },
+
+  /**
+   * Creates and finalizes a one-time admin invoice for a customer.
+   *
+   * The invoice is tagged with the `credits` (and optional `ttl_days`)
+   * metadata that the invoice-paid automation reads to grant credits. It is
+   * created with `collection_method: "send_invoice"` so that finalizing it
+   * does not attempt to auto-charge a payment method; the invoice can then
+   * either be marked paid directly (see {@link payInvoiceOutOfBand}) or paid
+   * through the normal Stripe flow.
+   */
+  async createAdminInvoice(params: {
+    customerId: string;
+    credits: number;
+    /** Credit-product price the line item is billed against. Tying the item to
+     * the product (rather than a raw amount) lets a product-scoped coupon
+     * apply. */
+    priceId: string;
+    currency: string;
+    ttlDays?: number;
+    daysUntilDue?: number;
+    description?: string;
+    /** When set, applies this coupon as a discount on the credit line
+     * item. A 100%-off coupon makes the grant free ($0 due). */
+    couponId?: string;
+  }): Promise<Stripe.Invoice> {
+    const metadata: Record<string, string> = {
+      credits: String(params.credits),
+      grant_source: "admin_one_time_credit",
+      ...(params.ttlDays ? { ttl_days: String(params.ttlDays) } : {}),
+    };
+
+    // Create the (empty) invoice first, then attach the line item to *this*
+    // invoice rather than leaving a pending customer item. That way a failure
+    // before finalize can't orphan a pending item that later rolls into the
+    // next grant invoice for the same customer.
+    const invoice = await stripe.invoices.create({
+      customer: params.customerId,
+      currency: params.currency,
+      collection_method: "send_invoice",
+      days_until_due: params.daysUntilDue ?? 30,
+      auto_advance: false,
+      metadata,
+    });
+
+    if (!invoice.id) {
+      throw new Error("Failed to create admin invoice");
+    }
+
+    // Bill the line item against the credit product's price (not a raw
+    // amount) and discount the item itself. A product-scoped coupon only
+    // applies to a line tied to that product; an invoice-level discount or a
+    // raw-amount line leaves a 100%-off coupon with a €0 effect.
+    await stripe.invoiceItems.create({
+      customer: params.customerId,
+      invoice: invoice.id,
+      pricing: { price: params.priceId },
+      currency: params.currency,
+      quantity: params.credits,
+      description:
+        params.description ??
+        `One-time credit invoice (${params.credits.toLocaleString("en-US")} credits)`,
+      ...(params.couponId ? { discounts: [{ coupon: params.couponId }] } : {}),
+      metadata,
+    });
+
+    return await stripe.invoices.finalizeInvoice(invoice.id, {
+      expand: ["lines.data.price.product"],
+    });
+  },
+
+  /**
+   * Marks an invoice as paid out of band (i.e. payment recorded outside of
+   * Stripe). Returns the updated invoice with line items expanded so callers
+   * can run the invoice-paid automation directly.
+   */
+  async payInvoiceOutOfBand(invoiceId: string): Promise<Stripe.Invoice> {
+    return await stripe.invoices.pay(invoiceId, {
+      paid_out_of_band: true,
+      expand: ["lines.data.price.product"],
+    });
   },
 };

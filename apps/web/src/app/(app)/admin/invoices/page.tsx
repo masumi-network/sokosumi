@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default async function InvoicesPage() {
-  const t = await getTranslations("App.Admin.CreditGrants");
-  const invoices = await invoiceAdminService.listGrantInvoices();
+  const t = await getTranslations("App.Admin.Invoices");
+  const invoices = await invoiceAdminService.listInvoices();
 
   return (
     <div className="min-h-full w-full">

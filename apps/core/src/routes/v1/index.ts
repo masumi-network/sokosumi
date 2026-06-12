@@ -17,6 +17,7 @@ import historyRouter from "./history/index.js";
 import invitationsRouter from "./invitations/index.js";
 import jobsRouter from "./jobs/index.js";
 import organizationsRouter from "./organizations/index.js";
+import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
 import shareRouter from "./share/index.js";
 import tasksRouter from "./tasks/index.js";
@@ -123,6 +124,7 @@ app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);
+app.route("/products", productsRouter);
 app.route("/workspaces", workspacesRouter);
 
 export default app;

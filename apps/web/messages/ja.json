@@ -257,7 +257,7 @@
       "history": "履歴",
       "new": "新規",
       "projects": "プロジェクト",
-      "credit-grants": "クレジットを付与"
+      "invoices": "請求書"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2607,16 +2607,16 @@
             "title": "エンタープライズ契約",
             "description": "下書き、有効、キャンセル済みのエンタープライズ契約を作成・管理します。"
           },
-          "creditGrants": {
-            "title": "クレジットを付与",
-            "description": "Stripe の請求書を通じて組織に一度限りのクレジットを付与します。"
+          "invoices": {
+            "title": "請求書",
+            "description": "管理者請求書を確認し、ユーザーまたは組織に一度限りのクレジットを付与します。"
           }
         }
       },
-      "CreditGrants": {
-        "title": "クレジットを付与",
-        "description": "Stripe の請求書を通じて組織に一度限りのクレジットを付与します。請求書を支払い済みにすると、クレジットが即座に付与されます。",
-        "cardTitle": "新しいクレジット付与",
+      "Invoices": {
+        "title": "請求書",
+        "description": "Stripe の請求書を通じてユーザーまたは組織に一度限りのクレジットを付与します。請求書を支払い済みにすると、クレジットが即座に付与されます。",
+        "cardTitle": "新しい請求書",
         "Form": {
           "Fields": {
             "organization": "組織",
@@ -2640,7 +2640,7 @@
           "priceRequired": "価格を選択してください"
         },
         "Result": {
-          "heading": "クレジット付与の請求書",
+          "heading": "請求書",
           "pendingHelper": "請求書を支払い済みにするとクレジットが即座に付与されます。または Stripe での支払いに任せることもできます。",
           "paidHelper": "請求書は支払い済みで、クレジットは組織に付与されました。",
           "organization": "組織",

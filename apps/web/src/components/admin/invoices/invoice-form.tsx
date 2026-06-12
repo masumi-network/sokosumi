@@ -26,12 +26,12 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import { createCreditGrantInvoiceAction } from "@/lib/actions/credit-grant/action";
+import { createAdminInvoiceAction } from "@/lib/actions/invoice-admin/action";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
-  CreditGrantTargetType,
   CreditPriceOption,
+  InvoiceTargetType,
 } from "@/lib/services/invoice-admin.service";
 
 interface InvoiceFormProps {
@@ -57,7 +57,7 @@ function countDecimals(value: number): number {
 }
 
 export function InvoiceForm({ prices }: InvoiceFormProps) {
-  const t = useTranslations("App.Admin.CreditGrants");
+  const t = useTranslations("App.Admin.Invoices");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
   const router = useRouter();
@@ -70,7 +70,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     ...prices.map((price) => countDecimals(price.amountPerCredit) + 2),
   );
   const [targetType, setTargetType] =
-    useState<CreditGrantTargetType>("organization");
+    useState<InvoiceTargetType>("organization");
   const [selectedOrg, setSelectedOrg] =
     useState<AdminOrganizationOption | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
@@ -114,7 +114,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
 
     setIsSubmitting(true);
     try {
-      const result = await createCreditGrantInvoiceAction({
+      const result = await createAdminInvoiceAction({
         targetType,
         targetId,
         credits,
@@ -140,9 +140,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
         <Label htmlFor="target">{t("Form.Fields.target")}</Label>
         <Tabs
           value={targetType}
-          onValueChange={(value) =>
-            setTargetType(value as CreditGrantTargetType)
-          }
+          onValueChange={(value) => setTargetType(value as InvoiceTargetType)}
         >
           <TabsList>
             <TabsTrigger value="organization">

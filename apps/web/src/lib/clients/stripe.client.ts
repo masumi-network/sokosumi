@@ -429,7 +429,7 @@ export const stripeClient = (() => {
      * Searches invoices with the customer expanded, using Stripe's invoice
      * search query language. Search filters server-side on metadata, status,
      * and customer — unlike `invoices.list`, which can only filter by a single
-     * status and ignores metadata — so the admin credit-grant list reliably
+     * status and ignores metadata — so the admin invoice list reliably
      * returns grant invoices instead of having them crowded out of the most
      * recent page by unrelated checkout/subscription invoices.
      *
@@ -557,78 +557,6 @@ export const stripeClient = (() => {
 
       const session = await stripe.checkout.sessions.create(sessionParams);
       return session;
-    },
-
-    /**
-     * Creates and finalizes a one-time credit-grant invoice for a customer.
-     *
-     * The invoice is tagged with the `credits` (and optional `ttl_days`)
-     * metadata that the existing invoice-paid automation reads to grant
-     * credits. It is created with `collection_method: "send_invoice"` so that
-     * finalizing it does not attempt to auto-charge a payment method; the
-     * invoice can then either be marked paid directly (see
-     * {@link payInvoiceOutOfBand}) or paid through the normal Stripe flow.
-     */
-    async createCreditGrantInvoice(params: {
-      customerId: string;
-      credits: number;
-      /** Credit-product price the line item is billed against. Tying the item to
-       * the product (rather than a raw amount) lets a product-scoped coupon
-       * apply. */
-      priceId: string;
-      currency: string;
-      ttlDays?: number;
-      daysUntilDue?: number;
-      description?: string;
-      /** When set, applies this coupon as a discount on the credit-grant line
-       * item. A 100%-off coupon makes the grant free ($0 due). */
-      couponId?: string;
-    }): Promise<Stripe.Invoice> {
-      const metadata: Record<string, string> = {
-        credits: String(params.credits),
-        grant_source: "admin_one_time_credit",
-        ...(params.ttlDays ? { ttl_days: String(params.ttlDays) } : {}),
-      };
-
-      // Create the (empty) invoice first, then attach the line item to *this*
-      // invoice rather than leaving a pending customer item. That way a failure
-      // before finalize can't orphan a pending item that later rolls into the
-      // next grant invoice for the same customer.
-      const invoice = await stripe.invoices.create({
-        customer: params.customerId,
-        currency: params.currency,
-        collection_method: "send_invoice",
-        days_until_due: params.daysUntilDue ?? 30,
-        auto_advance: false,
-        metadata,
-      });
-
-      if (!invoice.id) {
-        throw new Error("Failed to create credit grant invoice");
-      }
-
-      // Bill the line item against the credit product's price (not a raw
-      // amount) and discount the item itself. A product-scoped coupon only
-      // applies to a line tied to that product; an invoice-level discount or a
-      // raw-amount line leaves a 100%-off coupon with a €0 effect.
-      await stripe.invoiceItems.create({
-        customer: params.customerId,
-        invoice: invoice.id,
-        pricing: { price: params.priceId },
-        currency: params.currency,
-        quantity: params.credits,
-        description:
-          params.description ??
-          `One-time credit grant (${params.credits.toLocaleString("en-US")} credits)`,
-        ...(params.couponId
-          ? { discounts: [{ coupon: params.couponId }] }
-          : {}),
-        metadata,
-      });
-
-      return await stripe.invoices.finalizeInvoice(invoice.id, {
-        expand: ["lines.data.price.product"],
-      });
     },
 
     /**

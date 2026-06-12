@@ -86,6 +86,216 @@ export const AdminOrganizationOptionSchema = {
     ]
 } as const;
 
+export const InvoiceListItemSchema = {
+    type: 'object',
+    properties: {
+        invoiceId: {
+            type: 'string',
+            example: 'in_123'
+        },
+        targetType: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'user',
+                'organization',
+                null
+            ],
+            example: 'organization'
+        },
+        targetName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Acme'
+        },
+        credits: {
+            type: 'number',
+            example: 100
+        },
+        ttlDays: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: null
+        },
+        currency: {
+            type: 'string',
+            example: 'eur'
+        },
+        amountDue: {
+            type: 'number',
+            example: 12000
+        },
+        status: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'draft',
+                'open',
+                'paid',
+                'uncollectible',
+                'void',
+                null
+            ],
+            example: 'open'
+        },
+        createdAt: {
+            type: 'number',
+            example: 1736294400000,
+            description: 'Unix ms timestamp'
+        },
+        dashboardUrl: {
+            type: 'string',
+            example: 'https://dashboard.stripe.com/acct_123/invoices/in_123'
+        }
+    },
+    required: [
+        'invoiceId',
+        'targetType',
+        'targetName',
+        'credits',
+        'ttlDays',
+        'currency',
+        'amountDue',
+        'status',
+        'createdAt',
+        'dashboardUrl'
+    ]
+} as const;
+
+export const InvoiceSummarySchema = {
+    type: 'object',
+    properties: {
+        invoiceId: {
+            type: 'string',
+            example: 'in_123'
+        },
+        targetType: {
+            type: 'string',
+            enum: [
+                'user',
+                'organization'
+            ],
+            example: 'organization'
+        },
+        targetId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        targetName: {
+            type: 'string',
+            example: 'Acme'
+        },
+        credits: {
+            type: 'number',
+            example: 100
+        },
+        ttlDays: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 30
+        },
+        currency: {
+            type: 'string',
+            example: 'eur'
+        },
+        amountDue: {
+            type: 'number',
+            example: 12000
+        },
+        status: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'draft',
+                'open',
+                'paid',
+                'uncollectible',
+                'void',
+                null
+            ],
+            example: 'open'
+        },
+        dashboardUrl: {
+            type: 'string',
+            example: 'https://dashboard.stripe.com/acct_123/invoices/in_123'
+        }
+    },
+    required: [
+        'invoiceId',
+        'targetType',
+        'targetId',
+        'targetName',
+        'credits',
+        'ttlDays',
+        'currency',
+        'amountDue',
+        'status',
+        'dashboardUrl'
+    ]
+} as const;
+
+export const CreateInvoiceSchema = {
+    type: 'object',
+    properties: {
+        targetType: {
+            type: 'string',
+            enum: [
+                'user',
+                'organization'
+            ],
+            example: 'organization'
+        },
+        targetId: {
+            type: 'string',
+            minLength: 1,
+            example: 'org_123'
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 100
+        },
+        ttlDays: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 30
+        },
+        priceId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'price_123'
+        },
+        markFree: {
+            type: 'boolean',
+            example: false
+        }
+    },
+    required: [
+        'targetType',
+        'targetId',
+        'credits',
+        'ttlDays',
+        'priceId',
+        'markFree'
+    ]
+} as const;
+
 export const AgentSchema = {
     type: 'object',
     properties: {
@@ -7429,6 +7639,37 @@ export const MasumiTaskPaymentSourceSchema = {
         'network',
         'smartContractAddress',
         'policyId'
+    ]
+} as const;
+
+export const CreditPriceOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'price_123'
+        },
+        amountPerCredit: {
+            type: 'number',
+            example: 120
+        },
+        currency: {
+            type: 'string',
+            example: 'eur'
+        },
+        nickname: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Standard'
+        }
+    },
+    required: [
+        'id',
+        'amountPerCredit',
+        'currency',
+        'nickname'
     ]
 } as const;
 
