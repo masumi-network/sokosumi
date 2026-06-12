@@ -26,7 +26,7 @@ flowchart LR
 2. **Light discovery** — sharpen problem, goal, scope.
 3. **Draft** — `REQUIREMENT-TEMPLATE.md` in chat only.
 4. **Wait for approval** — do not touch Linear.
-5. **Publish** — create issue per `LINEAR-MCP.md` (all defaults including `project: Sokosumi`), then post-create verify before handoff.
+5. **Publish** — create issue per `LINEAR-MCP.md` (all defaults including `project: sokosumi-6357694ddd23`), then post-create verify before handoff.
 6. **Hand off** — `HANDOFF.md` delegates Team Sapphire on the same issue.
 
 ## What belongs on the issue at create time
