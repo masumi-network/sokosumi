@@ -27,13 +27,13 @@ vi.mock("@/config/env.public", () => ({
 }));
 
 interface EnvSecretsMock {
-  BETTER_AUTH_SECRET: string;
+  DESIGN_MD_JOB_TOKEN_SECRET: string;
   MASUMI_DESIGN_MD_API_KEY?: string;
   MASUMI_DESIGN_MD_API_URL: string;
 }
 
 const getEnvSecretsMock = vi.fn<() => EnvSecretsMock>(() => ({
-  BETTER_AUTH_SECRET: "test-secret",
+  DESIGN_MD_JOB_TOKEN_SECRET: "test-secret",
   MASUMI_DESIGN_MD_API_KEY: "api-key",
   MASUMI_DESIGN_MD_API_URL: "https://masumi.example/api/v1",
 }));
@@ -261,7 +261,7 @@ describe("designMdService", () => {
 
   it("throws unconfigured when the Masumi API key is missing", async () => {
     getEnvSecretsMock.mockReturnValueOnce({
-      BETTER_AUTH_SECRET: "test-secret",
+      DESIGN_MD_JOB_TOKEN_SECRET: "test-secret",
       MASUMI_DESIGN_MD_API_URL: "https://masumi.example/api/v1",
     });
 

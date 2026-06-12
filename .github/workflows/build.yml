@@ -9,6 +9,7 @@ on:
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
   BETTER_AUTH_SECRET: "ci-build-better-auth-secret"
+  DESIGN_MD_JOB_TOKEN_SECRET: "ci-design-md-job-token-secret"
   POSTMARK_SERVER_ID: "ci-postmark-server-id"
   POSTMARK_FROM_EMAIL: "ci@sokosumi.com"
   NEXT_PUBLIC_NETWORK: "Preprod"
