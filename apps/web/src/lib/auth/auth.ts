@@ -74,10 +74,6 @@ const FORWARDED_HEADER_NAMES = [
   "cookie",
   "accept-language",
   "user-agent",
-  // Better Auth's CSRF origin check rejects cookie-bearing POSTs that lack an
-  // origin/referer header, so both must survive the server-to-server hop.
-  "origin",
-  "referer",
   "x-forwarded-for",
   "x-vercel-forwarded-for",
 ] as const;
