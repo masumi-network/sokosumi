@@ -10,7 +10,7 @@ vi.mock("next-intl", () => ({
 }));
 
 describe("JobStatusBadge", () => {
-  it("renders dot and label by default", () => {
+  it("renders a pill badge with label by default", () => {
     const { container } = render(
       <JobStatusBadge
         status={SokosumiJobStatus.COMPLETED}
@@ -19,9 +19,7 @@ describe("JobStatusBadge", () => {
     );
 
     expect(screen.getByText("completed")).toBeInTheDocument();
-    expect(
-      container.querySelector("span[aria-hidden='true']"),
-    ).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass("rounded-sm", "px-2.5", "py-1");
   });
 
   it("renders dot-only version when variant is dot", () => {

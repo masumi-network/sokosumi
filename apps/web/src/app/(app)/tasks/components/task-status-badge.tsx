@@ -105,19 +105,8 @@ function shouldShowWarningIcon(status: TaskStatus): boolean {
   );
 }
 
-function shouldShowStatusDot(
-  status: TaskStatus,
-  showDot: boolean | undefined,
-): boolean {
-  if (showDot === true) {
-    return true;
-  }
-
-  if (showDot === false) {
-    return false;
-  }
-
-  return status === TaskStatus.RUNNING;
+function shouldShowStatusDot(showDot: boolean | undefined): boolean {
+  return showDot === true;
 }
 
 function getBadgeShapeClasses(): string {
@@ -146,7 +135,7 @@ export function TaskStatusBadge({
     dot: "bg-muted-foreground",
   };
   const showIcon = shouldShowWarningIcon(status);
-  const showStatusDot = shouldShowStatusDot(status, showDot);
+  const showStatusDot = shouldShowStatusDot(showDot);
 
   return (
     <span
