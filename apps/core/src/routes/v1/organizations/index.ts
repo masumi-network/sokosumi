@@ -12,6 +12,7 @@ import mountPutOrganizationMemberSeat from "./[id]/members/[memberId]/seat/put.j
 import mountGetOrganizationMembers from "./[id]/members/get.js";
 import mountGetOrganizationSeatSummary from "./[id]/seat-summary/get.js";
 import mountGetOrganizationStripeCustomer from "./[id]/stripe-customer/get.js";
+import mountPostOrganizationStripeCustomer from "./[id]/stripe-customer/post.js";
 import mountGetOrganizationSubscription from "./[id]/subscription/get.js";
 import mountPutOrganizationSubscriptionSeats from "./[id]/subscription/seats/put.js";
 import mountGetOrganizationBySlug from "./slug/[slug]/get.js";
@@ -30,6 +31,7 @@ mountGetOrganizationSeatSummary(app);
 mountGetOrganizationBillingPlan(app);
 mountGetOrganizationEnterpriseContractSummary(app);
 mountGetOrganizationStripeCustomer(app);
+mountPostOrganizationStripeCustomer(app);
 mountGetOrganizationSubscription(app);
 mountPutOrganizationSubscriptionSeats(app);
 mountGetOrganizationDesignMd(app);

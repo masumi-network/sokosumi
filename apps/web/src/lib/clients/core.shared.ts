@@ -149,6 +149,7 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
+  postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -156,6 +157,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
@@ -862,6 +864,25 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  /**
+   * Ensures a Stripe customer exists for an organization (any-member):
+   * returns the existing customer id or creates the Stripe customer and
+   * returns the new id. Local persistence happens via the Stripe
+   * `customer.created` webhook.
+   */
+  async function createOrganizationStripeCustomer(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdStripeCustomer({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to create organization Stripe customer",
+    );
+  }
+
   async function getOrganizationBillingPlan(organizationId: string) {
     return executeOperation(
       getClient,
@@ -924,6 +945,24 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch user Stripe customer",
+    );
+  }
+
+  /**
+   * Ensures a Stripe customer exists for the current user: returns the
+   * existing customer id or creates the Stripe customer and returns the new
+   * id. Local persistence happens via the Stripe `customer.created` webhook.
+   */
+  async function createMyStripeCustomer() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdStripeCustomer({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to create user Stripe customer",
     );
   }
 
@@ -2234,6 +2273,8 @@ export function createCoreClient(getClient: GetClient) {
     getMyMembersWithOrganizations,
     getMyOrganizationCredits,
     getMyOrganizations,
+    createMyStripeCustomer,
+    createOrganizationStripeCustomer,
     getMyStripeCustomer,
     getOrganizationActiveSubscription,
     getOrganizationBillingPlan,
