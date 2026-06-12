@@ -1,7 +1,15 @@
 import { z } from "@hono/zod-openapi";
 
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+
+/**
+ * Lower page-size cap than the global pagination limit: every overview row
+ * fans out into per-user credit and subscription queries, so large pages
+ * multiply database load.
+ */
+export const ADMIN_USER_OVERVIEW_MAX_LIMIT = 50;
 
 export const adminSearchQuerySchema = z.object({
   query: z
@@ -49,7 +57,20 @@ export const adminUserOverviewQuerySchema = z
         example: "ada",
       }),
   })
-  .extend(cursorPaginationQuerySchema.shape);
+  .extend(cursorPaginationQuerySchema.shape)
+  .extend({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(ADMIN_USER_OVERVIEW_MAX_LIMIT)
+      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Number of items to return (max ${ADMIN_USER_OVERVIEW_MAX_LIMIT})`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+      }),
+  });
 
 export const adminUserOverviewItemSchema = z
   .object({

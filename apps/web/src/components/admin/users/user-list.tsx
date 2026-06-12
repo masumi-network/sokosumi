@@ -1,8 +1,9 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { listAdminUsersAction } from "@/lib/actions/admin-users/action";
 import type {
   AdminUserOverviewItem,
@@ -24,8 +26,6 @@ import type {
 interface UserListProps {
   initialPage: AdminUserOverviewPage;
 }
-
-const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * Searchable admin list of all users. The page server-renders the first
@@ -48,46 +48,15 @@ export function UserList({ initialPage }: UserListProps) {
   // Monotonic id so out-of-order responses from rapid typing are ignored —
   // only the latest request is allowed to update the list.
   const latestRequestId = useRef(0);
-  const isFirstSearchEffect = useRef(true);
 
-  useEffect(() => {
-    // Skip the mount run: the server already rendered the unfiltered page.
-    if (isFirstSearchEffect.current) {
-      isFirstSearchEffect.current = false;
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      const requestId = ++latestRequestId.current;
-      startTransition(async () => {
-        const result = await listAdminUsersAction({
-          query: search.trim() || undefined,
-        });
-        if (requestId !== latestRequestId.current) {
-          return;
-        }
-        if (!result.ok) {
-          toast.error(result.error.message ?? t("loadError"));
-          return;
-        }
-        setUsers(result.data.users);
-        setTotal(result.data.total);
-        setNextCursor(result.data.nextCursor);
-      });
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [search, t]);
-
-  function handleLoadMore() {
-    if (!nextCursor) {
-      return;
-    }
+  // Without a cursor the result replaces the list (new search); with a cursor
+  // it appends the next page for the active query.
+  function fetchPage(query: string, cursor?: string) {
     const requestId = ++latestRequestId.current;
     startTransition(async () => {
       const result = await listAdminUsersAction({
-        query: search.trim() || undefined,
-        cursor: nextCursor,
+        query: query.trim() || undefined,
+        cursor,
       });
       if (requestId !== latestRequestId.current) {
         return;
@@ -96,10 +65,29 @@ export function UserList({ initialPage }: UserListProps) {
         toast.error(result.error.message ?? t("loadError"));
         return;
       }
-      setUsers((current) => [...current, ...result.data.users]);
+      setUsers((current) =>
+        cursor ? [...current, ...result.data.users] : result.data.users,
+      );
       setTotal(result.data.total);
       setNextCursor(result.data.nextCursor);
     });
+  }
+
+  const debouncedSearch = useDebouncedCallback(
+    (value: string) => fetchPage(value),
+    getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    debouncedSearch(value);
+  }
+
+  function handleLoadMore() {
+    if (!nextCursor) {
+      return;
+    }
+    fetchPage(search, nextCursor);
   }
 
   return (
@@ -108,7 +96,7 @@ export function UserList({ initialPage }: UserListProps) {
         <Input
           type="search"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => handleSearchChange(event.target.value)}
           placeholder={t("searchPlaceholder")}
           className="max-w-sm"
           aria-label={t("searchPlaceholder")}

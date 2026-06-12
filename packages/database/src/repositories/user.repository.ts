@@ -1,6 +1,19 @@
 import type { Prisma, User } from "../generated/prisma/client.js";
 
 /**
+ * Case-insensitive name/email match used by user search and the admin
+ * overview listing.
+ */
+function buildUserSearchWhere(trimmed: string): Prisma.UserWhereInput {
+  return {
+    OR: [
+      { name: { contains: trimmed, mode: "insensitive" } },
+      { email: { contains: trimmed, mode: "insensitive" } },
+    ],
+  };
+}
+
+/**
  * Repository for user-related database operations.
  * Provides methods to retrieve and update user records using Prisma.
  */
@@ -54,12 +67,7 @@ export const userRepository = {
       return [];
     }
     return tx.user.findMany({
-      where: {
-        OR: [
-          { name: { contains: trimmed, mode: "insensitive" } },
-          { email: { contains: trimmed, mode: "insensitive" } },
-        ],
-      },
+      where: buildUserSearchWhere(trimmed),
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
       take: limit,
@@ -89,12 +97,7 @@ export const userRepository = {
   }> => {
     const trimmed = params.query?.trim();
     const where: Prisma.UserWhereInput = trimmed
-      ? {
-          OR: [
-            { name: { contains: trimmed, mode: "insensitive" } },
-            { email: { contains: trimmed, mode: "insensitive" } },
-          ],
-        }
+      ? buildUserSearchWhere(trimmed)
       : {};
 
     const [users, total] = await Promise.all([

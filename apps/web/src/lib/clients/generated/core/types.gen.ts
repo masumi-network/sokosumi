@@ -2199,7 +2199,7 @@ export type ListAdminUserOverviewData = {
          */
         cursor?: string;
         /**
-         * Number of items to return (max 100)
+         * Number of items to return (max 50)
          */
         limit?: number;
     };

@@ -210,6 +210,14 @@ describe("GET /v1/admin/users/overview", () => {
     expect(taskGroupByMock).not.toHaveBeenCalled();
   });
 
+  it("rejects limits above the overview cap", async () => {
+    const app = createApp(mountListAdminUserOverview);
+    const res = await app.request("/overview?limit=51");
+
+    expect(res.status).toBe(422);
+    expect(listUsersForAdminOverviewMock).not.toHaveBeenCalled();
+  });
+
   it("rejects non-admin users", async () => {
     const app = createApp(mountListAdminUserOverview, { role: "user" });
     const res = await app.request("/overview");
