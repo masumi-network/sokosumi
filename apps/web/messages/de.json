@@ -1187,9 +1187,9 @@
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
           "READY": "Bereit",
-          "INPUT_REQUIRED": "Eingabe erforderlich",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
-          "OUT_OF_CREDITS": "Keine Credits mehr",
+          "OUT_OF_CREDITS": "Paused: credits needed",
           "CREDITS_TOPPED_UP": "Credits aufgeladen",
           "RUNNING": "Läuft",
           "AWAITING_EXTERNAL": "Wartet auf Externes",
@@ -1430,7 +1430,9 @@
       "Display": {
         "button": "Ansicht",
         "list": "Liste",
-        "board": "Board"
+        "board": "Board",
+        "normal": "Normal",
+        "compact": "Compact"
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -1449,9 +1451,9 @@
         "statusOptions": {
           "DRAFT": "Entwurf",
           "READY": "Bereit",
-          "INPUT_REQUIRED": "Eingabe erforderlich",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
-          "OUT_OF_CREDITS": "Keine Credits mehr",
+          "OUT_OF_CREDITS": "Paused: credits needed",
           "CREDITS_TOPPED_UP": "Credits aufgeladen",
           "RUNNING": "Läuft",
           "AWAITING_EXTERNAL": "Wartet auf Externes",

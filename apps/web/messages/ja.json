@@ -1187,9 +1187,9 @@
           "archived": "アーカイブ済み",
           "DRAFT": "下書き",
           "READY": "準備完了",
-          "INPUT_REQUIRED": "入力が必要",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "認証が必要",
-          "OUT_OF_CREDITS": "クレジット不足",
+          "OUT_OF_CREDITS": "Paused: credits needed",
           "CREDITS_TOPPED_UP": "クレジットを追加済み",
           "RUNNING": "実行中",
           "AWAITING_EXTERNAL": "外部待ち",
@@ -1430,7 +1430,9 @@
       "Display": {
         "button": "表示",
         "list": "リスト",
-        "board": "ボード"
+        "board": "ボード",
+        "normal": "Normal",
+        "compact": "Compact"
       },
       "List": {
         "placeholder": "タスクはありません"
@@ -1449,9 +1451,9 @@
         "statusOptions": {
           "DRAFT": "下書き",
           "READY": "準備完了",
-          "INPUT_REQUIRED": "入力が必要",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "認証が必要",
-          "OUT_OF_CREDITS": "クレジット不足",
+          "OUT_OF_CREDITS": "Paused: credits needed",
           "CREDITS_TOPPED_UP": "クレジットを追加済み",
           "RUNNING": "実行中",
           "AWAITING_EXTERNAL": "外部待ち",
@@ -1697,7 +1699,7 @@
             "READY": "準備完了",
             "INPUT_REQUIRED": "入力",
             "AUTHENTICATION_REQUIRED": "認証",
-            "OUT_OF_CREDITS": "クレジット不足",
+            "OUT_OF_CREDITS": "Paused: credits needed",
             "CREDITS_TOPPED_UP": "補充済み",
             "RUNNING": "実行中",
             "AWAITING_EXTERNAL": "待機中",

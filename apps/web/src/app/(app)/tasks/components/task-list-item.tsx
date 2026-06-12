@@ -9,12 +9,14 @@ interface TaskListItemProps {
   task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
   isOverlay?: boolean;
+  compact?: boolean;
 }
 
 export function TaskListItem({
   task,
   dragHandleProps,
   isOverlay = false,
+  compact = false,
 }: TaskListItemProps) {
   const handleProps = dragHandleProps
     ? {
@@ -47,9 +49,11 @@ export function TaskListItem({
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {task.name}
             </span>
-            <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
-              {task.descriptionPlain ?? task.description ?? "—"}
-            </p>
+            {!compact && (
+              <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
+                {task.descriptionPlain ?? task.description ?? "—"}
+              </p>
+            )}
           </div>
         </div>
 

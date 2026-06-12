@@ -22,6 +22,7 @@ interface KanbanBoardProps {
   columnFooterById?: Partial<Record<KanbanColumnId, React.ReactNode>>;
   isDragEnabled?: boolean;
   canDragTask?: (task: TaskWithCoworker) => boolean;
+  compact?: boolean;
 }
 
 export function KanbanBoard({
@@ -31,6 +32,7 @@ export function KanbanBoard({
   columnFooterById,
   isDragEnabled = true,
   canDragTask = () => true,
+  compact = false,
 }: KanbanBoardProps) {
   return (
     <div className="-mx-2 flex h-full min-h-[calc(100svh-8.5rem)] flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4">
@@ -70,11 +72,15 @@ export function KanbanBoard({
                   columnId={task.columnId}
                 >
                   {(dragHandleProps) => (
-                    <TaskCard task={task} dragHandleProps={dragHandleProps} />
+                    <TaskCard
+                      task={task}
+                      dragHandleProps={dragHandleProps}
+                      compact={compact}
+                    />
                   )}
                 </DraggableTask>
               ) : (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard key={task.id} task={task} compact={compact} />
               )
             }
           />

@@ -8,9 +8,14 @@ import { TaskStatusBadge } from "./task-status-badge";
 interface TaskCardProps {
   task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
+  compact?: boolean;
 }
 
-export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
+export function TaskCard({
+  task,
+  dragHandleProps,
+  compact = false,
+}: TaskCardProps) {
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -31,28 +36,28 @@ export function TaskCard({ task, dragHandleProps }: TaskCardProps) {
         <article
           className={cn(
             "bg-background rounded-lg p-3 transition-all duration-200",
-            "border-border/50 border",
-            "hover:border-border hover:shadow-sm",
+            "border-border border",
+            "hover:border-primary hover:shadow-sm",
             "active:scale-[0.99]",
             dragHandleProps?.isDragging &&
               "border-primary/30 ring-primary/10 shadow-lg ring-2",
           )}
         >
           <div className="space-y-2.5">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
+            <div className="flex flex-col gap-2">
+              <TaskStatusBadge status={task.status} />
+              <h3 className="text-foreground line-clamp-2 text-md leading-snug font-medium">
                 {task.name}
               </h3>
-              <TaskStatusBadge status={task.status} />
             </div>
 
-            <div className="space-y-1.5">
-              {task.descriptionPlain || task.description ? (
+            {!compact && (task.descriptionPlain || task.description) ? (
+              <div className="space-y-1.5">
                 <p className="text-muted-foreground/80 line-clamp-2 text-xs leading-relaxed break-all">
                   {task.descriptionPlain ?? task.description}
                 </p>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             <TaskMetaDetails
               owner={task.user}

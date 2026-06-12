@@ -20,6 +20,7 @@ interface TaskListViewProps {
   sectionFooterById?: Partial<Record<KanbanColumnId, React.ReactNode>>;
   isDragEnabled?: boolean;
   canDragTask?: (task: TaskWithCoworker) => boolean;
+  compact?: boolean;
 }
 
 export function TaskListView({
@@ -29,6 +30,7 @@ export function TaskListView({
   sectionFooterById,
   isDragEnabled = true,
   canDragTask = () => true,
+  compact = false,
 }: TaskListViewProps) {
   const orderedColumns = [...columns].reverse();
   const hasAnyTasks = tasks.length > 0;
@@ -62,11 +64,12 @@ export function TaskListView({
                         <TaskListItem
                           task={task}
                           dragHandleProps={dragHandleProps}
+                          compact={compact}
                         />
                       )}
                     </DraggableTask>
                   ) : (
-                    <TaskListItem key={task.id} task={task} />
+                    <TaskListItem key={task.id} task={task} compact={compact} />
                   )
                 }
               />

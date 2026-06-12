@@ -1187,9 +1187,9 @@
           "archived": "Archiviato",
           "DRAFT": "Bozza",
           "READY": "Pronto",
-          "INPUT_REQUIRED": "Input richiesto",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",
-          "OUT_OF_CREDITS": "Crediti esauriti",
+          "OUT_OF_CREDITS": "Paused: credits needed",
           "CREDITS_TOPPED_UP": "Crediti ricaricati",
           "RUNNING": "In esecuzione",
           "AWAITING_EXTERNAL": "In attesa esterno",
@@ -1430,7 +1430,9 @@
       "Display": {
         "button": "Visualizzazione",
         "list": "Elenco",
-        "board": "Bacheca"
+        "board": "Bacheca",
+        "normal": "Normal",
+        "compact": "Compact"
       },
       "List": {
         "placeholder": "Nessun task"
@@ -1449,9 +1451,9 @@
         "statusOptions": {
           "DRAFT": "Bozza",
           "READY": "Pronto",
-          "INPUT_REQUIRED": "Input richiesto",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "Autenticazione richiesta",
-          "OUT_OF_CREDITS": "Crediti esauriti",
+          "OUT_OF_CREDITS": "Paused: credits needed",
           "CREDITS_TOPPED_UP": "Crediti ricaricati",
           "RUNNING": "In esecuzione",
           "AWAITING_EXTERNAL": "In attesa esterno",

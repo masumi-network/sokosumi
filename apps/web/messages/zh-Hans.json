@@ -1187,7 +1187,7 @@
           "archived": "已归档",
           "DRAFT": "草稿",
           "READY": "就绪",
-          "INPUT_REQUIRED": "需要输入",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "需要认证",
           "OUT_OF_CREDITS": "积分不足",
           "CREDITS_TOPPED_UP": "积分已充值",
@@ -1430,7 +1430,9 @@
       "Display": {
         "button": "显示",
         "list": "列表",
-        "board": "看板"
+        "board": "看板",
+        "normal": "Normal",
+        "compact": "Compact"
       },
       "List": {
         "placeholder": "暂无任务"
@@ -1449,7 +1451,7 @@
         "statusOptions": {
           "DRAFT": "草稿",
           "READY": "就绪",
-          "INPUT_REQUIRED": "需要输入",
+          "INPUT_REQUIRED": "Approval required",
           "AUTHENTICATION_REQUIRED": "需要认证",
           "OUT_OF_CREDITS": "积分不足",
           "CREDITS_TOPPED_UP": "积分已充值",
