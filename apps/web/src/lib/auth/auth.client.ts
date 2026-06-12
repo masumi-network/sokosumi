@@ -2,14 +2,11 @@ import { apiKeyClient } from "@better-auth/api-key/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { stripeClient } from "@better-auth/stripe/client";
-import {
-  betterAuthOrganizationAdditionalFields,
-  betterAuthUserAdditionalFields,
-  resolveBetterAuthCookieName,
-} from "@sokosumi/utils";
+import { resolveBetterAuthCookieName } from "@sokosumi/utils";
 import {
   adminClient,
   inferAdditionalFields,
+  inferOrgAdditionalFields,
   jwtClient,
   lastLoginMethodClient,
   organizationClient,
@@ -17,7 +14,8 @@ import {
 import { createAuthClient } from "better-auth/react";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
+
+import type { auth } from "./auth";
 
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
@@ -33,19 +31,12 @@ function getLastUsedLoginMethodCookieName(): string {
 }
 
 export const authClient = createAuthClient({
-  // Auth traffic goes directly to core's Better Auth instance; cookies are
-  // scoped to the shared parent domain so the web server can read sessions.
-  baseURL: getBrowserCoreAuthBaseUrl(),
   plugins: [
-    inferAdditionalFields({ user: betterAuthUserAdditionalFields }),
+    inferAdditionalFields<typeof auth>(),
     adminClient(),
     apiKeyClient(),
     organizationClient({
-      schema: {
-        organization: {
-          additionalFields: betterAuthOrganizationAdditionalFields,
-        },
-      },
+      schema: inferOrgAdditionalFields<typeof auth>(),
     }),
     passkeyClient(),
     lastLoginMethodClient({

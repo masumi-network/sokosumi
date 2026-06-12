@@ -5054,33 +5054,6 @@ export const PreferredOrganizationSchema = {
     ]
 } as const;
 
-export const PasswordSetSchema = {
-    type: 'object',
-    properties: {
-        status: {
-            type: 'boolean',
-            example: true
-        }
-    },
-    required: [
-        'status'
-    ]
-} as const;
-
-export const PasswordWriteSchema = {
-    type: 'object',
-    properties: {
-        newPassword: {
-            type: 'string',
-            minLength: 1,
-            description: 'The new password to set for the credential account'
-        }
-    },
-    required: [
-        'newPassword'
-    ]
-} as const;
-
 export const NoticeSchema = {
     type: 'object',
     properties: {
