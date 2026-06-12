@@ -1442,6 +1442,7 @@
         "button": "Display",
         "list": "List",
         "board": "Board",
+        "density": "Density",
         "normal": "Normal",
         "compact": "Compact"
       },

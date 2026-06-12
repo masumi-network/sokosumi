@@ -28,6 +28,7 @@ export interface ViewModeSwitchProps {
     button: string;
     list: string;
     board: string;
+    density: string;
     normal: string;
     compact: string;
   };
@@ -103,7 +104,7 @@ export function ViewModeSwitch({
         </div>
 
         <div className="space-y-3 pt-3 border-t">
-          <p className="text-sm font-medium">Density</p>
+          <p className="text-sm font-medium">{labels.density}</p>
           <ToggleGroup
             type="single"
             value={density}

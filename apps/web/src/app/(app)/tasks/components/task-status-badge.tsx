@@ -62,9 +62,9 @@ const STATUS_PILL_STYLES: Partial<
     dot: "bg-sky-500",
   },
   [TaskStatus.COMPLETED]: {
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600 dark:text-emerald-400",
-    dot: "bg-emerald-500",
+    bg: "bg-stone-500/10",
+    text: "text-stone-600 dark:text-stone-400",
+    dot: "bg-stone-500",
   },
   [TaskStatus.FAILED]: {
     bg: "bg-destructive/10",
@@ -89,7 +89,7 @@ export function getTaskStatusDotColorClass(status: TaskStatus): string {
 
 export function getTaskStatusBorderColorClass(status: TaskStatus): string {
   if (status === TaskStatus.COMPLETED) {
-    return "border-emerald-500/40";
+    return "border-stone-500/30";
   }
 
   return "border-border";

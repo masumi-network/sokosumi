@@ -1431,8 +1431,9 @@
         "button": "Exibir",
         "list": "Lista",
         "board": "Quadro",
+        "density": "Densidade",
         "normal": "Normal",
-        "compact": "Compact"
+        "compact": "Compacto"
       },
       "List": {
         "placeholder": "Sem tarefas"

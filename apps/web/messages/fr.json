@@ -1431,6 +1431,7 @@
         "button": "Affichage",
         "list": "Liste",
         "board": "Tableau",
+        "density": "Densité",
         "normal": "Normal",
         "compact": "Compact"
       },

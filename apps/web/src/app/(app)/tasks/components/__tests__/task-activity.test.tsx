@@ -313,7 +313,7 @@ describe("TaskActivitySection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("highlights completed comment events with an emerald border", () => {
+  it("highlights completed comment events with a stone border", () => {
     const events: TaskEvent[] = [
       createEvent("completed-with-comment", {
         createdAt: "2026-01-01T12:00:00.000Z",
@@ -326,7 +326,7 @@ describe("TaskActivitySection", () => {
       <TaskActivitySection {...baseProps} events={events} />,
     );
 
-    const row = container.querySelector(".border-emerald-500\\/40");
+    const row = container.querySelector(".border-stone-500\\/30");
     expect(row).toBeInTheDocument();
   });
 
@@ -343,7 +343,7 @@ describe("TaskActivitySection", () => {
     );
 
     expect(
-      container.querySelector(".border-emerald-500\\/40"),
+      container.querySelector(".border-stone-500\\/30"),
     ).not.toBeInTheDocument();
   });
 

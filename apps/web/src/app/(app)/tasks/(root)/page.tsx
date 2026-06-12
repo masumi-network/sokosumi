@@ -285,6 +285,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
             button: t("Display.button"),
             list: t("Display.list"),
             board: t("Display.board"),
+            density: t("Display.density"),
             normal: t("Display.normal"),
             compact: t("Display.compact"),
           },

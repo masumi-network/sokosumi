@@ -1431,8 +1431,9 @@
         "button": "Visualizzazione",
         "list": "Elenco",
         "board": "Bacheca",
-        "normal": "Normal",
-        "compact": "Compact"
+        "density": "Densità",
+        "normal": "Normale",
+        "compact": "Compatto"
       },
       "List": {
         "placeholder": "Nessun task"

@@ -55,7 +55,7 @@ export function TaskCard({
                 showDot={task.columnId === "in-progress"}
                 className="w-fit self-start rounded-sm"
               />
-              <h3 className="text-foreground line-clamp-2 text-md leading-snug font-medium">
+              <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>
             </div>

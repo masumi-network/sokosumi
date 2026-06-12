@@ -1431,8 +1431,9 @@
         "button": "Vista",
         "list": "Lista",
         "board": "Tablero",
+        "density": "Densidad",
         "normal": "Normal",
-        "compact": "Compact"
+        "compact": "Compacto"
       },
       "List": {
         "placeholder": "Sin Tasks"

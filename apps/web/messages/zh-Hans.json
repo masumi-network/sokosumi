@@ -1431,8 +1431,9 @@
         "button": "显示",
         "list": "列表",
         "board": "看板",
-        "normal": "Normal",
-        "compact": "Compact"
+        "density": "密度",
+        "normal": "标准",
+        "compact": "紧凑"
       },
       "List": {
         "placeholder": "暂无任务"

@@ -1431,8 +1431,9 @@
         "button": "表示",
         "list": "リスト",
         "board": "ボード",
-        "normal": "Normal",
-        "compact": "Compact"
+        "density": "表示密度",
+        "normal": "標準",
+        "compact": "コンパクト"
       },
       "List": {
         "placeholder": "タスクはありません"
@@ -1699,7 +1700,7 @@
             "READY": "準備完了",
             "INPUT_REQUIRED": "入力",
             "AUTHENTICATION_REQUIRED": "認証",
-            "OUT_OF_CREDITS": "Paused: credits needed",
+            "OUT_OF_CREDITS": "クレジット不足",
             "CREDITS_TOPPED_UP": "補充済み",
             "RUNNING": "実行中",
             "AWAITING_EXTERNAL": "待機中",

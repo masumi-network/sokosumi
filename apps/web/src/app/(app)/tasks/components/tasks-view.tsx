@@ -253,6 +253,7 @@ interface TasksViewProps {
       button: string;
       list: string;
       board: string;
+      density: string;
       normal: string;
       compact: string;
     };
