@@ -7,6 +7,11 @@ import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
+  assertOrganizationSubscriptionChangeAllowed,
+  assertPersonalSubscriptionChangeAllowed,
+  OrganizationSubscriptionExclusivityError,
+} from "@sokosumi/database/helpers";
+import {
   memberRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
@@ -26,7 +31,11 @@ import {
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -164,6 +173,44 @@ async function handleStripeBackedSubscriptionLifecycle({
         referenceId: subscription.referenceId,
       },
     });
+    throw error;
+  }
+}
+
+/**
+ * Enterprise-contract exclusivity guard, previously enforced by the web
+ * subscription actions before their in-process `auth.api` calls
+ * (`lib/actions/subscription/action.ts`). Now enforced where the write
+ * executes; the exclusivity error surfaces as a BAD_REQUEST APIError with the
+ * original message so the web action can map it unchanged.
+ */
+async function ensureSubscriptionChangeAllowed(ctx: {
+  body?: Record<string, unknown>;
+}): Promise<void> {
+  const session = await getSessionFromCtx(
+    ctx as Parameters<typeof getSessionFromCtx>[0],
+  );
+  if (!session) {
+    return; // the endpoint itself rejects unauthenticated calls
+  }
+
+  const referenceId =
+    typeof ctx.body?.referenceId === "string"
+      ? ctx.body.referenceId
+      : session.user.id;
+
+  try {
+    if (referenceId === session.user.id) {
+      await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
+    } else {
+      await assertOrganizationSubscriptionChangeAllowed(referenceId, prisma);
+    }
+  } catch (error) {
+    if (error instanceof OrganizationSubscriptionExclusivityError) {
+      throw new APIError("BAD_REQUEST", {
+        message: error.message,
+      });
+    }
     throw error;
   }
 }
@@ -345,6 +392,11 @@ export const auth = betterAuth({
             });
           }
 
+          break;
+        }
+        case "/subscription/upgrade":
+        case "/subscription/billing-portal": {
+          await ensureSubscriptionChangeAllowed(ctx);
           break;
         }
       }
