@@ -1,20 +1,16 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
 
 import { requireTaskOwnership } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import {
-  isPrismaTransactionConflict,
-  isPrismaUniqueViolation,
-} from "@/helpers/prisma";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import {
   assertTaskLinkAllowed,
   mapTaskLink,
   mapTaskLinkRelationToWriteData,
 } from "@/helpers/task-link";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -64,61 +60,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
     const { toTaskId: peerTaskId, relation, note } = body;
 
-    const { link, peerTask } = await (async () => {
+    const { link, peerTask } = await serializableTransaction(async (tx) => {
+      await requireTaskOwnership(userContext, id, tx);
+      assertTaskLinkAllowed(id, peerTaskId);
+      const linkData = mapTaskLinkRelationToWriteData(id, peerTaskId, relation);
+
+      const peerTask = await tx.task.findFirst({
+        where: {
+          id: peerTaskId,
+          userId: userContext.userId,
+          workspaceId: workspaceContext.workspaceId,
+        },
+        select: taskLinkPeerTaskSelect,
+      });
+
+      if (!peerTask) {
+        throw notFound("Task not found");
+      }
+
       try {
-        return await prisma.$transaction(
-          async (tx) => {
-            await requireTaskOwnership(userContext, id, tx);
-            assertTaskLinkAllowed(id, peerTaskId);
-            const linkData = mapTaskLinkRelationToWriteData(
-              id,
-              peerTaskId,
-              relation,
-            );
-
-            const peerTask = await tx.task.findFirst({
-              where: {
-                id: peerTaskId,
-                userId: userContext.userId,
-                workspaceId: workspaceContext.workspaceId,
-              },
-              select: taskLinkPeerTaskSelect,
-            });
-
-            if (!peerTask) {
-              throw notFound("Task not found");
-            }
-
-            try {
-              const link = await tx.taskLink.create({
-                data: {
-                  ...linkData,
-                  note: note ?? null,
-                },
-              });
-
-              return {
-                link,
-                peerTask,
-              };
-            } catch (error) {
-              if (isPrismaUniqueViolation(error)) {
-                throw conflict("This task link already exists");
-              }
-              throw error;
-            }
+        const link = await tx.taskLink.create({
+          data: {
+            ...linkData,
+            note: note ?? null,
           },
-          {
-            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-          },
-        );
+        });
+
+        return {
+          link,
+          peerTask,
+        };
       } catch (error) {
-        if (isPrismaTransactionConflict(error)) {
-          throw conflict("Task changed while creating the link. Please retry.");
+        if (isPrismaUniqueViolation(error)) {
+          throw conflict("This task link already exists");
         }
         throw error;
       }
-    })();
+    }, "Task changed while creating the link. Please retry.");
 
     return created(c, mapTaskLink(id, link, peerTask));
   });
