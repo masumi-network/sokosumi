@@ -147,4 +147,34 @@ describe("GET /users/{id}/tasks/count", () => {
     expect(response.status).toBe(403);
     expect(taskCountMock).not.toHaveBeenCalled();
   });
+
+  it("counts delegated coworker tasks only in the active workspace", async () => {
+    const app = createApp(
+      DELEGATED_COWORKER_AUTH_CONTEXT,
+      USER_WORKSPACE_CONTEXT,
+    );
+    const response = await app.request("http://localhost/user_123/count");
+
+    expect(response.status).toBe(200);
+    expect(taskCountMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: "user_123",
+      },
+    });
+  });
+
+  it("rejects scope=all for delegated coworker API keys", async () => {
+    const app = createApp(
+      DELEGATED_COWORKER_AUTH_CONTEXT,
+      USER_WORKSPACE_CONTEXT,
+    );
+    const response = await app.request(
+      "http://localhost/user_123/count?scope=all",
+    );
+
+    expect(response.status).toBe(403);
+    expect(taskCountMock).not.toHaveBeenCalled();
+  });
 });

@@ -3,6 +3,7 @@ import { Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -94,10 +95,14 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
 
       if (authContext.delegation) {
-        const workspaceId =
-          scope === "workspace"
-            ? requireWorkspaceContext(c.var.workspaceContext).workspaceId
-            : undefined;
+        if (scope === "all") {
+          throw forbidden(
+            "Delegated coworker API keys cannot count tasks across all workspaces. Use scope=workspace.",
+          );
+        }
+        const workspaceId = requireWorkspaceContext(
+          c.var.workspaceContext,
+        ).workspaceId;
         where = buildUserOwnedTaskCountWhere(
           resolvedUserId,
           scope,
