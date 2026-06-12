@@ -24,10 +24,13 @@ overrides:
   # ws GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) — @vercel/functions@3.7.0
   # ships ws@8.20.0 (vulnerable). Force all ws 8.x resolutions to the patched line.
   "ws@>=8.0.0 <8.20.1": "8.21.0"
-  # @better-auth/* plugins resolved their @better-auth/core peer dep against 1.6.16
-  # after a brief install of better-auth@1.6.16. Pin core to 1.6.15 so all plugin
-  # instances resolve against the same version as better-auth@1.6.15 itself.
-  "@better-auth/core": "1.6.15"
+  # Force transitive deps that better-auth@1.6.17 bumped to a single version across
+  # the whole tree. @better-auth/infra@0.2.14 still ranges on the old versions, so
+  # without these overrides pnpm deduplicates to the older copies and
+  # createAuthEndpoint.serverOnly is missing at runtime.
+  "@better-auth/core": "1.6.17"
+  "better-call": "1.3.6"
+  "@better-fetch/fetch": "1.3.0"
 
 allowBuilds:
   # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).
