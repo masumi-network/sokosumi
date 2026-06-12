@@ -166,9 +166,20 @@ function parseSetCookie(raw: string): ParsedSetCookie | null {
   }
 
   const name = nameValue.slice(0, separatorIndex).trim();
-  const value = nameValue.slice(separatorIndex + 1).trim();
+  const rawValue = nameValue.slice(separatorIndex + 1).trim();
   if (!name) {
     return null;
+  }
+
+  // The wire value is already percent-encoded (Better Auth serializes with
+  // encodeURIComponent) and Next's cookieStore.set encodes again on write, so
+  // relay the decoded value or the session token reaches core double-encoded
+  // and fails signature verification.
+  let value = rawValue;
+  try {
+    value = decodeURIComponent(rawValue);
+  } catch {
+    // Not valid percent-encoding — relay verbatim.
   }
 
   const options: ParsedSetCookie["options"] = {};

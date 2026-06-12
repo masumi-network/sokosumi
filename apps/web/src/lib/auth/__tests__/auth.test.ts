@@ -168,6 +168,75 @@ describe("auth facade", () => {
       },
     );
   });
+  it("decodes percent-encoded cookie values so Next's re-encoding does not double-encode them", async () => {
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi.session_token=tok.sig%2Fwith%2Bencoded%3D; Path=/; HttpOnly; SameSite=Lax",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+    await auth.api.signInEmail({
+      body: { email: "jane@example.com", password: "pw-123456" },
+      headers: new Headers(),
+    });
+
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      "sokosumi.session_token",
+      "tok.sig/with+encoded=",
+      {
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+      },
+    );
+  });
+
+  it("relays a malformed percent sequence verbatim instead of throwing", async () => {
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi.session_token=raw%ZZvalue; Path=/; SameSite=Lax",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+    await auth.api.signInEmail({
+      body: { email: "jane@example.com", password: "pw-123456" },
+      headers: new Headers(),
+    });
+
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      "sokosumi.session_token",
+      "raw%ZZvalue",
+      {
+        path: "/",
+        sameSite: "lax",
+      },
+    );
+  });
+
   it("skips the Set-Cookie relay in read-only (RSC) contexts instead of failing the call", async () => {
     cookieSetMock.mockImplementation(() => {
       throw new Error(
