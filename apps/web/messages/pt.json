@@ -257,7 +257,7 @@
       "history": "Histórico",
       "new": "Novo",
       "projects": "Projetos",
-      "credit-grants": "Conceder créditos"
+      "invoices": "Faturas"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2607,16 +2607,16 @@
             "title": "Contratos empresariais",
             "description": "Crie e faça a gestão de contratos empresariais em rascunho, ativos e cancelados."
           },
-          "creditGrants": {
-            "title": "Conceder créditos",
-            "description": "Conceda créditos únicos a uma organização através de uma fatura Stripe."
+          "invoices": {
+            "title": "Faturas",
+            "description": "Veja as faturas de administração e conceda créditos únicos a um utilizador ou organização."
           }
         }
       },
-      "CreditGrants": {
-        "title": "Conceder créditos",
-        "description": "Conceda créditos únicos a uma organização através de uma fatura Stripe. Ao marcar a fatura como paga, os créditos são concedidos instantaneamente.",
-        "cardTitle": "Nova concessão de créditos",
+      "Invoices": {
+        "title": "Faturas",
+        "description": "Conceda créditos únicos a um utilizador ou organização através de uma fatura Stripe. Ao marcar a fatura como paga, os créditos são concedidos instantaneamente.",
+        "cardTitle": "Nova fatura",
         "Form": {
           "Fields": {
             "organization": "Organização",
@@ -2640,7 +2640,7 @@
           "priceRequired": "Selecione um preço"
         },
         "Result": {
-          "heading": "Fatura de concessão de créditos",
+          "heading": "Fatura",
           "pendingHelper": "Marque a fatura como paga para conceder os créditos instantaneamente, ou deixe-a para ser paga no Stripe.",
           "paidHelper": "A fatura está paga e os créditos foram concedidos à organização.",
           "organization": "Organização",

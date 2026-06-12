@@ -55,6 +55,7 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  createAdminInvoice as coreCreateAdminInvoice,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -66,6 +67,7 @@ import {
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
+  getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -117,6 +119,9 @@ import {
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
+  listAdminInvoices as coreListAdminInvoices,
+  listCreditPrices as coreListCreditPrices,
+  markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -535,6 +540,89 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch jobs",
+    );
+  }
+
+  async function listAdminInvoices(query: {
+    status?:
+      | "unfinished"
+      | "all"
+      | "draft"
+      | "open"
+      | "paid"
+      | "uncollectible"
+      | "void";
+    recipientType?: "user" | "organization";
+    recipientId?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminInvoices({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list admin invoices",
+    );
+  }
+
+  async function createAdminInvoice(body: {
+    targetType: "user" | "organization";
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    priceId: string | null;
+    markFree: boolean;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminInvoice({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create admin invoice",
+    );
+  }
+
+  async function getAdminInvoice(invoiceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAdminInvoice({
+          client,
+          path: { id: invoiceId },
+          cache: "no-store",
+        }),
+      "Failed to fetch admin invoice",
+    );
+  }
+
+  async function markAdminInvoicePaid(invoiceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreMarkAdminInvoicePaid({
+          client,
+          path: { id: invoiceId },
+          cache: "no-store",
+        }),
+      "Failed to mark admin invoice paid",
+    );
+  }
+
+  async function listCreditPrices() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListCreditPrices({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to list credit prices",
     );
   }
 
@@ -2131,6 +2219,11 @@ export function createCoreClient(getClient: GetClient) {
     searchAdminUsers,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
+    listAdminInvoices,
+    createAdminInvoice,
+    getAdminInvoice,
+    markAdminInvoicePaid,
+    listCreditPrices,
     getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,

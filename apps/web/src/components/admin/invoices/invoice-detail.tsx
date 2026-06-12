@@ -7,18 +7,17 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { markCreditGrantInvoicePaidAction } from "@/lib/actions/credit-grant/action";
-import type { CreditGrantInvoiceSummary } from "@/lib/services/invoice-admin.service";
+import { markAdminInvoicePaidAction } from "@/lib/actions/invoice-admin/action";
+import type { InvoiceSummary } from "@/lib/services/invoice-admin.service";
 
 interface InvoiceDetailProps {
-  invoice: CreditGrantInvoiceSummary;
+  invoice: InvoiceSummary;
 }
 
 export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
-  const t = useTranslations("App.Admin.CreditGrants");
+  const t = useTranslations("App.Admin.Invoices");
   const formatter = useFormatter();
-  const [invoice, setInvoice] =
-    useState<CreditGrantInvoiceSummary>(initialInvoice);
+  const [invoice, setInvoice] = useState<InvoiceSummary>(initialInvoice);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   const isPaid = invoice.status === "paid";
@@ -28,7 +27,7 @@ export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
   async function handleMarkPaid() {
     setIsMarkingPaid(true);
     try {
-      const result = await markCreditGrantInvoicePaidAction({
+      const result = await markAdminInvoicePaidAction({
         invoiceId: invoice.invoiceId,
       });
       if (!result.ok) {

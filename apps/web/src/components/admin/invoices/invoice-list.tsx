@@ -32,21 +32,21 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import { listCreditGrantInvoicesAction } from "@/lib/actions/credit-grant/action";
+import { listAdminInvoicesAction } from "@/lib/actions/invoice-admin/action";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
-  CreditGrantInvoiceListItem,
-  CreditGrantInvoiceStatusFilter,
-  CreditGrantTargetType,
+  InvoiceListItem,
+  InvoiceStatusFilter,
+  InvoiceTargetType,
 } from "@/lib/services/invoice-admin.service";
 
 interface InvoiceListProps {
-  initialInvoices: CreditGrantInvoiceListItem[];
+  initialInvoices: InvoiceListItem[];
 }
 
 type RecipientFilter = {
-  targetType: CreditGrantTargetType;
+  targetType: InvoiceTargetType;
   targetId: string;
 } | null;
 
@@ -58,7 +58,7 @@ const STATUS_FILTERS = [
   "paid",
   "void",
   "uncollectible",
-] as const satisfies readonly CreditGrantInvoiceStatusFilter[];
+] as const satisfies readonly InvoiceStatusFilter[];
 
 const STATUS_BADGE_VARIANT: Record<
   string,
@@ -72,7 +72,7 @@ const STATUS_BADGE_VARIANT: Record<
 };
 
 /**
- * Filterable admin list of credit-grant invoices. Filters are kept in local
+ * Filterable admin list of admin invoices. Filters are kept in local
  * state (not URL/`nuqs` like the enterprise-contracts table) and re-fetch
  * through a server action: the recipient filter is a live async-search
  * combobox whose selected option carries its display label, so URL state would
@@ -81,17 +81,15 @@ const STATUS_BADGE_VARIANT: Record<
  * `initialInvoices`, so first paint needs no client fetch.
  */
 export function InvoiceList({ initialInvoices }: InvoiceListProps) {
-  const t = useTranslations("App.Admin.CreditGrants.InvoiceList");
+  const t = useTranslations("App.Admin.Invoices.InvoiceList");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
   const formatter = useFormatter();
 
-  const [invoices, setInvoices] =
-    useState<CreditGrantInvoiceListItem[]>(initialInvoices);
-  const [status, setStatus] =
-    useState<CreditGrantInvoiceStatusFilter>("unfinished");
+  const [invoices, setInvoices] = useState<InvoiceListItem[]>(initialInvoices);
+  const [status, setStatus] = useState<InvoiceStatusFilter>("unfinished");
   const [recipientType, setRecipientType] =
-    useState<CreditGrantTargetType>("organization");
+    useState<InvoiceTargetType>("organization");
   const [selectedOrg, setSelectedOrg] =
     useState<AdminOrganizationOption | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
@@ -113,12 +111,12 @@ export function InvoiceList({ initialInvoices }: InvoiceListProps) {
   const latestRequestId = useRef(0);
 
   function applyFilters(
-    nextStatus: CreditGrantInvoiceStatusFilter,
+    nextStatus: InvoiceStatusFilter,
     nextRecipient: RecipientFilter,
   ) {
     const requestId = ++latestRequestId.current;
     startTransition(async () => {
-      const result = await listCreditGrantInvoicesAction({
+      const result = await listAdminInvoicesAction({
         status: nextStatus,
         recipient: nextRecipient,
       });
@@ -134,7 +132,7 @@ export function InvoiceList({ initialInvoices }: InvoiceListProps) {
   }
 
   function recipientFor(
-    type: CreditGrantTargetType,
+    type: InvoiceTargetType,
     org: AdminOrganizationOption | null,
     user: AdminUserOption | null,
   ): RecipientFilter {
@@ -143,13 +141,13 @@ export function InvoiceList({ initialInvoices }: InvoiceListProps) {
   }
 
   function handleStatusChange(value: string) {
-    const next = value as CreditGrantInvoiceStatusFilter;
+    const next = value as InvoiceStatusFilter;
     setStatus(next);
     applyFilters(next, recipientFor(recipientType, selectedOrg, selectedUser));
   }
 
   function handleRecipientTypeChange(value: string) {
-    const next = value as CreditGrantTargetType;
+    const next = value as InvoiceTargetType;
     const before = recipientFor(recipientType, selectedOrg, selectedUser);
     const after = recipientFor(next, selectedOrg, selectedUser);
     setRecipientType(next);

@@ -2610,7 +2610,7 @@
           "noExpiry": "No expiry"
         }
       },
-      "CreditGrants": {
+      "Invoices": {
         "title": "Invoices",
         "description": "Grant one-time credits to a user or organization via a Stripe invoice. Marking the invoice paid grants the credits instantly.",
         "cardTitle": "New invoice",
@@ -2646,7 +2646,7 @@
           "priceRequired": "Select a price"
         },
         "Result": {
-          "heading": "Credit grant invoice",
+          "heading": "Invoice",
           "pendingHelper": "Mark the invoice paid to grant the credits instantly, or leave it to be paid in Stripe.",
           "paidHelper": "The invoice is paid and the credits have been granted to the recipient.",
           "organization": "Organization",
@@ -2666,7 +2666,7 @@
           "loadError": "Failed to load invoice"
         },
         "InvoiceList": {
-          "empty": "No credit-grant invoices match the current filters.",
+          "empty": "No invoices match the current filters.",
           "loadError": "Failed to load invoices",
           "recipient": "Recipient",
           "typeUser": "User",
@@ -2706,9 +2706,9 @@
             "title": "Enterprise contracts",
             "description": "Create and manage draft, active, and canceled enterprise contracts."
           },
-          "creditGrants": {
+          "invoices": {
             "title": "Invoices",
-            "description": "View credit-grant invoices and grant one-time credits to a user or organization."
+            "description": "View admin invoices and grant one-time credits to a user or organization."
           }
         }
       }

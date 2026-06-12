@@ -257,7 +257,7 @@
       "history": "Historial",
       "new": "Nuevo",
       "projects": "Proyectos",
-      "credit-grants": "Otorgar créditos"
+      "invoices": "Facturas"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2576,16 +2576,16 @@
             "title": "Contratos empresariales",
             "description": "Crea y gestiona contratos empresariales en borrador, activos y cancelados."
           },
-          "creditGrants": {
-            "title": "Otorgar créditos",
-            "description": "Otorga créditos únicos a una organización mediante una factura de Stripe."
+          "invoices": {
+            "title": "Facturas",
+            "description": "Consulta las facturas de administración y otorga créditos únicos a un usuario u organización."
           }
         }
       },
-      "CreditGrants": {
-        "title": "Otorgar créditos",
-        "description": "Otorga créditos únicos a una organización mediante una factura de Stripe. Al marcar la factura como pagada, los créditos se otorgan al instante.",
-        "cardTitle": "Nueva concesión de créditos",
+      "Invoices": {
+        "title": "Facturas",
+        "description": "Otorga créditos únicos a un usuario u organización mediante una factura de Stripe. Al marcar la factura como pagada, los créditos se otorgan al instante.",
+        "cardTitle": "Nueva factura",
         "Form": {
           "Fields": {
             "organization": "Organización",
@@ -2609,7 +2609,7 @@
           "priceRequired": "Selecciona un precio"
         },
         "Result": {
-          "heading": "Factura de concesión de créditos",
+          "heading": "Factura",
           "pendingHelper": "Marca la factura como pagada para otorgar los créditos al instante, o déjala para pagarla en Stripe.",
           "paidHelper": "La factura está pagada y los créditos se han otorgado a la organización.",
           "organization": "Organización",

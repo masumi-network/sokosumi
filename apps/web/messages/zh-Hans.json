@@ -257,7 +257,7 @@
       "history": "历史记录",
       "new": "新建",
       "projects": "项目",
-      "credit-grants": "授予积分"
+      "invoices": "发票"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2607,16 +2607,16 @@
             "title": "企业合同",
             "description": "创建和管理草稿、生效中以及已取消的企业合同。"
           },
-          "creditGrants": {
-            "title": "授予积分",
-            "description": "通过 Stripe 发票向组织授予一次性积分。"
+          "invoices": {
+            "title": "发票",
+            "description": "查看管理发票，并通过发票向用户或组织授予一次性积分。"
           }
         }
       },
-      "CreditGrants": {
-        "title": "授予积分",
-        "description": "通过 Stripe 发票向组织授予一次性积分。将发票标记为已支付后，积分将立即授予。",
-        "cardTitle": "新建积分授予",
+      "Invoices": {
+        "title": "发票",
+        "description": "通过 Stripe 发票向用户或组织授予一次性积分。将发票标记为已支付后，积分将立即授予。",
+        "cardTitle": "新建发票",
         "Form": {
           "Fields": {
             "organization": "组织",
@@ -2640,7 +2640,7 @@
           "priceRequired": "请选择价格"
         },
         "Result": {
-          "heading": "积分授予发票",
+          "heading": "发票",
           "pendingHelper": "将发票标记为已支付即可立即授予积分，或留待在 Stripe 中支付。",
           "paidHelper": "发票已支付，积分已授予该组织。",
           "organization": "组织",

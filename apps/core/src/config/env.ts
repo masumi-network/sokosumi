@@ -100,6 +100,9 @@ const envSchema = z.object({
   // Welcome coupon granted to new user customers (customer.created handler)
   STRIPE_WELCOME_COUPON: z.string().min(1),
 
+  // 100%-off coupon used to issue admin credit grants free of charge
+  STRIPE_SUPPORT_COUPON: z.string().min(1),
+
   // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 

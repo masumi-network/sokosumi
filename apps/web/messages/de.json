@@ -257,7 +257,7 @@
       "history": "Verlauf",
       "new": "Neu",
       "projects": "Projekte",
-      "credit-grants": "Credits gewähren"
+      "invoices": "Rechnungen"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2576,16 +2576,16 @@
             "title": "Enterprise-Verträge",
             "description": "Entwürfe sowie aktive und stornierte Enterprise-Verträge erstellen und verwalten."
           },
-          "creditGrants": {
-            "title": "Credits gewähren",
-            "description": "Einer Organisation einmalige Credits über eine Stripe-Rechnung gewähren."
+          "invoices": {
+            "title": "Rechnungen",
+            "description": "Admin-Rechnungen ansehen und einem Benutzer oder einer Organisation einmalige Credits gewähren."
           }
         }
       },
-      "CreditGrants": {
-        "title": "Credits gewähren",
-        "description": "Gewähren Sie einer Organisation einmalige Credits über eine Stripe-Rechnung. Sobald die Rechnung als bezahlt markiert ist, werden die Credits sofort gewährt.",
-        "cardTitle": "Neue Credit-Gewährung",
+      "Invoices": {
+        "title": "Rechnungen",
+        "description": "Gewähren Sie einem Benutzer oder einer Organisation einmalige Credits über eine Stripe-Rechnung. Sobald die Rechnung als bezahlt markiert ist, werden die Credits sofort gewährt.",
+        "cardTitle": "Neue Rechnung",
         "Form": {
           "Fields": {
             "organization": "Organisation",
@@ -2609,7 +2609,7 @@
           "priceRequired": "Wählen Sie einen Preis aus"
         },
         "Result": {
-          "heading": "Credit-Gewährungsrechnung",
+          "heading": "Rechnung",
           "pendingHelper": "Markieren Sie die Rechnung als bezahlt, um die Credits sofort zu gewähren, oder lassen Sie sie in Stripe bezahlen.",
           "paidHelper": "Die Rechnung ist bezahlt und die Credits wurden der Organisation gewährt.",
           "organization": "Organisation",

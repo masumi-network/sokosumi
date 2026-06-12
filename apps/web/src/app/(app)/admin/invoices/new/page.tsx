@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewInvoicePage() {
-  const t = await getTranslations("App.Admin.CreditGrants");
+  const t = await getTranslations("App.Admin.Invoices");
   const prices = await invoiceAdminService.listPrices();
 
   return (

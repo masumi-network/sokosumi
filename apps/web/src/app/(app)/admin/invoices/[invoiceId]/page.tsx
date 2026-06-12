@@ -6,12 +6,12 @@ import { getTranslations } from "next-intl/server";
 import { InvoiceDetail } from "@/components/admin/invoices/invoice-detail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getCreditGrantInvoiceAction } from "@/lib/actions/credit-grant/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
+import { getAdminInvoiceAction } from "@/lib/actions/invoice-admin/action";
 
 export const metadata: Metadata = {
-  title: "Credit grant invoice",
-  description: "Credit grant invoice detail",
+  title: "Invoice",
+  description: "Admin invoice detail",
 };
 
 interface InvoiceDetailPageProps {
@@ -22,8 +22,8 @@ export default async function InvoiceDetailPage({
   params,
 }: InvoiceDetailPageProps) {
   const { invoiceId } = await params;
-  const t = await getTranslations("App.Admin.CreditGrants");
-  const result = await getCreditGrantInvoiceAction({ invoiceId });
+  const t = await getTranslations("App.Admin.Invoices");
+  const result = await getAdminInvoiceAction({ invoiceId });
 
   if (!result.ok) {
     if (result.error.code === CommonErrorCode.NOT_FOUND) {

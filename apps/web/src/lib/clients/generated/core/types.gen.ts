@@ -35,6 +35,44 @@ export type AdminOrganizationOption = {
     slug: string;
 };
 
+export type InvoiceListItem = {
+    invoiceId: string;
+    targetType: 'user' | 'organization' | null;
+    targetName: string | null;
+    credits: number;
+    ttlDays: number | null;
+    currency: string;
+    amountDue: number;
+    status: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void' | null;
+    /**
+     * Unix ms timestamp
+     */
+    createdAt: number;
+    dashboardUrl: string;
+};
+
+export type InvoiceSummary = {
+    invoiceId: string;
+    targetType: 'user' | 'organization';
+    targetId: string;
+    targetName: string;
+    credits: number;
+    ttlDays: number | null;
+    currency: string;
+    amountDue: number;
+    status: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void' | null;
+    dashboardUrl: string;
+};
+
+export type CreateInvoice = {
+    targetType: 'user' | 'organization';
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    priceId: string | null;
+    markFree: boolean;
+};
+
 export type Agent = {
     id: string;
     createdAt: Date;
@@ -2029,6 +2067,13 @@ export type MasumiTaskPaymentSource = {
     policyId: string;
 };
 
+export type CreditPriceOption = {
+    id: string;
+    amountPerCredit: number;
+    currency: string;
+    nickname: string | null;
+};
+
 export type EffectiveDesignMd = {
     /**
      * The effective DESIGN.md, or null when none
@@ -2253,6 +2298,374 @@ export type GetAdminOrganizationBySlugResponses = {
 };
 
 export type GetAdminOrganizationBySlugResponse = GetAdminOrganizationBySlugResponses[keyof GetAdminOrganizationBySlugResponses];
+
+export type ListAdminInvoicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Status filter: "unfinished" (draft + open, the default), "all", or a specific Stripe invoice status.
+         */
+        status?: 'unfinished' | 'all' | 'draft' | 'open' | 'paid' | 'uncollectible' | 'void';
+        recipientType?: 'user' | 'organization';
+        recipientId?: string;
+        limit?: number;
+    };
+    url: '/admin/invoices';
+};
+
+export type ListAdminInvoicesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminInvoicesError = ListAdminInvoicesErrors[keyof ListAdminInvoicesErrors];
+
+export type ListAdminInvoicesResponses = {
+    /**
+     * Admin invoices matching the filter
+     */
+    200: {
+        data: Array<InvoiceListItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminInvoicesResponse = ListAdminInvoicesResponses[keyof ListAdminInvoicesResponses];
+
+export type CreateAdminInvoiceData = {
+    body?: CreateInvoice;
+    path?: never;
+    query?: never;
+    url: '/admin/invoices';
+};
+
+export type CreateAdminInvoiceErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminInvoiceError = CreateAdminInvoiceErrors[keyof CreateAdminInvoiceErrors];
+
+export type CreateAdminInvoiceResponses = {
+    /**
+     * The created admin invoice
+     */
+    200: {
+        data: InvoiceSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminInvoiceResponse = CreateAdminInvoiceResponses[keyof CreateAdminInvoiceResponses];
+
+export type MarkAdminInvoicePaidData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe invoice ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/invoices/{id}/pay';
+};
+
+export type MarkAdminInvoicePaidErrors = {
+    /**
+     * Bad Request - not an admin invoice, or credits were not granted
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - invoice missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkAdminInvoicePaidError = MarkAdminInvoicePaidErrors[keyof MarkAdminInvoicePaidErrors];
+
+export type MarkAdminInvoicePaidResponses = {
+    /**
+     * The paid admin invoice
+     */
+    200: {
+        data: InvoiceSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type MarkAdminInvoicePaidResponse = MarkAdminInvoicePaidResponses[keyof MarkAdminInvoicePaidResponses];
+
+export type GetAdminInvoiceData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe invoice ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/invoices/{id}';
+};
+
+export type GetAdminInvoiceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - invoice missing or not an admin invoice
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminInvoiceError = GetAdminInvoiceErrors[keyof GetAdminInvoiceErrors];
+
+export type GetAdminInvoiceResponses = {
+    /**
+     * The admin invoice
+     */
+    200: {
+        data: InvoiceSummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminInvoiceResponse = GetAdminInvoiceResponses[keyof GetAdminInvoiceResponses];
 
 export type GetAgentsData = {
     body?: never;
@@ -19407,6 +19820,62 @@ export type PostTasksByIdJobsResponses = {
 };
 
 export type PostTasksByIdJobsResponse = PostTasksByIdJobsResponses[keyof PostTasksByIdJobsResponses];
+
+export type ListCreditPricesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/products/credits';
+};
+
+export type ListCreditPricesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCreditPricesError = ListCreditPricesErrors[keyof ListCreditPricesErrors];
+
+export type ListCreditPricesResponses = {
+    /**
+     * Active credit prices, sorted by currency then amount per credit
+     */
+    200: {
+        data: Array<CreditPriceOption>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCreditPricesResponse = ListCreditPricesResponses[keyof ListCreditPricesResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;
