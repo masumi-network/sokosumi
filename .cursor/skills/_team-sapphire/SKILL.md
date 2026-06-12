@@ -77,7 +77,7 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
   4. If `target` is Tech Lead or later and there is no **session investigation** in this run → set `target` to **Investigator** (even when Investigator = `done` on Linear).
   5. Run from `target` through all later phases in this session.
 - If `**PR handoff**` + open PR exist and Coder = `done`, `target` is normally **Reviewer** — steps 3–4 still apply when session spec or investigation is missing.
-- If **every** status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — rebuild session spec via Tech Lead (and Investigator if needed) when missing, then verify PR + `/goal`; on pass set `In Review` and post `**Sapphire · Reviewer complete**`.
+- If **every** status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — rebuild session spec via Tech Lead (and Investigator if needed) when missing, then verify PR + `/goal`; on pass run **Completion** gate per `REVIEWER.md` (comment → Reviewer row `done` if needed → `state: "In Review"` only), then **Exit gate** per `PHASE-GATE.md`.
 - If **every** status row is `done` and issue is **`In Review`**, stop — await human merge.
 
 ## Workflow
@@ -140,7 +140,7 @@ Use `## Sapphire status` for progress on Linear; **session artifacts** decide wh
 | New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
 | `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
 | `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
-| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, then set `In Review` when criteria pass |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, verify PR + `/goal`; on pass run **Completion** gate then **Exit gate** |
 | Issue `In Review` + Reviewer done | Stop — await human merge |
 
 ## Output

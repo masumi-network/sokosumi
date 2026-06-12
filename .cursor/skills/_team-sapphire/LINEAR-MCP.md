@@ -132,7 +132,7 @@ Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; s
 | New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
 | `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
 | `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
-| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, then set `In Review` when criteria pass |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, verify PR + `/goal`; on pass run **Completion** gate then **Exit gate** |
 
 ## Post-run response
 
