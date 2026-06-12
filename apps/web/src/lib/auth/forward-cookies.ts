@@ -20,7 +20,7 @@ function parseCookieHeader(cookieHeader: string): Map<string, string> {
     }
     const name = chunk.slice(0, eq).trim();
     const value = chunk.slice(eq + 1).trim();
-    if (name) {
+    if (name && !parsed.has(name)) {
       parsed.set(name, value);
     }
   }

@@ -5,9 +5,11 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const headersMock = vi.fn(async () => new Headers());
+const buildAuthRequestHeadersForForwardingMock = vi.fn();
 const cookieDeleteMock = vi.fn();
 const cookiesMock = vi.fn(async () => ({
   delete: cookieDeleteMock,
+  getAll: () => [],
 }));
 const upgradeSubscriptionMock = vi.fn();
 const createBillingPortalMock = vi.fn();
@@ -16,6 +18,12 @@ const updateOrganizationSeatsImmediatelyMock = vi.fn();
 vi.mock("next/headers", () => ({
   cookies: cookiesMock,
   headers: headersMock,
+}));
+
+vi.mock("@/lib/auth/forward-cookies", () => ({
+  buildAuthRequestHeadersForForwarding: () =>
+    buildAuthRequestHeadersForForwardingMock(),
+  sanitizeForwardCookieHeader: (cookieHeader: string) => cookieHeader,
 }));
 
 vi.mock("@/lib/auth/auth", () => ({
@@ -73,6 +81,7 @@ const organizationSession = {
 describe("subscription actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    buildAuthRequestHeadersForForwardingMock.mockResolvedValue(new Headers());
   });
 
   it("returns BAD_INPUT for invalid plan names", async () => {

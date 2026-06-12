@@ -1,4 +1,7 @@
-import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
+import {
+  resolveBetterAuthCookiePrefix,
+  resolveBetterAuthRequestCookieDomain,
+} from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -25,30 +28,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // Better Auth default session expiry
 const MARKER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const LEGACY_CROSS_PORT_MARKER_SUFFIX = "session_cross_port_scoped";
-
-function resolveSharedAuthCookieDomain(
-  request: NextRequest,
-  configuredDomain: string | undefined,
-): string | undefined {
-  const hostname = request.nextUrl.hostname.toLowerCase();
-
-  // Mirror apps/core/src/lib/auth.ts: development cookies always use localhost,
-  // even when .env copies production `sokosumi.com` (browsers reject that here).
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return "localhost";
-  }
-
-  if (!configuredDomain) {
-    return undefined;
-  }
-
-  const domain = configuredDomain.replace(/^\./, "").toLowerCase();
-  if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-    return domain;
-  }
-
-  return undefined;
-}
 
 function hasSharedAuthCookieShimMarker(
   request: NextRequest,
@@ -174,7 +153,10 @@ export async function proxy(request: NextRequest) {
     request,
     response,
     betterAuthCookiePrefix,
-    resolveSharedAuthCookieDomain(request, env.BETTER_AUTH_COOKIE_DOMAIN),
+    resolveBetterAuthRequestCookieDomain({
+      hostname: request.nextUrl.hostname,
+      configuredDomain: env.BETTER_AUTH_COOKIE_DOMAIN,
+    }),
   );
 
   // Skip session check for excluded paths (but still set headers above)

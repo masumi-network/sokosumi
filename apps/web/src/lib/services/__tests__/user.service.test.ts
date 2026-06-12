@@ -45,6 +45,11 @@ vi.mock("@/lib/auth/utils", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
+vi.mock("@/lib/auth/forward-cookies", () => ({
+  buildAuthRequestHeadersForForwarding: vi.fn(async () => new Headers()),
+  sanitizeForwardCookieHeader: (cookieHeader: string) => cookieHeader,
+}));
+
 vi.mock("@/lib/auth/auth", () => ({
   auth: {
     api: {

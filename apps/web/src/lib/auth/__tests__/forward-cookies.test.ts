@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -25,12 +25,12 @@ describe("sanitizeForwardCookieHeader", () => {
     expect(sanitized).not.toContain("stale-host-only");
   });
 
-  it("drops a trailing stale duplicate of the same cookie name", () => {
+  it("keeps the first value when the same cookie name appears twice", () => {
     const sanitized = sanitizeForwardCookieHeader(
       "sokosumi.session_token=valid; other=1; sokosumi.session_token=stale",
     );
 
-    expect(sanitized).toBe("sokosumi.session_token=stale; other=1");
+    expect(sanitized).toBe("sokosumi.session_token=valid; other=1");
   });
 
   it("collapses secure and non-secure session_data cookies", () => {

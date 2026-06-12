@@ -19,13 +19,15 @@ const deleteJobsByIdShareMock = vi.fn();
 const deleteTasksByIdShareMock = vi.fn();
 const postAgentsByIdJobsMock = vi.fn();
 const createClientMock = vi.fn();
-const headersMock = vi.fn();
+const buildAuthRequestHeadersForForwardingMock = vi.fn();
 const mockClient = {
   id: "core-client",
 } as never;
 
-vi.mock("next/headers", () => ({
-  headers: () => headersMock(),
+vi.mock("@/lib/auth/forward-cookies", () => ({
+  buildAuthRequestHeadersForForwarding: () =>
+    buildAuthRequestHeadersForForwardingMock(),
+  sanitizeForwardCookieHeader: (cookieHeader: string) => cookieHeader,
 }));
 
 vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
@@ -60,7 +62,7 @@ describe("core.client", () => {
     vi.clearAllMocks();
     vi.resetModules();
 
-    headersMock.mockResolvedValue(
+    buildAuthRequestHeadersForForwardingMock.mockResolvedValue(
       new Headers({
         cookie: "session=abc",
         "x-organization-slug": "my-org",

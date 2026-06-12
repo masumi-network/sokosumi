@@ -16,6 +16,11 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
+vi.mock("@/lib/auth/forward-cookies", () => ({
+  buildAuthRequestHeadersForForwarding: vi.fn(async () => new Headers()),
+  sanitizeForwardCookieHeader: (cookieHeader: string) => cookieHeader,
+}));
+
 vi.mock("stripe", () => ({
   __esModule: true,
   default: vi.fn(function MockStripe() {

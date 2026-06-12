@@ -7,6 +7,12 @@ export {
   betterAuthUserAdditionalFields,
 } from "./better-auth-additional-fields.js";
 export {
+  type ResolveBetterAuthRequestCookieDomainParams,
+  resolveBetterAuthIssuerCookieDomain,
+  resolveBetterAuthRequestCookieDomain,
+  shouldClearHostOnlyAuthCookieDuplicate,
+} from "./better-auth-cookie-domain.js";
+export {
   type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,

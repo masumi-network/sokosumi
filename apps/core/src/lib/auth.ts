@@ -30,6 +30,7 @@ import {
   ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
+  resolveBetterAuthIssuerCookieDomain,
 } from "@sokosumi/utils";
 import {
   APIError,
@@ -78,10 +79,10 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
-// Local .env files often copy production `sokosumi.com`; browsers reject that
-// domain on localhost, which breaks sign-in. Development always uses localhost.
-const betterAuthCookieDomain =
-  env.NODE_ENV === "development" ? "localhost" : env.BETTER_AUTH_COOKIE_DOMAIN;
+const betterAuthCookieDomain = resolveBetterAuthIssuerCookieDomain(
+  env.BETTER_AUTH_COOKIE_DOMAIN,
+  env.NODE_ENV,
+);
 
 const fromEmail = env.POSTMARK_FROM_EMAIL;
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);

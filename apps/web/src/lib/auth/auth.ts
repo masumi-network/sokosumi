@@ -5,6 +5,8 @@ import { stripeClient } from "@better-auth/stripe/client";
 import {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
+  resolveBetterAuthIssuerCookieDomain,
+  shouldClearHostOnlyAuthCookieDuplicate,
 } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 import { createAuthClient } from "better-auth/client";
@@ -273,17 +275,6 @@ function parseSetCookie(raw: string): ParsedSetCookie | null {
   return { name, value, options };
 }
 
-function shouldClearHostOnlySessionDuplicate(
-  domain: string | undefined,
-): boolean {
-  if (!domain) {
-    return false;
-  }
-
-  const normalized = domain.replace(/^\./, "").toLowerCase();
-  return normalized !== "localhost" && normalized !== "127.0.0.1";
-}
-
 function withLocalhostRelayCookieDomain(
   options: ParsedSetCookie["options"],
 ): ParsedSetCookie["options"] {
@@ -291,7 +282,10 @@ function withLocalhostRelayCookieDomain(
     return options;
   }
 
-  return { ...options, domain: "localhost" };
+  return {
+    ...options,
+    domain: resolveBetterAuthIssuerCookieDomain("localhost", "development"),
+  };
 }
 
 /**
@@ -316,7 +310,7 @@ async function relaySetCookies(response: Response): Promise<void> {
     try {
       const options = withLocalhostRelayCookieDomain(parsed.options);
       cookieStore.set(parsed.name, parsed.value, options);
-      if (shouldClearHostOnlySessionDuplicate(options.domain)) {
+      if (shouldClearHostOnlyAuthCookieDuplicate(options.domain)) {
         // Production migration only: drop stale host-only duplicates after
         // re-scoping to the shared parent domain. Never do this for localhost
         // — it races with the domain cookie we just set on email sign-in.
