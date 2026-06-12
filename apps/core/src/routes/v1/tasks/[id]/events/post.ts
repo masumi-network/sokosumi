@@ -14,6 +14,7 @@ import {
 } from "@/helpers/agent";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import {
   isTaskStatusSpendable,
@@ -119,145 +120,168 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { event, userId, masumiPayment } = await prisma.$transaction(
-      async (tx) => {
-        const task = await requireTaskCollaboration(authContext, taskId, tx);
-        const {
-          status,
-          comment,
-          credits,
-          authenticationUrl,
-          origin,
-          masumiPayment,
-        } = body;
-
-        if (status !== undefined) {
-          validateStatusTransition(authContext, task.status, status);
-          validateTaskCoworkerAssignment({
-            status,
-            coworkerId: task.coworkerId,
-          });
-
-          // Only the assigned coworker agent settles billing.
-          const isAgent = isCoworkerAgentContext(authContext);
-          const isAgentSpend = isAgent && isTaskStatusSpendable(status);
-
-          // User and delegated-coworker callers use the user transition table,
-          // and the charge branch below is gated on isAgent — so credits from
-          // them would be silently dropped. Reject it.
-          //
-          // masumiPayment needs no check here: the schema only allows it with
-          // status COMPLETED, which the user transition table can never reach,
-          // so a non-agent caller is already rejected upstream (400/422).
-          if (!isAgent && credits != null) {
-            throw unprocessableEntity(
-              "Only the assigned coworker can set credits when changing task status",
-            );
-          }
-
-          let cents: bigint | undefined;
-          let transactionId: string | null = null;
-
-          if (isAgentSpend) {
-            if (masumiPayment) {
-              console.info("[tasks] masumi task payment: using masumiPayment", {
-                masumiPayment,
-              });
-              const creditCosts = await getCreditCostsOrThrow(tx);
-              cents = calculateCentsFromMasumiAmountStrings(
-                masumiPayment.Amounts,
-                creditCosts,
-              );
-              if (cents === 0n) {
-                throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-                );
-              }
-              const creditsValue = convertCentsToCredits(cents);
-              if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
-                throw unprocessableEntity(
-                  `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
-                );
-              }
-              transactionId = await createTaskEventTransaction({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                cents,
-                tx,
-              });
-            } else if (credits != null && credits > 0) {
-              cents = convertCreditsToCents(credits);
-              if (cents === 0n) {
-                throw unprocessableEntity(
-                  `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-                );
-              }
-              transactionId = await createTaskEventTransaction({
-                userId: task.userId,
-                organizationId: task.organizationId,
-                cents,
-                tx,
-              });
-            }
-          }
-
-          const createdEvent = await tx.taskEvent.create({
-            data: {
+    const { event, userId, masumiPayment } = await (async () => {
+      try {
+        return await prisma.$transaction(
+          async (tx) => {
+            const task = await requireTaskCollaboration(
+              authContext,
               taskId,
+              tx,
+            );
+            const {
               status,
               comment,
+              credits,
               authenticationUrl,
               origin,
-              cents,
-              transactionId,
-              ...getActorData(authContext),
-            },
-          });
+              masumiPayment,
+            } = body;
 
-          const updateResult = await tx.task.updateMany({
-            where: { id: taskId, status: task.status },
-            data: { status },
-          });
-          if (updateResult.count !== 1) {
-            throw conflict("Task status was changed by another request");
-          }
+            if (status !== undefined) {
+              validateStatusTransition(authContext, task.status, status);
+              validateTaskCoworkerAssignment({
+                status,
+                coworkerId: task.coworkerId,
+              });
 
-          const payment =
-            masumiPayment !== undefined && isAgentSpend ? masumiPayment : null;
+              // Only the assigned coworker agent settles billing.
+              const isAgent = isCoworkerAgentContext(authContext);
+              const isAgentSpend = isAgent && isTaskStatusSpendable(status);
 
-          return {
-            event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
-            userId: task.userId,
-            masumiPayment: payment,
-          };
-        }
+              // User and delegated-coworker callers use the user transition table,
+              // and the charge branch below is gated on isAgent — so credits from
+              // them would be silently dropped. Reject it.
+              //
+              // masumiPayment needs no check here: the schema only allows it with
+              // status COMPLETED, which the user transition table can never reach,
+              // so a non-agent caller is already rejected upstream (400/422).
+              if (!isAgent && credits != null) {
+                throw unprocessableEntity(
+                  "Only the assigned coworker can set credits when changing task status",
+                );
+              }
 
-        if (comment === undefined) {
-          throw unprocessableEntity(
-            "Either status or comment must be provided",
-          );
-        }
+              let cents: bigint | undefined;
+              let transactionId: string | null = null;
 
-        const createdEvent = await tx.taskEvent.create({
-          data: {
-            taskId,
-            status: null,
-            comment,
-            origin,
-            ...getActorData(authContext),
+              if (isAgentSpend) {
+                if (masumiPayment) {
+                  console.info(
+                    "[tasks] masumi task payment: using masumiPayment",
+                    {
+                      masumiPayment,
+                    },
+                  );
+                  const creditCosts = await getCreditCostsOrThrow(tx);
+                  cents = calculateCentsFromMasumiAmountStrings(
+                    masumiPayment.Amounts,
+                    creditCosts,
+                  );
+                  if (cents === 0n) {
+                    throw unprocessableEntity(
+                      `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
+                    );
+                  }
+                  const creditsValue = convertCentsToCredits(cents);
+                  if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
+                    throw unprocessableEntity(
+                      `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
+                    );
+                  }
+                  transactionId = await createTaskEventTransaction({
+                    userId: task.userId,
+                    organizationId: task.organizationId,
+                    cents,
+                    tx,
+                  });
+                } else if (credits != null && credits > 0) {
+                  cents = convertCreditsToCents(credits);
+                  if (cents === 0n) {
+                    throw unprocessableEntity(
+                      `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
+                    );
+                  }
+                  transactionId = await createTaskEventTransaction({
+                    userId: task.userId,
+                    organizationId: task.organizationId,
+                    cents,
+                    tx,
+                  });
+                }
+              }
+
+              const createdEvent = await tx.taskEvent.create({
+                data: {
+                  taskId,
+                  status,
+                  comment,
+                  authenticationUrl,
+                  origin,
+                  cents,
+                  transactionId,
+                  ...getActorData(authContext),
+                },
+              });
+
+              const updateResult = await tx.task.updateMany({
+                where: { id: taskId, status: task.status },
+                data: { status },
+              });
+              if (updateResult.count !== 1) {
+                throw conflict("Task status was changed by another request");
+              }
+
+              const payment =
+                masumiPayment !== undefined && isAgentSpend
+                  ? masumiPayment
+                  : null;
+
+              return {
+                event: await mapCreatedTaskEventForResponse(
+                  tx,
+                  createdEvent.id,
+                ),
+                userId: task.userId,
+                masumiPayment: payment,
+              };
+            }
+
+            if (comment === undefined) {
+              throw unprocessableEntity(
+                "Either status or comment must be provided",
+              );
+            }
+
+            const createdEvent = await tx.taskEvent.create({
+              data: {
+                taskId,
+                status: null,
+                comment,
+                origin,
+                ...getActorData(authContext),
+              },
+            });
+
+            return {
+              event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
+              userId: task.userId,
+              masumiPayment: null,
+            };
           },
-        });
-
-        return {
-          event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
-          userId: task.userId,
-          masumiPayment: null,
-        };
-      },
-      {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      },
-    );
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
+      } catch (error) {
+        // Serializable transactions abort with P2034 under concurrent writes;
+        // surface that as a retryable conflict instead of a 500.
+        if (isPrismaTransactionConflict(error)) {
+          throw conflict("Task changed by a concurrent request. Please retry.");
+        }
+        throw error;
+      }
+    })();
 
     if (masumiPayment != null) {
       const taskEventId = event.id;

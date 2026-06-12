@@ -280,6 +280,30 @@ describe("POST /{id}/events", () => {
     );
   });
 
+  it("returns 409 when the serializable transaction hits a write conflict", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.OUT_OF_CREDITS,
+        comment: "Need top-up",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+  });
+
   it("rejects OUT_OF_CREDITS for users", async () => {
     const tx: TransactionMock = {
       taskEvent: {
