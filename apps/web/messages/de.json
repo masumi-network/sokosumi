@@ -1430,7 +1430,10 @@
       "Display": {
         "button": "Ansicht",
         "list": "Liste",
-        "board": "Board"
+        "board": "Board",
+        "density": "Dichte",
+        "normal": "Standard",
+        "compact": "Kompakt"
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -1701,7 +1704,7 @@
             "CREDITS_TOPPED_UP": "Aufgefüllt",
             "RUNNING": "Läuft",
             "AWAITING_EXTERNAL": "Wartet",
-            "COMPLETED": "Fertig",
+            "COMPLETED": "Komplett",
             "FAILED": "Fehler",
             "CANCEL_REQUESTED": "Abbruch",
             "CANCELED": "Abgebrochen"

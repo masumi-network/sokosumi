@@ -1430,7 +1430,10 @@
       "Display": {
         "button": "Visualizzazione",
         "list": "Elenco",
-        "board": "Bacheca"
+        "board": "Bacheca",
+        "density": "Densità",
+        "normal": "Normale",
+        "compact": "Compatto"
       },
       "List": {
         "placeholder": "Nessun task"
@@ -1701,7 +1704,7 @@
             "CREDITS_TOPPED_UP": "Ricaricato",
             "RUNNING": "In corso",
             "AWAITING_EXTERNAL": "In attesa",
-            "COMPLETED": "Fatto",
+            "COMPLETED": "Completo",
             "FAILED": "Errore",
             "CANCEL_REQUESTED": "Annullamento",
             "CANCELED": "Annullato"

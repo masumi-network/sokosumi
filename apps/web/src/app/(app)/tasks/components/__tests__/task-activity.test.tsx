@@ -307,7 +307,64 @@ describe("TaskActivitySection", () => {
 
     const dot = screen.getByTestId("status-dot-latest-running");
     expect(dot).toHaveClass("size-1.5");
-    expect(dot).toHaveClass("bg-amber-500");
+    expect(dot).toHaveClass("bg-emerald-500");
+    expect(
+      screen.queryByRole("img", { name: "Alice" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("highlights completed comment events with a stone border", () => {
+    const events: TaskEvent[] = [
+      createEvent("completed-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+        comment: "Task finished successfully.",
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    const row = container.querySelector(".border-stone-500\\/30");
+    expect(row).toBeInTheDocument();
+  });
+
+  it("does not highlight completed status-only events", () => {
+    const events: TaskEvent[] = [
+      createEvent("completed-status-only", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    expect(
+      container.querySelector(".border-stone-500\\/30"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders status dots for all status-only events", () => {
+    const events: TaskEvent[] = [
+      createEvent("latest-complete", {
+        createdAt: "2026-01-01T13:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+      }),
+      createEvent("older-running", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByTestId("status-dot-older-running")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("status-dot-latest-complete"),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("img", { name: "Alice" }),
     ).not.toBeInTheDocument();

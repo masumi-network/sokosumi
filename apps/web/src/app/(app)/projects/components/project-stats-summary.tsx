@@ -1,6 +1,8 @@
+import type { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import { ListTodo, Sparkles } from "lucide-react";
-
+import { getTaskStatusDotColorClass } from "@/app/tasks/components/task-status-badge";
+import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
 import type {
   ProjectJobStatusCount,
   ProjectStatsEntry,
@@ -101,7 +103,7 @@ function getTaskStatusChips(
     key: entry.status,
     label: labels.taskStatusLabels[entry.status],
     count: entry.count,
-    dotClassName: getTaskStatusDotColorClass(entry.status),
+    dotClassName: getTaskStatusDotColorClass(entry.status as TaskStatus),
   }));
 }
 
@@ -113,7 +115,7 @@ function getJobStatusChips(
     key: entry.status,
     label: labels.jobStatusLabels[entry.status],
     count: entry.count,
-    dotClassName: getJobStatusDotColorClass(entry.status),
+    dotClassName: getJobStatusDotColorClass(entry.status as SokosumiJobStatus),
   }));
 }
 
@@ -124,55 +126,4 @@ function getTopStatusCounts<TStatus extends string>(
     .filter((entry) => entry.count > 0)
     .toSorted((a, b) => b.count - a.count)
     .slice(0, 3);
-}
-
-function getTaskStatusDotColorClass(status: ProjectTaskStatus): string {
-  switch (status) {
-    case "DRAFT":
-      return "bg-gray-400";
-    case "READY":
-      return "bg-blue-500";
-    case "INPUT_REQUIRED":
-      return "bg-orange-500";
-    case "AUTHENTICATION_REQUIRED":
-      return "bg-purple-500";
-    case "OUT_OF_CREDITS":
-      return "bg-rose-500";
-    case "CREDITS_TOPPED_UP":
-      return "bg-cyan-500";
-    case "RUNNING":
-      return "bg-amber-500";
-    case "AWAITING_EXTERNAL":
-      return "bg-sky-500";
-    case "COMPLETED":
-      return "bg-emerald-500";
-    case "FAILED":
-      return "bg-red-500";
-    case "CANCEL_REQUESTED":
-      return "bg-fuchsia-500";
-    case "CANCELED":
-      return "bg-muted-foreground";
-  }
-}
-
-function getJobStatusDotColorClass(status: ProjectJobStatus): string {
-  switch (status) {
-    case "completed":
-    case "refund_resolved":
-    case "dispute_resolved":
-      return "bg-green-500";
-    case "failed":
-    case "payment_failed":
-      return "bg-red-500";
-    case "input_required":
-      return "bg-yellow-500";
-    case "refund_pending":
-    case "dispute_pending":
-      return "bg-orange-500";
-    case "started":
-    case "payment_pending":
-    case "processing":
-    case "result_pending":
-      return "bg-sky-500";
-  }
 }

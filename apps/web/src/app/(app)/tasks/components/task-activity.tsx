@@ -182,6 +182,7 @@ export function TaskActivitySection({
   canComment = true,
 }: TaskActivityProps) {
   const t = useTranslations("App.Tasks.Detail");
+  const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const locale = useLocale();
   const resolvedAgentNameById = useMemo(
     () => agentNameById ?? new Map<string, string>(),
@@ -225,6 +226,11 @@ export function TaskActivitySection({
       (a, b) => getEventTimestamp(b) - getEventTimestamp(a),
     );
   }, [localEvents]);
+
+  const latestStatusEventId = useMemo(
+    () => orderedEvents.find((event) => event.status)?.id ?? null,
+    [orderedEvents],
+  );
 
   const trimmedComment = comment.trim();
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
@@ -500,8 +506,10 @@ export function TaskActivitySection({
               isBillingEvent && !formattedComment;
             const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;
             const shouldHighlightDoneBorder =
-              isCommentEvent && event.status === TaskStatus.COMPLETED;
+              event.status === TaskStatus.COMPLETED && isCommentEvent;
             const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
+            const isLatestStatusEvent =
+              Boolean(event.status) && event.id === latestStatusEventId;
 
             const row = (
               <div
@@ -562,7 +570,10 @@ export function TaskActivitySection({
                           <>
                             <TaskStatusBadge
                               status={event.status}
-                              showDot={!isStatusOnlyEvent}
+                              label={tStatus(event.status)}
+                              showDot={
+                                isLatestStatusEvent && !isStatusOnlyEvent
+                              }
                             />
                             <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                               <span>{originFromLabel}</span>
