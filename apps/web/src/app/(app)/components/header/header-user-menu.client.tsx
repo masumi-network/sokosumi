@@ -1,7 +1,6 @@
 "use client";
 
 import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
-import gravatarUrl from "gravatar-url";
 import {
   BookOpen,
   Bot,
@@ -22,9 +21,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, useState } from "react";
 
-import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
-import { Avatar } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +35,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { SessionUser } from "@/lib/auth/auth";
+
+import HeaderWorkspaceAvatar from "./header-workspace-avatar";
 
 interface HeaderUserMenuProps {
   sessionUser: SessionUser;
@@ -208,22 +207,13 @@ export default function HeaderUserMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="hover:opacity-80 transition-opacity"
+          className="hover:opacity-80 flex shrink-0 items-center transition-opacity"
           aria-label={tUserAvatar("settings")}
         >
-          <Avatar className="size-8">
-            <UserAvatarContent
-              className="size-8"
-              imageUrl={
-                sessionUser.image ??
-                gravatarUrl(sessionUser.email, {
-                  size: 80,
-                  default: "404",
-                })
-              }
-              imageAlt={sessionUser.name ?? "User avatar"}
-            />
-          </Avatar>
+          <HeaderWorkspaceAvatar
+            sessionUser={sessionUser}
+            organization={activeOrganizationMember?.organization ?? null}
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72" align="end">

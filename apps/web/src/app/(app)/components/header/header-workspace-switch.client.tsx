@@ -1,16 +1,11 @@
 "use client";
 
 import type { MemberWithOrganization } from "@sokosumi/database";
-import gravatarUrl from "gravatar-url";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
-import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
-import {
-  OrganizationInformationModal,
-  OrganizationLogo,
-} from "@/components/organizations";
+import { OrganizationInformationModal } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -23,6 +18,8 @@ import {
 import useModal from "@/hooks/use-modal";
 import type { SessionUser } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
+
+import HeaderWorkspaceAvatar from "./header-workspace-avatar";
 
 interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
@@ -68,25 +65,12 @@ function WorkspaceAvatar({
   sessionUser: SessionUser;
   workspace: WorkspaceItem;
 }) {
-  if (workspace.organization) {
-    return (
-      <Avatar className="bg-muted size-6 items-center justify-center">
-        <OrganizationLogo organization={workspace.organization} size={14} />
-      </Avatar>
-    );
-  }
-
   return (
-    <UserAvatarContent
+    <HeaderWorkspaceAvatar
+      sessionUser={sessionUser}
+      organization={workspace.organization ?? null}
       className="size-6 md:size-6"
-      imageUrl={
-        sessionUser.image ??
-        gravatarUrl(sessionUser.email, {
-          size: 80,
-          default: "404",
-        })
-      }
-      imageAlt={sessionUser.name ?? "User avatar"}
+      logoSize={14}
     />
   );
 }
