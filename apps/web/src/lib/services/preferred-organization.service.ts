@@ -56,8 +56,7 @@ export const preferredOrganizationService = (() => {
     } catch (error) {
       if (
         error instanceof CoreApiRequestError &&
-        (error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED ||
-          error.status === 403)
+        error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED
       ) {
         return {
           ok: false,

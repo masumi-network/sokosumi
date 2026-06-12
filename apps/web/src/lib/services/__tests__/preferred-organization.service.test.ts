@@ -184,6 +184,21 @@ describe("preferredOrganizationService", () => {
     });
   });
 
+  it("rethrows a 403 without the membership kind", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
+
+    await expect(
+      preferredOrganizationService.persistPreferredOrganizationId("org-1"),
+    ).rejects.toThrow("Forbidden");
+  });
+
   it("rethrows unexpected core errors", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     setMyPreferredOrganizationMock.mockRejectedValue(
