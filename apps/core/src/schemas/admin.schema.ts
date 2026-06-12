@@ -159,3 +159,10 @@ export const adminTaskListItemSchema = z
   .openapi("AdminTaskListItem");
 
 export const adminTaskListSchema = z.array(adminTaskListItemSchema);
+
+export const adminTaskIdParamSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "0195b9f4-7d35-7a4e-b14e-111111111111",
+  }),
+});

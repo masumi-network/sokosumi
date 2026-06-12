@@ -69,6 +69,7 @@ import {
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
+  getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -662,6 +663,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to list tasks",
+    );
+  }
+
+  async function getAdminTask(taskId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetAdminTask({
+          client,
+          path: { id: taskId },
+          cache: "no-store",
+        }),
+      "Failed to fetch admin task",
     );
   }
 
@@ -2315,6 +2329,7 @@ export function createCoreClient(getClient: GetClient) {
     searchAdminUsers,
     listAdminUserOverview,
     listAdminTasks,
+    getAdminTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
     listAdminInvoices,

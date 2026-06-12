@@ -2,7 +2,7 @@ import "server-only";
 
 import type { TaskStatus } from "@sokosumi/utils";
 
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 /** A task row in the admin task list. */
 export interface AdminTaskListItem {
@@ -53,5 +53,25 @@ export const adminTaskService = {
       total: result.meta.pagination.total,
       nextCursor: result.meta.pagination.nextCursor,
     };
+  },
+
+  async getTask(taskId: string): Promise<AdminTaskListItem | null> {
+    try {
+      const result = await coreClient.getAdminTask(taskId);
+
+      return {
+        id: result.data.id,
+        name: result.data.name,
+        status: result.data.status,
+        createdAt: result.data.createdAt,
+        user: result.data.user,
+        organization: result.data.organization,
+      };
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 };

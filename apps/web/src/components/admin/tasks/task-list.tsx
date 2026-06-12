@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -134,12 +135,17 @@ export function TaskList({ initialPage }: TaskListProps) {
               {tasks.map((task) => (
                 <TableRow key={task.id}>
                   <TableCell className="pl-4">
-                    <span className="flex flex-col">
-                      <span className="font-medium">{task.name}</span>
+                    <Link
+                      href={`/admin/tasks/${task.id}`}
+                      className="flex flex-col"
+                    >
+                      <span className="font-medium hover:underline">
+                        {task.name}
+                      </span>
                       <span className="text-muted-foreground text-xs">
                         {task.id}
                       </span>
-                    </span>
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <span className="flex flex-col">

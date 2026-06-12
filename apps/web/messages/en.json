@@ -2753,6 +2753,17 @@
           "created": "Created",
           "loadMore": "Load more",
           "loadError": "Failed to load tasks."
+        },
+        "TaskDetail": {
+          "backToList": "Back to tasks",
+          "created": "Created",
+          "open": "Open",
+          "openUnavailable": "This task can't be opened in the user view because you are not a member of its workspace.",
+          "organization": "Organization",
+          "personalWorkspace": "Personal workspace",
+          "status": "Status",
+          "taskId": "Task ID",
+          "user": "User"
         }
       }
     },

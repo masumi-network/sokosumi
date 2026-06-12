@@ -2668,6 +2668,17 @@
           "created": "Creada",
           "loadMore": "Cargar más",
           "loadError": "No se pudieron cargar las tareas."
+        },
+        "TaskDetail": {
+          "backToList": "Volver a tareas",
+          "created": "Creada",
+          "open": "Abrir",
+          "openUnavailable": "Esta tarea no se puede abrir en la vista de usuario porque no eres miembro de su espacio de trabajo.",
+          "organization": "Organización",
+          "personalWorkspace": "Espacio de trabajo personal",
+          "status": "Estado",
+          "taskId": "ID de tarea",
+          "user": "Usuario"
         }
       }
     },

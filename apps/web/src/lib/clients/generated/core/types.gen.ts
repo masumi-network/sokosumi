@@ -2856,6 +2856,78 @@ export type ListAdminTasksResponses = {
 
 export type ListAdminTasksResponse = ListAdminTasksResponses[keyof ListAdminTasksResponses];
 
+export type GetAdminTaskData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/tasks/{id}';
+};
+
+export type GetAdminTaskErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminTaskError = GetAdminTaskErrors[keyof GetAdminTaskErrors];
+
+export type GetAdminTaskResponses = {
+    /**
+     * Task detail for the admin task view
+     */
+    200: {
+        data: AdminTaskListItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminTaskResponse = GetAdminTaskResponses[keyof GetAdminTaskResponses];
+
 export type GetAgentsData = {
     body?: never;
     headers?: {
