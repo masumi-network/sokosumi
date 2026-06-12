@@ -7,6 +7,7 @@ export {
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
+export { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "./better-auth-error-codes.js";
 export {
   type ResolveBetterAuthProductionUrlParams,
   type ResolveBetterAuthPublicBaseUrlParams,

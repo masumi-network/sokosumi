@@ -52,6 +52,35 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
+  BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
+    .number()
+    .min(0)
+    .default(60 * 5), // 5 minutes
+  BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: z.coerce
+    .number()
+    .min(172800)
+    .default(604800), // 7 days in seconds
+  BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: z.coerce
+    .number()
+    .min(86400)
+    .default(172800), // 2 days in seconds
+  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
+  // Must match web's NEXT_PUBLIC_PASSWORD_MIN/MAX_LENGTH (UI validation)
+  PASSWORD_MIN_LENGTH: z.coerce.number().min(8).max(20).default(8),
+  PASSWORD_MAX_LENGTH: z.coerce.number().min(10).max(256).default(256),
+
+  // Social sign-in providers
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  MICROSOFT_CLIENT_ID: z.string().min(1),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1),
+  // Signing secret for the Better Auth stripe plugin's webhook endpoint
+  // (<core-host>/auth/stripe/webhook) — distinct from STRIPE_WEBHOOK_SECRET,
+  // which signs core's own POST /webhooks/stripe receiver.
+  BETTER_AUTH_STRIPE_WEBHOOK_SECRET: z.string().min(1),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 

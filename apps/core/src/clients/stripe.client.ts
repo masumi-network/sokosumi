@@ -170,6 +170,20 @@ export const stripeClient = {
     );
   },
 
+  async updateCustomerEmail(
+    customerId: string,
+    email: string | null,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Customer> {
+    return await stripe.customers.update(
+      customerId,
+      {
+        email: email ?? undefined,
+      },
+      withIdempotencyKey(`${customerId}-${email ?? "null"}`, requestOptions),
+    );
+  },
+
   async retrieveProduct(
     productId: string,
     requestOptions?: Stripe.RequestOptions,
