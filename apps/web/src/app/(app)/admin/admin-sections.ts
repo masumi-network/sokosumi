@@ -1,4 +1,4 @@
-import { Building2, Coins, type LucideIcon } from "lucide-react";
+import { Building2, Coins, type LucideIcon, Users } from "lucide-react";
 
 export interface AdminSection {
   /** Stable key used for the React key and i18n lookups. */
@@ -22,5 +22,10 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "invoices",
     href: "/admin/invoices",
     Icon: Coins,
+  },
+  {
+    key: "users",
+    href: "/admin/users",
+    Icon: Users,
   },
 ];

@@ -120,6 +120,7 @@ import {
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminUserOverview as coreListAdminUserOverview,
   listCreditPrices as coreListCreditPrices,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
@@ -626,6 +627,23 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to list credit prices",
+    );
+  }
+
+  async function listAdminUserOverview(query: {
+    query?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminUserOverview({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list users",
     );
   }
 
@@ -2277,6 +2295,7 @@ export function createCoreClient(getClient: GetClient) {
     getCategories,
     getCoworkers,
     searchAdminUsers,
+    listAdminUserOverview,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
     listAdminInvoices,
