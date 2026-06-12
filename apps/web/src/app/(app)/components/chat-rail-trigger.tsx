@@ -23,15 +23,14 @@ export default function ChatRailTrigger() {
 
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      variant="outline"
+      size="icon"
       onClick={handleClick}
-      className="gap-2"
+      className="size-8 shrink-0 rounded-full"
       aria-label={t("chat")}
       data-chat-rail-trigger-anchor
     >
       <MessageSquare className="size-4" aria-hidden />
-      <span className="hidden sm:inline">{t("chat")}</span>
     </Button>
   );
 }
