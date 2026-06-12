@@ -2,7 +2,9 @@
 
 import type { MemberWithOrganization } from "@sokosumi/database";
 
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import type { SessionUser } from "@/lib/auth/auth";
+import { cn } from "@/lib/utils";
 
 import HeaderUserMenu from "./header-user-menu.client";
 import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
@@ -20,12 +22,21 @@ export default function HeaderProfileSectionClient({
   activeOrganizationId,
   secondaryLabel,
 }: HeaderProfileSectionClientProps) {
+  const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+
   return (
-    <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        "flex items-center gap-2 transition-opacity",
+        isPending && "pointer-events-none opacity-50",
+      )}
+    >
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId={activeOrganizationId}
+        isPending={isPending}
+        onSelectWorkspace={handleSelectWorkspace}
       />
       <HeaderUserMenu
         sessionUser={sessionUser}

@@ -19,7 +19,10 @@ interface HeaderProfileSectionProps {
 function HeaderProfileSectionSkeleton() {
   return (
     <div className="flex items-center gap-2">
-      <div className="bg-muted h-8 w-32 animate-pulse rounded-md" />
+      <div className="flex flex-col items-end gap-1">
+        <div className="bg-muted h-4 w-28 animate-pulse rounded-md" />
+        <div className="bg-muted h-3 w-36 animate-pulse rounded-md" />
+      </div>
       <div className="bg-muted size-8 animate-pulse rounded-full" />
     </div>
   );

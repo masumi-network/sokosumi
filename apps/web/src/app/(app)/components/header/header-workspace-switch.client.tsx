@@ -2,12 +2,11 @@
 
 import type { MemberWithOrganization } from "@sokosumi/database";
 import gravatarUrl from "gravatar-url";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
-import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
   OrganizationInformationModal,
   OrganizationLogo,
@@ -29,6 +28,8 @@ interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
+  isPending: boolean;
+  onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
 interface WorkspaceItem {
@@ -122,11 +123,12 @@ export default function HeaderWorkspaceSwitch({
   sessionUser,
   members,
   activeOrganizationId,
+  isPending,
+  onSelectWorkspace,
 }: HeaderWorkspaceSwitchProps) {
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
-  const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
   const {
     Component: CreateOrganizationModal,
     showModal: showCreateOrganizationModal,
@@ -168,7 +170,7 @@ export default function HeaderWorkspaceSwitch({
 
   const handleWorkspaceSelect = (workspaceId: string | null) => {
     setIsDropdownOpen(false);
-    handleSelectWorkspace(workspaceId);
+    onSelectWorkspace(workspaceId);
   };
 
   const handleAddOrganization = () => {
@@ -183,18 +185,20 @@ export default function HeaderWorkspaceSwitch({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
+            className="text-foreground hover:opacity-80 flex min-w-0 items-center text-sm transition-opacity"
             disabled={isPending}
           >
-            <div className="min-w-0 flex-col items-start">
-              <div className="truncate font-medium">
-                {activeWorkspace?.name}
+            <div className="flex min-w-0 flex-col items-end text-right">
+              <div className="flex max-w-full items-center gap-1">
+                <span className="truncate font-medium">
+                  {activeWorkspace?.name}
+                </span>
+                <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
               </div>
-              <div className="text-muted-foreground truncate text-xs">
+              <span className="text-muted-foreground max-w-full truncate text-xs">
                 {sessionUser.email}
-              </div>
+              </span>
             </div>
-            <ChevronDown className="text-muted-foreground size-4 shrink-0" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end">
