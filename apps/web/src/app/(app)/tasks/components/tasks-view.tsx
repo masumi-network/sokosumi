@@ -1069,6 +1069,7 @@ export function TasksView({
                 tasks={items}
                 columns={columns}
                 columnFooterById={columnFooterById}
+                compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
@@ -1082,6 +1083,7 @@ export function TasksView({
                 tasks={items}
                 columns={columns}
                 sectionFooterById={columnFooterById}
+                compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
