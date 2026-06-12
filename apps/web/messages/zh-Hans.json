@@ -2614,6 +2614,10 @@
           "users": {
             "title": "用户",
             "description": "可搜索的全部用户概览，包含积分、订阅和活动。"
+          },
+          "tasks": {
+            "title": "任务",
+            "description": "可跨用户和组织搜索的所有任务列表。"
           }
         }
       },
@@ -2676,6 +2680,22 @@
           "paidSuccess": "积分已授予",
           "paidError": "无法将发票标记为已支付",
           "openInStripe": "在 Stripe 中打开"
+        }
+      },
+      "Tasks": {
+        "title": "任务",
+        "description": "可搜索的所有任务列表",
+        "TaskList": {
+          "searchPlaceholder": "按任务、用户或组织搜索…",
+          "totalCount": "{count, plural, other {# 个任务}}",
+          "empty": "未找到任务。",
+          "task": "任务",
+          "user": "用户",
+          "organization": "组织",
+          "status": "状态",
+          "created": "创建时间",
+          "loadMore": "加载更多",
+          "loadError": "加载任务失败。"
         }
       }
     },

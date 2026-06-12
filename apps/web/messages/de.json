@@ -2583,6 +2583,10 @@
           "users": {
             "title": "Benutzer",
             "description": "Durchsuchbare Übersicht aller Benutzer mit Guthaben, Abonnement und Aktivität."
+          },
+          "tasks": {
+            "title": "Aufgaben",
+            "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           }
         }
       },
@@ -2645,6 +2649,22 @@
           "paidSuccess": "Credits gewährt",
           "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
           "openInStripe": "In Stripe öffnen"
+        }
+      },
+      "Tasks": {
+        "title": "Aufgaben",
+        "description": "Durchsuchbare Liste aller Aufgaben",
+        "TaskList": {
+          "searchPlaceholder": "Nach Aufgabe, Benutzer oder Organisation suchen…",
+          "totalCount": "{count, plural, one {# Aufgabe} other {# Aufgaben}}",
+          "empty": "Keine Aufgaben gefunden.",
+          "task": "Aufgabe",
+          "user": "Benutzer",
+          "organization": "Organisation",
+          "status": "Status",
+          "created": "Erstellt",
+          "loadMore": "Mehr laden",
+          "loadError": "Aufgaben konnten nicht geladen werden."
         }
       }
     },

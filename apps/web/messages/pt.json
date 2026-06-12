@@ -2614,6 +2614,10 @@
           "users": {
             "title": "Utilizadores",
             "description": "Visão geral pesquisável de todos os utilizadores com créditos, subscrição e atividade."
+          },
+          "tasks": {
+            "title": "Tarefas",
+            "description": "Lista pesquisável de todas as tarefas entre utilizadores e organizações."
           }
         }
       },
@@ -2676,6 +2680,22 @@
           "paidSuccess": "Créditos concedidos",
           "paidError": "Falha ao marcar a fatura como paga",
           "openInStripe": "Abrir no Stripe"
+        }
+      },
+      "Tasks": {
+        "title": "Tarefas",
+        "description": "Lista pesquisável de todas as tarefas",
+        "TaskList": {
+          "searchPlaceholder": "Pesquisar por tarefa, utilizador ou organização…",
+          "totalCount": "{count, plural, one {# tarefa} other {# tarefas}}",
+          "empty": "Nenhuma tarefa encontrada.",
+          "task": "Tarefa",
+          "user": "Utilizador",
+          "organization": "Organização",
+          "status": "Estado",
+          "created": "Criada",
+          "loadMore": "Carregar mais",
+          "loadError": "Falha ao carregar as tarefas."
         }
       }
     },

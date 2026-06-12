@@ -2614,6 +2614,10 @@
           "users": {
             "title": "Utenti",
             "description": "Panoramica ricercabile di tutti gli utenti con crediti, abbonamento e attività."
+          },
+          "tasks": {
+            "title": "Attività",
+            "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           }
         }
       },
@@ -2676,6 +2680,22 @@
           "paidSuccess": "Crediti assegnati",
           "paidError": "Impossibile contrassegnare la fattura come pagata",
           "openInStripe": "Apri in Stripe"
+        }
+      },
+      "Tasks": {
+        "title": "Attività",
+        "description": "Elenco ricercabile di tutte le attività",
+        "TaskList": {
+          "searchPlaceholder": "Cerca per attività, utente o organizzazione…",
+          "totalCount": "{count, plural, one {# attività} other {# attività}}",
+          "empty": "Nessuna attività trovata.",
+          "task": "Attività",
+          "user": "Utente",
+          "organization": "Organizzazione",
+          "status": "Stato",
+          "created": "Creata",
+          "loadMore": "Carica altro",
+          "loadError": "Impossibile caricare le attività."
         }
       }
     },

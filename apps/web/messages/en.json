@@ -2713,6 +2713,10 @@
           "users": {
             "title": "Users",
             "description": "Searchable overview of all users with credits, subscription, and activity."
+          },
+          "tasks": {
+            "title": "Tasks",
+            "description": "Searchable list of all tasks across users and organizations."
           }
         }
       },
@@ -2730,6 +2734,22 @@
           "registered": "Registered",
           "loadMore": "Load more",
           "loadError": "Failed to load users."
+        }
+      },
+      "Tasks": {
+        "title": "Tasks",
+        "description": "Searchable list of all tasks",
+        "TaskList": {
+          "searchPlaceholder": "Search by task, user, or organization…",
+          "totalCount": "{count, plural, one {# task} other {# tasks}}",
+          "empty": "No tasks found.",
+          "task": "Task",
+          "user": "User",
+          "organization": "Organization",
+          "status": "Status",
+          "created": "Created",
+          "loadMore": "Load more",
+          "loadError": "Failed to load tasks."
         }
       }
     },
