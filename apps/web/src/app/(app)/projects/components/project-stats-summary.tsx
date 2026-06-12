@@ -2,7 +2,7 @@ import type { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import { ListTodo, Sparkles } from "lucide-react";
 import { getTaskStatusDotColorClass } from "@/app/tasks/components/task-status-badge";
-import { getJobStatusDotColorClass } from "@/components/jobs/job-status-badge";
+import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
 import type {
   ProjectJobStatusCount,
   ProjectStatsEntry,

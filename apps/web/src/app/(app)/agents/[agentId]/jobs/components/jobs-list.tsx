@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { getJobStatusDotColorClass } from "@/components/jobs/job-status-badge";
+import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import { cn } from "@/lib/utils";
