@@ -21,13 +21,13 @@ Run the squad in order on the **same issue** `_task` created (or any SOK issue t
 | Investigator → `done` | **Immediately** start Phase 2 (Tech Lead) — do not return to the user yet |
 | Tech Lead → `done` | **Immediately** start Phase 3 (Coder) |
 | Coder → `done` + PR open | **Immediately** start Phase 4 (Reviewer) |
-| Reviewer → `done` | Run **Completion** gate — comment, all status rows `done`, then `state: "In Review"`; return summary to user |
+| Reviewer → `done` | Run **Completion** gate — comment, all status rows `done`, then `state: "In Review"`; then **Exit gate** (`PHASE-GATE.md`); return summary to user |
 
 **Only stop early when:**
 
-- Issue is already **In Review** and Reviewer is `done` (await human merge).
-- User explicitly asked to run a single phase only (e.g. `run investigator for SOK-XXX`).
-- Unrecoverable blocker (no GitHub access, Linear MCP down, spec impossible) — report what finished, what is blocked, and the issue URL.
+- Issue is already **In Review** and Reviewer is `done` — run **Exit gate** first; on pass, await human merge.
+- User explicitly asked to run a single phase only (e.g. `run investigator for SOK-XXX`) — run **Exit gate** for completed rows, then stop.
+- Unrecoverable blocker (no GitHub access, Linear MCP down, spec impossible) — report what finished, what is blocked, and the issue URL (Exit gate when Linear MCP is available).
 
 **Never** treat Investigator, Tech Lead, or Coder as standalone jobs when you were delegated from `_task` or invoked as `_team-sapphire` on a full issue. Phase comments (`**Sapphire · … complete**`) mark progress — they are **not** exit signals.
 
@@ -72,13 +72,13 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
 - If `## Sapphire status` is **missing**, insert the initial status block per `LINEAR-MCP.md` (full-description merge via `save_issue`) **first** — do not run resume or cleanup rules until the table exists; then start Investigator (or the user’s explicit start phase).
 - If `## Sapphire status` is present, compute start phase with **artifact-aware resume** (do not use status table alone):
   1. Set `target` = user start phase if specified, else first row not `done` (Investigator → Tech Lead → Coder → Reviewer).
-  2. If user explicitly requested **that phase only** (e.g. `run investigator for SOK-XXX`) → run `target` and stop.
+  2. If user explicitly requested **that phase only** (e.g. `run investigator for SOK-XXX`) → run `target`, then **Exit gate**, then stop.
   3. If `target` is Coder or Reviewer and there is no **session spec** in this run → set `target` to **Tech Lead** (even when Tech Lead = `done` on Linear).
   4. If `target` is Tech Lead or later and there is no **session investigation** in this run → set `target` to **Investigator** (even when Investigator = `done` on Linear).
   5. Run from `target` through all later phases in this session.
 - If `**PR handoff**` + open PR exist and Coder = `done`, `target` is normally **Reviewer** — steps 3–4 still apply when session spec or investigation is missing.
 - If **every** status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — rebuild session spec via Tech Lead (and Investigator if needed) when missing, then verify PR + `/goal`; on pass run **Completion** gate per `REVIEWER.md` (comment → Reviewer row `done` if needed → `state: "In Review"` only), then **Exit gate** per `PHASE-GATE.md`.
-- If **every** status row is `done` and issue is **`In Review`**, stop — await human merge.
+- If **every** status row is `done` and issue is **`In Review`**, run **Exit gate**; on pass, stop — await human merge.
 
 ## Workflow
 
@@ -141,7 +141,7 @@ Use `## Sapphire status` for progress on Linear; **session artifacts** decide wh
 | `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
 | `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
 | All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, verify PR + `/goal`; on pass run **Completion** gate then **Exit gate** |
-| Issue `In Review` + Reviewer done | Stop — await human merge |
+| Issue `In Review` + Reviewer done | **Exit gate**; on pass, stop — await human merge |
 
 ## Output
 

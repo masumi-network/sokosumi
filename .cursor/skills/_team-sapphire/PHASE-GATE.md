@@ -11,7 +11,7 @@ Every Sapphire phase ends with **mandatory Linear writes**. These are not option
 | 1 | `save_comment` | Phase summary with exact header (see table below) |
 | 2 | `save_issue` | Update `## Sapphire status` row → `done` (status-only merge per `LINEAR-MCP.md`) |
 
-Coder adds a third write between the two above: `**PR handoff**` comment **before** `**Sapphire · Coder complete**`.
+Coder uses **three writes** instead of two: (1) `save_comment` → `**PR handoff**`, (2) `save_comment` → `**Sapphire · Coder complete**`, (3) `save_issue` → Coder row `done`.
 
 Reviewer adds a state write **after** status table is saved: `save_issue` with `state: "In Review"` only (no `description`).
 
