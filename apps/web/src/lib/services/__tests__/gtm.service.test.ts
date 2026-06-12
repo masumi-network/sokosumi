@@ -19,10 +19,7 @@ describe("gtm.service", () => {
     vi.resetModules();
 
     getEnvSecretsMock.mockReturnValue({
-      ACCOUNT_CREATED_WEBHOOK: undefined,
-      AGENT_HIRED_WEBHOOK: undefined,
-      USER_CREATED_WEBHOOK: undefined,
-      USER_UPDATED_WEBHOOK: "https://example.test/webhook",
+      AGENT_HIRED_WEBHOOK: "https://example.test/webhook",
     });
   });
 
@@ -35,14 +32,9 @@ describe("gtm.service", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { callUserUpdatedWebHook } = await import("../gtm.service");
+    const { callAgentHiredWebHook } = await import("../gtm.service");
 
-    await callUserUpdatedWebHook(
-      "user-1",
-      "user@example.test",
-      "Test User",
-      true,
-    );
+    await callAgentHiredWebHook("user-1", "user@example.test");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(captureMessageMock).not.toHaveBeenCalled();

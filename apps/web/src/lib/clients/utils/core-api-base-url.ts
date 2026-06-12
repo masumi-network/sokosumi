@@ -7,6 +7,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import {
   getCoreRelatedProjectName,
   normalizeCoreApiBaseUrl,
+  normalizeCoreAuthBaseUrl,
 } from "@/lib/clients/utils/core-api-base-url.shared";
 
 export function getServerCoreApiBaseUrl(): string {
@@ -21,3 +22,18 @@ export function getServerCoreApiBaseUrl(): string {
 }
 
 export const getCoreApiBaseUrl = getServerCoreApiBaseUrl;
+
+/**
+ * Base URL of core's Better Auth handler (same host as the core API, path
+ * /auth instead of /v1) for the web server-side auth facade.
+ */
+export function getServerCoreAuthBaseUrl(): string {
+  const resolvedCoreApiHost = withRelatedProject({
+    projectName: getCoreRelatedProjectName(
+      getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+    ),
+    defaultHost: getEnvSecrets().CORE_APP_BASE_URL,
+  });
+
+  return normalizeCoreAuthBaseUrl(resolvedCoreApiHost);
+}

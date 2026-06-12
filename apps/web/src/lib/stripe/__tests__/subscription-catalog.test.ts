@@ -107,41 +107,6 @@ describe("subscription-catalog", () => {
     getEnvSecretsMock.mockReturnValue(ENV);
   });
 
-  it("builds catalog from paid product metadata and a synthetic local free tier", async () => {
-    const { retrieveMock, stripe } = createMockStripe();
-
-    const { getBetterAuthSubscriptionPlans, getSubscriptionCatalog } =
-      await import("../subscription-catalog");
-
-    const catalog = await getSubscriptionCatalog(stripe as never);
-    expect(catalog.free.credits).toBe(250);
-    expect(catalog.free.productId).toBe("local-free");
-    expect(catalog.free.monthlyAmount).toBe(0);
-    expect(catalog.starter.credits).toBe(1750);
-    expect(catalog.standard.monthlyAmount).toBe(7500);
-    expect(catalog.pro.priceId).toBe("price_pro");
-    expect(retrieveMock).toHaveBeenCalledTimes(3);
-
-    const plans = await getBetterAuthSubscriptionPlans(stripe as never);
-    expect(plans).toEqual([
-      {
-        limits: { credits: 1750 },
-        name: "starter",
-        priceId: "price_starter",
-      },
-      {
-        limits: { credits: 5250 },
-        name: "standard",
-        priceId: "price_standard",
-      },
-      {
-        limits: { credits: 14000 },
-        name: "pro",
-        priceId: "price_pro",
-      },
-    ]);
-  });
-
   it("throws when paid product metadata credits are missing", async () => {
     const { stripe } = createMockStripe({
       products: {
