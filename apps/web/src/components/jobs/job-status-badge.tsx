@@ -2,9 +2,11 @@
 
 import { JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
+import { CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
+import { getJobStatusPillStyle } from "@/components/jobs/job-status-styles";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {
@@ -14,32 +16,8 @@ interface JobStatusBadgeProps {
   variant?: "badge" | "dot";
 }
 
-export function getJobStatusDotColorClass(
-  status: SokosumiJobStatus,
-  jobType?: JobType,
-) {
-  if (jobType === JobType.DEMO) return "bg-orange-500";
-
-  switch (status) {
-    case SokosumiJobStatus.COMPLETED:
-    case SokosumiJobStatus.REFUND_RESOLVED:
-    case SokosumiJobStatus.DISPUTE_RESOLVED:
-      return "bg-green-500";
-    case SokosumiJobStatus.FAILED:
-    case SokosumiJobStatus.PAYMENT_FAILED:
-    case SokosumiJobStatus.RESULT_PENDING:
-      return "bg-red-500";
-    case SokosumiJobStatus.INPUT_REQUIRED:
-      return "bg-yellow-500";
-    case SokosumiJobStatus.REFUND_PENDING:
-    case SokosumiJobStatus.DISPUTE_PENDING:
-      return "bg-orange-500";
-    case SokosumiJobStatus.STARTED:
-    case SokosumiJobStatus.PAYMENT_PENDING:
-    case SokosumiJobStatus.PROCESSING:
-    default:
-      return "bg-sky-500";
-  }
+function shouldShowWarningIcon(status: SokosumiJobStatus): boolean {
+  return status === SokosumiJobStatus.INPUT_REQUIRED;
 }
 
 export function JobStatusBadge({
@@ -50,7 +28,8 @@ export function JobStatusBadge({
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
   const label = t(getJobStatusBadgeLabelKey(status, jobType));
-  const dotClass = getJobStatusDotColorClass(status, jobType);
+  const styles = getJobStatusPillStyle(status, jobType);
+  const showIcon = shouldShowWarningIcon(status);
 
   if (variant === "dot") {
     return (
@@ -58,7 +37,7 @@ export function JobStatusBadge({
         aria-label={label}
         className={cn(
           "inline-flex size-1.5 shrink-0 rounded-full",
-          dotClass,
+          styles.dot,
           className,
         )}
       />
@@ -66,14 +45,16 @@ export function JobStatusBadge({
   }
 
   return (
-    <div className={cn("inline-flex shrink-0 items-center gap-1.5", className)}>
-      <span
-        className={cn("size-1.5 shrink-0 rounded-full", dotClass)}
-        aria-hidden
-      />
-      <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
-        {label}
-      </span>
-    </div>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
+        styles.bg,
+        styles.text,
+        className,
+      )}
+    >
+      {showIcon ? <CircleAlert className="size-3" aria-hidden /> : null}
+      <span>{label}</span>
+    </span>
   );
 }

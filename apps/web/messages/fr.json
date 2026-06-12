@@ -1430,7 +1430,10 @@
       "Display": {
         "button": "Affichage",
         "list": "Liste",
-        "board": "Tableau"
+        "board": "Tableau",
+        "density": "Densité",
+        "normal": "Normal",
+        "compact": "Compact"
       },
       "List": {
         "placeholder": "Aucune tâche"

@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { MessageSquare, User, UserCog } from "lucide-react";
+import { Calendar, MessageSquare, User, UserCog } from "lucide-react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -109,7 +109,8 @@ export function TaskMetaDetails({
           <MessageSquare className="size-3.5" aria-hidden />
           <span>{commentsCount}</span>
         </div>
-        <div className="text-muted-foreground text-xs">
+        <div className="text-muted-foreground flex items-center gap-1 text-xs">
+          <Calendar className="size-3" aria-hidden />
           <span className="whitespace-nowrap">
             {formatShortDate(createdAt)}
           </span>
@@ -119,7 +120,7 @@ export function TaskMetaDetails({
   }
 
   return (
-    <div className="border-border/50 flex items-center justify-between gap-2 border-t pt-1">
+    <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
       <div
         className="flex items-center -space-x-1"
         aria-label={participantNames}
@@ -155,9 +156,12 @@ export function TaskMetaDetails({
             <span className="text-[10px] tabular-nums">{commentsCount}</span>
           </div>
         )}
-        <span className="text-[10px] tabular-nums">
-          {formatShortDate(createdAt)}
-        </span>
+        <div className="flex items-center gap-1">
+          <Calendar className="size-3" aria-hidden />
+          <span className="text-[10px] tabular-nums">
+            {formatShortDate(createdAt)}
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -1430,7 +1430,10 @@
       "Display": {
         "button": "表示",
         "list": "リスト",
-        "board": "ボード"
+        "board": "ボード",
+        "density": "表示密度",
+        "normal": "標準",
+        "compact": "コンパクト"
       },
       "List": {
         "placeholder": "タスクはありません"
