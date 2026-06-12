@@ -97,6 +97,9 @@ const envSchema = z.object({
   // Stripe one-time credit top-up product (invoice.paid credit engine)
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
 
+  // Welcome coupon granted to new user customers (customer.created handler)
+  STRIPE_WELCOME_COUPON: z.string().min(1),
+
   // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 
