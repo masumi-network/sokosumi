@@ -15,8 +15,6 @@ const organizationClientMock = vi.fn(() => "organization-plugin");
 const oauthProviderClientMock = vi.fn(() => "oauth-plugin");
 const passkeyClientMock = vi.fn(() => "passkey-plugin");
 const stripeClientMock = vi.fn(() => "stripe-plugin");
-const dashClientMock = vi.fn(() => "dash-plugin");
-const sentinelClientMock = vi.fn(() => "sentinel-plugin");
 const getEnvPublicConfigMock = vi.fn();
 
 vi.mock("better-auth/react", () => ({
@@ -48,11 +46,6 @@ vi.mock("@better-auth/stripe/client", () => ({
   stripeClient: stripeClientMock,
 }));
 
-vi.mock("@better-auth/infra/client", () => ({
-  dashClient: dashClientMock,
-  sentinelClient: sentinelClientMock,
-}));
-
 vi.mock("@/lib/auth/auth", () => ({
   auth: {},
 }));
@@ -70,8 +63,6 @@ describe("auth client", () => {
       NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
-      NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL:
-        "https://kv.better-auth.com/projects/example-project-id",
     });
   });
 
@@ -108,21 +99,11 @@ describe("auth client", () => {
     });
   });
 
-  it("configures sentinelClient with the project identify url", async () => {
-    await import("../auth.client");
-
-    expect(sentinelClientMock).toHaveBeenCalledWith({
-      identifyUrl: "https://kv.better-auth.com/projects/example-project-id",
-    });
-  });
-
   it("uses the preview branch prefix when the public Vercel env is preview", async () => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_NETWORK: "Mainnet",
       NEXT_PUBLIC_VERCEL_ENV: "preview",
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/123",
-      NEXT_PUBLIC_BETTER_AUTH_SENTINEL_IDENTIFY_URL:
-        "https://kv.better-auth.com/projects/example-project-id",
     });
 
     await import("../auth.client");
