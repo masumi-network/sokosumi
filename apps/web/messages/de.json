@@ -2579,7 +2579,27 @@
           "invoices": {
             "title": "Rechnungen",
             "description": "Admin-Rechnungen ansehen und einem Benutzer oder einer Organisation einmalige Credits gewähren."
+          },
+          "users": {
+            "title": "Benutzer",
+            "description": "Durchsuchbare Übersicht aller Benutzer mit Guthaben, Abonnement und Aktivität."
           }
+        }
+      },
+      "Users": {
+        "title": "Benutzer",
+        "description": "Durchsuchbare Übersicht aller Benutzer",
+        "UserList": {
+          "searchPlaceholder": "Nach Name oder E-Mail suchen…",
+          "totalCount": "{count, plural, one {# Benutzer} other {# Benutzer}}",
+          "empty": "Keine Benutzer gefunden.",
+          "user": "Benutzer",
+          "credits": "Guthaben",
+          "subscription": "Abonnement",
+          "startedTasks": "Gestartete Aufgaben",
+          "registered": "Registriert",
+          "loadMore": "Mehr laden",
+          "loadError": "Benutzer konnten nicht geladen werden."
         }
       },
       "Invoices": {

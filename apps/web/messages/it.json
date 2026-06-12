@@ -2610,7 +2610,27 @@
           "invoices": {
             "title": "Fatture",
             "description": "Visualizza le fatture di amministrazione e assegna crediti una tantum a un utente o un'organizzazione."
+          },
+          "users": {
+            "title": "Utenti",
+            "description": "Panoramica ricercabile di tutti gli utenti con crediti, abbonamento e attività."
           }
+        }
+      },
+      "Users": {
+        "title": "Utenti",
+        "description": "Panoramica ricercabile di tutti gli utenti",
+        "UserList": {
+          "searchPlaceholder": "Cerca per nome o email…",
+          "totalCount": "{count, plural, one {# utente} other {# utenti}}",
+          "empty": "Nessun utente trovato.",
+          "user": "Utente",
+          "credits": "Crediti",
+          "subscription": "Abbonamento",
+          "startedTasks": "Attività avviate",
+          "registered": "Registrato",
+          "loadMore": "Carica altri",
+          "loadError": "Impossibile caricare gli utenti."
         }
       },
       "Invoices": {

@@ -66,21 +66,14 @@ export const adminUserOverviewItemSchema = z
       example: "pro",
     }),
     subscriptionStatus: z.string().nullable().openapi({ example: "active" }),
-    startedTaskCount: z
-      .number()
-      .int()
-      .min(0)
-      .openapi({
-        description:
-          "Number of tasks the user has started (status beyond DRAFT)",
-        example: 7,
-      }),
+    startedTaskCount: z.number().int().min(0).openapi({
+      description: "Number of tasks the user has started (status beyond DRAFT)",
+      example: 7,
+    }),
   })
   .openapi("AdminUserOverviewItem");
 
-export const adminUserOverviewListSchema = z.array(
-  adminUserOverviewItemSchema,
-);
+export const adminUserOverviewListSchema = z.array(adminUserOverviewItemSchema);
 
 export const adminOrganizationSlugParamSchema = z.object({
   slug: z.string().openapi({
