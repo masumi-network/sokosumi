@@ -24,6 +24,7 @@ import type {
   GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
+  GetUsersByIdTasksCountData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -505,13 +506,17 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getUserTasksCount(userId: string) {
+  async function getUserTasksCount(
+    userId: string,
+    query?: GetUsersByIdTasksCountData["query"],
+  ) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetUsersByIdTasksCount({
           client,
           path: { id: userId },
+          query,
           cache: "no-store",
         }),
       "Failed to fetch user task count",

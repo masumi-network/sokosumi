@@ -115,6 +115,22 @@ describe("GET /users/{id}/tasks/count", () => {
     expect(taskCountMock).not.toHaveBeenCalled();
   });
 
+  it("counts non-archived tasks across all workspaces when scope=all", async () => {
+    const app = createApp(USER_AUTH_CONTEXT, null);
+    const response = await app.request("http://localhost/me/count?scope=all");
+
+    expect(response.status).toBe(200);
+    expect(taskCountMock).toHaveBeenCalledWith({
+      where: {
+        archivedAt: null,
+        userId: "user_123",
+      },
+    });
+
+    const body = (await response.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(3);
+  });
+
   it("rejects coworker requests when tasks capability is unavailable", async () => {
     requireCoworkerCapabilityMock.mockRejectedValue(
       new HTTPException(403, {

@@ -886,7 +886,7 @@ export const getUsersByIdSubscription = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Get task count for the user. Returns the number of non-archived tasks in the active workspace owned by the user. Use path `me` for the session user, or a user id when authorized.
+ * Get task count for the user. Defaults to non-archived tasks owned by the user in the active workspace (`scope=workspace`). Use `scope=all` to count across every workspace. Use path `me` for the session user, or a user id when authorized.
  */
 export const getUsersByIdTasksCount = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdTasksCountData, ThrowOnError>): RequestResult<GetUsersByIdTasksCountResponses, GetUsersByIdTasksCountErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdTasksCountResponses, GetUsersByIdTasksCountErrors, ThrowOnError>({
     responseTransformer: getUsersByIdTasksCountResponseTransformer,

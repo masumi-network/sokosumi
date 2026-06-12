@@ -12,14 +12,15 @@ const DEFAULT_FALLBACK = "/tasks";
  * - Users with >= 5 tasks → `/tasks` (established users)
  * - On error → `/tasks` (safe fallback)
  *
- * This helper calls the Core API to get the current user's task count
- * and returns the appropriate landing path based on the threshold.
+ * This helper calls the Core API with `scope=all` so the count reflects
+ * the user's total non-archived tasks across every workspace, not only
+ * the active workspace.
  *
  * @returns Promise<string> - The landing path (`/chat` or `/tasks`)
  */
 export async function getDefaultAuthenticatedLandingPath(): Promise<string> {
   try {
-    const response = await coreClient.getUserTasksCount("me");
+    const response = await coreClient.getUserTasksCount("me", { scope: "all" });
 
     if (response.data?.count !== undefined) {
       return response.data.count < TASK_COUNT_THRESHOLD ? "/chat" : "/tasks";

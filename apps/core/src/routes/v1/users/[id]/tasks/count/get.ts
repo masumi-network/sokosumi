@@ -23,15 +23,30 @@ const params = z.object({
   id: usersRoutePathUserIdSchema,
 });
 
+const taskCountScopeQuerySchema = z
+  .enum(["workspace", "all"])
+  .default("workspace")
+  .openapi({
+    param: { name: "scope", in: "query" },
+    description:
+      "Count scope. Defaults to 'workspace' (active workspace only). Use 'all' to count non-archived tasks owned by the user across every workspace.",
+    example: "workspace",
+  });
+
+const query = z.object({
+  scope: taskCountScopeQuerySchema,
+});
+
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/count",
     description:
-      "Get task count for the user. Returns the number of non-archived tasks in the active workspace owned by the user. Use path `me` for the session user, or a user id when authorized.",
+      "Get task count for the user. Defaults to non-archived tasks owned by the user in the active workspace (`scope=workspace`). Use `scope=all` to count across every workspace. Use path `me` for the session user, or a user id when authorized.",
     tags: ["Tasks", "Users"],
     request: {
       params,
+      query,
     },
     responses: {
       200: jsonSuccessResponse(
@@ -55,26 +70,39 @@ const route = withGlobalHeaderParameters(
   }),
 );
 
+function buildUserOwnedTaskCountWhere(
+  resolvedUserId: string,
+  scope: "workspace" | "all",
+  workspaceId: string | undefined,
+): Prisma.TaskWhereInput {
+  return {
+    archivedAt: null,
+    userId: resolvedUserId,
+    ...(scope === "workspace" && workspaceId ? { workspaceId } : {}),
+  };
+}
+
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     c.req.valid("param");
+    const { scope } = c.req.valid("query");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    // Build where clause matching task list filters
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
 
       if (authContext.delegation) {
-        const workspaceContext = requireWorkspaceContext(
-          c.var.workspaceContext,
+        const workspaceId =
+          scope === "workspace"
+            ? requireWorkspaceContext(c.var.workspaceContext).workspaceId
+            : undefined;
+        where = buildUserOwnedTaskCountWhere(
+          resolvedUserId,
+          scope,
+          workspaceId,
         );
-        where = {
-          archivedAt: null,
-          workspaceId: workspaceContext.workspaceId,
-          userId: resolvedUserId,
-        };
       } else {
         // Non-delegated coworkers: count their assigned tasks, exclude DRAFT
         where = {
@@ -84,12 +112,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         };
       }
     } else {
-      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-      where = {
-        archivedAt: null,
-        workspaceId: workspaceContext.workspaceId,
-        userId: resolvedUserId,
-      };
+      const workspaceId =
+        scope === "workspace"
+          ? requireWorkspaceContext(c.var.workspaceContext).workspaceId
+          : undefined;
+      where = buildUserOwnedTaskCountWhere(resolvedUserId, scope, workspaceId);
     }
 
     const count = await prisma.task.count({ where });

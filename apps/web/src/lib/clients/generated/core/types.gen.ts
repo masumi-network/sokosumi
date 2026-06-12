@@ -12987,7 +12987,12 @@ export type GetUsersByIdTasksCountData = {
          */
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Count scope. Defaults to 'workspace' (active workspace only). Use 'all' to count non-archived tasks owned by the user across every workspace.
+         */
+        scope?: 'workspace' | 'all';
+    };
     url: '/users/{id}/tasks/count';
 };
 
