@@ -54,7 +54,7 @@ Adopted from web (new on core):
 | `databaseHooks.session.create.before` | preferred-organization resolution (ported service) |
 | `databaseHooks.user.create/update` | web's richer versions: name normalization (already on core), workspace upsert (already on core), Stripe customer fire-and-forget (already on core), **plus** `marketingOptInUserSchema` validation + GTM user created/updated webhooks |
 | `hooks.before/after` | sign-up terms check (`TERMS_NOT_ACCEPTED`), sign-in terms check, `/verify-email` → `syncUserEmailWithStripe` fire-and-forget (ported) |
-| `disabledPaths` | `["/sign-up/email", "/sign-in", "/token"]` as web has today |
+| `disabledPaths` | **NOT ported (deviation, decided during implementation):** web disabled these HTTP paths because its server actions called them in-process; the web facade now calls them over HTTP, so disabling them would break sign-up/sign-in entirely. The terms checks these paths backstopped are enforced in `hooks.before`/`hooks.after` regardless of caller. |
 | `emailAndPassword` | min/max password length envs, `sendResetPassword` (Postmark, locale-aware via the new core email-locale helper) |
 | `emailVerification` | `sendVerificationEmail`, `sendOnSignUp/SignIn`, `BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN`, `autoSignInAfterVerification` |
 | `user.changeEmail` / `user.deleteUser` | enabled |
