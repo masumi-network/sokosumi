@@ -63,6 +63,65 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
+export const AdminUserOverviewItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        email: {
+            type: 'string',
+            example: 'ada@example.com'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        credits: {
+            type: 'number',
+            description: 'Available personal credits',
+            example: 42.5
+        },
+        subscriptionPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Active subscription plan, if any',
+            example: 'pro'
+        },
+        subscriptionStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'active'
+        },
+        startedTaskCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of tasks the user has started (status beyond DRAFT)',
+            example: 7
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'createdAt',
+        'credits',
+        'subscriptionPlan',
+        'subscriptionStatus',
+        'startedTaskCount'
+    ]
+} as const;
+
 export const AdminOrganizationOptionSchema = {
     type: 'object',
     properties: {
