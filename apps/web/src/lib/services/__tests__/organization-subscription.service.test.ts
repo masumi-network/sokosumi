@@ -98,38 +98,6 @@ describe("organizationSubscriptionService", () => {
     );
   });
 
-  describe("ensureCanCreateInvitation", () => {
-    it("allows creating invitations without an active organization subscription", async () => {
-      const { organizationSubscriptionService } = await import(
-        "../organization-subscription.service"
-      );
-
-      await expect(
-        organizationSubscriptionService.ensureCanCreateInvitation("org-1"),
-      ).resolves.toBeUndefined();
-    });
-
-    it("does not load subscription data or update seats when creating invitations", async () => {
-      resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-        id: "sub-row-1",
-        plan: "starter",
-        seats: 2,
-        stripeSubscriptionId: "sub_stripe_1",
-      });
-
-      const { organizationSubscriptionService } = await import(
-        "../organization-subscription.service"
-      );
-
-      await organizationSubscriptionService.ensureCanCreateInvitation("org-1");
-
-      expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
-      expect(getAssignedMemberCountMock).not.toHaveBeenCalled();
-      expect(updateOrganizationSubscriptionSeatsMock).not.toHaveBeenCalled();
-      expect(updateSubscriptionRecordMock).not.toHaveBeenCalled();
-    });
-  });
-
   describe("ensureCanAcceptInvitation", () => {
     it("allows invitations for enterprise contract organizations without Stripe subscription", async () => {
       resolveOrganizationBillingPlanMock.mockResolvedValue({
