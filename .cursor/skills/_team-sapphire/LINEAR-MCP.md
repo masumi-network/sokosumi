@@ -68,7 +68,7 @@ Update the status table row to `done`. Post a **short summary comment** — not 
 
 ### Exit verification
 
-Before the orchestrator returns to the user, `get_issue` + `list_comments` must confirm every completed phase has its comment header and matching `done` row. If the table still shows `pending` for a completed phase, repair per `PHASE-GATE.md` **Repair** — do not exit.
+Before the orchestrator returns to the user, `get_issue` + `list_comments` must confirm every `done` row has its comment header(s) and issue state matches ( **In Review** when Reviewer row is `done`). If the table still shows `pending` for a completed phase, or state is wrong, repair per `PHASE-GATE.md` **Repair** — do not exit.
 
 ### State transitions
 
@@ -138,4 +138,4 @@ Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; s
 
 Return issue id/URL, phases completed, Linear state, PR URL if any.
 
-Confirm exit gate passed: all completed phases have comments + status rows `done`. If not, say what was repaired or what is still missing.
+Confirm exit gate passed: every `done` row has comment(s), no stale `pending` rows for finished work, and issue state matches ( **In Review** when Reviewer is `done`). If not, say what was repaired or what is still missing.

@@ -119,7 +119,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 ### Exit gate (blocking)
 
-Before returning to the user, run **Exit gate** in `PHASE-GATE.md`: `get_issue` + `list_comments`. If any completed phase lacks its comment or status row, **repair retroactively** — do not report success with a stale `pending` table.
+Before returning to the user, run **Exit gate** in `PHASE-GATE.md`: `get_issue` + `list_comments`. Verify every `done` row has matching comment(s) and issue state matches ( **In Review** when Reviewer row is `done`). If anything fails, **repair retroactively** — do not report success with a stale `pending` table or wrong state.
 
 ## MCP
 

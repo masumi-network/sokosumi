@@ -48,14 +48,21 @@ After Phase 4 (or early stop), **verify Linear** before finishing:
 1. `get_issue` — read `## Sapphire status` and issue state
 2. `list_comments` — confirm phase headers exist
 
-| Completed in this run | Must be true on Linear |
-|-----------------------|-------------------------|
-| Investigator | Comment `**Sapphire · Investigator complete**` + row `done` |
-| Tech Lead | Comment `**Sapphire · Tech Lead complete**` + row `done` |
-| Coder | Comments `**PR handoff**` + `**Sapphire · Coder complete**` + row `done` |
-| Reviewer pass | Comment `**Sapphire · Reviewer complete**` + row `done` + state **In Review** |
+Check **every** status row marked `done` on the issue — including rows from prior sessions or bad runs, not only phases finished in the current run. Each `done` row must have its matching comment(s) on Linear.
 
-**All four rows must be `done` when the run finishes through Reviewer.** Issue state **In Review** with any row still `pending` is a **failed exit gate**.
+| Status row on Linear | Must be true on Linear |
+|----------------------|-------------------------|
+| Investigator → `done` | Comment `**Sapphire · Investigator complete**` |
+| Tech Lead → `done` | Comment `**Sapphire · Tech Lead complete**` |
+| Coder → `done` | Comments `**PR handoff**` + `**Sapphire · Coder complete**` |
+| Reviewer → `done` | Comment `**Sapphire · Reviewer complete**` + issue state **In Review** |
+
+**Failed exit gate examples:**
+
+- Any `done` row missing its comment header(s)
+- Any row still `pending` when the run claimed to finish through that phase
+- All four rows `done` but issue state is still **In Progress** (missing Reviewer state-only `save_issue`)
+- Issue state **In Review** while any row is still `pending`
 
 ### Repair (retroactive)
 
@@ -63,8 +70,9 @@ If work is done but gates were skipped:
 
 1. Reconstruct summaries from session artifacts (investigation, spec, PR URL)
 2. Post missing comments in phase order (Investigator → Tech Lead → PR handoff → Coder → Reviewer)
-3. `save_issue` with full merged description — all completed rows → `done`
-4. Re-run exit gate; only then return to user
+3. `save_issue` with full merged description — set each completed row → `done`
+4. If Reviewer pass criteria are met and issue is not **In Review**, `save_issue` with `state: "In Review"` only (no `description`)
+5. Re-run exit gate (comments, all `done` rows, and issue state); only then return to user
 
 Do **not** tell the user the run succeeded when exit gate fails — repair first or report which gates are missing.
 
