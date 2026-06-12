@@ -17,7 +17,7 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
-import ProfileSwitch from "./components/profile-switch";
+import SidebarLogo from "./components/sidebar-logo.client";
 
 interface SidebarProps {
   adminMenuEnabled: boolean;
@@ -38,10 +38,10 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
-      <SidebarHeader className="h-[64px] border-b">
-        <div className="flex items-center gap-2 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:pt-1! group-data-[collapsible=icon]:pl-0!">
-          <ProfileSwitch session={session} />
-          <CustomTrigger className="group-data-[collapsible=icon]:hidden" />
+      <SidebarHeader className="h-16 border-b p-0">
+        <div className="flex h-full w-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
+          <SidebarLogo />
+          <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">

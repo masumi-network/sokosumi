@@ -33,14 +33,14 @@ export default function CustomTrigger({
       size="icon"
       onClick={toggleSidebar}
       className={cn(
-        "hidden",
+        "hidden size-8 shrink-0",
         {
           flex: showTrigger,
         },
         className,
       )}
     >
-      <PanelLeft />
+      <PanelLeft className="size-4" />
     </Button>
   );
 }

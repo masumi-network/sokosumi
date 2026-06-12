@@ -153,7 +153,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               data-app-content-inner
             >
               <HeaderGate>
-                <Header className="h-16 p-4" />
+                <Header className="h-16 p-4" session={session} />
               </HeaderGate>
               <main
                 className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
