@@ -2,7 +2,10 @@ import { Prisma } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { serializableTransaction } from "./transaction";
+import {
+  CONCURRENCY_CONFLICT_KIND,
+  serializableTransaction,
+} from "./transaction";
 
 const { prismaTransactionMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -46,6 +49,7 @@ describe("serializableTransaction", () => {
     await expect(promise).rejects.toMatchObject({
       status: 409,
       message: "Resource changed. Please retry.",
+      cause: { kind: CONCURRENCY_CONFLICT_KIND },
     });
     await expect(promise).rejects.toBeInstanceOf(HTTPException);
   });
