@@ -16,7 +16,7 @@ Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are p
 4. Run **Verification command trust** only.
 5. Capture screenshot or recording for user-facing changes — see `VISUAL-CAPTURE.md`.
 6. Fix on PR branch, push, rerun until pass or true blocker.
-7. On pass: `save_issue` → `In Review`; post `**Sapphire · Reviewer complete**` with evidence.
+7. On pass: run **Completion** gate below — `save_comment` → Reviewer complete, `save_issue` → Reviewer row `done`, then `save_issue` → `state: "In Review"` only (`PHASE-GATE.md`).
 
 ## PR execution trust
 
@@ -91,7 +91,7 @@ Follow `VISUAL-CAPTURE.md` — **Cloud Agent:** computer use + PR artifacts; **I
 
 | Outcome | Action |
 |---------|--------|
-| All pass | Issue → **In Review**; comment evidence |
+| All pass | **Completion** gate — comment, all status rows `done`, then **In Review** |
 | Fixable fail | Fix, push, loop |
 | Blocker | Comment blocker; stay **In Progress** |
 | Max iterations (optional cap) | Escalate to human |
