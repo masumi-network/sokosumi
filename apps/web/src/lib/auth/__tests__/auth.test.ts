@@ -168,6 +168,75 @@ describe("auth facade", () => {
       },
     );
   });
+
+  it("decodes percent-encoded cookie values so Next's re-encoding restores the wire format", async () => {
+    // Better Auth serializes signed session tokens with encodeURIComponent
+    // (the HMAC part contains "+", "/", "="). Next's cookies().set encodes
+    // again, so relaying the raw wire value double-encodes it ("%2B" →
+    // "%252B") and core's signature check rejects every forwarded request.
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi.session_token=tok.MeMjd%2B6mLNIb1Dy8lw%2BotxFqPKsYu%2BTCnHdwZI096cA%3D; Path=/; HttpOnly; SameSite=Lax",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+    await auth.api.signInEmail({
+      body: { email: "jane@example.com", password: "pw-123456" },
+      headers: new Headers(),
+    });
+
+    expect(cookieSetMock).toHaveBeenCalledWith(
+      "sokosumi.session_token",
+      "tok.MeMjd+6mLNIb1Dy8lw+otxFqPKsYu+TCnHdwZI096cA=",
+      {
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+      },
+    );
+  });
+
+  it("relays a value with a literal % that is not a valid escape sequence as-is", async () => {
+    signInEmailMock.mockImplementation(
+      async (
+        _body: unknown,
+        fetchOptions: {
+          onResponse?: (context: { response: Response }) => Promise<void>;
+        },
+      ) => {
+        const response = new Response("{}");
+        response.headers.append(
+          "set-cookie",
+          "sokosumi.weird=100%legacy; Path=/",
+        );
+        await fetchOptions.onResponse?.({ response });
+        return { data: { redirect: false }, error: null };
+      },
+    );
+
+    const { auth } = await import("../auth");
+    await auth.api.signInEmail({
+      body: { email: "jane@example.com", password: "pw-123456" },
+      headers: new Headers(),
+    });
+
+    expect(cookieSetMock).toHaveBeenCalledWith("sokosumi.weird", "100%legacy", {
+      path: "/",
+    });
+  });
+
   it("skips the Set-Cookie relay in read-only (RSC) contexts instead of failing the call", async () => {
     cookieSetMock.mockImplementation(() => {
       throw new Error(

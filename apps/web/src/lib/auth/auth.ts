@@ -154,6 +154,22 @@ interface ParsedSetCookie {
   };
 }
 
+/**
+ * Core serializes cookie values with encodeURIComponent (Better Auth signed
+ * tokens contain "+", "/", "="), and Next's `cookies().set` encodes again on
+ * write. Relaying the wire value verbatim therefore double-encodes it ("%2B"
+ * → "%252B") and core rejects the session signature on every forwarded
+ * request. Decode once so Next's re-encoding reproduces the original wire
+ * value.
+ */
+function decodeCookieValue(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value; // not percent-encoded (e.g. a stray literal "%")
+  }
+}
+
 function parseSetCookie(raw: string): ParsedSetCookie | null {
   const [nameValue, ...attributeParts] = raw.split(";");
   if (!nameValue) {
@@ -166,7 +182,7 @@ function parseSetCookie(raw: string): ParsedSetCookie | null {
   }
 
   const name = nameValue.slice(0, separatorIndex).trim();
-  const value = nameValue.slice(separatorIndex + 1).trim();
+  const value = decodeCookieValue(nameValue.slice(separatorIndex + 1).trim());
   if (!name) {
     return null;
   }
