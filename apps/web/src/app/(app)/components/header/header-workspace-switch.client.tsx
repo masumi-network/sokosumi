@@ -190,12 +190,12 @@ export default function HeaderWorkspaceSwitch({
           >
             <div className="flex min-w-0 flex-col items-end text-right">
               <div className="flex max-w-full items-center gap-1">
-                <span className="truncate font-medium">
+                <span className="max-w-24 truncate font-medium md:max-w-none">
                   {activeWorkspace?.name}
                 </span>
                 <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
               </div>
-              <span className="text-muted-foreground max-w-full truncate text-xs">
+              <span className="text-muted-foreground max-md:hidden max-w-full truncate text-xs">
                 {sessionUser.email}
               </span>
             </div>

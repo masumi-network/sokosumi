@@ -1,7 +1,4 @@
-import Link from "next/link";
-
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
-import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import type { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
@@ -23,22 +20,19 @@ export default function Header({ className, session }: HeaderProps) {
         className,
       )}
     >
-      <div className="flex w-full items-center justify-between gap-2 p-2 pl-0 md:hidden md:w-auto">
-        <div className="flex items-center gap-2">
+      <div className="flex w-full min-w-0 items-center gap-2 p-2 pl-0 md:hidden md:w-auto">
+        <div className="flex size-8 shrink-0 items-center justify-center">
           <CustomTrigger when="invisible" />
-          <Link href="/">
-            <ThemedLogo
-              LogoComponent={SokosumiLogo}
-              priority
-              width={123}
-              height={16}
-            />
-          </Link>
         </div>
-        <ChatRailTrigger />
+        <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+          <HeaderProfileSection session={session} />
+          <HeaderUserSection>
+            <ChatRailTrigger />
+          </HeaderUserSection>
+        </div>
       </div>
 
-      <div className="hidden flex-1 flex-row gap-2 sm:flex">
+      <div className="hidden flex-1 flex-row gap-2 md:flex">
         <BreadcrumbNavigation className="flex flex-1" />
         <div className="flex items-center gap-2">
           <HeaderProfileSection session={session} />
