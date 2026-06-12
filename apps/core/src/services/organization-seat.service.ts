@@ -1,8 +1,4 @@
-import {
-  CreditBucketReferenceType,
-  type Prisma,
-  TaskEventOrigin,
-} from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import {
   buildOrganizationSeatAssignmentSubscriptionReferenceId,
   countOrganizationSubscriptionPeriodSeatGrants,
@@ -15,28 +11,16 @@ import {
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
-import {
-  CORE_API_ERROR_KINDS,
-  convertCreditsToCents,
-  TaskStatus,
-} from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { getSubscriptionSeatCredits } from "@/services/subscription-seat-credits.service";
+import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 export interface GrantUnusedSeatSubscriptionCreditsResult {
   creditsGranted: number;
   granted: boolean;
-}
-
-function isPrismaRecordNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2025"
-  );
 }
 
 /**
@@ -62,50 +46,6 @@ export function mapSeatRepositoryError(error: unknown): never {
   }
 
   throw error;
-}
-
-async function markOutOfCreditsTasksAsToppedUp(params: {
-  organizationId: string;
-  tx: Prisma.TransactionClient;
-  userId: string;
-}): Promise<void> {
-  const tasks = await params.tx.task.findMany({
-    where: {
-      organizationId: params.organizationId,
-      status: TaskStatus.OUT_OF_CREDITS,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  for (const task of tasks) {
-    try {
-      await params.tx.task.update({
-        where: {
-          id: task.id,
-          status: TaskStatus.OUT_OF_CREDITS,
-        },
-        data: {
-          status: TaskStatus.CREDITS_TOPPED_UP,
-          events: {
-            create: {
-              status: TaskStatus.CREDITS_TOPPED_UP,
-              origin: TaskEventOrigin.SOKOSUMI,
-              userId: params.userId,
-              coworkerId: null,
-            },
-          },
-        },
-      });
-    } catch (error) {
-      if (isPrismaRecordNotFoundError(error)) {
-        continue;
-      }
-
-      throw error;
-    }
-  }
 }
 
 async function resolveCreditsPerSeatForSubscription(

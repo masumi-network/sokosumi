@@ -78,6 +78,17 @@ export const stripeClient = {
     return await stripe.products.retrieve(productId, {}, requestOptions);
   },
 
+  async retrieveProductWithDefaultPrice(
+    productId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Product> {
+    return await stripe.products.retrieve(
+      productId,
+      { expand: ["default_price"] },
+      requestOptions,
+    );
+  },
+
   async retrieveSubscriptionWithItems(
     subscriptionId: string,
     requestOptions?: Stripe.RequestOptions,
