@@ -267,7 +267,9 @@ describe("canonical share page", () => {
     expect(screen.getByText("charged 372 credits")).toBeVisible();
     expect(screen.getByText("ago:2026-03-30T10:15:00.000Z")).toBeVisible();
     expect(screen.getByText("ago:2026-03-30T10:05:00.000Z")).toBeVisible();
-    expect(screen.getByTestId("status-dot-evt_status")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("status-dot-evt_status"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("status-dot-evt_auth")).not.toBeInTheDocument();
     expect(screen.getByTestId("activity-row-evt_comment")).toHaveClass(
       "border-emerald-500/40",
