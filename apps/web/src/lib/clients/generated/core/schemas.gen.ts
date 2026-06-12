@@ -4945,6 +4945,23 @@ export const MemberRecordSchema = {
     ]
 } as const;
 
+export const PreferredOrganizationSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123',
+            description: 'Organization id of the preferred workspace, or null for the personal workspace'
+        }
+    },
+    required: [
+        'organizationId'
+    ]
+} as const;
+
 export const NoticeSchema = {
     type: 'object',
     properties: {
@@ -5229,6 +5246,20 @@ export const StripeCustomerSchema = {
                 'string',
                 'null'
             ],
+            example: 'cus_123',
+            description: 'Stripe customer id'
+        }
+    },
+    required: [
+        'stripeCustomerId'
+    ]
+} as const;
+
+export const ProvisionedStripeCustomerSchema = {
+    type: 'object',
+    properties: {
+        stripeCustomerId: {
+            type: 'string',
             example: 'cus_123',
             description: 'Stripe customer id'
         }

@@ -150,6 +150,7 @@ import {
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
+  postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -157,6 +158,7 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
@@ -166,6 +168,7 @@ import {
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
+  putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
@@ -880,6 +883,25 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  /**
+   * Ensures a Stripe customer exists for an organization (any-member):
+   * returns the existing customer id or creates the Stripe customer and
+   * returns the new id. Local persistence happens via the Stripe
+   * `customer.created` webhook.
+   */
+  async function createOrganizationStripeCustomer(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdStripeCustomer({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to create organization Stripe customer",
+    );
+  }
+
   async function getOrganizationBillingPlan(organizationId: string) {
     return executeOperation(
       getClient,
@@ -942,6 +964,24 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch user Stripe customer",
+    );
+  }
+
+  /**
+   * Ensures a Stripe customer exists for the current user: returns the
+   * existing customer id or creates the Stripe customer and returns the new
+   * id. Local persistence happens via the Stripe `customer.created` webhook.
+   */
+  async function createMyStripeCustomer() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdStripeCustomer({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to create user Stripe customer",
     );
   }
 
@@ -1551,6 +1591,26 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to save DESIGN.md",
+    );
+  }
+
+  /**
+   * Sets the current user's preferred organization workspace (null for the
+   * personal workspace). Core verifies membership and persists the write in
+   * one transaction; a 403 with kind `organization_membership_required` means
+   * the user is not a member of the organization.
+   */
+  async function setMyPreferredOrganization(organizationId: string | null) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutUsersByIdPreferredOrganization({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body: { organizationId },
+          cache: "no-store",
+        }),
+      "Failed to set preferred organization",
     );
   }
 
@@ -2253,6 +2313,8 @@ export function createCoreClient(getClient: GetClient) {
     getMyMembersWithOrganizations,
     getMyOrganizationCredits,
     getMyOrganizations,
+    createMyStripeCustomer,
+    createOrganizationStripeCustomer,
     getMyStripeCustomer,
     getOrganizationActiveSubscription,
     getOrganizationBillingPlan,
@@ -2264,6 +2326,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
     setMyDesignMd,
+    setMyPreferredOrganization,
     setOrganizationDesignMd,
     getPendingNotices,
     getProjects,

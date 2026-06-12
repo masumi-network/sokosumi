@@ -17,3 +17,22 @@ export const stripeCustomerSchema = z
   .openapi("StripeCustomer");
 
 export type StripeCustomer = z.infer<typeof stripeCustomerSchema>;
+
+/**
+ * Result of ensuring a Stripe customer exists for a billing entity.
+ *
+ * Unlike {@link stripeCustomerSchema}, `stripeCustomerId` is never null: the
+ * endpoint either returns the already-provisioned customer id or creates the
+ * Stripe customer and returns the new id.
+ */
+export const provisionedStripeCustomerSchema = z
+  .object({
+    stripeCustomerId: z
+      .string()
+      .openapi({ example: "cus_123", description: "Stripe customer id" }),
+  })
+  .openapi("ProvisionedStripeCustomer");
+
+export type ProvisionedStripeCustomer = z.infer<
+  typeof provisionedStripeCustomerSchema
+>;
