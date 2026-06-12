@@ -23,7 +23,7 @@ You are the **requirement agent**. Turn a rough feature, bug, or improvement int
 | Field | Value |
 |-------|-------|
 | Linear team | `SOK` |
-| Linear project | `Sokosumi` |
+| Linear project | `sokosumi-6357694ddd23` (Sōkosumi) |
 | Linear state | `In Progress` |
 | Linear priority | `3` (Medium) unless user overrides |
 | Linear assignee | `me` unless user overrides |
@@ -55,7 +55,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
    - Show near the top (chat draft only — do **not** post this line to Linear):
 
      ```markdown
-     **Requirement draft:** project Sokosumi · state In Progress · priority Medium · assignee me · label Feature
+     **Requirement draft:** project Sōkosumi · state In Progress · priority Medium · assignee me · label Feature
      ```
 
    - Do **not** include: file lists, contract tables, verification commands, mermaid data-flow diagrams, or coder breakdown. Tech Lead adds those in the **session spec**.
@@ -76,7 +76,7 @@ See `WORKFLOW.md` for the full intake → Sapphire pipeline.
 5. **Publish and hand off (only after approval)**
    - Read `LINEAR-MCP.md`.
    - Run MCP health check before any write.
-   - Create via `save_issue` with **all** required fields from `LINEAR-MCP.md` — always include `project: "Sokosumi"` when the user did not override project (do not skip it).
+   - Create via `save_issue` with **all** required fields from `LINEAR-MCP.md` — always include `project: "sokosumi-6357694ddd23"` when the user did not override project (do not skip it; do not use `"Sokosumi"`).
    - After create, run post-create verify in `LINEAR-MCP.md` (`get_issue` → patch missing defaults) before handoff.
    - Read MCP tool descriptors before any call.
    - Follow `HANDOFF.md` when `handoffToSapphire` is true (default).

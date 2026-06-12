@@ -40,3 +40,6 @@ lint-report.json
 
 # next-agents-md
 /.next-docs/
+
+# playwright mcp session artifacts
+/.playwright-mcp/
