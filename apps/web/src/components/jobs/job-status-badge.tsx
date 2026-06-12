@@ -29,19 +29,19 @@ const DEFAULT_STATUS_STYLE: StatusPillStyle = {
 const STATUS_PILL_STYLES: Partial<Record<SokosumiJobStatus, StatusPillStyle>> =
   {
     [SokosumiJobStatus.COMPLETED]: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-600 dark:text-emerald-400",
-      dot: "bg-emerald-500",
+      bg: "bg-stone-500/10",
+      text: "text-stone-600 dark:text-stone-400",
+      dot: "bg-stone-500",
     },
     [SokosumiJobStatus.REFUND_RESOLVED]: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-600 dark:text-emerald-400",
-      dot: "bg-emerald-500",
+      bg: "bg-stone-500/10",
+      text: "text-stone-600 dark:text-stone-400",
+      dot: "bg-stone-500",
     },
     [SokosumiJobStatus.DISPUTE_RESOLVED]: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-600 dark:text-emerald-400",
-      dot: "bg-emerald-500",
+      bg: "bg-stone-500/10",
+      text: "text-stone-600 dark:text-stone-400",
+      dot: "bg-stone-500",
     },
     [SokosumiJobStatus.FAILED]: {
       bg: "bg-destructive/10",

@@ -3,7 +3,10 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import {
+  getJobStatusDotColorClass,
+  JobStatusBadge,
+} from "@/components/jobs/job-status-badge";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -20,6 +23,15 @@ describe("JobStatusBadge", () => {
 
     expect(screen.getByText("completed")).toBeInTheDocument();
     expect(container.firstChild).toHaveClass("rounded-sm", "px-2.5", "py-1");
+  });
+
+  it("uses distinct dot colors for completed and processing jobs", () => {
+    expect(getJobStatusDotColorClass(SokosumiJobStatus.COMPLETED)).toBe(
+      "bg-stone-500",
+    );
+    expect(getJobStatusDotColorClass(SokosumiJobStatus.PROCESSING)).toBe(
+      "bg-emerald-500",
+    );
   });
 
   it("renders dot-only version when variant is dot", () => {
