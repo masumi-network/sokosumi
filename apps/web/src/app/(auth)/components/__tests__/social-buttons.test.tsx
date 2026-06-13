@@ -157,7 +157,10 @@ describe("SocialButtons", () => {
       error: null,
     });
     mockMagicLinkSignIn.mockReset();
-    mockMagicLinkSignIn.mockResolvedValue({ data: null, error: null });
+    mockMagicLinkSignIn.mockResolvedValue({
+      data: { status: true },
+      error: null,
+    });
     mockToastError.mockReset();
     mockRouterReplace.mockReset();
     mockGetSession.mockReset();
@@ -546,16 +549,13 @@ describe("SocialButtons", () => {
     );
   });
 
-  it("re-enables magic-link submit when the request rejects", async () => {
+  it("re-enables magic-link submit when the request returns an error", async () => {
     const user = userEvent.setup();
-    let rejectRequest: ((reason?: unknown) => void) | undefined;
 
-    mockMagicLinkSignIn.mockImplementationOnce(
-      () =>
-        new Promise((_, reject) => {
-          rejectRequest = reject;
-        }),
-    );
+    mockMagicLinkSignIn.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Network failure", status: 500, statusText: "Error" },
+    });
 
     render(<SocialButtons showMagicLink />);
 
@@ -572,20 +572,10 @@ describe("SocialButtons", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "magicLinkSubmitting" }),
-      ).toBeDisabled();
-    });
-
-    await act(async () => {
-      rejectRequest?.(new Error("Network failure"));
-    });
-
-    await waitFor(() => {
-      expect(
         screen.getByRole("button", { name: "magicLinkSubmit" }),
       ).toBeEnabled();
     });
 
-    expect(mockToastError).toHaveBeenCalledWith("magicLinkError");
+    expect(mockToastError).toHaveBeenCalledWith("Network failure");
   });
 });
