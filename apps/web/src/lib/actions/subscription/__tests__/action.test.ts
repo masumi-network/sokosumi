@@ -7,7 +7,6 @@ vi.mock("server-only", () => ({}));
 const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
 const updateOrganizationSeatsImmediatelyMock = vi.fn();
 const assertOrganizationSubscriptionChangeAllowedMock = vi.fn();
-const assertPersonalSubscriptionChangeAllowedMock = vi.fn();
 
 vi.mock("@/lib/actions/onboarding", () => ({
   clearSubscriptionOnboardingGateSessionCookie:
@@ -23,8 +22,6 @@ vi.mock("@/lib/services", () => ({
 vi.mock("@sokosumi/database/helpers", () => ({
   assertOrganizationSubscriptionChangeAllowed:
     assertOrganizationSubscriptionChangeAllowedMock,
-  assertPersonalSubscriptionChangeAllowed:
-    assertPersonalSubscriptionChangeAllowedMock,
   OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
 }));
 
@@ -63,7 +60,6 @@ describe("subscription actions", () => {
     assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
       undefined,
     );
-    assertPersonalSubscriptionChangeAllowedMock.mockResolvedValue(undefined);
   });
 
   it("returns BAD_INPUT for invalid personal checkout plan names", async () => {
@@ -81,10 +77,9 @@ describe("subscription actions", () => {
       },
       ok: false,
     });
-    expect(assertPersonalSubscriptionChangeAllowedMock).not.toHaveBeenCalled();
   });
 
-  it("runs personal prisma guard without clearing onboarding cookie for checkout validation", async () => {
+  it("validates personal checkout without gating on enterprise exclusivity or clearing the onboarding cookie", async () => {
     const { validatePersonalSubscriptionChange } = await import("../action");
 
     const result = await validatePersonalSubscriptionChange({
@@ -97,10 +92,11 @@ describe("subscription actions", () => {
       data: undefined,
       ok: true,
     });
-    expect(assertPersonalSubscriptionChangeAllowedMock).toHaveBeenCalledWith(
-      "user-1",
-      {},
-    );
+    // Personal subscriptions are never blocked by an organization's enterprise
+    // contract, so no exclusivity guard runs.
+    expect(
+      assertOrganizationSubscriptionChangeAllowedMock,
+    ).not.toHaveBeenCalled();
     // The onboarding gate is cleared client-side only after the checkout call
     // succeeds, never during validation.
     expect(
@@ -108,7 +104,7 @@ describe("subscription actions", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("runs personal prisma guard without clearing onboarding cookie for portal validation", async () => {
+  it("validates personal billing portal access without gating on enterprise exclusivity", async () => {
     const { validatePersonalSubscriptionChange } = await import("../action");
 
     const result = await validatePersonalSubscriptionChange({
@@ -120,10 +116,9 @@ describe("subscription actions", () => {
       data: undefined,
       ok: true,
     });
-    expect(assertPersonalSubscriptionChangeAllowedMock).toHaveBeenCalledWith(
-      "user-1",
-      {},
-    );
+    expect(
+      assertOrganizationSubscriptionChangeAllowedMock,
+    ).not.toHaveBeenCalled();
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
     ).not.toHaveBeenCalled();
@@ -133,24 +128,29 @@ describe("subscription actions", () => {
     const { OrganizationSubscriptionExclusivityError } = await import(
       "@sokosumi/database/helpers"
     );
-    assertPersonalSubscriptionChangeAllowedMock.mockRejectedValue(
+    assertOrganizationSubscriptionChangeAllowedMock.mockRejectedValue(
       new OrganizationSubscriptionExclusivityError(
-        "Personal subscription blocked",
+        "Self-serve subscriptions are not available.",
       ),
     );
 
     const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { validatePersonalSubscriptionChange } = await import("../action");
+    const { validateOrganizationSubscriptionChange } = await import(
+      "../action"
+    );
 
-    const result = await validatePersonalSubscriptionChange({
-      session,
+    const result = await validateOrganizationSubscriptionChange({
+      session: organizationSession,
+      organizationId: "org-1",
       plan: "pro",
+      returnPath: "/organizations/acme",
+      seats: 3,
     });
 
     expect(result).toEqual({
       error: {
         code: CommonErrorCode.BAD_INPUT,
-        message: "Personal subscription blocked",
+        message: "Self-serve subscriptions are not available.",
       },
       ok: false,
     });

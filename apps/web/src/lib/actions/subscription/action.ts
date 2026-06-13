@@ -2,7 +2,6 @@
 
 import {
   assertOrganizationSubscriptionChangeAllowed,
-  assertPersonalSubscriptionChangeAllowed,
   OrganizationSubscriptionExclusivityError,
 } from "@sokosumi/database/helpers";
 import * as z from "zod";
@@ -135,7 +134,7 @@ interface ValidatePersonalSubscriptionChangeParameters
 export const validatePersonalSubscriptionChange = withSession<
   ValidatePersonalSubscriptionChangeParameters,
   Result<void, ActionError>
->(async ({ plan, returnPath, session }) => {
+>(async ({ plan, returnPath }) => {
   const parsed = validatePersonalSubscriptionChangeSchema.safeParse({
     plan,
     returnPath,
@@ -146,13 +145,10 @@ export const validatePersonalSubscriptionChange = withSession<
     });
   }
 
-  try {
-    await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
-
-    return Ok(undefined);
-  } catch (error) {
-    return Err(parseBetterAuthActionError(error));
-  }
+  // Personal subscriptions are intentionally NOT gated by enterprise-contract
+  // exclusivity: that restriction is scoped to the organization holding the
+  // contract, never to a member's personal account.
+  return Ok(undefined);
 });
 
 interface ValidateOrganizationSubscriptionChangeParameters
