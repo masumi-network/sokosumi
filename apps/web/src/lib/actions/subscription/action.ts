@@ -176,10 +176,16 @@ export const validateOrganizationSubscriptionChange = withSession<
   }
 
   try {
-    await assertOrganizationSubscriptionChangeAllowed(
-      parsed.data.organizationId,
-      prisma,
-    );
+    // Enterprise-contract exclusivity only blocks *buying* a self-serve
+    // subscription, never opening the billing portal. Skip the guard for the
+    // portal flow (no plan) so enterprise-contract orgs can still manage
+    // invoices and payment methods.
+    if (parsed.data.plan) {
+      await assertOrganizationSubscriptionChangeAllowed(
+        parsed.data.organizationId,
+        prisma,
+      );
+    }
 
     return Ok(undefined);
   } catch (error) {

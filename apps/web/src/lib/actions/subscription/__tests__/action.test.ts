@@ -208,7 +208,7 @@ describe("subscription actions", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("runs organization prisma guard for billing portal validation", async () => {
+  it("skips the enterprise exclusivity guard for organization billing portal validation", async () => {
     const { validateOrganizationSubscriptionChange } = await import(
       "../action"
     );
@@ -223,9 +223,11 @@ describe("subscription actions", () => {
       data: undefined,
       ok: true,
     });
+    // Opening the billing portal is not a subscription change, so an
+    // enterprise-contract org must not be blocked from managing invoices.
     expect(
       assertOrganizationSubscriptionChangeAllowedMock,
-    ).toHaveBeenCalledWith("org-1", {});
+    ).not.toHaveBeenCalled();
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
     ).not.toHaveBeenCalled();
