@@ -37,9 +37,9 @@ import {
   markSubscriptionOnboardingGateSessionSeen,
 } from "@/lib/actions/onboarding";
 import {
-  upgradeOrganizationSubscription,
-  upgradePersonalSubscription,
-} from "@/lib/actions/subscription";
+  upgradeOrganizationSubscriptionClient,
+  upgradePersonalSubscriptionClient,
+} from "@/lib/auth/subscription.client";
 
 const INTRO_STEP_COUNT = 5;
 const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
@@ -568,13 +568,13 @@ export function OnboardingDialog({
 
     try {
       const result = organizationId
-        ? await upgradeOrganizationSubscription({
+        ? await upgradeOrganizationSubscriptionClient({
             organizationId,
             plan: selectedPlan,
             returnPath: "/tasks?onboarding_subscription=1",
             seats: targetSeats,
           })
-        : await upgradePersonalSubscription({
+        : await upgradePersonalSubscriptionClient({
             plan: selectedPlan,
             returnPath: "/tasks?onboarding_subscription=1",
           });

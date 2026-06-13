@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
-const upgradePersonalSubscriptionMock = vi.fn();
+const upgradePersonalSubscriptionClientMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
 
@@ -28,9 +28,9 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/subscription", () => ({
-  upgradePersonalSubscription: (...args: unknown[]) =>
-    upgradePersonalSubscriptionMock(...args),
+vi.mock("@/lib/auth/subscription.client", () => ({
+  upgradePersonalSubscriptionClient: (...args: unknown[]) =>
+    upgradePersonalSubscriptionClientMock(...args),
 }));
 
 vi.mock("../subscription-plan-card", () => ({
@@ -78,7 +78,7 @@ function createPlans() {
 describe("PersonalSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    upgradePersonalSubscriptionMock.mockResolvedValue({
+    upgradePersonalSubscriptionClientMock.mockResolvedValue({
       data: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
     });
@@ -153,7 +153,7 @@ describe("PersonalSubscriptionSection", () => {
     await currentPlanProps?.onAction("standard");
 
     await waitFor(() => {
-      expect(upgradePersonalSubscriptionMock).toHaveBeenCalledWith({
+      expect(upgradePersonalSubscriptionClientMock).toHaveBeenCalledWith({
         plan: "standard",
         returnPath: "/billing?tab=subscription",
       });
@@ -161,7 +161,7 @@ describe("PersonalSubscriptionSection", () => {
   });
 
   it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
-    upgradePersonalSubscriptionMock.mockResolvedValue({
+    upgradePersonalSubscriptionClientMock.mockResolvedValue({
       data: { mode: "complete" },
       ok: true,
     });
