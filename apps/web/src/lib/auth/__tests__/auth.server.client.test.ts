@@ -227,6 +227,57 @@ describe("updateCurrentUserViaCore", () => {
   });
 });
 
+describe("setPasswordViaCore", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("delegates to authServerClient.setPassword", async () => {
+    const setPasswordMock = vi
+      .fn()
+      .mockResolvedValue({ data: {}, error: null });
+
+    vi.doMock("../auth.server.client", () => ({
+      getAuthServerClient: () => ({
+        setPassword: setPasswordMock,
+      }),
+    }));
+
+    const { setPasswordViaCore } = await import("../core-auth-http.server");
+
+    await setPasswordViaCore("new-password-123");
+
+    expect(setPasswordMock).toHaveBeenCalledWith({
+      newPassword: "new-password-123",
+    });
+  });
+
+  it("throws when authServerClient.setPassword returns an error", async () => {
+    const setPasswordMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: "PASSWORD_ALREADY_SET",
+        message: "password already set",
+        status: 400,
+      },
+    });
+
+    vi.doMock("../auth.server.client", () => ({
+      getAuthServerClient: () => ({
+        setPassword: setPasswordMock,
+      }),
+    }));
+
+    const { setPasswordViaCore } = await import("../core-auth-http.server");
+
+    await expect(setPasswordViaCore("new-password-123")).rejects.toMatchObject({
+      message: "password already set",
+      code: "PASSWORD_ALREADY_SET",
+    });
+  });
+});
+
 describe("inviteOrganizationMemberViaCore", () => {
   beforeEach(() => {
     vi.resetModules();

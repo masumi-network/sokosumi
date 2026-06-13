@@ -1,13 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
-
-import {
-  type ActionError,
-  betterAuthApiErrorSchema,
-  CommonErrorCode,
-} from "@/lib/actions/errors";
-import { auth } from "@/lib/auth/auth";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { setPasswordViaCore } from "@/lib/auth/core-auth-http.server";
 import { type NewPasswordFormType, newPasswordFormSchema } from "@/lib/schemas";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -24,27 +18,23 @@ export async function createCredentialAccount(
   const parsed = parsedResult.data;
 
   try {
-    await auth.api.setPassword({
-      body: {
-        newPassword: parsed.newPassword,
-      },
-      headers: await headers(),
-    });
+    await setPasswordViaCore(parsed.newPassword);
     return Ok();
   } catch (error) {
     console.error("Failed to set password", error);
 
-    const parsedBetterAuthApiErrorResult =
-      betterAuthApiErrorSchema.safeParse(error);
-    if (parsedBetterAuthApiErrorResult.success) {
-      return Err({
-        code: parsedBetterAuthApiErrorResult.data.body.code,
-        message: parsedBetterAuthApiErrorResult.data.body.message,
-      });
-    }
+    const code =
+      error instanceof Error &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code
+        : undefined;
 
     return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      code: code ?? CommonErrorCode.INTERNAL_SERVER_ERROR,
+      ...(error instanceof Error && error.message
+        ? { message: error.message }
+        : {}),
     });
   }
 }
