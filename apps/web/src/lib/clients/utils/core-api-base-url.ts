@@ -7,17 +7,24 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import {
   getCoreRelatedProjectName,
   normalizeCoreApiBaseUrl,
+  stripCoreApiVersionSuffix,
 } from "@/lib/clients/utils/core-api-base-url.shared";
 
-export function getServerCoreApiBaseUrl(): string {
-  const resolvedCoreApiHost = withRelatedProject({
+function resolveServerCoreHost(): string {
+  return withRelatedProject({
     projectName: getCoreRelatedProjectName(
       getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
     ),
     defaultHost: getEnvSecrets().CORE_APP_BASE_URL,
   });
+}
 
-  return normalizeCoreApiBaseUrl(resolvedCoreApiHost);
+export function getServerCoreAppBaseUrl(): string {
+  return stripCoreApiVersionSuffix(resolveServerCoreHost());
+}
+
+export function getServerCoreApiBaseUrl(): string {
+  return normalizeCoreApiBaseUrl(resolveServerCoreHost());
 }
 
 export const getCoreApiBaseUrl = getServerCoreApiBaseUrl;
