@@ -37,15 +37,26 @@ async function coreAuthFetch(
   });
 }
 
+function createConfiguredAuthServerClient() {
+  return createAuthClient({
+    baseURL: getCoreAuthBaseUrl(),
+    plugins: getAuthClientPlugins(),
+    disableDefaultFetchPlugins: true,
+    fetchOptions: {
+      customFetchImpl: coreAuthFetch,
+    },
+  });
+}
+
+type AuthServerClient = ReturnType<typeof createConfiguredAuthServerClient>;
+
+let authServerClient: AuthServerClient | undefined;
+
 /**
  * Better Auth client for server-side calls to Core `/auth`.
- * Forwards the incoming request cookies on every fetch.
+ * Lazily created so importing this module in tests does not read server env.
  */
-export const authServerClient = createAuthClient({
-  baseURL: getCoreAuthBaseUrl(),
-  plugins: getAuthClientPlugins(),
-  disableDefaultFetchPlugins: true,
-  fetchOptions: {
-    customFetchImpl: coreAuthFetch,
-  },
-});
+export function getAuthServerClient(): AuthServerClient {
+  authServerClient ??= createConfiguredAuthServerClient();
+  return authServerClient;
+}

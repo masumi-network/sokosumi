@@ -46,7 +46,9 @@ describe("authServerClient", () => {
   });
 
   it("points the client at Core /auth with shared plugins and no browser redirect plugin", async () => {
-    await import("../auth.server.client");
+    const { getAuthServerClient } = await import("../auth.server.client");
+
+    getAuthServerClient();
 
     expect(createAuthClientMock).toHaveBeenCalledWith({
       baseURL: "https://core.example.com/auth",
@@ -59,7 +61,9 @@ describe("authServerClient", () => {
   });
 
   it("forwards request cookies through customFetchImpl", async () => {
-    await import("../auth.server.client");
+    const { getAuthServerClient } = await import("../auth.server.client");
+
+    getAuthServerClient();
 
     const [[config]] = createAuthClientMock.mock.calls as Array<
       [
@@ -111,9 +115,9 @@ describe("updateCurrentUserViaCore", () => {
     const updateUserMock = vi.fn().mockResolvedValue({ data: {}, error: null });
 
     vi.doMock("../auth.server.client", () => ({
-      authServerClient: {
+      getAuthServerClient: () => ({
         updateUser: updateUserMock,
-      },
+      }),
     }));
 
     const { updateCurrentUserViaCore } = await import(
@@ -135,9 +139,9 @@ describe("updateCurrentUserViaCore", () => {
     });
 
     vi.doMock("../auth.server.client", () => ({
-      authServerClient: {
+      getAuthServerClient: () => ({
         updateUser: updateUserMock,
-      },
+      }),
     }));
 
     const { updateCurrentUserViaCore } = await import(
@@ -162,11 +166,11 @@ describe("inviteOrganizationMemberViaCore", () => {
       .mockResolvedValue({ data: {}, error: null });
 
     vi.doMock("../auth.server.client", () => ({
-      authServerClient: {
+      getAuthServerClient: () => ({
         organization: {
           inviteMember: inviteMemberMock,
         },
-      },
+      }),
     }));
 
     const { inviteOrganizationMemberViaCore } = await import(
@@ -198,11 +202,11 @@ describe("inviteOrganizationMemberViaCore", () => {
     });
 
     vi.doMock("../auth.server.client", () => ({
-      authServerClient: {
+      getAuthServerClient: () => ({
         organization: {
           inviteMember: inviteMemberMock,
         },
-      },
+      }),
     }));
 
     const { inviteOrganizationMemberViaCore } = await import(

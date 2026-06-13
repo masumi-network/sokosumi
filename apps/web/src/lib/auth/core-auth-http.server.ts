@@ -2,7 +2,7 @@ import "server-only";
 
 import type { MemberRole } from "@sokosumi/database";
 
-import { authServerClient } from "./auth.server.client";
+import { getAuthServerClient } from "./auth.server.client";
 
 /**
  * Updates the current user through Core Better Auth so the session cookie cache
@@ -11,7 +11,7 @@ import { authServerClient } from "./auth.server.client";
 export async function updateCurrentUserViaCore(
   body: Record<string, unknown>,
 ): Promise<void> {
-  const result = await authServerClient.updateUser(body);
+  const result = await getAuthServerClient().updateUser(body);
 
   if (result.error) {
     throw new Error(
@@ -30,7 +30,7 @@ export async function inviteOrganizationMemberViaCore(body: {
   resend: boolean;
   role: MemberRole;
 }): Promise<void> {
-  const result = await authServerClient.organization.inviteMember(body);
+  const result = await getAuthServerClient().organization.inviteMember(body);
 
   if (result.error) {
     throw new Error(
