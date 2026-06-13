@@ -8,8 +8,23 @@ const projectServiceMock = {
   listProjects: vi.fn(),
 };
 
-vi.mock("@/lib/auth/utils", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
+vi.mock("@/middleware/auth-middleware", () => ({
+  withSession:
+    <TParams extends Record<string, unknown>, TResult>(
+      handler: (
+        params: TParams & {
+          session: NonNullable<Awaited<ReturnType<typeof getSessionMock>>>;
+        },
+      ) => Promise<TResult>,
+    ) =>
+    async (params: TParams) => {
+      const session = await getSessionMock();
+      if (!session) {
+        throw new UnAuthenticatedError();
+      }
+
+      return handler({ ...params, session });
+    },
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
