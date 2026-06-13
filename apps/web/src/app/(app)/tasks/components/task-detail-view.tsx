@@ -15,6 +15,7 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
+import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/utils";
@@ -175,24 +176,6 @@ export async function TaskDetailView({
   );
 }
 
-/**
- * Read-only unless the viewer owns the task. Workspace collaborators (org task,
- * not the owner) are read-only, matching the original user-route behavior;
- * `forceReadOnly` additionally locks the view for admins on any task.
- */
-function isReadOnlyForViewer(
-  task: Task,
-  session: SessionResult,
-  forceReadOnly: boolean,
-): boolean {
-  if (forceReadOnly) {
-    return true;
-  }
-  return (
-    task.workspace.organizationId !== null && session?.user.id !== task.userId
-  );
-}
-
 async function TaskDetailEffects({
   taskId,
   targetOrganizationId,
@@ -319,11 +302,12 @@ async function TaskDetailActionsSlot({
     agentNameById,
     coworkerOptions,
   } = buildTaskDetailContext(task, coworkers, agents);
-  const isReadOnlyWorkspaceView = isReadOnlyForViewer(
-    task,
-    session,
+  const isReadOnlyWorkspaceView = isReadOnlyForViewer({
+    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+    taskUserId: task.userId,
+    sessionUserId: session?.user.id,
     forceReadOnly,
-  );
+  });
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -434,11 +418,12 @@ async function TaskActivitySectionContent({
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
   const isFreePlan = currentPlan === "free";
-  const isReadOnlyWorkspaceView = isReadOnlyForViewer(
-    task,
-    session,
+  const isReadOnlyWorkspaceView = isReadOnlyForViewer({
+    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+    taskUserId: task.userId,
+    sessionUserId: session?.user.id,
     forceReadOnly,
-  );
+  });
 
   return (
     <TaskActivitySection

@@ -1,10 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/utils";
+import { createMiddleware } from "hono/factory";
+import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-import mountGetAdminTask from "./get";
+import { errorHandler } from "@/helpers/error-handler.js";
+import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
+import type { AuthVariables } from "@/middleware/auth";
+import { requireAdminAuthContext } from "@/middleware/auth";
 
 const { taskFindUniqueMock } = vi.hoisted(() => ({
   taskFindUniqueMock: vi.fn(),
@@ -18,9 +21,55 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp() {
-  const app = new OpenAPIHono();
+const { default: mountGetAdminTask } = await import("./get.js");
+
+interface AppOptions {
+  role?: string;
+  actor?: "user" | "coworker";
+}
+
+/**
+ * Mounts the route behind the same `requireAdmin` guard the admin router applies
+ * in production, so the tests exercise the real authorization boundary rather
+ * than just the handler shape.
+ */
+function createApp(options: AppOptions = {}) {
+  const { role = "admin", actor = "user" } = options;
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & RequestIdVariables;
+  }>({
+    defaultHook: defaultValidationHook,
+  });
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_admin_test");
+    c.set("isAuthenticated", true);
+
+    if (actor === "coworker") {
+      c.set("authContext", { actor: "coworker", coworkerId: "cow_123" });
+    } else {
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_admin",
+        organizationId: null,
+        role,
+      });
+    }
+
+    await next();
+  });
+
+  app.use(
+    "*",
+    createMiddleware(async (c, next) => {
+      requireAdminAuthContext(c.var.authContext);
+      await next();
+    }),
+  );
+
+  app.onError(errorHandler);
   mountGetAdminTask(app as unknown as OpenAPIHonoWithAuth);
+
   return app;
 }
 
@@ -66,9 +115,7 @@ describe("GET /admin/tasks/{id}", () => {
     taskFindUniqueMock.mockResolvedValue(createTask());
     const app = createApp();
 
-    const response = await app.request(
-      "http://localhost/0195b9f4-7d35-7a4e-b14e-111111111111",
-    );
+    const response = await app.request("/0195b9f4-7d35-7a4e-b14e-111111111111");
 
     expect(response.status).toBe(200);
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
@@ -110,9 +157,7 @@ describe("GET /admin/tasks/{id}", () => {
     });
     const app = createApp();
 
-    const response = await app.request(
-      "http://localhost/0195b9f4-7d35-7a4e-b14e-111111111111",
-    );
+    const response = await app.request("/0195b9f4-7d35-7a4e-b14e-111111111111");
 
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -123,8 +168,26 @@ describe("GET /admin/tasks/{id}", () => {
     taskFindUniqueMock.mockResolvedValue(null);
     const app = createApp();
 
-    const response = await app.request("http://localhost/tsk_missing");
+    const response = await app.request("/tsk_missing");
 
     expect(response.status).toBe(404);
+  });
+
+  it("rejects non-admin users", async () => {
+    const app = createApp({ role: "user" });
+
+    const response = await app.request("/0195b9f4-7d35-7a4e-b14e-111111111111");
+
+    expect(response.status).toBe(403);
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker actors", async () => {
+    const app = createApp({ actor: "coworker" });
+
+    const response = await app.request("/0195b9f4-7d35-7a4e-b14e-111111111111");
+
+    expect(response.status).toBe(403);
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 });
