@@ -72,10 +72,10 @@ vi.mock("@/lib/gtm-events", () => ({
   },
 }));
 
-vi.mock("@/lib/utils/auth-redirect", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/lib/utils/auth-redirect")
-  >("@/lib/utils/auth-redirect");
+vi.mock("@/lib/auth/auth.utils", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
+    "@/lib/auth/auth.utils",
+  );
   return {
     ...actual,
     waitForAuthSession: (...args: unknown[]) => mockWaitForAuthSession(...args),

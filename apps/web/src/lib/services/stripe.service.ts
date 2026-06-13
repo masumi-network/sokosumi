@@ -4,9 +4,8 @@ import { userRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
-
+import { verifyUserId } from "@/lib/auth/auth.server";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { verifyUserId } from "@/lib/auth/utils";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { type Price, stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";

@@ -13,8 +13,8 @@ import SocialButtons from "../social-buttons";
 const {
   buildOAuthConsentReturnUrlFromSearchParams:
     actualBuildOAuthConsentReturnUrlFromSearchParams,
-} = await vi.importActual<typeof import("@/lib/utils/auth-redirect")>(
-  "@/lib/utils/auth-redirect",
+} = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
+  "@/lib/auth/auth.utils",
 );
 
 const mockSocialSignIn = vi.fn();
@@ -99,10 +99,10 @@ vi.mock("@/lib/actions/auth", () => ({
     mockRequestMagicLinkSignIn(...args),
 }));
 
-vi.mock("@/lib/utils/auth-redirect", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/lib/utils/auth-redirect")
-  >("@/lib/utils/auth-redirect");
+vi.mock("@/lib/auth/auth.utils", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
+    "@/lib/auth/auth.utils",
+  );
 
   return {
     ...actual,

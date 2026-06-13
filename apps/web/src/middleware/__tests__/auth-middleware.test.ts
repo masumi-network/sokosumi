@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 export {};
 
+import { getSession } from "@/lib/auth/auth.server";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getSession } from "@/lib/auth/server-auth";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
-vi.mock("@/lib/auth/server-auth", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: vi.fn(),
 }));
 

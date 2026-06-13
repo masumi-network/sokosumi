@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { organizationService } from "@/lib/services";
 
 import InvitationCard, {

@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import { type Account, auth } from "@/lib/auth/auth";
+import { getSession } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
-import { getSession } from "@/lib/auth/utils";
 
 import { ApiKeysSection } from "./api-keys";
 import { OAuthAuthorizedClients } from "./authorized-clients";

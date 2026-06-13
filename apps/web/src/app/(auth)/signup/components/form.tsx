@@ -14,15 +14,15 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/signup/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import type { FormData } from "@/lib/form";
-import { fireGTMEvent } from "@/lib/gtm-events";
-import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
+import type { FormData } from "@/lib/form";
+import { fireGTMEvent } from "@/lib/gtm-events";
+import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;

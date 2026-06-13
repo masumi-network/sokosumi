@@ -13,7 +13,7 @@ import {
   mapCoreAgentToAgentWithCreditsPrice,
 } from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";

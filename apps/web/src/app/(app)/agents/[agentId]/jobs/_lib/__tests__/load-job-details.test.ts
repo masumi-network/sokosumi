@@ -18,7 +18,7 @@ class MockCoreApiRequestError extends Error {
   }
 }
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: getSessionMock,
 }));
 

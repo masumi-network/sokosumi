@@ -15,7 +15,7 @@ import {
   createErrorResponse,
   HttpErrors,
 } from "@/lib/api/schemas/error";
-import { getSession, type Session } from "@/lib/auth/server-auth";
+import { getSession, type Session } from "@/lib/auth/auth.server";
 
 export async function validateSession(_headers: Headers): Promise<Session> {
   const session = await getSession();

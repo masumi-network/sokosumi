@@ -41,7 +41,7 @@ vi.mock("@/lib/clients/core.client", () => {
   };
 });
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 

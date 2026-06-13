@@ -2,7 +2,7 @@ import { dehydrate } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Job } from "@/lib/clients/generated/core";
 import { projectService } from "@/lib/services/project.service";

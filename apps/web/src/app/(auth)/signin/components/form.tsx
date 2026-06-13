@@ -17,16 +17,16 @@ import { Button } from "@/components/ui/button";
 import { AuthErrorCode } from "@/lib/actions";
 import { signInEmail } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
-import type { FormData } from "@/lib/form";
-import { fireGTMEvent } from "@/lib/gtm-events";
-import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
+import type { FormData } from "@/lib/form";
+import { fireGTMEvent } from "@/lib/gtm-events";
+import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;
