@@ -86,7 +86,7 @@ const jobSummarySchemaResponseTransformer = (data: any) => {
     return data;
 };
 
-const nullableTaskShareSchemaResponseTransformer = (data: any) => {
+const taskShareSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;
@@ -111,7 +111,9 @@ const taskSchemaResponseTransformer = (data: any) => {
     data.updatedAt = new Date(data.updatedAt);
     data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
     data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
-    data.share = nullableTaskShareSchemaResponseTransformer(data.share);
+    if (data.share) {
+        data.share = taskShareSchemaResponseTransformer(data.share);
+    }
     data.links = data.links.map((item: any) => taskLinkSchemaResponseTransformer(item));
     return data;
 };
@@ -1287,12 +1289,6 @@ export const patchTasksByIdResponseTransformer = async (data: any): Promise<Patc
 
 export const deleteTasksByIdShareResponseTransformer = async (data: any): Promise<DeleteTasksByIdShareResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-const taskShareSchemaResponseTransformer = (data: any) => {
-    data.createdAt = new Date(data.createdAt);
-    data.updatedAt = new Date(data.updatedAt);
     return data;
 };
 
