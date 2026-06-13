@@ -2699,6 +2699,10 @@
           "created": "Créée",
           "loadMore": "Charger plus",
           "loadError": "Échec du chargement des tâches."
+        },
+        "TaskDetail": {
+          "backToList": "Retour aux tâches",
+          "personalWorkspace": "Espace de travail personnel"
         }
       }
     },

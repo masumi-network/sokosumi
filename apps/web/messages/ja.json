@@ -2699,6 +2699,10 @@
           "created": "作成日",
           "loadMore": "さらに読み込む",
           "loadError": "タスクの読み込みに失敗しました。"
+        },
+        "TaskDetail": {
+          "backToList": "タスク一覧に戻る",
+          "personalWorkspace": "個人ワークスペース"
         }
       }
     },

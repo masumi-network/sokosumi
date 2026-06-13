@@ -2753,6 +2753,10 @@
           "created": "Created",
           "loadMore": "Load more",
           "loadError": "Failed to load tasks."
+        },
+        "TaskDetail": {
+          "backToList": "Back to tasks",
+          "personalWorkspace": "Personal workspace"
         }
       }
     },
