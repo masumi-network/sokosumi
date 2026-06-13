@@ -52,6 +52,10 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
+    .number()
+    .min(0)
+    .default(60 * 5), // 5 minutes
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 
