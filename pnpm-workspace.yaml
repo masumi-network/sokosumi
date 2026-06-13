@@ -24,6 +24,11 @@ overrides:
   # ws GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) — @vercel/functions@3.7.0
   # ships ws@8.20.0 (vulnerable). Force all ws 8.x resolutions to the patched line.
   "ws@>=8.0.0 <8.20.1": "8.21.0"
+  # esbuild GHSA-gv7w-rqvm-qjhr (RCE in Deno via NPM_CONFIG_REGISTRY) and
+  # GHSA-g7r4-m6w7-qqqr (Windows dev-server arbitrary file read) — transitive
+  # via vite@8.0.16 (esbuild@0.27.7) and tsup@8.5.1. Force all resolving copies
+  # below the patched line to 0.28.1.
+  "esbuild@<0.28.1": "0.28.1"
 
 allowBuilds:
   # pnpm 11: workspace prepare scripts are blocked unless listed (strictDepBuilds).
