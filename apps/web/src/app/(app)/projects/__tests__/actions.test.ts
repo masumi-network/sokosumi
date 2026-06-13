@@ -8,23 +8,10 @@ const projectServiceMock = {
   listProjects: vi.fn(),
 };
 
-vi.mock("@/middleware/auth-middleware", () => ({
-  withSession:
-    <TParams extends Record<string, unknown>, TResult>(
-      handler: (
-        params: TParams & {
-          session: NonNullable<Awaited<ReturnType<typeof getSessionMock>>>;
-        },
-      ) => Promise<TResult>,
-    ) =>
-    async (params: TParams) => {
-      const session = await getSessionMock();
-      if (!session) {
-        throw new UnAuthenticatedError();
-      }
-
-      return handler({ ...params, session });
-    },
+// Mock only the session source and exercise the real `withSession` wrapper so
+// its auth guard (and forged-session override) is covered, not reimplemented.
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
 vi.mock("@/lib/services/project.service", () => ({

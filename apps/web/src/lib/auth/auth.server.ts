@@ -16,17 +16,10 @@ async function fetchSession(
   requestHeaders: Headers,
   options?: GetSessionOptions,
 ): Promise<Session | null> {
-  if (options?.refresh) {
-    return auth.api.getSession({
-      query: {
-        disableCookieCache: true,
-      },
-      headers: requestHeaders,
-    });
-  }
-
   return auth.api.getSession({
     headers: requestHeaders,
+    // Bypass the cookie cache so a refreshed session is read from the DB.
+    ...(options?.refresh ? { query: { disableCookieCache: true } } : {}),
   });
 }
 
