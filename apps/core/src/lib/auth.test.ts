@@ -215,7 +215,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("aligns trustedOrigins with the web app for hosted Sokosumi domains", async () => {
+  it("uses explicit Sokosumi app trustedOrigins in production", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
       NODE_ENV: "production",
@@ -228,8 +228,9 @@ describe("core auth config", () => {
     >;
 
     expect(config.trustedOrigins).toEqual([
-      "https://sokosumi.com",
-      "https://*.sokosumi.com",
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://*.preview.sokosumi.com",
     ]);
   });
 
@@ -246,8 +247,9 @@ describe("core auth config", () => {
     >;
 
     expect(config.trustedOrigins).toEqual([
-      "https://sokosumi.com",
-      "https://*.sokosumi.com",
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://*.preview.sokosumi.com",
       "http://localhost:*",
     ]);
   });

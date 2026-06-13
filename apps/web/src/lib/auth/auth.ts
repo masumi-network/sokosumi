@@ -424,8 +424,9 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    "https://sokosumi.com",
-    "https://*.sokosumi.com",
+    "https://app.sokosumi.com",
+    "https://preprod.sokosumi.com",
+    "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
     ...(secrets.NODE_ENV === "development"
       ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
       : []),
