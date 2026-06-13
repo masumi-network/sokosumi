@@ -2509,7 +2509,6 @@
         "unauthenticated": "Accedi per continuare",
         "unauthenticatedAction": "Accedi",
         "badInput": "Selezione del piano non valida",
-        "enterpriseContractExclusive": "Appartieni a un'organizzazione con un contratto enterprise attivo, quindi i piani personali self-serve non sono disponibili. Contatta il supporto per modificare il piano.",
         "general": "Qualcosa è andato storto. Riprova."
       },
       "Error": {

@@ -2520,7 +2520,6 @@
         "unauthenticated": "Please sign in to continue",
         "unauthenticatedAction": "Sign In",
         "badInput": "Invalid plan selection",
-        "enterpriseContractExclusive": "You belong to an organization with an active enterprise contract, so personal self-serve plans aren't available. Contact support to change your plan.",
         "general": "Something went wrong. Please try again."
       },
       "Error": {

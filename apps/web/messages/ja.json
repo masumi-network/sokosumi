@@ -2509,7 +2509,6 @@
         "unauthenticated": "続行するにはサインインしてください",
         "unauthenticatedAction": "サインイン",
         "badInput": "プランの選択が無効です",
-        "enterpriseContractExclusive": "アクティブなエンタープライズ契約のある組織に所属しているため、個人向けセルフサーブプランは利用できません。プラン変更はサポートにお問い合わせください。",
         "general": "問題が発生しました。もう一度お試しください。"
       },
       "Error": {

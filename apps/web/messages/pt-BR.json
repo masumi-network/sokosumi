@@ -2509,7 +2509,6 @@
         "unauthenticated": "Faça login para continuar",
         "unauthenticatedAction": "Entrar",
         "badInput": "Seleção de plano inválida",
-        "enterpriseContractExclusive": "Você pertence a uma organização com um contrato enterprise ativo, por isso os planos pessoais self-serve não estão disponíveis. Entre em contato com o suporte para alterar seu plano.",
         "general": "Algo deu errado. Tente de novo."
       },
       "Error": {
