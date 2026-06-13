@@ -6,35 +6,38 @@ import { cache } from "react";
 
 import { auth, type Session } from "@/lib/auth/auth";
 
+export type { Session };
+
 interface GetSessionOptions {
   refresh?: boolean;
 }
+
+async function fetchSession(
+  requestHeaders: Headers,
+  options?: GetSessionOptions,
+): Promise<Session | null> {
+  return auth.api.getSession({
+    headers: requestHeaders,
+    // Bypass the cookie cache so a refreshed session is read from the DB.
+    ...(options?.refresh ? { query: { disableCookieCache: true } } : {}),
+  });
+}
+
+const getCachedSession = cache(async (): Promise<Session | null> => {
+  return fetchSession(await headers());
+});
 
 /**
  * Gets the current user's session information. This function only works with
  * session-based authentication, not API keys.
  *
  * @returns Promise resolving to the user's session if valid, null otherwise
- *
  */
-const getCachedSession = cache(async (): Promise<Session | null> => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  return session;
-});
-
 export async function getSession(
   options?: GetSessionOptions,
 ): Promise<Session | null> {
   if (options?.refresh) {
-    return auth.api.getSession({
-      query: {
-        disableCookieCache: true,
-      },
-      headers: await headers(),
-    });
+    return fetchSession(await headers(), options);
   }
 
   return getCachedSession();
@@ -67,7 +70,6 @@ export async function getSessionOrRedirect(): Promise<Session> {
  *
  * @param userId - The user ID to verify against the current context
  * @returns Promise resolving to true if the user ID matches, false otherwise
- *
  */
 export async function verifyUserId(userId: string): Promise<boolean> {
   const session = await getSession();

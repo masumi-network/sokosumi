@@ -23,7 +23,7 @@ vi.mock("@/config/env.secrets", () => ({
   }),
 }));
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   verifyUserId: (...args: unknown[]) => verifyUserIdMock(...args),
 }));
 

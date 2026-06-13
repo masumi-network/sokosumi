@@ -38,7 +38,7 @@ vi.mock("../utils/tasks-column-page", () => ({
 
 const getSessionMock = vi.fn();
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 

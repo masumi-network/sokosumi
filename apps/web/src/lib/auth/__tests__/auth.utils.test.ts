@@ -7,7 +7,7 @@ import {
   getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
 
 describe("getValidAuthRedirectUrl", () => {
   it("returns fallback when returnUrl is missing", () => {

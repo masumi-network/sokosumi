@@ -23,14 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestMagicLinkSignIn } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
-import { emailSchema } from "@/lib/auth/data";
-import { cn } from "@/lib/utils";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
+import { emailSchema } from "@/lib/auth/data";
+import { cn } from "@/lib/utils";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 export type SocialButtonProviderId = "google" | "microsoft";

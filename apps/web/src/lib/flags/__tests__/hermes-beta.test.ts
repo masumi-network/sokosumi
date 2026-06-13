@@ -15,7 +15,7 @@ vi.mock("flags/next", () => ({
   }) => decide,
 }));
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 

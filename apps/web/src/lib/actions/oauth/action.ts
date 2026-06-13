@@ -1,7 +1,7 @@
 "use server";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 
