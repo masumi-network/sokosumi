@@ -103,6 +103,79 @@ describe("authServerClient", () => {
       "application/json",
     );
   });
+
+  it("forwards the caller Origin header so Core's CSRF check passes", async () => {
+    headersMock.mockResolvedValue(
+      new Headers({
+        cookie: "session=test",
+        origin: "https://app.sokosumi.com",
+      }),
+    );
+
+    const { getAuthServerClient } = await import("../auth.server.client");
+
+    getAuthServerClient();
+
+    const [[config]] = createAuthClientMock.mock.calls as Array<
+      [
+        {
+          fetchOptions: {
+            customFetchImpl: (
+              input: string,
+              init?: RequestInit,
+            ) => Promise<Response>;
+          };
+        },
+      ]
+    >;
+
+    await config.fetchOptions.customFetchImpl(
+      "https://core.example.com/auth/organization/invite-member",
+      { method: "POST", headers: { "Content-Type": "application/json" } },
+    );
+
+    const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((fetchInit.headers as Headers).get("origin")).toBe(
+      "https://app.sokosumi.com",
+    );
+  });
+
+  it("reconstructs Origin from Host when the caller sends no Origin", async () => {
+    headersMock.mockResolvedValue(
+      new Headers({
+        cookie: "session=test",
+        host: "tenant.preview.sokosumi.com",
+        "x-forwarded-proto": "https",
+      }),
+    );
+
+    const { getAuthServerClient } = await import("../auth.server.client");
+
+    getAuthServerClient();
+
+    const [[config]] = createAuthClientMock.mock.calls as Array<
+      [
+        {
+          fetchOptions: {
+            customFetchImpl: (
+              input: string,
+              init?: RequestInit,
+            ) => Promise<Response>;
+          };
+        },
+      ]
+    >;
+
+    await config.fetchOptions.customFetchImpl(
+      "https://core.example.com/auth/organization/invite-member",
+      { method: "POST" },
+    );
+
+    const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((fetchInit.headers as Headers).get("origin")).toBe(
+      "https://tenant.preview.sokosumi.com",
+    );
+  });
 });
 
 describe("updateCurrentUserViaCore", () => {
