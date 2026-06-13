@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import type { Session } from "@/lib/auth/auth";
+import type { ActiveSubscription } from "@/components/billing/subscription-plan-utils";
+import type { Account, Session } from "@/lib/auth/auth";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
@@ -15,8 +16,58 @@ interface GetSessionOptions {
   refresh?: boolean;
 }
 
+interface ListActiveSubscriptionsOptions {
+  customerType?: "organization" | "user";
+  referenceId?: string;
+}
+
+export interface OAuthClientPublic {
+  client_id?: string;
+  client_name?: string;
+}
+
 const CORE_GET_SESSION_PATH = "/auth/get-session";
-const CORE_GET_SESSION_TIMEOUT_MS = 5000;
+const CORE_LIST_ACCOUNTS_PATH = "/auth/list-accounts";
+const CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH = "/auth/subscription/list";
+const CORE_GET_OAUTH_CLIENT_PUBLIC_PATH = "/auth/oauth2/public-client";
+const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
+
+async function fetchCoreAuth<T>(
+  path: string,
+  requestHeaders: Headers,
+  options?: {
+    failureLogMessage?: string;
+    searchParams?: Record<string, string | undefined>;
+  },
+): Promise<T | null> {
+  const url = new URL(joinCoreApiPath(getServerCoreAppBaseUrl(), path));
+
+  for (const [key, value] of Object.entries(options?.searchParams ?? {})) {
+    if (value !== undefined) {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: buildAuthHeaders(requestHeaders),
+      cache: "no-store",
+      signal: AbortSignal.timeout(CORE_AUTH_REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as T;
+  } catch (error) {
+    console.error(
+      options?.failureLogMessage ?? "Failed to fetch from Core auth",
+      error,
+    );
+    return null;
+  }
+}
 
 async function fetchSession(
   requestHeaders: Headers,
@@ -37,7 +88,7 @@ async function fetchSession(
     const response = await fetch(sessionUrl, {
       headers: buildAuthHeaders(requestHeaders),
       cache: "no-store",
-      signal: AbortSignal.timeout(CORE_GET_SESSION_TIMEOUT_MS),
+      signal: AbortSignal.timeout(CORE_AUTH_REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -77,6 +128,82 @@ export async function getSession(
   }
 
   return getCachedSession();
+}
+
+const getCachedUserAccounts = cache(async (): Promise<Account[]> => {
+  const accounts = await fetchCoreAuth<Account[]>(
+    CORE_LIST_ACCOUNTS_PATH,
+    await headers(),
+    {
+      failureLogMessage: "Failed to fetch user accounts from Core",
+    },
+  );
+
+  return accounts ?? [];
+});
+
+/**
+ * Lists accounts linked to the current user via Core Better Auth.
+ */
+export async function listUserAccounts(): Promise<Account[]> {
+  return getCachedUserAccounts();
+}
+
+// Keyed on primitive args so React `cache` dedupes across call sites that pass
+// equivalent options as separate object literals.
+const getCachedActiveSubscriptions = cache(
+  async (
+    customerType?: "organization" | "user",
+    referenceId?: string,
+  ): Promise<ActiveSubscription[]> => {
+    const subscriptions = await fetchCoreAuth<ActiveSubscription[]>(
+      CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch active subscriptions from Core",
+        searchParams: {
+          customerType,
+          referenceId,
+        },
+      },
+    );
+
+    return subscriptions ?? [];
+  },
+);
+
+/**
+ * Lists active Stripe-backed subscriptions for the current user or organization.
+ */
+export async function listActiveSubscriptions(
+  options?: ListActiveSubscriptionsOptions,
+): Promise<ActiveSubscription[]> {
+  return getCachedActiveSubscriptions(
+    options?.customerType,
+    options?.referenceId,
+  );
+}
+
+const getCachedOAuthClientPublic = cache(
+  async (clientId: string): Promise<OAuthClientPublic | null> => {
+    return fetchCoreAuth<OAuthClientPublic>(
+      CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch OAuth client from Core",
+        searchParams: { client_id: clientId },
+      },
+    );
+  },
+);
+
+/**
+ * Fetches public OAuth client metadata for the consent screen.
+ */
+export async function getOAuthClientPublic(
+  clientId: string,
+): Promise<OAuthClientPublic | null> {
+  return getCachedOAuthClientPublic(clientId);
 }
 
 /**
