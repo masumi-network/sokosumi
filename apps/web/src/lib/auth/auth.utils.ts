@@ -144,15 +144,17 @@ interface AuthOAuthRedirectPayload {
   };
 }
 
-export function getAuthOAuthRedirect(
-  payload: AuthOAuthRedirectPayload | null | undefined,
-): { redirect: boolean; redirectUrl?: string } {
-  if (!payload) {
+export function getAuthOAuthRedirect(payload: unknown): {
+  redirect: boolean;
+  redirectUrl?: string;
+} {
+  if (!payload || typeof payload !== "object") {
     return { redirect: false };
   }
 
-  const redirect = payload.redirect ?? payload.data?.redirect;
-  const redirectUrl = payload.url ?? payload.data?.url;
+  const candidate = payload as AuthOAuthRedirectPayload;
+  const redirect = candidate.redirect ?? candidate.data?.redirect;
+  const redirectUrl = candidate.url ?? candidate.data?.url;
 
   if (redirect && redirectUrl) {
     return { redirect: true, redirectUrl };

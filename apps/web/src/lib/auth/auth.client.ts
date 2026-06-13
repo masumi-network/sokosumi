@@ -62,5 +62,4 @@ export const {
   useSession,
   changeEmail,
   changePassword,
-  setPassword,
 } = authClient;
