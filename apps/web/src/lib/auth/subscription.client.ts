@@ -3,11 +3,8 @@
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
-import {
-  validateOrganizationSubscriptionChange,
-  validatePersonalSubscriptionChange,
-} from "@/lib/actions/subscription";
 import { subscription } from "@/lib/auth/auth.client";
 import { buildSubscriptionStatusPath } from "@/lib/stripe/subscription-redirect-urls";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -28,10 +25,18 @@ function mapAuthClientError(error: BetterAuthClientError): ActionError {
   // their messages may expose internal details.
   console.error("[subscription] auth client error", error);
 
-  // Route on the HTTP status rather than Better Auth's own `code` string (which
-  // is not part of our CommonErrorCode taxonomy) and never forward
-  // `error.message`. Components render localized copy from the mapped code; a
-  // 401 maps to UNAUTHENTICATED so the "log in" affordance fires.
+  // App-defined codes are safe to pass through so the UI can localize them
+  // (e.g. the enterprise-contract exclusivity error thrown by
+  // authorizeReference). Everything else routes on the HTTP status, with no
+  // raw message forwarded; a 401 maps to UNAUTHENTICATED so the "log in"
+  // affordance fires.
+  if (
+    error.code ===
+    OrganizationErrorCode.ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE
+  ) {
+    return { code: error.code };
+  }
+
   switch (error.status) {
     case 401:
       return { code: CommonErrorCode.UNAUTHENTICATED };
@@ -61,14 +66,6 @@ export async function upgradePersonalSubscriptionClient({
   plan: PaidSubscriptionPlanName;
   returnPath?: string;
 }): Promise<Result<SubscriptionChangeResult, ActionError>> {
-  const validation = await validatePersonalSubscriptionChange({
-    plan,
-    returnPath,
-  });
-  if (!validation.ok) {
-    return validation;
-  }
-
   const resolvedReturnPath = returnPath ?? "/billing?tab=subscription";
 
   const result = await subscription.upgrade({
@@ -96,11 +93,6 @@ export async function openPersonalBillingPortalClient({
 }: {
   returnPath?: string;
 }): Promise<Result<{ url: string }, ActionError>> {
-  const validation = await validatePersonalSubscriptionChange({ returnPath });
-  if (!validation.ok) {
-    return validation;
-  }
-
   const resolvedReturnPath = returnPath ?? "/billing?tab=subscription";
 
   const result = await subscription.billingPortal({
@@ -133,16 +125,6 @@ export async function upgradeOrganizationSubscriptionClient({
   returnPath: string;
   seats: number;
 }): Promise<Result<SubscriptionChangeResult, ActionError>> {
-  const validation = await validateOrganizationSubscriptionChange({
-    organizationId,
-    plan,
-    returnPath,
-    seats,
-  });
-  if (!validation.ok) {
-    return validation;
-  }
-
   const result = await subscription.upgrade({
     plan,
     customerType: "organization",
@@ -172,14 +154,6 @@ export async function openOrganizationBillingPortalClient({
   organizationId: string;
   returnPath: string;
 }): Promise<Result<{ url: string }, ActionError>> {
-  const validation = await validateOrganizationSubscriptionChange({
-    organizationId,
-    returnPath,
-  });
-  if (!validation.ok) {
-    return validation;
-  }
-
   const result = await subscription.billingPortal({
     customerType: "organization",
     referenceId: organizationId,

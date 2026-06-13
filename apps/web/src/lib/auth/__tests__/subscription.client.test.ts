@@ -1,16 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const validatePersonalSubscriptionChangeMock = vi.fn();
-const validateOrganizationSubscriptionChangeMock = vi.fn();
 const subscriptionUpgradeMock = vi.fn();
 const subscriptionBillingPortalMock = vi.fn();
 const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
-
-vi.mock("@/lib/actions/subscription", () => ({
-  validateOrganizationSubscriptionChange:
-    validateOrganizationSubscriptionChangeMock,
-  validatePersonalSubscriptionChange: validatePersonalSubscriptionChangeMock,
-}));
 
 vi.mock("@/lib/actions/onboarding", () => ({
   clearSubscriptionOnboardingGateSessionCookie:
@@ -28,14 +20,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
 describe("subscription client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    validatePersonalSubscriptionChangeMock.mockResolvedValue({
-      data: undefined,
-      ok: true,
-    });
-    validateOrganizationSubscriptionChangeMock.mockResolvedValue({
-      data: undefined,
-      ok: true,
-    });
   });
 
   it("returns checkout url from authClient.subscription.upgrade for personal plans", async () => {
@@ -58,10 +42,6 @@ describe("subscription client", () => {
         url: "https://checkout.stripe.com/session/test",
       },
       ok: true,
-    });
-    expect(validatePersonalSubscriptionChangeMock).toHaveBeenCalledWith({
-      plan: "starter",
-      returnPath: undefined,
     });
     expect(subscriptionUpgradeMock).toHaveBeenCalledWith({
       cancelUrl: "/billing?tab=subscription&status=cancel",
@@ -135,6 +115,40 @@ describe("subscription client", () => {
     });
   });
 
+  it("passes the enterprise-contract exclusivity code through for the UI to localize", async () => {
+    subscriptionUpgradeMock.mockResolvedValue({
+      data: null,
+      error: {
+        status: 400,
+        code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+        message: "internal exclusivity detail",
+      },
+    });
+
+    const { upgradeOrganizationSubscriptionClient } = await import(
+      "../subscription.client"
+    );
+
+    const result = await upgradeOrganizationSubscriptionClient({
+      organizationId: "org-1",
+      plan: "pro",
+      returnPath: "/organizations/acme",
+      seats: 7,
+    });
+
+    // The app-defined enterprise code is preserved (no raw message) so the org
+    // section can render a localized explanation.
+    expect(result).toEqual({
+      error: {
+        code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+      },
+      ok: false,
+    });
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).not.toHaveBeenCalled();
+  });
+
   it("returns billing portal url from authClient.subscription.billingPortal", async () => {
     subscriptionBillingPortalMock.mockResolvedValue({
       data: { url: "https://billing.stripe.com/session/test" },
@@ -152,9 +166,6 @@ describe("subscription client", () => {
     expect(result).toEqual({
       data: { url: "https://billing.stripe.com/session/test" },
       ok: true,
-    });
-    expect(validatePersonalSubscriptionChangeMock).toHaveBeenCalledWith({
-      returnPath: "/billing?tab=coupon",
     });
     expect(subscriptionBillingPortalMock).toHaveBeenCalledWith({
       customerType: "user",
@@ -190,12 +201,6 @@ describe("subscription client", () => {
       },
       ok: true,
     });
-    expect(validateOrganizationSubscriptionChangeMock).toHaveBeenCalledWith({
-      organizationId: "org-1",
-      plan: "pro",
-      returnPath: "/organizations/acme",
-      seats: 7,
-    });
     expect(subscriptionUpgradeMock).toHaveBeenCalledWith({
       cancelUrl: "/organizations/acme?status=cancel",
       customerType: "organization",
@@ -229,10 +234,6 @@ describe("subscription client", () => {
     expect(result).toEqual({
       data: { url: "https://billing.stripe.com/session/org-test" },
       ok: true,
-    });
-    expect(validateOrganizationSubscriptionChangeMock).toHaveBeenCalledWith({
-      organizationId: "org-1",
-      returnPath: "/organizations/acme",
     });
     expect(subscriptionBillingPortalMock).toHaveBeenCalledWith({
       customerType: "organization",

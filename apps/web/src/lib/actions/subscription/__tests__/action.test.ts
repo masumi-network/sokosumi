@@ -4,14 +4,7 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
-const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
 const updateOrganizationSeatsImmediatelyMock = vi.fn();
-const assertOrganizationSubscriptionChangeAllowedMock = vi.fn();
-
-vi.mock("@/lib/actions/onboarding", () => ({
-  clearSubscriptionOnboardingGateSessionCookie:
-    clearSubscriptionOnboardingGateSessionCookieMock,
-}));
 
 vi.mock("@/lib/services", () => ({
   organizationSubscriptionService: {
@@ -20,13 +13,7 @@ vi.mock("@/lib/services", () => ({
 }));
 
 vi.mock("@sokosumi/database/helpers", () => ({
-  assertOrganizationSubscriptionChangeAllowed:
-    assertOrganizationSubscriptionChangeAllowedMock,
   OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
 }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -35,15 +22,6 @@ vi.mock("@/middleware/auth-middleware", () => ({
     async (params: unknown) =>
       await handler(params),
 }));
-
-const session = {
-  user: {
-    id: "user-1",
-  },
-  session: {
-    activeOrganizationId: null,
-  },
-} as never;
 
 const organizationSession = {
   user: {
@@ -57,180 +35,6 @@ const organizationSession = {
 describe("subscription actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    assertOrganizationSubscriptionChangeAllowedMock.mockResolvedValue(
-      undefined,
-    );
-  });
-
-  it("returns BAD_INPUT for invalid personal checkout plan names", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { validatePersonalSubscriptionChange } = await import("../action");
-
-    const result = await validatePersonalSubscriptionChange({
-      session,
-      plan: "invalid-plan" as never,
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: CommonErrorCode.BAD_INPUT,
-      },
-      ok: false,
-    });
-  });
-
-  it("validates personal checkout without gating on enterprise exclusivity or clearing the onboarding cookie", async () => {
-    const { validatePersonalSubscriptionChange } = await import("../action");
-
-    const result = await validatePersonalSubscriptionChange({
-      session,
-      plan: "starter",
-      returnPath: "/billing?tab=subscription",
-    });
-
-    expect(result).toEqual({
-      data: undefined,
-      ok: true,
-    });
-    // Personal subscriptions are never blocked by an organization's enterprise
-    // contract, so no exclusivity guard runs.
-    expect(
-      assertOrganizationSubscriptionChangeAllowedMock,
-    ).not.toHaveBeenCalled();
-    // The onboarding gate is cleared client-side only after the checkout call
-    // succeeds, never during validation.
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("validates personal billing portal access without gating on enterprise exclusivity", async () => {
-    const { validatePersonalSubscriptionChange } = await import("../action");
-
-    const result = await validatePersonalSubscriptionChange({
-      session,
-      returnPath: "/billing?tab=coupon",
-    });
-
-    expect(result).toEqual({
-      data: undefined,
-      ok: true,
-    });
-    expect(
-      assertOrganizationSubscriptionChangeAllowedMock,
-    ).not.toHaveBeenCalled();
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("maps organization subscription exclusivity errors", async () => {
-    const { OrganizationSubscriptionExclusivityError } = await import(
-      "@sokosumi/database/helpers"
-    );
-    assertOrganizationSubscriptionChangeAllowedMock.mockRejectedValue(
-      new OrganizationSubscriptionExclusivityError(
-        "Self-serve subscriptions are not available.",
-      ),
-    );
-
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { validateOrganizationSubscriptionChange } = await import(
-      "../action"
-    );
-
-    const result = await validateOrganizationSubscriptionChange({
-      session: organizationSession,
-      organizationId: "org-1",
-      plan: "pro",
-      returnPath: "/organizations/acme",
-      seats: 3,
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Self-serve subscriptions are not available.",
-      },
-      ok: false,
-    });
-  });
-
-  it("returns BAD_INPUT for invalid organization checkout seats", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { validateOrganizationSubscriptionChange } = await import(
-      "../action"
-    );
-
-    const result = await validateOrganizationSubscriptionChange({
-      session: organizationSession,
-      organizationId: "org-1",
-      plan: "starter",
-      returnPath: "/organizations/org-1",
-      seats: 0,
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: CommonErrorCode.BAD_INPUT,
-      },
-      ok: false,
-    });
-    expect(
-      assertOrganizationSubscriptionChangeAllowedMock,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("runs organization prisma guard without clearing onboarding cookie for checkout validation", async () => {
-    const { validateOrganizationSubscriptionChange } = await import(
-      "../action"
-    );
-
-    const result = await validateOrganizationSubscriptionChange({
-      session: organizationSession,
-      organizationId: "org-1",
-      plan: "pro",
-      returnPath: "/organizations/acme",
-      seats: 7,
-    });
-
-    expect(result).toEqual({
-      data: undefined,
-      ok: true,
-    });
-    expect(
-      assertOrganizationSubscriptionChangeAllowedMock,
-    ).toHaveBeenCalledWith("org-1", {});
-    // The onboarding gate is cleared client-side only after the checkout call
-    // succeeds, never during validation.
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("skips the enterprise exclusivity guard for organization billing portal validation", async () => {
-    const { validateOrganizationSubscriptionChange } = await import(
-      "../action"
-    );
-
-    const result = await validateOrganizationSubscriptionChange({
-      session: organizationSession,
-      organizationId: "org-1",
-      returnPath: "/organizations/acme",
-    });
-
-    expect(result).toEqual({
-      data: undefined,
-      ok: true,
-    });
-    // Opening the billing portal is not a subscription change, so an
-    // enterprise-contract org must not be blocked from managing invoices.
-    expect(
-      assertOrganizationSubscriptionChangeAllowedMock,
-    ).not.toHaveBeenCalled();
-    expect(
-      clearSubscriptionOnboardingGateSessionCookieMock,
-    ).not.toHaveBeenCalled();
   });
 
   it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
@@ -274,6 +78,34 @@ describe("subscription actions", () => {
       "org-1",
       9,
     );
+  });
+
+  it("maps organization subscription exclusivity errors from the seat update", async () => {
+    const { OrganizationSubscriptionExclusivityError } = await import(
+      "@sokosumi/database/helpers"
+    );
+    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
+      new OrganizationSubscriptionExclusivityError(
+        "Self-serve subscriptions are not available.",
+      ),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Self-serve subscriptions are not available.",
+      },
+      ok: false,
+    });
   });
 
   it("maps unauthorized immediate seat update errors", async () => {

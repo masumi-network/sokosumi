@@ -1,67 +1,18 @@
 "use server";
 
-import {
-  assertOrganizationSubscriptionChangeAllowed,
-  OrganizationSubscriptionExclusivityError,
-} from "@sokosumi/database/helpers";
+import { OrganizationSubscriptionExclusivityError } from "@sokosumi/database/helpers";
 import * as z from "zod";
 import {
   type ActionError,
   betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/errors";
-import prisma from "@/lib/db/prisma";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
-
-const subscriptionPlanSchema = z.enum(["starter", "standard", "pro"]);
-const personalReturnPathSchema = z.string().startsWith("/");
-
-const validatePersonalSubscriptionChangeSchema = z.object({
-  plan: subscriptionPlanSchema.optional(),
-  returnPath: personalReturnPathSchema.optional(),
-});
-
-const validateOrganizationSubscriptionChangeSchema = z
-  .object({
-    organizationId: z.string().min(1),
-    plan: subscriptionPlanSchema.optional(),
-    returnPath: z.string().startsWith("/").optional(),
-    seats: z.number().int().min(1).optional(),
-  })
-  .superRefine((data, context) => {
-    if (data.plan !== undefined) {
-      if (!data.returnPath) {
-        context.addIssue({
-          code: "custom",
-          message: "returnPath is required for subscription checkout",
-          path: ["returnPath"],
-        });
-      }
-
-      if (data.seats === undefined) {
-        context.addIssue({
-          code: "custom",
-          message: "seats is required for organization subscription checkout",
-          path: ["seats"],
-        });
-      }
-
-      return;
-    }
-
-    if (!data.returnPath) {
-      context.addIssue({
-        code: "custom",
-        message: "returnPath is required",
-        path: ["returnPath"],
-      });
-    }
-  });
 
 const updateOrganizationSubscriptionSeatsSchema = z.object({
   organizationId: z.string().min(1),
@@ -124,74 +75,6 @@ function parseBetterAuthActionError(error: unknown): ActionError {
     ...(error instanceof Error ? { message: error.message } : {}),
   };
 }
-
-interface ValidatePersonalSubscriptionChangeParameters
-  extends AuthenticatedRequest {
-  plan?: "starter" | "standard" | "pro";
-  returnPath?: string;
-}
-
-export const validatePersonalSubscriptionChange = withSession<
-  ValidatePersonalSubscriptionChangeParameters,
-  Result<void, ActionError>
->(async ({ plan, returnPath }) => {
-  const parsed = validatePersonalSubscriptionChangeSchema.safeParse({
-    plan,
-    returnPath,
-  });
-  if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
-  }
-
-  // Personal subscriptions are intentionally NOT gated by enterprise-contract
-  // exclusivity: that restriction is scoped to the organization holding the
-  // contract, never to a member's personal account.
-  return Ok(undefined);
-});
-
-interface ValidateOrganizationSubscriptionChangeParameters
-  extends AuthenticatedRequest {
-  organizationId: string;
-  plan?: "starter" | "standard" | "pro";
-  returnPath?: string;
-  seats?: number;
-}
-
-export const validateOrganizationSubscriptionChange = withSession<
-  ValidateOrganizationSubscriptionChangeParameters,
-  Result<void, ActionError>
->(async ({ organizationId, plan, returnPath, seats }) => {
-  const parsed = validateOrganizationSubscriptionChangeSchema.safeParse({
-    organizationId,
-    plan,
-    returnPath,
-    seats,
-  });
-  if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
-  }
-
-  try {
-    // Enterprise-contract exclusivity only blocks *buying* a self-serve
-    // subscription, never opening the billing portal. Skip the guard for the
-    // portal flow (no plan) so enterprise-contract orgs can still manage
-    // invoices and payment methods.
-    if (parsed.data.plan) {
-      await assertOrganizationSubscriptionChangeAllowed(
-        parsed.data.organizationId,
-        prisma,
-      );
-    }
-
-    return Ok(undefined);
-  } catch (error) {
-    return Err(parseBetterAuthActionError(error));
-  }
-});
 
 interface UpdateOrganizationSubscriptionSeatsParameters
   extends AuthenticatedRequest {

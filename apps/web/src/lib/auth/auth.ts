@@ -9,6 +9,10 @@ import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, type User } from "@sokosumi/database";
 import {
+  ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+  hasConsumableEnterpriseContract,
+} from "@sokosumi/database/helpers";
+import {
   memberRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
@@ -47,6 +51,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { resolveRequestLocale } from "@/i18n/locale-resolution";
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
 import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import { uploadProfileImage } from "@/lib/blob/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
@@ -739,7 +744,7 @@ export const auth = betterAuth({
             },
           },
         }),
-        authorizeReference: async ({ referenceId, user }) => {
+        authorizeReference: async ({ referenceId, user, action }) => {
           const member =
             await memberRepository.getMemberByUserIdAndOrganizationId(
               user.id,
@@ -747,13 +752,29 @@ export const auth = betterAuth({
               prisma,
             );
 
-          if (!member) {
+          if (
+            !member ||
+            (member.role !== MemberRole.OWNER &&
+              member.role !== MemberRole.ADMIN)
+          ) {
             return false;
           }
 
-          return (
-            member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN
-          );
+          // Enterprise-contract exclusivity: an organization with an active,
+          // consumable enterprise contract cannot also buy a self-serve
+          // subscription. Scoped to the upgrade action only — the billing
+          // portal, cancel, restore and list actions stay available.
+          if (
+            action === "upgrade-subscription" &&
+            (await hasConsumableEnterpriseContract(referenceId, prisma))
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: OrganizationErrorCode.ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE,
+              message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+            });
+          }
+
+          return true;
         },
       },
       organization: {
