@@ -188,7 +188,7 @@ Environment variables are accessed via `process.env`, validated at startup with 
 ### CORS and Better Auth origins
 
 - **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.
-- **Better Auth** (`src/lib/auth.ts`, web `src/lib/auth/auth.ts`): `trustedOrigins` includes `https://sokosumi.com` (apex; `https://*.sokosumi.com` does not match the apex), `https://*.sokosumi.com`, and in development only `http://localhost:*`. Keep these consistent with CORS so browser requests from the web app succeed.
+- **Better Auth** (`src/lib/auth.ts`, web `src/lib/auth/auth.ts`): `trustedOrigins` lists explicit web app hosts (`https://app.sokosumi.com`, `https://preprod.sokosumi.com`, `https://*.preview.sokosumi.com`) plus in development only `http://localhost:*`. Keep Core and Web lists identical. CORS remains broader (`https://sokosumi.com` / `https://*.sokosumi.com`); do not widen `trustedOrigins` to match CORS — it is a CSRF allowlist, not general API access control.
 
 Cross-origin calls from the web app require the web deployment to use a hostname that satisfies both checks (e.g. `*.sokosumi.com` in hosted environments).
 

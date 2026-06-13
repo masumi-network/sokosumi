@@ -176,6 +176,157 @@ describe("core auth config", () => {
     expect(config.plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
   });
 
+  it("uses basePath /auth and registers core auth plugins", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          basePath: string;
+          plugins: unknown[];
+        },
+      ]
+    >;
+
+    expect(config.basePath).toBe("/auth");
+    expect(config.plugins).toEqual(
+      expect.arrayContaining([
+        "admin-plugin",
+        "api-key-plugin",
+        "jwt-plugin",
+        "magic-link-plugin",
+        "i18n-plugin",
+        "openapi-plugin",
+        "organization-plugin",
+        "oauth-provider-plugin",
+        "oauth-proxy-plugin",
+      ]),
+    );
+    expect(apiKeyPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        configId: "default",
+        references: "user",
+        enableMetadata: true,
+        enableSessionForAPIKeys: true,
+      }),
+    );
+    expect(jwtPluginMock).toHaveBeenCalledWith({
+      disableSettingJwtHeader: true,
+    });
+  });
+
+  it("uses explicit Sokosumi app trustedOrigins in production", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "production",
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ trustedOrigins: string[] }]
+    >;
+
+    expect(config.trustedOrigins).toEqual([
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://*.preview.sokosumi.com",
+    ]);
+  });
+
+  it("allows localhost trustedOrigins in development only", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "development",
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ trustedOrigins: string[] }]
+    >;
+
+    expect(config.trustedOrigins).toEqual([
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://*.preview.sokosumi.com",
+      "http://localhost:*",
+    ]);
+  });
+
+  it("uses uuid database ids and database-backed rate limits", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            database: {
+              generateId: string;
+            };
+          };
+          experimental: {
+            joins: boolean;
+          };
+          rateLimit: {
+            storage: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.database.generateId).toBe("uuid");
+    expect(config.experimental.joins).toBe(true);
+    expect(config.rateLimit.storage).toBe("database");
+  });
+
+  it("defines user and organization additional fields for auth parity", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          user: {
+            additionalFields: Record<string, { type: string }>;
+          };
+        },
+      ]
+    >;
+
+    expect(Object.keys(config.user.additionalFields)).toEqual(
+      expect.arrayContaining([
+        "termsAccepted",
+        "marketingOptIn",
+        "notificationsOptIn",
+        "logo",
+        "metadata",
+        "stripeCustomerId",
+        "onboardingCompleted",
+      ]),
+    );
+
+    const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          schema: {
+            organization: {
+              additionalFields: Record<string, { input?: boolean }>;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(organizationConfig.schema.organization.additionalFields).toEqual({
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+        input: false,
+      },
+    });
+  });
+
   it("configures the magic link plugin", async () => {
     await import("./auth");
 
