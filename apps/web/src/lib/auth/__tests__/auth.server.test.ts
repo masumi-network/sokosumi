@@ -54,6 +54,7 @@ describe("auth.server", () => {
       {
         headers: { cookie: "session=abc" },
         cache: "no-store",
+        signal: expect.any(AbortSignal),
       },
     );
   });
@@ -73,6 +74,27 @@ describe("auth.server", () => {
     fetchMock.mockResolvedValue({
       ok: false,
       json: async () => null,
+    });
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).resolves.toBeNull();
+  });
+
+  it("returns null when the fetch rejects instead of throwing", async () => {
+    fetchMock.mockRejectedValue(new Error("Core unreachable"));
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).resolves.toBeNull();
+  });
+
+  it("returns null when the response body is not valid JSON", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error("Unexpected token < in JSON");
+      },
     });
 
     const { getSession } = await import("../auth.server");

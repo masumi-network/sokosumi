@@ -7,6 +7,7 @@ import { cache } from "react";
 import type { Session } from "@/lib/auth/auth";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
+import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 
 export type { Session };
 
@@ -15,36 +16,47 @@ interface GetSessionOptions {
 }
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
+const CORE_GET_SESSION_TIMEOUT_MS = 5000;
 
 async function fetchSession(
   requestHeaders: Headers,
   options?: GetSessionOptions,
 ): Promise<Session | null> {
+  // Concatenate rather than `new URL(path, base)` so a base URL with a
+  // sub-path (e.g. `https://host/core`) is preserved instead of dropped by
+  // absolute-path resolution.
   const sessionUrl = new URL(
-    CORE_GET_SESSION_PATH,
-    `${getServerCoreAppBaseUrl()}/`,
+    joinCoreApiPath(getServerCoreAppBaseUrl(), CORE_GET_SESSION_PATH),
   );
 
   if (options?.refresh) {
     sessionUrl.searchParams.set("disableCookieCache", "true");
   }
 
-  const response = await fetch(sessionUrl, {
-    headers: buildAuthHeaders(requestHeaders),
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(sessionUrl, {
+      headers: buildAuthHeaders(requestHeaders),
+      cache: "no-store",
+      signal: AbortSignal.timeout(CORE_GET_SESSION_TIMEOUT_MS),
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    const body = (await response.json()) as Session | null;
+
+    if (!body?.session || !body.user) {
+      return null;
+    }
+
+    return body;
+  } catch (error) {
+    // Core unreachable, timed out, or returned a non-JSON body. Preserve the
+    // null-returning contract callers rely on instead of throwing.
+    console.error("Failed to fetch session from Core", error);
     return null;
   }
-
-  const body = (await response.json()) as Session | null;
-
-  if (!body?.session || !body.user) {
-    return null;
-  }
-
-  return body;
 }
 
 const getCachedSession = cache(async (): Promise<Session | null> => {
