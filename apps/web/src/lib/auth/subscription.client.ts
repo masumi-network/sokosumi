@@ -23,31 +23,25 @@ interface BetterAuthClientError {
 }
 
 function mapAuthClientError(error: BetterAuthClientError): ActionError {
-  if (error.code) {
-    return {
-      code: error.code,
-      ...(error.message ? { message: error.message } : {}),
-    };
-  }
+  // Surface the real error for debugging (browser console) without leaking it
+  // into the UI — these errors come straight from Stripe / Better Auth and
+  // their messages may expose internal details.
+  console.error("[subscription] auth client error", error);
 
-  if (error.status === 401 || error.status === 403) {
-    return {
-      code: CommonErrorCode.UNAUTHORIZED,
-      ...(error.message ? { message: error.message } : {}),
-    };
+  // Route on the HTTP status rather than Better Auth's own `code` string (which
+  // is not part of our CommonErrorCode taxonomy) and never forward
+  // `error.message`. Components render localized copy from the mapped code; a
+  // 401 maps to UNAUTHENTICATED so the "log in" affordance fires.
+  switch (error.status) {
+    case 401:
+      return { code: CommonErrorCode.UNAUTHENTICATED };
+    case 403:
+      return { code: CommonErrorCode.UNAUTHORIZED };
+    case 400:
+      return { code: CommonErrorCode.BAD_INPUT };
+    default:
+      return { code: CommonErrorCode.INTERNAL_SERVER_ERROR };
   }
-
-  if (error.status === 400) {
-    return {
-      code: CommonErrorCode.BAD_INPUT,
-      ...(error.message ? { message: error.message } : {}),
-    };
-  }
-
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    ...(error.message ? { message: error.message } : {}),
-  };
 }
 
 function resolveUpgradeResult(

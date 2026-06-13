@@ -76,10 +76,11 @@ describe("subscription client", () => {
     ).toHaveBeenCalledTimes(1);
   });
 
-  it("maps authClient upgrade errors for personal checkout", async () => {
+  it("maps authClient upgrade errors by status without leaking the raw message", async () => {
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,
       error: {
+        status: 400,
         code: "SUBSCRIPTION_PLAN_NOT_FOUND",
         message: "Plan does not exist",
       },
@@ -93,10 +94,11 @@ describe("subscription client", () => {
       plan: "pro",
     });
 
+    // The raw Stripe / Better Auth message is never forwarded; the status is
+    // mapped to a CommonErrorCode the UI localizes.
     expect(result).toEqual({
       error: {
-        code: "SUBSCRIPTION_PLAN_NOT_FOUND",
-        message: "Plan does not exist",
+        code: "BAD_INPUT",
       },
       ok: false,
     });
@@ -105,6 +107,32 @@ describe("subscription client", () => {
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
     ).not.toHaveBeenCalled();
+  });
+
+  it("maps a 401 authClient error to UNAUTHENTICATED so the login affordance fires", async () => {
+    subscriptionUpgradeMock.mockResolvedValue({
+      data: null,
+      error: {
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "Session expired",
+      },
+    });
+
+    const { upgradePersonalSubscriptionClient } = await import(
+      "../subscription.client"
+    );
+
+    const result = await upgradePersonalSubscriptionClient({
+      plan: "pro",
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: "UNAUTHENTICATED",
+      },
+      ok: false,
+    });
   });
 
   it("returns billing portal url from authClient.subscription.billingPortal", async () => {
