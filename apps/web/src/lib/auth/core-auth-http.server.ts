@@ -1,30 +1,6 @@
 import "server-only";
 
-import { headers } from "next/headers";
-
-import { buildAuthHeaders } from "@/lib/clients/core.client";
-import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
-import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
-
-const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
-
-async function postCoreAuth(
-  path: string,
-  body: Record<string, unknown>,
-): Promise<Response> {
-  const url = new URL(joinCoreApiPath(getServerCoreAppBaseUrl(), path));
-
-  return fetch(url, {
-    method: "POST",
-    headers: {
-      ...Object.fromEntries(buildAuthHeaders(await headers()).entries()),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-    signal: AbortSignal.timeout(CORE_AUTH_REQUEST_TIMEOUT_MS),
-  });
-}
+import { authServerClient } from "./auth.server.client";
 
 /**
  * Updates the current user through Core Better Auth so the session cookie cache
@@ -33,10 +9,13 @@ async function postCoreAuth(
 export async function updateCurrentUserViaCore(
   body: Record<string, unknown>,
 ): Promise<void> {
-  const response = await postCoreAuth("/auth/update-user", body);
+  const result = await authServerClient.updateUser(body);
 
-  if (!response.ok) {
-    throw new Error(`Failed to update user via Core auth (${response.status})`);
+  if (result.error) {
+    throw new Error(
+      result.error.message ??
+        `Failed to update user via Core auth (${result.error.status})`,
+    );
   }
 }
 
@@ -49,11 +28,12 @@ export async function inviteOrganizationMemberViaCore(body: {
   resend: boolean;
   role: string;
 }): Promise<void> {
-  const response = await postCoreAuth("/auth/organization/invite-member", body);
+  const result = await authServerClient.organization.inviteMember(body);
 
-  if (!response.ok) {
+  if (result.error) {
     throw new Error(
-      `Failed to invite organization member via Core auth (${response.status})`,
+      result.error.message ??
+        `Failed to invite organization member via Core auth (${result.error.status})`,
     );
   }
 }
