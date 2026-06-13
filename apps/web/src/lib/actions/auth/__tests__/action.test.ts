@@ -2,6 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handleUTMConversionMock = vi.fn();
 
+vi.mock("@/lib/auth/auth", () => ({
+  auth: {
+    api: {
+      setPassword: vi.fn(),
+    },
+  },
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers()),
+}));
+
 vi.mock("@/lib/services/utm.service", () => ({
   utmService: {
     handleUTMConversion: (...args: unknown[]) =>

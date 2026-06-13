@@ -6,7 +6,7 @@ import {
   type ActionError,
   betterAuthApiErrorSchema,
   CommonErrorCode,
-} from "@/lib/actions";
+} from "@/lib/actions/errors";
 import { auth } from "@/lib/auth/auth";
 import { type NewPasswordFormType, newPasswordFormSchema } from "@/lib/schemas";
 import { utmService } from "@/lib/services/utm.service";
