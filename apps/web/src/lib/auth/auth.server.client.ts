@@ -23,11 +23,9 @@ async function coreAuthFetch(
   const authHeaders = buildAuthHeaders(await headers());
   const mergedHeaders = new Headers(init?.headers);
 
-  for (const [key, value] of Object.entries(authHeaders)) {
-    if (value !== undefined) {
-      mergedHeaders.set(key, value);
-    }
-  }
+  new Headers(authHeaders).forEach((value, key) => {
+    mergedHeaders.set(key, value);
+  });
 
   return fetch(input, {
     ...init,
