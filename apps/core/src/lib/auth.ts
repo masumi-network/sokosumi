@@ -243,6 +243,7 @@ export const auth = betterAuth({
         maxRequests: LIMITS.API_KEY_MAX_REQUESTS_PER_MINUTE,
       },
       enableMetadata: true,
+      enableSessionForAPIKeys: true,
     }),
     jwt({ disableSettingJwtHeader: true }),
     organization({
