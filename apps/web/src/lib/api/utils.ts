@@ -17,7 +17,7 @@ import {
 } from "@/lib/api/schemas/error";
 import { getSession, type Session } from "@/lib/auth/auth.server";
 
-export async function validateSession(_headers: Headers): Promise<Session> {
+export async function validateSession(): Promise<Session> {
   const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
