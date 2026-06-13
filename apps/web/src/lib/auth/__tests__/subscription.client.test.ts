@@ -115,6 +115,32 @@ describe("subscription client", () => {
     });
   });
 
+  it("passes the personal enterprise-contract exclusivity code through for the UI to localize", async () => {
+    subscriptionUpgradeMock.mockResolvedValue({
+      data: null,
+      error: {
+        status: 400,
+        code: "PERSONAL_SUBSCRIPTION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+        message: "internal exclusivity detail",
+      },
+    });
+
+    const { upgradePersonalSubscriptionClient } = await import(
+      "../subscription.client"
+    );
+
+    const result = await upgradePersonalSubscriptionClient({
+      plan: "pro",
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: "PERSONAL_SUBSCRIPTION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+      },
+      ok: false,
+    });
+  });
+
   it("passes the enterprise-contract exclusivity code through for the UI to localize", async () => {
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,

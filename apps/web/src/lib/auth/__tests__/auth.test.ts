@@ -9,6 +9,8 @@ const getEnvPublicConfigMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const i18nPluginMock = vi.fn();
 const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
+const assertPersonalSubscriptionChangeAllowedMock = vi.fn();
+const hasConsumableEnterpriseContractMock = vi.fn();
 const jwtPluginMock = vi.fn();
 const lastLoginMethodPluginMock = vi.fn();
 const magicLinkPluginMock = vi.fn();
@@ -163,8 +165,19 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("@sokosumi/database/helpers", () => ({
+  assertPersonalSubscriptionChangeAllowed: (...args: unknown[]) =>
+    assertPersonalSubscriptionChangeAllowedMock(...args),
   ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
     ensureInitialLocalFreeSubscriptionPeriodMock(...args),
+  hasConsumableEnterpriseContract: (...args: unknown[]) =>
+    hasConsumableEnterpriseContractMock(...args),
+  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {
+    override readonly name = "OrganizationSubscriptionExclusivityError";
+  },
+  ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE:
+    "This organization has an active enterprise contract. Self-serve subscriptions are not available.",
+  PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE:
+    "You belong to an organization with an active enterprise contract. Personal self-serve subscriptions are not available.",
 }));
 
 vi.mock("@sokosumi/email", () => ({
@@ -292,6 +305,8 @@ describe("web auth config", () => {
       data: input,
     }));
     ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+    assertPersonalSubscriptionChangeAllowedMock.mockResolvedValue(undefined);
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
     prismaTransactionMock.mockImplementation(
       async (callback) => await callback({ __tx: true }),
     );
@@ -1513,6 +1528,107 @@ describe("web auth config", () => {
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
     ).toHaveBeenCalledWith("org-1");
+  });
+
+  it("allows personal /subscription/upgrade when enterprise exclusivity does not apply", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              context: { session?: { user: { id: string } } };
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: { customerType: "user", plan: "pro" },
+        context: { session: { user: { id: "user-1" } } },
+        path: "/subscription/upgrade",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(assertPersonalSubscriptionChangeAllowedMock).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ __prisma: true }),
+    );
+  });
+
+  it("blocks personal /subscription/upgrade for enterprise-contract members", async () => {
+    const { OrganizationSubscriptionExclusivityError } = await import(
+      "@sokosumi/database/helpers"
+    );
+    assertPersonalSubscriptionChangeAllowedMock.mockRejectedValueOnce(
+      new OrganizationSubscriptionExclusivityError(
+        "You belong to an organization with an active enterprise contract. Personal self-serve subscriptions are not available.",
+      ),
+    );
+
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              context: { session?: { user: { id: string } } };
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: { customerType: "user", plan: "pro" },
+        context: { session: { user: { id: "user-1" } } },
+        path: "/subscription/upgrade",
+      }),
+    ).rejects.toMatchObject({
+      code: "PERSONAL_SUBSCRIPTION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+      status: "BAD_REQUEST",
+    });
+  });
+
+  it("does not run personal enterprise exclusivity for organization upgrades", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              context: { session?: { user: { id: string } } };
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: {
+          customerType: "organization",
+          plan: "pro",
+          referenceId: "org-1",
+        },
+        context: { session: { user: { id: "user-1" } } },
+        path: "/subscription/upgrade",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(assertPersonalSubscriptionChangeAllowedMock).not.toHaveBeenCalled();
   });
 
   it("allows /subscription/upgrade for self-serve plans", async () => {

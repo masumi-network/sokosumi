@@ -2509,6 +2509,7 @@
         "unauthenticated": "请登录以继续",
         "unauthenticatedAction": "登录",
         "badInput": "套餐选择无效",
+        "enterpriseContractExclusive": "您所属的组织有有效企业合同，因此无法购买个人自助订阅方案。请联系支持以更改方案。",
         "general": "出现问题。请重试。"
       },
       "Error": {

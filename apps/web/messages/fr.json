@@ -2509,6 +2509,7 @@
         "unauthenticated": "Veuillez vous connecter pour continuer",
         "unauthenticatedAction": "Se connecter",
         "badInput": "Sélection de forfait invalide",
+        "enterpriseContractExclusive": "Vous appartenez à une organisation avec un contrat enterprise actif ; les offres personnelles en self-service ne sont donc pas disponibles. Contactez le support pour modifier votre offre.",
         "general": "Une erreur est survenue. Veuillez réessayer."
       },
       "Error": {

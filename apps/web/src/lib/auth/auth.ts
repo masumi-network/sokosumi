@@ -9,8 +9,11 @@ import { stripe } from "@better-auth/stripe";
 import * as Sentry from "@sentry/nextjs";
 import { MemberRole, type User } from "@sokosumi/database";
 import {
+  assertPersonalSubscriptionChangeAllowed,
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
   hasConsumableEnterpriseContract,
+  OrganizationSubscriptionExclusivityError,
+  PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
@@ -444,6 +447,35 @@ export const auth = betterAuth({
             throw new APIError("BAD_REQUEST", {
               code: "TERMS_NOT_ACCEPTED",
             });
+          }
+
+          break;
+        }
+        case "/subscription/upgrade": {
+          const customerType = ctx.body?.customerType ?? "user";
+          if (customerType !== "user") {
+            break;
+          }
+
+          const session = ctx.context?.session;
+          if (!session?.user?.id) {
+            break;
+          }
+
+          try {
+            await assertPersonalSubscriptionChangeAllowed(
+              session.user.id,
+              prisma,
+            );
+          } catch (error) {
+            if (error instanceof OrganizationSubscriptionExclusivityError) {
+              throw new APIError("BAD_REQUEST", {
+                code: OrganizationErrorCode.PERSONAL_SUBSCRIPTION_ENTERPRISE_CONTRACT_EXCLUSIVE,
+                message: PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE,
+              });
+            }
+
+            throw error;
           }
 
           break;

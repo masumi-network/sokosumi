@@ -2478,6 +2478,7 @@
         "unauthenticated": "Bitte melde dich an, um fortzufahren",
         "unauthenticatedAction": "Anmelden",
         "badInput": "Ungültige Planauswahl",
+        "enterpriseContractExclusive": "Du gehörst einer Organisation mit aktivem Enterprise-Vertrag an. Persönliche Self-Serve-Pläne sind deshalb nicht verfügbar. Wende dich an den Support, um deinen Plan zu ändern.",
         "general": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
       },
       "Error": {

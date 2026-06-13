@@ -10,6 +10,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CommonErrorCode } from "@/lib/actions/errors";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import { upgradePersonalSubscriptionClient } from "@/lib/auth/subscription.client";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
@@ -101,6 +102,9 @@ export function PersonalSubscriptionSection({
                 },
               },
             });
+            break;
+          case OrganizationErrorCode.PERSONAL_SUBSCRIPTION_ENTERPRISE_CONTRACT_EXCLUSIVE:
+            toast.error(t("Errors.enterpriseContractExclusive"));
             break;
           case CommonErrorCode.BAD_INPUT:
             toast.error(t("Errors.badInput"));

@@ -2478,6 +2478,7 @@
         "unauthenticated": "Por favor, inicia sesión para continuar",
         "unauthenticatedAction": "Iniciar sesión",
         "badInput": "Selección de plan no válida",
+        "enterpriseContractExclusive": "Perteneces a una organización con un contrato enterprise activo, por lo que los planes personales de autoservicio no están disponibles. Contacta con soporte para cambiar tu plan.",
         "general": "Algo salió mal. Por favor, inténtalo de nuevo."
       },
       "Error": {

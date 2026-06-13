@@ -37,6 +37,13 @@ function mapAuthClientError(error: BetterAuthClientError): ActionError {
     return { code: error.code };
   }
 
+  if (
+    error.code ===
+    OrganizationErrorCode.PERSONAL_SUBSCRIPTION_ENTERPRISE_CONTRACT_EXCLUSIVE
+  ) {
+    return { code: error.code };
+  }
+
   switch (error.status) {
     case 401:
       return { code: CommonErrorCode.UNAUTHENTICATED };
