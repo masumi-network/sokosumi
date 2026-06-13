@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { MemberRole } from "@sokosumi/database";
+
 import { authServerClient } from "./auth.server.client";
 
 /**
@@ -26,7 +28,7 @@ export async function inviteOrganizationMemberViaCore(body: {
   email: string;
   organizationId: string;
   resend: boolean;
-  role: string;
+  role: MemberRole;
 }): Promise<void> {
   const result = await authServerClient.organization.inviteMember(body);
 

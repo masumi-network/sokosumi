@@ -1,3 +1,4 @@
+import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createAuthClientMock = vi.fn();
@@ -27,8 +28,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
 }));
 
 vi.mock("../auth-client.plugins", () => ({
-  getAuthClientPlugins: (...args: unknown[]) =>
-    getAuthClientPluginsMock(...args),
+  getAuthClientPlugins: () => getAuthClientPluginsMock(),
 }));
 
 describe("authServerClient", () => {
@@ -177,14 +177,14 @@ describe("inviteOrganizationMemberViaCore", () => {
       email: "user@example.com",
       organizationId: "org-1",
       resend: true,
-      role: "MEMBER",
+      role: MemberRole.MEMBER,
     });
 
     expect(inviteMemberMock).toHaveBeenCalledWith({
       email: "user@example.com",
       organizationId: "org-1",
       resend: true,
-      role: "MEMBER",
+      role: MemberRole.MEMBER,
     });
   });
 
@@ -214,7 +214,7 @@ describe("inviteOrganizationMemberViaCore", () => {
         email: "user@example.com",
         organizationId: "org-1",
         resend: true,
-        role: "MEMBER",
+        role: MemberRole.MEMBER,
       }),
     ).rejects.toThrow("forbidden");
   });
