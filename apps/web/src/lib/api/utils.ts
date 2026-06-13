@@ -15,13 +15,10 @@ import {
   createErrorResponse,
   HttpErrors,
 } from "@/lib/api/schemas/error";
-import type { Session } from "@/lib/auth/auth";
+import { getSession, type Session } from "@/lib/auth/server-auth";
 
-export async function validateSession(headers: Headers): Promise<Session> {
-  const { auth } = await import("@/lib/auth/auth");
-  const session = await auth.api.getSession({
-    headers,
-  });
+export async function validateSession(_headers: Headers): Promise<Session> {
+  const session = await getSession();
   if (!session) {
     throw new Error("UNAUTHORIZED");
   }

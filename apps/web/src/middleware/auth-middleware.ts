@@ -1,6 +1,6 @@
 import type { Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/server-auth";
 
 export interface AuthenticatedRequest {
   session?: Session;

@@ -21,7 +21,7 @@ vi.mock("@/lib/auth/auth", () => ({
   },
 }));
 
-describe("auth utils", () => {
+describe("server-auth", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -38,7 +38,7 @@ describe("auth utils", () => {
       },
     });
 
-    const { getSession } = await import("../utils");
+    const { getSession } = await import("../server-auth");
 
     await expect(getSession({ refresh: true })).resolves.toEqual({
       session: {

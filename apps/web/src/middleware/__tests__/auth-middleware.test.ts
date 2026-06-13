@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 export {};
 
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/server-auth";
 import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/server-auth", () => ({
   getSession: vi.fn(),
 }));
 
