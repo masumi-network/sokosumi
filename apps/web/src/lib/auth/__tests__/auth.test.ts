@@ -9,6 +9,7 @@ const getEnvPublicConfigMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const i18nPluginMock = vi.fn();
 const ensureInitialLocalFreeSubscriptionPeriodMock = vi.fn();
+const hasConsumableEnterpriseContractMock = vi.fn();
 const jwtPluginMock = vi.fn();
 const lastLoginMethodPluginMock = vi.fn();
 const magicLinkPluginMock = vi.fn();
@@ -165,6 +166,13 @@ vi.mock("@sokosumi/database/repositories", () => ({
 vi.mock("@sokosumi/database/helpers", () => ({
   ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
     ensureInitialLocalFreeSubscriptionPeriodMock(...args),
+  hasConsumableEnterpriseContract: (...args: unknown[]) =>
+    hasConsumableEnterpriseContractMock(...args),
+  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {
+    override readonly name = "OrganizationSubscriptionExclusivityError";
+  },
+  ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE:
+    "This organization has an active enterprise contract. Self-serve subscriptions are not available.",
 }));
 
 vi.mock("@sokosumi/email", () => ({
@@ -292,6 +300,7 @@ describe("web auth config", () => {
       data: input,
     }));
     ensureInitialLocalFreeSubscriptionPeriodMock.mockResolvedValue(undefined);
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
     prismaTransactionMock.mockImplementation(
       async (callback) => await callback({ __tx: true }),
     );
