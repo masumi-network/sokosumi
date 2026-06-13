@@ -130,10 +130,7 @@ export async function getSession(
   return getCachedSession();
 }
 
-/**
- * Lists accounts linked to the current user via Core Better Auth.
- */
-export async function listUserAccounts(): Promise<Account[]> {
+const getCachedUserAccounts = cache(async (): Promise<Account[]> => {
   const accounts = await fetchCoreAuth<Account[]>(
     CORE_LIST_ACCOUNTS_PATH,
     await headers(),
@@ -143,7 +140,37 @@ export async function listUserAccounts(): Promise<Account[]> {
   );
 
   return accounts ?? [];
+});
+
+/**
+ * Lists accounts linked to the current user via Core Better Auth.
+ */
+export async function listUserAccounts(): Promise<Account[]> {
+  return getCachedUserAccounts();
 }
+
+// Keyed on primitive args so React `cache` dedupes across call sites that pass
+// equivalent options as separate object literals.
+const getCachedActiveSubscriptions = cache(
+  async (
+    customerType?: "organization" | "user",
+    referenceId?: string,
+  ): Promise<ActiveSubscription[]> => {
+    const subscriptions = await fetchCoreAuth<ActiveSubscription[]>(
+      CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch active subscriptions from Core",
+        searchParams: {
+          customerType,
+          referenceId,
+        },
+      },
+    );
+
+    return subscriptions ?? [];
+  },
+);
 
 /**
  * Lists active Stripe-backed subscriptions for the current user or organization.
@@ -151,20 +178,24 @@ export async function listUserAccounts(): Promise<Account[]> {
 export async function listActiveSubscriptions(
   options?: ListActiveSubscriptionsOptions,
 ): Promise<ActiveSubscription[]> {
-  const subscriptions = await fetchCoreAuth<ActiveSubscription[]>(
-    CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
-    await headers(),
-    {
-      failureLogMessage: "Failed to fetch active subscriptions from Core",
-      searchParams: {
-        customerType: options?.customerType,
-        referenceId: options?.referenceId,
-      },
-    },
+  return getCachedActiveSubscriptions(
+    options?.customerType,
+    options?.referenceId,
   );
-
-  return subscriptions ?? [];
 }
+
+const getCachedOAuthClientPublic = cache(
+  async (clientId: string): Promise<OAuthClientPublic | null> => {
+    return fetchCoreAuth<OAuthClientPublic>(
+      CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch OAuth client from Core",
+        searchParams: { client_id: clientId },
+      },
+    );
+  },
+);
 
 /**
  * Fetches public OAuth client metadata for the consent screen.
@@ -172,14 +203,7 @@ export async function listActiveSubscriptions(
 export async function getOAuthClientPublic(
   clientId: string,
 ): Promise<OAuthClientPublic | null> {
-  return fetchCoreAuth<OAuthClientPublic>(
-    CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
-    await headers(),
-    {
-      failureLogMessage: "Failed to fetch OAuth client from Core",
-      searchParams: { client_id: clientId },
-    },
-  );
+  return getCachedOAuthClientPublic(clientId);
 }
 
 /**
