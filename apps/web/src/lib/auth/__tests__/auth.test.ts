@@ -341,6 +341,30 @@ describe("web auth config", () => {
     });
   });
 
+  it("enables Better Auth cookie cache for web sessions", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          session: {
+            cookieCache?: {
+              enabled: boolean;
+              maxAge: number;
+            };
+            storeSessionInDatabase?: boolean;
+          };
+        },
+      ]
+    >;
+
+    expect(config.session.cookieCache).toEqual({
+      enabled: true,
+      maxAge: 60,
+    });
+    expect(config.session.storeSessionInDatabase).toBe(true);
+  });
+
   it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
     await import("../auth");
 

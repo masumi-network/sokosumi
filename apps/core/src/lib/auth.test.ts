@@ -48,6 +48,7 @@ function getDefaultEnv() {
   return {
     BETTER_AUTH_COOKIE_DOMAIN: undefined,
     BETTER_AUTH_SECRET: "test-secret",
+    BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
     NETWORK: "Preprod",
     NODE_ENV: "production",
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
@@ -199,21 +200,27 @@ describe("core auth config", () => {
     });
   });
 
-  it("disables Better Auth cookie cache for core sessions", async () => {
+  it("enables Better Auth cookie cache for core sessions", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
       [
         {
           session: {
-            cookieCache?: unknown;
+            cookieCache?: {
+              enabled: boolean;
+              maxAge: number;
+            };
             storeSessionInDatabase?: boolean;
           };
         },
       ]
     >;
 
-    expect(config.session.cookieCache).toBeUndefined();
+    expect(config.session.cookieCache).toEqual({
+      enabled: true,
+      maxAge: 60,
+    });
     expect(config.session.storeSessionInDatabase).toBe(true);
   });
 
