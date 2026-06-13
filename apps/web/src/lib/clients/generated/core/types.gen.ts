@@ -142,7 +142,7 @@ export type Task = {
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
     workspace: WorkspaceSummary;
-    share: NullableTaskShare;
+    share: TaskShare | null;
     links: Array<TaskLink>;
 };
 
@@ -236,14 +236,14 @@ export type WorkspaceSummary = {
     } | null;
 };
 
-export type NullableTaskShare = {
+export type TaskShare = {
     id: string;
     token: string;
     allowSearchIndexing: boolean;
     createdAt: Date;
     updatedAt: Date;
     taskId: string;
-} | null;
+};
 
 export type TaskLink = {
     id: string;
@@ -2009,15 +2009,6 @@ export type PublicSharedTaskMilestone = {
     credits: number | null;
     actorName: string | null;
     actorImage: string | null;
-};
-
-export type TaskShare = {
-    id: string;
-    token: string;
-    allowSearchIndexing: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    taskId: string;
 };
 
 export type Coworker = {

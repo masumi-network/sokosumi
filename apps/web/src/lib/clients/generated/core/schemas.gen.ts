@@ -611,7 +611,15 @@ export const TaskSchema = {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
         share: {
-            $ref: '#/components/schemas/NullableTaskShare'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskShare'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null
         },
         links: {
             type: 'array',
@@ -1152,11 +1160,8 @@ export const WorkspaceSummarySchema = {
     ]
 } as const;
 
-export const NullableTaskShareSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+export const TaskShareSchema = {
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -1192,8 +1197,7 @@ export const NullableTaskShareSchema = {
         'createdAt',
         'updatedAt',
         'taskId'
-    ],
-    example: null
+    ]
 } as const;
 
 export const TaskLinkSchema = {
@@ -7306,46 +7310,6 @@ export const PublicSharedTaskMilestoneSchema = {
         'credits',
         'actorName',
         'actorImage'
-    ]
-} as const;
-
-export const TaskShareSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'share_123'
-        },
-        token: {
-            type: 'string',
-            example: 'public-share-token'
-        },
-        allowSearchIndexing: {
-            type: 'boolean',
-            example: true
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        taskId: {
-            type: 'string',
-            example: 'tsk_123'
-        }
-    },
-    required: [
-        'id',
-        'token',
-        'allowSearchIndexing',
-        'createdAt',
-        'updatedAt',
-        'taskId'
     ]
 } as const;
 
