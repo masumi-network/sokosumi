@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const refreshMock = vi.fn();
 const pushMock = vi.fn();
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
-const upgradeOrganizationSubscriptionMock = vi.fn();
+const upgradeOrganizationSubscriptionClientMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionEnterprisePlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
@@ -35,8 +35,11 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/subscription", () => ({
   updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
     updateOrganizationSubscriptionSeatsMock(...args),
-  upgradeOrganizationSubscription: (...args: unknown[]) =>
-    upgradeOrganizationSubscriptionMock(...args),
+}));
+
+vi.mock("@/lib/auth/subscription.client", () => ({
+  upgradeOrganizationSubscriptionClient: (...args: unknown[]) =>
+    upgradeOrganizationSubscriptionClientMock(...args),
 }));
 
 vi.mock("../subscription-plan-card", () => ({
@@ -95,7 +98,7 @@ describe("OrganizationSubscriptionSection", () => {
       data: { seats: 3 },
       ok: true,
     });
-    upgradeOrganizationSubscriptionMock.mockResolvedValue({
+    upgradeOrganizationSubscriptionClientMock.mockResolvedValue({
       data: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
     });
@@ -267,7 +270,7 @@ describe("OrganizationSubscriptionSection", () => {
     await currentPlanProps?.onAction("standard");
 
     await waitFor(() => {
-      expect(upgradeOrganizationSubscriptionMock).toHaveBeenCalledWith({
+      expect(upgradeOrganizationSubscriptionClientMock).toHaveBeenCalledWith({
         organizationId: "org-1",
         plan: "standard",
         returnPath: "/billing?tab=subscription",
@@ -277,7 +280,7 @@ describe("OrganizationSubscriptionSection", () => {
   });
 
   it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
-    upgradeOrganizationSubscriptionMock.mockResolvedValue({
+    upgradeOrganizationSubscriptionClientMock.mockResolvedValue({
       data: { mode: "complete" },
       ok: true,
     });

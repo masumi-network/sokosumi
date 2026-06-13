@@ -10,7 +10,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CommonErrorCode } from "@/lib/actions/errors";
-import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import { upgradePersonalSubscriptionClient } from "@/lib/auth/subscription.client";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
@@ -85,7 +85,7 @@ export function PersonalSubscriptionSection({
   async function handlePlanAction(plan: PaidSubscriptionPlanName) {
     setPendingPlan(plan);
     try {
-      const result = await upgradePersonalSubscription({
+      const result = await upgradePersonalSubscriptionClient({
         plan,
         returnPath,
       });

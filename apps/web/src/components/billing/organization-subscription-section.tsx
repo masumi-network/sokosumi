@@ -10,10 +10,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
-import {
-  updateOrganizationSubscriptionSeats,
-  upgradeOrganizationSubscription,
-} from "@/lib/actions/subscription";
+import { updateOrganizationSubscriptionSeats } from "@/lib/actions/subscription";
+import { upgradeOrganizationSubscriptionClient } from "@/lib/auth/subscription.client";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -179,7 +177,7 @@ export function OrganizationSubscriptionSection({
           return;
         }
 
-        const result = await upgradeOrganizationSubscription({
+        const result = await upgradeOrganizationSubscriptionClient({
           organizationId,
           plan: planName,
           returnPath,

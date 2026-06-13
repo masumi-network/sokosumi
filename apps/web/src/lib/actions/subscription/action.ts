@@ -5,7 +5,6 @@ import {
   assertPersonalSubscriptionChangeAllowed,
   OrganizationSubscriptionExclusivityError,
 } from "@sokosumi/database/helpers";
-import { headers } from "next/headers";
 import * as z from "zod";
 import {
   type ActionError,
@@ -13,7 +12,6 @@ import {
   CommonErrorCode,
 } from "@/lib/actions/errors";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
-import { auth } from "@/lib/auth/auth";
 import prisma from "@/lib/db/prisma";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -25,22 +23,47 @@ import {
 const subscriptionPlanSchema = z.enum(["starter", "standard", "pro"]);
 const personalReturnPathSchema = z.string().startsWith("/");
 
-const upgradePersonalSubscriptionSchema = z.object({
-  plan: subscriptionPlanSchema,
+const validatePersonalSubscriptionChangeSchema = z.object({
+  plan: subscriptionPlanSchema.optional(),
   returnPath: personalReturnPathSchema.optional(),
 });
 
-const upgradeOrganizationSubscriptionSchema = z.object({
-  organizationId: z.string().min(1),
-  plan: subscriptionPlanSchema,
-  returnPath: z.string().startsWith("/"),
-  seats: z.number().int().min(1),
-});
+const validateOrganizationSubscriptionChangeSchema = z
+  .object({
+    organizationId: z.string().min(1),
+    plan: subscriptionPlanSchema.optional(),
+    returnPath: z.string().startsWith("/").optional(),
+    seats: z.number().int().min(1).optional(),
+  })
+  .superRefine((data, context) => {
+    if (data.plan !== undefined) {
+      if (!data.returnPath) {
+        context.addIssue({
+          code: "custom",
+          message: "returnPath is required for subscription checkout",
+          path: ["returnPath"],
+        });
+      }
 
-const openOrganizationBillingPortalSchema = z.object({
-  organizationId: z.string().min(1),
-  returnPath: z.string().startsWith("/"),
-});
+      if (data.seats === undefined) {
+        context.addIssue({
+          code: "custom",
+          message: "seats is required for organization subscription checkout",
+          path: ["seats"],
+        });
+      }
+
+      return;
+    }
+
+    if (!data.returnPath) {
+      context.addIssue({
+        code: "custom",
+        message: "returnPath is required",
+        path: ["returnPath"],
+      });
+    }
+  });
 
 const updateOrganizationSubscriptionSeatsSchema = z.object({
   organizationId: z.string().min(1),
@@ -104,36 +127,17 @@ function parseBetterAuthActionError(error: unknown): ActionError {
   };
 }
 
-export type SubscriptionChangeResult =
-  | { mode: "complete" }
-  | { mode: "redirect"; url: string };
-
-function buildSubscriptionStatusPath(
-  returnPath: string,
-  status: "cancel" | "success",
-): string {
-  const [pathname, queryString = ""] = returnPath.split("?");
-  const searchParams = new URLSearchParams(queryString);
-  searchParams.set("status", status);
-
-  const nextQueryString = searchParams.toString();
-  if (!nextQueryString) {
-    return pathname;
-  }
-
-  return `${pathname}?${nextQueryString}`;
-}
-
-interface UpgradePersonalSubscriptionParameters extends AuthenticatedRequest {
-  plan: "starter" | "standard" | "pro";
+interface ValidatePersonalSubscriptionChangeParameters
+  extends AuthenticatedRequest {
+  plan?: "starter" | "standard" | "pro";
   returnPath?: string;
 }
 
-export const upgradePersonalSubscription = withSession<
-  UpgradePersonalSubscriptionParameters,
-  Result<SubscriptionChangeResult, ActionError>
+export const validatePersonalSubscriptionChange = withSession<
+  ValidatePersonalSubscriptionChangeParameters,
+  Result<void, ActionError>
 >(async ({ plan, returnPath, session }) => {
-  const parsed = upgradePersonalSubscriptionSchema.safeParse({
+  const parsed = validatePersonalSubscriptionChangeSchema.safeParse({
     plan,
     returnPath,
   });
@@ -146,87 +150,29 @@ export const upgradePersonalSubscription = withSession<
   try {
     await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
 
-    const resolvedReturnPath =
-      parsed.data.returnPath ?? "/billing?tab=subscription";
-
-    const result = await auth.api.upgradeSubscription({
-      headers: await headers(),
-      body: {
-        plan: parsed.data.plan,
-        customerType: "user",
-        successUrl: buildSubscriptionStatusPath(resolvedReturnPath, "success"),
-        cancelUrl: buildSubscriptionStatusPath(resolvedReturnPath, "cancel"),
-        returnUrl: resolvedReturnPath,
-        disableRedirect: true,
-      },
-    });
-
-    await clearSubscriptionOnboardingGateSessionCookie();
-
-    if (!result.url) {
-      return Ok({ mode: "complete" });
+    if (parsed.data.plan) {
+      await clearSubscriptionOnboardingGateSessionCookie();
     }
 
-    return Ok({ mode: "redirect", url: result.url });
+    return Ok(undefined);
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
   }
 });
 
-interface OpenPersonalBillingPortalParameters extends AuthenticatedRequest {
-  returnPath?: string;
-}
-
-export const openPersonalBillingPortal = withSession<
-  OpenPersonalBillingPortalParameters,
-  Result<{ url: string }, ActionError>
->(async ({ returnPath, session }) => {
-  const parsedReturnPath = personalReturnPathSchema
-    .optional()
-    .safeParse(returnPath);
-  if (!parsedReturnPath.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
-  }
-
-  try {
-    await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
-
-    const result = await auth.api.createBillingPortal({
-      headers: await headers(),
-      body: {
-        customerType: "user",
-        returnUrl: parsedReturnPath.data ?? "/billing?tab=subscription",
-        disableRedirect: true,
-      },
-    });
-
-    if (!result.url) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
-    }
-
-    return Ok({ url: result.url });
-  } catch (error) {
-    return Err(parseBetterAuthActionError(error));
-  }
-});
-
-interface UpgradeOrganizationSubscriptionParameters
+interface ValidateOrganizationSubscriptionChangeParameters
   extends AuthenticatedRequest {
   organizationId: string;
-  plan: "starter" | "standard" | "pro";
-  returnPath: string;
-  seats: number;
+  plan?: "starter" | "standard" | "pro";
+  returnPath?: string;
+  seats?: number;
 }
 
-export const upgradeOrganizationSubscription = withSession<
-  UpgradeOrganizationSubscriptionParameters,
-  Result<SubscriptionChangeResult, ActionError>
->(async ({ organizationId, plan, returnPath, seats, session }) => {
-  const parsed = upgradeOrganizationSubscriptionSchema.safeParse({
+export const validateOrganizationSubscriptionChange = withSession<
+  ValidateOrganizationSubscriptionChangeParameters,
+  Result<void, ActionError>
+>(async ({ organizationId, plan, returnPath, seats }) => {
+  const parsed = validateOrganizationSubscriptionChangeSchema.safeParse({
     organizationId,
     plan,
     returnPath,
@@ -244,80 +190,11 @@ export const upgradeOrganizationSubscription = withSession<
       prisma,
     );
 
-    const result = await auth.api.upgradeSubscription({
-      headers: await headers(),
-      body: {
-        plan: parsed.data.plan,
-        customerType: "organization",
-        referenceId: parsed.data.organizationId,
-        seats: parsed.data.seats,
-        successUrl: buildSubscriptionStatusPath(
-          parsed.data.returnPath,
-          "success",
-        ),
-        cancelUrl: buildSubscriptionStatusPath(
-          parsed.data.returnPath,
-          "cancel",
-        ),
-        returnUrl: parsed.data.returnPath,
-        disableRedirect: true,
-      },
-    });
-
-    await clearSubscriptionOnboardingGateSessionCookie();
-
-    if (!result.url) {
-      return Ok({ mode: "complete" });
+    if (parsed.data.plan) {
+      await clearSubscriptionOnboardingGateSessionCookie();
     }
 
-    return Ok({ mode: "redirect", url: result.url });
-  } catch (error) {
-    return Err(parseBetterAuthActionError(error));
-  }
-});
-
-interface OpenOrganizationBillingPortalParameters extends AuthenticatedRequest {
-  organizationId: string;
-  returnPath: string;
-}
-
-export const openOrganizationBillingPortal = withSession<
-  OpenOrganizationBillingPortalParameters,
-  Result<{ url: string }, ActionError>
->(async ({ organizationId, returnPath }) => {
-  const parsed = openOrganizationBillingPortalSchema.safeParse({
-    organizationId,
-    returnPath,
-  });
-  if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
-  }
-
-  try {
-    await assertOrganizationSubscriptionChangeAllowed(
-      parsed.data.organizationId,
-      prisma,
-    );
-
-    const result = await auth.api.createBillingPortal({
-      headers: await headers(),
-      body: {
-        customerType: "organization",
-        referenceId: parsed.data.organizationId,
-        returnUrl: parsed.data.returnPath,
-        disableRedirect: true,
-      },
-    });
-
-    if (!result.url) {
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
-    }
-
-    return Ok({ url: result.url });
+    return Ok(undefined);
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
   }
