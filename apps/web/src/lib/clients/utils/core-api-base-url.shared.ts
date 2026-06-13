@@ -22,6 +22,10 @@ export function normalizeCoreApiBaseUrl(baseUrl: string): string {
     : `${withoutTrailingSlash}/v1`;
 }
 
+export function stripCoreApiVersionSuffix(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
+}
+
 /**
  * Joins a Core API base URL to a path the same way the generated OpenAPI
  * client does: strip trailing slashes from the base, ensure the path starts

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getSessionMock = vi.fn();
+const fetchMock = vi.fn();
 const headersMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
@@ -13,12 +13,8 @@ vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      getSession: (...args: unknown[]) => getSessionMock(...args),
-    },
-  },
+vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
+  getServerCoreAppBaseUrl: () => "http://localhost:8787",
 }));
 
 describe("auth.server", () => {
@@ -26,16 +22,20 @@ describe("auth.server", () => {
     vi.resetModules();
     vi.clearAllMocks();
     headersMock.mockResolvedValue(new Headers({ cookie: "session=abc" }));
+    vi.stubGlobal("fetch", fetchMock);
   });
 
   it("gets a refreshed session by disabling Better Auth cookie cache", async () => {
-    getSessionMock.mockResolvedValue({
-      session: {
-        activeOrganizationId: null,
-      },
-      user: {
-        id: "user_123",
-      },
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        session: {
+          activeOrganizationId: null,
+        },
+        user: {
+          id: "user_123",
+        },
+      }),
     });
 
     const { getSession } = await import("../auth.server");
@@ -49,11 +49,34 @@ describe("auth.server", () => {
       },
     });
 
-    expect(getSessionMock).toHaveBeenCalledWith({
-      query: {
-        disableCookieCache: true,
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("http://localhost:8787/auth/get-session?disableCookieCache=true"),
+      {
+        headers: { cookie: "session=abc" },
+        cache: "no-store",
       },
-      headers: expect.any(Headers),
+    );
+  });
+
+  it("returns null when Core reports no session", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => null,
     });
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).resolves.toBeNull();
+  });
+
+  it("returns null when Core responds with a non-ok status", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => null,
+    });
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 });

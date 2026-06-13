@@ -4,7 +4,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { auth, type Session } from "@/lib/auth/auth";
+import type { Session } from "@/lib/auth/auth";
+import { buildAuthHeaders } from "@/lib/clients/core.client";
+import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 
 export type { Session };
 
@@ -12,15 +14,37 @@ interface GetSessionOptions {
   refresh?: boolean;
 }
 
+const CORE_GET_SESSION_PATH = "/auth/get-session";
+
 async function fetchSession(
   requestHeaders: Headers,
   options?: GetSessionOptions,
 ): Promise<Session | null> {
-  return auth.api.getSession({
-    headers: requestHeaders,
-    // Bypass the cookie cache so a refreshed session is read from the DB.
-    ...(options?.refresh ? { query: { disableCookieCache: true } } : {}),
+  const sessionUrl = new URL(
+    CORE_GET_SESSION_PATH,
+    `${getServerCoreAppBaseUrl()}/`,
+  );
+
+  if (options?.refresh) {
+    sessionUrl.searchParams.set("disableCookieCache", "true");
+  }
+
+  const response = await fetch(sessionUrl, {
+    headers: buildAuthHeaders(requestHeaders),
+    cache: "no-store",
   });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const body = (await response.json()) as Session | null;
+
+  if (!body?.session || !body.user) {
+    return null;
+  }
+
+  return body;
 }
 
 const getCachedSession = cache(async (): Promise<Session | null> => {
