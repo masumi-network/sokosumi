@@ -101,13 +101,15 @@ export default function SignUpForm({
       return;
     }
 
+    // Record UTM attribution for every successful signup, including the OAuth
+    // consent flow that redirects away below.
+    await handleUtmConversion();
+
     const oauthRedirect = getAuthOAuthRedirect(result.data);
     if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
       window.location.href = oauthRedirect.redirectUrl;
       return;
     }
-
-    await handleUtmConversion();
 
     await waitForAuthSession({
       context: "signup",
