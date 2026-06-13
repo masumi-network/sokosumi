@@ -14,10 +14,6 @@ function getSessionUserRole(session: Session): string | null | undefined {
   return user.role ?? undefined;
 }
 
-export function isAdminSession(session: Session | null): boolean {
-  return session !== null && hasAdminRole(getSessionUserRole(session));
-}
-
 export async function requireAdminSession(): Promise<Session> {
   const session = await getSessionOrRedirect();
 

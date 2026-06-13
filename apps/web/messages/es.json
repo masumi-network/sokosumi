@@ -2671,13 +2671,7 @@
         },
         "TaskDetail": {
           "backToList": "Volver a tareas",
-          "created": "Creada",
-          "open": "Abrir",
-          "organization": "Organización",
-          "personalWorkspace": "Espacio de trabajo personal",
-          "status": "Estado",
-          "taskId": "ID de tarea",
-          "user": "Usuario"
+          "personalWorkspace": "Espacio de trabajo personal"
         }
       }
     },

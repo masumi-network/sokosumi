@@ -2702,13 +2702,7 @@
         },
         "TaskDetail": {
           "backToList": "Torna alle attività",
-          "created": "Creata",
-          "open": "Apri",
-          "organization": "Organizzazione",
-          "personalWorkspace": "Spazio di lavoro personale",
-          "status": "Stato",
-          "taskId": "ID attività",
-          "user": "Utente"
+          "personalWorkspace": "Spazio di lavoro personale"
         }
       }
     },

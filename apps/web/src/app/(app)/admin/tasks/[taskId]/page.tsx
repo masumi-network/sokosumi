@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { adminTaskService } from "@/lib/services/admin-task.service";
 
 export const metadata: Metadata = {
@@ -21,10 +20,9 @@ export default async function AdminTaskDetailPage({
   params,
 }: AdminTaskDetailPageProps) {
   const { taskId } = await params;
-  const [taskDetail, t, formatter] = await Promise.all([
+  const [taskDetail, t] = await Promise.all([
     adminTaskService.getTask(taskId),
     getTranslations("App.Admin.Tasks.TaskDetail"),
-    getFormatter(),
   ]);
 
   if (!taskDetail) {
@@ -35,67 +33,26 @@ export default async function AdminTaskDetailPage({
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-3xl space-y-6 px-4 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{task.name}</h1>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/admin/tasks">{t("backToList")}</Link>
-            </Button>
-            <Button asChild>
-              <Link href={`/tasks/${task.id}`}>{t("open")}</Link>
-            </Button>
+      {/* Admin-only context strip: surfaces the owner email (not shown in the
+          user-facing view) and the owning workspace, plus a way back to the
+          list. The task itself renders read-only below. */}
+      <div className="mx-auto max-w-4xl px-4 pt-2">
+        <div className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
+          <div className="text-sm">
+            <span className="font-medium">{user.name}</span>
+            <span className="text-muted-foreground"> · {user.email}</span>
+            <span className="text-muted-foreground">
+              {" · "}
+              {organization?.name ?? t("personalWorkspace")}
+            </span>
           </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/admin/tasks">{t("backToList")}</Link>
+          </Button>
         </div>
-
-        <Card>
-          <CardContent>
-            <dl className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground text-xs font-medium">
-                  {t("taskId")}
-                </dt>
-                <dd className="text-sm break-all">{task.id}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs font-medium">
-                  {t("status")}
-                </dt>
-                <dd className="text-sm">
-                  <TaskStatusBadge status={task.status} />
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs font-medium">
-                  {t("user")}
-                </dt>
-                <dd className="text-sm">
-                  {user.name}
-                  <span className="text-muted-foreground block text-xs">
-                    {user.email}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs font-medium">
-                  {t("organization")}
-                </dt>
-                <dd className="text-sm">
-                  {organization?.name ?? t("personalWorkspace")}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs font-medium">
-                  {t("created")}
-                </dt>
-                <dd className="text-sm">
-                  {formatter.dateTime(task.createdAt, { dateStyle: "medium" })}
-                </dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
       </div>
+
+      <TaskDetailView task={task} forceReadOnly />
     </div>
   );
 }

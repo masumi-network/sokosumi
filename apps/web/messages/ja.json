@@ -2702,13 +2702,7 @@
         },
         "TaskDetail": {
           "backToList": "タスク一覧に戻る",
-          "created": "作成日",
-          "open": "開く",
-          "organization": "組織",
-          "personalWorkspace": "個人ワークスペース",
-          "status": "ステータス",
-          "taskId": "タスクID",
-          "user": "ユーザー"
+          "personalWorkspace": "個人ワークスペース"
         }
       }
     },

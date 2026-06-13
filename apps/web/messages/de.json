@@ -2671,13 +2671,7 @@
         },
         "TaskDetail": {
           "backToList": "Zurück zu Aufgaben",
-          "created": "Erstellt",
-          "open": "Öffnen",
-          "organization": "Organisation",
-          "personalWorkspace": "Persönlicher Workspace",
-          "status": "Status",
-          "taskId": "Aufgaben-ID",
-          "user": "Benutzer"
+          "personalWorkspace": "Persönlicher Workspace"
         }
       }
     },

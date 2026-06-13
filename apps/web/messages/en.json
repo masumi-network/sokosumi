@@ -2756,13 +2756,7 @@
         },
         "TaskDetail": {
           "backToList": "Back to tasks",
-          "created": "Created",
-          "open": "Open",
-          "organization": "Organization",
-          "personalWorkspace": "Personal workspace",
-          "status": "Status",
-          "taskId": "Task ID",
-          "user": "User"
+          "personalWorkspace": "Personal workspace"
         }
       }
     },
