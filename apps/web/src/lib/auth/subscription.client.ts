@@ -3,6 +3,7 @@
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import {
   validateOrganizationSubscriptionChange,
   validatePersonalSubscriptionChange,
@@ -89,6 +90,10 @@ export async function upgradePersonalSubscriptionClient({
     return Err(mapAuthClientError(result.error));
   }
 
+  // Clear the onboarding gate only after the checkout call succeeds — clearing
+  // it before would permanently suppress the gate if the upgrade call failed.
+  await clearSubscriptionOnboardingGateSessionCookie();
+
   return resolveUpgradeResult(result.data);
 }
 
@@ -158,6 +163,10 @@ export async function upgradeOrganizationSubscriptionClient({
   if (result.error) {
     return Err(mapAuthClientError(result.error));
   }
+
+  // Clear the onboarding gate only after the checkout call succeeds — clearing
+  // it before would permanently suppress the gate if the upgrade call failed.
+  await clearSubscriptionOnboardingGateSessionCookie();
 
   return resolveUpgradeResult(result.data);
 }

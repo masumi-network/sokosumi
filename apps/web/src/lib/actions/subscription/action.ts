@@ -11,7 +11,6 @@ import {
   betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/errors";
-import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import prisma from "@/lib/db/prisma";
 import { organizationSubscriptionService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -150,10 +149,6 @@ export const validatePersonalSubscriptionChange = withSession<
   try {
     await assertPersonalSubscriptionChangeAllowed(session.user.id, prisma);
 
-    if (parsed.data.plan) {
-      await clearSubscriptionOnboardingGateSessionCookie();
-    }
-
     return Ok(undefined);
   } catch (error) {
     return Err(parseBetterAuthActionError(error));
@@ -189,10 +184,6 @@ export const validateOrganizationSubscriptionChange = withSession<
       parsed.data.organizationId,
       prisma,
     );
-
-    if (parsed.data.plan) {
-      await clearSubscriptionOnboardingGateSessionCookie();
-    }
 
     return Ok(undefined);
   } catch (error) {

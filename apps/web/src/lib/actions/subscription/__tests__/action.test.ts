@@ -84,7 +84,7 @@ describe("subscription actions", () => {
     expect(assertPersonalSubscriptionChangeAllowedMock).not.toHaveBeenCalled();
   });
 
-  it("runs personal prisma guard and clears onboarding cookie for checkout validation", async () => {
+  it("runs personal prisma guard without clearing onboarding cookie for checkout validation", async () => {
     const { validatePersonalSubscriptionChange } = await import("../action");
 
     const result = await validatePersonalSubscriptionChange({
@@ -101,7 +101,11 @@ describe("subscription actions", () => {
       "user-1",
       {},
     );
-    expect(clearSubscriptionOnboardingGateSessionCookieMock).toHaveBeenCalled();
+    // The onboarding gate is cleared client-side only after the checkout call
+    // succeeds, never during validation.
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("runs personal prisma guard without clearing onboarding cookie for portal validation", async () => {
@@ -177,7 +181,7 @@ describe("subscription actions", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("runs organization prisma guard and clears onboarding cookie for checkout validation", async () => {
+  it("runs organization prisma guard without clearing onboarding cookie for checkout validation", async () => {
     const { validateOrganizationSubscriptionChange } = await import(
       "../action"
     );
@@ -197,7 +201,11 @@ describe("subscription actions", () => {
     expect(
       assertOrganizationSubscriptionChangeAllowedMock,
     ).toHaveBeenCalledWith("org-1", {});
-    expect(clearSubscriptionOnboardingGateSessionCookieMock).toHaveBeenCalled();
+    // The onboarding gate is cleared client-side only after the checkout call
+    // succeeds, never during validation.
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("runs organization prisma guard for billing portal validation", async () => {

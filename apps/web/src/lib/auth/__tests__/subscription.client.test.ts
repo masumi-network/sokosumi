@@ -4,11 +4,17 @@ const validatePersonalSubscriptionChangeMock = vi.fn();
 const validateOrganizationSubscriptionChangeMock = vi.fn();
 const subscriptionUpgradeMock = vi.fn();
 const subscriptionBillingPortalMock = vi.fn();
+const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
 
 vi.mock("@/lib/actions/subscription", () => ({
   validateOrganizationSubscriptionChange:
     validateOrganizationSubscriptionChangeMock,
   validatePersonalSubscriptionChange: validatePersonalSubscriptionChangeMock,
+}));
+
+vi.mock("@/lib/actions/onboarding", () => ({
+  clearSubscriptionOnboardingGateSessionCookie:
+    clearSubscriptionOnboardingGateSessionCookieMock,
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -65,6 +71,9 @@ describe("subscription client", () => {
       returnUrl: "/billing?tab=subscription",
       successUrl: "/billing?tab=subscription&status=success",
     });
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("maps authClient upgrade errors for personal checkout", async () => {
@@ -91,6 +100,11 @@ describe("subscription client", () => {
       },
       ok: false,
     });
+    // A failed checkout must not clear the onboarding gate, otherwise the gate
+    // is permanently suppressed without the user completing checkout.
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns billing portal url from authClient.subscription.billingPortal", async () => {
@@ -119,6 +133,9 @@ describe("subscription client", () => {
       disableRedirect: true,
       returnUrl: "/billing?tab=coupon",
     });
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns checkout url for organization subscription upgrade", async () => {
@@ -161,6 +178,9 @@ describe("subscription client", () => {
       seats: 7,
       successUrl: "/organizations/acme?status=success",
     });
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("returns billing portal url for organization", async () => {
