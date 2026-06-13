@@ -2047,6 +2047,15 @@ export type CoworkerMetadata = {
     channels: {
         [key: string]: string;
     };
+    /**
+     * Public agent profile shown in selection UIs (model, hosting, capabilities, examples).
+     */
+    profile?: {
+        llm?: Array<string>;
+        hosting?: string;
+        capabilities?: Array<string>;
+        examples?: Array<string>;
+    };
 } | null;
 
 export type CoworkerUsage = {

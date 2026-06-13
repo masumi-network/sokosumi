@@ -7,12 +7,26 @@ import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
 export function getCoworkerOptions(coworkers: Coworker[]): CoworkerOption[] {
   return coworkers.map((coworker) => {
     const slug = coworker.slug?.toLowerCase() ?? coworker.name.toLowerCase();
+    const profile = coworker.metadata?.profile;
     return {
       id: coworker.id,
       slug,
       name: coworker.name,
       image: coworker.image || COWORKER_FALLBACK_IMAGES[slug] || "",
       description: coworker.description || undefined,
+      caption: coworker.caption || undefined,
+      company: coworker.company || undefined,
+      companyLogo: coworker.companyLogo || undefined,
+      profile: profile
+        ? {
+            llm: profile.llm?.length ? profile.llm : undefined,
+            hosting: profile.hosting || undefined,
+            capabilities: profile.capabilities?.length
+              ? profile.capabilities
+              : undefined,
+            examples: profile.examples?.length ? profile.examples : undefined,
+          }
+        : undefined,
     };
   });
 }

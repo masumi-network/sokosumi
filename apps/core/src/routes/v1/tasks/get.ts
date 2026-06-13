@@ -178,7 +178,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const takePlusOne = take + 1;
-    const [tasks, count] = await prisma.$transaction([
+    // Read-only list + count: run as independent queries instead of an
+    // interactive transaction. The transaction added a 5s timeout that the
+    // heavy nested include could exceed (esp. on a cold remote DB), surfacing
+    // as a 500. A list view does not need list/count snapshot consistency.
+    const [tasks, count] = await Promise.all([
       prisma.task.findMany({
         where,
         take: takePlusOne,

@@ -14,7 +14,10 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
+import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   readCreateTaskModalLastCoworkerId,
@@ -33,7 +36,6 @@ import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import { cn } from "@/lib/utils";
 import {
   createDesignMdDismissedState,
   extractTaskAttachmentUrls,
@@ -67,6 +69,21 @@ export interface TaskFormLabels {
   projectEmptyResults: string;
   coworker: string;
   coworkerDescription: string;
+  chooseAgent?: string;
+  chooseAgentDescription?: string;
+  defaultBadge?: string;
+  modelLabel?: string;
+  hostingLabel?: string;
+  examplesTitle?: string;
+  continueLabel?: string;
+  taskStepTitle?: string;
+  previousLabel?: string;
+  nextLabel?: string;
+  searchPlaceholder?: string;
+  noResults?: string;
+  askPrompt?: string;
+  promptHint?: string;
+  allCompanies?: string;
   status: string;
   statusDescription: string;
   statusDraft: string;
@@ -406,6 +423,30 @@ export function TaskForm({
     [initialDesignMdAttachment?.url],
   );
 
+  const selectedOption = useMemo(
+    () => coworkerOptions.find((option) => option.id === coworkerId),
+    [coworkerOptions, coworkerId],
+  );
+  const cardLabels = useMemo(
+    () => ({
+      defaultBadge: labels.defaultBadge ?? "Default",
+      modelLabel: labels.modelLabel ?? "Model",
+      hostingLabel: labels.hostingLabel ?? "Hosting",
+    }),
+    [labels.defaultBadge, labels.modelLabel, labels.hostingLabel],
+  );
+  const chooseAgentLabel = labels.chooseAgent ?? labels.coworker;
+  const examplesTitle = labels.examplesTitle ?? "What {name} can do";
+
+  // Two-step flow for the create modal: step 1 picks the agent (spotlight),
+  // step 2 writes the task. Edit/page variants keep the grid layout.
+  const useWizard = isModal && mode === "create";
+  const [step, setStep] = useState<1 | 2>(1);
+  const showTaskStep = !useWizard || step === 2;
+  const continueLabel = labels.continueLabel ?? "Continue";
+  const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
+  const taskFieldsBorder = useWizard ? "border-t" : !isModal ? "border-t" : "";
+
   const handleCancel = () => {
     abortActiveUploads();
     if (onCancel) {
@@ -420,7 +461,15 @@ export function TaskForm({
   };
 
   return (
-    <div className={isModal ? "space-y-6" : "max-w-3xl space-y-6"}>
+    <div
+      className={
+        useWizard
+          ? "flex min-h-0 flex-1 flex-col"
+          : isModal
+            ? "space-y-6"
+            : "max-w-3xl space-y-6"
+      }
+    >
       {!isModal ? (
         <header className="flex items-center gap-2">
           <Link href="/tasks" aria-label={labels.back}>
@@ -437,7 +486,15 @@ export function TaskForm({
         </header>
       ) : null}
 
-      <section className={isModal ? "space-y-0" : "rounded-xl border"}>
+      <section
+        className={
+          useWizard
+            ? "flex min-h-0 flex-1 flex-col"
+            : isModal
+              ? "space-y-0"
+              : "rounded-xl border"
+        }
+      >
         {!isModal ? (
           <div className="space-y-1 p-6">
             <h2 className="text-lg font-semibold">{labels.details}</h2>
@@ -449,220 +506,340 @@ export function TaskForm({
 
         <div
           className={
-            isModal ? "space-y-4 px-6 py-5" : "space-y-4 border-t px-6 py-6"
+            useWizard
+              ? "flex min-h-0 flex-1 flex-col overflow-y-auto"
+              : "contents"
           }
         >
-          {mode === "edit" ? (
-            <div className="space-y-2">
-              <Label htmlFor="task-name">{labels.name}</Label>
-              <Input
-                id="task-name"
-                maxLength={DEFAULT_TASK_NAME_MAX_LENGTH}
-                placeholder={labels.namePlaceholder}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
+          {useWizard && step === 1 ? (
+            <div className="px-6 py-4 md:px-8">
+              <AgentSpotlight
+                options={coworkerOptions}
+                selectedId={coworkerId}
+                onSelect={handleCoworkerSelect}
+                onUsePrompt={(prompt) => {
+                  setDescription(prompt);
+                  setStep(2);
+                }}
+                labels={{
+                  defaultBadge: cardLabels.defaultBadge,
+                  modelLabel: cardLabels.modelLabel,
+                  hostingLabel: cardLabels.hostingLabel,
+                  askPrompt: labels.askPrompt ?? "Ask {name} to…",
+                  promptHint:
+                    labels.promptHint ??
+                    "Click an example to start, or continue to write your own.",
+                  previous: labels.previousLabel ?? "Previous agent",
+                  next: labels.nextLabel ?? "Next agent",
+                  searchPlaceholder:
+                    labels.searchPlaceholder ?? "Search agents…",
+                  allCompanies: labels.allCompanies ?? "All",
+                  noResults: labels.noResults ?? "No agents found.",
+                }}
               />
             </div>
           ) : null}
 
-          {shouldShowProjectSelect ? (
-            <div className="space-y-2">
-              <Label>{labels.projectLabel}</Label>
-              <TaskProjectSelect
-                projectOptions={projectOptions ?? []}
-                value={projectId}
-                onChange={setProjectId}
-                projectLabel={labels.projectLabel}
-                noneLabel={labels.projectNone}
-                searchPlaceholder={labels.projectSearchPlaceholder}
-                emptyResults={labels.projectEmptyResults}
-              />
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <Label htmlFor="task-description">{labels.details}</Label>
-            <FileUpload
-              value={pendingUploadFiles}
-              onValueChange={setPendingUploadFiles}
-              onAccept={(files) => {
-                void handleAttachFiles(files);
-              }}
-              multiple
-            >
-              <FileUploadDropzone
-                className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
-                onClick={(event) => event.preventDefault()}
-              >
-                <MarkdownEditor
-                  ref={markdownEditorRef}
-                  id="task-description"
-                  placeholder={labels.descriptionPlaceholder}
-                  className="w-full"
-                  value={description}
-                  onChange={setDescription}
-                  onSubmitShortcut={() => {
-                    const shortcutStatus =
-                      mode === "create" ? TaskStatus.READY : undefined;
-                    void handleSave(shortcutStatus);
-                  }}
-                  onAttachClick={() => attachmentTriggerRef.current?.click()}
-                  attachLabel={labels.uploadFile}
-                  isAttachmentUploading={isUploadingAttachments}
-                  mentions={mentionOptions}
+          {useWizard && step === 2 && selectedOption ? (
+            <div className="flex items-center gap-3 px-6 py-4 md:px-8">
+              <Avatar className="ring-border size-9 shrink-0 rounded-lg ring-1">
+                <AvatarImage
+                  src={selectedOption.image}
+                  alt={selectedOption.name}
+                  className="object-cover"
                 />
-                <FileUploadTrigger asChild>
-                  <button
-                    ref={attachmentTriggerRef}
-                    type="button"
-                    className="sr-only"
-                    aria-label={labels.uploadFile}
-                  >
-                    {labels.uploadFile}
-                  </button>
-                </FileUploadTrigger>
-              </FileUploadDropzone>
-            </FileUpload>
-            {attachmentUrls.length > 0 ? (
-              <div className="flex flex-wrap gap-3">
-                {attachmentUrls.map((url) => (
-                  <FileChipMiniPreviewWithMetadata
-                    key={url}
-                    url={url}
-                    onRemove={() => handleRemoveAttachment(url)}
-                    removeLabel={labels.removeAttachment ?? labels.cancel}
-                  />
-                ))}
+                <AvatarFallback className="rounded-lg text-[11px] font-medium">
+                  {selectedOption.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm leading-tight font-semibold">
+                  {selectedOption.name}
+                </p>
+                {selectedOption.company ? (
+                  <p className="text-muted-foreground truncate text-xs">
+                    by {selectedOption.company}
+                  </p>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-        </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-primary shrink-0"
+                onClick={() => setStep(1)}
+              >
+                <ArrowLeft className="mr-1 size-3.5" />
+                {labels.back}
+              </Button>
+            </div>
+          ) : null}
 
-        <div className={isModal ? "border-t px-6 py-5" : "border-t px-6 py-6"}>
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">{labels.coworker}</Label>
-            <div className={cn("max-h-[264px] overflow-y-auto pr-1")}>
-              <div className="grid grid-cols-2 gap-2">
+          {showTaskStep ? (
+            <div className={`space-y-5 px-6 py-6 md:px-8 ${taskFieldsBorder}`}>
+              {useWizard && selectedOption ? (
+                <div className="space-y-1">
+                  <h3 className="text-lg font-semibold tracking-tight">
+                    {taskStepTitle.replace("{name}", selectedOption.name)}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    {labels.detailsDescription}
+                  </p>
+                </div>
+              ) : null}
+              {mode === "edit" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="task-name">{labels.name}</Label>
+                  <Input
+                    id="task-name"
+                    maxLength={DEFAULT_TASK_NAME_MAX_LENGTH}
+                    placeholder={labels.namePlaceholder}
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </div>
+              ) : null}
+
+              {shouldShowProjectSelect ? (
+                <div className="space-y-2">
+                  <Label>{labels.projectLabel}</Label>
+                  <TaskProjectSelect
+                    projectOptions={projectOptions ?? []}
+                    value={projectId}
+                    onChange={setProjectId}
+                    projectLabel={labels.projectLabel}
+                    noneLabel={labels.projectNone}
+                    searchPlaceholder={labels.projectSearchPlaceholder}
+                    emptyResults={labels.projectEmptyResults}
+                  />
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <Label htmlFor="task-description">{labels.details}</Label>
+                <FileUpload
+                  value={pendingUploadFiles}
+                  onValueChange={setPendingUploadFiles}
+                  onAccept={(files) => {
+                    void handleAttachFiles(files);
+                  }}
+                  multiple
+                >
+                  <FileUploadDropzone
+                    className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+                    onClick={(event) => event.preventDefault()}
+                  >
+                    <MarkdownEditor
+                      ref={markdownEditorRef}
+                      id="task-description"
+                      placeholder={labels.descriptionPlaceholder}
+                      className="w-full"
+                      editorClassName={
+                        useWizard ? "min-h-60 max-h-[44vh]" : undefined
+                      }
+                      value={description}
+                      onChange={setDescription}
+                      onSubmitShortcut={() => {
+                        const shortcutStatus =
+                          mode === "create" ? TaskStatus.READY : undefined;
+                        void handleSave(shortcutStatus);
+                      }}
+                      onAttachClick={() =>
+                        attachmentTriggerRef.current?.click()
+                      }
+                      attachLabel={labels.uploadFile}
+                      isAttachmentUploading={isUploadingAttachments}
+                      mentions={mentionOptions}
+                    />
+                    <FileUploadTrigger asChild>
+                      <button
+                        ref={attachmentTriggerRef}
+                        type="button"
+                        className="sr-only"
+                        aria-label={labels.uploadFile}
+                      >
+                        {labels.uploadFile}
+                      </button>
+                    </FileUploadTrigger>
+                  </FileUploadDropzone>
+                </FileUpload>
+                {attachmentUrls.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {attachmentUrls.map((url) => (
+                      <FileChipMiniPreviewWithMetadata
+                        key={url}
+                        url={url}
+                        onRemove={() => handleRemoveAttachment(url)}
+                        removeLabel={labels.removeAttachment ?? labels.cancel}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {!useWizard ? (
+            <div className="space-y-4 border-t px-6 py-6 md:px-8">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium">
+                  {chooseAgentLabel}
+                </Label>
+                {labels.chooseAgentDescription ? (
+                  <p className="text-muted-foreground text-xs">
+                    {labels.chooseAgentDescription}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {coworkerOptions.map((option) => (
                   <CoworkerCard
                     key={option.id}
                     option={option}
                     isSelected={coworkerId === option.id}
+                    isDefault={option.slug === "elena"}
                     onSelect={() => handleCoworkerSelect(option.id)}
+                    labels={cardLabels}
                   />
                 ))}
               </div>
+              {selectedOption ? (
+                <AgentDetail
+                  option={selectedOption}
+                  examplesTitle={examplesTitle}
+                />
+              ) : null}
             </div>
-          </div>
+          ) : null}
         </div>
 
-        <div
-          className={
-            isModal
-              ? "flex flex-col items-stretch justify-end gap-3 border-t px-6 py-4 sm:flex-row sm:items-center"
-              : "flex flex-col items-stretch justify-end gap-3 border-t px-6 py-6 sm:flex-row sm:items-center"
-          }
-        >
-          <div className="flex items-center gap-3">
-            {mode === "create" ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSaveDisabled}
-                  onClick={() => handleSave(TaskStatus.DRAFT)}
-                >
-                  {isSubmittingDraft ? (
-                    <Loader2
-                      className="mr-1.5 h-3.5 w-3.5 animate-spin"
-                      aria-hidden
-                    />
-                  ) : null}
-                  {labels.saveAsDraft ?? labels.submit}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isSaveDisabled}
-                  onClick={() => handleSave(TaskStatus.READY)}
-                >
-                  <div className="flex items-center gap-1.5">
-                    {isSubmitting ? (
-                      <Loader2
-                        className="h-3.5 w-3.5 animate-spin"
-                        aria-hidden
-                      />
-                    ) : null}
-                    {labels.createTask ?? labels.submit}
-                    {!isMobile ? (
-                      <div className="flex items-center gap-0.5 opacity-60">
-                        {os === "MacOS" ? (
-                          <Command className="size-3" />
-                        ) : (
-                          <span className="text-xs">{labels.ctrl}</span>
-                        )}
-                        <CornerDownLeft className="size-3" />
-                      </div>
-                    ) : null}
-                  </div>
-                </Button>
-              </>
-            ) : (
-              <>
-                {shouldShowEditToggle ? (
+        {useWizard && step === 1 ? (
+          <div className="flex shrink-0 items-center justify-end border-t px-6 py-4 md:px-8">
+            <Button
+              type="button"
+              className="min-w-44"
+              disabled={!coworkerId}
+              onClick={() => setStep(2)}
+            >
+              <span className="flex items-center gap-1.5">
+                {continueLabel}
+                {selectedOption ? (
+                  <span className="opacity-70">· {selectedOption.name}</span>
+                ) : null}
+              </span>
+            </Button>
+          </div>
+        ) : null}
+
+        {showTaskStep ? (
+          <div
+            className={
+              isModal
+                ? "flex shrink-0 flex-col items-stretch justify-end gap-3 border-t px-6 py-4 sm:flex-row sm:items-center md:px-8"
+                : "flex flex-col items-stretch justify-end gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
+            }
+          >
+            <div className="flex items-center gap-3">
+              {mode === "create" ? (
+                <>
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-w-28"
-                    onClick={() =>
-                      setStatus((current) =>
-                        current === TaskStatus.DRAFT
-                          ? TaskStatus.READY
-                          : TaskStatus.DRAFT,
-                      )
-                    }
-                    disabled={isSubmitting}
+                    disabled={isSaveDisabled}
+                    onClick={() => handleSave(TaskStatus.DRAFT)}
                   >
-                    {statusToggleLabel}
-                  </Button>
-                ) : (
-                  <span />
-                )}
-                <Button
-                  type="button"
-                  className="min-w-28 items-center justify-between gap-1"
-                  disabled={isSaveDisabled}
-                  onClick={() => handleSave()}
-                >
-                  <div className="flex items-center gap-2">
-                    {isSubmitting ? (
+                    {isSubmittingDraft ? (
                       <Loader2
-                        className="h-3.5 w-3.5 animate-spin"
+                        className="mr-1.5 h-3.5 w-3.5 animate-spin"
                         aria-hidden
                       />
                     ) : null}
-                    {labels.submit}
-                    {!isMobile ? (
-                      <div className="flex items-center gap-1">
-                        {os === "MacOS" ? <Command /> : labels.ctrl}
-                        <CornerDownLeft />
-                      </div>
-                    ) : null}
-                  </div>
+                    {labels.saveAsDraft ?? labels.submit}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={isSaveDisabled}
+                    onClick={() => handleSave(TaskStatus.READY)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {isSubmitting ? (
+                        <Loader2
+                          className="h-3.5 w-3.5 animate-spin"
+                          aria-hidden
+                        />
+                      ) : null}
+                      {labels.createTask ?? labels.submit}
+                      {!isMobile ? (
+                        <div className="flex items-center gap-0.5 opacity-60">
+                          {os === "MacOS" ? (
+                            <Command className="size-3" />
+                          ) : (
+                            <span className="text-xs">{labels.ctrl}</span>
+                          )}
+                          <CornerDownLeft className="size-3" />
+                        </div>
+                      ) : null}
+                    </div>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {shouldShowEditToggle ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-w-28"
+                      onClick={() =>
+                        setStatus((current) =>
+                          current === TaskStatus.DRAFT
+                            ? TaskStatus.READY
+                            : TaskStatus.DRAFT,
+                        )
+                      }
+                      disabled={isSubmitting}
+                    >
+                      {statusToggleLabel}
+                    </Button>
+                  ) : (
+                    <span />
+                  )}
+                  <Button
+                    type="button"
+                    className="min-w-28 items-center justify-between gap-1"
+                    disabled={isSaveDisabled}
+                    onClick={() => handleSave()}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isSubmitting ? (
+                        <Loader2
+                          className="h-3.5 w-3.5 animate-spin"
+                          aria-hidden
+                        />
+                      ) : null}
+                      {labels.submit}
+                      {!isMobile ? (
+                        <div className="flex items-center gap-1">
+                          {os === "MacOS" ? <Command /> : labels.ctrl}
+                          <CornerDownLeft />
+                        </div>
+                      ) : null}
+                    </div>
+                  </Button>
+                </>
+              )}
+              {showCancel ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-w-24"
+                  onClick={handleCancel}
+                >
+                  {labels.cancel}
                 </Button>
-              </>
-            )}
-            {showCancel ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="min-w-24"
-                onClick={handleCancel}
-              >
-                {labels.cancel}
-              </Button>
-            ) : null}
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
     </div>
   );

@@ -15,6 +15,24 @@ export const coworkerCapabilitiesSchema = z
       "Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.",
   });
 
+export const coworkerProfileSchema = z
+  .object({
+    llm: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ["GPT-4o", "Claude 3.5 Sonnet"] }),
+    hosting: z.string().optional().openapi({ example: "EU · Frankfurt" }),
+    capabilities: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ["Market Research", "Copywriting"] }),
+    examples: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ["Plan a multi-channel campaign"] }),
+  })
+  .openapi("CoworkerProfile");
+
 export const coworkerMetadataSchema = z
   .object({
     channels: z.record(z.string(), z.string()).openapi({
@@ -24,6 +42,10 @@ export const coworkerMetadataSchema = z
         email: "foo@bar.com",
         whatsapp: "+49151xxxx",
       },
+    }),
+    profile: coworkerProfileSchema.optional().openapi({
+      description:
+        "Public agent profile shown in selection UIs (model, hosting, capabilities, examples).",
     }),
   })
   .openapi("CoworkerMetadata");
