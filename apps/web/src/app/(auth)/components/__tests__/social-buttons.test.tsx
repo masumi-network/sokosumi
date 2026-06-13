@@ -19,7 +19,7 @@ const {
 
 const mockSocialSignIn = vi.fn();
 const mockPasskeySignIn = vi.fn();
-const mockRequestMagicLinkSignIn = vi.fn();
+const mockMagicLinkSignIn = vi.fn();
 const mockToastError = vi.fn();
 const mockRouterReplace = vi.fn();
 const mockGetSession = vi.fn();
@@ -90,14 +90,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
     signIn: {
       passkey: (...args: unknown[]) => mockPasskeySignIn(...args),
       social: (...args: unknown[]) => mockSocialSignIn(...args),
+      magicLink: (...args: unknown[]) => mockMagicLinkSignIn(...args),
     },
   },
 }));
 
-vi.mock("@/lib/actions/auth", () => ({
-  requestMagicLinkSignIn: (...args: unknown[]) =>
-    mockRequestMagicLinkSignIn(...args),
-}));
+vi.mock("@/lib/actions/auth", () => ({}));
 
 vi.mock("@/lib/auth/auth.utils", async () => {
   const actual = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
@@ -158,8 +156,8 @@ describe("SocialButtons", () => {
       },
       error: null,
     });
-    mockRequestMagicLinkSignIn.mockReset();
-    mockRequestMagicLinkSignIn.mockResolvedValue({ ok: true });
+    mockMagicLinkSignIn.mockReset();
+    mockMagicLinkSignIn.mockResolvedValue({ data: null, error: null });
     mockToastError.mockReset();
     mockRouterReplace.mockReset();
     mockGetSession.mockReset();
@@ -473,10 +471,10 @@ describe("SocialButtons", () => {
     await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
 
     await waitFor(() => {
-      expect(mockRequestMagicLinkSignIn).toHaveBeenCalledWith(
-        "login-user@example.com",
-        undefined,
-      );
+      expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
+        email: "login-user@example.com",
+        callbackURL: "/",
+      });
     });
 
     expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
@@ -531,19 +529,19 @@ describe("SocialButtons", () => {
     await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
 
     await waitFor(() => {
-      expect(mockRequestMagicLinkSignIn).toHaveBeenCalledTimes(1);
+      expect(mockMagicLinkSignIn).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[0]).toBe(
+    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.email).toBe(
       "oauth-login-user@example.com",
     );
-    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[1]).toContain(
+    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
       "/oauth/consent?",
     );
-    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[1]).toContain(
+    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
       "client_id=test-client",
     );
-    expect(mockRequestMagicLinkSignIn.mock.calls[0]?.[1]).toContain(
+    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL).toContain(
       "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
     );
   });
@@ -552,7 +550,7 @@ describe("SocialButtons", () => {
     const user = userEvent.setup();
     let rejectRequest: ((reason?: unknown) => void) | undefined;
 
-    mockRequestMagicLinkSignIn.mockImplementationOnce(
+    mockMagicLinkSignIn.mockImplementationOnce(
       () =>
         new Promise((_, reject) => {
           rejectRequest = reject;

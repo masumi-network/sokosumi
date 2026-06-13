@@ -54,13 +54,14 @@ vi.mock("@/lib/actions", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/auth", () => ({
-  signInEmail: (...args: unknown[]) => mockSignInEmail(...args),
-}));
+vi.mock("@/lib/actions/auth", () => ({}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
+  },
+  signIn: {
+    email: (...args: unknown[]) => mockSignInEmail(...args),
   },
 }));
 
@@ -182,8 +183,8 @@ describe("SignInForm", () => {
 
   it("passes unwrapped session data to waitForAuthSession after credential login", async () => {
     mockSignInEmail.mockResolvedValue({
-      ok: true,
       data: {},
+      error: null,
     });
     mockGetSession.mockResolvedValueOnce({
       data: null,

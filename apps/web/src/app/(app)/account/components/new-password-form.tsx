@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createCredentialAccount } from "@/lib/actions";
+import { setPassword } from "@/lib/auth/auth.client";
 import { type NewPasswordFormType, newPasswordFormSchema } from "@/lib/schemas";
 
 export function NewPasswordForm() {
@@ -43,16 +43,18 @@ export function NewPasswordForm() {
   });
 
   const handleSubmit = async (values: NewPasswordFormType) => {
-    const result = await createCredentialAccount(values);
+    const result = await setPassword({
+      newPassword: values.newPassword,
+    });
 
-    if (result.ok) {
-      toast.success(t("success"));
-      form.reset();
-      router.refresh();
-    } else {
-      const errorMessage = result.error.message ?? t("error");
-      toast.error(errorMessage);
+    if (result.error) {
+      toast.error(result.error.message ?? t("error"));
+      return;
     }
+
+    toast.success(t("success"));
+    form.reset();
+    router.refresh();
   };
 
   const { isSubmitting } = form.formState;

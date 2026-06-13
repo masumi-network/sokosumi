@@ -14,6 +14,7 @@ import SignUpForm from "../form";
 
 const mockReplace = vi.fn();
 const mockSignUpEmail = vi.fn();
+const mockHandleUtmConversion = vi.fn();
 const mockGetSession = vi.fn();
 const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
@@ -54,12 +55,18 @@ vi.mock("@/lib/actions", () => ({
     EMAIL_DOMAIN_NOT_ALLOWED: "EMAIL_DOMAIN_NOT_ALLOWED",
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
   },
-  signUpEmail: (...args: unknown[]) => mockSignUpEmail(...args),
+}));
+
+vi.mock("@/lib/actions/auth", () => ({
+  handleUtmConversion: (...args: unknown[]) => mockHandleUtmConversion(...args),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
+  },
+  signUp: {
+    email: (...args: unknown[]) => mockSignUpEmail(...args),
   },
 }));
 
@@ -104,6 +111,7 @@ describe("SignUpForm OAuth workflow", () => {
   beforeEach(() => {
     mockReplace.mockReset();
     mockSignUpEmail.mockReset();
+    mockHandleUtmConversion.mockReset();
     mockGetSession.mockReset();
     mockWaitForAuthSession.mockReset();
     mockWaitForAuthSession.mockResolvedValue(undefined);
@@ -159,12 +167,12 @@ describe("SignUpForm OAuth workflow", () => {
     });
 
     mockSignUpEmail.mockResolvedValue({
-      ok: true,
       data: {
         user: { id: "user-1" },
         redirect: true,
-        redirectUrl: "/api/auth/oauth2/authorize?client_id=test-client",
+        url: "/api/auth/oauth2/authorize?client_id=test-client",
       },
+      error: null,
     });
 
     render(<SignUpForm />);
@@ -183,10 +191,10 @@ describe("SignUpForm OAuth workflow", () => {
 
   it("uses standard post-signup navigation when oauth redirect is not present", async () => {
     mockSignUpEmail.mockResolvedValue({
-      ok: true,
       data: {
         user: { id: "user-2" },
       },
+      error: null,
     });
 
     render(<SignUpForm />);
@@ -196,6 +204,7 @@ describe("SignUpForm OAuth workflow", () => {
     await waitFor(() => {
       expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
       expect(mockReplace).toHaveBeenCalledWith("/");
+      expect(mockHandleUtmConversion).toHaveBeenCalledTimes(1);
     });
 
     expect(window.location.href).toBe("http://localhost/");
@@ -203,10 +212,10 @@ describe("SignUpForm OAuth workflow", () => {
 
   it("passes unwrapped session data to waitForAuthSession after credential signup", async () => {
     mockSignUpEmail.mockResolvedValue({
-      ok: true,
       data: {
         user: { id: "user-4" },
       },
+      error: null,
     });
     mockGetSession.mockResolvedValueOnce({
       data: null,
@@ -243,12 +252,12 @@ describe("SignUpForm OAuth workflow", () => {
     });
 
     mockSignUpEmail.mockResolvedValue({
-      ok: true,
       data: {
         user: { id: "user-3" },
         redirect: true,
-        redirectUrl: "/api/auth/oauth2/authorize?client_id=test-client",
+        url: "/api/auth/oauth2/authorize?client_id=test-client",
       },
+      error: null,
     });
 
     render(<SignUpForm />);
@@ -259,30 +268,32 @@ describe("SignUpForm OAuth workflow", () => {
       expect(mockSignUpEmail).toHaveBeenCalledTimes(1);
     });
 
-    const callbackUrl = mockSignUpEmail.mock.calls[0]?.[1];
-    const submittedValues = mockSignUpEmail.mock.calls[0]?.[0];
+    const signUpPayload = mockSignUpEmail.mock.calls[0]?.[0];
 
-    expect(submittedValues).toEqual(
+    expect(signUpPayload).toEqual(
       expect.objectContaining({
         name: "New User",
         email: "new-user@example.com",
         password: "Passw0rd!",
         termsAccepted: true,
         marketingOptIn: false,
+        onboardingCompleted: false,
       }),
     );
 
-    expect(callbackUrl).toContain("/oauth/consent?");
-    expect(callbackUrl).toContain("client_id=test-client");
-    expect(callbackUrl).toContain(
+    expect(signUpPayload.callbackURL).toContain("/oauth/consent?");
+    expect(signUpPayload.callbackURL).toContain("client_id=test-client");
+    expect(signUpPayload.callbackURL).toContain(
       "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
     );
-    expect(callbackUrl).toContain("code_challenge=test-challenge");
-    expect(callbackUrl).toContain("code_challenge_method=S256");
-    expect(callbackUrl).toContain("scope=openid");
-    expect(callbackUrl).toContain("state=test-state");
-    expect(callbackUrl).toContain("response_type=code");
-    expect(callbackUrl).toContain("exp=1772367377");
-    expect(callbackUrl).toContain("sig=signed-value");
+    expect(signUpPayload.callbackURL).toContain(
+      "code_challenge=test-challenge",
+    );
+    expect(signUpPayload.callbackURL).toContain("code_challenge_method=S256");
+    expect(signUpPayload.callbackURL).toContain("scope=openid");
+    expect(signUpPayload.callbackURL).toContain("state=test-state");
+    expect(signUpPayload.callbackURL).toContain("response_type=code");
+    expect(signUpPayload.callbackURL).toContain("exp=1772367377");
+    expect(signUpPayload.callbackURL).toContain("sig=signed-value");
   });
 });
