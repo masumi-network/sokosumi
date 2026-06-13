@@ -135,6 +135,34 @@ export function getValidAuthRedirectUrl(
   }
 }
 
+interface AuthOAuthRedirectPayload {
+  redirect?: boolean;
+  url?: string;
+  data?: {
+    redirect?: boolean;
+    url?: string;
+  };
+}
+
+export function getAuthOAuthRedirect(payload: unknown): {
+  redirect: boolean;
+  redirectUrl?: string;
+} {
+  if (!payload || typeof payload !== "object") {
+    return { redirect: false };
+  }
+
+  const candidate = payload as AuthOAuthRedirectPayload;
+  const redirect = candidate.redirect ?? candidate.data?.redirect;
+  const redirectUrl = candidate.url ?? candidate.data?.url;
+
+  if (redirect && redirectUrl) {
+    return { redirect: true, redirectUrl };
+  }
+
+  return { redirect: false };
+}
+
 export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   const normalized = returnUrl?.trim() || "";
   const sanitizedReturnUrl =

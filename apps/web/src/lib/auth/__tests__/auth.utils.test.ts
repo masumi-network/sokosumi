@@ -4,10 +4,45 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
+  getAuthOAuthRedirect,
   getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
+
+describe("getAuthOAuthRedirect", () => {
+  it("returns redirect metadata from top-level payload", () => {
+    expect(
+      getAuthOAuthRedirect({
+        redirect: true,
+        url: "/api/auth/oauth2/authorize?client_id=test",
+      }),
+    ).toEqual({
+      redirect: true,
+      redirectUrl: "/api/auth/oauth2/authorize?client_id=test",
+    });
+  });
+
+  it("returns redirect metadata from nested payload", () => {
+    expect(
+      getAuthOAuthRedirect({
+        data: {
+          redirect: true,
+          url: "/api/auth/oauth2/authorize?client_id=nested",
+        },
+      }),
+    ).toEqual({
+      redirect: true,
+      redirectUrl: "/api/auth/oauth2/authorize?client_id=nested",
+    });
+  });
+
+  it("returns non-redirect when redirect metadata is incomplete", () => {
+    expect(getAuthOAuthRedirect({ redirect: true })).toEqual({
+      redirect: false,
+    });
+  });
+});
 
 describe("getValidAuthRedirectUrl", () => {
   it("returns fallback when returnUrl is missing", () => {

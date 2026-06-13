@@ -9,6 +9,7 @@ import {
   inferOrgAdditionalFields,
   jwtClient,
   lastLoginMethodClient,
+  magicLinkClient,
   organizationClient,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
@@ -39,6 +40,7 @@ export const authClient = createAuthClient({
       schema: inferOrgAdditionalFields<typeof auth>(),
     }),
     passkeyClient(),
+    magicLinkClient(),
     lastLoginMethodClient({
       cookieName: getLastUsedLoginMethodCookieName(),
     }),

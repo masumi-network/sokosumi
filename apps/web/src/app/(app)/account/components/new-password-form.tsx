@@ -47,12 +47,12 @@ export function NewPasswordForm() {
 
     if (result.ok) {
       toast.success(t("success"));
-      form.reset();
-      router.refresh();
     } else {
-      const errorMessage = result.error.message ?? t("error");
-      toast.error(errorMessage);
+      toast.error(result.error.message ?? t("error"));
+      return;
     }
+    form.reset();
+    router.refresh();
   };
 
   const { isSubmitting } = form.formState;
