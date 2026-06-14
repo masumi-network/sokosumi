@@ -1,4 +1,16 @@
+import { MemberRole } from "@sokosumi/database";
+import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+interface AuthorizeReferenceConfig {
+  subscription: {
+    authorizeReference: (params: {
+      referenceId: string;
+      user: { id: string };
+      action?: string;
+    }) => Promise<boolean>;
+  };
+}
 
 const {
   adminPluginMock,
@@ -7,7 +19,10 @@ const {
   getBetterAuthPublicBaseUrlMock,
   getEnvMock,
   getBetterAuthProductionUrlMock,
+  getBetterAuthSubscriptionPlansMock,
   getWebAppBaseUrlMock,
+  hasConsumableEnterpriseContractMock,
+  handleSubscriptionDeletedEventMock,
   i18nPluginMock,
   jwtPluginMock,
   lastLoginMethodPluginMock,
@@ -16,12 +31,15 @@ const {
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
+  getMemberByUserIdAndOrganizationIdMock,
   passkeyPluginMock,
   postmarkSendEmailMock,
   prismaAdapterMock,
+  reconcileActiveStripeBackedSubscriptionMock,
   renderMagicLinkEmailMock,
   sentryCaptureExceptionMock,
   stripeCreateUserCustomerMock,
+  stripePluginMock,
   uploadProfileImageMock,
   webhookCallAccountCreatedMock,
   workspaceUpsertMock,
@@ -32,7 +50,10 @@ const {
   getBetterAuthPublicBaseUrlMock: vi.fn(),
   getEnvMock: vi.fn(),
   getBetterAuthProductionUrlMock: vi.fn(),
+  getBetterAuthSubscriptionPlansMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
+  hasConsumableEnterpriseContractMock: vi.fn(),
+  handleSubscriptionDeletedEventMock: vi.fn(),
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
   lastLoginMethodPluginMock: vi.fn(),
@@ -41,12 +62,15 @@ const {
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
+  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   passkeyPluginMock: vi.fn(),
   postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
+  reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
   renderMagicLinkEmailMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
   stripeCreateUserCustomerMock: vi.fn(),
+  stripePluginMock: vi.fn(),
   uploadProfileImageMock: vi.fn(),
   webhookCallAccountCreatedMock: vi.fn(),
   workspaceUpsertMock: vi.fn(),
@@ -68,6 +92,8 @@ function getDefaultEnv() {
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     POSTMARK_SERVER_ID: "postmark-server-id",
     STRIPE_SECRET_KEY: "sk_test_123",
+    STRIPE_WEBHOOK_SECRET: "whsec_test_123",
+    STRIPE_BA_WEBHOOK_SECRET: "whsec_ba_test_123",
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
   };
@@ -95,6 +121,10 @@ vi.mock("@better-auth/passkey", () => ({
   passkey: (...args: unknown[]) => passkeyPluginMock(...args),
 }));
 
+vi.mock("@better-auth/stripe", () => ({
+  stripe: (...args: unknown[]) => stripePluginMock(...args),
+}));
+
 vi.mock("@better-auth/api-key", () => ({
   apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
 }));
@@ -111,7 +141,21 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
 }));
 
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    hasConsumableEnterpriseContract: (...args: unknown[]) =>
+      hasConsumableEnterpriseContractMock(...args),
+  };
+});
+
 vi.mock("@sokosumi/database/repositories", () => ({
+  memberRepository: {
+    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
+      getMemberByUserIdAndOrganizationIdMock(...args),
+  },
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
       workspaceUpsertMock(...args),
@@ -158,6 +202,18 @@ vi.mock("@/services/webhook.service", () => ({
   },
 }));
 
+vi.mock("@/services/subscription-catalog.service", () => ({
+  getBetterAuthSubscriptionPlans: (...args: unknown[]) =>
+    getBetterAuthSubscriptionPlansMock(...args),
+}));
+
+vi.mock("@/services/stripe-backed-subscription.service", () => ({
+  handleSubscriptionDeletedEvent: (...args: unknown[]) =>
+    handleSubscriptionDeletedEventMock(...args),
+  reconcileActiveStripeBackedSubscription: (...args: unknown[]) =>
+    reconcileActiveStripeBackedSubscriptionMock(...args),
+}));
+
 vi.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
@@ -182,6 +238,7 @@ describe("core auth config", () => {
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
+    reconcileActiveStripeBackedSubscriptionMock.mockResolvedValue(undefined);
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     renderMagicLinkEmailMock.mockResolvedValue({
@@ -192,9 +249,13 @@ describe("core auth config", () => {
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     uploadProfileImageMock.mockResolvedValue("https://blob.example/avatar.png");
     webhookCallAccountCreatedMock.mockResolvedValue(undefined);
+    stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
+    getBetterAuthSubscriptionPlansMock.mockResolvedValue([]);
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+    handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
   });
 
   it("configures Google and Microsoft social providers for auth parity", async () => {
@@ -389,6 +450,264 @@ describe("core auth config", () => {
     });
   });
 
+  it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          stripeWebhookSecret: string;
+          subscription: {
+            getCheckoutSessionParams: () => Promise<{
+              params?: {
+                billing_address_collection?: string;
+                customer_update?: {
+                  address?: string;
+                  name?: string;
+                };
+                tax_id_collection?: {
+                  enabled: boolean;
+                };
+              };
+            }>;
+          };
+        },
+      ]
+    >;
+
+    expect(config.stripeWebhookSecret).toBe("whsec_ba_test_123");
+
+    const sessionParams = await config.subscription.getCheckoutSessionParams();
+
+    expect(sessionParams).toEqual({
+      params: {
+        billing_address_collection: "required",
+        customer_update: {
+          address: "auto",
+          name: "auto",
+        },
+        tax_id_collection: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
+  it("handles customer.subscription.deleted via the Stripe webhook handlers", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          onEvent: (event: {
+            data: {
+              object: {
+                id: string;
+              };
+            };
+            id: string;
+            type: string;
+          }) => Promise<void>;
+        },
+      ]
+    >;
+
+    await config.onEvent({
+      data: {
+        object: {
+          id: "sub_123",
+        },
+      },
+      id: "evt_123",
+      type: "customer.subscription.deleted",
+    });
+
+    expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith({
+      id: "sub_123",
+    });
+  });
+
+  it.each([
+    "onSubscriptionCreated",
+    "onSubscriptionUpdate",
+  ] as const)("reconciles local free rows from Better Auth subscription callback %s", async (callbackName) => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          subscription: {
+            onSubscriptionCreated: (params: {
+              event: {
+                id: string;
+                type: string;
+              };
+              subscription: {
+                id: string;
+                referenceId: string;
+                stripeSubscriptionId?: string | null;
+              };
+            }) => Promise<void>;
+            onSubscriptionUpdate: (params: {
+              event: {
+                id: string;
+                type: string;
+              };
+              subscription: {
+                id: string;
+                referenceId: string;
+                stripeSubscriptionId?: string | null;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const subscription = {
+      id: "sub_local_enterprise",
+      referenceId: "org-enterprise",
+      stripeSubscriptionId: "sub_enterprise",
+    };
+
+    await config.subscription[callbackName]({
+      event: {
+        id: "evt_enterprise",
+        type:
+          callbackName === "onSubscriptionCreated"
+            ? "customer.subscription.created"
+            : "customer.subscription.updated",
+      },
+      subscription,
+    });
+
+    expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
+      subscription,
+    );
+  });
+
+  it("denies subscription management for non-members", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(false);
+
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      { __prisma: true },
+    );
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it("denies subscription management for members without owner or admin role", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.MEMBER,
+    });
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(false);
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    MemberRole.OWNER,
+    MemberRole.ADMIN,
+  ] as const)("allows subscription management for %s without an enterprise contract", async (role) => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(true);
+
+    expect(hasConsumableEnterpriseContractMock).toHaveBeenCalledWith(
+      "org_123",
+      { __prisma: true },
+    );
+  });
+
+  it("throws enterprise exclusivity error when upgrading an org with a consumable enterprise contract", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(true);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: {
+        code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+        message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+      },
+    });
+  });
+
+  it("allows non-upgrade actions even with a consumable enterprise contract", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(true);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "cancel-subscription",
+      }),
+    ).resolves.toBe(true);
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
   it("registers the Better Auth admin plugin", async () => {
     await import("./auth");
 
@@ -428,6 +747,7 @@ describe("core auth config", () => {
         "last-login-method-plugin",
         "oauth-provider-plugin",
         "oauth-proxy-plugin",
+        "stripe-plugin",
       ]),
     );
     expect(apiKeyPluginMock).toHaveBeenCalledWith(

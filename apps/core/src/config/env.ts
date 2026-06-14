@@ -116,8 +116,11 @@ const envSchema = z.object({
   // 100%-off coupon used to issue admin credit grants free of charge
   STRIPE_SUPPORT_COUPON: z.string().min(1),
 
-  // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
+  // Signing secret for Core billing webhook (POST /webhooks/stripe).
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
+
+  // Signing secret for Better Auth Stripe plugin (POST /auth/stripe/webhook).
+  STRIPE_BA_WEBHOOK_SECRET: z.string().min(1),
 
   // Sync lock configuration
   LOCK_TIMEOUT: z.coerce
