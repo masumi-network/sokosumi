@@ -134,7 +134,10 @@ const envSecretsSchema = z.object({
     .default(172800), // 2 days in seconds
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
-  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
+  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce
+    .number()
+    .min(1000)
+    .default(1000 * 10), // 10 seconds
 
   // ably keys
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
