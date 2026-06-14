@@ -80,8 +80,11 @@ export function resolveLocaleFromAcceptLanguage(
           continue;
         }
 
+        // A malformed quality value (missing or unparseable) is ignored rather
+        // than dropping the whole language preference: keep the default quality
+        // of 1 so e.g. `de;q=` or `de;q=oops` still resolves to German.
         if (!rawValue) {
-          return null;
+          continue;
         }
 
         const parsedQuality = Number.parseFloat(rawValue.trim());
@@ -90,7 +93,7 @@ export function resolveLocaleFromAcceptLanguage(
           parsedQuality < 0 ||
           parsedQuality > 1
         ) {
-          return null;
+          continue;
         }
 
         quality = parsedQuality;

@@ -239,6 +239,8 @@ vi.mock("@/services/organization-subscription-auth.service", () => ({
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
+  prepareStripeEmailSyncForUserUpdate: vi.fn(),
+  handleUserUpdateStripeEmailSync: vi.fn(),
   syncUserEmailWithStripe: vi.fn(),
 }));
 

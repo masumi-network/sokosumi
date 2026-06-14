@@ -38,8 +38,9 @@ describe("resolveLocaleFromAcceptLanguage", () => {
     expect(resolveLocaleFromAcceptLanguage("fr;q=0,de;q=0.8")).toBe("de");
   });
 
-  it("ignores entries with malformed q-values", () => {
-    expect(resolveLocaleFromAcceptLanguage("fr;q=oops,en;q=0.8")).toBe("en");
+  it("keeps a supported locale whose q-value is malformed at default quality", () => {
+    expect(resolveLocaleFromAcceptLanguage("de;q=oops,en;q=0.8")).toBe("de");
+    expect(resolveLocaleFromAcceptLanguage("de;q=,en;q=0.8")).toBe("de");
   });
 
   it("maps regional language tags to supported base locale", () => {

@@ -62,7 +62,10 @@ import {
   handleSubscriptionDeletedEvent,
   reconcileActiveStripeBackedSubscription,
 } from "@/services/stripe-backed-subscription.service";
-import { syncUserEmailWithStripe } from "@/services/stripe-user-email.service";
+import {
+  handleUserUpdateStripeEmailSync,
+  prepareStripeEmailSyncForUserUpdate,
+} from "@/services/stripe-user-email.service";
 import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
 import { webhookService } from "@/services/webhook.service";
 
@@ -339,6 +342,10 @@ export const auth = betterAuth({
         },
       },
       update: {
+        before: async (data, ctx) => {
+          await prepareStripeEmailSyncForUserUpdate(data, ctx, prisma);
+          return { data };
+        },
         after: async (user, _ctx) => {
           void webhookService.callUserUpdated(user).catch((error) => {
             Sentry.captureException(error, {
@@ -350,12 +357,7 @@ export const auth = betterAuth({
               },
             });
           });
-          // Keep the user's Stripe customer email in sync when the account
-          // email changes via change-email (applied directly to the user row
-          // when the current email is unverified, so it never hits the
-          // /verify-email after-hook). syncUserEmailWithStripe no-ops when the
-          // user has no Stripe customer.
-          void syncUserEmailWithStripe(user.id, user.email);
+          void handleUserUpdateStripeEmailSync(user);
         },
       },
     },
@@ -395,13 +397,6 @@ export const auth = betterAuth({
           throw new APIError("BAD_REQUEST", {
             code: "TERMS_NOT_ACCEPTED",
           });
-        }
-      }
-
-      if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
-        const user = ctx.context.newSession.user;
-        if (user.stripeCustomerId) {
-          void syncUserEmailWithStripe(user.id, user.email);
         }
       }
     }),
