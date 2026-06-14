@@ -170,6 +170,27 @@ export const stripeClient = {
     );
   },
 
+  async updateCustomerEmail(
+    customerId: string,
+    email: string | null,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Customer> {
+    return await stripe.customers.update(
+      customerId,
+      {
+        email: email ?? undefined,
+      },
+      {
+        // No fixed idempotency key: email updates are naturally last-write-wins,
+        // and a stable `${customerId}-${email}` key would make Stripe replay the
+        // cached response when an email is reused (e.g. A→B→A within the 24h
+        // idempotency window), silently skipping the real update.
+        ...requestOptions,
+        maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
+      },
+    );
+  },
+
   async retrieveProduct(
     productId: string,
     requestOptions?: Stripe.RequestOptions,

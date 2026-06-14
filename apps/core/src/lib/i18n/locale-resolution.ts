@@ -1,11 +1,7 @@
-import {
-  type AppLocale,
-  LOCALE_COOKIE_MAX_AGE,
-  LOCALE_COOKIE_NAME,
-  SUPPORTED_LOCALES,
-} from "@/i18n/locales";
+import { type AppLocale, SUPPORTED_LOCALES } from "@/lib/i18n/locales";
 
 const SUPPORTED_LOCALE_SET = new Set<string>(SUPPORTED_LOCALES);
+
 interface ParsedLanguagePreference {
   tag: string;
   quality: number;
@@ -146,12 +142,4 @@ export function resolveRequestLocale({
   }
 
   return resolveLocaleFromAcceptLanguage(acceptLanguageHeader) ?? defaultLocale;
-}
-
-export function serializeLocaleCookie(locale: AppLocale): string {
-  return `${LOCALE_COOKIE_NAME}=${locale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}`;
-}
-
-export function serializeLocaleCookieDelete(): string {
-  return `${LOCALE_COOKIE_NAME}=; path=/; max-age=0`;
 }

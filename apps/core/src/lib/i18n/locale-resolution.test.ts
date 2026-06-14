@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+
 import {
   parseLocalePreference,
   resolveLocaleFromAcceptLanguage,
   resolveRequestLocale,
-} from "@/i18n/locale-resolution";
-import { DEFAULT_LOCALE } from "@/i18n/locales";
+} from "@/lib/i18n/locale-resolution";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 
 describe("parseLocalePreference", () => {
   it("returns exact locale match when supported", () => {
@@ -39,6 +40,7 @@ describe("resolveLocaleFromAcceptLanguage", () => {
   });
 
   it("keeps a supported locale whose q-value is malformed at default quality", () => {
+    // Regression: a garbled or empty q must not drop the language entirely.
     expect(resolveLocaleFromAcceptLanguage("de;q=oops,en;q=0.8")).toBe("de");
     expect(resolveLocaleFromAcceptLanguage("de;q=,en;q=0.8")).toBe("de");
   });
