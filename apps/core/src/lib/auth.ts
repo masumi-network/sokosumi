@@ -3,10 +3,18 @@ import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { stripe } from "@better-auth/stripe";
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import type { User } from "@sokosumi/database";
-import { workspaceRepository } from "@sokosumi/database/repositories";
+import { MemberRole, type User } from "@sokosumi/database";
+import {
+  ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+  hasConsumableEnterpriseContract,
+} from "@sokosumi/database/helpers";
+import {
+  memberRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
@@ -14,6 +22,7 @@ import {
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
+import { APIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -25,6 +34,7 @@ import {
   organization,
 } from "better-auth/plugins";
 import pTimeout from "p-timeout";
+import Stripe from "stripe";
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
@@ -36,9 +46,18 @@ import {
 } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
+import {
+  handleSubscriptionDeletedEvent,
+  reconcileActiveStripeBackedSubscription,
+} from "@/services/stripe-backed-subscription.service";
+import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
 import { webhookService } from "@/services/webhook.service";
 
+const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
+  "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
+
 const env = getEnv();
+const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const betterAuthCookiePrefixParams = {
@@ -93,6 +112,38 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
         organizationName: organization.name,
       },
     });
+  }
+}
+
+type StripeBackedLocalSubscription = NonNullable<
+  Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
+>;
+
+async function handleStripeBackedSubscriptionLifecycle({
+  event,
+  subscription,
+}: {
+  event: {
+    id: string;
+    type: string;
+  };
+  subscription: StripeBackedLocalSubscription;
+}): Promise<void> {
+  try {
+    await reconcileActiveStripeBackedSubscription(subscription);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        stripeEventType: event.type,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+      },
+      extra: {
+        eventId: event.id,
+        localSubscriptionId: subscription.id,
+        referenceId: subscription.referenceId,
+      },
+    });
+    throw error;
   }
 }
 
@@ -341,6 +392,91 @@ export const auth = betterAuth({
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
+    }),
+    stripe({
+      stripeClient: stripeInstance,
+      stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: false,
+      subscription: {
+        enabled: true,
+        plans: async () => await getBetterAuthSubscriptionPlans(),
+        onSubscriptionCreated: handleStripeBackedSubscriptionLifecycle,
+        onSubscriptionUpdate: handleStripeBackedSubscriptionLifecycle,
+        getCheckoutSessionParams: async () => ({
+          params: {
+            billing_address_collection: "required",
+            customer_update: {
+              address: "auto",
+              name: "auto",
+            },
+            tax_id_collection: {
+              enabled: true,
+            },
+          },
+        }),
+        authorizeReference: async ({ referenceId, user, action }) => {
+          const member =
+            await memberRepository.getMemberByUserIdAndOrganizationId(
+              user.id,
+              referenceId,
+              prisma,
+            );
+
+          if (
+            !member ||
+            (member.role !== MemberRole.OWNER &&
+              member.role !== MemberRole.ADMIN)
+          ) {
+            return false;
+          }
+
+          if (
+            action === "upgrade-subscription" &&
+            (await hasConsumableEnterpriseContract(referenceId, prisma))
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE,
+              message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+            });
+          }
+
+          return true;
+        },
+      },
+      organization: {
+        enabled: true,
+      },
+      onEvent: async (event) => {
+        switch (event.type) {
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object as Stripe.Subscription;
+            try {
+              await handleSubscriptionDeletedEvent(subscription);
+            } catch (error) {
+              Sentry.captureException(error, {
+                tags: {
+                  stripeEventType: "customer.subscription.deleted",
+                  stripeSubscriptionId: subscription.id,
+                },
+                extra: {
+                  customer:
+                    typeof subscription.customer === "string"
+                      ? subscription.customer
+                      : subscription.customer.id,
+                  eventId: event.id,
+                  subscription: subscription.id,
+                },
+              });
+              throw error;
+            }
+            break;
+          }
+          default: {
+            console.info(`Unhandled Stripe event type: ${event.type}`);
+            break;
+          }
+        }
+      },
     }),
   ],
 });
