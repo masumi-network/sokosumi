@@ -4,7 +4,6 @@ import { Languages, Monitor, Moon, Sun } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useMemo, useState } from "react";
-
 import {
   Card,
   CardContent,
@@ -20,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import useIsClient from "@/hooks/use-is-client";
 import {
   parseLocalePreference,
   serializeLocaleCookie,
@@ -33,6 +33,7 @@ import {
 } from "@/i18n/locales";
 
 export function PreferencesSection() {
+  const isClient = useIsClient();
   const themeTranslations = useTranslations("App.Account.Theme");
   const languageTranslations = useTranslations("App.Account.Language");
   const currentLocale = useLocale();
@@ -47,12 +48,16 @@ export function PreferencesSection() {
   );
 
   const selectedTheme = useMemo(() => {
+    if (!isClient) {
+      return "system";
+    }
+
     if (theme === "light" || theme === "dark" || theme === "system") {
       return theme;
     }
 
     return "system";
-  }, [theme]);
+  }, [isClient, theme]);
 
   const handleThemeChange = (nextTheme: string) => {
     if (
