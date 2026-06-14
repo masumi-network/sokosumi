@@ -41,6 +41,10 @@ function resolveCallerOrigin(requestHeaders: Headers): string | undefined {
   return `${proto}://${host}`;
 }
 
+/**
+ * Server-side fetch to Core `/auth` with session cookies and Origin forwarding.
+ * Use for Better Auth server-only endpoints that are not on the typed client.
+ */
 export async function fetchCoreAuth(
   input: RequestInfo | URL,
   init?: RequestInit,
