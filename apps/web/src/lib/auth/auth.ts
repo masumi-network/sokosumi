@@ -819,15 +819,18 @@ export const auth = betterAuth({
 
 async function mapProfileToUser(profile: { name: string; picture: string }) {
   try {
-    return pTimeout(mapProfileToUserInner(profile), {
+    return await pTimeout(mapProfileToUserInner(profile), {
       milliseconds: secrets.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
     });
   } catch (error) {
     Sentry.captureException(error);
-    console.error(
-      `Failed to map profile to user: ${JSON.stringify(profile)}`,
+    console.error("Failed to map profile to user", {
+      name: profile.name,
+      pictureKind: profile.picture?.startsWith("data:")
+        ? `data-uri(${profile.picture.length}b)`
+        : "url",
       error,
-    );
+    });
     return {
       name: profile.name,
       image: undefined,

@@ -336,10 +336,13 @@ async function mapProfileToUser(profile: { name: string; picture: string }) {
     });
   } catch (error) {
     Sentry.captureException(error);
-    console.error(
-      `Failed to map profile to user: ${JSON.stringify(profile)}`,
+    console.error("Failed to map profile to user", {
+      name: profile.name,
+      pictureKind: profile.picture?.startsWith("data:")
+        ? `data-uri(${profile.picture.length}b)`
+        : "url",
       error,
-    );
+    });
     return {
       name: profile.name,
       image: undefined,
