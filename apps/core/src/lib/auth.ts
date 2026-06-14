@@ -1,6 +1,7 @@
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
@@ -10,12 +11,14 @@ import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   getStoredUserName,
+  resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
   jwt,
+  lastLoginMethod,
   magicLink,
   oAuthProxy,
   openAPI,
@@ -38,11 +41,14 @@ import { webhookService } from "@/services/webhook.service";
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
-const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix({
+const betterAuthCookiePrefixParams = {
   network: env.NETWORK,
   vercelEnv: env.VERCEL_ENV,
   vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
-});
+};
+const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
+  betterAuthCookiePrefixParams,
+);
 
 async function ensureWorkspaceForCreatedUser(user: {
   email: string;
@@ -303,6 +309,16 @@ export const auth = betterAuth({
           },
         },
       },
+    }),
+    passkey({
+      rpID: env.BETTER_AUTH_RP_ID,
+      rpName: "Sokosumi",
+    }),
+    lastLoginMethod({
+      cookieName: resolveBetterAuthCookieName(
+        betterAuthCookiePrefixParams,
+        "last_used_login_method",
+      ),
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,

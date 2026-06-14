@@ -10,11 +10,13 @@ const {
   getWebAppBaseUrlMock,
   i18nPluginMock,
   jwtPluginMock,
+  lastLoginMethodPluginMock,
   oauthProviderPluginMock,
   oAuthProxyPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
+  passkeyPluginMock,
   postmarkSendEmailMock,
   prismaAdapterMock,
   renderMagicLinkEmailMock,
@@ -33,11 +35,13 @@ const {
   getWebAppBaseUrlMock: vi.fn(),
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
+  lastLoginMethodPluginMock: vi.fn(),
   oauthProviderPluginMock: vi.fn(),
   oAuthProxyPluginMock: vi.fn(),
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
+  passkeyPluginMock: vi.fn(),
   postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
   renderMagicLinkEmailMock: vi.fn(),
@@ -52,6 +56,7 @@ function getDefaultEnv() {
   return {
     BETTER_AUTH_COOKIE_DOMAIN: undefined,
     BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
+    BETTER_AUTH_RP_ID: "example.com",
     BETTER_AUTH_SECRET: "test-secret",
     BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
     GOOGLE_CLIENT_ID: "google-client-id",
@@ -79,10 +84,15 @@ vi.mock("@better-auth/prisma-adapter", () => ({
 vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
+  lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
   oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
+}));
+
+vi.mock("@better-auth/passkey", () => ({
+  passkey: (...args: unknown[]) => passkeyPluginMock(...args),
 }));
 
 vi.mock("@better-auth/api-key", () => ({
@@ -165,11 +175,13 @@ describe("core auth config", () => {
     getBetterAuthPublicBaseUrlMock.mockReturnValue("https://example.com/auth");
     getWebAppBaseUrlMock.mockReturnValue("https://example.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
+    lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
     oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
+    passkeyPluginMock.mockReturnValue("passkey-plugin");
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     renderMagicLinkEmailMock.mockResolvedValue({
@@ -354,6 +366,29 @@ describe("core auth config", () => {
     );
   });
 
+  it("registers the passkey plugin with the Sokosumi relying party configuration", async () => {
+    await import("./auth");
+
+    expect(passkeyPluginMock).toHaveBeenCalledWith({
+      rpID: "example.com",
+      rpName: "Sokosumi",
+    });
+  });
+
+  it("configures lastLoginMethod with the computed cookie name", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
+    });
+
+    await import("./auth");
+
+    expect(lastLoginMethodPluginMock).toHaveBeenCalledWith({
+      cookieName: "sokosumi.last_used_login_method",
+    });
+  });
+
   it("registers the Better Auth admin plugin", async () => {
     await import("./auth");
 
@@ -389,6 +424,8 @@ describe("core auth config", () => {
         "i18n-plugin",
         "openapi-plugin",
         "organization-plugin",
+        "passkey-plugin",
+        "last-login-method-plugin",
         "oauth-provider-plugin",
         "oauth-proxy-plugin",
       ]),
