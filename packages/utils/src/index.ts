@@ -40,6 +40,16 @@ export {
   resolveIpfsOrHttpUrl,
 } from "./ipfs-url.js";
 export {
+  type AppLocale,
+  DEFAULT_LOCALE,
+  getEmailLocale,
+  LOCALE_COOKIE_NAME,
+  parseLocalePreference,
+  resolveLocaleFromAcceptLanguage,
+  resolveRequestLocale,
+  SUPPORTED_LOCALES,
+} from "./locale.js";
+export {
   escapeMarkdownLinkUrl,
   findMarkdownLinks,
   type MarkdownLinkMatch,

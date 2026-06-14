@@ -1,7 +1,8 @@
+import type { Subscription } from "@sokosumi/database";
 import {
   ensureLocalFreeSubscriptionPeriod,
   grantFreeOrganizationMemberSubscriptionCredits,
-  resolveOrganizationBillingPlan,
+  resolveOrganizationBillingPlanWithActiveSubscription,
   resolvePurchasedSeats,
 } from "@sokosumi/database/helpers";
 import {
@@ -21,15 +22,9 @@ interface ActiveOrganizationSubscription {
   stripeSubscriptionId: string | null;
 }
 
-async function resolveActiveOrganizationSubscription(
-  organizationId: string,
-): Promise<ActiveOrganizationSubscription | null> {
-  const subscription =
-    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-      organizationId,
-      prisma,
-    );
-
+function toActiveOrganizationSubscription(
+  subscription: Subscription | null,
+): ActiveOrganizationSubscription | null {
   if (!subscription) {
     return null;
   }
@@ -42,21 +37,6 @@ async function resolveActiveOrganizationSubscription(
     seats: subscription.seats,
     stripeSubscriptionId: subscription.stripeSubscriptionId,
   };
-}
-
-async function ensureActiveOrganizationSubscription(
-  organizationId: string,
-  missingSubscriptionMessage: string,
-): Promise<ActiveOrganizationSubscription> {
-  const activeSubscription =
-    await resolveActiveOrganizationSubscription(organizationId);
-  if (!activeSubscription) {
-    throw new APIError("BAD_REQUEST", {
-      message: missingSubscriptionMessage,
-    });
-  }
-
-  return activeSubscription;
 }
 
 function ensureSubscriptionPeriodDate(
@@ -139,19 +119,29 @@ async function syncLocalFreeOrganizationPeriodCredits(
 
 async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
   organizationId: string,
-  activeSubscription?: ActiveOrganizationSubscription | null,
 ): Promise<number> {
-  const billingPlan = await resolveOrganizationBillingPlan(
-    organizationId,
-    prisma,
-  );
+  const { billingPlan, activeSubscription } =
+    await resolveOrganizationBillingPlanWithActiveSubscription(
+      organizationId,
+      prisma,
+    );
   if (billingPlan.mode === "enterprise_contract" && billingPlan.isConsumable) {
     return resolvePurchasedSeats(billingPlan.purchasedSeats);
   }
 
+  // For self_serve the active subscription was already fetched above. A
+  // non-consumable enterprise contract returns no subscription from the call,
+  // so look it up explicitly to preserve prior behavior.
+  const rawSubscription =
+    billingPlan.mode === "self_serve"
+      ? activeSubscription
+      : await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+          organizationId,
+          prisma,
+        );
+
   const currentActiveSubscription =
-    activeSubscription ??
-    (await resolveActiveOrganizationSubscription(organizationId));
+    toActiveOrganizationSubscription(rawSubscription);
 
   if (!currentActiveSubscription) {
     return resolvePurchasedSeats(undefined);
@@ -173,10 +163,11 @@ async function syncLocalFreeSeatsAndCreditsForCurrentMembersInternal(
 export async function ensureCanAcceptOrganizationInvitation(
   organizationId: string,
 ): Promise<void> {
-  const billingPlan = await resolveOrganizationBillingPlan(
-    organizationId,
-    prisma,
-  );
+  const { billingPlan, activeSubscription } =
+    await resolveOrganizationBillingPlanWithActiveSubscription(
+      organizationId,
+      prisma,
+    );
 
   if (billingPlan.mode === "enterprise_contract") {
     if (billingPlan.purchasedSeats < 1) {
@@ -189,10 +180,12 @@ export async function ensureCanAcceptOrganizationInvitation(
     return;
   }
 
-  await ensureActiveOrganizationSubscription(
-    organizationId,
-    "An active organization subscription is required before adding members.",
-  );
+  if (!activeSubscription) {
+    throw new APIError("BAD_REQUEST", {
+      message:
+        "An active organization subscription is required before adding members.",
+    });
+  }
 }
 
 export async function syncLocalFreeSeatsAndCreditsForCurrentMembers(

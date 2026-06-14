@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  resolveOrganizationBillingPlanMock,
+  resolveOrganizationBillingPlanWithActiveSubscriptionMock,
   resolvePurchasedSeatsMock,
   ensureLocalFreeSubscriptionPeriodMock,
   grantFreeOrganizationMemberSubscriptionCreditsMock,
@@ -9,7 +9,7 @@ const {
   getUnassignedMemberUserIdsMock,
   getOrganizationMemberUserIdsMock,
 } = vi.hoisted(() => ({
-  resolveOrganizationBillingPlanMock: vi.fn(),
+  resolveOrganizationBillingPlanWithActiveSubscriptionMock: vi.fn(),
   resolvePurchasedSeatsMock: vi.fn(),
   ensureLocalFreeSubscriptionPeriodMock: vi.fn(),
   grantFreeOrganizationMemberSubscriptionCreditsMock: vi.fn(),
@@ -19,8 +19,8 @@ const {
 }));
 
 vi.mock("@sokosumi/database/helpers", () => ({
-  resolveOrganizationBillingPlan: (...args: unknown[]) =>
-    resolveOrganizationBillingPlanMock(...args),
+  resolveOrganizationBillingPlanWithActiveSubscription: (...args: unknown[]) =>
+    resolveOrganizationBillingPlanWithActiveSubscriptionMock(...args),
   resolvePurchasedSeats: (...args: unknown[]) =>
     resolvePurchasedSeatsMock(...args),
   ensureLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
@@ -54,25 +54,31 @@ describe("ensureCanAcceptOrganizationInvitation", () => {
   });
 
   it("allows enterprise contracts that have at least one purchased seat", async () => {
-    resolveOrganizationBillingPlanMock.mockResolvedValue({
-      mode: "enterprise_contract",
-      isConsumable: true,
-      purchasedSeats: 5,
+    resolveOrganizationBillingPlanWithActiveSubscriptionMock.mockResolvedValue({
+      billingPlan: {
+        mode: "enterprise_contract",
+        isConsumable: true,
+        purchasedSeats: 5,
+      },
+      activeSubscription: null,
     });
 
     await expect(
       ensureCanAcceptOrganizationInvitation("org-1"),
     ).resolves.toBeUndefined();
 
-    // Enterprise contracts must not require a Stripe-backed subscription lookup.
+    // Enterprise contracts must not require a separate active-subscription lookup.
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
   it("rejects enterprise contracts without any purchased seats", async () => {
-    resolveOrganizationBillingPlanMock.mockResolvedValue({
-      mode: "enterprise_contract",
-      isConsumable: true,
-      purchasedSeats: 0,
+    resolveOrganizationBillingPlanWithActiveSubscriptionMock.mockResolvedValue({
+      billingPlan: {
+        mode: "enterprise_contract",
+        isConsumable: true,
+        purchasedSeats: 0,
+      },
+      activeSubscription: null,
     });
 
     await expect(
@@ -87,37 +93,40 @@ describe("ensureCanAcceptOrganizationInvitation", () => {
   });
 
   it("allows self-serve organizations that have an active subscription", async () => {
-    resolveOrganizationBillingPlanMock.mockResolvedValue({
-      mode: "self_serve",
-      isConsumable: false,
-      purchasedSeats: 1,
-    });
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
-      id: "sub-1",
-      createdAt: new Date(),
-      periodEnd: new Date(),
-      periodStart: new Date(),
-      seats: 1,
-      stripeSubscriptionId: "sub_stripe_1",
+    resolveOrganizationBillingPlanWithActiveSubscriptionMock.mockResolvedValue({
+      billingPlan: {
+        mode: "self_serve",
+        isConsumable: false,
+        purchasedSeats: 1,
+      },
+      activeSubscription: {
+        id: "sub-1",
+        createdAt: new Date(),
+        periodEnd: new Date(),
+        periodStart: new Date(),
+        seats: 1,
+        stripeSubscriptionId: "sub_stripe_1",
+      },
     });
 
     await expect(
       ensureCanAcceptOrganizationInvitation("org-1"),
     ).resolves.toBeUndefined();
 
-    expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
-      "org-1",
-      { __prisma: true },
-    );
+    expect(
+      resolveOrganizationBillingPlanWithActiveSubscriptionMock,
+    ).toHaveBeenCalledWith("org-1", { __prisma: true });
   });
 
   it("rejects self-serve organizations without an active subscription", async () => {
-    resolveOrganizationBillingPlanMock.mockResolvedValue({
-      mode: "self_serve",
-      isConsumable: false,
-      purchasedSeats: 1,
+    resolveOrganizationBillingPlanWithActiveSubscriptionMock.mockResolvedValue({
+      billingPlan: {
+        mode: "self_serve",
+        isConsumable: false,
+        purchasedSeats: 1,
+      },
+      activeSubscription: null,
     });
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
 
     await expect(
       ensureCanAcceptOrganizationInvitation("org-1"),

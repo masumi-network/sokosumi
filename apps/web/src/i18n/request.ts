@@ -1,8 +1,10 @@
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE_NAME,
+  resolveRequestLocale,
+} from "@sokosumi/utils";
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
-
-import { resolveRequestLocale } from "@/i18n/locale-resolution";
-import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
 
 interface JsonRecord {
   [key: string]: JsonValue;
