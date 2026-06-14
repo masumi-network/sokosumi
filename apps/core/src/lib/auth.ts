@@ -2,7 +2,9 @@ import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import type { User } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import { renderMagicLinkEmail } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
@@ -19,6 +21,7 @@ import {
   openAPI,
   organization,
 } from "better-auth/plugins";
+import pTimeout from "p-timeout";
 import { postmarkClient } from "@/clients/postmark.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
@@ -28,7 +31,9 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
+import { webhookService } from "@/services/webhook.service";
 
 const env = getEnv();
 const webAppBaseUrl = getWebAppBaseUrl();
@@ -117,7 +122,37 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  socialProviders: {
+    google: {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
+    },
+    microsoft: {
+      clientId: env.MICROSOFT_CLIENT_ID,
+      clientSecret: env.MICROSOFT_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
+    },
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "microsoft"],
+    },
+  },
   databaseHooks: {
+    account: {
+      create: {
+        after: async (account, _ctx) => {
+          void webhookService.callAccountCreated(
+            account.userId,
+            account.providerId,
+          );
+        },
+      },
+    },
     user: {
       create: {
         before: async (user, _ctx) => {
@@ -293,3 +328,48 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+async function mapProfileToUser(profile: { name: string; picture: string }) {
+  try {
+    return await pTimeout(mapProfileToUserInner(profile), {
+      milliseconds: env.BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
+    });
+  } catch (error) {
+    Sentry.captureException(error);
+    console.error(
+      `Failed to map profile to user: ${JSON.stringify(profile)}`,
+      error,
+    );
+    return {
+      name: profile.name,
+      image: undefined,
+    };
+  }
+}
+
+async function mapProfileToUserInner(profile: {
+  name: string;
+  picture: string;
+}): Promise<Partial<User>> {
+  const profilePicture = profile.picture;
+
+  if (!profilePicture) {
+    return {
+      name: profile.name,
+      image: undefined,
+    };
+  }
+
+  if (z.httpUrl().safeParse(profilePicture).success) {
+    return {
+      name: profile.name,
+      image: profilePicture,
+    };
+  }
+
+  const imageURL = await uploadProfileImage(profilePicture);
+  return {
+    name: profile.name,
+    image: imageURL,
+  };
+}

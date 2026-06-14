@@ -63,6 +63,7 @@
     "ioredis": "5.11.1",
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
+    "p-timeout": "7.0.1",
     "postmark": "4.0.7",
     "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
