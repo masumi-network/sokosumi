@@ -30,12 +30,18 @@ export async function createCredentialAccount(
         ? error.code
         : undefined;
 
-    return Err({
-      code: code ?? CommonErrorCode.INTERNAL_SERVER_ERROR,
-      ...(error instanceof Error && error.message
-        ? { message: error.message }
-        : {}),
-    });
+    // Only surface a message for known (coded) auth errors. Generic infra
+    // failures (timeouts, fetch errors) must not leak their raw message.
+    if (code) {
+      return Err({
+        code,
+        ...(error instanceof Error && error.message
+          ? { message: error.message }
+          : {}),
+      });
+    }
+
+    return Err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR });
   }
 }
 

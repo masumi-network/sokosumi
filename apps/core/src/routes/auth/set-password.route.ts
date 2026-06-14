@@ -6,8 +6,12 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { auth } from "@/lib/auth.js";
 
 const setPasswordBodySchema = z.object({
-  newPassword: z.string(),
+  newPassword: z.string().min(1),
 });
+
+function invalidRequestBody(c: Context): Response {
+  return c.json({ code: "BAD_REQUEST", message: "Invalid request body" }, 400);
+}
 
 /**
  * HTTP bridge for Better Auth's server-only `setPassword` API.
@@ -15,23 +19,26 @@ const setPasswordBodySchema = z.object({
  * server auth client calls `/auth/set-password` when linking a credential account.
  */
 export async function handleSetPassword(c: Context): Promise<Response> {
+  let raw: unknown;
   try {
-    const body = setPasswordBodySchema.parse(await c.req.json());
+    raw = await c.req.json();
+  } catch {
+    return invalidRequestBody(c);
+  }
 
+  const parsed = setPasswordBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return invalidRequestBody(c);
+  }
+
+  try {
     await auth.api.setPassword({
-      body,
+      body: parsed.data,
       headers: c.req.raw.headers,
     });
 
     return c.json({ status: true });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return c.json(
-        { code: "BAD_REQUEST", message: "Invalid request body" },
-        400,
-      );
-    }
-
     if (isAPIError(error)) {
       const status: ContentfulStatusCode =
         error.statusCode >= 400 && error.statusCode <= 599

@@ -70,6 +70,23 @@ describe("POST /auth/set-password bridge", () => {
     expect(setPasswordMock).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a malformed JSON body", async () => {
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not json",
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      code: "BAD_REQUEST",
+      message: "Invalid request body",
+    });
+    expect(setPasswordMock).not.toHaveBeenCalled();
+  });
+
   it("maps Better Auth API errors to JSON responses", async () => {
     setPasswordMock.mockRejectedValue(
       APIError.from("BAD_REQUEST", {
