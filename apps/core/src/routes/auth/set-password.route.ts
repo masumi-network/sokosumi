@@ -1,6 +1,7 @@
+import { z } from "@hono/zod-openapi";
 import { isAPIError } from "better-auth/api";
 import type { Context } from "hono";
-import * as z from "zod";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 import { auth } from "@/lib/auth.js";
 
@@ -32,12 +33,17 @@ export async function handleSetPassword(c: Context): Promise<Response> {
     }
 
     if (isAPIError(error)) {
+      const status: ContentfulStatusCode =
+        error.statusCode >= 400 && error.statusCode <= 599
+          ? (error.statusCode as ContentfulStatusCode)
+          : 400;
+
       return c.json(
         {
           code: error.body?.code ?? error.status,
           message: error.message,
         },
-        error.statusCode,
+        status,
       );
     }
 
