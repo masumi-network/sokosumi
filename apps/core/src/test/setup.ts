@@ -29,6 +29,7 @@ const envDefaults: Record<string, string> = {
   STRIPE_WELCOME_COUPON: "coupon_welcome_test",
   STRIPE_SUPPORT_COUPON: "coupon_support_test",
   STRIPE_WEBHOOK_SECRET: "whsec_test_example",
+  STRIPE_BA_WEBHOOK_SECRET: "whsec_ba_test_example",
   LOCK_TIMEOUT: "900000",
   LOCK_TIMEOUT_BUFFER: "25000",
   INSTANCE_ID: "test-instance-id",

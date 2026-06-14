@@ -393,9 +393,12 @@ export const auth = betterAuth({
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
     }),
+    // Subscription/checkout webhooks use a separate Stripe Dashboard endpoint
+    // (POST /auth/stripe/webhook, STRIPE_BA_WEBHOOK_SECRET) — same split as web
+    // today vs Core billing (POST /webhooks/stripe). Consolidate after cutover.
     stripe({
       stripeClient: stripeInstance,
-      stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+      stripeWebhookSecret: env.STRIPE_BA_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {
         enabled: true,

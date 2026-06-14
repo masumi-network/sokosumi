@@ -81,6 +81,7 @@ function getDefaultEnv() {
     POSTMARK_SERVER_ID: "postmark-server-id",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_test_123",
+    STRIPE_BA_WEBHOOK_SECRET: "whsec_ba_test_123",
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
   };
@@ -443,6 +444,7 @@ describe("core auth config", () => {
     const [[config]] = stripePluginMock.mock.calls as Array<
       [
         {
+          stripeWebhookSecret: string;
           subscription: {
             getCheckoutSessionParams: () => Promise<{
               params?: {
@@ -460,6 +462,8 @@ describe("core auth config", () => {
         },
       ]
     >;
+
+    expect(config.stripeWebhookSecret).toBe("whsec_ba_test_123");
 
     const sessionParams = await config.subscription.getCheckoutSessionParams();
 
