@@ -123,6 +123,9 @@ importers:
       p-limit:
         specifier: 7.3.0
         version: 7.3.0
+      p-timeout:
+        specifier: 7.0.1
+        version: 7.0.1
       postmark:
         specifier: 4.0.7
         version: 4.0.7
