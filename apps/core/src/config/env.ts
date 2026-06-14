@@ -60,6 +60,7 @@ const envSchema = z.object({
     .number()
     .min(0)
     .default(60 * 5), // 5 minutes
+  BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
