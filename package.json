@@ -17,6 +17,7 @@
     "ai-provider:typecheck": "pnpm --filter @sokosumi/ai-provider typecheck",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "net:build": "pnpm --filter @sokosumi/net build",
+    "packages:build": "pnpm --filter \"./packages/*\" run build",
     "typecheck": "pnpm -r typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
