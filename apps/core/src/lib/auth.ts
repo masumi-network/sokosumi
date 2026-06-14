@@ -23,6 +23,7 @@ import {
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
+  getEmailLocale,
   getOrganizationMetadata,
   getStoredUserName,
   resolveBetterAuthCookieName,
@@ -52,7 +53,6 @@ import {
 } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
-import { getEmailLocale } from "@/lib/email-locale";
 import {
   ensureCanAcceptOrganizationInvitation,
   syncLocalFreeSeatsAndCreditsForCurrentMembers,

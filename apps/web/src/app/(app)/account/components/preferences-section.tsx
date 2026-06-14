@@ -1,5 +1,6 @@
 "use client";
 
+import { parseLocalePreference, SUPPORTED_LOCALES } from "@sokosumi/utils";
 import { Languages, Monitor, Moon, Sun } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -21,15 +22,11 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useIsClient from "@/hooks/use-is-client";
 import {
-  parseLocalePreference,
-  serializeLocaleCookie,
-  serializeLocaleCookieDelete,
-} from "@/i18n/locale-resolution";
-import {
   AUTO_DETECT_VALUE,
   LOCALE_LOCALSTORAGE_KEY,
   type LocalePreference,
-  SUPPORTED_LOCALES,
+  serializeLocaleCookie,
+  serializeLocaleCookieDelete,
 } from "@/i18n/locales";
 
 export function PreferencesSection() {

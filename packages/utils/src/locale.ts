@@ -1,4 +1,10 @@
-import { type AppLocale, SUPPORTED_LOCALES } from "@/lib/i18n/locales";
+export const DEFAULT_LOCALE = "en";
+
+export const SUPPORTED_LOCALES = [DEFAULT_LOCALE, "de", "es"] as const;
+
+export type AppLocale = (typeof SUPPORTED_LOCALES)[number];
+
+export const LOCALE_COOKIE_NAME = "sokosumi.locale";
 
 const SUPPORTED_LOCALE_SET = new Set<string>(SUPPORTED_LOCALES);
 
@@ -142,4 +148,65 @@ export function resolveRequestLocale({
   }
 
   return resolveLocaleFromAcceptLanguage(acceptLanguageHeader) ?? defaultLocale;
+}
+
+function getEmailLocaleCookieValue(
+  cookieHeader?: null | string,
+): null | string {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  let legacyLocale: null | string = null;
+
+  for (const rawCookie of cookieHeader.split(";")) {
+    const separatorIndex = rawCookie.indexOf("=");
+
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const cookieName = rawCookie.slice(0, separatorIndex).trim();
+    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
+
+    if (!cookieValue) {
+      continue;
+    }
+
+    const decoded = (() => {
+      try {
+        return decodeURIComponent(cookieValue);
+      } catch {
+        return cookieValue;
+      }
+    })();
+
+    if (cookieName === LOCALE_COOKIE_NAME) {
+      return decoded;
+    }
+
+    if (cookieName === "locale" && legacyLocale === null) {
+      legacyLocale = decoded;
+    }
+  }
+
+  return legacyLocale;
+}
+
+export function getEmailLocale(
+  request?: Request,
+  fallbackHeaders?: Headers,
+): AppLocale {
+  const cookieHeader =
+    request?.headers.get("cookie") ?? fallbackHeaders?.get("cookie") ?? null;
+  const acceptLanguageHeader =
+    request?.headers.get("accept-language") ??
+    fallbackHeaders?.get("accept-language") ??
+    null;
+
+  return resolveRequestLocale({
+    cookieLocale: getEmailLocaleCookieValue(cookieHeader),
+    acceptLanguageHeader,
+    defaultLocale: DEFAULT_LOCALE,
+  });
 }

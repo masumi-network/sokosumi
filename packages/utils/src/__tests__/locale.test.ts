@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+
 import {
+  DEFAULT_LOCALE,
+  getEmailLocale,
   parseLocalePreference,
   resolveLocaleFromAcceptLanguage,
   resolveRequestLocale,
-} from "@/i18n/locale-resolution";
-import { DEFAULT_LOCALE } from "@/i18n/locales";
+} from "../locale.js";
 
 describe("parseLocalePreference", () => {
   it("returns exact locale match when supported", () => {
@@ -39,6 +41,7 @@ describe("resolveLocaleFromAcceptLanguage", () => {
   });
 
   it("keeps a supported locale whose q-value is malformed at default quality", () => {
+    // Regression: a garbled or empty q must not drop the language entirely.
     expect(resolveLocaleFromAcceptLanguage("de;q=oops,en;q=0.8")).toBe("de");
     expect(resolveLocaleFromAcceptLanguage("de;q=,en;q=0.8")).toBe("de");
   });
@@ -77,5 +80,44 @@ describe("resolveRequestLocale", () => {
         defaultLocale: DEFAULT_LOCALE,
       }),
     ).toBe(DEFAULT_LOCALE);
+  });
+});
+
+describe("getEmailLocale", () => {
+  it("prefers the locale cookie over accept-language", () => {
+    const request = new Request("https://example.com", {
+      headers: {
+        cookie: "sokosumi.locale=de",
+        "accept-language": "es-ES,es;q=0.9",
+      },
+    });
+
+    expect(getEmailLocale(request)).toBe("de");
+  });
+
+  it("falls back to the legacy locale cookie", () => {
+    const request = new Request("https://example.com", {
+      headers: { cookie: "locale=es" },
+    });
+
+    expect(getEmailLocale(request)).toBe("es");
+  });
+
+  it("uses accept-language when no cookie is present", () => {
+    const request = new Request("https://example.com", {
+      headers: { "accept-language": "de-DE,de;q=0.8" },
+    });
+
+    expect(getEmailLocale(request)).toBe("de");
+  });
+
+  it("reads headers from the fallback when no request is given", () => {
+    const headers = new Headers({ cookie: "sokosumi.locale=es" });
+
+    expect(getEmailLocale(undefined, headers)).toBe("es");
+  });
+
+  it("defaults to the default locale when nothing matches", () => {
+    expect(getEmailLocale()).toBe(DEFAULT_LOCALE);
   });
 });

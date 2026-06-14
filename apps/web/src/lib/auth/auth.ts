@@ -24,6 +24,7 @@ import {
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
+  getEmailLocale,
   getOrganizationMetadata,
   getStoredUserName,
   resolveBetterAuthCookieName,
@@ -48,8 +49,6 @@ import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url"
 import { getBetterAuthPublicBaseUrl } from "@/config/better-auth-public-url";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { resolveRequestLocale } from "@/i18n/locale-resolution";
-import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME } from "@/i18n/locales";
 import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import { uploadProfileImage } from "@/lib/blob/utils";
@@ -132,67 +131,6 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
       },
     });
   }
-}
-
-function getEmailLocaleCookieValue(
-  cookieHeader?: null | string,
-): null | string {
-  if (!cookieHeader) {
-    return null;
-  }
-
-  let legacyLocale: null | string = null;
-
-  for (const rawCookie of cookieHeader.split(";")) {
-    const separatorIndex = rawCookie.indexOf("=");
-
-    if (separatorIndex < 0) {
-      continue;
-    }
-
-    const cookieName = rawCookie.slice(0, separatorIndex).trim();
-    const cookieValue = rawCookie.slice(separatorIndex + 1).trim();
-
-    if (!cookieValue) {
-      continue;
-    }
-
-    const decoded = (() => {
-      try {
-        return decodeURIComponent(cookieValue);
-      } catch {
-        return cookieValue;
-      }
-    })();
-
-    if (cookieName === LOCALE_COOKIE_NAME) {
-      return decoded;
-    }
-
-    if (cookieName === "locale" && legacyLocale === null) {
-      legacyLocale = decoded;
-    }
-  }
-
-  return legacyLocale;
-}
-
-function getEmailLocale(
-  request?: Request,
-  fallbackHeaders?: Headers,
-): string | undefined {
-  const cookieHeader =
-    request?.headers.get("cookie") ?? fallbackHeaders?.get("cookie") ?? null;
-  const acceptLanguageHeader =
-    request?.headers.get("accept-language") ??
-    fallbackHeaders?.get("accept-language") ??
-    null;
-
-  return resolveRequestLocale({
-    cookieLocale: getEmailLocaleCookieValue(cookieHeader),
-    acceptLanguageHeader,
-    defaultLocale: DEFAULT_LOCALE,
-  });
 }
 
 async function ensureStripeCustomerForCreatedUser(user: {
