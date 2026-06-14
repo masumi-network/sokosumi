@@ -1,5 +1,4 @@
 import * as Sentry from "@sentry/node";
-import type { PrismaClient } from "@sokosumi/database";
 import { userRepository } from "@sokosumi/database/repositories";
 
 import { stripeClient } from "@/clients/stripe.client";
@@ -42,8 +41,11 @@ function resolveDatabaseHookUserId(
   }
 
   const user = (sessionCandidate as Record<string, unknown>).user;
-  if (user && typeof user === "object" && typeof user.id === "string") {
-    return user.id;
+  if (user && typeof user === "object") {
+    const userId = (user as Record<string, unknown>).id;
+    if (typeof userId === "string") {
+      return userId;
+    }
   }
 
   return null;
@@ -97,7 +99,7 @@ function consumePendingStripeEmailSync(user: {
 export async function prepareStripeEmailSyncForUserUpdate(
   updateData: Record<string, unknown>,
   ctx: unknown,
-  prisma: PrismaClient,
+  prismaClient: typeof prisma,
 ): Promise<void> {
   if (
     !Object.hasOwn(updateData, "email") ||
@@ -108,7 +110,7 @@ export async function prepareStripeEmailSyncForUserUpdate(
 
   const userId = resolveDatabaseHookUserId(ctx, updateData);
   const existingEmail = userId
-    ? ((await userRepository.getUserById(userId, prisma))?.email ?? null)
+    ? ((await userRepository.getUserById(userId, prismaClient))?.email ?? null)
     : null;
 
   markPendingStripeEmailSyncForUserUpdate(updateData, userId, existingEmail);
