@@ -28,6 +28,7 @@ describe("getCoreApiBaseUrl", () => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_CORE_APP_BASE_URL: "https://api.sokosumi.com/",
       NEXT_PUBLIC_NETWORK: "Mainnet",
+      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: false,
     });
     getEnvSecretsMock.mockReturnValue({
       CORE_APP_BASE_URL: "http://localhost:8787",
@@ -99,5 +100,13 @@ describe("getCoreApiBaseUrl", () => {
     );
 
     expect(getBrowserCoreApiBaseUrl()).toBe("https://api.sokosumi.com/v1");
+  });
+
+  it("resolves the browser Core auth base url without the /v1 suffix", async () => {
+    const { getBrowserCoreAuthBaseUrl } = await import(
+      "../utils/core-api-base-url.browser"
+    );
+
+    expect(getBrowserCoreAuthBaseUrl()).toBe("https://api.sokosumi.com/auth");
   });
 });

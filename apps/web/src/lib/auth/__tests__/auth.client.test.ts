@@ -65,7 +65,44 @@ describe("auth client", () => {
       NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
+      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: false,
+      NEXT_PUBLIC_CORE_APP_BASE_URL: "http://localhost:8787/v1",
     });
+  });
+
+  it("does not set baseURL when NEXT_PUBLIC_USE_CORE_AUTH_CLIENT is false", async () => {
+    await import("../auth.client");
+
+    const [[config]] = createAuthClientMock.mock.calls as Array<
+      [{ baseURL?: string; fetchOptions?: { credentials: string } }]
+    >;
+
+    expect(config.baseURL).toBeUndefined();
+    expect(config.fetchOptions).toBeUndefined();
+  });
+
+  it("points authClient at Core /auth when NEXT_PUBLIC_USE_CORE_AUTH_CLIENT is true", async () => {
+    getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Preprod",
+      NEXT_PUBLIC_VERCEL_ENV: undefined,
+      NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
+      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: true,
+      NEXT_PUBLIC_CORE_APP_BASE_URL: "https://api.preprod.sokosumi.com/v1",
+    });
+
+    await import("../auth.client");
+
+    const [[config]] = createAuthClientMock.mock.calls as Array<
+      [
+        {
+          baseURL?: string;
+          fetchOptions?: { credentials: string };
+        },
+      ]
+    >;
+
+    expect(config.baseURL).toBe("https://api.preprod.sokosumi.com/auth");
+    expect(config.fetchOptions).toEqual({ credentials: "include" });
   });
 
   it("registers adminClient in createAuthClient plugins", async () => {
