@@ -474,7 +474,6 @@ export const auth = betterAuth({
       }
     }),
   },
-  disabledPaths: ["/sign-up/email", "/sign-in", "/token"],
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
