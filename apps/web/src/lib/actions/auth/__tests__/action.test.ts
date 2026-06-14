@@ -1,17 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const setPasswordViaCoreMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      setPassword: vi.fn(),
-    },
-  },
-}));
-
-vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => new Headers()),
+vi.mock("@/lib/auth/core-auth-http.server", () => ({
+  setPasswordViaCore: (...args: unknown[]) => setPasswordViaCoreMock(...args),
 }));
 
 vi.mock("@/lib/services/utm.service", () => ({
@@ -20,6 +13,65 @@ vi.mock("@/lib/services/utm.service", () => ({
       handleUTMConversionMock(...args),
   },
 }));
+
+describe("createCredentialAccount", () => {
+  beforeEach(() => {
+    setPasswordViaCoreMock.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("sets the password through Core auth", async () => {
+    setPasswordViaCoreMock.mockResolvedValue(undefined);
+
+    const { createCredentialAccount } = await import("../action");
+
+    const result = await createCredentialAccount({
+      newPassword: "Password-123456",
+      confirmNewPassword: "Password-123456",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(setPasswordViaCoreMock).toHaveBeenCalledWith("Password-123456");
+  });
+
+  it("returns BAD_INPUT for invalid form data", async () => {
+    const { createCredentialAccount } = await import("../action");
+
+    const result = await createCredentialAccount({
+      newPassword: "short",
+      confirmNewPassword: "short",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("BAD_INPUT");
+    }
+    expect(setPasswordViaCoreMock).not.toHaveBeenCalled();
+  });
+
+  it("maps Core auth errors to action errors", async () => {
+    const error = new Error("password already set") as Error & {
+      code: string;
+    };
+    error.code = "PASSWORD_ALREADY_SET";
+    setPasswordViaCoreMock.mockRejectedValue(error);
+
+    const { createCredentialAccount } = await import("../action");
+
+    const result = await createCredentialAccount({
+      newPassword: "Password-123456",
+      confirmNewPassword: "Password-123456",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toEqual({
+        code: "PASSWORD_ALREADY_SET",
+        message: "password already set",
+      });
+    }
+  });
+});
 
 describe("handleUtmConversion", () => {
   beforeEach(() => {

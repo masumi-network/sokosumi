@@ -12,7 +12,7 @@ import { getAuthClientPlugins } from "./auth-client.plugins";
 const CORE_AUTH_BASE_PATH = "/auth";
 const CORE_AUTH_REQUEST_TIMEOUT_MS = 5000;
 
-function getCoreAuthBaseUrl(): string {
+export function getCoreAuthBaseUrl(): string {
   return joinCoreApiPath(getServerCoreAppBaseUrl(), CORE_AUTH_BASE_PATH);
 }
 
@@ -41,7 +41,11 @@ function resolveCallerOrigin(requestHeaders: Headers): string | undefined {
   return `${proto}://${host}`;
 }
 
-async function coreAuthFetch(
+/**
+ * Server-side fetch to Core `/auth` with session cookies and Origin forwarding.
+ * Use for Better Auth server-only endpoints that are not on the typed client.
+ */
+export async function fetchCoreAuth(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
@@ -76,7 +80,7 @@ function createConfiguredAuthServerClient() {
     plugins: getAuthClientPlugins(),
     disableDefaultFetchPlugins: true,
     fetchOptions: {
-      customFetchImpl: coreAuthFetch,
+      customFetchImpl: fetchCoreAuth,
     },
   });
 }
