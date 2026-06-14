@@ -233,40 +233,46 @@ describe("setPasswordViaCore", () => {
     vi.clearAllMocks();
   });
 
-  it("delegates to authServerClient.setPassword", async () => {
-    const setPasswordMock = vi
-      .fn()
-      .mockResolvedValue({ data: {}, error: null });
+  it("POSTs to Core /auth/set-password", async () => {
+    const fetchCoreAuthMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ status: true }), {
+        status: 200,
+      }),
+    );
 
     vi.doMock("../auth.server.client", () => ({
-      getAuthServerClient: () => ({
-        setPassword: setPasswordMock,
-      }),
+      fetchCoreAuth: (...args: unknown[]) => fetchCoreAuthMock(...args),
+      getCoreAuthBaseUrl: () => "https://core.example.com/auth",
     }));
 
     const { setPasswordViaCore } = await import("../core-auth-http.server");
 
     await setPasswordViaCore("new-password-123");
 
-    expect(setPasswordMock).toHaveBeenCalledWith({
-      newPassword: "new-password-123",
-    });
+    expect(fetchCoreAuthMock).toHaveBeenCalledWith(
+      "https://core.example.com/auth/set-password",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword: "new-password-123" }),
+      },
+    );
   });
 
-  it("throws when authServerClient.setPassword returns an error", async () => {
-    const setPasswordMock = vi.fn().mockResolvedValue({
-      data: null,
-      error: {
-        code: "PASSWORD_ALREADY_SET",
-        message: "password already set",
-        status: 400,
-      },
-    });
+  it("throws when Core returns an error response", async () => {
+    const fetchCoreAuthMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "PASSWORD_ALREADY_SET",
+          message: "password already set",
+        }),
+        { status: 400 },
+      ),
+    );
 
     vi.doMock("../auth.server.client", () => ({
-      getAuthServerClient: () => ({
-        setPassword: setPasswordMock,
-      }),
+      fetchCoreAuth: (...args: unknown[]) => fetchCoreAuthMock(...args),
+      getCoreAuthBaseUrl: () => "https://core.example.com/auth",
     }));
 
     const { setPasswordViaCore } = await import("../core-auth-http.server");
