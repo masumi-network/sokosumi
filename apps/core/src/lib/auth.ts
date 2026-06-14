@@ -528,14 +528,25 @@ export const auth = betterAuth({
           name,
         });
 
-        await postmarkClient.sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: email,
-          Tag: "magic-link",
-          Subject: renderedEmail.subject,
-          HtmlBody: renderedEmail.html,
-          MessageStream: "authentications",
-        });
+        void postmarkClient
+          .sendEmail({
+            From: env.POSTMARK_FROM_EMAIL,
+            To: email,
+            Tag: "magic-link",
+            Subject: renderedEmail.subject,
+            HtmlBody: renderedEmail.html,
+            MessageStream: "authentications",
+          })
+          .catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "magic_link_email",
+              },
+              extra: {
+                email,
+              },
+            });
+          });
       },
     }),
     i18n({
