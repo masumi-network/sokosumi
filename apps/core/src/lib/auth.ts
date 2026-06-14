@@ -253,10 +253,19 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account, _ctx) => {
-          void webhookService.callAccountCreated(
-            account.userId,
-            account.providerId,
-          );
+          void webhookService
+            .callAccountCreated(account.userId, account.providerId)
+            .catch((error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "account_created_webhook",
+                },
+                extra: {
+                  userId: account.userId,
+                  providerId: account.providerId,
+                },
+              });
+            });
         },
       },
     },
@@ -317,12 +326,36 @@ export const auth = betterAuth({
                 },
               });
             });
-          void webhookService.callUserCreated(user);
+          void webhookService.callUserCreated(user).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "user_created_webhook",
+              },
+              extra: {
+                userId: user.id,
+              },
+            });
+          });
         },
       },
       update: {
         after: async (user, _ctx) => {
-          void webhookService.callUserUpdated(user);
+          void webhookService.callUserUpdated(user).catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "user_updated_webhook",
+              },
+              extra: {
+                userId: user.id,
+              },
+            });
+          });
+          // Keep the user's Stripe customer email in sync when the account
+          // email changes via change-email (applied directly to the user row
+          // when the current email is unverified, so it never hits the
+          // /verify-email after-hook). syncUserEmailWithStripe no-ops when the
+          // user has no Stripe customer.
+          void syncUserEmailWithStripe(user.id, user.email);
         },
       },
     },
@@ -368,9 +401,7 @@ export const auth = betterAuth({
       if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
         const user = ctx.context.newSession.user;
         if (user.stripeCustomerId) {
-          void syncUserEmailWithStripe(user.id, user.email).catch((error) => {
-            console.error("Failed to sync user email with Stripe:", error);
-          });
+          void syncUserEmailWithStripe(user.id, user.email);
         }
       }
     }),
@@ -388,14 +419,25 @@ export const auth = betterAuth({
         resetLink: url,
       });
 
-      await postmarkClient.sendEmail({
-        From: env.POSTMARK_FROM_EMAIL,
-        To: user.email,
-        Tag: "reset-password",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "authentications",
-      });
+      void postmarkClient
+        .sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: user.email,
+          Tag: "reset-password",
+          Subject: email.subject,
+          HtmlBody: email.html,
+          MessageStream: "authentications",
+        })
+        .catch((error) => {
+          Sentry.captureException(error, {
+            tags: {
+              context: "reset_password_email",
+            },
+            extra: {
+              userId: user.id,
+            },
+          });
+        });
     },
   },
   emailVerification: {
@@ -406,14 +448,25 @@ export const auth = betterAuth({
         verificationLink: url,
       });
 
-      await postmarkClient.sendEmail({
-        From: env.POSTMARK_FROM_EMAIL,
-        To: user.email,
-        Tag: "verification-email",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "authentications",
-      });
+      void postmarkClient
+        .sendEmail({
+          From: env.POSTMARK_FROM_EMAIL,
+          To: user.email,
+          Tag: "verification-email",
+          Subject: email.subject,
+          HtmlBody: email.html,
+          MessageStream: "authentications",
+        })
+        .catch((error) => {
+          Sentry.captureException(error, {
+            tags: {
+              context: "verification_email",
+            },
+            extra: {
+              userId: user.id,
+            },
+          });
+        });
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
@@ -565,14 +618,26 @@ export const auth = betterAuth({
           organizationName: data.organization.name,
         });
 
-        await postmarkClient.sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: data.email,
-          Tag: "invitation-email",
-          Subject: email.subject,
-          HtmlBody: email.html,
-          MessageStream: "organizations",
-        });
+        void postmarkClient
+          .sendEmail({
+            From: env.POSTMARK_FROM_EMAIL,
+            To: data.email,
+            Tag: "invitation-email",
+            Subject: email.subject,
+            HtmlBody: email.html,
+            MessageStream: "organizations",
+          })
+          .catch((error) => {
+            Sentry.captureException(error, {
+              tags: {
+                context: "organization_invitation_email",
+              },
+              extra: {
+                invitationId: data.id,
+                organizationId: data.organization.id,
+              },
+            });
+          });
       },
       invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,

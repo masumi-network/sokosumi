@@ -277,6 +277,8 @@ describe("core auth config", () => {
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     uploadProfileImageMock.mockResolvedValue("https://blob.example/avatar.png");
     webhookCallAccountCreatedMock.mockResolvedValue(undefined);
+    webhookCallUserCreatedMock.mockResolvedValue(undefined);
+    webhookCallUserUpdatedMock.mockResolvedValue(undefined);
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });

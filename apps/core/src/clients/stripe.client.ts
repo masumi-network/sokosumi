@@ -181,8 +181,11 @@ export const stripeClient = {
         email: email ?? undefined,
       },
       {
+        // No fixed idempotency key: email updates are naturally last-write-wins,
+        // and a stable `${customerId}-${email}` key would make Stripe replay the
+        // cached response when an email is reused (e.g. A→B→A within the 24h
+        // idempotency window), silently skipping the real update.
         ...requestOptions,
-        idempotencyKey: `${customerId}-${email ?? "null"}`,
         maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
       },
     );

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { userRepository } from "@sokosumi/database/repositories";
 
 import { stripeClient } from "@/clients/stripe.client";
@@ -6,26 +7,23 @@ import prisma from "@/lib/db/prisma";
 export async function syncUserEmailWithStripe(
   userId: string,
   newEmail: string,
-): Promise<boolean> {
+): Promise<void> {
   try {
     const user = await userRepository.getUserById(userId, prisma);
 
     if (!user?.stripeCustomerId) {
-      return true;
+      return;
     }
 
     await stripeClient.updateCustomerEmail(user.stripeCustomerId, newEmail);
-
-    console.log(
-      `✅ Synced user ${userId} email to Stripe customer ${user.stripeCustomerId}`,
-    );
-
-    return true;
   } catch (error) {
-    console.error(
-      `Error syncing user email with Stripe for user ${userId}:`,
-      error,
-    );
-    return false;
+    Sentry.captureException(error, {
+      tags: {
+        context: "stripe_user_email_sync",
+      },
+      extra: {
+        userId,
+      },
+    });
   }
 }
