@@ -1,4 +1,16 @@
+import { MemberRole } from "@sokosumi/database";
+import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+interface AuthorizeReferenceConfig {
+  subscription: {
+    authorizeReference: (params: {
+      referenceId: string;
+      user: { id: string };
+      action?: string;
+    }) => Promise<boolean>;
+  };
+}
 
 const {
   adminPluginMock,
@@ -572,6 +584,128 @@ describe("core auth config", () => {
     expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
       subscription,
     );
+  });
+
+  it("denies subscription management for non-members", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(false);
+
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      { __prisma: true },
+    );
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it("denies subscription management for members without owner or admin role", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.MEMBER,
+    });
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(false);
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    MemberRole.OWNER,
+    MemberRole.ADMIN,
+  ] as const)("allows subscription management for %s without an enterprise contract", async (role) => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(true);
+
+    expect(hasConsumableEnterpriseContractMock).toHaveBeenCalledWith(
+      "org_123",
+      { __prisma: true },
+    );
+  });
+
+  it("throws enterprise exclusivity error when upgrading an org with a consumable enterprise contract", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(true);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: {
+        code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+        message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+      },
+    });
+  });
+
+  it("allows non-upgrade actions even with a consumable enterprise contract", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(true);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "cancel-subscription",
+      }),
+    ).resolves.toBe(true);
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
   });
 
   it("registers the Better Auth admin plugin", async () => {
