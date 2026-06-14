@@ -374,6 +374,20 @@ describe("web auth config", () => {
     expect(config.session.storeSessionInDatabase).toBe(true);
   });
 
+  it("does not disable email sign-up path", async () => {
+    await import("../auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          disabledPaths?: string[];
+        },
+      ]
+    >;
+
+    expect(config.disabledPaths ?? []).not.toContain("/sign-up/email");
+  });
+
   it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
     await import("../auth");
 
