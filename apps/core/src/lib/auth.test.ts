@@ -32,16 +32,20 @@ const {
   organizationPluginMock,
   magicLinkPluginMock,
   getMemberByUserIdAndOrganizationIdMock,
+  getMembersByOrganizationIdMock,
   passkeyPluginMock,
   postmarkSendEmailMock,
   prismaAdapterMock,
   reconcileActiveStripeBackedSubscriptionMock,
   renderMagicLinkEmailMock,
+  resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
   stripeCreateUserCustomerMock,
   stripePluginMock,
   uploadProfileImageMock,
   webhookCallAccountCreatedMock,
+  webhookCallUserCreatedMock,
+  webhookCallUserUpdatedMock,
   workspaceUpsertMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
@@ -63,16 +67,20 @@ const {
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+  getMembersByOrganizationIdMock: vi.fn(),
   passkeyPluginMock: vi.fn(),
   postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
   reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
   renderMagicLinkEmailMock: vi.fn(),
+  resolveActiveOrganizationIdForSessionMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
   stripeCreateUserCustomerMock: vi.fn(),
   stripePluginMock: vi.fn(),
   uploadProfileImageMock: vi.fn(),
   webhookCallAccountCreatedMock: vi.fn(),
+  webhookCallUserCreatedMock: vi.fn(),
+  webhookCallUserUpdatedMock: vi.fn(),
   workspaceUpsertMock: vi.fn(),
 }));
 
@@ -155,6 +163,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
+    getMembersByOrganizationId: (...args: unknown[]) =>
+      getMembersByOrganizationIdMock(...args),
   },
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
@@ -199,6 +209,10 @@ vi.mock("@/services/webhook.service", () => ({
   webhookService: {
     callAccountCreated: (...args: unknown[]) =>
       webhookCallAccountCreatedMock(...args),
+    callUserCreated: (...args: unknown[]) =>
+      webhookCallUserCreatedMock(...args),
+    callUserUpdated: (...args: unknown[]) =>
+      webhookCallUserUpdatedMock(...args),
   },
 }));
 
@@ -212,6 +226,20 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     handleSubscriptionDeletedEventMock(...args),
   reconcileActiveStripeBackedSubscription: (...args: unknown[]) =>
     reconcileActiveStripeBackedSubscriptionMock(...args),
+}));
+
+vi.mock("@/services/preferred-organization.service", () => ({
+  resolveActiveOrganizationIdForSession: (...args: unknown[]) =>
+    resolveActiveOrganizationIdForSessionMock(...args),
+}));
+
+vi.mock("@/services/organization-subscription-auth.service", () => ({
+  ensureCanAcceptOrganizationInvitation: vi.fn(),
+  syncLocalFreeSeatsAndCreditsForCurrentMembers: vi.fn(),
+}));
+
+vi.mock("@/services/stripe-user-email.service", () => ({
+  syncUserEmailWithStripe: vi.fn(),
 }));
 
 vi.mock("@sokosumi/email", () => ({
@@ -1075,7 +1103,7 @@ describe("core auth config", () => {
     expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-preprod");
   });
 
-  it("uses English for magic-link emails", async () => {
+  it("prefers the locale cookie over accept-language for magic-link emails", async () => {
     await import("./auth");
 
     const [[config]] = magicLinkPluginMock.mock.calls as Array<
@@ -1122,7 +1150,7 @@ describe("core auth config", () => {
     );
 
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
-      locale: "en",
+      locale: "de",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       name: "Andreas",
     });
@@ -1405,6 +1433,110 @@ describe("core auth config", () => {
       tags: {
         context: "workspace_organization_creation",
       },
+    });
+  });
+
+  it("blocks organization deletion when additional members remain", async () => {
+    getMembersByOrganizationIdMock.mockResolvedValue([
+      { userId: "user-1" },
+      { userId: "user-2" },
+    ]);
+
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeDeleteOrganization: (input: {
+              organization: { id: string };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.organizationHooks.beforeDeleteOrganization({
+        organization: { id: "org-1" },
+        user: { id: "user-1" },
+      }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: {
+        code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+        message: "Remove all other members before deleting this organization.",
+      },
+    });
+
+    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith("org-1", {
+      __prisma: true,
+    });
+  });
+
+  it("sets activeOrganizationId from preferred organization on session create", async () => {
+    resolveActiveOrganizationIdForSessionMock.mockResolvedValue("org_pref");
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            session: {
+              create: {
+                before: (session: { userId: string }) => Promise<{
+                  data: { activeOrganizationId: string | null; userId: string };
+                }>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const result = await config.databaseHooks.session.create.before({
+      userId: "user_123",
+    });
+
+    expect(result.data.activeOrganizationId).toBe("org_pref");
+    expect(resolveActiveOrganizationIdForSessionMock).toHaveBeenCalledWith(
+      "user_123",
+    );
+  });
+
+  it("calls user created webhook after user create", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      id: "user_123",
+      email: "test@example.com",
+      name: "Test",
+    });
+
+    expect(webhookCallUserCreatedMock).toHaveBeenCalledWith({
+      id: "user_123",
+      email: "test@example.com",
+      name: "Test",
     });
   });
 });
