@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import { Prisma } from "@sokosumi/database";
 import {
   isUserUploadAllowedContentType,
   normalizeUserUploadContentType,
@@ -67,6 +68,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { conflictWithData, ok } from "@/helpers/response";
+
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -659,6 +661,16 @@ interface HermesChatTranscriptTurn {
   assistantMessageId: string;
   userContent: string;
   assistantContent: string;
+  /** Tool/progress steps captured during a streamed turn (stored on the
+   * assistant message so the UI's steps disclosure survives a reload). */
+  assistantSteps?: {
+    kind: "tool" | "reasoning";
+    label: string;
+    detail?: string;
+  }[];
+  /** Total wall-clock time of the streamed turn (ms), persisted so the
+   * "Answered in Ns" stamp survives a reload. */
+  assistantDurationMs?: number;
 }
 
 async function persistHermesChatTranscript(
@@ -682,6 +694,8 @@ async function persistHermesChatTranscript(
         userId: turn.userId,
         role: "assistant",
         content: turn.assistantContent,
+        steps: turn.assistantSteps as Prisma.InputJsonValue | undefined,
+        durationMs: turn.assistantDurationMs,
       },
       update: {},
     });
@@ -1356,6 +1370,262 @@ app.openapi(postChatRoute, async (c) => {
   );
 });
 
+interface CapturedTurn {
+  content: string;
+  steps: { kind: "tool" | "reasoning"; label: string; detail?: string }[];
+}
+
+/**
+ * Reads a streamed OpenAI-compatible SSE response to completion, capturing the
+ * assistant text and the `hermes.status` tool steps. Run server-side on one
+ * branch of a tee()'d stream and decoupled from the client connection (see
+ * /chat/stream), so a turn is captured + persisted even if the user closes the
+ * tab mid-stream. Parsing is best-effort; malformed frames are skipped.
+ */
+export async function captureFromStream(
+  stream: ReadableStream<Uint8Array>,
+): Promise<CapturedTurn> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  const steps: {
+    kind: "tool" | "reasoning";
+    label: string;
+    detail?: string;
+  }[] = [];
+
+  const consumeFrame = (rawFrame: string): void => {
+    let event: string | null = null;
+    const dataLines: string[] = [];
+    for (const line of rawFrame.split("\n")) {
+      if (line.startsWith("event:")) {
+        event = line.slice("event:".length).trim();
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice("data:".length).replace(/^ /, ""));
+      }
+    }
+    if (dataLines.length === 0) return;
+    const data = dataLines.join("\n");
+    if (data === "[DONE]") return;
+    let json: unknown;
+    try {
+      json = JSON.parse(data);
+    } catch {
+      return; // keepalive / non-JSON frame
+    }
+    if (event === "hermes.status") {
+      const status = json as {
+        phase?: string;
+        label?: string;
+        detail?: string;
+      };
+      if (status.phase === "tool" && typeof status.label === "string") {
+        steps.push({
+          kind: "tool",
+          label: status.label,
+          detail: status.detail,
+        });
+      } else if (
+        status.phase === "reasoning" &&
+        typeof status.detail === "string"
+      ) {
+        steps.push({ kind: "reasoning", label: status.detail });
+      }
+      return;
+    }
+    const chunk = json as {
+      choices?: Array<{ delta?: { content?: string | null } }>;
+    };
+    const piece = chunk.choices?.[0]?.delta?.content;
+    if (typeof piece === "string") content += piece;
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      buffer = buffer.replace(/\r\n/g, "\n");
+      let sep = buffer.indexOf("\n\n");
+      while (sep !== -1) {
+        consumeFrame(buffer.slice(0, sep));
+        buffer = buffer.slice(sep + 2);
+        sep = buffer.indexOf("\n\n");
+      }
+    }
+    if (buffer.trim() !== "") consumeFrame(buffer);
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { content, steps };
+}
+
+/**
+ * POST /hermes/chat/stream — streaming sibling of POST /chat.
+ *
+ * Opt-in: clients that can parse SSE and branch on the `event:` field call this
+ * instead of /chat. We forward `stream: true` + `X-Hermes-Progress: 1` to the
+ * orchestrator and pass its SSE body straight through (OpenAI chat chunks
+ * interleaved with `event: hermes.status` progress frames), capturing the
+ * assistant text on the side to persist the transcript when the stream ends.
+ * Not an OpenAPI route — the response is an event stream, not a JSON envelope.
+ */
+app.post("/chat/stream", async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+
+  const rawJson = await c.req.json().catch(() => null);
+  const parsed = hermesChatRequestSchema.safeParse(rawJson);
+  if (!parsed.success) {
+    throw badRequest("Invalid chat request body.");
+  }
+
+  const userContent =
+    typeof parsed.data.content === "string" ? parsed.data.content : "";
+  const trimmed = userContent.trim();
+  const files = validateAndDecodeFiles(parsed.data.files);
+
+  if (!trimmed && files.length === 0) {
+    throw badRequest("Message content or at least one file is required.");
+  }
+  if (Buffer.byteLength(trimmed, "utf8") > MAX_USER_CONTENT_BYTES) {
+    throw payloadTooLarge("Message content is too large.");
+  }
+
+  const historyNewestFirst = await prisma.hermesMessage.findMany({
+    where: { userId: userContext.userId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: MAX_CHAT_CONTEXT_MESSAGES,
+    select: { role: true, content: true },
+  });
+  const history = historyNewestFirst.slice().reverse();
+  const conversation: OutboundChatMessage[] = [
+    ...history
+      .filter((message) => isValidRole(message.role))
+      .map((message) => ({
+        role: message.role as "user" | "assistant" | "system",
+        content: message.content,
+      })),
+    buildUserMessageForHermes(trimmed, files),
+  ];
+
+  try {
+    await ensureInstanceReady(userContext.userId);
+  } catch (error) {
+    if (error instanceof HermesInstanceNotReadyError) {
+      return conflictWithData(c, { status: error.status });
+    }
+    return mapOrchestratorError(error, "Failed to prepare Hermes instance");
+  }
+
+  const persistedUserContent = buildPersistedUserContent(trimmed, files);
+  const turnStart = Date.now();
+
+  // Server-owned abort with a generous cap so a wedged orchestrator stream
+  // can't leak forever. We deliberately do NOT forward the client's request
+  // signal: a closed tab must not abort generation, so the turn is still
+  // captured + persisted (see the tee below).
+  const serverAbort = new AbortController();
+  const captureTimeout = setTimeout(() => serverAbort.abort(), 5 * 60_000);
+
+  let upstream: Response;
+  try {
+    upstream = await proxyChatCompletions(
+      userContext.userId,
+      { model: "hermes-agent", messages: conversation, stream: true },
+      {
+        headers: { "X-Hermes-Progress": "1", Accept: "text/event-stream" },
+        signal: serverAbort.signal,
+      },
+    );
+  } catch (error) {
+    clearTimeout(captureTimeout);
+    if (error instanceof HTTPException) {
+      throw error;
+    }
+    Sentry.captureException(error, {
+      tags: { context: "hermes_proxy_stream_fetch" },
+      extra: { userId: userContext.userId },
+    });
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
+  }
+
+  if (!upstream.ok || !upstream.body) {
+    clearTimeout(captureTimeout);
+    const text = upstream.body ? await upstream.text().catch(() => "") : "";
+    Sentry.captureMessage("hermes_proxy_stream_not_ok", {
+      level: "warning",
+      tags: { status: String(upstream.status) },
+    });
+    await recoverHermesInboxAfterFailedChatRequest(
+      userContext.userId,
+      c.req.raw.signal,
+    );
+    if (upstream.status >= 500 || !upstream.body) {
+      throw serviceUnavailable("Hermes is temporarily unavailable.");
+    }
+    throw badRequest(text || "Hermes rejected the chat request.");
+  }
+
+  const persistTurn = async (captured: CapturedTurn): Promise<void> => {
+    const content = captured.content.trim();
+    if (!content) {
+      await recoverHermesInboxAfterFailedChatRequest(
+        userContext.userId,
+        serverAbort.signal,
+      );
+      return;
+    }
+    const transcriptTurn: HermesChatTranscriptTurn = {
+      userId: userContext.userId,
+      userMessageId: randomUUID(),
+      assistantMessageId: randomUUID(),
+      userContent: persistedUserContent,
+      assistantContent: content,
+      assistantSteps: captured.steps.length > 0 ? captured.steps : undefined,
+      assistantDurationMs: Date.now() - turnStart,
+    };
+    const persisted = await persistHermesChatTranscriptWithRetries(
+      transcriptTurn,
+      CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS,
+      { signal: serverAbort.signal },
+    );
+    if (!persisted) {
+      scheduleHermesChatTranscriptRecovery(transcriptTurn);
+    }
+  };
+
+  // Tee the upstream: one branch streams to the client, the other is drained
+  // server-side to capture + persist the turn — independent of whether the
+  // client stays connected. The capture branch drives the orchestrator stream
+  // to completion even if the user closes the tab mid-answer.
+  const [toClient, toCapture] = upstream.body.tee();
+  void captureFromStream(toCapture)
+    .then(persistTurn)
+    .catch((error) => {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_stream_capture" },
+        extra: { userId: userContext.userId },
+      });
+    })
+    .finally(() => clearTimeout(captureTimeout));
+
+  return new Response(toClient, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+});
+
 app.openapi(getInstanceRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
 
@@ -1532,6 +1802,8 @@ app.openapi(listMessagesRoute, async (c) => {
     role: isValidRole(message.role) ? message.role : "assistant",
     content: message.content,
     kind: message.kind,
+    steps: message.steps,
+    durationMs: message.durationMs,
     createdAt: message.createdAt,
   }));
   const paginationMeta: CursorPaginationMeta = createPaginationMeta(

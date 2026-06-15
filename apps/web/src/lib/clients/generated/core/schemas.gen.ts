@@ -4481,6 +4481,53 @@ export const HermesPersistedMessageSchema = {
                 'null'
             ]
         },
+        steps: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                type: 'object',
+                properties: {
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'tool',
+                            'reasoning'
+                        ]
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    detail: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'label'
+                ]
+            },
+            description: 'Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.',
+            example: [
+                {
+                    kind: 'reasoning',
+                    label: 'The user wants a web search…'
+                },
+                {
+                    kind: 'tool',
+                    label: 'Searching the web',
+                    detail: 'latest MoE LLMs'
+                }
+            ]
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ],
+            description: 'Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.',
+            example: 7840
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',

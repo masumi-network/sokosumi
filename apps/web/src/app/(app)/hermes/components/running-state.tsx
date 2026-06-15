@@ -2,13 +2,17 @@
 
 import {
   AlertCircle,
+  ArrowDown,
   ArrowUpRight,
   Building2,
   Check,
+  ChevronRight,
   Coins,
+  Copy,
   Loader2,
   Plug,
   Plus,
+  Wrench,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -76,6 +80,12 @@ import {
   type HermesUiMessage,
   mergeHermesMessageLists,
 } from "@/lib/hermes/merge-persisted-messages";
+import {
+  deltaContentFrom,
+  type HermesStatusEvent,
+  parseHermesStatus,
+  readSseStream,
+} from "@/lib/hermes/sse";
 import type {
   HermesInstancePublic,
   HermesOrganizationOption,
@@ -104,6 +114,18 @@ interface RunningStateProps {
 type Message = HermesUiMessage;
 
 const POLL_INTERVAL_MS = 5_000;
+/** Minimum time a reasoning beat stays on screen before the next phase can
+ * replace/clear it — so beats don't flash by unreadably. */
+const REASONING_MIN_MS = 1_000;
+
+/**
+ * Opt-in flag for Hermes streaming + live progress. Off by default so the chat
+ * keeps using the buffered /chat path until the orchestrator side is verified
+ * (it must support `stream: true` + emit `event: hermes.status` frames). Flip
+ * `NEXT_PUBLIC_HERMES_STREAMING=1` to enable end-to-end streaming.
+ */
+const HERMES_STREAMING_ENABLED =
+  process.env.NEXT_PUBLIC_HERMES_STREAMING === "1";
 
 function persistedToMessage(m: HermesPersistedMessage): Message | null {
   if (m.role !== "user" && m.role !== "assistant") return null;
@@ -112,6 +134,8 @@ function persistedToMessage(m: HermesPersistedMessage): Message | null {
     role: m.role,
     content: m.content,
     kind: m.kind,
+    steps: m.steps,
+    durationMs: m.durationMs,
     createdAt: m.createdAt,
   };
 }
@@ -128,6 +152,25 @@ function hasSameMessageIds(left: Message[], right: Message[]): boolean {
     if (left[i]!.id !== right[i]!.id) return false;
   }
   return true;
+}
+
+/** Stable-ish key for a turn's duration, surviving the temp→persisted id swap
+ * on the post-turn DB re-sync (the content text is unchanged). */
+function durationKey(content: string): string {
+  return content.trim().slice(0, 80);
+}
+
+/** A step in a turn's trace: a `tool` action chip or a `reasoning` beat.
+ * Absent `kind` is treated as "tool" (older persisted rows). */
+interface ProgressStep {
+  kind?: "tool" | "reasoning";
+  /** tool_call_id — matches a `tool` frame to its `tool_done`. */
+  id?: string;
+  /** tool: the action label; reasoning: the chain-of-thought snippet. */
+  label: string;
+  detail?: string;
+  /** Set once the tool's `tool_done` frame arrives (chip completes). */
+  done?: boolean;
 }
 
 interface ChatApiResponse {
@@ -186,6 +229,32 @@ export default function RunningState({
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [isReplying, setIsReplying] = useState(false);
+  // Ephemeral live-progress chips from `event: hermes.status` frames (tool
+  // phases). Cleared the moment the answer starts streaming and on turn end.
+  const [progressChips, setProgressChips] = useState<ProgressStep[]>([]);
+  // Transient chain-of-thought snippet from `reasoning` frames; superseded by
+  // the next phase. Advisory + ephemeral — never persisted.
+  const [reasoning, setReasoning] = useState<string | null>(null);
+  // Id of the assistant message currently being streamed in, or null. While
+  // set, the typing indicator is hidden (the growing message is the feedback).
+  const [streamingId, setStreamingId] = useState<string | null>(null);
+  // Wall-clock start of the in-flight turn, for the elapsed-time indicator.
+  const [requestStartedAt, setRequestStartedAt] = useState<number | null>(null);
+  // Per-turn total durations (ms), keyed by durationKey(content) so the
+  // "Answered in Ns" stamp survives the post-turn DB re-sync.
+  const [durations, setDurations] = useState<Map<string, number>>(
+    () => new Map(),
+  );
+  // Whether the scroller is pinned to the bottom (drives the jump-to-latest pill).
+  const [atBottom, setAtBottom] = useState(true);
+  // Tool/progress steps captured per turn, keyed like durations so the
+  // collapsible "steps" disclosure survives the post-turn DB re-sync.
+  const [stepsByKey, setStepsByKey] = useState<Map<string, ProgressStep[]>>(
+    () => new Map(),
+  );
+  // Authoritative step list for the in-flight turn (the progressChips state is
+  // only the live render; this ref is what we read at completion).
+  const turnStepsRef = useRef<ProgressStep[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Dev-only mock confirmations injected via `?state=running&mock=confirmation`
   // (plus optional `&coworkerId=…&coworkerName=…`). Lets you eyeball the
@@ -207,6 +276,8 @@ export default function RunningState({
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const reasoningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reasoningClearAtRef = useRef(0);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const isReplyingRef = useRef(false);
@@ -227,6 +298,7 @@ export default function RunningState({
   useEffect(() => {
     return () => {
       if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+      if (reasoningTimerRef.current) clearTimeout(reasoningTimerRef.current);
       abortRef.current?.abort();
     };
   }, []);
@@ -319,6 +391,19 @@ export default function RunningState({
     return () => cancelAnimationFrame(id);
   }, [messages.length, isReplying]);
 
+  // Follow the answer as it streams in — but only if the user is already near
+  // the bottom, so scrolling up to re-read isn't hijacked mid-stream.
+  const streamingContentLength = streamingId
+    ? (messages.find((m) => m.id === streamingId)?.content.length ?? 0)
+    : 0;
+  useEffect(() => {
+    if (!streamingId) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
+  }, [streamingId, streamingContentLength]);
+
   const sendMessage = useCallback(
     (content: string) => {
       const trimmed = content.trim();
@@ -347,6 +432,7 @@ export default function RunningState({
       setInput("");
       setFiles([]);
       setIsReplying(true);
+      setRequestStartedAt(now);
 
       // Preview mode: keep the mock setTimeout so design iteration via
       // ?state=running keeps working without an orchestrator round-trip.
@@ -392,10 +478,14 @@ export default function RunningState({
 
           const res = await fetch("/api/hermes/chat", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(HERMES_STREAMING_ENABLED ? { "X-Hermes-Progress": "1" } : {}),
+            },
             body: JSON.stringify({
               content: trimmed,
               files: filePayloads.length > 0 ? filePayloads : undefined,
+              ...(HERMES_STREAMING_ENABLED ? { stream: true } : {}),
             }),
             signal: controller.signal,
           });
@@ -426,23 +516,176 @@ export default function RunningState({
             return;
           }
 
-          const body = (await res.json()) as ChatApiResponse;
-          const reply = body.data?.message?.content ?? "";
-          if (!reply) {
-            toast.error(t("errors.emptyResponse"));
-            setIsReplying(false);
-            return;
+          const contentType = res.headers.get("content-type") ?? "";
+          if (res.body && contentType.includes("text/event-stream")) {
+            // Streaming path: render `delta.content` incrementally and show
+            // `hermes.status` frames as ephemeral progress chips. The parser
+            // branches on the SSE `event:` field so status frames never reach
+            // the chat-chunk handler.
+            const assistantId = `a-${Date.now()}`;
+            let acc = "";
+            let inserted = false;
+            setProgressChips([]);
+            turnStepsRef.current = [];
+            // Reasoning beats stay on screen ≥ REASONING_MIN_MS so they don't
+            // vanish in a blink when the next phase arrives quickly.
+            if (reasoningTimerRef.current) {
+              clearTimeout(reasoningTimerRef.current);
+              reasoningTimerRef.current = null;
+            }
+            reasoningClearAtRef.current = 0;
+            setReasoning(null);
+            const showReasoning = (next: string | null) => {
+              if (reasoningTimerRef.current) {
+                clearTimeout(reasoningTimerRef.current);
+                reasoningTimerRef.current = null;
+              }
+              const apply = () => {
+                setReasoning(next);
+                reasoningClearAtRef.current = next
+                  ? Date.now() + REASONING_MIN_MS
+                  : 0;
+              };
+              const now = Date.now();
+              if (now >= reasoningClearAtRef.current) {
+                apply();
+              } else {
+                reasoningTimerRef.current = setTimeout(
+                  apply,
+                  reasoningClearAtRef.current - now,
+                );
+              }
+            };
+
+            // Live chips show tool steps only; reasoning beats live in the
+            // trace (turnStepsRef) for the disclosure + the transient line.
+            const toolChips = () =>
+              turnStepsRef.current.filter((s) => s.kind !== "reasoning");
+
+            const applyStatus = (status: HermesStatusEvent) => {
+              if (status.phase === "reasoning") {
+                showReasoning(status.detail ?? null);
+                if (status.detail) {
+                  turnStepsRef.current = [
+                    ...turnStepsRef.current,
+                    { kind: "reasoning", label: status.detail },
+                  ];
+                }
+                return;
+              }
+              // Any non-reasoning phase supersedes the transient reasoning line.
+              showReasoning(null);
+              if (status.phase === "answering") {
+                setProgressChips([]);
+                return;
+              }
+              if (status.phase === "tool" && status.label) {
+                turnStepsRef.current = [
+                  ...turnStepsRef.current,
+                  {
+                    kind: "tool",
+                    id: status.id,
+                    label: status.label,
+                    detail: status.detail,
+                    done: false,
+                  },
+                ];
+                setProgressChips(toolChips());
+                return;
+              }
+              if (status.phase === "tool_done") {
+                // Complete the matching tool chip (by tool_call_id, else the
+                // most recent still-running one). tool_done.detail is a raw
+                // truncated result — we ignore it and keep the tool's subtitle.
+                const steps = turnStepsRef.current;
+                let idx = status.id
+                  ? steps.findIndex(
+                      (s) => s.kind === "tool" && s.id === status.id && !s.done,
+                    )
+                  : -1;
+                if (idx === -1) {
+                  idx = steps.findLastIndex(
+                    (s) => s.kind === "tool" && !s.done,
+                  );
+                }
+                if (idx !== -1) {
+                  turnStepsRef.current = steps.map((s, i) =>
+                    i === idx ? { ...s, done: true } : s,
+                  );
+                  setProgressChips(toolChips());
+                }
+                return;
+              }
+              // `thinking` / `working` are covered by the typing indicator.
+            };
+
+            for await (const ev of readSseStream(res.body)) {
+              if (controller.signal.aborted) break;
+              if (ev.event === "hermes.status") {
+                const status = parseHermesStatus(ev.data);
+                if (status) applyStatus(status);
+                continue;
+              }
+              const delta = deltaContentFrom(ev.data);
+              if (delta) {
+                acc += delta;
+                if (!inserted) {
+                  inserted = true;
+                  setProgressChips([]);
+                  setStreamingId(assistantId);
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: assistantId,
+                      role: "assistant",
+                      content: acc,
+                      kind: null,
+                      createdAt: new Date().toISOString(),
+                    },
+                  ]);
+                } else {
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId ? { ...m, content: acc } : m,
+                    ),
+                  );
+                }
+              }
+            }
+
+            if (acc.trim()) {
+              const key = durationKey(acc);
+              setDurations((prev) => new Map(prev).set(key, Date.now() - now));
+              if (turnStepsRef.current.length) {
+                const steps = turnStepsRef.current;
+                setStepsByKey((prev) => new Map(prev).set(key, steps));
+              }
+            } else if (!controller.signal.aborted) {
+              toast.error(t("errors.emptyResponse"));
+            }
+          } else {
+            // Fallback: server returned buffered JSON (streaming not enabled).
+            const body = (await res.json()) as ChatApiResponse;
+            const reply = body.data?.message?.content ?? "";
+            if (!reply) {
+              toast.error(t("errors.emptyResponse"));
+              setIsReplying(false);
+              return;
+            }
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `a-${Date.now()}`,
+                role: "assistant",
+                content: reply,
+                kind: null,
+                createdAt: new Date().toISOString(),
+              },
+            ]);
+            setDurations((prev) =>
+              new Map(prev).set(durationKey(reply), Date.now() - now),
+            );
           }
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `a-${Date.now()}`,
-              role: "assistant",
-              content: reply,
-              kind: null,
-              createdAt: new Date().toISOString(),
-            },
-          ]);
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") {
             return;
@@ -454,19 +697,43 @@ export default function RunningState({
           // inbox poller is not blocked until the next React commit.
           isReplyingRef.current = false;
           setIsReplying(false);
+          setProgressChips([]);
+          if (reasoningTimerRef.current) {
+            clearTimeout(reasoningTimerRef.current);
+            reasoningTimerRef.current = null;
+          }
+          reasoningClearAtRef.current = 0;
+          setReasoning(null);
+          setStreamingId(null);
+          setRequestStartedAt(null);
 
-          const result = await listHermesMessagesAction({});
-          if (result.ok) {
-            const next = persistedToMessages(result.data);
-            setMessages((prev) => {
-              const merged = mergeHermesMessageLists(prev, next);
-              return hasSameMessageIds(prev, merged) ? prev : merged;
-            });
+          // This runs inside a `void`-discarded async IIFE, so a throw here
+          // (e.g. the session expired mid-stream and the server action rejects
+          // with UnAuthenticatedError) would become an unhandled rejection —
+          // the outer try/catch does not cover the finally. Guard it: the
+          // synchronous cleanup above already settled the UI, so a failed
+          // post-turn refresh just skips silently.
+          try {
+            const result = await listHermesMessagesAction({});
+            if (result.ok) {
+              const next = persistedToMessages(result.data);
+              setMessages((prev) => {
+                const merged = mergeHermesMessageLists(prev, next);
+                return hasSameMessageIds(prev, merged) ? prev : merged;
+              });
+            }
+            // Refresh the instance so any medium-autonomy gate the model queued
+            // during this turn (it lives on instance.pendingConfirmations, NOT
+            // in the message stream) surfaces immediately — otherwise the
+            // approval box stays invisible until the next 30s background refresh.
+            await onRefresh?.();
+          } catch {
+            // Post-turn refresh failed (auth/network); UI is already clean.
           }
         }
       })();
     },
-    [files, isReplying, messages, mockReplies, previewMode, t],
+    [files, isReplying, messages, mockReplies, onRefresh, previewMode, t],
   );
 
   const stop = useCallback(() => {
@@ -490,6 +757,32 @@ export default function RunningState({
     [input, sendMessage],
   );
 
+  // One-shot inbox sync (same fetch+merge as the poll). Used to surface the
+  // orchestrator's post-approval result quickly instead of waiting for the
+  // next regular 5s tick.
+  const syncMessages = useCallback(async () => {
+    if (isReplyingRef.current) return;
+    if (
+      typeof document !== "undefined" &&
+      document.visibilityState !== "visible"
+    ) {
+      return;
+    }
+    const result = await listHermesMessagesAction({});
+    if (!result.ok || isReplyingRef.current) return;
+    const next = result.data
+      .map(persistedToMessage)
+      .filter((m): m is Message => m !== null);
+    const latest = next[next.length - 1];
+    if (latest) {
+      void markHermesInboxSeenAction({ asOfIso: latest.createdAt });
+    }
+    setMessages((prev) => {
+      const merged = mergeHermesMessageLists(prev, next);
+      return hasSameMessageIds(prev, merged) ? prev : merged;
+    });
+  }, []);
+
   const firstName = userName?.split(" ")[0] ?? null;
   // Active (still-pending) cards — interactive. We exclude anything the
   // user has already resolved this session so the optimistic transition
@@ -500,6 +793,37 @@ export default function RunningState({
     ...mockConfirmations,
   ].filter((c) => !resolvedConfirmations.has(c.id));
   const resolvedCards = Array.from(resolvedConfirmations.values());
+  // Interleave resolved confirmation cards into the message timeline by when
+  // they were resolved, so they sit in chronological order (and move up as the
+  // chat continues) instead of being pinned below newer messages.
+  //
+  // We deliberately do NOT render a task card here on approval. The task is
+  // created by the agent after approval; the real `/tasks/:id` card arrives as
+  // a `confirmation_resolved` message (rendered by `MessageRow`). The resolved
+  // confirmation card itself shows a "creating in the background" note so the
+  // user knows what to expect.
+  const timeline: Array<
+    | { kind: "message"; ts: number; key: string; message: Message }
+    | {
+        kind: "resolved";
+        ts: number;
+        key: string;
+        entry: ResolvedConfirmationEntry;
+      }
+  > = [
+    ...messages.map((message) => ({
+      kind: "message" as const,
+      ts: new Date(message.createdAt).getTime() || 0,
+      key: message.id,
+      message,
+    })),
+    ...resolvedCards.map((entry) => ({
+      kind: "resolved" as const,
+      ts: entry.resolvedAt,
+      key: `resolved-${entry.confirmation.id}`,
+      entry,
+    })),
+  ].sort((a, b) => a.ts - b.ts);
   const isEmpty =
     messages.length === 0 &&
     pendingCards.length === 0 &&
@@ -522,6 +846,10 @@ export default function RunningState({
           offset to keep in sync with the composer's height. */}
       <div
         ref={scrollerRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+        }}
         className="scrollbar-none min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {isEmpty ? (
@@ -529,29 +857,51 @@ export default function RunningState({
         ) : (
           <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
             <div className="flex w-full max-w-4xl flex-col gap-1">
-              {messages.map((msg) => (
-                <MessageRow
-                  key={msg.id}
-                  message={msg}
-                  userImageUrl={userImageUrl}
-                  userName={userName}
-                  onSelectSuggestion={(prompt) => {
-                    setInput(prompt);
-                    composerRef.current?.focus();
-                  }}
-                />
-              ))}
-              {isReplying ? <AssistantTyping /> : null}
-              {resolvedCards.map((entry) => (
-                <ConfirmationCard
-                  key={`resolved-${entry.confirmation.id}`}
-                  confirmation={entry.confirmation}
-                  organizations={organizations}
-                  activeOrganizationId={activeOrganizationId}
-                  resolution={entry.resolution}
-                  onResolved={() => {}}
-                />
-              ))}
+              {timeline.map((item) =>
+                item.kind === "message" ? (
+                  <MessageRow
+                    key={item.key}
+                    message={item.message}
+                    userImageUrl={userImageUrl}
+                    userName={userName}
+                    isStreaming={item.message.id === streamingId}
+                    durationMs={
+                      durations.get(durationKey(item.message.content)) ??
+                      item.message.durationMs
+                    }
+                    steps={
+                      stepsByKey.get(durationKey(item.message.content)) ??
+                      item.message.steps
+                    }
+                    onSelectSuggestion={(prompt) => {
+                      setInput(prompt);
+                      composerRef.current?.focus();
+                    }}
+                  />
+                ) : (
+                  <ConfirmationCard
+                    key={item.key}
+                    confirmation={item.entry.confirmation}
+                    organizations={organizations}
+                    activeOrganizationId={activeOrganizationId}
+                    resolution={item.entry.resolution}
+                    onResolved={() => {}}
+                  />
+                ),
+              )}
+              {isReplying && !streamingId ? (
+                <>
+                  {progressChips.length > 0 ? (
+                    <ProgressChips
+                      chips={progressChips}
+                      startedAt={requestStartedAt}
+                    />
+                  ) : (
+                    <AssistantTyping startedAt={requestStartedAt} />
+                  )}
+                  {reasoning ? <ReasoningLine snippet={reasoning} /> : null}
+                </>
+              ) : null}
               {pendingCards.map((confirmation) => (
                 <ConfirmationCard
                   key={confirmation.id}
@@ -559,20 +909,55 @@ export default function RunningState({
                   organizations={organizations}
                   activeOrganizationId={activeOrganizationId}
                   resolution={null}
-                  onResolved={(id, resolution) =>
+                  onResolved={(id, resolution, resolvedConfirmation) => {
                     setResolvedConfirmations((prev) => {
                       if (prev.has(id)) return prev;
                       const next = new Map(prev);
-                      next.set(id, { confirmation, resolution });
+                      next.set(id, {
+                        // Use the confirmation the card actually resolved, not
+                        // this map closure's capture — a background instance
+                        // refresh could have swapped the object for this id
+                        // mid-approval, storing stale metadata otherwise.
+                        confirmation: resolvedConfirmation,
+                        resolution,
+                        resolvedAt: Date.now(),
+                      });
                       return next;
-                    })
-                  }
+                    });
+                    // Poll a few times to surface the orchestrator's result
+                    // quickly rather than waiting for the next 5s tick.
+                    for (const delay of [1200, 3000, 6000]) {
+                      setTimeout(() => void syncMessages(), delay);
+                    }
+                    // Refresh the instance so the resolved gate drops out of
+                    // pendingConfirmations (and any follow-up gate the tool
+                    // queued appears) without waiting for the 30s refresh.
+                    void onRefresh?.();
+                  }}
                 />
               ))}
             </div>
           </div>
         )}
       </div>
+
+      {/* Jump-to-latest pill — appears when scrolled up; snaps to the live answer. */}
+      {!atBottom && !isEmpty ? (
+        <button
+          type="button"
+          onClick={() => {
+            const el = scrollerRef.current;
+            if (el) {
+              el.scrollTop = el.scrollHeight;
+              setAtBottom(true);
+            }
+          }}
+          className="bg-background text-foreground border-border hover:bg-muted/60 focus-visible:ring-primary/40 absolute bottom-28 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm outline-none transition-colors focus-visible:ring-2"
+        >
+          <ArrowDown aria-hidden className="size-3.5" />
+          {t("jumpToLatest")}
+        </button>
+      ) : null}
 
       {/* Composer (natural height, anchored at bottom of flex column) */}
       <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
@@ -687,11 +1072,17 @@ function MessageRow({
   message,
   userImageUrl,
   userName,
+  isStreaming = false,
+  durationMs,
+  steps,
   onSelectSuggestion,
 }: {
   message: Message;
   userImageUrl?: string | null;
   userName?: string | null;
+  isStreaming?: boolean;
+  durationMs?: number;
+  steps?: ProgressStep[];
   onSelectSuggestion?: (prompt: string) => void;
 }) {
   const t = useTranslations("App.Hermes.Running");
@@ -768,6 +1159,16 @@ function MessageRow({
             {chip.label}
           </span>
         ) : null}
+        {steps && steps.length > 0 ? (
+          <MessageSteps
+            steps={steps}
+            countLabel={
+              steps.length === 1 && steps[0]!.kind !== "reasoning"
+                ? steps[0]!.label
+                : t("toolSteps", { count: steps.length })
+            }
+          />
+        ) : null}
         {parsedConfirmation ? (
           <div className="flex flex-col gap-3 pt-1 pr-10 pb-1">
             <p className="text-foreground text-sm leading-relaxed">
@@ -779,7 +1180,7 @@ function MessageRow({
           </div>
         ) : (
           <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
-            {message.content}
+            {isStreaming ? `${message.content} ▌` : message.content}
           </Markdown>
         )}
         {suggestions.length > 0 ? (
@@ -807,14 +1208,122 @@ function MessageRow({
             ))}
           </div>
         ) : null}
-        <time
-          dateTime={message.createdAt}
-          className="text-tertiary-foreground pb-2 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
-        >
-          {timestamp}
-        </time>
+        <div className="flex items-center gap-2 pt-0.5 pb-2">
+          {!isStreaming ? (
+            <CopyButton
+              text={message.content}
+              label={t("copyAction")}
+              copiedLabel={t("copiedAction")}
+            />
+          ) : null}
+          {durationMs !== undefined && !isStreaming ? (
+            <span className="text-tertiary-foreground text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
+              {t("answeredIn", { seconds: Math.round(durationMs / 1000) })}
+            </span>
+          ) : null}
+          <time
+            dateTime={message.createdAt}
+            className="text-tertiary-foreground text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+          >
+            {timestamp}
+          </time>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Collapsible disclosure of the tool/progress steps a turn went through —
+ * keeps the reasoning legible after the answer has arrived. */
+function MessageSteps({
+  steps,
+  countLabel,
+}: {
+  steps: ProgressStep[];
+  countLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="pr-10">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+      >
+        <Wrench aria-hidden className="size-3" />
+        {countLabel}
+        <ChevronRight
+          aria-hidden
+          className={cn("size-3 transition-transform", open && "rotate-90")}
+        />
+      </button>
+      {open ? (
+        <div className="border-border/60 mt-1.5 flex flex-col gap-1.5 border-l pl-3">
+          {steps.map((step, i) =>
+            step.kind === "reasoning" ? (
+              <p
+                key={`${step.label}-${i}`}
+                className="text-muted-foreground pl-[18px] text-xs italic"
+              >
+                {step.label}
+              </p>
+            ) : (
+              <ToolStepRow key={`${step.label}-${i}`} step={step} />
+            ),
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ToolStepRow({ step }: { step: ProgressStep }) {
+  return (
+    <div className="text-muted-foreground flex items-start gap-1.5 text-xs">
+      <Check aria-hidden className="text-primary/60 mt-0.5 size-3 shrink-0" />
+      <span className="min-w-0">
+        <span className="text-foreground/80 font-medium">{step.label}</span>
+        {step.detail ? (
+          <span className="text-muted-foreground"> — {step.detail}</span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+/** Hover-to-copy control for an assistant message. */
+function CopyButton({
+  text,
+  label,
+  copiedLabel,
+}: {
+  text: string;
+  label: string;
+  copiedLabel: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label={copied ? copiedLabel : label}
+      onClick={() => {
+        void navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="text-muted-foreground hover:text-foreground hover:bg-muted/60 border-border/70 focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+    >
+      {copied ? (
+        <>
+          <Check aria-hidden className="size-3.5" />
+          {copiedLabel}
+        </>
+      ) : (
+        <Copy aria-hidden className="size-3.5" />
+      )}
+    </button>
   );
 }
 
@@ -843,6 +1352,76 @@ function describeOutboxKind(
   return { label: t("outboxKinds.default") };
 }
 
+/** Transient chain-of-thought beat, shown live and superseded by the next
+ * phase frame (held on screen ≥ REASONING_MIN_MS so it doesn't blink). */
+function ReasoningLine({ snippet }: { snippet: string }) {
+  return (
+    <div className="flex w-full items-start gap-3 px-4 pb-1">
+      {/* Gutter aligns under the avatar shown by the indicator above. */}
+      <div className="size-8 shrink-0" aria-hidden />
+      <p className="reasoning-text-shine text-muted-foreground line-clamp-2 max-w-2xl pt-0.5 text-sm italic">
+        {snippet}
+      </p>
+    </div>
+  );
+}
+
+function ProgressChips({
+  chips,
+  startedAt,
+}: {
+  chips: ProgressStep[];
+  startedAt?: number | null;
+}) {
+  return (
+    <div className="flex w-full items-start gap-3 px-4 py-1.5">
+      {/* Same avatar treatment as the thinking indicator, so it stays present
+          and consistent as the turn moves thinking → tools → answer. */}
+      <span className="relative shrink-0">
+        <span
+          aria-hidden
+          className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
+        />
+        <AssistantAvatar />
+      </span>
+      <div className="flex min-w-0 flex-col gap-1.5 pt-1">
+        {chips.map((chip, i) => {
+          const isLast = i === chips.length - 1;
+          return (
+            <div
+              key={`${chip.id ?? chip.label}-${i}`}
+              className="flex min-w-0 items-center gap-2 text-sm"
+            >
+              {chip.done ? (
+                <Check
+                  aria-hidden
+                  className="text-primary/70 size-3.5 shrink-0"
+                />
+              ) : (
+                <Loader2
+                  aria-hidden
+                  className="text-primary size-3.5 shrink-0 animate-spin"
+                />
+              )}
+              <span className="text-foreground shrink-0 font-medium">
+                {chip.label}
+              </span>
+              {chip.detail ? (
+                <span className="text-muted-foreground truncate">
+                  {chip.detail}
+                </span>
+              ) : null}
+              {isLast && startedAt ? (
+                <ElapsedTimer startedAt={startedAt} />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Pool of "thinking" messages that cycle while Hermes drafts a reply. Mix
  * of straight-faced and lightly silly so users have something to read
@@ -850,11 +1429,42 @@ function describeOutboxKind(
  * stands on its own — no trailing ellipsis here, the typing dots animate
  * separately. New phrases welcome, just keep them short.
  */
-function AssistantTyping() {
+/** Live "Ns" counter since the turn started — keeps a long wait legible. */
+function ElapsedTimer({ startedAt }: { startedAt: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const secs = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const label =
+    secs < 60
+      ? `${secs}s`
+      : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  return (
+    <span className="text-muted-foreground/70 ml-1.5 text-xs tabular-nums">
+      {label}
+    </span>
+  );
+}
+
+function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
   const t = useTranslations("App.Hermes.Running");
   const thinkingMessages = orderedMessageList(
     t.raw("thinkingMessages") as Record<string, string>,
   );
+  // Escalate reassurance on long waits so a 30s+ turn doesn't read as stuck.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!startedAt) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  const secs = startedAt
+    ? Math.max(0, Math.floor((now - startedAt) / 1000))
+    : 0;
+  const escalation =
+    secs >= 40 ? t("stillWorkingLong") : secs >= 15 ? t("stillWorking") : null;
 
   return (
     <div className="flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
@@ -871,11 +1481,17 @@ function AssistantTyping() {
           fade (from RotatingMessages); the dots run independently so there
           is always something animating even between fades. */}
       <div className="flex min-h-5 items-center gap-1 pt-2">
-        <RotatingMessages
-          messages={thinkingMessages}
-          intervalMs={2_800}
-          className="reasoning-text-shine text-foreground text-sm leading-5"
-        />
+        {escalation ? (
+          <span className="reasoning-text-shine text-foreground text-sm leading-5">
+            {escalation}
+          </span>
+        ) : (
+          <RotatingMessages
+            messages={thinkingMessages}
+            intervalMs={2_800}
+            className="reasoning-text-shine text-foreground text-sm leading-5"
+          />
+        )}
         <span aria-hidden className="text-foreground/70 inline-flex gap-0.5">
           <span className="animate-thinking-dot inline-block">.</span>
           <span className="animate-thinking-dot inline-block [animation-delay:200ms]">
@@ -885,6 +1501,7 @@ function AssistantTyping() {
             .
           </span>
         </span>
+        {startedAt ? <ElapsedTimer startedAt={startedAt} /> : null}
       </div>
     </div>
   );
@@ -1355,6 +1972,8 @@ interface ConfirmationResolution {
 interface ResolvedConfirmationEntry {
   confirmation: HermesPendingConfirmation;
   resolution: ConfirmationResolution;
+  /** When the user resolved it — drives chronological placement in the timeline. */
+  resolvedAt: number;
 }
 
 function ConfirmationCard({
@@ -1368,6 +1987,7 @@ function ConfirmationCard({
   onResolved: (
     confirmationId: string,
     resolution: ConfirmationResolution,
+    confirmation: HermesPendingConfirmation,
   ) => void;
   organizations: HermesOrganizationOption[];
   activeOrganizationId: string | null;
@@ -1432,26 +2052,38 @@ function ConfirmationCard({
     }
     if (status === "approved") {
       toast.success(t("approvedToast"));
-      onResolved(confirmation.id, {
-        status: "approved",
-        organizationId: resolutionOrgId,
-      });
+      onResolved(
+        confirmation.id,
+        {
+          status: "approved",
+          organizationId: resolutionOrgId,
+        },
+        confirmation,
+      );
       return;
     }
     if (status === "already_resolved") {
       toast.info(t("alreadyResolvedToast"));
-      onResolved(confirmation.id, {
-        status: "already_resolved",
-        organizationId: resolutionOrgId,
-      });
+      onResolved(
+        confirmation.id,
+        {
+          status: "already_resolved",
+          organizationId: resolutionOrgId,
+        },
+        confirmation,
+      );
       return;
     }
     if (status === "rejected") {
       toast.info(t("alreadyResolvedToast"));
-      onResolved(confirmation.id, {
-        status: "rejected",
-        organizationId: resolutionOrgId,
-      });
+      onResolved(
+        confirmation.id,
+        {
+          status: "rejected",
+          organizationId: resolutionOrgId,
+        },
+        confirmation,
+      );
     }
   };
 
@@ -1480,26 +2112,38 @@ function ConfirmationCard({
     }
     if (status === "rejected") {
       toast.success(t("rejectedToast"));
-      onResolved(confirmation.id, {
-        status: "rejected",
-        organizationId: resolutionOrgId,
-      });
+      onResolved(
+        confirmation.id,
+        {
+          status: "rejected",
+          organizationId: resolutionOrgId,
+        },
+        confirmation,
+      );
       return;
     }
     if (status === "already_resolved") {
       toast.info(t("alreadyResolvedToast"));
-      onResolved(confirmation.id, {
-        status: "already_resolved",
-        organizationId: resolutionOrgId,
-      });
+      onResolved(
+        confirmation.id,
+        {
+          status: "already_resolved",
+          organizationId: resolutionOrgId,
+        },
+        confirmation,
+      );
       return;
     }
     if (status === "approved") {
       toast.info(t("alreadyResolvedToast"));
-      onResolved(confirmation.id, {
-        status: "approved",
-        organizationId: resolutionOrgId,
-      });
+      onResolved(
+        confirmation.id,
+        {
+          status: "approved",
+          organizationId: resolutionOrgId,
+        },
+        confirmation,
+      );
     }
   };
 
@@ -1568,6 +2212,14 @@ function ConfirmationCard({
             {summaryFragments}
           </p>
         </div>
+        {isResolved &&
+        isApproved &&
+        confirmation.toolName === "sokosumi_create_task" ? (
+          <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+            <Check className="size-3.5 shrink-0" aria-hidden />
+            <span>{t("creatingInBackground")}</span>
+          </div>
+        ) : null}
         {showOrgPicker ? (
           <div className="flex flex-col gap-1.5">
             <label

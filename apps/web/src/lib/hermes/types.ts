@@ -208,6 +208,15 @@ export interface HermesPersistedMessage {
    * Null for normal chat turns. Drives notification-style rendering.
    */
   kind: string | null;
+  /**
+   * Turn trace captured during a streamed turn — `tool` action steps and
+   * `reasoning` beats, in order — so the collapsible disclosure survives a
+   * reload. Absent for non-streamed turns.
+   */
+  steps?: { kind?: "tool" | "reasoning"; label: string; detail?: string }[];
+  /** Total wall-clock time of the streamed turn (ms), so the "Answered in Ns"
+   * stamp survives a reload. Absent for user/non-streamed messages. */
+  durationMs?: number;
   createdAt: string;
 }
 
