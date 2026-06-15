@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.DRAFT]: "Draft",
   [TaskStatus.READY]: "Ready",
-  [TaskStatus.INPUT_REQUIRED]: "Approval required",
+  [TaskStatus.INPUT_REQUIRED]: "Input required",
+  [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
   [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
   [TaskStatus.OUT_OF_CREDITS]: "Paused: credits needed",
   [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
@@ -35,6 +36,11 @@ const STATUS_PILL_STYLES: Partial<
     bg: "bg-destructive/10",
     text: "text-destructive",
     dot: "bg-orange-500",
+  },
+  [TaskStatus.APPROVAL_REQUIRED]: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
   },
   [TaskStatus.AUTHENTICATION_REQUIRED]: {
     bg: "bg-purple-500/10",
@@ -101,7 +107,9 @@ function getTaskStatusLabel(status: TaskStatus): string {
 
 function shouldShowWarningIcon(status: TaskStatus): boolean {
   return (
-    status === TaskStatus.INPUT_REQUIRED || status === TaskStatus.OUT_OF_CREDITS
+    status === TaskStatus.INPUT_REQUIRED ||
+    status === TaskStatus.APPROVAL_REQUIRED ||
+    status === TaskStatus.OUT_OF_CREDITS
   );
 }
 

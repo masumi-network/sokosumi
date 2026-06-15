@@ -153,6 +153,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("INPUT_REQUIRED → APPROVAL_REQUIRED", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.INPUT_REQUIRED,
+          TaskStatus.APPROVAL_REQUIRED,
+        ),
+      ).not.toThrow();
+    });
+
     it("AUTHENTICATION_REQUIRED → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -512,6 +522,16 @@ describe("validateStatusTransition", () => {
         validateStatusTransition(
           userContext,
           TaskStatus.AWAITING_EXTERNAL,
+          TaskStatus.CANCEL_REQUESTED,
+        ),
+      ).not.toThrow();
+    });
+
+    it("APPROVAL_REQUIRED → CANCEL_REQUESTED", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.APPROVAL_REQUIRED,
           TaskStatus.CANCEL_REQUESTED,
         ),
       ).not.toThrow();

@@ -73,6 +73,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
     [TaskStatus.READY]: t("Filters.statusOptions.READY"),
     [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
+    [TaskStatus.APPROVAL_REQUIRED]: t(
+      "Filters.statusOptions.APPROVAL_REQUIRED",
+    ),
     [TaskStatus.AUTHENTICATION_REQUIRED]: t(
       "Filters.statusOptions.AUTHENTICATION_REQUIRED",
     ),

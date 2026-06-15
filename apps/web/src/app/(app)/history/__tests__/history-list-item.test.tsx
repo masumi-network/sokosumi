@@ -65,6 +65,7 @@ const labels: HistoryListItemLabels = {
     [TaskStatus.DRAFT]: "Entwurf",
     [TaskStatus.READY]: "Bereit",
     [TaskStatus.INPUT_REQUIRED]: "Eingabe erforderlich",
+    [TaskStatus.APPROVAL_REQUIRED]: "Genehmigung erforderlich",
     [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentifizierung erforderlich",
     [TaskStatus.OUT_OF_CREDITS]: "Keine Credits mehr",
     [TaskStatus.CREDITS_TOPPED_UP]: "Credits aufgeladen",
