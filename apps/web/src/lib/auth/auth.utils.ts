@@ -1,3 +1,5 @@
+import type { SocialProviderId } from "@/lib/schemas";
+
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const OAUTH_CONSENT_PATH = "/oauth/consent";
@@ -119,12 +121,16 @@ export function buildSignUpUrlFromSignIn({
   return query ? `/signup?${query}` : "/signup";
 }
 
-export function getValidAuthRedirectUrl(
+function sanitizeAuthRedirectPath(
   returnUrl: string | undefined,
   fallback: string = "/",
 ): string {
   if (!returnUrl) {
     return fallback;
+  }
+
+  if (typeof window === "undefined") {
+    return returnUrl;
   }
 
   try {
@@ -133,6 +139,55 @@ export function getValidAuthRedirectUrl(
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Absolute callback/redirect URL for `authClient` when Better Auth runs on Core.
+ *
+ * Relative paths resolve against the auth-server origin (e.g. `api.preprod…`),
+ * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
+ * Falls back to a relative path when `window` is unavailable (SSR).
+ */
+export function getAbsoluteAuthRedirectUrl(
+  returnUrl: string | undefined,
+  fallback: string = "/",
+): string {
+  if (typeof window === "undefined") {
+    return returnUrl ?? fallback;
+  }
+
+  const safePath = sanitizeAuthRedirectPath(returnUrl, fallback);
+  return new URL(safePath, window.location.origin).href;
+}
+
+/**
+ * Builds a social-auth callback URL for `authClient.signIn.social`.
+ *
+ * The result is an **absolute** URL anchored to the current web origin. This
+ * matters when the browser `authClient` targets the Core Better Auth instance
+ * (a different origin, e.g. `api.preprod.sokosumi.com`): Better Auth resolves a
+ * relative `callbackURL` against the auth-server origin, so a bare
+ * `/auth/callback/signin` would both land on the Core domain and collide with
+ * Core's own `/auth/callback/:provider` route — surfacing as `state_not_found`.
+ * Anchoring to `window.location.origin` (already a trusted origin) sends the
+ * user back to the web app after the OAuth callback completes. Falls back to a
+ * relative path when `window` is unavailable (SSR).
+ */
+export function buildAuthCallbackUrl(
+  path: string,
+  provider: SocialProviderId,
+  returnUrl?: string,
+): string {
+  const params = new URLSearchParams({ provider });
+  if (returnUrl) {
+    const safeReturnUrl =
+      typeof window !== "undefined"
+        ? sanitizeAuthRedirectPath(returnUrl, "/")
+        : returnUrl;
+    params.set("returnUrl", safeReturnUrl);
+  }
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}${path}?${params.toString()}`;
 }
 
 interface AuthOAuthRedirectPayload {
@@ -168,7 +223,7 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   const sanitizedReturnUrl =
     normalized && normalized !== "/" ? normalized : undefined;
 
-  return getValidAuthRedirectUrl(sanitizedReturnUrl, "/");
+  return sanitizeAuthRedirectPath(sanitizedReturnUrl, "/");
 }
 
 type OAuthConsentParamRecord = Partial<

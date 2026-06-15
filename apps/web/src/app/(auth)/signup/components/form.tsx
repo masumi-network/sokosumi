@@ -19,7 +19,7 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
   getAuthOAuthRedirect,
-  getValidAuthRedirectUrl,
+  getAbsoluteAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
@@ -81,7 +81,7 @@ export default function SignUpForm({
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
       onboardingCompleted: false,
-      callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+      callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
     });
 
     if (result.error) {

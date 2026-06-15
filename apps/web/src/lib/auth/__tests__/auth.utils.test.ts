@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildAuthCallbackUrl,
   buildOAuthConsentReturnUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   getAuthOAuthRedirect,
-  getValidAuthRedirectUrl,
+  getAbsoluteAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
@@ -44,31 +45,117 @@ describe("getAuthOAuthRedirect", () => {
   });
 });
 
-describe("getValidAuthRedirectUrl", () => {
-  it("returns fallback when returnUrl is missing", () => {
-    expect(getValidAuthRedirectUrl(undefined, "/chat")).toBe("/chat");
+describe("buildAuthCallbackUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it("returns relative returnUrl when it is safe", () => {
+  it("anchors the callback to the current web origin so Core redirects back to the web app", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(buildAuthCallbackUrl("/auth/callback/signin", "google")).toBe(
+      "https://preprod.sokosumi.com/auth/callback/signin?provider=google",
+    );
+  });
+
+  it("includes the returnUrl when provided", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
     expect(
-      getValidAuthRedirectUrl("/accept-invitation/invite_123", "/chat"),
-    ).toBe("/accept-invitation/invite_123");
+      buildAuthCallbackUrl("/auth/callback/signup", "microsoft", "/chat"),
+    ).toBe(
+      "https://preprod.sokosumi.com/auth/callback/signup?provider=microsoft&returnUrl=%2Fchat",
+    );
   });
 
-  it("returns fallback for external origins", () => {
+  it("sanitizes external returnUrl to fallback", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
     expect(
-      getValidAuthRedirectUrl("https://evil.example/attack", "/chat"),
-    ).toBe("/chat");
+      buildAuthCallbackUrl(
+        "/auth/callback/signin",
+        "google",
+        "https://evil.example/attack",
+      ),
+    ).toBe(
+      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
+    );
   });
 
-  it("returns fallback for unsupported protocols", () => {
-    expect(getValidAuthRedirectUrl("javascript:alert('x')", "/chat")).toBe(
-      "/chat",
+  it("rejects a protocol-relative returnUrl to fallback", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(
+      buildAuthCallbackUrl("/auth/callback/signin", "google", "//evil.com"),
+    ).toBe(
+      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
+    );
+  });
+
+  it("falls back to a relative path when window is unavailable (SSR)", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(buildAuthCallbackUrl("/auth/callback/signin", "google")).toBe(
+      "/auth/callback/signin?provider=google",
     );
   });
 });
 
+describe("getAbsoluteAuthRedirectUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("anchors a safe relative path to the web origin", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe(
+      "https://preprod.sokosumi.com/chat",
+    );
+  });
+
+  it("anchors fallback when returnUrl is missing", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(getAbsoluteAuthRedirectUrl(undefined, "/")).toBe(
+      "https://preprod.sokosumi.com/",
+    );
+  });
+
+  it("returns fallback origin URL for external returnUrl", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(
+      getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
+    ).toBe("https://preprod.sokosumi.com/chat");
+  });
+
+  it("falls back to a relative path when window is unavailable (SSR)", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe("/chat");
+  });
+});
+
 describe("normalizeAuthReturnUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("returns / when returnUrl is missing", () => {
     expect(normalizeAuthReturnUrl(undefined)).toBe("/");
   });
@@ -84,7 +171,19 @@ describe("normalizeAuthReturnUrl", () => {
   });
 
   it("returns / for external returnUrl", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
     expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+  });
+
+  it("returns / for unsupported protocols", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
   });
 });
 

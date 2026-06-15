@@ -24,14 +24,14 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
+  buildAuthCallbackUrl,
   createAuthSessionGetter,
-  getValidAuthRedirectUrl,
+  getAbsoluteAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
 import { cn } from "@/lib/utils";
-import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 export type SocialButtonProviderId = "google" | "microsoft";
 export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
@@ -192,7 +192,7 @@ export default function SocialButtons({
     try {
       const result = await authClient.signIn.magicLink({
         email: trimmedEmail,
-        callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+        callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
       });
 
       if (result.error) {
