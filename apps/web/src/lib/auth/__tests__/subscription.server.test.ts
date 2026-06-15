@@ -3,36 +3,49 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const subscriptionUpgradeMock = vi.fn();
 const subscriptionBillingPortalMock = vi.fn();
 const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
+const headersMock = vi.fn();
+
+vi.mock("server-only", () => ({}));
+
+vi.mock("next/headers", () => ({
+  headers: (...args: unknown[]) => headersMock(...args),
+}));
 
 vi.mock("@/lib/actions/onboarding", () => ({
   clearSubscriptionOnboardingGateSessionCookie:
     clearSubscriptionOnboardingGateSessionCookieMock,
 }));
 
-vi.mock("@/lib/auth/auth.client", () => ({
-  subscription: {
-    billingPortal: (...args: unknown[]) =>
-      subscriptionBillingPortalMock(...args),
-    upgrade: (...args: unknown[]) => subscriptionUpgradeMock(...args),
-  },
+vi.mock("@/lib/auth/auth.server.client", () => ({
+  getAuthServerClient: () => ({
+    subscription: {
+      billingPortal: (...args: unknown[]) =>
+        subscriptionBillingPortalMock(...args),
+      upgrade: (...args: unknown[]) => subscriptionUpgradeMock(...args),
+    },
+  }),
+  resolveWebRequestOrigin: () => "https://preprod.sokosumi.com",
 }));
 
-describe("subscription client", () => {
+describe("subscription.server", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    headersMock.mockResolvedValue(
+      new Headers({ origin: "https://preprod.sokosumi.com" }),
+    );
   });
 
-  it("returns checkout url from authClient.subscription.upgrade for personal plans", async () => {
+  it("returns checkout url from Core auth subscription.upgrade for personal plans", async () => {
     subscriptionUpgradeMock.mockResolvedValue({
       data: { url: "https://checkout.stripe.com/session/test" },
       error: null,
     });
 
-    const { upgradePersonalSubscriptionClient } = await import(
-      "../subscription.client"
+    const { upgradePersonalSubscriptionServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await upgradePersonalSubscriptionClient({
+    const result = await upgradePersonalSubscriptionServer({
       plan: "starter",
     });
 
@@ -44,19 +57,21 @@ describe("subscription client", () => {
       ok: true,
     });
     expect(subscriptionUpgradeMock).toHaveBeenCalledWith({
-      cancelUrl: "/billing?tab=subscription&status=cancel",
+      cancelUrl:
+        "https://preprod.sokosumi.com/billing?tab=subscription&status=cancel",
       customerType: "user",
       disableRedirect: true,
       plan: "starter",
-      returnUrl: "/billing?tab=subscription",
-      successUrl: "/billing?tab=subscription&status=success",
+      returnUrl: "https://preprod.sokosumi.com/billing?tab=subscription",
+      successUrl:
+        "https://preprod.sokosumi.com/billing?tab=subscription&status=success",
     });
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
     ).toHaveBeenCalledTimes(1);
   });
 
-  it("maps authClient upgrade errors by status without leaking the raw message", async () => {
+  it("maps auth client upgrade errors by status without leaking the raw message", async () => {
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,
       error: {
@@ -66,30 +81,26 @@ describe("subscription client", () => {
       },
     });
 
-    const { upgradePersonalSubscriptionClient } = await import(
-      "../subscription.client"
+    const { upgradePersonalSubscriptionServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await upgradePersonalSubscriptionClient({
+    const result = await upgradePersonalSubscriptionServer({
       plan: "pro",
     });
 
-    // The raw Stripe / Better Auth message is never forwarded; the status is
-    // mapped to a CommonErrorCode the UI localizes.
     expect(result).toEqual({
       error: {
         code: "BAD_INPUT",
       },
       ok: false,
     });
-    // A failed checkout must not clear the onboarding gate, otherwise the gate
-    // is permanently suppressed without the user completing checkout.
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
     ).not.toHaveBeenCalled();
   });
 
-  it("maps a 401 authClient error to UNAUTHENTICATED so the login affordance fires", async () => {
+  it("maps a 401 auth client error to UNAUTHENTICATED so the login affordance fires", async () => {
     subscriptionUpgradeMock.mockResolvedValue({
       data: null,
       error: {
@@ -99,11 +110,11 @@ describe("subscription client", () => {
       },
     });
 
-    const { upgradePersonalSubscriptionClient } = await import(
-      "../subscription.client"
+    const { upgradePersonalSubscriptionServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await upgradePersonalSubscriptionClient({
+    const result = await upgradePersonalSubscriptionServer({
       plan: "pro",
     });
 
@@ -125,19 +136,17 @@ describe("subscription client", () => {
       },
     });
 
-    const { upgradeOrganizationSubscriptionClient } = await import(
-      "../subscription.client"
+    const { upgradeOrganizationSubscriptionServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await upgradeOrganizationSubscriptionClient({
+    const result = await upgradeOrganizationSubscriptionServer({
       organizationId: "org-1",
       plan: "pro",
       returnPath: "/organizations/acme",
       seats: 7,
     });
 
-    // The app-defined enterprise code is preserved (no raw message) so the org
-    // section can render a localized explanation.
     expect(result).toEqual({
       error: {
         code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
@@ -149,17 +158,17 @@ describe("subscription client", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("returns billing portal url from authClient.subscription.billingPortal", async () => {
+  it("returns billing portal url from Core auth subscription.billingPortal", async () => {
     subscriptionBillingPortalMock.mockResolvedValue({
       data: { url: "https://billing.stripe.com/session/test" },
       error: null,
     });
 
-    const { openPersonalBillingPortalClient } = await import(
-      "../subscription.client"
+    const { openPersonalBillingPortalServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await openPersonalBillingPortalClient({
+    const result = await openPersonalBillingPortalServer({
       returnPath: "/billing?tab=coupon",
     });
 
@@ -170,7 +179,7 @@ describe("subscription client", () => {
     expect(subscriptionBillingPortalMock).toHaveBeenCalledWith({
       customerType: "user",
       disableRedirect: true,
-      returnUrl: "/billing?tab=coupon",
+      returnUrl: "https://preprod.sokosumi.com/billing?tab=coupon",
     });
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
@@ -183,11 +192,11 @@ describe("subscription client", () => {
       error: null,
     });
 
-    const { upgradeOrganizationSubscriptionClient } = await import(
-      "../subscription.client"
+    const { upgradeOrganizationSubscriptionServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await upgradeOrganizationSubscriptionClient({
+    const result = await upgradeOrganizationSubscriptionServer({
       organizationId: "org-1",
       plan: "pro",
       returnPath: "/organizations/acme",
@@ -202,14 +211,16 @@ describe("subscription client", () => {
       ok: true,
     });
     expect(subscriptionUpgradeMock).toHaveBeenCalledWith({
-      cancelUrl: "/organizations/acme?status=cancel",
+      cancelUrl:
+        "https://preprod.sokosumi.com/organizations/acme?status=cancel",
       customerType: "organization",
       disableRedirect: true,
       plan: "pro",
       referenceId: "org-1",
-      returnUrl: "/organizations/acme",
+      returnUrl: "https://preprod.sokosumi.com/organizations/acme",
       seats: 7,
-      successUrl: "/organizations/acme?status=success",
+      successUrl:
+        "https://preprod.sokosumi.com/organizations/acme?status=success",
     });
     expect(
       clearSubscriptionOnboardingGateSessionCookieMock,
@@ -222,11 +233,11 @@ describe("subscription client", () => {
       error: null,
     });
 
-    const { openOrganizationBillingPortalClient } = await import(
-      "../subscription.client"
+    const { openOrganizationBillingPortalServer } = await import(
+      "../subscription.server"
     );
 
-    const result = await openOrganizationBillingPortalClient({
+    const result = await openOrganizationBillingPortalServer({
       organizationId: "org-1",
       returnPath: "/organizations/acme",
     });
@@ -239,7 +250,7 @@ describe("subscription client", () => {
       customerType: "organization",
       disableRedirect: true,
       referenceId: "org-1",
-      returnUrl: "/organizations/acme",
+      returnUrl: "https://preprod.sokosumi.com/organizations/acme",
     });
   });
 });

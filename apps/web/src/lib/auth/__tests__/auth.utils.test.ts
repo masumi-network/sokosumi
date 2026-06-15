@@ -6,6 +6,7 @@ import {
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
+  getAbsoluteRedirectUrlForOrigin,
   getAuthOAuthRedirect,
   normalizeAuthReturnUrl,
   waitForAuthSession,
@@ -174,6 +175,29 @@ describe("getAbsoluteAuthRedirectUrl", () => {
     vi.stubGlobal("window", undefined);
 
     expect(getAbsoluteAuthRedirectUrl("//evil.com", "/chat")).toBe("/chat");
+  });
+});
+
+describe("getAbsoluteRedirectUrlForOrigin", () => {
+  it("anchors a safe relative path to the provided origin", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "/billing?tab=subscription&status=success",
+      ),
+    ).toBe(
+      "https://preprod.sokosumi.com/billing?tab=subscription&status=success",
+    );
+  });
+
+  it("rejects external returnUrl values", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "https://evil.example/attack",
+        "/billing",
+      ),
+    ).toBe("https://preprod.sokosumi.com/billing");
   });
 });
 
