@@ -43,10 +43,13 @@ export function normalizeOrganizationLogo(
  * so response validation does not fail on legacy database rows.
  */
 export function sanitizeOrganizationLogoForApi(
-  logo: string | null | undefined,
+  logo: unknown,
 ): string | null {
   if (logo === "") {
     return "";
+  }
+  if (typeof logo !== "string") {
+    return null;
   }
 
   const normalized = normalizeOrganizationLogo(logo);

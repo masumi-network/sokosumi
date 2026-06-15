@@ -4,7 +4,7 @@ import { sanitizeOrganizationLogoForApi } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 const organizationLogoSchema = z.preprocess(
-  (logo) => sanitizeOrganizationLogoForApi(logo as string | null | undefined),
+  (logo) => sanitizeOrganizationLogoForApi(logo),
   z.union([z.httpUrl(), z.literal(""), z.null()]),
 );
 

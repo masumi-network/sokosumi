@@ -91,4 +91,14 @@ describe("sanitizeOrganizationLogoForApi", () => {
       "https://blob.example/logo.png",
     );
   });
+
+  it("maps null and undefined to null", () => {
+    assert.equal(sanitizeOrganizationLogoForApi(null), null);
+    assert.equal(sanitizeOrganizationLogoForApi(undefined), null);
+  });
+
+  it("maps non-string values to null without throwing", () => {
+    assert.equal(sanitizeOrganizationLogoForApi(42), null);
+    assert.equal(sanitizeOrganizationLogoForApi({ url: "x" }), null);
+  });
 });
