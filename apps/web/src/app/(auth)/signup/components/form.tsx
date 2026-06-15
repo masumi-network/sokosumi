@@ -18,8 +18,8 @@ import { authClient, signUp } from "@/lib/auth/auth.client";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
+  getAbsoluteAuthRedirectUrl,
   getAuthOAuthRedirect,
-  getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
@@ -81,7 +81,7 @@ export default function SignUpForm({
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
       onboardingCompleted: false,
-      callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+      callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
     });
 
     if (result.error) {

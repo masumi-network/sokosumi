@@ -20,8 +20,8 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
+  getAbsoluteAuthRedirectUrl,
   getAuthOAuthRedirect,
-  getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
@@ -81,7 +81,7 @@ export default function SignInForm({
       email: values.email,
       password: values.currentPassword,
       rememberMe: values.rememberMe,
-      callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+      callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
     });
 
     if (result.error) {
