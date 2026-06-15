@@ -101,4 +101,19 @@ describe("sanitizeOrganizationLogoForApi", () => {
     assert.equal(sanitizeOrganizationLogoForApi(42), null);
     assert.equal(sanitizeOrganizationLogoForApi({ url: "x" }), null);
   });
+
+  it("maps whitespace-only values to null", () => {
+    assert.equal(sanitizeOrganizationLogoForApi("   "), null);
+  });
+
+  it("maps non-http(s) schemes to null", () => {
+    assert.equal(
+      sanitizeOrganizationLogoForApi("data:image/png;base64,iVBORw0KGgo="),
+      null,
+    );
+  });
+
+  it("does not normalize non-lowercase ipfs schemes", () => {
+    assert.equal(sanitizeOrganizationLogoForApi("IPFS://acme-logo"), null);
+  });
 });

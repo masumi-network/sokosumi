@@ -56,13 +56,9 @@ export function sanitizeOrganizationLogoForApi(logo: unknown): string | null {
   }
 
   try {
-    const parsed = new URL(normalized);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      return normalized;
-    }
+    const { protocol } = new URL(normalized);
+    return protocol === "http:" || protocol === "https:" ? normalized : null;
   } catch {
     return null;
   }
-
-  return null;
 }
