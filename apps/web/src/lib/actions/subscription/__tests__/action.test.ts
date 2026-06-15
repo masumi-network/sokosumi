@@ -162,6 +162,56 @@ describe("subscription actions", () => {
     });
   });
 
+  it("maps organization_not_found kind to unauthorized regardless of message", async () => {
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new MockCoreApiRequestError("Some reworded organization error", {
+        kind: "organization_not_found",
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
+    });
+  });
+
+  it("rethrows unexpected core errors as internal server errors", async () => {
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new MockCoreApiRequestError("Unexpected core failure", {
+        status: 500,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Unexpected core failure",
+      },
+      ok: false,
+    });
+  });
+
   it("maps missing organization to unauthorized seat update errors", async () => {
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new MockCoreApiRequestError("Organization not found", {
