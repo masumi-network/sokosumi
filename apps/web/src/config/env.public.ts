@@ -21,6 +21,7 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_HANNAH_URL: z.url().default("https://hannah.sumike.ai"),
   NEXT_PUBLIC_MCP_URL: z.url().default("https://mcp.sokosumi.com"),
   NEXT_PUBLIC_CORE_APP_BASE_URL: z.url().optional(),
+  NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: z.stringbool().default(false),
   NEXT_PUBLIC_NETWORK: z
     .literal("Preprod")
     .or(z.literal("Mainnet"))
@@ -33,7 +34,7 @@ const envPublicConfigSchema = z.object({
     .number()
     .min(0)
     .default(100),
-  NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.coerce.boolean().default(false),
+  NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.stringbool().default(false),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
@@ -56,6 +57,8 @@ function validateEnv() {
     NEXT_PUBLIC_HANNAH_URL: process.env.NEXT_PUBLIC_HANNAH_URL,
     NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
     NEXT_PUBLIC_CORE_APP_BASE_URL: process.env.NEXT_PUBLIC_CORE_APP_BASE_URL,
+    NEXT_PUBLIC_USE_CORE_AUTH_CLIENT:
+      process.env.NEXT_PUBLIC_USE_CORE_AUTH_CLIENT,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
     NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
     NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF:

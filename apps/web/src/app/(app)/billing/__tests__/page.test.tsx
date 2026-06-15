@@ -48,7 +48,7 @@ vi.mock("@/config/env.secrets", () => ({
   }),
 }));
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 

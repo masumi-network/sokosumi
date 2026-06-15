@@ -8,7 +8,9 @@ const projectServiceMock = {
   listProjects: vi.fn(),
 };
 
-vi.mock("@/lib/auth/utils", () => ({
+// Mock only the session source and exercise the real `withSession` wrapper so
+// its auth guard (and forged-session override) is covered, not reimplemented.
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 

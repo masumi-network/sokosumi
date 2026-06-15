@@ -21,16 +21,16 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { requestMagicLinkSignIn } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
-import { emailSchema } from "@/lib/auth/data";
-import { cn } from "@/lib/utils";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
+  getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
+import { emailSchema } from "@/lib/auth/data";
+import { cn } from "@/lib/utils";
 import { buildAuthCallbackUrl } from "@/lib/utils/url";
 
 export type SocialButtonProviderId = "google" | "microsoft";
@@ -190,13 +190,13 @@ export default function SocialButtons({
     setIsRequestingMagicLink(true);
 
     try {
-      const result = await requestMagicLinkSignIn(
-        trimmedEmail,
-        effectiveReturnUrl,
-      );
+      const result = await authClient.signIn.magicLink({
+        email: trimmedEmail,
+        callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+      });
 
-      if (!result.ok) {
-        toast.error(result.error?.message ?? t("magicLinkError"));
+      if (result.error) {
+        toast.error(result.error.message ?? t("magicLinkError"));
         return;
       }
 

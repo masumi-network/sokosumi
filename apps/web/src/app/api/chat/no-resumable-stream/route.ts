@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 
 /**
  * Used by the chat client when `useChat` runs stream resume but no real

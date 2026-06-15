@@ -49,6 +49,7 @@ const envSecretsSchema = z.object({
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
   // 100%-off coupon used to issue admin credit grants free of charge.
   STRIPE_SUPPORT_COUPON: z.string().min(1),
@@ -69,6 +70,8 @@ const envSecretsSchema = z.object({
   SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
   // Postmark
+  POSTMARK_SERVER_ID: z.string().min(1),
+  POSTMARK_FROM_EMAIL: z.email(),
 
   // Vercel
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
@@ -94,6 +97,7 @@ const envSecretsSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
+  VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
   PAYMENT_API_KEY: z.string().min(1),
   PAYMENT_API_URL: z.url().default("https://payment.masumi.network/api/v1"),
@@ -103,13 +107,37 @@ const envSecretsSchema = z.object({
     .default("https://www.masumi.network/api/v1"),
 
   // Social Secrets
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+  MICROSOFT_CLIENT_ID: z.string().min(1),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1),
+
   // Better Auth Settings
   BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
+  BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
   BETTER_AUTH_SECRET: z.string().min(1),
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
+    .number()
+    .min(0)
+    .default(60 * 5), // 5 minutes
   BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: z.coerce
+    .number()
+    .min(172800)
+    .default(604800), // 7 days in seconds
+  BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: z.coerce
+    .number()
+    .min(86400)
+    .default(172800), // 2 days in seconds
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
+  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce
+    .number()
+    .min(1000)
+    .default(1000 * 10), // 10 seconds
 
   // ably keys
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
@@ -117,6 +145,9 @@ const envSecretsSchema = z.object({
 
   // analytics webhooks
   AGENT_HIRED_WEBHOOK: z.url().optional(),
+  USER_CREATED_WEBHOOK: z.url().optional(),
+  USER_UPDATED_WEBHOOK: z.url().optional(),
+  ACCOUNT_CREATED_WEBHOOK: z.url().optional(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

@@ -177,11 +177,6 @@ export async function getSubscriptionCatalog(): Promise<SubscriptionCatalog> {
   return await catalogCache;
 }
 
-/**
- * Adapts the catalog to the Better Auth stripe plugin's `plans` shape, ported
- * from the web app's `getBetterAuthSubscriptionPlans`
- * (`apps/web/src/lib/stripe/subscription-catalog.ts`).
- */
 export async function getBetterAuthSubscriptionPlans(): Promise<StripePlan[]> {
   const catalog = await getSubscriptionCatalog();
   const selfServePlans: PaidSubscriptionPlanName[] = [

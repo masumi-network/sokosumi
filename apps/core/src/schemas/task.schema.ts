@@ -82,7 +82,13 @@ export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");
 
 export const taskSchema = taskBaseSchema
   .extend({
-    share: taskShareSchema.nullable().openapi({ example: null }),
+    // Union-with-null instead of `taskShareSchema.nullable()`: `.nullable()` on a
+    // named `.openapi(...)` schema both leaks `| null` into the generated
+    // `TaskShare` type and makes the generated response transformer call the
+    // share date-converter unconditionally (crashing on a null share). The union
+    // form keeps `TaskShare` non-null and emits an `if (data.share)` guard.
+    // Mirrors `jobSchema.share`.
+    share: z.union([taskShareSchema, z.null()]).openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
   })
   .openapi("Task");

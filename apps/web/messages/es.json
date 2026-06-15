@@ -2668,6 +2668,10 @@
           "created": "Creada",
           "loadMore": "Cargar más",
           "loadError": "No se pudieron cargar las tareas."
+        },
+        "TaskDetail": {
+          "backToList": "Volver a tareas",
+          "personalWorkspace": "Espacio de trabajo personal"
         }
       }
     },

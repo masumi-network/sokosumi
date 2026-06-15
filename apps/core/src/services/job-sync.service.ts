@@ -409,14 +409,14 @@ async function finalizeJobSyncResult(
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      await dispatchFinalStatusNotification(updatedJob, newJobStatus);
+      void dispatchFinalStatusNotification(updatedJob, newJobStatus);
       break;
     case SokosumiJobStatus.INPUT_REQUIRED:
-      await dispatchInputRequiredNotification(updatedJob);
+      void dispatchInputRequiredNotification(updatedJob);
       break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      await dispatchJobFailureNotification(updatedJob);
+      void dispatchJobFailureNotification(updatedJob);
       break;
     default:
       break;

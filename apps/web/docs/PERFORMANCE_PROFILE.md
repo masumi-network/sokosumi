@@ -182,7 +182,7 @@ Ensure `getSessionOrRedirect` and any flag that calls `getSession()` use this ca
 | Waterfalls           | Root layout getLocale + getMessages     | MEDIUM   | `layout.tsx`                        |
 | Waterfalls           | Task detail session + getTranslations   | MEDIUM   | `tasks/[taskId]/page.tsx`           |
 | Waterfalls           | MCP page session + getTranslations      | LOW      | `mcp/page.tsx`                      |
-| Server               | No React.cache(getSession)              | HIGH     | `lib/auth/utils.ts`                 |
+| Server               | No React.cache(getSession)              | HIGH     | `lib/auth/auth.server.ts`                 |
 | Server               | taskManagerMenuEnabled calls getSession | HIGH     | `lib/flags/task-manager.ts`, layout |
 | Suspense             | Layout blocks full shell                | HIGH     | `(app)/layout.tsx`                  |
 | Bundle / third-party | Analytics not deferred                  | MEDIUM   | `layout.tsx`                        |

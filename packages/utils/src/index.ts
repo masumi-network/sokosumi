@@ -3,15 +3,10 @@ export {
   makeUserTasksChannelName,
 } from "./ably-channel.js";
 export {
-  betterAuthOrganizationAdditionalFields,
-  betterAuthUserAdditionalFields,
-} from "./better-auth-additional-fields.js";
-export {
   type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
-export { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "./better-auth-error-codes.js";
 export {
   type ResolveBetterAuthProductionUrlParams,
   type ResolveBetterAuthPublicBaseUrlParams,
@@ -43,7 +38,18 @@ export {
   IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,
   resolveIpfsOrHttpUrl,
+  sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
+export {
+  type AppLocale,
+  DEFAULT_LOCALE,
+  getEmailLocale,
+  LOCALE_COOKIE_NAME,
+  parseLocalePreference,
+  resolveLocaleFromAcceptLanguage,
+  resolveRequestLocale,
+  SUPPORTED_LOCALES,
+} from "./locale.js";
 export {
   escapeMarkdownLinkUrl,
   findMarkdownLinks,

@@ -31,12 +31,12 @@
     "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.6.17",
-    "@better-auth/i18n": "1.6.17",
-    "@better-auth/oauth-provider": "1.6.17",
-    "@better-auth/passkey": "1.6.17",
-    "@better-auth/prisma-adapter": "1.6.17",
-    "@better-auth/stripe": "1.6.17",
+    "@better-auth/api-key": "1.6.18",
+    "@better-auth/i18n": "1.6.18",
+    "@better-auth/oauth-provider": "1.6.18",
+    "@better-auth/passkey": "1.6.18",
+    "@better-auth/prisma-adapter": "1.6.18",
+    "@better-auth/stripe": "1.6.18",
     "@better-auth/utils": "0.4.1",
     "@hono/node-server": "2.0.4",
     "@hono/zod-openapi": "1.4.0",
@@ -52,12 +52,13 @@
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/net": "workspace:*",
     "@sokosumi/utils": "workspace:*",
+
     "@vercel/blob": "2.4.0",
     "@vercel/functions": "3.7.1",
     "@vercel/related-projects": "1.1.0",
     "ably": "2.22.1",
-    "ai": "6.0.202",
-    "better-auth": "1.6.17",
+    "ai": "6.0.205",
+    "better-auth": "1.6.18",
     "cron-parser": "5.5.0",
     "dotenv": "17.4.2",
     "hono": "4.12.25",
@@ -68,7 +69,7 @@
     "postmark": "4.0.7",
     "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
-    "stripe": "22.2.0",
+    "stripe": "22.2.1",
     "uuid": "14.0.0"
   },
   "devDependencies": {

@@ -2,7 +2,8 @@ import "server-only";
 
 import type { TaskStatus } from "@sokosumi/utils";
 
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { Task } from "@/lib/clients/generated/core/types.gen";
 
 /** A task row in the admin task list. */
 export interface AdminTaskListItem {
@@ -10,6 +11,22 @@ export interface AdminTaskListItem {
   name: string;
   status: TaskStatus;
   createdAt: Date;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  /** Null for tasks in a personal workspace. */
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+}
+
+/** Full task payload plus owner/organization context for admin views. */
+export interface AdminTaskDetail {
+  task: Task;
   user: {
     id: string;
     name: string;
@@ -53,5 +70,22 @@ export const adminTaskService = {
       total: result.meta.pagination.total,
       nextCursor: result.meta.pagination.nextCursor,
     };
+  },
+
+  async getTask(taskId: string): Promise<AdminTaskDetail | null> {
+    try {
+      const result = await coreClient.getAdminTask(taskId);
+
+      return {
+        task: result.data.task,
+        user: result.data.user,
+        organization: result.data.organization,
+      };
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 };

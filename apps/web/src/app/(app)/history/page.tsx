@@ -13,7 +13,7 @@ import {
 } from "@/app/history/utils/history-filters";
 import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { historyService } from "@/lib/services/history.service";
 

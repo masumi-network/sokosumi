@@ -1,7 +1,7 @@
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/utils/auth-redirect";
+import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
 
 import SocialSignupAutoInitiator from "../social-signup-auto-initiator";
 

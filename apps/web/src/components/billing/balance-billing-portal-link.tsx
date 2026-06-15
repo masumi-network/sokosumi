@@ -8,9 +8,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CommonErrorCode } from "@/lib/actions";
 import {
-  openOrganizationBillingPortal,
-  openPersonalBillingPortal,
-} from "@/lib/actions/subscription";
+  openOrganizationBillingPortalClient,
+  openPersonalBillingPortalClient,
+} from "@/lib/auth/subscription.client";
 
 interface BalanceBillingPortalLinkProps {
   baseReturnPath?: string;
@@ -56,11 +56,13 @@ export function BalanceBillingPortalLink({
     try {
       const resolvedReturnPath = resolveReturnPath();
       const result = organizationId
-        ? await openOrganizationBillingPortal({
+        ? await openOrganizationBillingPortalClient({
             organizationId,
             returnPath: resolvedReturnPath,
           })
-        : await openPersonalBillingPortal({ returnPath: resolvedReturnPath });
+        : await openPersonalBillingPortalClient({
+            returnPath: resolvedReturnPath,
+          });
 
       if (!result.ok) {
         switch (result.error.code) {

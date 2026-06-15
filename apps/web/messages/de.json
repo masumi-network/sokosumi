@@ -2668,6 +2668,10 @@
           "created": "Erstellt",
           "loadMore": "Mehr laden",
           "loadError": "Aufgaben konnten nicht geladen werden."
+        },
+        "TaskDetail": {
+          "backToList": "Zurück zu Aufgaben",
+          "personalWorkspace": "Persönlicher Workspace"
         }
       }
     },

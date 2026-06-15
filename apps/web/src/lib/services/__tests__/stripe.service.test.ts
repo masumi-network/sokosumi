@@ -8,6 +8,7 @@ const createCheckoutSessionMock = vi.fn();
 const updateCustomerEmailMock = vi.fn();
 const getPromotionCodeMock = vi.fn();
 const createPromotionCodeMock = vi.fn();
+const getUserByIdMock = vi.fn();
 const createMyStripeCustomerMock = vi.fn();
 const createOrganizationStripeCustomerMock = vi.fn();
 const getOrganizationStripeCustomerMock = vi.fn();
@@ -22,7 +23,7 @@ vi.mock("@/config/env.secrets", () => ({
   }),
 }));
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   verifyUserId: (...args: unknown[]) => verifyUserIdMock(...args),
 }));
 
@@ -36,6 +37,17 @@ vi.mock("@/lib/clients/stripe.client", () => ({
     createPromotionCode: (...args: unknown[]) =>
       createPromotionCodeMock(...args),
   },
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  userRepository: {
+    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+  },
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  __esModule: true,
+  default: {},
 }));
 
 vi.mock("@/lib/clients/core.client", () => {
@@ -322,5 +334,49 @@ describe("stripeService.syncOrganizationInvoiceEmailWithStripe", () => {
     );
 
     expect(result).toBe(false);
+  });
+});
+
+describe("stripeService.syncUserEmailWithStripe", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("updates the Stripe customer email from the local user record", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      stripeCustomerId: "cus_user",
+    });
+    updateCustomerEmailMock.mockResolvedValue({});
+
+    const { stripeService } = await import("../stripe.service");
+
+    const result = await stripeService.syncUserEmailWithStripe(
+      "user-1",
+      "new@example.com",
+    );
+
+    expect(result).toBe(true);
+    expect(updateCustomerEmailMock).toHaveBeenCalledWith(
+      "cus_user",
+      "new@example.com",
+    );
+  });
+
+  it("returns true when the user has no Stripe customer", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      stripeCustomerId: null,
+    });
+
+    const { stripeService } = await import("../stripe.service");
+
+    const result = await stripeService.syncUserEmailWithStripe(
+      "user-1",
+      "new@example.com",
+    );
+
+    expect(result).toBe(true);
+    expect(updateCustomerEmailMock).not.toHaveBeenCalled();
   });
 });

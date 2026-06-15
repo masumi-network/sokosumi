@@ -180,7 +180,14 @@ export const stripeClient = {
       {
         email: email ?? undefined,
       },
-      withIdempotencyKey(`${customerId}-${email ?? "null"}`, requestOptions),
+      {
+        // No fixed idempotency key: email updates are naturally last-write-wins,
+        // and a stable `${customerId}-${email}` key would make Stripe replay the
+        // cached response when an email is reused (e.g. A→B→A within the 24h
+        // idempotency window), silently skipping the real update.
+        ...requestOptions,
+        maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
+      },
     );
   },
 
@@ -246,6 +253,22 @@ export const stripeClient = {
         cancel_at_period_end: cancelAtPeriodEnd,
       },
       requestOptions,
+    );
+  },
+
+  /**
+   * Verify a Stripe webhook payload against the core endpoint's signing
+   * secret and parse it into a typed event. Throws when the signature is
+   * invalid or the payload is malformed.
+   */
+  async constructWebhookEvent(
+    payload: string,
+    signature: string,
+  ): Promise<Stripe.Event> {
+    return await stripe.webhooks.constructEventAsync(
+      payload,
+      signature,
+      getEnv().STRIPE_WEBHOOK_SECRET,
     );
   },
 

@@ -2699,6 +2699,10 @@
           "created": "Creata",
           "loadMore": "Carica altro",
           "loadError": "Impossibile caricare le attività."
+        },
+        "TaskDetail": {
+          "backToList": "Torna alle attività",
+          "personalWorkspace": "Spazio di lavoro personale"
         }
       }
     },

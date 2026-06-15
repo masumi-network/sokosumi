@@ -1,15 +1,13 @@
 import { MemberRole } from "@sokosumi/database";
 import type { SubscriptionPlanName } from "@sokosumi/utils";
-import { headers } from "next/headers";
 import { Suspense } from "react";
 import Stripe from "stripe";
 import {
-  type ActiveSubscription,
   type PaidSubscriptionPlanView,
   resolveCurrentPlanName,
 } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { auth } from "@/lib/auth/auth";
+import { listActiveSubscriptions } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 import { organizationSeatService, userService } from "@/lib/services";
@@ -133,20 +131,9 @@ export async function OnboardingDialogLoader({
   let personalCurrentPlan: ReturnType<typeof resolveCurrentPlanName> | null =
     null;
   if (subscriptionCheckoutMode !== "organization") {
-    let personalActiveSubscriptions: ActiveSubscription[] = [];
-    try {
-      personalActiveSubscriptions = (await auth.api.listActiveSubscriptions({
-        headers: await headers(),
-        query: {
-          customerType: "user",
-        },
-      })) as ActiveSubscription[];
-    } catch (error) {
-      console.error(
-        "Failed to load active subscriptions for onboarding",
-        error,
-      );
-    }
+    const personalActiveSubscriptions = await listActiveSubscriptions({
+      customerType: "user",
+    });
 
     personalCurrentPlan =
       resolveCurrentPlanName(personalActiveSubscriptions) ?? "free";

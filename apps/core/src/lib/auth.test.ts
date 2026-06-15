@@ -1,4 +1,16 @@
+import { MemberRole } from "@sokosumi/database";
+import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+interface AuthorizeReferenceConfig {
+  subscription: {
+    authorizeReference: (params: {
+      referenceId: string;
+      user: { id: string };
+      action?: string;
+    }) => Promise<boolean>;
+  };
+}
 
 const {
   adminPluginMock,
@@ -7,7 +19,10 @@ const {
   getBetterAuthPublicBaseUrlMock,
   getEnvMock,
   getBetterAuthProductionUrlMock,
+  getBetterAuthSubscriptionPlansMock,
   getWebAppBaseUrlMock,
+  hasConsumableEnterpriseContractMock,
+  handleSubscriptionDeletedEventMock,
   i18nPluginMock,
   jwtPluginMock,
   lastLoginMethodPluginMock,
@@ -16,33 +31,28 @@ const {
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
-  mapProfileToUserMock,
+  getMemberByUserIdAndOrganizationIdMock,
+  getMembersByOrganizationIdMock,
   passkeyPluginMock,
   postmarkSendEmailMock,
   prismaAdapterMock,
+  reconcileActiveStripeBackedSubscriptionMock,
   renderMagicLinkEmailMock,
-  renderOrganizationInvitationEmailMock,
-  renderResetPasswordEmailMock,
-  renderVerificationEmailMock,
   resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
-  stripeCreateOrganizationCustomerMock,
   stripeCreateUserCustomerMock,
+  stripeCreateOrganizationCustomerMock,
   stripePluginMock,
-  syncSeatsAndCreditsMock,
-  ensureCanAcceptInvitationMock,
-  getMembersByOrganizationIdMock,
-  getMemberByUserIdAndOrganizationIdMock,
-  getBetterAuthSubscriptionPlansMock,
-  syncUserEmailWithStripeMock,
+  uploadProfileImageMock,
   webhookCallAccountCreatedMock,
   webhookCallUserCreatedMock,
   webhookCallUserUpdatedMock,
+  ensureCanAcceptOrganizationInvitationMock,
+  syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
+  prepareStripeEmailSyncForUserUpdateMock,
+  handleUserUpdateStripeEmailSyncMock,
+  syncUserEmailWithStripeMock,
   workspaceUpsertMock,
-  stripeWebhookHandleEventMock,
-  getSessionFromCtxMock,
-  assertOrganizationChangeAllowedMock,
-  assertPersonalChangeAllowedMock,
 } = vi.hoisted(() => ({
   adminPluginMock: vi.fn(),
   apiKeyPluginMock: vi.fn(),
@@ -50,7 +60,10 @@ const {
   getBetterAuthPublicBaseUrlMock: vi.fn(),
   getEnvMock: vi.fn(),
   getBetterAuthProductionUrlMock: vi.fn(),
+  getBetterAuthSubscriptionPlansMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
+  hasConsumableEnterpriseContractMock: vi.fn(),
+  handleSubscriptionDeletedEventMock: vi.fn(),
   i18nPluginMock: vi.fn(),
   jwtPluginMock: vi.fn(),
   lastLoginMethodPluginMock: vi.fn(),
@@ -59,58 +72,48 @@ const {
   openAPIPluginMock: vi.fn(),
   organizationPluginMock: vi.fn(),
   magicLinkPluginMock: vi.fn(),
-  mapProfileToUserMock: vi.fn(),
+  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+  getMembersByOrganizationIdMock: vi.fn(),
   passkeyPluginMock: vi.fn(),
   postmarkSendEmailMock: vi.fn(),
   prismaAdapterMock: vi.fn(),
+  reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
   renderMagicLinkEmailMock: vi.fn(),
-  renderOrganizationInvitationEmailMock: vi.fn(),
-  renderResetPasswordEmailMock: vi.fn(),
-  renderVerificationEmailMock: vi.fn(),
   resolveActiveOrganizationIdForSessionMock: vi.fn(),
   sentryCaptureExceptionMock: vi.fn(),
-  stripeCreateOrganizationCustomerMock: vi.fn(),
   stripeCreateUserCustomerMock: vi.fn(),
+  stripeCreateOrganizationCustomerMock: vi.fn(),
   stripePluginMock: vi.fn(),
-  syncSeatsAndCreditsMock: vi.fn(),
-  ensureCanAcceptInvitationMock: vi.fn(),
-  getMembersByOrganizationIdMock: vi.fn(),
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
-  getBetterAuthSubscriptionPlansMock: vi.fn(),
-  syncUserEmailWithStripeMock: vi.fn(),
+  uploadProfileImageMock: vi.fn(),
   webhookCallAccountCreatedMock: vi.fn(),
   webhookCallUserCreatedMock: vi.fn(),
   webhookCallUserUpdatedMock: vi.fn(),
+  ensureCanAcceptOrganizationInvitationMock: vi.fn(),
+  syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
+  prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
+  handleUserUpdateStripeEmailSyncMock: vi.fn(),
+  syncUserEmailWithStripeMock: vi.fn(),
   workspaceUpsertMock: vi.fn(),
-  stripeWebhookHandleEventMock: vi.fn(),
-  getSessionFromCtxMock: vi.fn(),
-  assertOrganizationChangeAllowedMock: vi.fn(),
-  assertPersonalChangeAllowedMock: vi.fn(),
 }));
 
 function getDefaultEnv() {
   return {
     BETTER_AUTH_COOKIE_DOMAIN: undefined,
-    BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: 172800,
-    BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: 604800,
-    BETTER_AUTH_ORG_INVITATION_LIMIT: 100,
-    BETTER_AUTH_ORG_LIMIT: 100,
-    BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 10_000,
-    BETTER_AUTH_RP_ID: "sokosumi.com",
+    BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: 5_000,
+    BETTER_AUTH_RP_ID: "example.com",
     BETTER_AUTH_SECRET: "test-secret",
-    BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 300,
+    BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: 60,
     GOOGLE_CLIENT_ID: "google-client-id",
     GOOGLE_CLIENT_SECRET: "google-client-secret",
     MICROSOFT_CLIENT_ID: "microsoft-client-id",
     MICROSOFT_CLIENT_SECRET: "microsoft-client-secret",
     NETWORK: "Preprod",
     NODE_ENV: "production",
-    PASSWORD_MAX_LENGTH: 256,
-    PASSWORD_MIN_LENGTH: 8,
     POSTMARK_FROM_EMAIL: "no-reply@example.com",
     POSTMARK_SERVER_ID: "postmark-server-id",
     STRIPE_SECRET_KEY: "sk_test_123",
-    STRIPE_WEBHOOK_SECRET: "whsec_test_single",
+    STRIPE_WEBHOOK_SECRET: "whsec_test_123",
+    STRIPE_BA_WEBHOOK_SECRET: "whsec_ba_test_123",
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
   };
@@ -134,14 +137,6 @@ vi.mock("better-auth/plugins", () => ({
   organization: (...args: unknown[]) => organizationPluginMock(...args),
 }));
 
-vi.mock("@better-auth/api-key", () => ({
-  apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
-}));
-
-vi.mock("@better-auth/oauth-provider", () => ({
-  oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
-}));
-
 vi.mock("@better-auth/passkey", () => ({
   passkey: (...args: unknown[]) => passkeyPluginMock(...args),
 }));
@@ -150,41 +145,49 @@ vi.mock("@better-auth/stripe", () => ({
   stripe: (...args: unknown[]) => stripePluginMock(...args),
 }));
 
+vi.mock("@better-auth/api-key", () => ({
+  apiKey: (...args: unknown[]) => apiKeyPluginMock(...args),
+}));
+
+vi.mock("@better-auth/oauth-provider", () => ({
+  oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
+}));
+
 vi.mock("@better-auth/i18n", () => ({
   i18n: (...args: unknown[]) => i18nPluginMock(...args),
 }));
 
-vi.mock("@sentry/node", () => ({
-  captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
-}));
-
+// Keep the real APIError (the hooks throw it and tests assert its shape) but
+// reduce createAuthMiddleware to an identity wrapper so the terms guards can be
+// invoked directly with a plain context in unit tests.
 vi.mock("better-auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("better-auth/api")>();
   return {
     ...actual,
-    createAuthMiddleware: (handler: unknown) => handler,
-    getSessionFromCtx: (...args: unknown[]) => getSessionFromCtxMock(...args),
+    createAuthMiddleware: (callback: unknown) => callback,
   };
 });
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
+}));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
-    assertOrganizationSubscriptionChangeAllowed: (...args: unknown[]) =>
-      assertOrganizationChangeAllowedMock(...args),
-    assertPersonalSubscriptionChangeAllowed: (...args: unknown[]) =>
-      assertPersonalChangeAllowedMock(...args),
+    hasConsumableEnterpriseContract: (...args: unknown[]) =>
+      hasConsumableEnterpriseContractMock(...args),
   };
 });
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
-    getMembersByOrganizationId: (...args: unknown[]) =>
-      getMembersByOrganizationIdMock(...args),
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
+    getMembersByOrganizationId: (...args: unknown[]) =>
+      getMembersByOrganizationIdMock(...args),
   },
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
@@ -202,10 +205,10 @@ vi.mock("@/clients/postmark.client", () => ({
 
 vi.mock("@/clients/stripe.client", () => ({
   stripeClient: {
-    createOrganizationCustomer: (...args: unknown[]) =>
-      stripeCreateOrganizationCustomerMock(...args),
     createUserCustomer: (...args: unknown[]) =>
       stripeCreateUserCustomerMock(...args),
+    createOrganizationCustomer: (...args: unknown[]) =>
+      stripeCreateOrganizationCustomerMock(...args),
   },
 }));
 
@@ -223,41 +226,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { __prisma: true },
 }));
 
-vi.mock("@/helpers/profile-mapper", () => ({
-  mapProfileToUser: (...args: unknown[]) => mapProfileToUserMock(...args),
-}));
-
-vi.mock("@/services/auth-session.service", () => ({
-  authSessionService: {
-    resolveActiveOrganizationIdForSession: (...args: unknown[]) =>
-      resolveActiveOrganizationIdForSessionMock(...args),
-    syncUserEmailWithStripe: (...args: unknown[]) =>
-      syncUserEmailWithStripeMock(...args),
-  },
-}));
-
-vi.mock("@/services/organization-subscription-hooks.service", () => ({
-  organizationSubscriptionHooksService: {
-    ensureCanAcceptInvitation: (...args: unknown[]) =>
-      ensureCanAcceptInvitationMock(...args),
-    syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
-      syncSeatsAndCreditsMock(...args),
-  },
-}));
-
-vi.mock("@/services/stripe-subscription-lifecycle.service", () => ({
-  reconcileActiveStripeBackedSubscription: vi.fn(),
-}));
-
-vi.mock("@/services/stripe-webhook.service", () => ({
-  stripeWebhookService: {
-    handleEvent: (...args: unknown[]) => stripeWebhookHandleEventMock(...args),
-  },
-}));
-
-vi.mock("@/services/subscription-catalog.service", () => ({
-  getBetterAuthSubscriptionPlans: (...args: unknown[]) =>
-    getBetterAuthSubscriptionPlansMock(...args),
+vi.mock("@/lib/blob", () => ({
+  uploadProfileImage: (...args: unknown[]) => uploadProfileImageMock(...args),
 }));
 
 vi.mock("@/services/webhook.service", () => ({
@@ -271,99 +241,43 @@ vi.mock("@/services/webhook.service", () => ({
   },
 }));
 
+vi.mock("@/services/subscription-catalog.service", () => ({
+  getBetterAuthSubscriptionPlans: (...args: unknown[]) =>
+    getBetterAuthSubscriptionPlansMock(...args),
+}));
+
+vi.mock("@/services/stripe-backed-subscription.service", () => ({
+  handleSubscriptionDeletedEvent: (...args: unknown[]) =>
+    handleSubscriptionDeletedEventMock(...args),
+  reconcileActiveStripeBackedSubscription: (...args: unknown[]) =>
+    reconcileActiveStripeBackedSubscriptionMock(...args),
+}));
+
+vi.mock("@/services/preferred-organization.service", () => ({
+  resolveActiveOrganizationIdForSession: (...args: unknown[]) =>
+    resolveActiveOrganizationIdForSessionMock(...args),
+}));
+
+vi.mock("@/services/organization-subscription-auth.service", () => ({
+  ensureCanAcceptOrganizationInvitation: (...args: unknown[]) =>
+    ensureCanAcceptOrganizationInvitationMock(...args),
+  syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
+    syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
+}));
+
+vi.mock("@/services/stripe-user-email.service", () => ({
+  prepareStripeEmailSyncForUserUpdate: (...args: unknown[]) =>
+    prepareStripeEmailSyncForUserUpdateMock(...args),
+  handleUserUpdateStripeEmailSync: (...args: unknown[]) =>
+    handleUserUpdateStripeEmailSyncMock(...args),
+  syncUserEmailWithStripe: (...args: unknown[]) =>
+    syncUserEmailWithStripeMock(...args),
+}));
+
 vi.mock("@sokosumi/email", () => ({
   renderMagicLinkEmail: (...args: unknown[]) =>
     renderMagicLinkEmailMock(...args),
-  renderOrganizationInvitationEmail: (...args: unknown[]) =>
-    renderOrganizationInvitationEmailMock(...args),
-  renderResetPasswordEmail: (...args: unknown[]) =>
-    renderResetPasswordEmailMock(...args),
-  renderVerificationEmail: (...args: unknown[]) =>
-    renderVerificationEmailMock(...args),
 }));
-
-interface BetterAuthConfig {
-  advanced: {
-    cookiePrefix?: string;
-    crossSubDomainCookies?: {
-      domain: string;
-      enabled: true;
-    };
-  };
-  databaseHooks: {
-    account: {
-      create: {
-        after: (account: {
-          providerId: string;
-          userId: string;
-        }) => Promise<void>;
-      };
-    };
-    session: {
-      create: {
-        before: (session: { userId: string }) => Promise<{
-          data: Record<string, unknown>;
-        }>;
-      };
-    };
-    user: {
-      create: {
-        before: (user: { email: string; id: string; name: string }) => Promise<{
-          data: { email: string; id: string; name: string };
-        }>;
-        after: (user: {
-          email: string;
-          id: string;
-          name: string;
-        }) => Promise<void>;
-      };
-      update: {
-        after: (user: {
-          email: string;
-          id: string;
-          name: string;
-        }) => Promise<void>;
-      };
-    };
-  };
-  disabledPaths?: string[];
-  emailAndPassword: {
-    maxPasswordLength: number;
-    minPasswordLength: number;
-    sendResetPassword: (
-      data: { url: string; user: { email: string; name: string } },
-      request?: Request,
-    ) => Promise<void>;
-  };
-  emailVerification: {
-    autoSignInAfterVerification: boolean;
-    expiresIn: number;
-    sendOnSignIn: boolean;
-    sendOnSignUp: boolean;
-    sendVerificationEmail: (
-      data: { url: string; user: { email: string; name: string } },
-      request?: Request,
-    ) => Promise<void>;
-  };
-  hooks: {
-    before: unknown;
-    after: unknown;
-  };
-  plugins: unknown[];
-  session: {
-    cookieCache?: { enabled: boolean; maxAge: number };
-    storeSessionInDatabase?: boolean;
-  };
-  socialProviders: {
-    google: { clientId: string; mapProfileToUser: unknown };
-    microsoft: { clientId: string; mapProfileToUser: unknown };
-  };
-}
-
-function getBetterAuthConfig(): BetterAuthConfig {
-  const [[config]] = betterAuthMock.mock.calls as Array<[BetterAuthConfig]>;
-  return config;
-}
 
 describe("core auth config", () => {
   beforeEach(() => {
@@ -384,155 +298,664 @@ describe("core auth config", () => {
     openAPIPluginMock.mockReturnValue("openapi-plugin");
     organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
-    stripePluginMock.mockReturnValue("stripe-plugin");
+    reconcileActiveStripeBackedSubscriptionMock.mockResolvedValue(undefined);
     postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     renderMagicLinkEmailMock.mockResolvedValue({
       html: "<html>magic link</html>",
       subject: "Sokosumi - Sign in to your account",
     });
-    renderOrganizationInvitationEmailMock.mockResolvedValue({
-      html: "<html>invite</html>",
-      subject: "Sokosumi - You have been invited",
-    });
-    renderResetPasswordEmailMock.mockResolvedValue({
-      html: "<html>reset</html>",
-      subject: "Sokosumi - Reset your password",
-    });
-    renderVerificationEmailMock.mockResolvedValue({
-      html: "<html>verify</html>",
-      subject: "Sokosumi - Verify your email",
-    });
-    resolveActiveOrganizationIdForSessionMock.mockResolvedValue(null);
     sentryCaptureExceptionMock.mockReset();
-    stripeCreateOrganizationCustomerMock.mockResolvedValue({ id: "cus_org" });
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
+    uploadProfileImageMock.mockResolvedValue("https://blob.example/avatar.png");
+    webhookCallAccountCreatedMock.mockResolvedValue(undefined);
+    webhookCallUserCreatedMock.mockResolvedValue(undefined);
+    webhookCallUserUpdatedMock.mockResolvedValue(undefined);
+    stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     betterAuthMock.mockReturnValue({ api: {}, handler: vi.fn() });
     getBetterAuthProductionUrlMock.mockReturnValue("https://example.com/auth");
+    getBetterAuthSubscriptionPlansMock.mockResolvedValue([]);
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+    handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
+    stripeCreateOrganizationCustomerMock.mockResolvedValue({
+      id: "cus_org_123",
+    });
+    ensureCanAcceptOrganizationInvitationMock.mockResolvedValue(undefined);
+    syncLocalFreeSeatsAndCreditsForCurrentMembersMock.mockResolvedValue(
+      undefined,
+    );
+    prepareStripeEmailSyncForUserUpdateMock.mockResolvedValue(undefined);
+    handleUserUpdateStripeEmailSyncMock.mockResolvedValue(undefined);
+    syncUserEmailWithStripeMock.mockResolvedValue(undefined);
   });
 
-  it("registers all expected plugins", async () => {
+  it("configures Google and Microsoft social providers for auth parity", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          socialProviders: {
+            google: {
+              clientId: string;
+              clientSecret: string;
+              overrideUserInfoOnSignIn: boolean;
+              mapProfileToUser: unknown;
+            };
+            microsoft: {
+              clientId: string;
+              clientSecret: string;
+              overrideUserInfoOnSignIn: boolean;
+              mapProfileToUser: unknown;
+            };
+          };
+          account: {
+            accountLinking: {
+              enabled: boolean;
+              trustedProviders: string[];
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(config.socialProviders.google).toEqual({
+      clientId: "google-client-id",
+      clientSecret: "google-client-secret",
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser: expect.any(Function),
+    });
+    expect(config.socialProviders.microsoft).toEqual({
+      clientId: "microsoft-client-id",
+      clientSecret: "microsoft-client-secret",
+      overrideUserInfoOnSignIn: true,
+      mapProfileToUser: expect.any(Function),
+    });
+    expect(config.socialProviders.google.mapProfileToUser).toBe(
+      config.socialProviders.microsoft.mapProfileToUser,
+    );
+    expect(config.account.accountLinking).toEqual({
+      enabled: true,
+      trustedProviders: ["google", "microsoft"],
+    });
+  });
+
+  it("maps social profile pictures to user fields", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          socialProviders: {
+            google: {
+              mapProfileToUser: (profile: {
+                name: string;
+                picture: string;
+              }) => Promise<{ name: string; image?: string | null }>;
+            };
+          };
+        },
+      ]
+    >;
+
+    const mapProfileToUser = config.socialProviders.google.mapProfileToUser;
+
+    await expect(
+      mapProfileToUser({
+        name: "Andreas",
+        picture: "https://cdn.example.com/avatar.png",
+      }),
+    ).resolves.toEqual({
+      name: "Andreas",
+      image: "https://cdn.example.com/avatar.png",
+    });
+
+    const dataUri =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    await expect(
+      mapProfileToUser({
+        name: "Andreas",
+        picture: dataUri,
+      }),
+    ).resolves.toEqual({
+      name: "Andreas",
+      image: "https://blob.example/avatar.png",
+    });
+    expect(uploadProfileImageMock).toHaveBeenCalledWith(dataUri);
+
+    await expect(
+      mapProfileToUser({
+        name: "Andreas",
+        picture: "",
+      }),
+    ).resolves.toEqual({
+      name: "Andreas",
+      image: undefined,
+    });
+  });
+
+  it("falls back when social profile mapping fails", async () => {
+    uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          socialProviders: {
+            google: {
+              mapProfileToUser: (profile: {
+                name: string;
+                picture: string;
+              }) => Promise<{ name: string; image?: string | null }>;
+            };
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.socialProviders.google.mapProfileToUser({
+        name: "Andreas",
+        picture: "data:image/png;base64,invalid",
+      }),
+    ).resolves.toEqual({
+      name: "Andreas",
+      image: undefined,
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it("fires account-created webhook when a social account is linked", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            account: {
+              create: {
+                after: (account: {
+                  userId: string;
+                  providerId: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.account.create.after({
+      userId: "user_123",
+      providerId: "google",
+    });
+
+    expect(webhookCallAccountCreatedMock).toHaveBeenCalledWith(
+      "user_123",
+      "google",
+    );
+  });
+
+  it("registers the passkey plugin with the Sokosumi relying party configuration", async () => {
+    await import("./auth");
+
+    expect(passkeyPluginMock).toHaveBeenCalledWith({
+      rpID: "example.com",
+      rpName: "Sokosumi",
+    });
+  });
+
+  it("configures lastLoginMethod with the computed cookie name", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NETWORK: "Mainnet",
+      VERCEL_ENV: "production",
+    });
+
+    await import("./auth");
+
+    expect(lastLoginMethodPluginMock).toHaveBeenCalledWith({
+      cookieName: "sokosumi.last_used_login_method",
+    });
+  });
+
+  it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          stripeWebhookSecret: string;
+          subscription: {
+            getCheckoutSessionParams: () => Promise<{
+              params?: {
+                billing_address_collection?: string;
+                customer_update?: {
+                  address?: string;
+                  name?: string;
+                };
+                tax_id_collection?: {
+                  enabled: boolean;
+                };
+              };
+            }>;
+          };
+        },
+      ]
+    >;
+
+    expect(config.stripeWebhookSecret).toBe("whsec_ba_test_123");
+
+    const sessionParams = await config.subscription.getCheckoutSessionParams();
+
+    expect(sessionParams).toEqual({
+      params: {
+        billing_address_collection: "required",
+        customer_update: {
+          address: "auto",
+          name: "auto",
+        },
+        tax_id_collection: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
+  it("handles customer.subscription.deleted via the Stripe webhook handlers", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          onEvent: (event: {
+            data: {
+              object: {
+                id: string;
+              };
+            };
+            id: string;
+            type: string;
+          }) => Promise<void>;
+        },
+      ]
+    >;
+
+    await config.onEvent({
+      data: {
+        object: {
+          id: "sub_123",
+        },
+      },
+      id: "evt_123",
+      type: "customer.subscription.deleted",
+    });
+
+    expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith({
+      id: "sub_123",
+    });
+  });
+
+  it.each([
+    "onSubscriptionCreated",
+    "onSubscriptionUpdate",
+  ] as const)("reconciles local free rows from Better Auth subscription callback %s", async (callbackName) => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [
+        {
+          subscription: {
+            onSubscriptionCreated: (params: {
+              event: {
+                id: string;
+                type: string;
+              };
+              subscription: {
+                id: string;
+                referenceId: string;
+                stripeSubscriptionId?: string | null;
+              };
+            }) => Promise<void>;
+            onSubscriptionUpdate: (params: {
+              event: {
+                id: string;
+                type: string;
+              };
+              subscription: {
+                id: string;
+                referenceId: string;
+                stripeSubscriptionId?: string | null;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const subscription = {
+      id: "sub_local_enterprise",
+      referenceId: "org-enterprise",
+      stripeSubscriptionId: "sub_enterprise",
+    };
+
+    await config.subscription[callbackName]({
+      event: {
+        id: "evt_enterprise",
+        type:
+          callbackName === "onSubscriptionCreated"
+            ? "customer.subscription.created"
+            : "customer.subscription.updated",
+      },
+      subscription,
+    });
+
+    expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
+      subscription,
+    );
+  });
+
+  it("denies subscription management for non-members", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(false);
+
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_123",
+      { __prisma: true },
+    );
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it("denies subscription management for members without owner or admin role", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.MEMBER,
+    });
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(false);
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    MemberRole.OWNER,
+    MemberRole.ADMIN,
+  ] as const)("allows subscription management for %s without an enterprise contract", async (role) => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({ role });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(false);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).resolves.toBe(true);
+
+    expect(hasConsumableEnterpriseContractMock).toHaveBeenCalledWith(
+      "org_123",
+      { __prisma: true },
+    );
+  });
+
+  it("throws enterprise exclusivity error when upgrading an org with a consumable enterprise contract", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(true);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "upgrade-subscription",
+      }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: {
+        code: "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE",
+        message: ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+      },
+    });
+  });
+
+  it("allows non-upgrade actions even with a consumable enterprise contract", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    hasConsumableEnterpriseContractMock.mockResolvedValue(true);
+
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [AuthorizeReferenceConfig]
+    >;
+
+    await expect(
+      config.subscription.authorizeReference({
+        referenceId: "org_123",
+        user: { id: "user_123" },
+        action: "cancel-subscription",
+      }),
+    ).resolves.toBe(true);
+    expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
+  });
+
+  it("registers the Better Auth admin plugin", async () => {
     await import("./auth");
 
     expect(betterAuthMock).toHaveBeenCalledTimes(1);
-    const config = getBetterAuthConfig();
+    expect(adminPluginMock).toHaveBeenCalledWith();
 
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ plugins: unknown[] }]
+    >;
+
+    expect(config.plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
+  });
+
+  it("uses basePath /auth and registers core auth plugins", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          basePath: string;
+          plugins: unknown[];
+        },
+      ]
+    >;
+
+    expect(config.basePath).toBe("/auth");
     expect(config.plugins).toEqual(
       expect.arrayContaining([
         "admin-plugin",
         "api-key-plugin",
         "jwt-plugin",
         "magic-link-plugin",
+        "i18n-plugin",
+        "openapi-plugin",
+        "organization-plugin",
         "passkey-plugin",
         "last-login-method-plugin",
         "oauth-provider-plugin",
         "oauth-proxy-plugin",
-        "organization-plugin",
-        "i18n-plugin",
-        "openapi-plugin",
         "stripe-plugin",
       ]),
     );
-  });
-
-  it("does not disable any auth endpoints (web's disabledPaths is dropped: the web facade calls them over HTTP)", async () => {
-    await import("./auth");
-
-    expect(getBetterAuthConfig().disabledPaths).toBeUndefined();
-  });
-
-  it("enables the session cookie cache with the configured max age", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    expect(config.session.cookieCache).toEqual({
-      enabled: true,
-      maxAge: 300,
-    });
-    expect(config.session.storeSessionInDatabase).toBe(true);
-  });
-
-  it("configures Google and Microsoft social providers with the profile mapper", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    expect(config.socialProviders.google.clientId).toBe("google-client-id");
-    expect(config.socialProviders.microsoft.clientId).toBe(
-      "microsoft-client-id",
+    expect(apiKeyPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        configId: "default",
+        references: "user",
+        enableMetadata: true,
+        enableSessionForAPIKeys: true,
+      }),
     );
-    expect(config.socialProviders.google.mapProfileToUser).toEqual(
-      expect.any(Function),
-    );
-  });
-
-  it("enforces password length limits from env", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    expect(config.emailAndPassword.minPasswordLength).toBe(8);
-    expect(config.emailAndPassword.maxPasswordLength).toBe(256);
-  });
-
-  it("configures email verification semantics from web", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    expect(config.emailVerification.sendOnSignUp).toBe(true);
-    expect(config.emailVerification.sendOnSignIn).toBe(true);
-    expect(config.emailVerification.autoSignInAfterVerification).toBe(true);
-    expect(config.emailVerification.expiresIn).toBe(172800);
-  });
-
-  it("configures the passkey plugin with the relying-party id", async () => {
-    await import("./auth");
-
-    expect(passkeyPluginMock).toHaveBeenCalledWith({
-      rpID: "sokosumi.com",
-      rpName: "Sokosumi",
+    expect(jwtPluginMock).toHaveBeenCalledWith({
+      disableSettingJwtHeader: true,
     });
   });
 
-  it("delegates every stripe plugin event to the webhook service", async () => {
+  it("uses explicit Sokosumi app trustedOrigins in production", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "production",
+    });
+
     await import("./auth");
 
-    const [[config]] = stripePluginMock.mock.calls as Array<
-      [{ onEvent: (event: unknown) => Promise<void> }]
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ trustedOrigins: string[] }]
     >;
 
-    const event = { id: "evt_1", type: "invoice.paid" };
-    await config.onEvent(event);
-
-    expect(stripeWebhookHandleEventMock).toHaveBeenCalledWith(event);
+    expect(config.trustedOrigins).toEqual([
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://*.preview.sokosumi.com",
+    ]);
   });
 
-  it("configures the stripe plugin with the single webhook secret and no customer-on-signup", async () => {
+  it("allows localhost trustedOrigins in development only", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "development",
+    });
+
     await import("./auth");
 
-    const [[config]] = stripePluginMock.mock.calls as Array<
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ trustedOrigins: string[] }]
+    >;
+
+    expect(config.trustedOrigins).toEqual([
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://*.preview.sokosumi.com",
+      "http://localhost:*",
+    ]);
+  });
+
+  it("uses uuid database ids and database-backed rate limits", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
       [
         {
-          createCustomerOnSignUp: boolean;
-          stripeWebhookSecret: string;
-          subscription: { enabled: boolean };
+          advanced: {
+            database: {
+              generateId: string;
+            };
+          };
+          experimental: {
+            joins: boolean;
+          };
+          rateLimit: {
+            storage: string;
+          };
         },
       ]
     >;
 
-    expect(config.stripeWebhookSecret).toBe("whsec_test_single");
-    expect(config.createCustomerOnSignUp).toBe(false);
-    expect(config.subscription.enabled).toBe(true);
+    expect(config.advanced.database.generateId).toBe("uuid");
+    expect(config.experimental.joins).toBe(true);
+    expect(config.rateLimit.storage).toBe("database");
   });
 
-  it("configures the magic link plugin with web's semantics", async () => {
+  it("defines user and organization additional fields for auth parity", async () => {
     await import("./auth");
 
-    const [[config]] = magicLinkPluginMock.mock.calls as Array<
-      [{ expiresIn: number; storeToken: string; sendMagicLink: unknown }]
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          user: {
+            additionalFields: Record<string, { type: string }>;
+          };
+        },
+      ]
     >;
 
-    expect(config.expiresIn).toBe(600);
-    expect(config.storeToken).toBe("hashed");
+    expect(Object.keys(config.user.additionalFields)).toEqual(
+      expect.arrayContaining([
+        "termsAccepted",
+        "marketingOptIn",
+        "notificationsOptIn",
+        "logo",
+        "metadata",
+        "stripeCustomerId",
+        "onboardingCompleted",
+      ]),
+    );
+
+    const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          schema: {
+            organization: {
+              additionalFields: Record<string, { input?: boolean }>;
+            };
+          };
+        },
+      ]
+    >;
+
+    expect(organizationConfig.schema.organization.additionalFields).toEqual({
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+        input: false,
+      },
+    });
+  });
+
+  it("configures the magic link plugin", async () => {
+    await import("./auth");
+
+    expect(magicLinkPluginMock).toHaveBeenCalledTimes(1);
+
+    const [[config]] = magicLinkPluginMock.mock.calls as Array<
+      [{ sendMagicLink: unknown }]
+    >;
+
     expect(config.sendMagicLink).toEqual(expect.any(Function));
   });
 
@@ -548,6 +971,30 @@ describe("core auth config", () => {
     });
   });
 
+  it("enables Better Auth cookie cache for core sessions", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          session: {
+            cookieCache?: {
+              enabled: boolean;
+              maxAge: number;
+            };
+            storeSessionInDatabase?: boolean;
+          };
+        },
+      ]
+    >;
+
+    expect(config.session.cookieCache).toEqual({
+      enabled: true,
+      maxAge: 60,
+    });
+    expect(config.session.storeSessionInDatabase).toBe(true);
+  });
+
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
@@ -556,7 +1003,20 @@ describe("core auth config", () => {
 
     await import("./auth");
 
-    const config = getBetterAuthConfig();
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
     expect(config.advanced.crossSubDomainCookies).toBeUndefined();
     expect(config.advanced.cookiePrefix).toBe("sokosumi-localhost-preprod");
   });
@@ -574,7 +1034,20 @@ describe("core auth config", () => {
 
     await import("./auth");
 
-    const config = getBetterAuthConfig();
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
     expect(config.advanced.crossSubDomainCookies).toEqual({
       enabled: true,
       domain: "preview.sokosumi.com",
@@ -595,7 +1068,17 @@ describe("core auth config", () => {
 
     await import("./auth");
 
-    expect(getBetterAuthConfig().advanced.cookiePrefix).toBe("sokosumi");
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi");
   });
 
   it("uses the configured cookie domain for previews when provided", async () => {
@@ -615,7 +1098,20 @@ describe("core auth config", () => {
 
     await import("./auth");
 
-    const config = getBetterAuthConfig();
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+            crossSubDomainCookies?: {
+              domain: string;
+              enabled: true;
+            };
+          };
+        },
+      ]
+    >;
+
     expect(config.advanced.cookiePrefix).toBe(
       "sokosumi-preview-mainnet-feature-123",
     );
@@ -638,12 +1134,20 @@ describe("core auth config", () => {
 
     await import("./auth");
 
-    expect(getBetterAuthConfig().advanced.cookiePrefix).toBe(
-      "sokosumi-preview-preprod",
-    );
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          advanced: {
+            cookiePrefix?: string;
+          };
+        },
+      ]
+    >;
+
+    expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-preprod");
   });
 
-  it("resolves the magic-link email locale from the request", async () => {
+  it("prefers the locale cookie over accept-language for magic-link emails", async () => {
     await import("./auth");
 
     const [[config]] = magicLinkPluginMock.mock.calls as Array<
@@ -689,7 +1193,6 @@ describe("core auth config", () => {
       },
     );
 
-    // pt-BR is unsupported → Accept-Language german wins
     expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
       locale: "de",
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
@@ -705,125 +1208,38 @@ describe("core auth config", () => {
     });
   });
 
-  it("sends the reset-password email via Postmark", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    await config.emailAndPassword.sendResetPassword({
-      url: "https://example.com/reset?token=abc",
-      user: { email: "jane@example.com", name: "Jane" },
-    });
-
-    expect(renderResetPasswordEmailMock).toHaveBeenCalledWith({
-      locale: "en",
-      name: "Jane",
-      resetLink: "https://example.com/reset?token=abc",
-    });
-    expect(postmarkSendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        To: "jane@example.com",
-        Tag: "reset-password",
-        MessageStream: "authentications",
-      }),
-    );
-  });
-
-  it("sends the verification email via Postmark", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    await config.emailVerification.sendVerificationEmail({
-      url: "https://example.com/verify?token=abc",
-      user: { email: "jane@example.com", name: "Jane" },
-    });
-
-    expect(renderVerificationEmailMock).toHaveBeenCalledWith({
-      locale: "en",
-      name: "Jane",
-      verificationLink: "https://example.com/verify?token=abc",
-    });
-    expect(postmarkSendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        To: "jane@example.com",
-        Tag: "verification-email",
-        MessageStream: "authentications",
-      }),
-    );
-  });
-
-  it("sets the preferred organization on session create", async () => {
-    resolveActiveOrganizationIdForSessionMock.mockResolvedValue("org_42");
-
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    const result = await config.databaseHooks.session.create.before({
-      userId: "user_123",
-    });
-
-    expect(result).toEqual({
-      data: {
-        userId: "user_123",
-        activeOrganizationId: "org_42",
-      },
-    });
-  });
-
-  it("keeps the session unchanged when preferred-organization resolution fails", async () => {
-    resolveActiveOrganizationIdForSessionMock.mockRejectedValue(
-      new Error("db down"),
-    );
-
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    const result = await config.databaseHooks.session.create.before({
-      userId: "user_123",
-    });
-
-    expect(result).toEqual({ data: { userId: "user_123" } });
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: { userId: "user_123" },
-      tags: { context: "session_create_preferred_organization" },
-    });
-  });
-
-  it("calls the account-created webhook from the account hook", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    await config.databaseHooks.account.create.after({
-      providerId: "google",
-      userId: "user_123",
-    });
-
-    expect(webhookCallAccountCreatedMock).toHaveBeenCalledWith(
-      "user_123",
-      "google",
-    );
-  });
-
-  it("calls the user webhooks from the user hooks", async () => {
-    await import("./auth");
-
-    const config = getBetterAuthConfig();
-    const user = {
-      email: "jane@example.com",
-      id: "user_123",
-      name: "Jane",
-    };
-
-    await config.databaseHooks.user.create.after(user);
-    expect(webhookCallUserCreatedMock).toHaveBeenCalledWith(user);
-
-    await config.databaseHooks.user.update.after(user);
-    expect(webhookCallUserUpdatedMock).toHaveBeenCalledWith(user);
-  });
-
   it("stores the email prefix when a new user is created without a name", async () => {
     await import("./auth");
 
-    const config = getBetterAuthConfig();
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                before: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<{
+                  data: {
+                    email: string;
+                    id: string;
+                    name: string;
+                  };
+                }>;
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
     const normalizedCreate = await config.databaseHooks.user.create.before({
       email: " magic@example.com ",
       id: "user_123",
@@ -851,12 +1267,109 @@ describe("core auth config", () => {
     });
   });
 
+  it("falls back to the full email when the local part is empty", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                before: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<{
+                  data: {
+                    email: string;
+                    id: string;
+                    name: string;
+                  };
+                }>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const normalizedCreate = await config.databaseHooks.user.create.before({
+      email: "@example.com",
+      id: "user_123",
+      name: "",
+    });
+
+    expect(normalizedCreate).toEqual({
+      data: {
+        email: "@example.com",
+        id: "user_123",
+        name: "@example.com",
+      },
+    });
+  });
+
+  it("creates a Stripe customer when a new user is created", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
+      tx: { __prisma: true },
+      userId: "user_123",
+    });
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: "andreas@example.com",
+      name: "Andreas",
+      userId: "user_123",
+    });
+  });
+
   it("reports workspace creation failures to Sentry without blocking user creation", async () => {
     workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
 
     await import("./auth");
 
-    const config = getBetterAuthConfig();
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
     await config.databaseHooks.user.create.after({
       email: "andreas@example.com",
       id: "user_123",
@@ -873,7 +1386,11 @@ describe("core auth config", () => {
         context: "workspace_user_creation",
       },
     });
-    expect(stripeCreateUserCustomerMock).toHaveBeenCalled();
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: "andreas@example.com",
+      name: "Andreas",
+      userId: "user_123",
+    });
   });
 
   it("reports Stripe customer creation failures to Sentry", async () => {
@@ -883,7 +1400,24 @@ describe("core auth config", () => {
 
     await import("./auth");
 
-    const config = getBetterAuthConfig();
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
     await config.databaseHooks.user.create.after({
       email: "andreas@example.com",
       id: "user_123",
@@ -891,6 +1425,11 @@ describe("core auth config", () => {
     });
     await Promise.resolve();
 
+    expect(workspaceUpsertMock).toHaveBeenCalledWith({
+      tx: { __prisma: true },
+      userId: "user_123",
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
       extra: {
         email: "andreas@example.com",
@@ -903,52 +1442,48 @@ describe("core auth config", () => {
     });
   });
 
-  it("wires the organization subscription hooks", async () => {
+  it("reports organization workspace creation failures to Sentry", async () => {
+    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
+
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
       [
         {
           organizationHooks: {
-            afterAcceptInvitation: (input: {
-              organization: { id: string };
-            }) => Promise<void>;
-            afterAddMember: (input: {
-              organization: { id: string };
-            }) => Promise<void>;
-            beforeAcceptInvitation: (input: {
-              organization: { id: string };
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+              };
             }) => Promise<void>;
           };
-          invitationLimit: number;
-          organizationLimit: number;
-          cancelPendingInvitationsOnReInvite: boolean;
         },
       ]
     >;
 
-    await config.organizationHooks.beforeAcceptInvitation({
-      organization: { id: "org_1" },
+    await config.organizationHooks.afterCreateOrganization({
+      organization: {
+        id: "org_123",
+        name: "Org One",
+      },
     });
-    expect(ensureCanAcceptInvitationMock).toHaveBeenCalledWith("org_1");
 
-    await config.organizationHooks.afterAcceptInvitation({
-      organization: { id: "org_1" },
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        organizationId: "org_123",
+        organizationName: "Org One",
+      },
+      tags: {
+        context: "workspace_organization_creation",
+      },
     });
-    await config.organizationHooks.afterAddMember({
-      organization: { id: "org_1" },
-    });
-    expect(syncSeatsAndCreditsMock).toHaveBeenCalledTimes(2);
-
-    expect(config.invitationLimit).toBe(100);
-    expect(config.organizationLimit).toBe(100);
-    expect(config.cancelPendingInvitationsOnReInvite).toBe(true);
   });
 
-  it("rejects deleting an organization that still has other members", async () => {
+  it("blocks organization deletion when additional members remain", async () => {
     getMembersByOrganizationIdMock.mockResolvedValue([
-      { userId: "user_123" },
-      { userId: "user_456" },
+      { userId: "user-1" },
+      { userId: "user-2" },
     ]);
 
     await import("./auth");
@@ -968,95 +1503,256 @@ describe("core auth config", () => {
 
     await expect(
       config.organizationHooks.beforeDeleteOrganization({
-        organization: { id: "org_1" },
-        user: { id: "user_123" },
+        organization: { id: "org-1" },
+        user: { id: "user-1" },
       }),
     ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
       body: {
         code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+        message: "Remove all other members before deleting this organization.",
       },
+    });
+
+    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith("org-1", {
+      __prisma: true,
     });
   });
 
-  it("links organization invitations to the web app", async () => {
+  it("sets activeOrganizationId from preferred organization on session create", async () => {
+    resolveActiveOrganizationIdForSessionMock.mockResolvedValue("org_pref");
+
     await import("./auth");
 
-    const [[config]] = organizationPluginMock.mock.calls as Array<
+    const [[config]] = betterAuthMock.mock.calls as Array<
       [
         {
-          sendInvitationEmail: (
-            data: {
-              email: string;
-              id: string;
-              inviter: { user: { name: string } };
-              organization: { name: string };
-            },
-            request?: Request,
-          ) => Promise<void>;
+          databaseHooks: {
+            session: {
+              create: {
+                before: (session: { userId: string }) => Promise<{
+                  data: { activeOrganizationId: string | null; userId: string };
+                }>;
+              };
+            };
+          };
         },
       ]
     >;
 
-    await config.sendInvitationEmail({
-      email: "invitee@example.com",
-      id: "inv_123",
-      inviter: { user: { name: "Owner" } },
-      organization: { name: "Acme" },
+    const result = await config.databaseHooks.session.create.before({
+      userId: "user_123",
     });
 
-    expect(renderOrganizationInvitationEmailMock).toHaveBeenCalledWith({
-      invitationLink: "https://example.com/accept-invitation/inv_123",
-      invitorUsername: "Owner",
-      locale: "en",
-      organizationName: "Acme",
-    });
-    expect(postmarkSendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        To: "invitee@example.com",
-        Tag: "invitation-email",
-        MessageStream: "organizations",
-      }),
+    expect(result.data.activeOrganizationId).toBe("org_pref");
+    expect(resolveActiveOrganizationIdForSessionMock).toHaveBeenCalledWith(
+      "user_123",
     );
   });
 
-  it("reports organization workspace creation failures to Sentry", async () => {
-    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
-
+  it("calls user created webhook after user create", async () => {
     await import("./auth");
 
-    const [[config]] = organizationPluginMock.mock.calls as Array<
+    const [[config]] = betterAuthMock.mock.calls as Array<
       [
         {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                name: string;
-                slug: string;
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
               };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      id: "user_123",
+      email: "test@example.com",
+      name: "Test",
+    });
+
+    expect(webhookCallUserCreatedMock).toHaveBeenCalledWith({
+      id: "user_123",
+      email: "test@example.com",
+      name: "Test",
+    });
+  });
+
+  it("rejects email sign-up when terms are not accepted", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              path: string;
             }) => Promise<void>;
           };
         },
       ]
     >;
 
-    await config.organizationHooks.afterCreateOrganization({
-      organization: {
-        id: "org_123",
-        name: "Org One",
-        slug: "org-one",
-      },
+    await expect(
+      config.hooks.before({ body: {}, path: "/sign-up/email" }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: { code: "TERMS_NOT_ACCEPTED" },
+    });
+  });
+
+  it("allows email sign-up when terms are accepted", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            before: (ctx: {
+              body?: Record<string, unknown>;
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.before({
+        body: { termsAccepted: true },
+        path: "/sign-up/email",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects sign-in when the user has not accepted the terms", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            after: (ctx: {
+              context: { newSession?: { user?: { termsAccepted?: boolean } } };
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.after({
+        context: { newSession: { user: { termsAccepted: false } } },
+        path: "/sign-in/email",
+      }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: { code: "TERMS_NOT_ACCEPTED" },
+    });
+  });
+
+  it("allows sign-in when the user has accepted the terms", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            after: (ctx: {
+              context: { newSession?: { user?: { termsAccepted?: boolean } } };
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.hooks.after({
+        context: { newSession: { user: { termsAccepted: true } } },
+        path: "/sign-in/email",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("checks the subscription before accepting an organization invitation", async () => {
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            beforeAcceptInvitation: (input: {
+              organization: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.beforeAcceptInvitation({
+      organization: { id: "org-1" },
     });
 
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        organizationId: "org_123",
-        organizationName: "Org One",
-      },
-      tags: {
-        context: "workspace_organization_creation",
-      },
+    expect(ensureCanAcceptOrganizationInvitationMock).toHaveBeenCalledWith(
+      "org-1",
+    );
+  });
+
+  it("syncs local free seats and credits after accepting an invitation", async () => {
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterAcceptInvitation: (input: {
+              organization: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterAcceptInvitation({
+      organization: { id: "org-1" },
     });
+
+    expect(
+      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
+    ).toHaveBeenCalledWith("org-1");
+  });
+
+  it("syncs local free seats and credits after adding a member", async () => {
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterAddMember: (input: {
+              organization: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterAddMember({
+      organization: { id: "org-1" },
+    });
+
+    expect(
+      syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
+    ).toHaveBeenCalledWith("org-1");
   });
 
   it("creates a Stripe customer when an organization is created", async () => {
@@ -1081,135 +1777,204 @@ describe("core auth config", () => {
 
     await config.organizationHooks.afterCreateOrganization({
       organization: {
-        id: "org_123",
-        metadata: JSON.stringify({ invoiceEmail: "billing@acme.test" }),
+        id: "org-1",
+        metadata: null,
         name: "Org One",
         slug: "org-one",
       },
     });
-    await Promise.resolve();
 
-    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith({
-      invoiceEmail: "billing@acme.test",
-      name: "Org One",
-      organizationId: "org_123",
-      slug: "org-one",
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        name: "Org One",
+        slug: "org-one",
+      }),
+    );
+  });
+
+  it("reports Stripe organization customer creation failures to Sentry", async () => {
+    stripeCreateOrganizationCustomerMock.mockRejectedValueOnce(
+      new Error("stripe org failed"),
+    );
+
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                metadata?: string | null;
+                name: string;
+                slug: string;
+              };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      organization: {
+        id: "org-1",
+        metadata: null,
+        name: "Org One",
+        slug: "org-one",
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        organizationId: "org-1",
+        organizationName: "Org One",
+        organizationSlug: "org-one",
+      },
+      tags: {
+        context: "stripe_organization_customer_creation",
+      },
     });
   });
-  describe("auth hooks", () => {
-    type BeforeHook = (ctx: {
-      body?: Record<string, unknown>;
-      path: string;
-    }) => Promise<void>;
-    type AfterHook = (ctx: {
-      context: { newSession?: { user: Record<string, unknown> } };
-      path: string;
-    }) => Promise<void>;
 
-    function getHooks() {
-      const config = getBetterAuthConfig() as unknown as {
-        hooks: { after: AfterHook; before: BeforeHook };
-      };
-      return config.hooks;
-    }
+  it("prepares the Stripe email sync before a user update", async () => {
+    await import("./auth");
 
-    it("rejects email sign-up without accepted terms", async () => {
-      await import("./auth");
-
-      await expect(
-        getHooks().before({ path: "/sign-up/email", body: {} }),
-      ).rejects.toMatchObject({ body: { code: "TERMS_NOT_ACCEPTED" } });
-
-      await expect(
-        getHooks().before({
-          path: "/sign-up/email",
-          body: { termsAccepted: true },
-        }),
-      ).resolves.toBeUndefined();
-    });
-
-    it("guards personal subscription changes via the personal exclusivity assert", async () => {
-      getSessionFromCtxMock.mockResolvedValue({ user: { id: "user_1" } });
-      assertPersonalChangeAllowedMock.mockResolvedValue(undefined);
-
-      await import("./auth");
-      await getHooks().before({ path: "/subscription/upgrade", body: {} });
-
-      expect(assertPersonalChangeAllowedMock).toHaveBeenCalledWith("user_1", {
-        __prisma: true,
-      });
-      expect(assertOrganizationChangeAllowedMock).not.toHaveBeenCalled();
-    });
-
-    it("guards organization subscription changes and maps exclusivity to BAD_REQUEST", async () => {
-      const { OrganizationSubscriptionExclusivityError } = await import(
-        "@sokosumi/database/helpers"
-      );
-      getSessionFromCtxMock.mockResolvedValue({ user: { id: "user_1" } });
-      assertOrganizationChangeAllowedMock.mockRejectedValue(
-        new OrganizationSubscriptionExclusivityError("exclusive contract"),
-      );
-
-      await import("./auth");
-
-      await expect(
-        getHooks().before({
-          path: "/subscription/billing-portal",
-          body: { referenceId: "org_1" },
-        }),
-      ).rejects.toMatchObject({
-        body: { message: "exclusive contract" },
-        statusCode: 400,
-      });
-      expect(assertOrganizationChangeAllowedMock).toHaveBeenCalledWith(
-        "org_1",
-        { __prisma: true },
-      );
-    });
-
-    it("skips the subscription guard when unauthenticated", async () => {
-      getSessionFromCtxMock.mockResolvedValue(null);
-
-      await import("./auth");
-      await getHooks().before({ path: "/subscription/upgrade", body: {} });
-
-      expect(assertPersonalChangeAllowedMock).not.toHaveBeenCalled();
-      expect(assertOrganizationChangeAllowedMock).not.toHaveBeenCalled();
-    });
-
-    it("rejects sign-in for users without accepted terms", async () => {
-      await import("./auth");
-
-      await expect(
-        getHooks().after({
-          path: "/sign-in/email",
-          context: { newSession: { user: { termsAccepted: false } } },
-        }),
-      ).rejects.toMatchObject({ body: { code: "TERMS_NOT_ACCEPTED" } });
-    });
-
-    it("syncs the user email with Stripe after email verification", async () => {
-      syncUserEmailWithStripeMock.mockResolvedValue(true);
-
-      await import("./auth");
-      await getHooks().after({
-        path: "/verify-email",
-        context: {
-          newSession: {
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
             user: {
-              email: "new@example.com",
-              id: "user_1",
-              stripeCustomerId: "cus_1",
-              termsAccepted: true,
-            },
-          },
+              update: {
+                before: (
+                  data: Record<string, unknown>,
+                  ctx: unknown,
+                ) => Promise<{ data: Record<string, unknown> }>;
+              };
+            };
+          };
         },
-      });
+      ]
+    >;
 
-      expect(syncUserEmailWithStripeMock).toHaveBeenCalledWith(
-        "user_1",
-        "new@example.com",
-      );
+    const updateData = { email: "new@example.com" };
+    const ctx = { session: { user: { id: "user_123" } } };
+
+    const result = await config.databaseHooks.user.update.before(
+      updateData,
+      ctx,
+    );
+
+    expect(prepareStripeEmailSyncForUserUpdateMock).toHaveBeenCalledWith(
+      updateData,
+      ctx,
+      { __prisma: true },
+    );
+    expect(result).toEqual({ data: updateData });
+  });
+
+  it("calls the user updated webhook and Stripe email sync after a user update", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              update: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const user = { id: "user_123", email: "new@example.com", name: "Andreas" };
+
+    await config.databaseHooks.user.update.after(user);
+
+    expect(webhookCallUserUpdatedMock).toHaveBeenCalledWith(user);
+    expect(handleUserUpdateStripeEmailSyncMock).toHaveBeenCalledWith(user);
+  });
+
+  it("reports user updated webhook failures to Sentry", async () => {
+    webhookCallUserUpdatedMock.mockRejectedValueOnce(new Error("webhook down"));
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              update: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.update.after({
+      id: "user_123",
+      email: "new@example.com",
+      name: "Andreas",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: { userId: "user_123" },
+      tags: { context: "user_updated_webhook" },
+    });
+  });
+
+  it("reports preferred organization resolution failures to Sentry and keeps the session", async () => {
+    resolveActiveOrganizationIdForSessionMock.mockRejectedValueOnce(
+      new Error("preferred org failed"),
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            session: {
+              create: {
+                before: (session: { userId: string }) => Promise<{
+                  data: {
+                    activeOrganizationId?: string | null;
+                    userId: string;
+                  };
+                }>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    const result = await config.databaseHooks.session.create.before({
+      userId: "user_123",
+    });
+
+    expect(result.data).toEqual({ userId: "user_123" });
+    expect(result.data.activeOrganizationId).toBeUndefined();
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: { userId: "user_123" },
+      tags: { context: "session_create_preferred_organization" },
     });
   });
 });

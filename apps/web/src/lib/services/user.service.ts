@@ -1,11 +1,11 @@
 import "server-only";
 
 import type { Member, MemberWithOrganization } from "@sokosumi/database";
-import { headers } from "next/headers";
 import { cache } from "react";
 
-import { auth, type Session } from "@/lib/auth/auth";
-import { getSession } from "@/lib/auth/utils";
+import type { Session } from "@/lib/auth/auth";
+import { getSession } from "@/lib/auth/auth.server";
+import { updateCurrentUserViaCore } from "@/lib/auth/core-auth-http.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 
@@ -123,13 +123,10 @@ export const userService = (() => {
       const members = await getMyMembersWithOrganizations();
 
       if (members.length > 0) {
-        // Mark onboarding complete via Better Auth (not a direct DB write) so
-        // the session cookie cache stays in sync — same approach as
+        // Mark onboarding complete via Core Better Auth HTTP so the session
+        // cookie cache stays in sync — same approach as
         // markOnboardingCompleteForMe below.
-        await auth.api.updateUser({
-          headers: await headers(),
-          body: { onboardingCompleted: true },
-        });
+        await updateCurrentUserViaCore({ onboardingCompleted: true });
         return false;
       }
 
@@ -155,12 +152,9 @@ export const userService = (() => {
       return;
     }
 
-    // Update via Better Auth to keep session in sync (cookie cache, etc.)
+    // Update via Core Better Auth HTTP to keep session in sync (cookie cache, etc.)
     // This has to be done, because the screen wasn't getting synced with the DB causing users to keep in the same screen.
-    await auth.api.updateUser({
-      headers: await headers(),
-      body: { onboardingCompleted: true },
-    });
+    await updateCurrentUserViaCore({ onboardingCompleted: true });
   }
 
   return {

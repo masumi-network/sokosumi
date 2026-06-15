@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import HermesExperience from "@/app/hermes/components/hermes-experience";
 import LoadingState from "@/app/hermes/components/loading-state";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services/user.service";
 
 export async function generateMetadata(): Promise<Metadata> {

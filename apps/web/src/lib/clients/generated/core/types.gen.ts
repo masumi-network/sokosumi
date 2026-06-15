@@ -110,6 +110,168 @@ export type AdminTaskListItem = {
     } | null;
 };
 
+export type AdminTaskDetail = {
+    task: Task;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
+
+export type Task = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    user: UserSummary;
+    organizationId: string | null;
+    organization: OrganizationSummary;
+    projectId: string | null;
+    coworkerId: string | null;
+    coworker: CoworkerSummary;
+    name: string;
+    description: string | null;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    credits: number;
+    events: Array<TaskEvent>;
+    jobs: Array<JobSummary>;
+    workspace: WorkspaceSummary;
+    share: TaskShare | null;
+    links: Array<TaskLink>;
+};
+
+export type UserSummary = {
+    id: string;
+    name: string;
+    image?: string | null;
+};
+
+export type OrganizationSummary = {
+    id: string;
+    name: string;
+    slug: string;
+} | null;
+
+export type CoworkerSummary = {
+    id: string;
+    name: string;
+    image?: string | null;
+    slug: string;
+} | null;
+
+export type TaskEvent = {
+    id: string;
+    taskId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId?: string | null;
+    /**
+     * Mirrors userId: omitted, null, or set when the actor user was loaded.
+     */
+    user?: {
+        id: string;
+        name: string;
+        image?: string | null;
+    } | null;
+    coworkerId?: string | null;
+    /**
+     * Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.
+     */
+    coworker?: {
+        id: string;
+        name: string;
+        image?: string | null;
+        slug: string;
+    } | null;
+    transactionId?: string | null;
+    credits?: number | null;
+    comment?: string | null;
+    authenticationUrl?: string | null;
+    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
+    status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+};
+
+export type JobSummary = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    completedAt?: Date | null;
+    agentId: string;
+    userId: string;
+    user: UserSummary;
+    organizationId?: string | null;
+    organization?: OrganizationSummary;
+    projectId?: string | null;
+    workspace: WorkspaceSummary;
+    taskId?: string | null;
+    name?: string | null;
+    jobType: 'FREE' | 'PAID' | 'DEMO';
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    credits: number;
+    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainTransactionHash?: string | null;
+    result?: string | null;
+    resultHash?: string | null;
+    blockchainIdentifier?: string | null;
+    payByTime?: Date | null;
+    submitResultTime?: Date | null;
+    unlockTime?: Date | null;
+    externalDisputeUnlockTime?: Date | null;
+    sellerVkey?: string | null;
+};
+
+export type WorkspaceSummary = {
+    id: string;
+    organizationId: string | null;
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+    } | null;
+};
+
+export type TaskShare = {
+    id: string;
+    token: string;
+    allowSearchIndexing: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    taskId: string;
+};
+
+export type TaskLink = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    relation: TaskLinkRelation;
+    peerTask: TaskLinkPeerTask;
+    note: string | null;
+};
+
+export const TaskLinkRelation = {
+    RELATED: 'related',
+    BLOCKS: 'blocks',
+    BLOCKED_BY: 'blocked_by',
+    PARENT: 'parent',
+    CHILD: 'child',
+    DUPLICATE: 'duplicate'
+} as const;
+
+export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRelation];
+
+export type TaskLinkPeerTask = {
+    id: string;
+    name: string;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    archivedAt: Date | null;
+};
+
 export type Agent = {
     id: string;
     createdAt: Date;
@@ -364,57 +526,6 @@ export type AgentRatingRequest = {
      * Optional comment
      */
     comment?: string | null;
-};
-
-export type JobSummary = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    completedAt?: Date | null;
-    agentId: string;
-    userId: string;
-    user: UserSummary;
-    organizationId?: string | null;
-    organization?: OrganizationSummary;
-    projectId?: string | null;
-    workspace: WorkspaceSummary;
-    taskId?: string | null;
-    name?: string | null;
-    jobType: 'FREE' | 'PAID' | 'DEMO';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
-    credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
-    onChainTransactionHash?: string | null;
-    result?: string | null;
-    resultHash?: string | null;
-    blockchainIdentifier?: string | null;
-    payByTime?: Date | null;
-    submitResultTime?: Date | null;
-    unlockTime?: Date | null;
-    externalDisputeUnlockTime?: Date | null;
-    sellerVkey?: string | null;
-};
-
-export type UserSummary = {
-    id: string;
-    name: string;
-    image?: string | null;
-};
-
-export type OrganizationSummary = {
-    id: string;
-    name: string;
-    slug: string;
-} | null;
-
-export type WorkspaceSummary = {
-    id: string;
-    organizationId: string | null;
-    organization: {
-        id: string;
-        name: string;
-        slug: string;
-    } | null;
 };
 
 export type Job = {
@@ -1430,17 +1541,6 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
-export type PasswordSet = {
-    status: boolean;
-};
-
-export type PasswordWrite = {
-    /**
-     * The new password to set for the credential account
-     */
-    newPassword: string;
-};
-
 export type Notice = {
     id: string;
     kind: 'LEGAL_TERMS' | 'ANNOUNCEMENT';
@@ -1915,15 +2015,6 @@ export type PublicSharedTaskMilestone = {
     actorImage: string | null;
 };
 
-export type TaskShare = {
-    id: string;
-    token: string;
-    allowSearchIndexing: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    taskId: string;
-};
-
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -1961,38 +2052,6 @@ export type CoworkerMetadata = {
         [key: string]: string;
     };
 } | null;
-
-export type TaskEvent = {
-    id: string;
-    taskId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    userId?: string | null;
-    /**
-     * Mirrors userId: omitted, null, or set when the actor user was loaded.
-     */
-    user?: {
-        id: string;
-        name: string;
-        image?: string | null;
-    } | null;
-    coworkerId?: string | null;
-    /**
-     * Mirrors coworkerId: omitted, null, or set when the coworker relation was loaded.
-     */
-    coworker?: {
-        id: string;
-        name: string;
-        image?: string | null;
-        slug: string;
-    } | null;
-    transactionId?: string | null;
-    credits?: number | null;
-    comment?: string | null;
-    authenticationUrl?: string | null;
-    origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
-};
 
 export type CoworkerUsage = {
     id: string;
@@ -2043,64 +2102,6 @@ export type TaskListItem = {
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
     workspace: WorkspaceSummary;
-};
-
-export type CoworkerSummary = {
-    id: string;
-    name: string;
-    image?: string | null;
-    slug: string;
-} | null;
-
-export type Task = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    userId: string;
-    user: UserSummary;
-    organizationId: string | null;
-    organization: OrganizationSummary;
-    projectId: string | null;
-    coworkerId: string | null;
-    coworker: CoworkerSummary;
-    name: string;
-    description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
-    credits: number;
-    events: Array<TaskEvent>;
-    jobs: Array<JobSummary>;
-    workspace: WorkspaceSummary;
-    share: TaskShare & ({
-        [key: string]: unknown;
-    } | null);
-    links: Array<TaskLink>;
-};
-
-export type TaskLink = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    relation: TaskLinkRelation;
-    peerTask: TaskLinkPeerTask;
-    note: string | null;
-};
-
-export const TaskLinkRelation = {
-    RELATED: 'related',
-    BLOCKS: 'blocks',
-    BLOCKED_BY: 'blocked_by',
-    PARENT: 'parent',
-    CHILD: 'child',
-    DUPLICATE: 'duplicate'
-} as const;
-
-export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRelation];
-
-export type TaskLinkPeerTask = {
-    id: string;
-    name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
-    archivedAt: Date | null;
 };
 
 export type TaskLinkDeleted = {
@@ -2870,6 +2871,78 @@ export type ListAdminTasksResponses = {
 };
 
 export type ListAdminTasksResponse = ListAdminTasksResponses[keyof ListAdminTasksResponses];
+
+export type GetAdminTaskData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/tasks/{id}';
+};
+
+export type GetAdminTaskErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminTaskError = GetAdminTaskErrors[keyof GetAdminTaskErrors];
+
+export type GetAdminTaskResponses = {
+    /**
+     * Task detail for the admin task view
+     */
+    200: {
+        data: AdminTaskDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminTaskResponse = GetAdminTaskResponses[keyof GetAdminTaskResponses];
 
 export type GetAgentsData = {
     body?: never;
@@ -12222,123 +12295,6 @@ export type PostUsersByIdOnboardingResponses = {
 };
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
-
-export type PostUsersByIdPasswordData = {
-    body?: PasswordWrite;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
-         */
-        'X-Delegation-User-Id'?: string;
-        /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
-         */
-        'X-Delegation-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/password';
-};
-
-export type PostUsersByIdPasswordErrors = {
-    /**
-     * Bad Request - e.g. password already set
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - User not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdPasswordError = PostUsersByIdPasswordErrors[keyof PostUsersByIdPasswordErrors];
-
-export type PostUsersByIdPasswordResponses = {
-    /**
-     * Password set
-     */
-    200: {
-        data: PasswordSet;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdPasswordResponse = PostUsersByIdPasswordResponses[keyof PostUsersByIdPasswordResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;

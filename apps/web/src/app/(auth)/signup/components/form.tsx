@@ -12,17 +12,20 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/signup/data";
-import { AuthErrorCode, signUpEmail } from "@/lib/actions";
-import { authClient } from "@/lib/auth/auth.client";
-import type { FormData } from "@/lib/form";
-import { fireGTMEvent } from "@/lib/gtm-events";
-import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
+import { AuthErrorCode } from "@/lib/actions";
+import { handleUtmConversion } from "@/lib/actions/auth";
+import { authClient, signUp } from "@/lib/auth/auth.client";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
+  getAuthOAuthRedirect,
+  getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
+import type { FormData } from "@/lib/form";
+import { fireGTMEvent } from "@/lib/gtm-events";
+import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
@@ -71,36 +74,20 @@ export default function SignUpForm({
   const handleSubmit = async (values: SignUpFormSchemaType) => {
     track("Sign Up", { provider: "credential" });
 
-    const result = await signUpEmail(
-      {
-        email: values.email,
-        name: values.name,
-        password: values.password,
-        termsAccepted: values.termsAccepted,
-        marketingOptIn: values.marketingOptIn,
-      },
-      effectiveReturnUrl,
-    );
+    const result = await signUp.email({
+      email: values.email,
+      name: values.name,
+      password: values.password,
+      termsAccepted: values.termsAccepted,
+      marketingOptIn: values.marketingOptIn,
+      onboardingCompleted: false,
+      callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+    });
 
-    if (result.ok) {
-      if (result.data.redirect && result.data.redirectUrl) {
-        window.location.href = result.data.redirectUrl;
-        return;
-      }
+    if (result.error) {
+      const errorCode = "code" in result.error ? result.error.code : undefined;
 
-      await waitForAuthSession({
-        context: "signup",
-        getSession: createAuthSessionGetter(() => authClient.getSession()),
-        logWarning: (message) => {
-          Sentry.captureMessage(message, { level: "warning" });
-        },
-      });
-
-      fireGTMEvent.signUp("credential");
-      toast.success(t("success"));
-      router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
-    } else {
-      switch (result.error.code) {
+      switch (errorCode) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
           toast.error(t("Errors.emailDomainNotAllowed"));
           break;
@@ -111,7 +98,30 @@ export default function SignUpForm({
           toast.error(result.error.message ?? t("error"));
           break;
       }
+      return;
     }
+
+    // Record UTM attribution for every successful signup, including the OAuth
+    // consent flow that redirects away below.
+    await handleUtmConversion();
+
+    const oauthRedirect = getAuthOAuthRedirect(result.data);
+    if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
+      window.location.href = oauthRedirect.redirectUrl;
+      return;
+    }
+
+    await waitForAuthSession({
+      context: "signup",
+      getSession: createAuthSessionGetter(() => authClient.getSession()),
+      logWarning: (message) => {
+        Sentry.captureMessage(message, { level: "warning" });
+      },
+    });
+
+    fireGTMEvent.signUp("credential");
+    toast.success(t("success"));
+    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
   };
 
   const termsAccepted = useWatch({

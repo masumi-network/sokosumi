@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef } from "react";
 
 import { authClient } from "@/lib/auth/auth.client";
-import { createAuthSessionGetter } from "@/lib/utils/auth-redirect";
+import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 export function AuthSessionGuard() {

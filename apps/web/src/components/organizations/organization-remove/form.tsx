@@ -2,13 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Organization } from "@sokosumi/database";
-import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+
 import {
   AlertDialogCancel,
   AlertDialogFooter,
@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   type RemoveOrganizationSchemaType,

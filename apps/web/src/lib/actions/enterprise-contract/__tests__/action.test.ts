@@ -12,7 +12,7 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("@/lib/auth/auth", () => ({ auth: {} }));
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSessionOrRedirect: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({

@@ -1,6 +1,6 @@
 import { flag } from "flags/next";
 
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 
 export const hermesBetaEnabled = flag({

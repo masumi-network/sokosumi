@@ -4,7 +4,25 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
+const getMemberByUserIdAndOrganizationIdMock = vi.fn();
+const getUserByIdMock = vi.fn();
 const setMyPreferredOrganizationMock = vi.fn();
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  memberRepository: {
+    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
+      getMemberByUserIdAndOrganizationIdMock(...args),
+  },
+  userRepository: {
+    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
+  },
+}));
+
+const mockPrisma = {};
+vi.mock("@/lib/db/prisma", () => ({
+  __esModule: true,
+  default: mockPrisma,
+}));
 
 vi.mock("@/lib/clients/core.client", () => {
   class CoreApiRequestError extends Error {
@@ -36,6 +54,73 @@ vi.mock("@/lib/clients/core.client", () => {
 describe("preferredOrganizationService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("resolves the preferred organization for a new session when membership is still valid", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      preferredOrganizationId: "org-1",
+    });
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
+      id: "member-1",
+    });
+
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
+    const result =
+      await preferredOrganizationService.resolveActiveOrganizationIdForSession(
+        "user-1",
+      );
+
+    expect(result).toBe("org-1");
+    expect(getUserByIdMock).toHaveBeenCalled();
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      mockPrisma,
+    );
+  });
+
+  it("returns null when there is no stored preferred organization", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      preferredOrganizationId: null,
+    });
+
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
+    const result =
+      await preferredOrganizationService.resolveActiveOrganizationIdForSession(
+        "user-1",
+      );
+
+    expect(result).toBeNull();
+    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a stale preferred organization when membership was removed", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user-1",
+      preferredOrganizationId: "org-1",
+    });
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+
+    const { preferredOrganizationService } = await import(
+      "../preferred-organization.service"
+    );
+    const result =
+      await preferredOrganizationService.resolveActiveOrganizationIdForSession(
+        "user-1",
+      );
+
+    expect(result).toBeNull();
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      mockPrisma,
+    );
   });
 
   it("persists a personal workspace preference via core", async () => {

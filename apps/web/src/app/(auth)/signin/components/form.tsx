@@ -15,18 +15,19 @@ import { AuthForm } from "@/auth/components/form";
 import { signInFormData } from "@/auth/signin/data";
 import { Button } from "@/components/ui/button";
 import { AuthErrorCode } from "@/lib/actions";
-import { signInEmail } from "@/lib/actions/auth";
-import { authClient } from "@/lib/auth/auth.client";
-import type { FormData } from "@/lib/form";
-import { fireGTMEvent } from "@/lib/gtm-events";
-import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
+import { authClient, signIn } from "@/lib/auth/auth.client";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
+  getAuthOAuthRedirect,
+  getValidAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
+} from "@/lib/auth/auth.utils";
+import type { FormData } from "@/lib/form";
+import { fireGTMEvent } from "@/lib/gtm-events";
+import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;
@@ -76,32 +77,30 @@ export default function SignInForm({
   const handleSubmit = async (values: SignInFormSchemaType) => {
     track("Sign In", { provider: "credential" });
 
-    const result = await signInEmail(
-      {
-        email: values.email,
-        currentPassword: values.currentPassword,
-        rememberMe: values.rememberMe,
-      },
-      effectiveReturnUrl,
-    );
+    const result = await signIn.email({
+      email: values.email,
+      password: values.currentPassword,
+      rememberMe: values.rememberMe,
+      callbackURL: getValidAuthRedirectUrl(effectiveReturnUrl, "/"),
+    });
 
-    if (!result.ok) {
-      switch (result.error?.code) {
+    if (result.error) {
+      const errorCode = "code" in result.error ? result.error.code : undefined;
+
+      switch (errorCode) {
         case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(result.error?.message ?? t("error"));
+          toast.error(result.error.message ?? t("error"));
           break;
       }
       return;
     }
 
-    const redirect = result.data.redirect;
-    const redirectUrl = result.data.redirectUrl;
-
-    if (redirect && redirectUrl) {
-      window.location.href = redirectUrl;
+    const oauthRedirect = getAuthOAuthRedirect(result.data);
+    if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
+      window.location.href = oauthRedirect.redirectUrl;
       return;
     }
 

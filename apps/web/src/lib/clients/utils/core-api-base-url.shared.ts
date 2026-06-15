@@ -14,20 +14,16 @@ export function getDefaultCoreApiBaseUrl(
     : "https://api.sokosumi.com";
 }
 
-export function normalizeCoreAuthBaseUrl(baseUrl: string): string {
-  const withoutTrailingSlash = baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
-
-  return withoutTrailingSlash.endsWith("/auth")
-    ? withoutTrailingSlash
-    : `${withoutTrailingSlash}/auth`;
-}
-
 export function normalizeCoreApiBaseUrl(baseUrl: string): string {
   const withoutTrailingSlash = baseUrl.replace(/\/+$/, "");
 
   return withoutTrailingSlash.endsWith("/v1")
     ? withoutTrailingSlash
     : `${withoutTrailingSlash}/v1`;
+}
+
+export function stripCoreApiVersionSuffix(baseUrl: string): string {
+  return baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
 }
 
 /**

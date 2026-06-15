@@ -2699,6 +2699,10 @@
           "created": "创建时间",
           "loadMore": "加载更多",
           "loadError": "加载任务失败。"
+        },
+        "TaskDetail": {
+          "backToList": "返回任务列表",
+          "personalWorkspace": "个人工作区"
         }
       }
     },
