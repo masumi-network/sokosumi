@@ -1,13 +1,9 @@
 "use server";
 
-import { OrganizationSubscriptionExclusivityError } from "@sokosumi/database/helpers";
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import * as z from "zod";
-import {
-  type ActionError,
-  betterAuthApiErrorSchema,
-  CommonErrorCode,
-} from "@/lib/actions/errors";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { toSubscriptionSeatsActionError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
 import type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
 import {
   openOrganizationBillingPortalServer,
@@ -15,7 +11,7 @@ import {
   upgradeOrganizationSubscriptionServer,
   upgradePersonalSubscriptionServer,
 } from "@/lib/auth/subscription.server";
-import { organizationSubscriptionService } from "@/lib/services";
+import { coreClient } from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -76,63 +72,6 @@ const updateOrganizationSubscriptionSeatsSchema = z.object({
   seats: z.number().int().min(1),
 });
 
-function getErrorStatus(error: unknown): string | null {
-  if (!(error instanceof Error)) {
-    return null;
-  }
-
-  const errorWithStatus = error as Error & { status?: unknown };
-  return typeof errorWithStatus.status === "string"
-    ? errorWithStatus.status
-    : null;
-}
-
-function mapSubscriptionExclusivityError(error: unknown): ActionError | null {
-  if (!(error instanceof OrganizationSubscriptionExclusivityError)) {
-    return null;
-  }
-
-  return {
-    code: CommonErrorCode.BAD_INPUT,
-    message: error.message,
-  };
-}
-
-function parseBetterAuthActionError(error: unknown): ActionError {
-  const exclusivityError = mapSubscriptionExclusivityError(error);
-  if (exclusivityError) {
-    return exclusivityError;
-  }
-
-  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
-  if (parsedBetterAuthError.success) {
-    return {
-      code: parsedBetterAuthError.data.body.code,
-      message: parsedBetterAuthError.data.body.message,
-    };
-  }
-
-  const status = getErrorStatus(error);
-  if (status === "FORBIDDEN") {
-    return {
-      code: CommonErrorCode.UNAUTHORIZED,
-      ...(error instanceof Error ? { message: error.message } : {}),
-    };
-  }
-
-  if (status === "BAD_REQUEST") {
-    return {
-      code: CommonErrorCode.BAD_INPUT,
-      ...(error instanceof Error ? { message: error.message } : {}),
-    };
-  }
-
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    ...(error instanceof Error ? { message: error.message } : {}),
-  };
-}
-
 interface UpdateOrganizationSubscriptionSeatsParameters
   extends AuthenticatedRequest {
   organizationId: string;
@@ -142,7 +81,7 @@ interface UpdateOrganizationSubscriptionSeatsParameters
 export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,
   Result<{ seats: number }, ActionError>
->(async ({ session, organizationId, seats }) => {
+>(async ({ organizationId, seats }) => {
   const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
     organizationId,
     seats,
@@ -154,15 +93,13 @@ export const updateOrganizationSubscriptionSeats = withSession<
   }
 
   try {
-    const result =
-      await organizationSubscriptionService.updateOrganizationSeatsImmediately(
-        session.user.id,
-        parsed.data.organizationId,
-        parsed.data.seats,
-      );
+    const { data } = await coreClient.updateOrganizationSubscriptionSeats(
+      parsed.data.organizationId,
+      parsed.data.seats,
+    );
 
-    return Ok(result);
+    return Ok({ seats: data.seats });
   } catch (error) {
-    return Err(parseBetterAuthActionError(error));
+    return Err(toSubscriptionSeatsActionError(error));
   }
 });
