@@ -17,6 +17,29 @@ export function getAgentJobsBasePath(pathname: string): string | null {
   return `/agents/${agentId}/jobs`;
 }
 
+export async function activateOrganizationWorkspace(
+  organizationId: string | null,
+): Promise<void> {
+  await authClient.organization.setActive({
+    organizationId,
+  });
+
+  try {
+    const result = await updatePreferredOrganization({
+      organizationId,
+    });
+
+    if (!result.ok) {
+      console.error(
+        "Failed to persist preferred organization:",
+        result.error,
+      );
+    }
+  } catch (error) {
+    console.error("Failed to persist preferred organization:", error);
+  }
+}
+
 export function useWorkspaceSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,24 +54,7 @@ export function useWorkspaceSwitcher() {
   ) => {
     startTransition(async () => {
       try {
-        await authClient.organization.setActive({
-          organizationId,
-        });
-
-        try {
-          const result = await updatePreferredOrganization({
-            organizationId,
-          });
-
-          if (!result.ok) {
-            console.error(
-              "Failed to persist preferred organization:",
-              result.error,
-            );
-          }
-        } catch (error) {
-          console.error("Failed to persist preferred organization:", error);
-        }
+        await activateOrganizationWorkspace(organizationId);
 
         if (options?.successMessage) {
           toast.success(options.successMessage);
