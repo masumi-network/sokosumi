@@ -15,7 +15,11 @@ import {
   upgradeOrganizationSubscriptionServer,
   upgradePersonalSubscriptionServer,
 } from "@/lib/auth/subscription.server";
-import { coreClient } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  coreClient,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -146,6 +150,14 @@ export const updateOrganizationSubscriptionSeats = withSession<
     return Ok({ seats: data.seats });
   } catch (error) {
     const mappedError = mapCoreSubscriptionSeatsWriteError(error);
-    return Err(parseBetterAuthActionError(mappedError ?? error));
+    if (mappedError) {
+      return Err(parseBetterAuthActionError(mappedError));
+    }
+
+    if (error instanceof CoreApiRequestError) {
+      return Err(toCoreApiActionError(error));
+    }
+
+    return Err(parseBetterAuthActionError(error));
   }
 });

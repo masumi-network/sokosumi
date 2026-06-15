@@ -25,25 +25,19 @@ vi.mock("@/lib/services", () => ({
   userService: {},
 }));
 
-class MockCoreApiRequestError extends Error {
-  kind?: string;
-  status?: number;
+vi.mock("@/lib/clients/core.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/clients/core.client")>();
 
-  constructor(message: string, options?: { kind?: string; status?: number }) {
-    super(message);
-    this.name = "CoreApiRequestError";
-    this.kind = options?.kind;
-    this.status = options?.status;
-  }
-}
-
-vi.mock("@/lib/clients/core.client", () => ({
-  CoreApiRequestError: MockCoreApiRequestError,
-  coreClient: {
-    updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
-      updateOrganizationSubscriptionSeatsMock(...args),
-  },
-}));
+  return {
+    ...actual,
+    coreClient: {
+      ...actual.coreClient,
+      updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
+        updateOrganizationSubscriptionSeatsMock(...args),
+    },
+  };
+});
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -112,11 +106,11 @@ describe("subscription actions", () => {
   });
 
   it("maps enterprise exclusivity errors from core seat updates", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
-      new MockCoreApiRequestError(
-        "Self-serve subscriptions are not available.",
-        { status: 400 },
-      ),
+      new CoreApiRequestError("Self-serve subscriptions are not available.", {
+        status: 400,
+      }),
     );
 
     const { CommonErrorCode } = await import("@/lib/actions/errors");
@@ -137,9 +131,11 @@ describe("subscription actions", () => {
     });
   });
 
-  it("maps unauthorized immediate seat update errors", async () => {
+  it("maps organization_role_forbidden to owner/admin copy", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
-      new MockCoreApiRequestError("You must be owner, admin", {
+      new CoreApiRequestError("You must be OWNER, ADMIN", {
+        kind: "organization_role_forbidden",
         status: 403,
       }),
     );
@@ -162,9 +158,37 @@ describe("subscription actions", () => {
     });
   });
 
-  it("maps organization_not_found kind to unauthorized regardless of message", async () => {
+  it("maps organization_membership_required with core message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
-      new MockCoreApiRequestError("Some reworded organization error", {
+      new CoreApiRequestError("You are not a member of this organization", {
+        kind: "organization_membership_required",
+        status: 403,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps organization_not_found kind to owner/admin copy regardless of message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Some reworded organization error", {
         kind: "organization_not_found",
       }),
     );
@@ -187,35 +211,10 @@ describe("subscription actions", () => {
     });
   });
 
-  it("rethrows unexpected core errors as internal server errors", async () => {
+  it("maps legacy 404 responses without kind to owner/admin copy", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
-      new MockCoreApiRequestError("Unexpected core failure", {
-        status: 500,
-      }),
-    );
-
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { updateOrganizationSubscriptionSeats } = await import("../action");
-
-    const result = await updateOrganizationSubscriptionSeats({
-      session: organizationSession,
-      organizationId: "org-1",
-      seats: 5,
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Unexpected core failure",
-      },
-      ok: false,
-    });
-  });
-
-  it("maps missing organization to unauthorized seat update errors", async () => {
-    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
-      new MockCoreApiRequestError("Organization not found", {
-        kind: "organization_not_found",
+      new CoreApiRequestError("Organization not found", {
         status: 404,
       }),
     );
@@ -238,9 +237,62 @@ describe("subscription actions", () => {
     });
   });
 
-  it("maps bad request immediate seat update errors", async () => {
+  it("maps unauthenticated core responses via toCoreApiActionError", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
-      new MockCoreApiRequestError(
+      new CoreApiRequestError("Unauthorized", {
+        status: 401,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Unauthorized",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps unexpected core errors as internal server errors", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Unexpected core failure", {
+        status: 500,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Unexpected core failure",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps bad request immediate seat update errors", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError(
         "An active organization subscription is required before updating seats.",
         { status: 400 },
       ),
