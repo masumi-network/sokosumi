@@ -3,7 +3,15 @@ import "server-only";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
-import { CoreApiRequestError } from "@/lib/clients/core.client";
+import {
+  type ActionError,
+  betterAuthApiErrorSchema,
+  CommonErrorCode,
+} from "@/lib/actions/errors";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 
 const ORGANIZATION_SUBSCRIPTION_ADMIN_REQUIRED_MESSAGE =
   "Only organization owners and admins can manage subscriptions";
@@ -12,10 +20,12 @@ const ORGANIZATION_SUBSCRIPTION_ADMIN_REQUIRED_MESSAGE =
  * Maps Core subscription-seat write errors onto APIError statuses the
  * subscription action expects.
  *
- * Missing organizations and insufficient role are intentionally surfaced with
- * the same owner/admin copy so callers cannot distinguish them. Non-membership
- * keeps Core's message. Unrecognized Core errors return `undefined` so the
- * caller can fall back to `toCoreApiActionError` (401, 5xx, etc.).
+ * Seat updates intentionally avoid `toCoreApiActionError` alone: missing orgs
+ * and insufficient role must share owner/admin copy (not Core's 404 NOT_FOUND),
+ * while membership and validation errors keep Core's message.
+ *
+ * Unrecognized Core errors return `undefined` so the caller can fall back to
+ * `toCoreApiActionError` (401, 5xx, etc.).
  */
 export function mapCoreSubscriptionSeatsWriteError(
   error: unknown,
@@ -53,4 +63,58 @@ export function mapCoreSubscriptionSeatsWriteError(
   }
 
   return undefined;
+}
+
+function getBetterAuthErrorStatus(error: unknown): string | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const errorWithStatus = error as Error & { status?: unknown };
+  return typeof errorWithStatus.status === "string"
+    ? errorWithStatus.status
+    : null;
+}
+
+function parseMappedSubscriptionSeatsApiError(error: unknown): ActionError {
+  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
+  if (parsedBetterAuthError.success) {
+    return {
+      code: parsedBetterAuthError.data.body.code,
+      message: parsedBetterAuthError.data.body.message,
+    };
+  }
+
+  const status = getBetterAuthErrorStatus(error);
+  if (status === "FORBIDDEN") {
+    return {
+      code: CommonErrorCode.UNAUTHORIZED,
+      ...(error instanceof Error ? { message: error.message } : {}),
+    };
+  }
+
+  if (status === "BAD_REQUEST") {
+    return {
+      code: CommonErrorCode.BAD_INPUT,
+      ...(error instanceof Error ? { message: error.message } : {}),
+    };
+  }
+
+  return {
+    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    ...(error instanceof Error ? { message: error.message } : {}),
+  };
+}
+
+export function toSubscriptionSeatsActionError(error: unknown): ActionError {
+  const mappedError = mapCoreSubscriptionSeatsWriteError(error);
+  if (mappedError) {
+    return parseMappedSubscriptionSeatsApiError(mappedError);
+  }
+
+  if (error instanceof CoreApiRequestError) {
+    return toCoreApiActionError(error);
+  }
+
+  return parseMappedSubscriptionSeatsApiError(error);
 }

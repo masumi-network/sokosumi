@@ -1,3 +1,4 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 export {};
@@ -5,24 +6,12 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
-const getEnvSecretsMock = vi.fn();
 
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => getEnvSecretsMock(),
-}));
-
-vi.mock("@/config/env.public", () => ({
-  getEnvPublicConfig: () => ({
-    NEXT_PUBLIC_NETWORK: "mainnet",
-  }),
-}));
-
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers(),
-}));
-
-vi.mock("@/lib/services", () => ({
-  userService: {},
+vi.mock("@/lib/auth/subscription.server", () => ({
+  openOrganizationBillingPortalServer: vi.fn(),
+  openPersonalBillingPortalServer: vi.fn(),
+  upgradeOrganizationSubscriptionServer: vi.fn(),
+  upgradePersonalSubscriptionServer: vi.fn(),
 }));
 
 vi.mock("@/lib/clients/core.client", async (importOriginal) => {
@@ -58,9 +47,6 @@ const organizationSession = {
 describe("subscription actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getEnvSecretsMock.mockReturnValue({
-      CORE_APP_BASE_URL: "https://core.example.com",
-    });
   });
 
   it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
@@ -109,6 +95,7 @@ describe("subscription actions", () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new CoreApiRequestError("Self-serve subscriptions are not available.", {
+        kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
         status: 400,
       }),
     );
@@ -131,11 +118,42 @@ describe("subscription actions", () => {
     });
   });
 
+  it("maps seats below assigned members to bad input with core message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError(
+        "Purchased seats (3) must be at least 4 to cover all assigned members",
+        {
+          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_SEATS_BELOW_ASSIGNED,
+          status: 400,
+        },
+      ),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 3,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message:
+          "Purchased seats (3) must be at least 4 to cover all assigned members",
+      },
+      ok: false,
+    });
+  });
+
   it("maps organization_role_forbidden to owner/admin copy", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new CoreApiRequestError("You must be OWNER, ADMIN", {
-        kind: "organization_role_forbidden",
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN,
         status: 403,
       }),
     );
@@ -162,7 +180,7 @@ describe("subscription actions", () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new CoreApiRequestError("You are not a member of this organization", {
-        kind: "organization_membership_required",
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
         status: 403,
       }),
     );
@@ -189,7 +207,7 @@ describe("subscription actions", () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new CoreApiRequestError("Some reworded organization error", {
-        kind: "organization_not_found",
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND,
       }),
     );
 
@@ -289,12 +307,15 @@ describe("subscription actions", () => {
     });
   });
 
-  it("maps bad request immediate seat update errors", async () => {
+  it("maps missing active subscription to bad input with core message", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new CoreApiRequestError(
         "An active organization subscription is required before updating seats.",
-        { status: 400 },
+        {
+          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
+          status: 400,
+        },
       ),
     );
 

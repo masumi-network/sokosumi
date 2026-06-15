@@ -2,12 +2,8 @@
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import * as z from "zod";
-import {
-  type ActionError,
-  betterAuthApiErrorSchema,
-  CommonErrorCode,
-} from "@/lib/actions/errors";
-import { mapCoreSubscriptionSeatsWriteError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import { toSubscriptionSeatsActionError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
 import type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
 import {
   openOrganizationBillingPortalServer,
@@ -15,11 +11,7 @@ import {
   upgradeOrganizationSubscriptionServer,
   upgradePersonalSubscriptionServer,
 } from "@/lib/auth/subscription.server";
-import {
-  CoreApiRequestError,
-  coreClient,
-  toCoreApiActionError,
-} from "@/lib/clients/core.client";
+import { coreClient } from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -80,47 +72,6 @@ const updateOrganizationSubscriptionSeatsSchema = z.object({
   seats: z.number().int().min(1),
 });
 
-function getErrorStatus(error: unknown): string | null {
-  if (!(error instanceof Error)) {
-    return null;
-  }
-
-  const errorWithStatus = error as Error & { status?: unknown };
-  return typeof errorWithStatus.status === "string"
-    ? errorWithStatus.status
-    : null;
-}
-
-function parseBetterAuthActionError(error: unknown): ActionError {
-  const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
-  if (parsedBetterAuthError.success) {
-    return {
-      code: parsedBetterAuthError.data.body.code,
-      message: parsedBetterAuthError.data.body.message,
-    };
-  }
-
-  const status = getErrorStatus(error);
-  if (status === "FORBIDDEN") {
-    return {
-      code: CommonErrorCode.UNAUTHORIZED,
-      ...(error instanceof Error ? { message: error.message } : {}),
-    };
-  }
-
-  if (status === "BAD_REQUEST") {
-    return {
-      code: CommonErrorCode.BAD_INPUT,
-      ...(error instanceof Error ? { message: error.message } : {}),
-    };
-  }
-
-  return {
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    ...(error instanceof Error ? { message: error.message } : {}),
-  };
-}
-
 interface UpdateOrganizationSubscriptionSeatsParameters
   extends AuthenticatedRequest {
   organizationId: string;
@@ -149,15 +100,6 @@ export const updateOrganizationSubscriptionSeats = withSession<
 
     return Ok({ seats: data.seats });
   } catch (error) {
-    const mappedError = mapCoreSubscriptionSeatsWriteError(error);
-    if (mappedError) {
-      return Err(parseBetterAuthActionError(mappedError));
-    }
-
-    if (error instanceof CoreApiRequestError) {
-      return Err(toCoreApiActionError(error));
-    }
-
-    return Err(parseBetterAuthActionError(error));
+    return Err(toSubscriptionSeatsActionError(error));
   }
 });
