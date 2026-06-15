@@ -11,11 +11,10 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
  * `undefined` when the error is not a Core request error or carries no
  * recognized status — letting the caller fall back to its default handling.
  *
- * The `kind` check is the preferred, machine-readable match; the status/message
- * checks are status-level fallbacks for the same conditions. Core responds 403
- * when the caller is not an owner or admin and 404 when the organization is
- * missing — both surfaced as FORBIDDEN like the previous in-process guard. A
- * 400 (no active subscription, seats below assigned members, or enterprise
+ * A missing organization is matched by the stable `organization_not_found`
+ * kind (Core always tags the 404 with it); a 403 is the owner/admin write
+ * guard. Both surface as FORBIDDEN like the previous in-process guard. A 400
+ * (no active subscription, seats below assigned members, or enterprise
  * exclusivity) keeps Core's message.
  */
 export function mapCoreSubscriptionSeatsWriteError(
@@ -27,8 +26,7 @@ export function mapCoreSubscriptionSeatsWriteError(
 
   if (
     error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND ||
-    error.status === 403 ||
-    (error.status === 404 && error.message === "Organization not found")
+    error.status === 403
   ) {
     return new APIError("FORBIDDEN", {
       message: "Only organization owners and admins can manage subscriptions",

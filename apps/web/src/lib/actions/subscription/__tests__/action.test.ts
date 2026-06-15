@@ -215,6 +215,7 @@ describe("subscription actions", () => {
   it("maps missing organization to unauthorized seat update errors", async () => {
     updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
       new MockCoreApiRequestError("Organization not found", {
+        kind: "organization_not_found",
         status: 404,
       }),
     );
