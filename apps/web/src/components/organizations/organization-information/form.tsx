@@ -21,6 +21,7 @@ import {
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions";
-import { updatePreferredOrganization } from "@/lib/actions/organization";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
@@ -73,6 +73,7 @@ export default function OrganizationInformationForm({
 }: OrganizationInformationFormProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Form");
   const router = useRouter();
+  const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const submitInFlightRef = useRef(false);
   const [pendingLogoFiles, setPendingLogoFiles] = useState<File[]>([]);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -205,23 +206,13 @@ export default function OrganizationInformationForm({
         toast.success(isCreating ? t("Success.create") : t("Success.edit"));
 
         if (isCreating) {
-          try {
-            const persistenceResult = await updatePreferredOrganization({
-              organizationId: result.data.id,
-            });
-
-            if (!persistenceResult.ok) {
-              console.error(
-                "Failed to persist preferred organization:",
-                persistenceResult.error,
-              );
-            }
-          } catch (error) {
-            console.error("Failed to persist preferred organization:", error);
-          }
+          handleSelectWorkspace(result.data.id, {
+            shouldRedirectAgentJobsBasePath: false,
+          });
+        } else {
+          router.refresh();
         }
 
-        router.refresh();
         onOpenChange(false);
       }
     } finally {
