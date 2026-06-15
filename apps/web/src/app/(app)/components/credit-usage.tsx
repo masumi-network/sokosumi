@@ -91,13 +91,16 @@ export default function CreditUsage({
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <div className="w-full min-w-28 cursor-pointer space-y-1">
-            <div className="text-muted-foreground flex w-fit items-center gap-1.5 text-xs font-semibold">
+          <div className="group w-full min-w-28 cursor-pointer space-y-1">
+            <div className="text-muted-foreground flex w-full items-center gap-1.5 text-xs font-semibold">
               {isLowCredits ? (
-                <AlertTriangle className="size-3.5" aria-hidden />
+                <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
               ) : null}
               <span>{triggerLabel}</span>
-              <ChevronDown className="size-3.5" aria-hidden />
+              <ChevronDown
+                className="ml-auto size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
+                aria-hidden
+              />
             </div>
             <Progress
               className={progressRootClassName}
