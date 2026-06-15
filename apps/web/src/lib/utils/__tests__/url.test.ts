@@ -63,6 +63,18 @@ describe("buildAuthCallbackUrl", () => {
     );
   });
 
+  it("rejects a protocol-relative returnUrl to fallback", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://preprod.sokosumi.com" },
+    });
+
+    expect(
+      buildAuthCallbackUrl("/auth/callback/signin", "google", "//evil.com"),
+    ).toBe(
+      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
+    );
+  });
+
   it("falls back to a relative path when window is unavailable (SSR)", () => {
     vi.stubGlobal("window", undefined);
 
