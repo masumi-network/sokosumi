@@ -160,18 +160,49 @@ function sanitizeAuthRedirectPath(
  * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
  * Falls back to a relative path when `window` is unavailable (SSR).
  */
+export function sanitizeAuthRedirectPathForOrigin(
+  returnUrl: string | undefined,
+  origin: string,
+  fallback: string = "/",
+): string {
+  if (!returnUrl) {
+    return fallback;
+  }
+
+  try {
+    const parsedUrl = new URL(returnUrl, origin);
+    return parsedUrl.origin === origin ? returnUrl : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function getAbsoluteRedirectUrlForOrigin(
+  origin: string,
+  returnUrl: string | undefined,
+  fallback: string = "/",
+): string {
+  const safePath = sanitizeAuthRedirectPathForOrigin(
+    returnUrl,
+    origin,
+    fallback,
+  );
+  return new URL(safePath, origin).href;
+}
+
 export function getAbsoluteAuthRedirectUrl(
   returnUrl: string | undefined,
   fallback: string = "/",
 ): string {
-  const safePath = sanitizeAuthRedirectPath(returnUrl, fallback);
-
-  // No origin to anchor to during SSR; return the sanitized relative path.
   if (typeof window === "undefined") {
-    return safePath;
+    return sanitizeAuthRedirectPath(returnUrl, fallback);
   }
 
-  return new URL(safePath, window.location.origin).href;
+  return getAbsoluteRedirectUrlForOrigin(
+    window.location.origin,
+    returnUrl,
+    fallback,
+  );
 }
 
 /**

@@ -11,8 +11,10 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
-import { updateOrganizationSubscriptionSeats } from "@/lib/actions/subscription";
-import { upgradeOrganizationSubscriptionClient } from "@/lib/auth/subscription.client";
+import {
+  updateOrganizationSubscriptionSeats,
+  upgradeOrganizationSubscription,
+} from "@/lib/actions/subscription";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -180,7 +182,7 @@ export function OrganizationSubscriptionSection({
           return;
         }
 
-        const result = await upgradeOrganizationSubscriptionClient({
+        const result = await upgradeOrganizationSubscription({
           organizationId,
           plan: planName,
           returnPath,
