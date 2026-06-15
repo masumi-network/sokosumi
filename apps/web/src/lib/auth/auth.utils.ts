@@ -121,6 +121,12 @@ export function buildSignUpUrlFromSignIn({
   return query ? `/signup?${query}` : "/signup";
 }
 
+// Resolution base used to validate redirect paths when `window` is unavailable
+// (SSR). The `.invalid` TLD is reserved and never resolvable, so any input that
+// resolves to a different origin (absolute or protocol-relative URL) is rejected
+// while genuine same-origin relative paths are preserved.
+const SSR_REDIRECT_ORIGIN = "https://localhost.invalid";
+
 function sanitizeAuthRedirectPath(
   returnUrl: string | undefined,
   fallback: string = "/",
@@ -129,13 +135,19 @@ function sanitizeAuthRedirectPath(
     return fallback;
   }
 
-  if (typeof window === "undefined") {
-    return returnUrl;
-  }
+  // Validate against the real origin on the client and a reserved placeholder
+  // origin during SSR. Either way, only same-origin relative paths survive —
+  // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
+  // a different origin and fall back, closing the open-redirect vector in both
+  // contexts.
+  const baseOrigin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : SSR_REDIRECT_ORIGIN;
 
   try {
-    const parsedUrl = new URL(returnUrl, window.location.origin);
-    return parsedUrl.origin === window.location.origin ? returnUrl : fallback;
+    const parsedUrl = new URL(returnUrl, baseOrigin);
+    return parsedUrl.origin === baseOrigin ? returnUrl : fallback;
   } catch {
     return fallback;
   }
@@ -152,11 +164,13 @@ export function getAbsoluteAuthRedirectUrl(
   returnUrl: string | undefined,
   fallback: string = "/",
 ): string {
+  const safePath = sanitizeAuthRedirectPath(returnUrl, fallback);
+
+  // No origin to anchor to during SSR; return the sanitized relative path.
   if (typeof window === "undefined") {
-    return returnUrl ?? fallback;
+    return safePath;
   }
 
-  const safePath = sanitizeAuthRedirectPath(returnUrl, fallback);
   return new URL(safePath, window.location.origin).href;
 }
 
@@ -180,11 +194,7 @@ export function buildAuthCallbackUrl(
 ): string {
   const params = new URLSearchParams({ provider });
   if (returnUrl) {
-    const safeReturnUrl =
-      typeof window !== "undefined"
-        ? sanitizeAuthRedirectPath(returnUrl, "/")
-        : returnUrl;
-    params.set("returnUrl", safeReturnUrl);
+    params.set("returnUrl", sanitizeAuthRedirectPath(returnUrl, "/"));
   }
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}${path}?${params.toString()}`;

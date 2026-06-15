@@ -107,6 +107,18 @@ describe("buildAuthCallbackUrl", () => {
       "/auth/callback/signin?provider=google",
     );
   });
+
+  it("sanitizes external returnUrl to fallback during SSR", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(
+      buildAuthCallbackUrl(
+        "/auth/callback/signin",
+        "google",
+        "https://evil.example/attack",
+      ),
+    ).toBe("/auth/callback/signin?provider=google&returnUrl=%2F");
+  });
 });
 
 describe("getAbsoluteAuthRedirectUrl", () => {
@@ -149,6 +161,20 @@ describe("getAbsoluteAuthRedirectUrl", () => {
 
     expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe("/chat");
   });
+
+  it("sanitizes an external returnUrl to fallback during SSR", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(
+      getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
+    ).toBe("/chat");
+  });
+
+  it("rejects a protocol-relative returnUrl during SSR", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(getAbsoluteAuthRedirectUrl("//evil.com", "/chat")).toBe("/chat");
+  });
 });
 
 describe("normalizeAuthReturnUrl", () => {
@@ -184,6 +210,12 @@ describe("normalizeAuthReturnUrl", () => {
     });
 
     expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
+  });
+
+  it("returns / for external returnUrl during SSR", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
   });
 });
 
