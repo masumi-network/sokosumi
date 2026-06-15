@@ -206,7 +206,9 @@ export default function OrganizationInformationForm({
         toast.success(isCreating ? t("Success.create") : t("Success.edit"));
 
         if (isCreating) {
-          handleSelectWorkspace(result.data.id);
+          handleSelectWorkspace(result.data.id, {
+            shouldRedirectAgentJobsBasePath: false,
+          });
         } else {
           router.refresh();
         }
