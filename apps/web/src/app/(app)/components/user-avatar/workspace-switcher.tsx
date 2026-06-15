@@ -30,10 +30,7 @@ export async function activateOrganizationWorkspace(
     });
 
     if (!result.ok) {
-      console.error(
-        "Failed to persist preferred organization:",
-        result.error,
-      );
+      console.error("Failed to persist preferred organization:", result.error);
     }
   } catch (error) {
     console.error("Failed to persist preferred organization:", error);

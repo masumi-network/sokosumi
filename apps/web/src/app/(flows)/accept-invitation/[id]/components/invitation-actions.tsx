@@ -93,9 +93,7 @@ export default function InvitationActions({
       }
     } else {
       try {
-        await activateOrganizationWorkspace(
-          result.data.member.organizationId,
-        );
+        await activateOrganizationWorkspace(result.data.member.organizationId);
       } catch (error) {
         console.error("Failed to switch organization workspace:", error);
       }
