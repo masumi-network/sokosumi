@@ -604,6 +604,22 @@ describe("TaskDetailActions", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows cancel request while approval is required", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TASK_STATUS.APPROVAL_REQUIRED,
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.queryByRole("menuitem", { name: labels.archive })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: labels.cancelRequest }),
+    ).toBeInTheDocument();
+  });
+
   it("hides share and overflow actions in read-only workspace mode", () => {
     renderActions({
       isReadOnly: true,
