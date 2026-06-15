@@ -38,6 +38,7 @@ export {
   IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,
   resolveIpfsOrHttpUrl,
+  sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
 export {
   type AppLocale,

@@ -1772,14 +1772,17 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(result).toEqual(
       expect.objectContaining({ processed: 1, unfinishedFound: 1 }),
     );
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "socket hang up" }),
-      expect.objectContaining({
-        extra: expect.objectContaining({
-          notificationType: "job-final-status",
+
+    await vi.waitFor(() => {
+      expect(captureExceptionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "socket hang up" }),
+        expect.objectContaining({
+          extra: expect.objectContaining({
+            notificationType: "job-final-status",
+          }),
         }),
-      }),
-    );
+      );
+    });
   });
 
   it("skips purchase backfill gracefully on P2014 relation violation (concurrent job deletion)", async () => {

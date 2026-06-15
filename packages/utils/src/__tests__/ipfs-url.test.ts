@@ -6,6 +6,7 @@ import {
   IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,
   resolveIpfsOrHttpUrl,
+  sanitizeOrganizationLogoForApi,
 } from "../ipfs-url.js";
 
 describe("resolveIpfsOrHttpUrl", () => {
@@ -61,5 +62,58 @@ describe("normalizeOrganizationLogo", () => {
       normalizeOrganizationLogo("https://blob.example/logo.png"),
       "https://blob.example/logo.png",
     );
+  });
+});
+
+describe("sanitizeOrganizationLogoForApi", () => {
+  it("preserves explicit empty string", () => {
+    assert.equal(sanitizeOrganizationLogoForApi(""), "");
+  });
+
+  it("maps invalid URLs to null", () => {
+    assert.equal(sanitizeOrganizationLogoForApi("not-a-url"), null);
+    assert.equal(
+      sanitizeOrganizationLogoForApi("ftp://example.com/logo"),
+      null,
+    );
+  });
+
+  it("normalizes IPFS logos to https gateway URLs", () => {
+    assert.equal(
+      sanitizeOrganizationLogoForApi("ipfs://acme-logo"),
+      `${IPFS_GATEWAY_PREFIX}acme-logo`,
+    );
+  });
+
+  it("passes through valid https URLs", () => {
+    assert.equal(
+      sanitizeOrganizationLogoForApi("https://blob.example/logo.png"),
+      "https://blob.example/logo.png",
+    );
+  });
+
+  it("maps null and undefined to null", () => {
+    assert.equal(sanitizeOrganizationLogoForApi(null), null);
+    assert.equal(sanitizeOrganizationLogoForApi(undefined), null);
+  });
+
+  it("maps non-string values to null without throwing", () => {
+    assert.equal(sanitizeOrganizationLogoForApi(42), null);
+    assert.equal(sanitizeOrganizationLogoForApi({ url: "x" }), null);
+  });
+
+  it("maps whitespace-only values to null", () => {
+    assert.equal(sanitizeOrganizationLogoForApi("   "), null);
+  });
+
+  it("maps non-http(s) schemes to null", () => {
+    assert.equal(
+      sanitizeOrganizationLogoForApi("data:image/png;base64,iVBORw0KGgo="),
+      null,
+    );
+  });
+
+  it("does not normalize non-lowercase ipfs schemes", () => {
+    assert.equal(sanitizeOrganizationLogoForApi("IPFS://acme-logo"), null);
   });
 });
