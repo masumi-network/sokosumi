@@ -145,12 +145,7 @@ export const updateOrganizationSubscriptionSeats = withSession<
 
     return Ok({ seats: data.seats });
   } catch (error) {
-    try {
-      mapCoreSubscriptionSeatsWriteError(error);
-    } catch (mappedError) {
-      return Err(parseBetterAuthActionError(mappedError));
-    }
-
-    return Err(parseBetterAuthActionError(error));
+    const mappedError = mapCoreSubscriptionSeatsWriteError(error);
+    return Err(parseBetterAuthActionError(mappedError ?? error));
   }
 });
