@@ -124,6 +124,7 @@
       "support": "Support",
       "logout": "Abmelden",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits verwendet",
+      "lowCreditsLabel": "Niedrige Credits {used, number}/{total, number}",
       "totalBalanceLabel": "Gesamtsaldo",
       "creditsConsumedProgressAria": "Verbrauchte Abo-Credits",
       "help": "Hilfe",

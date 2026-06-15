@@ -1,14 +1,13 @@
 "use client";
 
+import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-
-import { Progress } from "@/components/ui/progress";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
 import type { CreditUsage as CreditUsageType } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -18,6 +17,7 @@ interface CreditUsageProps {
   creditsLabel?: string;
   currentTimestampMs: number;
   subscriptionPeriodEndMs?: number | null;
+  isLowCredits?: boolean;
 }
 
 export default function CreditUsage({
@@ -26,6 +26,7 @@ export default function CreditUsage({
   creditsLabel,
   currentTimestampMs,
   subscriptionPeriodEndMs,
+  isLowCredits = false,
 }: CreditUsageProps) {
   const t = useTranslations("Components.UserAvatar");
   const tBilling = useTranslations("App.Billing");
@@ -36,10 +37,23 @@ export default function CreditUsage({
   }
 
   const creditUsageAriaLabel = t("creditsConsumedProgressAria");
-  const creditUsageLabel = t("creditsUsedOfTotal", {
-    used: formatCreditsForDisplay(activeCreditUsage.used),
-    total: formatCreditsForDisplay(activeCreditUsage.total),
+  const usedFormatted = formatCreditsForDisplay(activeCreditUsage.used);
+  const totalFormatted = formatCreditsForDisplay(activeCreditUsage.total);
+
+  const normalCreditUsageLabel = t("creditsUsedOfTotal", {
+    used: usedFormatted,
+    total: totalFormatted,
   });
+
+  const lowCreditUsageLabel = t("lowCreditsLabel", {
+    used: usedFormatted,
+    total: totalFormatted,
+  });
+
+  const triggerLabel = isLowCredits
+    ? lowCreditUsageLabel
+    : normalCreditUsageLabel;
+
   const hasExtraCredits = (extraCredits ?? 0) > 0;
   const totalCreditsNumeric = formatCreditsForDisplay(
     activeCreditUsage.remaining + Math.max(0, extraCredits ?? 0),
@@ -47,6 +61,7 @@ export default function CreditUsage({
   const totalCreditsDisplay = tBilling("balanceCreditsLabel", {
     credits: totalCreditsNumeric,
   });
+
   let creditsExpiryLabel: string | null = null;
   if (subscriptionPeriodEndMs) {
     const millisecondsPerDay = 1000 * 60 * 60 * 24;
@@ -65,101 +80,106 @@ export default function CreditUsage({
     }
   }
 
+  const progressRootClassName = isLowCredits
+    ? "bg-semantic-warning/20 h-1.5"
+    : "bg-primary/20 h-1.5";
+  const progressIndicatorClassName = isLowCredits
+    ? "bg-semantic-warning"
+    : "bg-primary";
+
   if (creditsLabel) {
     return (
-      <TooltipProvider>
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>
-            <div className="w-full min-w-28 space-y-1">
+      <Popover>
+        <PopoverTrigger asChild>
+          <div className="w-full min-w-28 cursor-pointer space-y-1">
+            <div className="text-muted-foreground flex w-fit items-center gap-1.5 text-xs font-semibold">
+              {isLowCredits ? (
+                <AlertTriangle className="size-3.5" aria-hidden />
+              ) : null}
+              <span>{triggerLabel}</span>
+              <ChevronDown className="size-3.5" aria-hidden />
+            </div>
+            <Progress
+              className={progressRootClassName}
+              value={activeCreditUsage.percentageUsed}
+              aria-label={creditUsageAriaLabel}
+              indicatorClassName={progressIndicatorClassName}
+            />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent
+          side="bottom"
+          align="start"
+          className="bg-popover text-popover-foreground min-w-56 rounded-md border p-3 shadow-md"
+        >
+          <div className="space-y-3 text-left">
+            <section className="space-y-1">
+              <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
+                {totalCreditsDisplay}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t("totalBalanceLabel")}
+              </p>
+            </section>
+            <div className="bg-border h-px" />
+            <section className="space-y-1.5">
+              <p className="text-xs font-semibold">{t("monthlyUsageLimit")}</p>
+              <div className={progressRootClassName}>
+                <div
+                  role="progressbar"
+                  aria-label={creditUsageAriaLabel}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={activeCreditUsage.percentageUsed}
+                  className={`${progressIndicatorClassName} h-full transition-all`}
+                  style={{ width: `${activeCreditUsage.percentageUsed}%` }}
+                />
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {normalCreditUsageLabel}
+              </p>
               {creditsExpiryLabel ? (
-                <div className="text-muted-foreground w-fit text-xs font-semibold">
+                <p className="text-muted-foreground text-xs">
                   {creditsExpiryLabel}
-                </div>
+                </p>
               ) : null}
-              <Progress
-                className="h-1.5"
-                value={activeCreditUsage.percentageUsed}
-                aria-label={creditUsageAriaLabel}
-              />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            className="bg-popover text-popover-foreground min-w-56 rounded-md border p-3 shadow-md"
-            arrowClassName="mt-0.5 bg-popover fill-popover border-b border-r"
-          >
-            <div className="space-y-3 text-left">
-              <section className="space-y-1">
-                <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
-                  {totalCreditsDisplay}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {t("totalBalanceLabel")}
-                </p>
-              </section>
-              <div className="bg-border h-px" />
-              <section className="space-y-1.5">
-                <p className="text-xs font-semibold">
-                  {t("monthlyUsageLimit")}
-                </p>
-                <div className="bg-primary/20 relative h-1.5 w-full overflow-hidden rounded-full">
-                  <div
-                    role="progressbar"
-                    aria-label={creditUsageAriaLabel}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={activeCreditUsage.percentageUsed}
-                    className="bg-primary h-full transition-all"
-                    style={{ width: `${activeCreditUsage.percentageUsed}%` }}
-                  />
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {creditUsageLabel}
-                </p>
-                {creditsExpiryLabel ? (
+            </section>
+            {hasExtraCredits ? (
+              <>
+                <div className="bg-border h-px" />
+                <section className="space-y-1">
                   <p className="text-muted-foreground text-xs">
-                    {creditsExpiryLabel}
+                    {t("extraCredits")}
                   </p>
-                ) : null}
-              </section>
-              {hasExtraCredits ? (
-                <>
-                  <div className="bg-border h-px" />
-                  <section className="space-y-1">
-                    <p className="text-muted-foreground text-xs">
-                      {t("extraCredits")}
-                    </p>
-                    <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
-                      {creditsLabel}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {t("extraCreditsDescription")}
-                    </p>
-                  </section>
-                </>
-              ) : null}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+                  <p className="text-lg font-bold tabular-nums leading-none tracking-tight">
+                    {creditsLabel}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("extraCreditsDescription")}
+                  </p>
+                </section>
+              </>
+            ) : null}
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 
   return (
     <div className="w-full min-w-28 space-y-1">
-      {creditsExpiryLabel ? (
-        <div className="text-muted-foreground w-fit text-[11px]">
-          {creditsExpiryLabel}
-        </div>
-      ) : null}
+      <div className="text-muted-foreground flex w-fit items-center gap-1.5 text-[11px]">
+        {isLowCredits ? (
+          <AlertTriangle className="size-3.5" aria-hidden />
+        ) : null}
+        <span>{triggerLabel}</span>
+      </div>
       <Progress
-        className="h-1.5"
+        className={progressRootClassName}
         value={activeCreditUsage.percentageUsed}
         aria-label={creditUsageAriaLabel}
+        indicatorClassName={progressIndicatorClassName}
       />
-      <div className="text-muted-foreground w-fit text-[11px]">
-        {creditUsageLabel}
-      </div>
     </div>
   );
 }

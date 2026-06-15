@@ -134,6 +134,7 @@
       "expandSidebar": "展开侧边栏",
       "logout": "退出登录",
       "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
+      "lowCreditsLabel": "积分不足 {used, number}/{total, number}",
       "totalBalanceLabel": "总余额",
       "creditsSummary": "积分摘要：",
       "monthlyUsageLimit": "月度使用上限",

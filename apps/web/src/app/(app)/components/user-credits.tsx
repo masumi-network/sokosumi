@@ -19,6 +19,7 @@ interface UserCreditsProps {
   showAvatar?: boolean;
   showCtaButtons?: boolean;
   showCreditUsage?: boolean;
+  lowCreditsThreshold: number;
 }
 
 export default async function UserCredits({
@@ -29,6 +30,7 @@ export default async function UserCredits({
   showAvatar = true,
   showCtaButtons = true,
   showCreditUsage = true,
+  lowCreditsThreshold,
 }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
@@ -67,6 +69,13 @@ export default async function UserCredits({
     }
   }
 
+  // Compute low-credits state using total buffer credits and threshold
+  const totalCredits = creditsData?.total ?? null;
+  const isLowCredits =
+    typeof totalCredits === "number" &&
+    totalCredits < lowCreditsThreshold &&
+    totalCredits > 0;
+
   const displayCredits = formatCreditsForDisplay(credits ?? 0);
   const creditsLabel =
     credits === null
@@ -102,6 +111,7 @@ export default async function UserCredits({
               creditsLabel={creditsLabel}
               currentTimestampMs={currentTimestampMs}
               subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+              isLowCredits={isLowCredits}
             />
           ) : null}
           {showAvatar ? (

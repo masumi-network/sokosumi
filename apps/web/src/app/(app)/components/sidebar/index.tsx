@@ -26,6 +26,7 @@ interface SidebarProps {
   hermesMenuEnabled: boolean;
   organizationName: string | null;
   session: Session;
+  lowCreditsThreshold: number;
 }
 
 export default function Sidebar({
@@ -35,6 +36,7 @@ export default function Sidebar({
   hermesMenuEnabled,
   organizationName,
   session,
+  lowCreditsThreshold,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -71,6 +73,7 @@ export default function Sidebar({
               showCtaButtons={false}
               showCreditUsage
               showAvatar={false}
+              lowCreditsThreshold={lowCreditsThreshold}
             />
           </div>
           <CreditCta currentPlan={creditsData?.subscription?.plan ?? "free"} />
