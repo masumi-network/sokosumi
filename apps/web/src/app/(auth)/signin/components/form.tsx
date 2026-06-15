@@ -20,8 +20,8 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
-  getAuthOAuthRedirect,
   getAbsoluteAuthRedirectUrl,
+  getAuthOAuthRedirect,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";

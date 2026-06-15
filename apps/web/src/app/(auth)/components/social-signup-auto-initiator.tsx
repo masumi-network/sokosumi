@@ -8,7 +8,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
-import { buildOAuthConsentReturnUrlFromSearchParams, buildAuthCallbackUrl } from "@/lib/auth/auth.utils";
+import {
+  buildAuthCallbackUrl,
+  buildOAuthConsentReturnUrlFromSearchParams,
+} from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas";
 
 interface SocialSignupAutoInitiatorProps {

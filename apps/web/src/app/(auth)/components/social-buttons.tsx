@@ -23,8 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
-  buildOAuthConsentReturnUrlFromSearchParams,
   buildAuthCallbackUrl,
+  buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   normalizeAuthReturnUrl,

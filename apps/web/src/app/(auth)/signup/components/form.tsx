@@ -18,8 +18,8 @@ import { authClient, signUp } from "@/lib/auth/auth.client";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
-  getAuthOAuthRedirect,
   getAbsoluteAuthRedirectUrl,
+  getAuthOAuthRedirect,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
