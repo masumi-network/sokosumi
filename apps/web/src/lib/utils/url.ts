@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config/site";
+import { getValidAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas";
 
 export function getHostname(rawUrl: string): string | null {
@@ -65,7 +66,13 @@ export function buildAuthCallbackUrl(
   returnUrl?: string,
 ): string {
   const params = new URLSearchParams({ provider });
-  if (returnUrl) params.set("returnUrl", returnUrl);
+  if (returnUrl) {
+    const safeReturnUrl =
+      typeof window !== "undefined"
+        ? getValidAuthRedirectUrl(returnUrl, "/")
+        : returnUrl;
+    params.set("returnUrl", safeReturnUrl);
+  }
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}${path}?${params.toString()}`;
 }
