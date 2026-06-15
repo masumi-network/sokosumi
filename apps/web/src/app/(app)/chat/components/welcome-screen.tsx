@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
+import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction, useMemo } from "react";
 import {
@@ -179,14 +180,16 @@ export default function WelcomeScreen({
                       type="button"
                       onClick={() => handleSuggestionClick(text)}
                       className={cn(
-                        "border-border/60 bg-muted/30 w-full rounded-xl border px-4 py-3 text-left text-sm",
-                        "hover:border-border hover:bg-muted/50 transition-colors",
+                        "group border-border/60 bg-muted/30 w-full rounded-xl border px-4 py-3 text-left text-sm",
+                        "hover:border-primary hover:bg-muted/50 hover:shadow-sm transition-colors cursor-pointer",
                         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                        "flex items-center justify-between gap-3",
                       )}
                     >
                       <span className="text-muted-foreground leading-snug">
                         {text}
                       </span>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                     </button>
                   </li>
                 ))}
