@@ -6,6 +6,7 @@ import {
   IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,
   resolveIpfsOrHttpUrl,
+  sanitizeOrganizationLogoForApi,
 } from "../ipfs-url.js";
 
 describe("resolveIpfsOrHttpUrl", () => {
@@ -59,6 +60,34 @@ describe("normalizeOrganizationLogo", () => {
   it("passes through https URLs", () => {
     assert.equal(
       normalizeOrganizationLogo("https://blob.example/logo.png"),
+      "https://blob.example/logo.png",
+    );
+  });
+});
+
+describe("sanitizeOrganizationLogoForApi", () => {
+  it("preserves explicit empty string", () => {
+    assert.equal(sanitizeOrganizationLogoForApi(""), "");
+  });
+
+  it("maps invalid URLs to null", () => {
+    assert.equal(sanitizeOrganizationLogoForApi("not-a-url"), null);
+    assert.equal(
+      sanitizeOrganizationLogoForApi("ftp://example.com/logo"),
+      null,
+    );
+  });
+
+  it("normalizes IPFS logos to https gateway URLs", () => {
+    assert.equal(
+      sanitizeOrganizationLogoForApi("ipfs://acme-logo"),
+      `${IPFS_GATEWAY_PREFIX}acme-logo`,
+    );
+  });
+
+  it("passes through valid https URLs", () => {
+    assert.equal(
+      sanitizeOrganizationLogoForApi("https://blob.example/logo.png"),
       "https://blob.example/logo.png",
     );
   });

@@ -1,17 +1,21 @@
 import { z } from "@hono/zod-openapi";
+import { sanitizeOrganizationLogoForApi } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+
+const organizationLogoSchema = z.preprocess(
+  (logo) => sanitizeOrganizationLogoForApi(logo as string | null | undefined),
+  z.union([z.httpUrl(), z.literal(""), z.null()]),
+);
 
 export const organizationSchema = z.object({
   id: z.string().openapi({ example: "org_123" }),
   createdAt: dateTimeSchema,
   name: z.string().openapi({ example: "My Organization" }),
   slug: z.string().openapi({ example: "my-org" }),
-  logo: z
-    .httpUrl()
-    .or(z.literal(""))
-    .nullable()
-    .openapi({ example: "https://example.com/logo.png" }),
+  logo: organizationLogoSchema.openapi({
+    example: "https://example.com/logo.png",
+  }),
   metadata: z
     .object({
       url: z.httpUrl().nullable().optional(),
