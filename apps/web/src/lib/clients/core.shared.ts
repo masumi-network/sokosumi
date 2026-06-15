@@ -1400,6 +1400,7 @@ export function createCoreClient(getClient: GetClient) {
         | "DRAFT"
         | "READY"
         | "INPUT_REQUIRED"
+        | "APPROVAL_REQUIRED"
         | "AUTHENTICATION_REQUIRED"
         | "OUT_OF_CREDITS"
         | "CREDITS_TOPPED_UP"

@@ -45,6 +45,7 @@ const labels = {
     [TaskStatus.DRAFT]: "Draft",
     [TaskStatus.READY]: "Ready",
     [TaskStatus.INPUT_REQUIRED]: "Input required",
+    [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
     [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
     [TaskStatus.OUT_OF_CREDITS]: "Out of credits",
     [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",

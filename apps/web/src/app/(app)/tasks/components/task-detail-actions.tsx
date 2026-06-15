@@ -886,6 +886,7 @@ function getTaskStatusActions(
 
   if (
     status === TASK_STATUS.INPUT_REQUIRED ||
+    status === TASK_STATUS.APPROVAL_REQUIRED ||
     status === TASK_STATUS.AUTHENTICATION_REQUIRED ||
     status === TASK_STATUS.OUT_OF_CREDITS ||
     status === TASK_STATUS.CREDITS_TOPPED_UP ||
