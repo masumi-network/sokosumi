@@ -10,9 +10,13 @@ export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
     TaskStatus.RUNNING,
     TaskStatus.AWAITING_EXTERNAL,
     TaskStatus.CANCEL_REQUESTED,
-    TaskStatus.AUTHENTICATION_REQUIRED,
   ],
-  "input-required": [TaskStatus.INPUT_REQUIRED, TaskStatus.OUT_OF_CREDITS],
+  "input-required": [
+    TaskStatus.INPUT_REQUIRED,
+    TaskStatus.APPROVAL_REQUIRED,
+    TaskStatus.AUTHENTICATION_REQUIRED,
+    TaskStatus.OUT_OF_CREDITS,
+  ],
   done: [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED],
 };
 

@@ -60,6 +60,7 @@ function getAllowedTransitions(
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.CANCELED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
@@ -71,10 +72,21 @@ function getAllowedTransitions(
         TaskStatus.FAILED,
         TaskStatus.CANCELED,
       ],
+      [TaskStatus.APPROVAL_REQUIRED]: [
+        TaskStatus.RUNNING,
+        TaskStatus.AWAITING_EXTERNAL,
+        TaskStatus.AUTHENTICATION_REQUIRED,
+        TaskStatus.INPUT_REQUIRED,
+        TaskStatus.OUT_OF_CREDITS,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+        TaskStatus.CANCELED,
+      ],
       [TaskStatus.AUTHENTICATION_REQUIRED]: [
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
         TaskStatus.FAILED,
@@ -89,6 +101,7 @@ function getAllowedTransitions(
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
@@ -98,6 +111,7 @@ function getAllowedTransitions(
       [TaskStatus.RUNNING]: [
         TaskStatus.AWAITING_EXTERNAL,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
@@ -107,6 +121,7 @@ function getAllowedTransitions(
       [TaskStatus.AWAITING_EXTERNAL]: [
         TaskStatus.RUNNING,
         TaskStatus.INPUT_REQUIRED,
+        TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.AUTHENTICATION_REQUIRED,
         TaskStatus.OUT_OF_CREDITS,
         TaskStatus.COMPLETED,
@@ -127,6 +142,7 @@ function getAllowedTransitions(
     [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
     [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
     [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
+    [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.OUT_OF_CREDITS]: [
       TaskStatus.CREDITS_TOPPED_UP,
