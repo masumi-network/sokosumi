@@ -42,9 +42,7 @@ export function normalizeOrganizationLogo(
  * an explicit empty string, and maps malformed or non-HTTP(S) values to `null`
  * so response validation does not fail on legacy database rows.
  */
-export function sanitizeOrganizationLogoForApi(
-  logo: unknown,
-): string | null {
+export function sanitizeOrganizationLogoForApi(logo: unknown): string | null {
   if (logo === "") {
     return "";
   }
