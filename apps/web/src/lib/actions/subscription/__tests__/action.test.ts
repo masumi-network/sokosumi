@@ -4,16 +4,45 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
-const updateOrganizationSeatsImmediatelyMock = vi.fn();
+const updateOrganizationSubscriptionSeatsMock = vi.fn();
+const getEnvSecretsMock = vi.fn();
 
-vi.mock("@/lib/services", () => ({
-  organizationSubscriptionService: {
-    updateOrganizationSeatsImmediately: updateOrganizationSeatsImmediatelyMock,
-  },
+vi.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("@sokosumi/database/helpers", () => ({
-  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => ({
+    NEXT_PUBLIC_NETWORK: "mainnet",
+  }),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+}));
+
+vi.mock("@/lib/services", () => ({
+  userService: {},
+}));
+
+class MockCoreApiRequestError extends Error {
+  kind?: string;
+  status?: number;
+
+  constructor(message: string, options?: { kind?: string; status?: number }) {
+    super(message);
+    this.name = "CoreApiRequestError";
+    this.kind = options?.kind;
+    this.status = options?.status;
+  }
+}
+
+vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: MockCoreApiRequestError,
+  coreClient: {
+    updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
+      updateOrganizationSubscriptionSeatsMock(...args),
+  },
 }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -35,6 +64,9 @@ const organizationSession = {
 describe("subscription actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getEnvSecretsMock.mockReturnValue({
+      CORE_APP_BASE_URL: "https://core.example.com",
+    });
   });
 
   it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
@@ -53,12 +85,12 @@ describe("subscription actions", () => {
       },
       ok: false,
     });
-    expect(updateOrganizationSeatsImmediatelyMock).not.toHaveBeenCalled();
+    expect(updateOrganizationSubscriptionSeatsMock).not.toHaveBeenCalled();
   });
 
-  it("updates organization seats immediately without redirect flow", async () => {
-    updateOrganizationSeatsImmediatelyMock.mockResolvedValue({
-      seats: 9,
+  it("updates organization seats immediately via core", async () => {
+    updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
+      data: { seats: 9 },
     });
 
     const { updateOrganizationSubscriptionSeats } = await import("../action");
@@ -73,20 +105,17 @@ describe("subscription actions", () => {
       data: { seats: 9 },
       ok: true,
     });
-    expect(updateOrganizationSeatsImmediatelyMock).toHaveBeenCalledWith(
-      "user-1",
+    expect(updateOrganizationSubscriptionSeatsMock).toHaveBeenCalledWith(
       "org-1",
       9,
     );
   });
 
-  it("maps organization subscription exclusivity errors from the seat update", async () => {
-    const { OrganizationSubscriptionExclusivityError } = await import(
-      "@sokosumi/database/helpers"
-    );
-    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
-      new OrganizationSubscriptionExclusivityError(
+  it("maps enterprise exclusivity errors from core seat updates", async () => {
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new MockCoreApiRequestError(
         "Self-serve subscriptions are not available.",
+        { status: 400 },
       ),
     );
 
@@ -109,13 +138,35 @@ describe("subscription actions", () => {
   });
 
   it("maps unauthorized immediate seat update errors", async () => {
-    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
-      Object.assign(
-        new Error(
-          "Only organization owners and admins can manage subscriptions",
-        ),
-        { status: "FORBIDDEN" },
-      ),
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new MockCoreApiRequestError("You must be owner, admin", {
+        status: 403,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps missing organization to unauthorized seat update errors", async () => {
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new MockCoreApiRequestError("Organization not found", {
+        status: 404,
+      }),
     );
 
     const { CommonErrorCode } = await import("@/lib/actions/errors");
@@ -137,12 +188,10 @@ describe("subscription actions", () => {
   });
 
   it("maps bad request immediate seat update errors", async () => {
-    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
-      Object.assign(
-        new Error(
-          "An active organization subscription is required before updating seats.",
-        ),
-        { status: "BAD_REQUEST" },
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new MockCoreApiRequestError(
+        "An active organization subscription is required before updating seats.",
+        { status: 400 },
       ),
     );
 

@@ -1,6 +1,5 @@
 "use server";
 
-import { OrganizationSubscriptionExclusivityError } from "@sokosumi/database/helpers";
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import * as z from "zod";
 import {
@@ -8,6 +7,7 @@ import {
   betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/errors";
+import { mapCoreSubscriptionSeatsWriteError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
 import type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
 import {
   openOrganizationBillingPortalServer,
@@ -15,7 +15,7 @@ import {
   upgradeOrganizationSubscriptionServer,
   upgradePersonalSubscriptionServer,
 } from "@/lib/auth/subscription.server";
-import { organizationSubscriptionService } from "@/lib/services";
+import { coreClient } from "@/lib/clients/core.client";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -87,23 +87,7 @@ function getErrorStatus(error: unknown): string | null {
     : null;
 }
 
-function mapSubscriptionExclusivityError(error: unknown): ActionError | null {
-  if (!(error instanceof OrganizationSubscriptionExclusivityError)) {
-    return null;
-  }
-
-  return {
-    code: CommonErrorCode.BAD_INPUT,
-    message: error.message,
-  };
-}
-
 function parseBetterAuthActionError(error: unknown): ActionError {
-  const exclusivityError = mapSubscriptionExclusivityError(error);
-  if (exclusivityError) {
-    return exclusivityError;
-  }
-
   const parsedBetterAuthError = betterAuthApiErrorSchema.safeParse(error);
   if (parsedBetterAuthError.success) {
     return {
@@ -142,7 +126,7 @@ interface UpdateOrganizationSubscriptionSeatsParameters
 export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,
   Result<{ seats: number }, ActionError>
->(async ({ session, organizationId, seats }) => {
+>(async ({ organizationId, seats }) => {
   const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
     organizationId,
     seats,
@@ -154,15 +138,19 @@ export const updateOrganizationSubscriptionSeats = withSession<
   }
 
   try {
-    const result =
-      await organizationSubscriptionService.updateOrganizationSeatsImmediately(
-        session.user.id,
-        parsed.data.organizationId,
-        parsed.data.seats,
-      );
+    const { data } = await coreClient.updateOrganizationSubscriptionSeats(
+      parsed.data.organizationId,
+      parsed.data.seats,
+    );
 
-    return Ok(result);
+    return Ok({ seats: data.seats });
   } catch (error) {
+    try {
+      mapCoreSubscriptionSeatsWriteError(error);
+    } catch (mappedError) {
+      return Err(parseBetterAuthActionError(mappedError));
+    }
+
     return Err(parseBetterAuthActionError(error));
   }
 });
