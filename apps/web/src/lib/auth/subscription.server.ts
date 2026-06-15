@@ -1,17 +1,26 @@
-"use client";
+import "server-only";
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
-
+import { headers } from "next/headers";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
-import { subscription } from "@/lib/auth/auth.client";
+import {
+  getAuthServerClient,
+  resolveWebRequestOrigin,
+} from "@/lib/auth/auth.server.client";
+import { getAbsoluteRedirectUrlForOrigin } from "@/lib/auth/auth.utils";
 import { buildSubscriptionStatusPath } from "@/lib/stripe/subscription-redirect-urls";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 
 export type SubscriptionChangeResult =
   | { mode: "complete" }
   | { mode: "redirect"; url: string };
+
+// A known-safe internal landing page used when the caller's returnPath is
+// rejected by the origin sanitizer. Passing returnPath as its own fallback
+// would re-admit an off-origin value, so anchor to a constant instead.
+const SAFE_REDIRECT_FALLBACK = "/billing?tab=subscription";
 
 interface BetterAuthClientError {
   code?: string;
@@ -20,16 +29,8 @@ interface BetterAuthClientError {
 }
 
 function mapAuthClientError(error: BetterAuthClientError): ActionError {
-  // Surface the real error for debugging (browser console) without leaking it
-  // into the UI — these errors come straight from Stripe / Better Auth and
-  // their messages may expose internal details.
   console.error("[subscription] auth client error", error);
 
-  // App-defined codes are safe to pass through so the UI can localize them
-  // (e.g. the enterprise-contract exclusivity error thrown by
-  // authorizeReference). Everything else routes on the HTTP status, with no
-  // raw message forwarded; a 401 maps to UNAUTHENTICATED so the "log in"
-  // affordance fires.
   if (
     error.code ===
     OrganizationErrorCode.ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE
@@ -59,7 +60,45 @@ function resolveUpgradeResult(
   return Ok({ mode: "redirect", url: data.url });
 }
 
-export async function upgradePersonalSubscriptionClient({
+async function resolveSubscriptionRedirectUrls(returnPath: string): Promise<
+  Result<
+    {
+      cancelUrl: string;
+      returnUrl: string;
+      successUrl: string;
+    },
+    ActionError
+  >
+> {
+  const requestHeaders = await headers();
+  const origin = resolveWebRequestOrigin(requestHeaders);
+
+  if (!origin) {
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+
+  return Ok({
+    cancelUrl: getAbsoluteRedirectUrlForOrigin(
+      origin,
+      buildSubscriptionStatusPath(returnPath, "cancel"),
+      SAFE_REDIRECT_FALLBACK,
+    ),
+    returnUrl: getAbsoluteRedirectUrlForOrigin(
+      origin,
+      returnPath,
+      SAFE_REDIRECT_FALLBACK,
+    ),
+    successUrl: getAbsoluteRedirectUrlForOrigin(
+      origin,
+      buildSubscriptionStatusPath(returnPath, "success"),
+      SAFE_REDIRECT_FALLBACK,
+    ),
+  });
+}
+
+export async function upgradePersonalSubscriptionServer({
   plan,
   returnPath,
 }: {
@@ -67,13 +106,21 @@ export async function upgradePersonalSubscriptionClient({
   returnPath?: string;
 }): Promise<Result<SubscriptionChangeResult, ActionError>> {
   const resolvedReturnPath = returnPath ?? "/billing?tab=subscription";
+  const redirectUrlsResult =
+    await resolveSubscriptionRedirectUrls(resolvedReturnPath);
 
-  const result = await subscription.upgrade({
+  if (!redirectUrlsResult.ok) {
+    return Err(redirectUrlsResult.error);
+  }
+
+  const redirectUrls = redirectUrlsResult.data;
+
+  const result = await getAuthServerClient().subscription.upgrade({
     plan,
     customerType: "user",
-    successUrl: buildSubscriptionStatusPath(resolvedReturnPath, "success"),
-    cancelUrl: buildSubscriptionStatusPath(resolvedReturnPath, "cancel"),
-    returnUrl: resolvedReturnPath,
+    successUrl: redirectUrls.successUrl,
+    cancelUrl: redirectUrls.cancelUrl,
+    returnUrl: redirectUrls.returnUrl,
     disableRedirect: true,
   });
 
@@ -81,23 +128,27 @@ export async function upgradePersonalSubscriptionClient({
     return Err(mapAuthClientError(result.error));
   }
 
-  // Clear the onboarding gate only after the checkout call succeeds — clearing
-  // it before would permanently suppress the gate if the upgrade call failed.
   await clearSubscriptionOnboardingGateSessionCookie();
 
   return resolveUpgradeResult(result.data);
 }
 
-export async function openPersonalBillingPortalClient({
+export async function openPersonalBillingPortalServer({
   returnPath,
 }: {
   returnPath?: string;
 }): Promise<Result<{ url: string }, ActionError>> {
   const resolvedReturnPath = returnPath ?? "/billing?tab=subscription";
+  const redirectUrlsResult =
+    await resolveSubscriptionRedirectUrls(resolvedReturnPath);
 
-  const result = await subscription.billingPortal({
+  if (!redirectUrlsResult.ok) {
+    return Err(redirectUrlsResult.error);
+  }
+
+  const result = await getAuthServerClient().subscription.billingPortal({
     customerType: "user",
-    returnUrl: resolvedReturnPath,
+    returnUrl: redirectUrlsResult.data.returnUrl,
     disableRedirect: true,
   });
 
@@ -114,7 +165,7 @@ export async function openPersonalBillingPortalClient({
   return Ok({ url: result.data.url });
 }
 
-export async function upgradeOrganizationSubscriptionClient({
+export async function upgradeOrganizationSubscriptionServer({
   organizationId,
   plan,
   returnPath,
@@ -125,14 +176,22 @@ export async function upgradeOrganizationSubscriptionClient({
   returnPath: string;
   seats: number;
 }): Promise<Result<SubscriptionChangeResult, ActionError>> {
-  const result = await subscription.upgrade({
+  const redirectUrlsResult = await resolveSubscriptionRedirectUrls(returnPath);
+
+  if (!redirectUrlsResult.ok) {
+    return Err(redirectUrlsResult.error);
+  }
+
+  const redirectUrls = redirectUrlsResult.data;
+
+  const result = await getAuthServerClient().subscription.upgrade({
     plan,
     customerType: "organization",
     referenceId: organizationId,
     seats,
-    successUrl: buildSubscriptionStatusPath(returnPath, "success"),
-    cancelUrl: buildSubscriptionStatusPath(returnPath, "cancel"),
-    returnUrl: returnPath,
+    successUrl: redirectUrls.successUrl,
+    cancelUrl: redirectUrls.cancelUrl,
+    returnUrl: redirectUrls.returnUrl,
     disableRedirect: true,
   });
 
@@ -140,24 +199,28 @@ export async function upgradeOrganizationSubscriptionClient({
     return Err(mapAuthClientError(result.error));
   }
 
-  // Clear the onboarding gate only after the checkout call succeeds — clearing
-  // it before would permanently suppress the gate if the upgrade call failed.
   await clearSubscriptionOnboardingGateSessionCookie();
 
   return resolveUpgradeResult(result.data);
 }
 
-export async function openOrganizationBillingPortalClient({
+export async function openOrganizationBillingPortalServer({
   organizationId,
   returnPath,
 }: {
   organizationId: string;
   returnPath: string;
 }): Promise<Result<{ url: string }, ActionError>> {
-  const result = await subscription.billingPortal({
+  const redirectUrlsResult = await resolveSubscriptionRedirectUrls(returnPath);
+
+  if (!redirectUrlsResult.ok) {
+    return Err(redirectUrlsResult.error);
+  }
+
+  const result = await getAuthServerClient().subscription.billingPortal({
     customerType: "organization",
     referenceId: organizationId,
-    returnUrl: returnPath,
+    returnUrl: redirectUrlsResult.data.returnUrl,
     disableRedirect: true,
   });
 

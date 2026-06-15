@@ -7,8 +7,8 @@ const pushMock = vi.fn();
 const trackMock = vi.fn();
 const completeOnboardingMock = vi.fn();
 const markSubscriptionOnboardingGateSessionSeenMock = vi.fn();
-const upgradeOrganizationSubscriptionClientMock = vi.fn();
-const upgradePersonalSubscriptionClientMock = vi.fn();
+const upgradeOrganizationSubscriptionMock = vi.fn();
+const upgradePersonalSubscriptionMock = vi.fn();
 
 vi.mock("@vercel/analytics", () => ({
   track: (...args: unknown[]) => trackMock(...args),
@@ -82,11 +82,11 @@ vi.mock("@/lib/actions/onboarding", () => ({
     markSubscriptionOnboardingGateSessionSeenMock(...args),
 }));
 
-vi.mock("@/lib/auth/subscription.client", () => ({
-  upgradeOrganizationSubscriptionClient: (...args: unknown[]) =>
-    upgradeOrganizationSubscriptionClientMock(...args),
-  upgradePersonalSubscriptionClient: (...args: unknown[]) =>
-    upgradePersonalSubscriptionClientMock(...args),
+vi.mock("@/lib/actions/subscription", () => ({
+  upgradeOrganizationSubscription: (...args: unknown[]) =>
+    upgradeOrganizationSubscriptionMock(...args),
+  upgradePersonalSubscription: (...args: unknown[]) =>
+    upgradePersonalSubscriptionMock(...args),
 }));
 
 import { OnboardingDialog } from "../onboarding-dialog";
@@ -122,11 +122,11 @@ describe("OnboardingDialog organization subscription", () => {
       data: { redirectUrl: "/tasks" },
       ok: true,
     });
-    upgradeOrganizationSubscriptionClientMock.mockResolvedValue({
+    upgradeOrganizationSubscriptionMock.mockResolvedValue({
       data: { mode: "complete" },
       ok: true,
     });
-    upgradePersonalSubscriptionClientMock.mockResolvedValue({
+    upgradePersonalSubscriptionMock.mockResolvedValue({
       data: { mode: "complete" },
       ok: true,
     });
@@ -177,7 +177,7 @@ describe("OnboardingDialog organization subscription", () => {
     );
 
     await waitFor(() => {
-      expect(upgradeOrganizationSubscriptionClientMock).toHaveBeenCalledWith({
+      expect(upgradeOrganizationSubscriptionMock).toHaveBeenCalledWith({
         organizationId: "org-1",
         plan: "standard",
         returnPath: "/tasks?onboarding_subscription=1",
@@ -211,7 +211,7 @@ describe("OnboardingDialog organization subscription", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Errors.badInput");
     });
-    expect(upgradeOrganizationSubscriptionClientMock).not.toHaveBeenCalled();
+    expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
   });
 
   it("opens once for a new subscription-only login and stores the login id", async () => {
@@ -281,7 +281,7 @@ describe("OnboardingDialog organization subscription", () => {
       ).not.toHaveBeenCalled();
     });
     expect(completeOnboardingMock).not.toHaveBeenCalled();
-    expect(upgradePersonalSubscriptionClientMock).not.toHaveBeenCalled();
-    expect(upgradeOrganizationSubscriptionClientMock).not.toHaveBeenCalled();
+    expect(upgradePersonalSubscriptionMock).not.toHaveBeenCalled();
+    expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
   });
 });

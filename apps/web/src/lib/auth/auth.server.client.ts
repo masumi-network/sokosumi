@@ -24,7 +24,9 @@ export function getCoreAuthBaseUrl(): string {
  * to the web app's own host — app.sokosumi.com, *.preview.sokosumi.com, or
  * localhost — which Core lists in its trusted origins.
  */
-function resolveCallerOrigin(requestHeaders: Headers): string | undefined {
+export function resolveWebRequestOrigin(
+  requestHeaders: Headers,
+): string | undefined {
   const explicitOrigin = requestHeaders.get("origin");
   if (explicitOrigin) {
     return explicitOrigin;
@@ -60,7 +62,7 @@ export async function fetchCoreAuth(
   // Origin ("Missing or null Origin"). Server-to-server fetches carry no
   // browser Origin, so forward the caller's origin explicitly.
   if (!mergedHeaders.has("origin")) {
-    const origin = resolveCallerOrigin(requestHeaders);
+    const origin = resolveWebRequestOrigin(requestHeaders);
     if (origin) {
       mergedHeaders.set("origin", origin);
     }

@@ -1,5 +1,4 @@
 import { siteConfig } from "@/config/site";
-import type { SocialProviderId } from "@/lib/schemas";
 
 export function getHostname(rawUrl: string): string | null {
   try {
@@ -44,16 +43,6 @@ export function getReturnUrlFromCurrentLocation(): string {
       ? window.location.pathname + window.location.search
       : "/chat";
   return path === "/" || path === "" ? "/chat" : path;
-}
-
-export function buildAuthCallbackUrl(
-  path: string,
-  provider: SocialProviderId,
-  returnUrl?: string,
-): string {
-  const params = new URLSearchParams({ provider });
-  if (returnUrl) params.set("returnUrl", returnUrl);
-  return `${path}?${params.toString()}`;
 }
 
 export function buildJobTransactionUrl(

@@ -20,6 +20,14 @@ vi.mock("next/navigation", () => ({
     push: vi.fn(),
     refresh: vi.fn(),
   }),
+  usePathname: () => "/organizations/acme",
+}));
+
+vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
+  useWorkspaceSwitcher: () => ({
+    isPending: false,
+    handleSelectWorkspace: vi.fn(),
+  }),
 }));
 
 vi.mock("next-intl", () => ({

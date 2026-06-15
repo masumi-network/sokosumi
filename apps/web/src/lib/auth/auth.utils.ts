@@ -1,3 +1,5 @@
+import type { SocialProviderId } from "@/lib/schemas";
+
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const OAUTH_CONSENT_PATH = "/oauth/consent";
@@ -119,7 +121,13 @@ export function buildSignUpUrlFromSignIn({
   return query ? `/signup?${query}` : "/signup";
 }
 
-export function getValidAuthRedirectUrl(
+// Resolution base used to validate redirect paths when `window` is unavailable
+// (SSR). The `.invalid` TLD is reserved and never resolvable, so any input that
+// resolves to a different origin (absolute or protocol-relative URL) is rejected
+// while genuine same-origin relative paths are preserved.
+const SSR_REDIRECT_ORIGIN = "https://localhost.invalid";
+
+function sanitizeAuthRedirectPath(
   returnUrl: string | undefined,
   fallback: string = "/",
 ): string {
@@ -127,12 +135,100 @@ export function getValidAuthRedirectUrl(
     return fallback;
   }
 
+  // Validate against the real origin on the client and a reserved placeholder
+  // origin during SSR. Either way, only same-origin relative paths survive —
+  // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
+  // a different origin and fall back, closing the open-redirect vector in both
+  // contexts.
+  const baseOrigin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : SSR_REDIRECT_ORIGIN;
+
   try {
-    const parsedUrl = new URL(returnUrl, window.location.origin);
-    return parsedUrl.origin === window.location.origin ? returnUrl : fallback;
+    const parsedUrl = new URL(returnUrl, baseOrigin);
+    return parsedUrl.origin === baseOrigin ? returnUrl : fallback;
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Absolute callback/redirect URL for `authClient` when Better Auth runs on Core.
+ *
+ * Relative paths resolve against the auth-server origin (e.g. `api.preprod…`),
+ * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
+ * Falls back to a relative path when `window` is unavailable (SSR).
+ */
+export function sanitizeAuthRedirectPathForOrigin(
+  returnUrl: string | undefined,
+  origin: string,
+  fallback: string = "/",
+): string {
+  if (!returnUrl) {
+    return fallback;
+  }
+
+  try {
+    const parsedUrl = new URL(returnUrl, origin);
+    return parsedUrl.origin === origin ? returnUrl : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function getAbsoluteRedirectUrlForOrigin(
+  origin: string,
+  returnUrl: string | undefined,
+  fallback: string = "/",
+): string {
+  const safePath = sanitizeAuthRedirectPathForOrigin(
+    returnUrl,
+    origin,
+    fallback,
+  );
+  return new URL(safePath, origin).href;
+}
+
+export function getAbsoluteAuthRedirectUrl(
+  returnUrl: string | undefined,
+  fallback: string = "/",
+): string {
+  if (typeof window === "undefined") {
+    return sanitizeAuthRedirectPath(returnUrl, fallback);
+  }
+
+  return getAbsoluteRedirectUrlForOrigin(
+    window.location.origin,
+    returnUrl,
+    fallback,
+  );
+}
+
+/**
+ * Builds a social-auth callback URL for `authClient.signIn.social`.
+ *
+ * The result is an **absolute** URL anchored to the current web origin. This
+ * matters when the browser `authClient` targets the Core Better Auth instance
+ * (a different origin, e.g. `api.preprod.sokosumi.com`): Better Auth resolves a
+ * relative `callbackURL` against the auth-server origin, so a bare
+ * `/auth/callback/signin` would both land on the Core domain and collide with
+ * Core's own `/auth/callback/:provider` route — surfacing as `state_not_found`.
+ * Anchoring to `window.location.origin` (already a trusted origin) sends the
+ * user back to the web app after the OAuth callback completes. Falls back to a
+ * relative path when `window` is unavailable (SSR).
+ */
+export function buildAuthCallbackUrl(
+  path: string,
+  provider: SocialProviderId,
+  returnUrl?: string,
+): string {
+  const params = new URLSearchParams({ provider });
+  if (returnUrl) {
+    params.set("returnUrl", sanitizeAuthRedirectPath(returnUrl, "/"));
+  }
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}${path}?${params.toString()}`;
 }
 
 interface AuthOAuthRedirectPayload {
@@ -168,7 +264,7 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   const sanitizedReturnUrl =
     normalized && normalized !== "/" ? normalized : undefined;
 
-  return getValidAuthRedirectUrl(sanitizedReturnUrl, "/");
+  return sanitizeAuthRedirectPath(sanitizedReturnUrl, "/");
 }
 
 type OAuthConsentParamRecord = Partial<

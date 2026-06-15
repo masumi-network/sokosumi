@@ -476,7 +476,7 @@ describe("SocialButtons", () => {
     await waitFor(() => {
       expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
         email: "login-user@example.com",
-        callbackURL: "/",
+        callbackURL: `${window.location.origin}/`,
       });
     });
 

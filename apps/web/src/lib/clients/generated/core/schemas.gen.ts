@@ -5996,6 +5996,20 @@ export const ActiveSubscriptionResponseSchema = {
     ]
 } as const;
 
+export const TaskCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 42
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
 export const UserSchema = {
     type: 'object',
     properties: {
