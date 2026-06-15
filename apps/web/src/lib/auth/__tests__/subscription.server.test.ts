@@ -4,6 +4,9 @@ const subscriptionUpgradeMock = vi.fn();
 const subscriptionBillingPortalMock = vi.fn();
 const clearSubscriptionOnboardingGateSessionCookieMock = vi.fn();
 const headersMock = vi.fn();
+const resolveWebRequestOriginMock = vi.fn(
+  () => "https://preprod.sokosumi.com" as string | undefined,
+);
 
 vi.mock("server-only", () => ({}));
 
@@ -24,12 +27,13 @@ vi.mock("@/lib/auth/auth.server.client", () => ({
       upgrade: (...args: unknown[]) => subscriptionUpgradeMock(...args),
     },
   }),
-  resolveWebRequestOrigin: () => "https://preprod.sokosumi.com",
+  resolveWebRequestOrigin: () => resolveWebRequestOriginMock(),
 }));
 
 describe("subscription.server", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWebRequestOriginMock.mockReturnValue("https://preprod.sokosumi.com");
     headersMock.mockResolvedValue(
       new Headers({ origin: "https://preprod.sokosumi.com" }),
     );
@@ -252,5 +256,48 @@ describe("subscription.server", () => {
       referenceId: "org-1",
       returnUrl: "https://preprod.sokosumi.com/organizations/acme",
     });
+  });
+
+  it("fails an upgrade with INTERNAL_SERVER_ERROR when the request origin is unavailable", async () => {
+    resolveWebRequestOriginMock.mockReturnValue(undefined);
+
+    const { upgradePersonalSubscriptionServer } = await import(
+      "../subscription.server"
+    );
+
+    const result = await upgradePersonalSubscriptionServer({
+      plan: "starter",
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+      },
+      ok: false,
+    });
+    expect(subscriptionUpgradeMock).not.toHaveBeenCalled();
+    expect(
+      clearSubscriptionOnboardingGateSessionCookieMock,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("fails a billing-portal open with INTERNAL_SERVER_ERROR when the request origin is unavailable", async () => {
+    resolveWebRequestOriginMock.mockReturnValue(undefined);
+
+    const { openPersonalBillingPortalServer } = await import(
+      "../subscription.server"
+    );
+
+    const result = await openPersonalBillingPortalServer({
+      returnPath: "/billing?tab=coupon",
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+      },
+      ok: false,
+    });
+    expect(subscriptionBillingPortalMock).not.toHaveBeenCalled();
   });
 });

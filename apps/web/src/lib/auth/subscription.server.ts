@@ -17,6 +17,11 @@ export type SubscriptionChangeResult =
   | { mode: "complete" }
   | { mode: "redirect"; url: string };
 
+// A known-safe internal landing page used when the caller's returnPath is
+// rejected by the origin sanitizer. Passing returnPath as its own fallback
+// would re-admit an off-origin value, so anchor to a constant instead.
+const SAFE_REDIRECT_FALLBACK = "/billing?tab=subscription";
+
 interface BetterAuthClientError {
   code?: string;
   message?: string;
@@ -78,13 +83,17 @@ async function resolveSubscriptionRedirectUrls(returnPath: string): Promise<
     cancelUrl: getAbsoluteRedirectUrlForOrigin(
       origin,
       buildSubscriptionStatusPath(returnPath, "cancel"),
-      returnPath,
+      SAFE_REDIRECT_FALLBACK,
     ),
-    returnUrl: getAbsoluteRedirectUrlForOrigin(origin, returnPath, returnPath),
+    returnUrl: getAbsoluteRedirectUrlForOrigin(
+      origin,
+      returnPath,
+      SAFE_REDIRECT_FALLBACK,
+    ),
     successUrl: getAbsoluteRedirectUrlForOrigin(
       origin,
       buildSubscriptionStatusPath(returnPath, "success"),
-      returnPath,
+      SAFE_REDIRECT_FALLBACK,
     ),
   });
 }
