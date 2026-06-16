@@ -24,7 +24,7 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 /**
  * Port of the web app's `handleInvoicePaidEvent`
- * (`apps/web/src/lib/stripe/webhook-handlers.ts`). One deliberate behavior
+ * (Core `stripe-backed-subscription.service.ts`). One deliberate behavior
  * change: an unknown Stripe customer THROWS instead of silently returning, so
  * the webhook responds 5xx and Stripe retries — the web path's silent 200
  * permanently lost the credits when the customer-id write-back had not landed
