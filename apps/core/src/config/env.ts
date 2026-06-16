@@ -122,6 +122,11 @@ const envSchema = z.object({
   // Signing secret for Better Auth Stripe plugin (POST /auth/stripe/webhook).
   STRIPE_BA_WEBHOOK_SECRET: z.string().min(1),
 
+  // When true, Stripe Dashboard should send all events to POST /auth/stripe/webhook
+  // only (STRIPE_WEBHOOK_SECRET). Billing events are handled from auth onEvent and
+  // POST /webhooks/stripe is disabled. Flip with web NEXT_PUBLIC_USE_CORE_AUTH_CLIENT.
+  USE_UNIFIED_STRIPE_WEBHOOK: z.stringbool().default(false),
+
   // Sync lock configuration
   LOCK_TIMEOUT: z.coerce
     .number()
