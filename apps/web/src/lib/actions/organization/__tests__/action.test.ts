@@ -424,3 +424,82 @@ describe("updateOrganizationInvoiceEmail", () => {
     expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
   });
 });
+
+describe("updatePreferredOrganization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sets the preferred organization via Core", async () => {
+    setMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: "org-1" },
+    });
+    const { updatePreferredOrganization } = await import("../action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: "org-1",
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { organizationId: "org-1" },
+    });
+    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
+  });
+
+  it("clears the preferred organization when null is provided", async () => {
+    setMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: null },
+    });
+    const { updatePreferredOrganization } = await import("../action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: null,
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { organizationId: null },
+    });
+    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith(null);
+  });
+
+  it("maps the organization_membership_required kind to UNAUTHORIZED", async () => {
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new MockCoreApiRequestError("Membership check failed", {
+        kind: "organization_membership_required",
+        status: 403,
+      }),
+    );
+    const { updatePreferredOrganization } = await import("../action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: "org-1",
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "You are not a member of this organization",
+      },
+    });
+  });
+
+  it("rethrows unexpected Core errors", async () => {
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
+    );
+    const { updatePreferredOrganization } = await import("../action");
+
+    await expect(
+      updatePreferredOrganization({
+        organizationId: "org-1",
+        session,
+      }),
+    ).rejects.toThrow("Internal Server Error");
+  });
+});
