@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { Coins } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import BuyCreditsButton from "./buy-credits-button";
@@ -16,7 +16,7 @@ export default async function CreditCta({ currentPlan }: CreditCtaProps) {
     <BuyCreditsButton
       label={tPlan("getMoreCredits")}
       path={billingPath}
-      iconRight={<ArrowUpRight aria-hidden />}
+      icon={<Coins className="size-4 shrink-0" aria-hidden />}
     />
   );
 }

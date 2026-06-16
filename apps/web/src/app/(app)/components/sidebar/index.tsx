@@ -1,4 +1,5 @@
-import CreditCta from "@/app/components/credit-cta";
+import { getTranslations } from "next-intl/server";
+import { resolveLowCreditsBillingPath } from "@/app/components/top-notice-state";
 import UserCredits, {
   type UserCreditsData,
 } from "@/app/components/user-credits";
@@ -17,6 +18,7 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
+import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 
 interface SidebarProps {
@@ -29,7 +31,7 @@ interface SidebarProps {
   lowCreditsThreshold: number;
 }
 
-export default function Sidebar({
+export default async function Sidebar({
   adminMenuEnabled,
   creditsData,
   currentTimestampMs,
@@ -38,6 +40,10 @@ export default function Sidebar({
   session,
   lowCreditsThreshold,
 }: SidebarProps) {
+  const tPlan = await getTranslations("App.Header.Plan");
+  const currentPlan = creditsData?.subscription?.plan ?? "free";
+  const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
+
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-16 border-b p-0">
@@ -47,7 +53,7 @@ export default function Sidebar({
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
-        <div className="flex flex-col gap-0">
+        <div className="flex min-h-0 flex-col gap-0">
           <NewChatTaskActions />
           <SidebarSeparator className="mx-0 mt-2" />
           <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
@@ -61,21 +67,24 @@ export default function Sidebar({
           <ChatListsClient />
         </div>
       </SidebarContent>
-      <SidebarFooter className="shrink-0 px-0">
+      <SidebarFooter className="mt-auto shrink-0 px-0">
         <AnnouncementCards />
-        <div className="relative flex flex-1 flex-col gap-4 p-2 pt-0 pb-4 group-data-[collapsible=icon]:hidden">
-          <UserCredits
-            creditsData={creditsData}
-            currentTimestampMs={currentTimestampMs}
-            organizationName={organizationName}
-            session={session}
-            showCtaButtons={false}
-            showCreditUsage
-            showAvatar={false}
-            lowCreditsThreshold={lowCreditsThreshold}
-          />
-          <CreditCta currentPlan={creditsData?.subscription?.plan ?? "free"} />
-        </div>
+        <SidebarCreditsFooter
+          buyCreditsLabel={tPlan("getMoreCredits")}
+          buyCreditsPath={buyCreditsPath}
+          creditsUsage={
+            <UserCredits
+              creditsData={creditsData}
+              currentTimestampMs={currentTimestampMs}
+              organizationName={organizationName}
+              session={session}
+              showCtaButtons={false}
+              showCreditUsage
+              showAvatar={false}
+              lowCreditsThreshold={lowCreditsThreshold}
+            />
+          }
+        />
       </SidebarFooter>
     </ShadcnSidebar>
   );
