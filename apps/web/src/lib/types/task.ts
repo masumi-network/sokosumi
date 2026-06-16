@@ -1,11 +1,10 @@
-import { TaskStatus } from "@sokosumi/utils";
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
   TaskShare,
   UserSummary,
 } from "@/lib/clients/generated/core/types.gen";
-import type { CoreAgentDto } from "@/lib/types/core-dto";
+import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
 
 export type { TaskEvent };
 

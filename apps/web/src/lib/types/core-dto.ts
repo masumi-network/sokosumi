@@ -5,7 +5,9 @@ import type {
   AgentDetail,
   AgentExampleOutput,
   AgentReview,
+  File as CoreJobFile,
   Job,
+  JobEvent,
   JobShare,
   JobSummary,
   Member,
@@ -16,6 +18,8 @@ import type {
   OrganizationRecord,
   OrganizationSummary,
   PendingInvitation,
+  Task,
+  TaskEvent,
 } from "@/lib/clients/generated/core";
 
 /** Agent list or detail payload from Core. */
@@ -29,6 +33,17 @@ export type OrganizationWithLimitedInfo = Pick<
 >;
 
 export type OrganizationMembershipSelf = Pick<MemberRecord, "id" | "role">;
+
+/** Core API enum unions — use `@sokosumi/utils` const maps for runtime values. */
+export type TaskStatus = Task["status"];
+export type SokosumiJobStatus = JobSummary["status"];
+export type JobType = Job["jobType"];
+export type AgentJobStatus = JobEvent["status"];
+export type OnChainJobStatus = NonNullable<Job["onChainStatus"]>;
+export type BlobStatus = CoreJobFile["status"];
+export type NoticeKind = Notice["kind"];
+export type TaskEventOrigin = TaskEvent["origin"];
+export type RiskClassification = AgentDetail["riskClassification"];
 
 export type {
   Agent,
@@ -46,6 +61,8 @@ export type {
   OrganizationRecord,
   OrganizationSummary,
   PendingInvitation,
+  Task,
+  TaskEvent,
 };
 
 const UNAVAILABLE_AGENT_DATE = new Date(0);

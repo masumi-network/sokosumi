@@ -1,8 +1,6 @@
 import "server-only";
 
-import type { AgentJobStatus } from "@sokosumi/utils";
 import { TaskStatus } from "@sokosumi/utils";
-
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   JobSummary,
@@ -12,6 +10,7 @@ import type {
   TaskLinkDeleted,
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
+import type { AgentJobStatus } from "@/lib/types/core-dto";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];

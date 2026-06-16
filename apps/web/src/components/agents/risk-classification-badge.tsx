@@ -1,7 +1,6 @@
-import type { RiskClassification } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-
 import { Badge } from "@/components/ui/badge";
+import type { RiskClassification } from "@/lib/types/core-dto";
 
 export const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {

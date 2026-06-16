@@ -48,6 +48,7 @@ describe("getAgentCategoryStyles", () => {
           image: null,
           icon: null,
           priority: 1,
+          styles: null,
         },
       ],
     });

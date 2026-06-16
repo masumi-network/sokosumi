@@ -1,4 +1,4 @@
-import type { TaskStatus } from "@sokosumi/utils";
+import type { TaskStatus } from "@/lib/types/core-dto";
 
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";

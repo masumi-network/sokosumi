@@ -1,7 +1,5 @@
 "use client";
 
-import type { JobType, OnChainJobStatus } from "@sokosumi/utils";
-
 import { CopyableValue } from "@/components/copyable-value";
 import {
   Accordion,
@@ -9,6 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import type { JobType, OnChainJobStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 import {
