@@ -1243,6 +1243,9 @@ function buildMockPendingConfirmations(
         },
       ],
       referencedOrganizations: [],
+      // Optional preview overrides for the proposed-workspace dropdown default.
+      organizationId: params.get("organizationId"),
+      organizationName: params.get("organizationName"),
     },
   ];
 }

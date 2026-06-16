@@ -176,6 +176,14 @@ export interface HermesPendingConfirmation {
   createdAt: string;
   referencedCoworkers: HermesConfirmationCoworkerRef[];
   referencedOrganizations: HermesConfirmationOrganizationRef[];
+  /**
+   * Workspace Hermes proposed for the gated tool call. `null` = Hermes proposed
+   * personal scope. The confirmation card pre-selects this in the workspace
+   * dropdown (labelled with `organizationName`) so the user confirms or
+   * redirects Hermes' actual target instead of a local default.
+   */
+  organizationId: string | null;
+  organizationName: string | null;
 }
 
 export type HermesConfirmationStatus =

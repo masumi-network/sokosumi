@@ -187,6 +187,14 @@ export interface HermesPendingConfirmation {
    */
   referencedCoworkers: HermesConfirmationCoworkerRef[];
   referencedOrganizations: HermesConfirmationOrganizationRef[];
+  /**
+   * Workspace Hermes proposed in the gated tool call. `null` = Hermes proposed
+   * personal scope. The UI pre-selects this in the workspace dropdown so the
+   * user confirms (or redirects) Hermes' actual target instead of a local
+   * default. `organizationName` is a best-effort human label (may be null).
+   */
+  organizationId: string | null;
+  organizationName: string | null;
 }
 
 export type HermesOnboardingStepStatus =
@@ -256,6 +264,10 @@ interface RawPendingConfirmationFromOrchestrator {
   summary?: string;
   createdAt?: string;
   created_at?: string;
+  organizationId?: string | null;
+  organization_id?: string | null;
+  organizationName?: string | null;
+  organization_name?: string | null;
 }
 
 function normalizePendingConfirmation(
@@ -266,6 +278,17 @@ function normalizePendingConfirmation(
   const summary = raw.summary;
   const createdAt = raw.createdAt ?? raw.created_at;
   if (!id || !toolName || !summary || !createdAt) return null;
+  // Proposed workspace: the orchestrator sends `organizationId` (null =
+  // personal). Treat an absent field as `null` (older orchestrators). Accept a
+  // snake_case alias defensively, matching the toolName/createdAt handling.
+  const organizationId =
+    raw.organizationId !== undefined
+      ? raw.organizationId
+      : (raw.organization_id ?? null);
+  const organizationName =
+    raw.organizationName !== undefined
+      ? raw.organizationName
+      : (raw.organization_name ?? null);
   return {
     id,
     toolName,
@@ -273,6 +296,8 @@ function normalizePendingConfirmation(
     createdAt,
     referencedCoworkers: [],
     referencedOrganizations: [],
+    organizationId,
+    organizationName,
   };
 }
 

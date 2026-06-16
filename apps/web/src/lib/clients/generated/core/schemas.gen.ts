@@ -4371,6 +4371,22 @@ export const HermesPendingConfirmationSchema = {
                 $ref: '#/components/schemas/HermesConfirmationOrganizationRef'
             },
             default: []
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            default: null
+        },
+        organizationName: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            default: null
         }
     },
     required: [

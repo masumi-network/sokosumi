@@ -21,7 +21,10 @@ export function isConfirmationOrgAwareTool(toolName: string): boolean {
  */
 export function mergeConfirmationOrgPickerOptions(
   organizations: ReadonlyArray<HermesOrganizationOption>,
-  confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
+  confirmation: Pick<
+    HermesPendingConfirmation,
+    "referencedOrganizations" | "organizationId" | "organizationName"
+  >,
 ): HermesOrganizationOption[] {
   const byId = new Map(organizations.map((org) => [org.id, org]));
   const merged = [...organizations];
@@ -30,19 +33,34 @@ export function mergeConfirmationOrgPickerOptions(
     byId.set(referenced.id, referenced);
     merged.push(referenced);
   }
+  // Ensure the workspace Hermes proposed is selectable even when it's not in
+  // the membership list or referenced orgs, so the pre-selected value always
+  // has a matching `SelectItem` (labelled with the orchestrator's name).
+  if (confirmation.organizationId && !byId.has(confirmation.organizationId)) {
+    const proposed: HermesOrganizationOption = {
+      id: confirmation.organizationId,
+      name: confirmation.organizationName ?? confirmation.organizationId,
+      slug: null,
+    };
+    byId.set(proposed.id, proposed);
+    merged.push(proposed);
+  }
   return merged;
 }
 
 /**
- * Initial org dropdown value for org-aware confirmations. Always default to
- * personal scope; users must actively choose an org to approve into one.
+ * Initial org dropdown value for org-aware confirmations: the workspace Hermes
+ * proposed in its tool call (`organizationId`), so the user sees and confirms
+ * the actual target. `null` means Hermes proposed personal scope. Combined with
+ * `buildConfirmationApproveOverrideIfChanged`, leaving this untouched sends no
+ * override, so Hermes' proposal stands.
  */
 export function resolveConfirmationOrgPickerValue(
-  _confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
+  confirmation: Pick<HermesPendingConfirmation, "organizationId">,
   _organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
   _activeOrganizationId: string | null,
 ): string {
-  return CONFIRMATION_PERSONAL_SCOPE_VALUE;
+  return confirmation.organizationId ?? CONFIRMATION_PERSONAL_SCOPE_VALUE;
 }
 
 /**

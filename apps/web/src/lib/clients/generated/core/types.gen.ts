@@ -1118,6 +1118,8 @@ export type HermesPendingConfirmation = {
     createdAt: Date;
     referencedCoworkers?: Array<HermesConfirmationCoworkerRef>;
     referencedOrganizations?: Array<HermesConfirmationOrganizationRef>;
+    organizationId?: string | null;
+    organizationName?: string | null;
 };
 
 export type HermesConfirmationCoworkerRef = {

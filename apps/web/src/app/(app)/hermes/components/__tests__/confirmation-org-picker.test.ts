@@ -32,6 +32,8 @@ describe("mergeConfirmationOrgPickerOptions", () => {
   it("appends referenced organizations missing from the client list", () => {
     const options = mergeConfirmationOrgPickerOptions([], {
       referencedOrganizations: [{ id: "org-b", name: "Org B", slug: "org-b" }],
+      organizationId: null,
+      organizationName: null,
     });
     expect(options).toEqual([{ id: "org-b", name: "Org B", slug: "org-b" }]);
   });
@@ -41,54 +43,69 @@ describe("mergeConfirmationOrgPickerOptions", () => {
       referencedOrganizations: [
         { id: "org-a", name: "Referenced A", slug: "ref-a" },
       ],
+      organizationId: null,
+      organizationName: null,
+    });
+    expect(options).toEqual(organizations);
+  });
+
+  it("adds Hermes' proposed workspace as a selectable option when missing", () => {
+    const options = mergeConfirmationOrgPickerOptions(organizations, {
+      referencedOrganizations: [],
+      organizationId: "org-c",
+      organizationName: "Org C",
+    });
+    expect(options).toEqual([
+      ...organizations,
+      { id: "org-c", name: "Org C", slug: null },
+    ]);
+  });
+
+  it("labels the proposed workspace by id when no name was provided", () => {
+    const options = mergeConfirmationOrgPickerOptions([], {
+      referencedOrganizations: [],
+      organizationId: "org-c",
+      organizationName: null,
+    });
+    expect(options).toEqual([{ id: "org-c", name: "org-c", slug: null }]);
+  });
+
+  it("does not duplicate the proposed workspace when already present", () => {
+    const options = mergeConfirmationOrgPickerOptions(organizations, {
+      referencedOrganizations: [],
+      organizationId: "org-a",
+      organizationName: "Org A",
     });
     expect(options).toEqual(organizations);
   });
 });
 
 describe("resolveConfirmationOrgPickerValue", () => {
-  it("defaults to personal scope even when one organization is referenced", () => {
+  it("defaults to the workspace Hermes proposed", () => {
     const value = resolveConfirmationOrgPickerValue(
-      {
-        referencedOrganizations: [
-          { id: "org-b", name: "Org B", slug: "org-b" },
-        ],
-      },
+      { organizationId: "org-b" },
+      organizations,
+      "org-a",
+    );
+    expect(value).toBe("org-b");
+  });
+
+  it("defaults to personal scope when Hermes proposed personal (null)", () => {
+    const value = resolveConfirmationOrgPickerValue(
+      { organizationId: null },
       organizations,
       "org-a",
     );
     expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
 
-  it("falls back to personal scope when no org is referenced", () => {
+  it("uses the proposed workspace even when it is not in the membership list", () => {
     const value = resolveConfirmationOrgPickerValue(
-      { referencedOrganizations: [] },
-      organizations,
-      "org-a",
-    );
-    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
-  });
-
-  it("falls back to personal scope when there is no active org", () => {
-    const value = resolveConfirmationOrgPickerValue(
-      { referencedOrganizations: [] },
-      organizations,
-      null,
-    );
-    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
-  });
-
-  it("defaults to personal scope when the client organizations list is empty", () => {
-    const value = resolveConfirmationOrgPickerValue(
-      {
-        referencedOrganizations: [
-          { id: "org-b", name: "Org B", slug: "org-b" },
-        ],
-      },
+      { organizationId: "org-c" },
       [],
       "org-a",
     );
-    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
+    expect(value).toBe("org-c");
   });
 });
 

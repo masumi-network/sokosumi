@@ -87,6 +87,11 @@ export const hermesPendingConfirmationSchema = z
     referencedOrganizations: z
       .array(hermesConfirmationOrganizationRefSchema)
       .default([]),
+    // Workspace Hermes proposed for the gated tool call (`null` = personal).
+    // Lets the UI pre-select the dropdown to Hermes' actual target instead of a
+    // local default. `organizationName` is a best-effort label (may be null).
+    organizationId: z.string().min(1).nullable().default(null),
+    organizationName: z.string().min(1).nullable().default(null),
   })
   .openapi("HermesPendingConfirmation");
 
