@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAgentCategoryStyles } from "@/lib/helpers/agent";
+import { getAgentCategoryStyles, getAgentDemoData } from "@/lib/helpers/agent";
 
 import { createMockCoreAgent } from "./fixtures/core-agent";
 
@@ -54,5 +54,11 @@ describe("getAgentCategoryStyles", () => {
     });
 
     expect(getAgentCategoryStyles(agent)).toEqual(DEFAULT_CATEGORY_STYLES);
+  });
+});
+
+describe("getAgentDemoData", () => {
+  it("returns null because Core does not expose agent demo data", () => {
+    expect(getAgentDemoData(createMockCoreAgent())).toBeNull();
   });
 });

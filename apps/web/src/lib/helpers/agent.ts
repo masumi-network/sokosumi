@@ -15,8 +15,6 @@ import type {
 import type { CategoryStyles } from "@/lib/types/category";
 import { type CoreAgentDto, isCoreAgentDetail } from "@/lib/types/core-dto";
 
-export type { CoreAgentDto } from "@/lib/types/core-dto";
-
 interface AgentJobAgentSource {
   name: string;
   overrideName?: string | null;
@@ -241,17 +239,10 @@ export function getAgentDemoValues(
   }
 }
 
-export function getAgentDemoData(agent: CoreAgentDto): AgentDemoData | null {
-  if (!isCoreAgentDetail(agent)) {
-    return null;
-  }
-
-  const { demoInput, demoOutput } = agent as CoreAgentDto & {
-    demoInput?: string | null;
-    demoOutput?: string | null;
-  };
-
-  return demoInput && demoOutput ? { demoInput, demoOutput } : null;
+export function getAgentDemoData(_agent: CoreAgentDto): AgentDemoData | null {
+  // The Core API does not expose agent demo input/output, so demo data is
+  // unavailable. The demo feature is slated for full removal as a follow-up.
+  return null;
 }
 
 const DEFAULT_CATEGORY_STYLES: CategoryStyles = {
