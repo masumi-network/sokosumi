@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -138,57 +139,61 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         data-app-shell
         className="flex max-w-svw overflow-clip"
       >
-        <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-          <Sidebar
-            adminMenuEnabled={adminMenuEnabled}
-            creditsData={creditsData}
-            currentTimestampMs={currentTimestampMs}
-            hermesMenuEnabled={hermesMenuEnabled}
-            organizationName={activeOrganization?.name ?? null}
-            session={session}
-          />
-          <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
-            <div
-              className="flex min-w-0 flex-1 flex-col overflow-clip"
-              data-app-content-inner
-            >
-              <HeaderGate>
-                <Header className="h-16 p-4" session={session} />
-              </HeaderGate>
-              <main
-                className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
-                data-app-main
-              >
-                <EmergencyDialog />
-                {topNotice.kind === "emailVerification" ? (
-                  <EmailVerificationNotice
-                    email={topNotice.email}
-                    emailVerified={false}
-                  />
-                ) : null}
-                {topNotice.kind === "lowCredits" ||
-                topNotice.kind === "outOfCredits" ? (
-                  <LowCreditsNotice
-                    kind={topNotice.kind}
-                    path={topNotice.path}
-                  />
-                ) : null}
-                <div
-                  className="flex h-full flex-1 flex-col overflow-visible"
-                  data-app-main-inner
-                >
-                  {children}
-                </div>
-              </main>
-            </div>
-            <ChatRail
-              organizationSlug={activeOrganization?.slug ?? null}
-              userImageUrl={userImageUrl}
-              userName={session.user.name ?? undefined}
-              initialDesignMdAttachment={initialDesignMdAttachment}
+        <HistorySearchDialogProvider
+          activeOrganizationId={session.session.activeOrganizationId ?? null}
+        >
+          <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
+            <Sidebar
+              adminMenuEnabled={adminMenuEnabled}
+              creditsData={creditsData}
+              currentTimestampMs={currentTimestampMs}
+              hermesMenuEnabled={hermesMenuEnabled}
+              organizationName={activeOrganization?.name ?? null}
+              session={session}
             />
-          </div>
-        </AppChatRailProvider>
+            <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
+              <div
+                className="flex min-w-0 flex-1 flex-col overflow-clip"
+                data-app-content-inner
+              >
+                <HeaderGate>
+                  <Header className="h-16 p-4" session={session} />
+                </HeaderGate>
+                <main
+                  className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
+                  data-app-main
+                >
+                  <EmergencyDialog />
+                  {topNotice.kind === "emailVerification" ? (
+                    <EmailVerificationNotice
+                      email={topNotice.email}
+                      emailVerified={false}
+                    />
+                  ) : null}
+                  {topNotice.kind === "lowCredits" ||
+                  topNotice.kind === "outOfCredits" ? (
+                    <LowCreditsNotice
+                      kind={topNotice.kind}
+                      path={topNotice.path}
+                    />
+                  ) : null}
+                  <div
+                    className="flex h-full flex-1 flex-col overflow-visible"
+                    data-app-main-inner
+                  >
+                    {children}
+                  </div>
+                </main>
+              </div>
+              <ChatRail
+                organizationSlug={activeOrganization?.slug ?? null}
+                userImageUrl={userImageUrl}
+                userName={session.user.name ?? undefined}
+                initialDesignMdAttachment={initialDesignMdAttachment}
+              />
+            </div>
+          </AppChatRailProvider>
+        </HistorySearchDialogProvider>
       </SidebarProvider>
     </NoticeDialogProvider>
   );

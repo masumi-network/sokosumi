@@ -48,10 +48,7 @@ export default function Sidebar({
         <div className="flex flex-col gap-0">
           <NewChatTaskActions />
           <SidebarSeparator className="mx-0 mt-2" />
-          <MenuItems
-            activeOrganizationId={session.session.activeOrganizationId ?? null}
-            hermesMenuEnabled={hermesMenuEnabled}
-          />
+          <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
           {adminMenuEnabled ? (
             <>
               <SidebarSeparator className="mx-0" />

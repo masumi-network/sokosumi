@@ -12,7 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, type SVGProps, useEffect, useState } from "react";
-import { HistorySearchDialog } from "@/app/components/history-search-dialog";
+import { useHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -20,13 +20,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
-import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { cn } from "@/lib/utils";
 
 interface MenuItemsProps {
-  activeOrganizationId: string | null;
   /** Hermes nav + unread polling; driven by `hermesBetaEnabled` in app layout. */
   hermesMenuEnabled: boolean;
 }
@@ -86,45 +85,21 @@ function useHermesUnreadCount(enabled: boolean): number {
   return enabled ? count : 0;
 }
 
-export default function MenuItems({
-  activeOrganizationId,
-  hermesMenuEnabled,
-}: MenuItemsProps) {
+export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const tHermes = useTranslations("App.Hermes");
-  const tSearch = useTranslations("App.HistorySearchDialog");
-  const tHistory = useTranslations("App.History");
   const hermesBetaTag = tHermes("BetaTag");
   const pathname = usePathname();
   const hermesUnread = useHermesUnreadCount(hermesMenuEnabled);
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const isApplePlatform = useIsApplePlatform();
-  const searchShortcutLabel = isApplePlatform ? "⌘K" : "Ctrl+K";
+  const { openHistorySearch, searchShortcutLabel } = useHistorySearch();
+  const { isMobile, setOpenMobile } = useSidebar();
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement) {
-        const tag = target.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
-          return;
-        }
-      }
-
-      if (
-        event.key?.toLowerCase() !== "k" ||
-        !(event.metaKey || event.ctrlKey)
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      setSearchModalOpen(true);
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  function handleSearchClick() {
+    openHistorySearch();
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }
 
   const isPathActive = (href: string) => {
     if (pathname === href) {
@@ -139,7 +114,7 @@ export default function MenuItems({
       key: "search",
       label: t("search"),
       Icon: Search,
-      onClick: () => setSearchModalOpen(true),
+      onClick: handleSearchClick,
       shortcutLabel: searchShortcutLabel,
       ariaKeyshortcuts: "Meta+K Control+K",
     },
@@ -255,79 +230,39 @@ export default function MenuItems({
                         </SheetClose>
                       </SidebarMenuButton>
                     ) : (
-                      <>
-                        {key === "search" ? (
-                          <SheetClose asChild>
-                            <SidebarMenuButton
-                              type="button"
-                              onClick={onClick}
-                              aria-keyshortcuts={ariaKeyshortcuts}
-                              tooltip={
-                                shortcutLabel
-                                  ? {
-                                      children: (
-                                        <span className="flex items-center gap-2">
-                                          <span>{label}</span>
-                                          <span className="text-muted-foreground text-xs tracking-widest">
-                                            {shortcutLabel}
-                                          </span>
-                                        </span>
-                                      ),
-                                    }
-                                  : undefined
+                      <SidebarMenuButton
+                        type="button"
+                        onClick={onClick}
+                        aria-keyshortcuts={ariaKeyshortcuts}
+                        tooltip={
+                          shortcutLabel
+                            ? {
+                                children: (
+                                  <span className="flex items-center gap-2">
+                                    <span>{label}</span>
+                                    <span className="text-muted-foreground text-xs tracking-widest">
+                                      {shortcutLabel}
+                                    </span>
+                                  </span>
+                                ),
                               }
-                              className={cn(
-                                "flex min-h-auto w-full items-center gap-2 px-3",
-                                "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
-                              )}
-                            >
-                              {content}
-                              {shortcutLabel ? (
-                                <span
-                                  aria-hidden
-                                  className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
-                                >
-                                  {shortcutLabel}
-                                </span>
-                              ) : null}
-                            </SidebarMenuButton>
-                          </SheetClose>
-                        ) : (
-                          <SidebarMenuButton
-                            type="button"
-                            onClick={onClick}
-                            aria-keyshortcuts={ariaKeyshortcuts}
-                            tooltip={
-                              shortcutLabel
-                                ? {
-                                    children: (
-                                      <span className="flex items-center gap-2">
-                                        <span>{label}</span>
-                                        <span className="text-muted-foreground text-xs tracking-widest">
-                                          {shortcutLabel}
-                                        </span>
-                                      </span>
-                                    ),
-                                  }
-                                : undefined
-                            }
-                            className={cn(
-                              "flex min-h-auto w-full items-center gap-2 px-3",
-                              "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
-                            )}
-                          >
-                            {content}
-                            {shortcutLabel ? (
-                              <span
-                                aria-hidden
-                                className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
-                              >
-                                {shortcutLabel}
-                              </span>
-                            ) : null}
-                          </SidebarMenuButton>
+                            : undefined
+                        }
+                        className={cn(
+                          "flex min-h-auto w-full items-center gap-2 px-3",
+                          "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
                         )}
-                      </>
+                      >
+                        {content}
+                        {shortcutLabel ? (
+                          <span
+                            aria-hidden
+                            className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
+                          >
+                            {shortcutLabel}
+                          </span>
+                        ) : null}
+                      </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
                 );
@@ -336,28 +271,6 @@ export default function MenuItems({
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
-      <HistorySearchDialog
-        open={searchModalOpen}
-        onOpenChange={setSearchModalOpen}
-        activeOrganizationId={activeOrganizationId}
-        labels={{
-          dialogTitle: tSearch("title"),
-          dialogDescription: tSearch("description"),
-          searchPlaceholder: tSearch("searchPlaceholder"),
-          empty: tSearch("empty"),
-          loading: tSearch("loading"),
-          error: tSearch("error"),
-          kind: {
-            task: tHistory("Row.kind.task"),
-            job: tHistory("Row.kind.job"),
-            conversation: tHistory("Row.kind.conversation"),
-          },
-          conversationStatus: {
-            active: tHistory("Row.conversationStatus.active"),
-            archived: tHistory("Row.conversationStatus.archived"),
-          },
-        }}
-      />
     </>
   );
 }
