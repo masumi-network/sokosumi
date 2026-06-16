@@ -1,9 +1,16 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { constructWebhookEventMock, handleEventMock } = vi.hoisted(() => ({
-  constructWebhookEventMock: vi.fn(),
-  handleEventMock: vi.fn(),
+const { constructWebhookEventMock, getEnvMock, handleEventMock } = vi.hoisted(
+  () => ({
+    constructWebhookEventMock: vi.fn(),
+    getEnvMock: vi.fn(),
+    handleEventMock: vi.fn(),
+  }),
+);
+
+vi.mock("@/config/env", () => ({
+  getEnv: () => getEnvMock(),
 }));
 
 vi.mock("@/clients/stripe.client", () => ({
@@ -40,6 +47,7 @@ function postStripeWebhook(
 describe("POST /webhooks/stripe", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ USE_UNIFIED_STRIPE_WEBHOOK: false });
     constructWebhookEventMock.mockResolvedValue({
       id: "evt_123",
       type: "customer.updated",
@@ -104,6 +112,17 @@ describe("POST /webhooks/stripe", () => {
     expect(handleEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "evt_123", type: "customer.updated" }),
     );
+  });
+
+  it("returns 410 when unified stripe webhooks are enabled", async () => {
+    getEnvMock.mockReturnValue({ USE_UNIFIED_STRIPE_WEBHOOK: true });
+    const app = await createApp();
+
+    const response = await postStripeWebhook(app, { signature: "t=1,v1=abc" });
+
+    expect(response.status).toBe(410);
+    expect(constructWebhookEventMock).not.toHaveBeenCalled();
+    expect(handleEventMock).not.toHaveBeenCalled();
   });
 
   it("returns 500 when the handler fails so Stripe retries", async () => {
