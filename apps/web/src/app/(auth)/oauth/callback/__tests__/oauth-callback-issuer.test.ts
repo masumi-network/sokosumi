@@ -9,7 +9,7 @@ vi.mock("@/config/env.public", () => ({
 import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { normalizeOAuthIssuerBase } from "@/lib/utils/oauth-issuer";
 
-describe("oauth callback issuer", () => {
+describe("oauth callback issuer (page contract)", () => {
   beforeEach(() => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_NETWORK: "Preprod",
@@ -17,7 +17,7 @@ describe("oauth callback issuer", () => {
     });
   });
 
-  it("expects Core auth base URL as issuer, not web /api/auth", () => {
+  it("uses Core auth base URL as issuer, not legacy web /api/auth", () => {
     const coreIssuer = normalizeOAuthIssuerBase(getBrowserCoreAuthBaseUrl());
     const legacyWebIssuer = normalizeOAuthIssuerBase(
       "http://localhost:3000/api/auth",
@@ -25,5 +25,13 @@ describe("oauth callback issuer", () => {
 
     expect(coreIssuer).toBe("http://localhost:8787/auth");
     expect(coreIssuer).not.toBe(legacyWebIssuer);
+  });
+
+  it("builds the token endpoint URL the callback page posts to", () => {
+    const issuer = normalizeOAuthIssuerBase(getBrowserCoreAuthBaseUrl());
+
+    expect(`${issuer}/oauth2/token`).toBe(
+      "http://localhost:8787/auth/oauth2/token",
+    );
   });
 });
