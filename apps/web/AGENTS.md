@@ -169,12 +169,14 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 ### Database Access
 
 - **Web does not access Postgres or Prisma.** All reads and writes go through the Core API (`coreClient` in `src/lib/clients/core.client.ts`).
-- Domain types and enums used by web live in `@sokosumi/utils` (`packages/utils/src/domain/`).
-- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer.
+- **Entity DTOs** (`Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …) come from the generated Core client (`src/lib/clients/generated/core`). Use `src/lib/types/core-dto.ts` for web helpers (`CoreAgentDto`, credit/rating accessors, placeholders) and enum **type** aliases derived from Core fields (`TaskStatus`, `JobType`, `SokosumiJobStatus`, …).
+- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) still live in `@sokosumi/utils` until OpenAPI codegen exports const enums. **Pure helpers** (URLs, credits, locale, auth cookies) also stay in `@sokosumi/utils` — not entity mirrors.
+- Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 
 ### Core API reads & caching (performance)
 
-We are migrating web data access from direct DB reads to the Core API
+Web data access for domain entities goes through the Core API
 (`coreClient` in `src/lib/clients/core.client.ts`). Two performance rules:
 
 - **Never blindly cache Core responses across requests.** Every `coreClient`
@@ -330,7 +332,7 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` directly; no passthrough files
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import pure helpers from `@sokosumi/utils` directly; no passthrough files
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)

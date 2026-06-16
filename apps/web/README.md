@@ -31,7 +31,7 @@ apps/web
 
 - **Next.js Web Application**: Modern, server-side rendered React application
 - **TypeScript**: Type-safe development environment
-- **Prisma**: Database ORM for type-safe database queries
+- **Core API client**: Generated OpenAPI client for type-safe reads and writes (no direct Postgres access from web)
 - **TailwindCSS**: Utility-first CSS framework
 - **Vitest**: Testing framework
 - **ESLint**: Code linting
@@ -94,6 +94,8 @@ pnpm test
 ### Database setup
 
 The web app does not connect to Postgres directly. Bootstrap the database from the repo root (`pnpm prisma:migrate:dev`, `pnpm prisma:generate`) and configure `apps/core/.env` — see the root `AGENTS.md` setup section.
+
+Domain types come from the generated Core client (`src/lib/clients/generated/core`); see `src/lib/types/core-dto.ts` and `apps/web/AGENTS.md` (Database Access). After changing Core API schemas, regenerate the web client with `pnpm --filter web generate:core:snapshot`.
 
 ## Related Packages
 
