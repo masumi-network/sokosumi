@@ -1,13 +1,9 @@
-import {
-  oauthProviderAuthServerMetadata,
-  oauthProviderOpenIdConfigMetadata,
-} from "@better-auth/oauth-provider";
+import { oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { Hono } from "hono";
 
 import { auth } from "@/lib/auth.js";
 
 const oauthAuthServerMetadataHandler = oauthProviderAuthServerMetadata(auth);
-const oauthOpenIdConfigHandler = oauthProviderOpenIdConfigMetadata(auth);
 
 const app = new Hono();
 
