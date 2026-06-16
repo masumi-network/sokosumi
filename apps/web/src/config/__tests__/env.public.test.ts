@@ -31,11 +31,11 @@ describe("env.public NEXT_PUBLIC_USE_CORE_AUTH_CLIENT coercion", () => {
     expect(getEnvPublicConfig().NEXT_PUBLIC_USE_CORE_AUTH_CLIENT).toBe(true);
   });
 
-  it("defaults to false when unset", async () => {
+  it("defaults to true when unset", async () => {
     delete process.env.NEXT_PUBLIC_USE_CORE_AUTH_CLIENT;
 
     const { getEnvPublicConfig } = await import("../env.public");
 
-    expect(getEnvPublicConfig().NEXT_PUBLIC_USE_CORE_AUTH_CLIENT).toBe(false);
+    expect(getEnvPublicConfig().NEXT_PUBLIC_USE_CORE_AUTH_CLIENT).toBe(true);
   });
 });

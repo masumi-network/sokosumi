@@ -21,7 +21,7 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_HANNAH_URL: z.url().default("https://hannah.sumike.ai"),
   NEXT_PUBLIC_MCP_URL: z.url().default("https://mcp.sokosumi.com"),
   NEXT_PUBLIC_CORE_APP_BASE_URL: z.url().optional(),
-  NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: z.stringbool().default(false),
+  NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: z.stringbool().default(true),
   NEXT_PUBLIC_NETWORK: z
     .literal("Preprod")
     .or(z.literal("Mainnet"))

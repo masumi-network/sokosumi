@@ -1,5 +1,5 @@
+import type { Account } from "@sokosumi/utils";
 import type { DesignMdProfileValue } from "@/components/design-md";
-import type { Account } from "@/lib/auth/auth";
 import { AccountProvider } from "@/lib/auth/types";
 
 import { BrandProfileSection } from "./brand-profile-section";

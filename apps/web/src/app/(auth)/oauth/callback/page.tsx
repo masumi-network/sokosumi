@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { normalizeOAuthIssuerBase } from "@/lib/utils/oauth-issuer";
 
 interface TokenResponse {
@@ -82,7 +83,7 @@ export default function OAuthCallbackPage() {
       // re-serializes POST bodies as JSON when `window.location.search` is set (this page),
       // so we POST with URLSearchParams via `fetch` instead of the Better Auth client.
       const expectedIssuerBase = normalizeOAuthIssuerBase(
-        `${window.location.origin}/api/auth`,
+        getBrowserCoreAuthBaseUrl(),
       );
       if (!expectedIssuerBase) {
         setError(t("errors.tokenExchangeFailed"));

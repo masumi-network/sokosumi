@@ -2,7 +2,10 @@ import { apiKeyClient } from "@better-auth/api-key/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { stripeClient } from "@better-auth/stripe/client";
-import { resolveBetterAuthCookieName } from "@sokosumi/utils";
+import {
+  resolveBetterAuthCookieName,
+  type SokosumiBetterAuthClientOptions,
+} from "@sokosumi/utils";
 import {
   adminClient,
   inferAdditionalFields,
@@ -14,8 +17,6 @@ import {
 } from "better-auth/client/plugins";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-
-import type { auth } from "./auth";
 
 function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
@@ -33,11 +34,11 @@ function getLastUsedLoginMethodCookieName(): string {
 /** Plugin list shared by browser and server Better Auth clients. */
 export function getAuthClientPlugins() {
   return [
-    inferAdditionalFields<typeof auth>(),
+    inferAdditionalFields<SokosumiBetterAuthClientOptions>(),
     adminClient(),
     apiKeyClient(),
     organizationClient({
-      schema: inferOrgAdditionalFields<typeof auth>(),
+      schema: inferOrgAdditionalFields<SokosumiBetterAuthClientOptions>(),
     }),
     passkeyClient(),
     magicLinkClient(),

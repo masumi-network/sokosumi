@@ -48,10 +48,6 @@ vi.mock("@better-auth/stripe/client", () => ({
   stripeClient: stripeClientMock,
 }));
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {},
-}));
-
 vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
@@ -65,12 +61,20 @@ describe("auth client", () => {
       NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,
       NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
-      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: false,
+      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: true,
       NEXT_PUBLIC_CORE_APP_BASE_URL: "http://localhost:8787/v1",
     });
   });
 
   it("does not set baseURL when NEXT_PUBLIC_USE_CORE_AUTH_CLIENT is false", async () => {
+    getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Preprod",
+      NEXT_PUBLIC_VERCEL_ENV: undefined,
+      NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: undefined,
+      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: false,
+      NEXT_PUBLIC_CORE_APP_BASE_URL: "http://localhost:8787/v1",
+    });
+
     await import("../auth.client");
 
     const [[config]] = createAuthClientMock.mock.calls as Array<
@@ -81,7 +85,7 @@ describe("auth client", () => {
     expect(config.fetchOptions).toBeUndefined();
   });
 
-  it("points authClient at Core /auth when NEXT_PUBLIC_USE_CORE_AUTH_CLIENT is true", async () => {
+  it("points authClient at Core /auth by default (NEXT_PUBLIC_USE_CORE_AUTH_CLIENT true)", async () => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,

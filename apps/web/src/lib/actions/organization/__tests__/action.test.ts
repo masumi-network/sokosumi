@@ -11,6 +11,7 @@ const getMyMemberInOrganizationMock = vi.fn();
 const headersMock = vi.fn();
 const syncOrganizationInvoiceEmailWithStripeMock = vi.fn();
 const updateOrganizationInvoiceEmailMock = vi.fn();
+const setMyPreferredOrganizationMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
   kind?: string;
@@ -29,6 +30,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     updateOrganizationInvoiceEmail: (...args: unknown[]) =>
       updateOrganizationInvoiceEmailMock(...args),
+    setMyPreferredOrganization: (...args: unknown[]) =>
+      setMyPreferredOrganizationMock(...args),
   },
 }));
 
@@ -57,10 +60,6 @@ vi.mock("@/lib/services/user.service", () => ({
 
 vi.mock("next/headers", () => ({
   headers: () => headersMock(),
-}));
-
-vi.mock("@/lib/services/preferred-organization.service", () => ({
-  preferredOrganizationService: {},
 }));
 
 vi.mock("@/lib/services/stripe.service", () => ({

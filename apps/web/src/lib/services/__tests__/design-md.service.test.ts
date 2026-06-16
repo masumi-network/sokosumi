@@ -1,8 +1,7 @@
 import { MemberRole } from "@sokosumi/database";
+import type { Session } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { Session } from "@/lib/auth/auth";
 
 export {};
 
