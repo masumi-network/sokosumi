@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildConfirmationApproveOrganizationOverride,
+  buildConfirmationApproveOverrideIfChanged,
   buildCurrentConfirmationApproveOrganizationOverride,
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
   isConfirmationOrgAwareTool,
@@ -125,5 +126,50 @@ describe("buildConfirmationApproveOrganizationOverride", () => {
         organizations,
       ),
     ).toEqual({ organizationId: "org-a" });
+  });
+});
+
+describe("buildConfirmationApproveOverrideIfChanged", () => {
+  it("omits the override when the workspace dropdown is untouched (Personal default)", () => {
+    // Regression: an untouched dropdown previously sent organizationId:null,
+    // which the orchestrator applied as an explicit Personal override —
+    // clobbering the workspace Hermes proposed. Unchanged ⇒ send nothing.
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        organizations,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("omits the override when an org default is left unchanged", () => {
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        "org-a",
+        "org-a",
+        organizations,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("sends an org override when the user switches to an organization", () => {
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        "org-b",
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        organizations,
+      ),
+    ).toEqual({ organizationId: "org-b" });
+  });
+
+  it("sends a Personal override when the user switches away from an org", () => {
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        "org-a",
+        organizations,
+      ),
+    ).toEqual({ organizationId: null });
   });
 });

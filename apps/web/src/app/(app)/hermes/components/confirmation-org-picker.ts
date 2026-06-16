@@ -69,3 +69,27 @@ export function buildCurrentConfirmationApproveOrganizationOverride(
     organizations,
   );
 }
+
+/**
+ * Organization override to send on approve — but ONLY when the user actually
+ * changed the workspace dropdown from its initial value. Returns `undefined`
+ * when the selection is unchanged so the caller omits `overrides.organizationId`
+ * entirely, letting the workspace Hermes proposed in its tool call stand.
+ *
+ * Sending an override on an untouched dropdown (including `organizationId: null`
+ * for Personal) is an explicit workspace choice the user never made, and the
+ * orchestrator applies it over Hermes' proposal — e.g. filing a task in Personal
+ * instead of the org Hermes chose. So an override is sent only on a deliberate
+ * change.
+ */
+export function buildConfirmationApproveOverrideIfChanged(
+  selectedOrgValue: string,
+  initialOrgValue: string,
+  organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
+): { organizationId: string | null } | undefined {
+  if (selectedOrgValue === initialOrgValue) return undefined;
+  return buildConfirmationApproveOrganizationOverride(
+    selectedOrgValue,
+    organizations,
+  );
+}
