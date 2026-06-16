@@ -18,8 +18,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { listHistoryAction } from "@/lib/actions/history";
-import type { HistoryItem } from "@/lib/services/history.service";
+import { coreClient } from "@/lib/clients/core.browser.client";
+import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const HISTORY_SEARCH_PAGE_SIZE = 50;
 
@@ -66,20 +66,14 @@ export function HistorySearchDialog({
     setError(null);
 
     try {
-      const result = await listHistoryAction({
+      const response = await coreClient.getHistory({
         q: searchQuery || undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
       });
 
       if (requestId !== requestIdRef.current) return;
 
-      if (result.isErr()) {
-        setHistory([]);
-        setError(labels.error);
-        return;
-      }
-
-      setHistory(result.value.history);
+      setHistory(response.data);
     } catch {
       if (requestId !== requestIdRef.current) return;
 
