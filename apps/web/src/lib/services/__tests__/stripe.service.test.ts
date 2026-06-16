@@ -324,4 +324,3 @@ describe("stripeService.syncOrganizationInvoiceEmailWithStripe", () => {
     expect(result).toBe(false);
   });
 });
-
