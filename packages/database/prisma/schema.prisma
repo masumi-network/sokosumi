@@ -261,6 +261,33 @@ model History {
   @@map("history")
 }
 
+enum NotificationKind {
+  JOB
+  TASK
+  CONVERSATION
+  BILLING
+  SYSTEM
+}
+
+model Notification {
+  id            String           @id @default(uuid(7))
+  userId        String
+  kind          NotificationKind
+  referenceId   String
+  action        String
+  messageKey    String
+  messageParams String // JSON
+  metadata      String? // JSON
+  isRead        Boolean          @default(false)
+  readAt        DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@unique([userId, kind, referenceId, action])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, isRead])
+  @@map("notification")
+}
+
 model Project {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
