@@ -819,7 +819,14 @@ export default function RunningState({
     })),
     ...resolvedCards.map((entry) => ({
       kind: "resolved" as const,
-      ts: entry.resolvedAt,
+      // Sort by the gate's SERVER createdAt, not the client-clock `resolvedAt`
+      // (Date.now() at approval). Mixing the two clocks lets client/server skew
+      // push the orchestrator's `confirmation_resolved` reply (server time)
+      // *above* the just-approved card — the card and its result then appear
+      // out of order. The gate is always created before its result, so anchoring
+      // on `confirmation.createdAt` keeps the card before the reply. Fall back to
+      // `resolvedAt` only if the timestamp is missing/unparseable.
+      ts: new Date(entry.confirmation.createdAt).getTime() || entry.resolvedAt,
       key: `resolved-${entry.confirmation.id}`,
       entry,
     })),
