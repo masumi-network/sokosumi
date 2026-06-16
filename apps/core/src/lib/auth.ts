@@ -679,6 +679,9 @@ export const auth = betterAuth({
         refreshToken: "soko_refresh_token_",
         clientSecret: "soko_client_secret_",
       },
+      // RFC 8414 metadata is served from the well-known + auth routers, so the
+      // startup reminder to expose `/.well-known/oauth-authorization-server/auth`
+      // is satisfied; silence it to keep boot logs clean.
       silenceWarnings: {
         oauthAuthServerConfig: true,
       },
