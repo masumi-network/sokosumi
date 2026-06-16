@@ -22,7 +22,6 @@ import {
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import {
-  notificationItemSchema,
   notificationKindSchema,
   notificationListSchema,
 } from "@/schemas/notification.schema";
