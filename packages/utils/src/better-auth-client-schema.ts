@@ -40,6 +40,9 @@ export const betterAuthUserAdditionalFields = {
   },
 } as const;
 
+export type BetterAuthUserAdditionalFieldKey =
+  keyof typeof betterAuthUserAdditionalFields;
+
 export const betterAuthOrganizationAdditionalFields = {
   stripeCustomerId: {
     type: "string",
@@ -48,3 +51,6 @@ export const betterAuthOrganizationAdditionalFields = {
     input: false,
   },
 } as const;
+
+export type BetterAuthOrganizationAdditionalFieldKey =
+  keyof typeof betterAuthOrganizationAdditionalFields;
