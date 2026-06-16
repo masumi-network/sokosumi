@@ -91,9 +91,9 @@ Run tests using Vitest with the `happy-dom` browser-like environment:
 pnpm test
 ```
 
-### Seeding the database
+### Database setup
 
-Copy the `.env.example` into `.env` and set an appropriate `DATABASE_URL`. Then run `pnpm prisma:migrate:dev` to deploy the migrations and seed the database (double check the console) or `pnpm prisma:seed` to only seed the db if the migrations are applied already.
+The web app does not connect to Postgres directly. Bootstrap the database from the repo root (`pnpm prisma:migrate:dev`, `pnpm prisma:generate`) and configure `apps/core/.env` — see the root `AGENTS.md` setup section.
 
 ## Related Packages
 
