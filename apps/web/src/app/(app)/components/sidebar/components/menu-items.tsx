@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,8 @@ interface MenuItemConfig {
   badge?: string;
   unreadCount?: number;
   onClick?: () => void;
+  shortcutLabel?: string;
+  ariaKeyshortcuts?: string;
 }
 
 const HERMES_UNREAD_POLL_INTERVAL_MS = 30_000;
@@ -91,6 +94,33 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
   const pathname = usePathname();
   const hermesUnread = useHermesUnreadCount(hermesMenuEnabled);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const isApplePlatform = useIsApplePlatform();
+  const searchShortcutLabel = isApplePlatform ? "⌘K" : "Ctrl+K";
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
+          return;
+        }
+      }
+
+      if (
+        event.key?.toLowerCase() !== "k" ||
+        !(event.metaKey || event.ctrlKey)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setSearchModalOpen(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const isPathActive = (href: string) => {
     if (pathname === href) {
@@ -106,6 +136,8 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       label: t("search"),
       Icon: Search,
       onClick: () => setSearchModalOpen(true),
+      shortcutLabel: searchShortcutLabel,
+      ariaKeyshortcuts: "Meta+K Control+K",
     },
     {
       key: "task-manager",
@@ -160,6 +192,8 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                 badge,
                 unreadCount,
                 onClick,
+                shortcutLabel,
+                ariaKeyshortcuts,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
                 const showUnread = (unreadCount ?? 0) > 0;
@@ -220,12 +254,35 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                       <SidebarMenuButton
                         type="button"
                         onClick={onClick}
+                        aria-keyshortcuts={ariaKeyshortcuts}
+                        tooltip={
+                          shortcutLabel
+                            ? {
+                                children: (
+                                  <span className="flex items-center gap-2">
+                                    <span>{label}</span>
+                                    <span className="text-muted-foreground text-xs tracking-widest">
+                                      {shortcutLabel}
+                                    </span>
+                                  </span>
+                                ),
+                              }
+                            : undefined
+                        }
                         className={cn(
                           "flex min-h-auto w-full items-center gap-2 px-3",
                           "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
                         )}
                       >
                         {content}
+                        {shortcutLabel ? (
+                          <span
+                            aria-hidden
+                            className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
+                          >
+                            {shortcutLabel}
+                          </span>
+                        ) : null}
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
