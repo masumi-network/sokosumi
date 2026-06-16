@@ -75,7 +75,7 @@ describe("MenuItems search keyboard shortcut", () => {
   });
 
   it("does not throw when event.key is undefined", () => {
-    render(<MenuItems hermesMenuEnabled={false} />);
+    render(<MenuItems activeOrganizationId={null} hermesMenuEnabled={false} />);
 
     expect(() => {
       fireEvent.keyDown(window, { key: undefined, metaKey: true });
@@ -87,7 +87,7 @@ describe("MenuItems search keyboard shortcut", () => {
   });
 
   it("opens search dialog on Cmd+K", () => {
-    render(<MenuItems hermesMenuEnabled={false} />);
+    render(<MenuItems activeOrganizationId={null} hermesMenuEnabled={false} />);
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
 
@@ -95,7 +95,7 @@ describe("MenuItems search keyboard shortcut", () => {
   });
 
   it("opens search dialog on Ctrl+K", () => {
-    render(<MenuItems hermesMenuEnabled={false} />);
+    render(<MenuItems activeOrganizationId={null} hermesMenuEnabled={false} />);
 
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
 
@@ -103,7 +103,7 @@ describe("MenuItems search keyboard shortcut", () => {
   });
 
   it("ignores Cmd+K when an input element is the event target", () => {
-    render(<MenuItems hermesMenuEnabled={false} />);
+    render(<MenuItems activeOrganizationId={null} hermesMenuEnabled={false} />);
     const input = document.createElement("input");
     document.body.appendChild(input);
 
@@ -117,7 +117,7 @@ describe("MenuItems search keyboard shortcut", () => {
   });
 
   it("ignores non-matching keys", () => {
-    render(<MenuItems hermesMenuEnabled={false} />);
+    render(<MenuItems activeOrganizationId={null} hermesMenuEnabled={false} />);
 
     fireEvent.keyDown(window, { key: "j", metaKey: true });
 

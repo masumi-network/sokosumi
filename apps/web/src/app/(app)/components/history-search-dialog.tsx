@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import { getHistoryItemHref } from "@/app/history/components/history-list-item";
+import { getDefaultHistoryScope } from "@/app/history/utils/history-filters";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { ChatModelIcon } from "@/components/chat/chat-model-icon";
@@ -46,12 +47,14 @@ interface HistorySearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   labels: HistorySearchDialogLabels;
+  activeOrganizationId: string | null;
 }
 
 export function HistorySearchDialog({
   open,
   onOpenChange,
   labels,
+  activeOrganizationId,
 }: HistorySearchDialogProps) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -63,13 +66,16 @@ export function HistorySearchDialog({
 
   const loadHistory = useEffectEvent(async (searchQuery: string) => {
     const requestId = ++requestIdRef.current;
+    const scope = getDefaultHistoryScope(activeOrganizationId);
     setIsLoading(true);
     setError(null);
+    setHistory([]);
 
     try {
       const response = await coreClient.getHistory({
         q: searchQuery || undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
+        scope,
       });
 
       if (requestId !== requestIdRef.current) return;
@@ -99,7 +105,7 @@ export function HistorySearchDialog({
     if (!open) return;
 
     void loadHistory(debouncedQuery);
-  }, [debouncedQuery, open]);
+  }, [activeOrganizationId, debouncedQuery, open]);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {

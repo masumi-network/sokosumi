@@ -26,6 +26,7 @@ import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { cn } from "@/lib/utils";
 
 interface MenuItemsProps {
+  activeOrganizationId: string | null;
   /** Hermes nav + unread polling; driven by `hermesBetaEnabled` in app layout. */
   hermesMenuEnabled: boolean;
 }
@@ -85,7 +86,10 @@ function useHermesUnreadCount(enabled: boolean): number {
   return enabled ? count : 0;
 }
 
-export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
+export default function MenuItems({
+  activeOrganizationId,
+  hermesMenuEnabled,
+}: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const tHermes = useTranslations("App.Hermes");
   const tSearch = useTranslations("App.HistorySearchDialog");
@@ -335,6 +339,7 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       <HistorySearchDialog
         open={searchModalOpen}
         onOpenChange={setSearchModalOpen}
+        activeOrganizationId={activeOrganizationId}
         labels={{
           dialogTitle: tSearch("title"),
           dialogDescription: tSearch("description"),
