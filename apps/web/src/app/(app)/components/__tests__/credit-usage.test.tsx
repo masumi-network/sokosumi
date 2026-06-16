@@ -134,16 +134,11 @@ describe("CreditUsage", () => {
     expect(screen.getByText("25 available")).toBeInTheDocument();
     expect(screen.getByText("Never expire")).toBeInTheDocument();
 
-    expect(screen.getByTestId("single-progress")).toHaveAttribute(
-      "data-value",
-      "50",
-    );
-
-    const subscriptionBars = screen.getAllByRole("progressbar", {
-      name: "Subscription credits consumed",
-    });
-    expect(subscriptionBars).toHaveLength(1);
-    expect(subscriptionBars[0]).toHaveStyle({ width: "50%" });
+    const progressBars = screen.getAllByTestId("single-progress");
+    expect(progressBars).toHaveLength(2);
+    for (const progressBar of progressBars) {
+      expect(progressBar).toHaveAttribute("data-value", "50");
+    }
   });
 
   it("falls back to the shared progress bar when extra credits are empty", () => {
@@ -158,10 +153,11 @@ describe("CreditUsage", () => {
     );
 
     expect(screen.getByText("50 credits")).toBeInTheDocument();
-    expect(screen.getByTestId("single-progress")).toHaveAttribute(
-      "data-value",
-      "50",
-    );
+    const progressBars = screen.getAllByTestId("single-progress");
+    expect(progressBars).toHaveLength(2);
+    for (const progressBar of progressBars) {
+      expect(progressBar).toHaveAttribute("data-value", "50");
+    }
     expect(screen.queryByText("Extra credits")).not.toBeInTheDocument();
   });
 
@@ -194,7 +190,7 @@ describe("CreditUsage", () => {
     expect(screen.getByText("75 credits")).toBeInTheDocument();
   });
 
-  it("renders a circular progress bar with tooltip label when the sidebar is collapsed", () => {
+  it("renders a circular progress trigger without nested progressbar roles when collapsed", () => {
     vi.mocked(useSidebar).mockReturnValue({
       state: "collapsed",
       isMobile: false,
@@ -211,10 +207,34 @@ describe("CreditUsage", () => {
     );
 
     const circularProgress = screen.getByTestId("circular-credit-progress");
-    expect(circularProgress).toHaveAttribute("aria-valuenow", "50");
+    expect(circularProgress).toHaveAttribute("aria-hidden", "true");
+    expect(circularProgress).not.toHaveAttribute("role", "progressbar");
     expect(
       screen.getByRole("button", { name: "50 / 100 credits used" }),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("single-progress")).not.toBeInTheDocument();
+    expect(screen.getAllByText("50 / 100 credits used").length).toBeGreaterThan(
+      1,
+    );
+  });
+
+  it("shows a tooltip on the collapsed credits indicator when details are unavailable", () => {
+    vi.mocked(useSidebar).mockReturnValue({
+      state: "collapsed",
+      isMobile: false,
+    } as ReturnType<typeof useSidebar>);
+
+    render(
+      <CreditUsage
+        creditUsage={creditUsage}
+        extraCredits={0}
+        currentTimestampMs={0}
+        lowCreditsThreshold={10}
+      />,
+    );
+
+    const circularProgress = screen.getByTestId("circular-credit-progress");
+    expect(circularProgress).toHaveAttribute("aria-valuenow", "50");
+    expect(screen.getByText("50 / 100 credits used")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });

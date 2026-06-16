@@ -2,6 +2,7 @@
 
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { type ReactNode, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -23,9 +24,10 @@ const CIRCULAR_PROGRESS_STROKE = 3;
 
 interface CircularCreditProgressProps {
   value: number;
-  ariaLabel: string;
+  ariaLabel?: string;
   trackClassName: string;
   indicatorClassName: string;
+  decorative?: boolean;
 }
 
 function CircularCreditProgress({
@@ -33,6 +35,7 @@ function CircularCreditProgress({
   ariaLabel,
   trackClassName,
   indicatorClassName,
+  decorative = false,
 }: CircularCreditProgressProps) {
   const radius = (CIRCULAR_PROGRESS_SIZE - CIRCULAR_PROGRESS_STROKE) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -46,11 +49,12 @@ function CircularCreditProgress({
       width={CIRCULAR_PROGRESS_SIZE}
       height={CIRCULAR_PROGRESS_SIZE}
       viewBox={`0 0 ${CIRCULAR_PROGRESS_SIZE} ${CIRCULAR_PROGRESS_SIZE}`}
-      role="progressbar"
-      aria-label={ariaLabel}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={value}
+      aria-hidden={decorative ? true : undefined}
+      role={decorative ? undefined : "progressbar"}
+      aria-label={decorative ? undefined : ariaLabel}
+      aria-valuemin={decorative ? undefined : 0}
+      aria-valuemax={decorative ? undefined : 100}
+      aria-valuenow={decorative ? undefined : value}
       className="shrink-0"
     >
       <circle
@@ -76,6 +80,63 @@ function CircularCreditProgress({
         transform={`rotate(-90 ${center} ${center})`}
       />
     </svg>
+  );
+}
+
+interface CollapsedCreditsPopoverProps {
+  triggerLabel: string;
+  triggerClassName: string;
+  tooltipLabel: string;
+  popoverDetails: ReactNode;
+  percentageUsed: number;
+  circularTrackClassName: string;
+  circularIndicatorClassName: string;
+}
+
+function CollapsedCreditsPopover({
+  triggerLabel,
+  triggerClassName,
+  tooltipLabel,
+  popoverDetails,
+  percentageUsed,
+  circularTrackClassName,
+  circularIndicatorClassName,
+}: CollapsedCreditsPopoverProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  return (
+    <div className="flex w-full justify-center">
+      <Tooltip open={popoverOpen ? false : undefined}>
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={triggerClassName}
+                aria-label={triggerLabel}
+              >
+                <CircularCreditProgress
+                  value={percentageUsed}
+                  trackClassName={circularTrackClassName}
+                  indicatorClassName={circularIndicatorClassName}
+                  decorative
+                />
+              </button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <PopoverContent
+            side="right"
+            align="center"
+            className="bg-popover text-popover-foreground min-w-56 rounded-md border p-3 shadow-md"
+          >
+            {popoverDetails}
+          </PopoverContent>
+        </Popover>
+        <TooltipContent side="right" align="center">
+          {tooltipLabel}
+        </TooltipContent>
+      </Tooltip>
+    </div>
   );
 }
 
@@ -175,17 +236,12 @@ export default function CreditUsage({
       <div className="bg-border h-px" />
       <section className="space-y-1.5">
         <p className="text-xs font-semibold">{t("monthlyUsageLimit")}</p>
-        <div className={progressRootClassName}>
-          <div
-            role="progressbar"
-            aria-label={creditUsageAriaLabel}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={activeCreditUsage.percentageUsed}
-            className={`${progressIndicatorClassName} h-full transition-all`}
-            style={{ width: `${activeCreditUsage.percentageUsed}%` }}
-          />
-        </div>
+        <Progress
+          className={progressRootClassName}
+          value={activeCreditUsage.percentageUsed}
+          aria-label={creditUsageAriaLabel}
+          indicatorClassName={progressIndicatorClassName}
+        />
         <p className="text-muted-foreground text-xs">
           {normalCreditUsageLabel}
         </p>
@@ -211,6 +267,26 @@ export default function CreditUsage({
   );
 
   if (isCollapsed) {
+    const collapsedTriggerClassName = cn(
+      "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex size-8 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+      creditsLabel &&
+        "group cursor-pointer data-[state=open]:bg-sidebar-accent",
+    );
+
+    if (creditsLabel) {
+      return (
+        <CollapsedCreditsPopover
+          triggerLabel={triggerLabel}
+          tooltipLabel={triggerLabel}
+          triggerClassName={collapsedTriggerClassName}
+          popoverDetails={popoverDetails}
+          percentageUsed={activeCreditUsage.percentageUsed}
+          circularTrackClassName={circularTrackClassName}
+          circularIndicatorClassName={circularIndicatorClassName}
+        />
+      );
+    }
+
     const circularProgress = (
       <CircularCreditProgress
         value={activeCreditUsage.percentageUsed}
@@ -220,53 +296,18 @@ export default function CreditUsage({
       />
     );
 
-    const collapsedTriggerClassName = cn(
-      "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex size-8 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
-      creditsLabel &&
-        "group cursor-pointer data-[state=open]:bg-sidebar-accent",
+    return (
+      <div className="flex w-full justify-center">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={collapsedTriggerClassName}>{circularProgress}</div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">
+            {triggerLabel}
+          </TooltipContent>
+        </Tooltip>
+      </div>
     );
-
-    const collapsedTrigger = creditsLabel ? (
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={collapsedTriggerClassName}
-          aria-label={triggerLabel}
-        >
-          {circularProgress}
-        </button>
-      </PopoverTrigger>
-    ) : (
-      <div className={collapsedTriggerClassName}>{circularProgress}</div>
-    );
-
-    const collapsedContent = (
-      <Tooltip>
-        <TooltipTrigger asChild>{collapsedTrigger}</TooltipTrigger>
-        <TooltipContent side="right" align="center">
-          {triggerLabel}
-        </TooltipContent>
-      </Tooltip>
-    );
-
-    if (creditsLabel) {
-      return (
-        <div className="flex w-full justify-center">
-          <Popover>
-            {collapsedContent}
-            <PopoverContent
-              side="right"
-              align="center"
-              className="bg-popover text-popover-foreground min-w-56 rounded-md border p-3 shadow-md"
-            >
-              {popoverDetails}
-            </PopoverContent>
-          </Popover>
-        </div>
-      );
-    }
-
-    return <div className="flex w-full justify-center">{collapsedContent}</div>;
   }
 
   if (creditsLabel) {
