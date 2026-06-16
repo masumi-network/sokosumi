@@ -1,4 +1,6 @@
-import type { NotificationKind, PrismaClient } from "@sokosumi/database";
+import type { NotificationKind } from "@sokosumi/database";
+
+import prisma from "@/lib/db/prisma";
 
 export interface CreateNotificationInput {
   userId: string;
@@ -19,8 +21,9 @@ export interface CreateNotificationInput {
  */
 export async function createNotification(
   input: CreateNotificationInput,
-  prisma: PrismaClient,
+  prismaClient: typeof prisma = prisma,
 ) {
+  const prisma = prismaClient;
   const notification = await prisma.notification.upsert({
     where: {
       userId_kind_referenceId_action: {

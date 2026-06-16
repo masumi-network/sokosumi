@@ -40,12 +40,12 @@ export const notificationItemSchema = z
         "i18n message key for translation (e.g. Notifications.Job.completed)",
       example: "Notifications.Job.completed",
     }),
-    messageParams: z.record(z.unknown()).openapi({
+    messageParams: z.record(z.string(), z.unknown()).openapi({
       description: "ICU interpolation parameters for the message",
       example: { agentName: "Research Agent", jobName: "Market Analysis" },
     }),
     metadata: z
-      .record(z.unknown())
+      .record(z.string(), z.unknown())
       .nullable()
       .openapi({
         description: "Optional metadata for deep-linking or context",
