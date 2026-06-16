@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  betterAuthUserAdditionalFields,
   type BetterAuthUserAdditionalFieldKey,
+  betterAuthUserAdditionalFields,
 } from "../better-auth-client-schema.js";
 import type { SessionUser } from "../better-auth-types.js";
 
