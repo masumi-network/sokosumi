@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:test-driven-development for behavior changes; superpowers:verification-before-completion before PR.
 
-**Goal:** Delete web's duplicate Better Auth runtime so only Core serves `/auth`. Web keeps session reads via `auth.server.ts` (Core HTTP) and browser client via `auth.client.ts` when `NEXT_PUBLIC_USE_CORE_AUTH_CLIENT=true`.
+**Goal:** Delete web's duplicate Better Auth runtime so only Core serves `/auth`. Web keeps session reads via `auth.server.ts` (Core HTTP) and browser `authClient` always targets Core `/auth`.
 
 **Architecture:** Shared client-safe `Session` / `Account` / `SessionUser` types and Better Auth additional-field schema live in `@sokosumi/utils`. Web auth client plugins infer types from that schema instead of `typeof auth`. Organization preferred-org persistence calls Core directly from `organization/action.ts` (no web Prisma).
 
@@ -47,7 +47,7 @@
 
 - [ ] **Step 1: Remove** `import type { auth } from "./auth"`.
 - [ ] **Step 2: Use** `@sokosumi/utils` schema type for `inferAdditionalFields` / `inferOrgAdditionalFields` (or explicit org schema if inference needs a phantom Auth type).
-- [ ] **Step 3: Update tests** — remove `@/lib/auth/auth` mock; default `NEXT_PUBLIC_USE_CORE_AUTH_CLIENT` expectations to `true` where relevant.
+- [ ] **Step 3: Update tests** — remove `@/lib/auth/auth` mock; assert Core `baseURL` on auth client.
 - [ ] **Step 4: Run** `pnpm --filter web test auth.client.test.ts` — expect PASS.
 
 ---
@@ -92,15 +92,15 @@
 
 ---
 
-### Task 7: Default Core auth client flag
+### Task 7: Remove Core auth client flag
 
 **Files:**
-- Modify: `apps/web/src/config/env.public.ts`
-- Modify: `apps/web/.env.example`
-- Modify: `apps/web/src/lib/auth/auth.client.ts` — simplify if false branch is dead
+- Modify: `apps/web/src/lib/auth/auth.client.ts` — always use Core `baseURL`
+- Modify: `apps/web/src/config/env.public.ts`, `apps/web/.env.example`
+- Delete: `apps/web/src/config/__tests__/env.public.test.ts`
 
-- [ ] **Step 1: Set** `NEXT_PUBLIC_USE_CORE_AUTH_CLIENT` default to `true` in schema + `.env.example`.
-- [ ] **Step 2: Keep** `auth.client.ts` conditional for env override safety; no large refactor.
+- [x] **Step 1: Remove** `NEXT_PUBLIC_USE_CORE_AUTH_CLIENT` (web `/api/auth` handler is gone; false path is broken).
+- [x] **Step 2: Simplify** `auth.client.ts` to always point at Core `/auth`.
 
 ---
 
