@@ -69,13 +69,6 @@ export default async function UserCredits({
     }
   }
 
-  // Compute low-credits state using total buffer credits and threshold
-  const totalCredits = creditsData?.total ?? null;
-  const isLowCredits =
-    typeof totalCredits === "number" &&
-    totalCredits < lowCreditsThreshold &&
-    totalCredits > 0;
-
   const displayCredits = formatCreditsForDisplay(credits ?? 0);
   const creditsLabel =
     credits === null
@@ -111,7 +104,7 @@ export default async function UserCredits({
               creditsLabel={creditsLabel}
               currentTimestampMs={currentTimestampMs}
               subscriptionPeriodEndMs={subscriptionPeriodEndMs}
-              isLowCredits={isLowCredits}
+              lowCreditsThreshold={lowCreditsThreshold}
             />
           ) : null}
           {showAvatar ? (

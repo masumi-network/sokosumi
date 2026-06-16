@@ -85,7 +85,7 @@ interface CreditUsageProps {
   creditsLabel?: string;
   currentTimestampMs: number;
   subscriptionPeriodEndMs?: number | null;
-  isLowCredits?: boolean;
+  lowCreditsThreshold: number;
 }
 
 export default function CreditUsage({
@@ -94,7 +94,7 @@ export default function CreditUsage({
   creditsLabel,
   currentTimestampMs,
   subscriptionPeriodEndMs,
-  isLowCredits = false,
+  lowCreditsThreshold,
 }: CreditUsageProps) {
   const t = useTranslations("Components.UserAvatar");
   const tBilling = useTranslations("App.Billing");
@@ -110,12 +110,13 @@ export default function CreditUsage({
   const usedFormatted = formatCreditsForDisplay(activeCreditUsage.used);
   const totalFormatted = formatCreditsForDisplay(activeCreditUsage.total);
   const hasExtraCredits = (extraCredits ?? 0) > 0;
-  const totalCreditsNumeric = formatCreditsForDisplay(
-    activeCreditUsage.remaining + Math.max(0, extraCredits ?? 0),
-  );
+  const totalBalance =
+    activeCreditUsage.remaining + Math.max(0, extraCredits ?? 0);
+  const totalCreditsNumeric = formatCreditsForDisplay(totalBalance);
   const totalCreditsDisplay = tBilling("balanceCreditsLabel", {
     credits: totalCreditsNumeric,
   });
+  const isLowCredits = totalBalance < lowCreditsThreshold && totalBalance > 0;
 
   const normalCreditUsageLabel = t("creditsUsedOfTotal", {
     used: usedFormatted,

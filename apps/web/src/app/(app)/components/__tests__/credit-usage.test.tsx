@@ -124,6 +124,7 @@ describe("CreditUsage", () => {
         extraCredits={25}
         creditsLabel="25 available"
         currentTimestampMs={0}
+        lowCreditsThreshold={100}
       />,
     );
 
@@ -152,6 +153,7 @@ describe("CreditUsage", () => {
         extraCredits={0}
         creditsLabel="0 available"
         currentTimestampMs={0}
+        lowCreditsThreshold={100}
       />,
     );
 
@@ -163,18 +165,33 @@ describe("CreditUsage", () => {
     expect(screen.queryByText("Extra credits")).not.toBeInTheDocument();
   });
 
-  it("shows remaining balance in the low-credits trigger label", () => {
+  it("shows total balance in the low-credits trigger label", () => {
     render(
       <CreditUsage
         creditUsage={creditUsage}
         extraCredits={25}
         creditsLabel="25 available"
         currentTimestampMs={0}
-        isLowCredits
+        lowCreditsThreshold={100}
       />,
     );
 
     expect(screen.getByText("Low credits 75")).toBeInTheDocument();
+  });
+
+  it("derives low-credits state from total balance shown in the popover", () => {
+    render(
+      <CreditUsage
+        creditUsage={creditUsage}
+        extraCredits={25}
+        creditsLabel="25 available"
+        currentTimestampMs={0}
+        lowCreditsThreshold={50}
+      />,
+    );
+
+    expect(screen.queryByText("Low credits 75")).not.toBeInTheDocument();
+    expect(screen.getByText("75 credits")).toBeInTheDocument();
   });
 
   it("renders a circular progress bar with tooltip label when the sidebar is collapsed", () => {
@@ -189,6 +206,7 @@ describe("CreditUsage", () => {
         extraCredits={25}
         creditsLabel="25 available"
         currentTimestampMs={0}
+        lowCreditsThreshold={10}
       />,
     );
 
