@@ -17,8 +17,12 @@ interface CreateTaskModalContextType {
   open: boolean;
   coworkerOverrideId: string | null;
   projectOverrideId: string | null;
+  promptOverride: string | null;
   formInstanceKey: number;
   handleOpen: () => void;
+  /** Open the modal with a coworker preselected (and optionally a prefilled
+   *  prompt), so the picker step is skipped. */
+  handleOpenWith: (coworkerId: string, prompt?: string) => void;
   handleClose: () => void;
 }
 
@@ -26,8 +30,10 @@ const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   open: false,
   coworkerOverrideId: null,
   projectOverrideId: null,
+  promptOverride: null,
   formInstanceKey: 0,
   handleOpen: () => {},
+  handleOpenWith: () => {},
   handleClose: () => {},
 });
 
@@ -40,6 +46,7 @@ interface CreateTaskModalProviderProps {
   initialOpen?: boolean;
   initialCoworkerId?: string | null;
   initialProjectId?: string | null;
+  initialPrompt?: string | null;
 }
 
 export function CreateTaskModalProvider({
@@ -47,6 +54,7 @@ export function CreateTaskModalProvider({
   initialOpen = false,
   initialCoworkerId = null,
   initialProjectId = null,
+  initialPrompt = null,
 }: CreateTaskModalProviderProps) {
   const [open, setOpen] = useState(initialOpen);
   const [coworkerOverrideId, setCoworkerOverrideId] = useState<string | null>(
@@ -61,14 +69,29 @@ export function CreateTaskModalProvider({
         ? initialProjectId
         : null,
   );
+  const [promptOverride, setPromptOverride] = useState<string | null>(() =>
+    initialOpen && initialPrompt ? initialPrompt : null,
+  );
   const [formInstanceKey, setFormInstanceKey] = useState(0);
 
   const handleOpen = useCallback(() => {
     setCoworkerOverrideId(null);
     setProjectOverrideId(initialProjectId || null);
+    setPromptOverride(null);
     setFormInstanceKey((key) => key + 1);
     setOpen(true);
   }, [initialProjectId]);
+
+  const handleOpenWith = useCallback(
+    (coworkerId: string, prompt?: string) => {
+      setCoworkerOverrideId(coworkerId || null);
+      setProjectOverrideId(initialProjectId || null);
+      setPromptOverride(prompt ?? null);
+      setFormInstanceKey((key) => key + 1);
+      setOpen(true);
+    },
+    [initialProjectId],
+  );
 
   const handleClose = useCallback(() => {
     setOpen(false);
@@ -80,8 +103,10 @@ export function CreateTaskModalProvider({
         open,
         coworkerOverrideId,
         projectOverrideId,
+        promptOverride,
         formInstanceKey,
         handleOpen,
+        handleOpenWith,
         handleClose,
       }}
     >
@@ -94,7 +119,8 @@ export function CreateTaskModalProvider({
 
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
-  projectOptions: ProjectFilterOption[];
+  /** Omit to hide the project picker (e.g. when opened from the agents page). */
+  projectOptions?: ProjectFilterOption[];
   defaultProjectId?: string | null;
   agentNameById: Map<string, string>;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
@@ -112,20 +138,31 @@ export function CreateTaskModal({
     handleClose,
     coworkerOverrideId,
     projectOverrideId,
+    promptOverride,
     formInstanceKey,
   } = useCreateTaskModal();
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations("App.Tasks.NewTask");
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
+  // True once the task is created and the success step is showing — the dismiss
+  // button then means "close", not "cancel".
+  const [isCreated, setIsCreated] = useState(false);
+  // Bumped to remount the form with a clean slate for "Create another task".
+  const [resetKey, setResetKey] = useState(0);
   const selectedProjectId = projectOverrideId ?? defaultProjectId ?? null;
 
   const stripCreateTaskSearchParams = useCallback(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.has("create") || params.has("coworker")) {
+    if (
+      params.has("create") ||
+      params.has("coworker") ||
+      params.has("prompt")
+    ) {
       params.delete("create");
       params.delete("coworker");
+      params.delete("prompt");
       const nextQuery = params.toString();
       router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     }
@@ -133,6 +170,7 @@ export function CreateTaskModal({
 
   const handleDismiss = useCallback(() => {
     stripCreateTaskSearchParams();
+    setIsCreated(false);
     handleClose();
   }, [handleClose, stripCreateTaskSearchParams]);
 
@@ -145,11 +183,11 @@ export function CreateTaskModal({
       open={open}
       onOpenChange={handleOnOpenChange}
       title={t("title")}
-      cancelLabel={t("cancel")}
+      cancelLabel={isCreated ? t("close") : t("cancel")}
       isDismissDisabled={isDismissDisabled}
     >
       <TaskForm
-        key={formInstanceKey}
+        key={`${formInstanceKey}-${resetKey}`}
         variant="modal"
         mode="create"
         showCancel={false}
@@ -201,6 +239,10 @@ export function CreateTaskModal({
           createTask: t("createTask"),
           cancel: t("cancel"),
           ctrl: t("ctrl"),
+          taskCreated: t("taskCreated"),
+          taskCreatedHint: t("taskCreatedHint"),
+          goToTask: t("goToTask"),
+          createAnother: t("createAnother"),
         }}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
@@ -208,14 +250,17 @@ export function CreateTaskModal({
         initialDesignMdAttachment={initialDesignMdAttachment}
         initialValues={{
           ...(coworkerOverrideId ? { coworkerId: coworkerOverrideId } : {}),
+          ...(promptOverride ? { description: promptOverride } : {}),
           projectId: selectedProjectId,
         }}
         onCancel={handleDismiss}
         onSubmittingChange={setIsDismissDisabled}
+        onCreatedChange={setIsCreated}
         onSuccess={(taskId) => {
           handleClose();
           router.push(`/tasks/${taskId}`);
         }}
+        onCreateAnother={() => setResetKey((key) => key + 1)}
       />
     </TaskFormModal>
   );

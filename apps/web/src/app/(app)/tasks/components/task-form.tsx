@@ -17,14 +17,15 @@ import { toast } from "sonner";
 import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
 import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
 import {
   readCreateTaskModalLastCoworkerId,
   writeCreateTaskModalLastCoworkerId,
 } from "@/app/tasks/utils/create-task-modal-preferences";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { CompanyMark } from "@/components/agents/company-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   FileUpload,
@@ -36,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { cn } from "@/lib/utils";
 import {
   createDesignMdDismissedState,
   extractTaskAttachmentUrls,
@@ -53,9 +55,15 @@ import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
+import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskProjectSelect } from "./task-project-select";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
+
+function deriveTaskName(description: string): string {
+  const firstLine = description.split("\n").find((line) => line.trim());
+  return firstLine?.trim().slice(0, 60) || "Untitled task";
+}
 
 export interface TaskFormLabels {
   details: string;
@@ -101,6 +109,10 @@ export interface TaskFormLabels {
   createTask?: string;
   cancel: string;
   ctrl: string;
+  taskCreated?: string;
+  taskCreatedHint?: string;
+  goToTask?: string;
+  createAnother?: string;
 }
 
 interface TaskFormInitialValues {
@@ -126,15 +138,17 @@ interface TaskFormProps {
   variant?: "page" | "modal";
   onCancel?: () => void;
   onSuccess?: (taskId: string) => void;
+  onCreateAnother?: () => void;
   onCreateTask?: (input: {
     description: string;
     coworkerId: string | null;
     projectId?: string | null;
     skipDesignMdAttachment?: boolean;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
-  }) => Promise<{ taskId: string }>;
+  }) => Promise<{ taskId: string; name?: string }>;
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
+  onCreatedChange?: (created: boolean) => void;
 }
 
 export function TaskForm({
@@ -150,9 +164,11 @@ export function TaskForm({
   variant = "page",
   onCancel,
   onSuccess,
+  onCreateAnother,
   onCreateTask,
   showCancel = true,
   onSubmittingChange,
+  onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
   const isModal = variant === "modal";
@@ -205,6 +221,12 @@ export function TaskForm({
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
+  const [createdTask, setCreatedTask] = useState<{
+    id: string;
+    name: string;
+    status: "DRAFT" | "READY";
+    statusLabel: string;
+  } | null>(null);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
@@ -228,6 +250,9 @@ export function TaskForm({
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny);
   }, [isSubmittingAny, onSubmittingChange]);
+  useEffect(() => {
+    onCreatedChange?.(createdTask !== null);
+  }, [createdTask, onCreatedChange]);
 
   const handleCoworkerSelect = useCallback(
     (id: string) => {
@@ -286,6 +311,19 @@ export function TaskForm({
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
           });
+          // In the modal, confirm success in place and let the user choose when
+          // to navigate — the redirect target is prefetched so it lands fast.
+          if (isModal) {
+            const isDraft = desiredStatus === TaskStatus.DRAFT;
+            router.prefetch(`/tasks/${result.taskId}`);
+            setCreatedTask({
+              id: result.taskId,
+              name: result.name?.trim() || deriveTaskName(trimmedDescription),
+              status: isDraft ? "DRAFT" : "READY",
+              statusLabel: isDraft ? labels.statusDraft : labels.statusReady,
+            });
+            return;
+          }
           if (onSuccess) {
             onSuccess(result.taskId);
             return;
@@ -323,6 +361,7 @@ export function TaskForm({
     },
     [
       description,
+      isModal,
       isSaveDisabled,
       mode,
       name,
@@ -335,6 +374,8 @@ export function TaskForm({
       taskId,
       onSuccess,
       onCreateTask,
+      labels.statusDraft,
+      labels.statusReady,
     ],
   );
 
@@ -439,9 +480,10 @@ export function TaskForm({
   const examplesTitle = labels.examplesTitle ?? "What {name} can do";
 
   // Two-step flow for the create modal: step 1 picks the agent (spotlight),
-  // step 2 writes the task. Edit/page variants keep the grid layout.
+  // step 2 writes the task. Edit/page variants keep the grid layout. When a
+  // coworker is preselected (e.g. opened from the agents page) we skip step 1.
   const useWizard = isModal && mode === "create";
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2>(hasExplicitInitialCoworker ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
   const continueLabel = labels.continueLabel ?? "Continue";
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
@@ -459,6 +501,33 @@ export function TaskForm({
     }
     router.push("/tasks");
   };
+
+  const handleGoToTask = () => {
+    if (!createdTask) return;
+    if (onSuccess) {
+      onSuccess(createdTask.id);
+      return;
+    }
+    router.push(`/tasks/${createdTask.id}`);
+  };
+
+  if (createdTask) {
+    return (
+      <TaskCreatedCelebration
+        name={createdTask.name}
+        status={createdTask.status}
+        statusLabel={createdTask.statusLabel}
+        labels={{
+          taskCreated: labels.taskCreated ?? "Task created",
+          taskCreatedHint: labels.taskCreatedHint,
+          goToTask: labels.goToTask ?? "Bring me to the task",
+          createAnother: labels.createAnother,
+        }}
+        onGoToTask={handleGoToTask}
+        onCreateAnother={onCreateAnother}
+      />
+    );
+  }
 
   return (
     <div
@@ -507,12 +576,12 @@ export function TaskForm({
         <div
           className={
             useWizard
-              ? "flex min-h-0 flex-1 flex-col overflow-y-auto"
+              ? "[&::-webkit-scrollbar-thumb]:bg-border/80 flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
               : "contents"
           }
         >
           {useWizard && step === 1 ? (
-            <div className="px-6 py-4 md:px-8">
+            <div className="px-6 py-3 md:px-8">
               <AgentSpotlight
                 options={coworkerOptions}
                 selectedId={coworkerId}
@@ -548,7 +617,7 @@ export function TaskForm({
                   alt={selectedOption.name}
                   className="object-cover"
                 />
-                <AvatarFallback className="rounded-lg text-[11px] font-medium">
+                <AvatarFallback className="rounded-lg text-xs font-medium">
                   {selectedOption.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -556,12 +625,19 @@ export function TaskForm({
                 <p className="truncate text-sm leading-tight font-semibold">
                   {selectedOption.name}
                 </p>
-                {selectedOption.company ? (
+                {selectedOption.caption ? (
                   <p className="text-muted-foreground truncate text-xs">
-                    by {selectedOption.company}
+                    {selectedOption.caption}
                   </p>
                 ) : null}
               </div>
+              {selectedOption.company ? (
+                <CompanyMark
+                  company={selectedOption.company}
+                  className="h-5 shrink-0"
+                  textClassName="text-muted-foreground shrink-0 text-xs font-medium"
+                />
+              ) : null}
               <Button
                 type="button"
                 variant="ghost"
@@ -576,10 +652,16 @@ export function TaskForm({
           ) : null}
 
           {showTaskStep ? (
-            <div className={`space-y-5 px-6 py-6 md:px-8 ${taskFieldsBorder}`}>
+            <div
+              className={cn(
+                "space-y-4 px-6 py-5 md:px-8",
+                taskFieldsBorder,
+                useWizard && "flex min-h-0 flex-1 flex-col",
+              )}
+            >
               {useWizard && selectedOption ? (
                 <div className="space-y-1">
-                  <h3 className="text-lg font-semibold tracking-tight">
+                  <h3 className="text-lg font-semibold">
                     {taskStepTitle.replace("{name}", selectedOption.name)}
                   </h3>
                   <p className="text-muted-foreground text-sm">
@@ -615,9 +697,15 @@ export function TaskForm({
                 </div>
               ) : null}
 
-              <div className="space-y-2">
+              <div
+                className={cn(
+                  "space-y-2",
+                  useWizard && "flex min-h-0 flex-1 flex-col",
+                )}
+              >
                 <Label htmlFor="task-description">{labels.details}</Label>
                 <FileUpload
+                  className={cn(useWizard && "min-h-0 flex-1")}
                   value={pendingUploadFiles}
                   onValueChange={setPendingUploadFiles}
                   onAccept={(files) => {
@@ -626,16 +714,22 @@ export function TaskForm({
                   multiple
                 >
                   <FileUploadDropzone
-                    className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+                    className={cn(
+                      "data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent",
+                      useWizard && "min-h-0 flex-1",
+                    )}
                     onClick={(event) => event.preventDefault()}
                   >
                     <MarkdownEditor
                       ref={markdownEditorRef}
                       id="task-description"
                       placeholder={labels.descriptionPlaceholder}
-                      className="w-full"
+                      className={cn(
+                        "w-full",
+                        useWizard && "flex min-h-0 flex-1 flex-col",
+                      )}
                       editorClassName={
-                        useWizard ? "min-h-60 max-h-[44vh]" : undefined
+                        useWizard ? "max-h-none flex-1" : undefined
                       }
                       value={description}
                       onChange={setDescription}
@@ -714,19 +808,14 @@ export function TaskForm({
         </div>
 
         {useWizard && step === 1 ? (
-          <div className="flex shrink-0 items-center justify-end border-t px-6 py-4 md:px-8">
+          <div className="flex shrink-0 items-center justify-end border-t px-6 py-3 md:px-8">
             <Button
               type="button"
-              className="min-w-44"
+              className="min-w-28"
               disabled={!coworkerId}
               onClick={() => setStep(2)}
             >
-              <span className="flex items-center gap-1.5">
-                {continueLabel}
-                {selectedOption ? (
-                  <span className="opacity-70">· {selectedOption.name}</span>
-                ) : null}
-              </span>
+              {continueLabel}
             </Button>
           </div>
         ) : null}
@@ -735,7 +824,7 @@ export function TaskForm({
           <div
             className={
               isModal
-                ? "flex shrink-0 flex-col items-stretch justify-end gap-3 border-t px-6 py-4 sm:flex-row sm:items-center md:px-8"
+                ? "flex shrink-0 flex-col items-stretch justify-end gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8"
                 : "flex flex-col items-stretch justify-end gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
             }
           >

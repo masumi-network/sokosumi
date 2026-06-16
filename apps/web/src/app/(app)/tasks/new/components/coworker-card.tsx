@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import { regionFlag } from "@/lib/utils/region-flag";
 
 interface CoworkerCardLabels {
   defaultBadge: string;
@@ -19,20 +20,6 @@ interface CoworkerCardProps {
   isDefault?: boolean;
   onSelect: () => void;
   labels: CoworkerCardLabels;
-}
-
-const REGION_FLAG: Record<string, string> = {
-  EU: "🇪🇺",
-  US: "🇺🇸",
-  UK: "🇬🇧",
-  DE: "🇩🇪",
-  APAC: "🌏",
-  ASIA: "🌏",
-};
-
-function regionFlag(hosting: string): string {
-  const prefix = hosting.split("·")[0]?.trim().toUpperCase() ?? "";
-  return REGION_FLAG[prefix] ?? "🌐";
 }
 
 export function CoworkerCard({
@@ -56,10 +43,10 @@ export function CoworkerCard({
       onClick={onSelect}
       aria-pressed={isSelected}
       className={cn(
-        "group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+        "group relative flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.99]",
         isSelected
           ? "border-primary bg-primary/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
-          : "border-border bg-card hover:border-foreground/20 hover:bg-muted/30",
+          : "border-border bg-card hover:border-primary hover:shadow-sm",
       )}
     >
       <span
@@ -89,7 +76,7 @@ export function CoworkerCard({
               {option.name}
             </p>
             {isDefault ? (
-              <span className="bg-primary/10 text-primary shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium tracking-wide uppercase">
+              <span className="bg-primary/10 text-primary shrink-0 rounded-md px-1.5 py-0.5 text-xs leading-none font-medium">
                 {labels.defaultBadge}
               </span>
             ) : null}
@@ -113,13 +100,13 @@ export function CoworkerCard({
           {visibleCapabilities.map((capability) => (
             <span
               key={capability}
-              className="bg-muted text-foreground/70 rounded-md px-2 py-1 text-[11px] leading-none font-medium"
+              className="bg-muted text-foreground/70 rounded-md px-2 py-1 text-xs leading-none font-medium"
             >
               {capability}
             </span>
           ))}
           {extraCapabilities > 0 ? (
-            <span className="text-muted-foreground inline-flex items-center px-1 text-[11px] leading-none font-medium">
+            <span className="text-muted-foreground inline-flex items-center px-1 text-xs leading-none font-medium">
               +{extraCapabilities}
             </span>
           ) : null}
@@ -132,7 +119,7 @@ export function CoworkerCard({
             <span
               key={model}
               title={`${labels.modelLabel}: ${model}`}
-              className="bg-muted/60 text-foreground/80 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] leading-none font-medium"
+              className="bg-muted/60 text-foreground/80 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs leading-none font-medium"
             >
               <ModelIcon model={model} type="mono" size={13} />
               {model}
@@ -141,9 +128,9 @@ export function CoworkerCard({
           {hosting ? (
             <span
               title={`${labels.hostingLabel}: ${hosting}`}
-              className="text-muted-foreground ml-auto inline-flex items-center gap-1 text-[11px] leading-none font-medium"
+              className="text-muted-foreground ml-auto inline-flex items-center gap-1 text-xs leading-none font-medium"
             >
-              <span aria-hidden className="text-[13px] leading-none">
+              <span aria-hidden className="text-sm leading-none">
                 {regionFlag(hosting)}
               </span>
               {hosting}

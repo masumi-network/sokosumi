@@ -214,6 +214,7 @@ interface TasksViewProps {
   defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
+  initialCreateTaskPrompt?: string | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   createTaskModalResetKey?: string;
   labels: {
@@ -301,6 +302,7 @@ export function TasksView({
   defaultDensity,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
+  initialCreateTaskPrompt = null,
   initialDesignMdAttachment = null,
   createTaskModalResetKey = "default",
   labels,
@@ -1123,6 +1125,7 @@ export function TasksView({
       key={createTaskModalResetKey}
       initialOpen={initialCreateTaskOpen}
       initialCoworkerId={initialCoworkerId}
+      initialPrompt={initialCreateTaskPrompt}
       initialProjectId={defaultProjectId}
     >
       {userId ? (

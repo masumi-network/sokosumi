@@ -21,5 +21,7 @@ export interface CoworkerOption {
   caption?: string;
   company?: string;
   companyLogo?: string;
+  /** Sort/recommend weight — higher surfaces first. From `Coworker.priority`. */
+  priority?: number;
   profile?: CoworkerProfile;
 }

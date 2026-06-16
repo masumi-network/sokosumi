@@ -2047,16 +2047,42 @@ export type CoworkerMetadata = {
     channels: {
         [key: string]: string;
     };
+    profile?: CoworkerProfile;
     /**
-     * Public agent profile shown in selection UIs (model, hosting, capabilities, examples).
+     * Curated, pre-filled task offers shown in the agents marketplace.
      */
-    profile?: {
-        llm?: Array<string>;
-        hosting?: string;
-        capabilities?: Array<string>;
-        examples?: Array<string>;
-    };
+    offers?: Array<CoworkerOffer>;
 } | null;
+
+/**
+ * Public agent profile shown in selection UIs (model, hosting, capabilities, examples).
+ */
+export type CoworkerProfile = {
+    llm?: Array<string>;
+    hosting?: string;
+    capabilities?: Array<string>;
+    examples?: Array<string>;
+};
+
+export type CoworkerOffer = {
+    title: string;
+    prompt: string;
+    category?: string;
+    description?: string;
+    deliverable?: string;
+    /**
+     * Example outputs the offer produces — text and/or files (PDF, slides, image).
+     */
+    outputs?: Array<{
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text';
+        url?: string;
+        label?: string;
+        /**
+         * Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.
+         */
+        text?: string;
+    }>;
+};
 
 export type CoworkerUsage = {
     id: string;

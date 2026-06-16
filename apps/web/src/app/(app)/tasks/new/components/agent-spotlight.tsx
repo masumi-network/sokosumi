@@ -2,12 +2,14 @@
 
 import { ModelIcon } from "@lobehub/icons";
 import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { CompanyMark } from "@/components/agents/company-mark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import { regionFlag } from "@/lib/utils/region-flag";
 
 export interface AgentSpotlightLabels {
   defaultBadge: string;
@@ -29,63 +31,6 @@ interface AgentSpotlightProps {
   onUsePrompt: (prompt: string) => void;
   defaultSlug?: string;
   labels: AgentSpotlightLabels;
-}
-
-const REGION_FLAG: Record<string, string> = {
-  EU: "🇪🇺",
-  US: "🇺🇸",
-  UK: "🇬🇧",
-  DE: "🇩🇪",
-  APAC: "🌏",
-  ASIA: "🌏",
-};
-
-function regionFlag(hosting: string): string {
-  const prefix = hosting.split("·")[0]?.trim().toUpperCase() ?? "";
-  return REGION_FLAG[prefix] ?? "🌐";
-}
-
-const COMPANY_LOGOS: Record<string, { light: string; dark: string }> = {
-  serviceplan: {
-    light: "/images/logos/serviceplan-logo.png",
-    dark: "/images/logos/serviceplan-logo-white.png",
-  },
-  sokosumi: {
-    light: "/images/logos/sokosumi-logo-black.svg",
-    dark: "/images/logos/sokosumi-logo-white.svg",
-  },
-};
-
-function companyKey(company: string): string {
-  return company
-    .toLowerCase()
-    .replace(/\s+(ag|gmbh|inc|llc)\.?$/, "")
-    .trim();
-}
-
-function CompanyMark({ company }: { company: string }) {
-  const asset = COMPANY_LOGOS[companyKey(company)];
-  if (asset) {
-    return (
-      <>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={asset.light}
-          alt={company}
-          className="h-5 w-auto object-contain dark:hidden"
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={asset.dark}
-          alt={company}
-          className="hidden h-5 w-auto object-contain dark:block"
-        />
-      </>
-    );
-  }
-  return (
-    <span className="text-foreground text-sm font-semibold">{company}</span>
-  );
 }
 
 function matchesQuery(option: CoworkerOption, query: string): boolean {
@@ -114,11 +59,17 @@ export function AgentSpotlight({
   const [company, setCompany] = useState<string | null>(null);
 
   const companies = useMemo(() => {
-    const seen = new Set<string>();
+    const topPriority = new Map<string, number>();
     for (const option of options) {
-      if (option.company) seen.add(option.company);
+      if (!option.company) continue;
+      topPriority.set(
+        option.company,
+        Math.max(topPriority.get(option.company) ?? 0, option.priority ?? 0),
+      );
     }
-    return Array.from(seen).sort((a, b) => a.localeCompare(b));
+    return Array.from(topPriority.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name]) => name);
   }, [options]);
 
   const view = useMemo(() => {
@@ -130,84 +81,123 @@ export function AgentSpotlight({
     });
   }, [options, query, company]);
 
-  const current = options.find((option) => option.id === selectedId);
+  const groups = useMemo(() => {
+    const map = new Map<string, CoworkerOption[]>();
+    for (const option of view) {
+      const key = option.company ?? "";
+      const list = map.get(key);
+      if (list) list.push(option);
+      else map.set(key, [option]);
+    }
+    return Array.from(map.entries())
+      .map(([groupCompany, members]) => ({
+        company: groupCompany,
+        members,
+        topPriority: Math.max(...members.map((m) => m.priority ?? 0)),
+      }))
+      .sort((a, b) => {
+        if (a.company === "") return 1;
+        if (b.company === "") return -1;
+        return (
+          b.topPriority - a.topPriority || a.company.localeCompare(b.company)
+        );
+      });
+  }, [view]);
 
-  const go = (direction: number) => {
-    if (view.length === 0) return;
-    const currentInView = view.findIndex((o) => o.id === selectedId);
-    const base = currentInView < 0 ? (direction > 0 ? -1 : 0) : currentInView;
-    const next = (base + direction + view.length) % view.length;
-    onSelect(view[next].id);
-  };
+  const current = options.find((option) => option.id === selectedId);
 
   const llm = current?.profile?.llm ?? [];
   const hosting = current?.profile?.hosting;
   const examples = current?.profile?.examples ?? [];
   const isDefault = current?.slug === defaultSlug;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-stretch gap-3">
-        <button
-          type="button"
-          onClick={() => go(-1)}
-          aria-label={labels.previous}
-          className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-primary/40 hidden size-9 shrink-0 items-center justify-center self-center rounded-full border transition-colors outline-none focus-visible:ring-2 sm:flex"
-        >
-          <ChevronLeft className="size-4" />
-        </button>
+  const railRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
-        <div className="relative flex h-[360px] flex-1 items-start justify-center overflow-hidden px-5 pt-2 pb-4 sm:px-10">
+  const updateArrows = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(
+      Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth - 4,
+    );
+  }, []);
+
+  useEffect(() => {
+    updateArrows();
+  }, [updateArrows, view]);
+
+  const scrollRail = (direction: number) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({
+      left: direction * el.clientWidth * 0.75,
+      behavior: "smooth",
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        {current ? (
           <div
-            aria-hidden
-            className="bg-primary/[0.07] pointer-events-none absolute -top-24 left-1/2 size-64 -translate-x-1/2 rounded-full blur-3xl"
-          />
-          {current ? (
-            <div
-              key={current.id}
-              className="animate-in fade-in-0 zoom-in-95 relative flex w-full flex-col items-center text-center duration-200"
-            >
-              <Avatar className="ring-background size-16 rounded-2xl shadow-sm ring-4">
-                <AvatarImage
+            key={current.id}
+            className="animate-in fade-in-0 slide-in-from-bottom-1 duration-300 flex w-full flex-col gap-4 sm:h-[280px] sm:flex-row sm:items-stretch sm:gap-7"
+          >
+            {/* Hero image panel — poster style with name overlay */}
+            <div className="bg-muted ring-border/50 relative h-60 w-full shrink-0 overflow-hidden rounded-xl ring-1 sm:h-full sm:w-[44%]">
+              {current.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={current.image}
                   alt={current.name}
-                  className="object-cover"
+                  className="absolute inset-0 size-full object-cover"
                 />
-                <AvatarFallback className="rounded-2xl text-base font-semibold">
+              ) : (
+                <div className="bg-primary/15 text-primary absolute inset-0 flex items-center justify-center text-5xl font-semibold">
                   {current.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="mt-3 flex items-center gap-2">
-                <h3 className="text-lg leading-none font-semibold tracking-tight">
-                  {current.name}
-                </h3>
-                {isDefault ? (
-                  <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[11px] leading-none font-medium">
-                    {labels.defaultBadge}
-                  </span>
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-5 pt-12">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <h3 className="text-xl leading-tight font-semibold text-white drop-shadow">
+                    {current.name}
+                  </h3>
+                  {isDefault ? (
+                    <span className="rounded-sm bg-white/25 px-1.5 py-0.5 text-xs leading-none font-medium text-white backdrop-blur-sm">
+                      {labels.defaultBadge}
+                    </span>
+                  ) : null}
+                </div>
+                {current.caption ? (
+                  <p className="mt-1 text-sm font-medium text-white/85 drop-shadow">
+                    {current.caption}
+                  </p>
                 ) : null}
               </div>
+            </div>
 
+            {/* Details + prompts */}
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
               {current.company ? (
-                <div className="mt-2 flex h-5 items-center justify-center">
+                <div className="mb-3 flex h-6 items-center">
                   <CompanyMark company={current.company} />
                 </div>
               ) : null}
-
               {current.description ? (
-                <p className="text-muted-foreground mt-3 line-clamp-2 max-w-md text-sm leading-relaxed">
+                <p className="text-muted-foreground text-sm leading-relaxed">
                   {current.description}
                 </p>
               ) : null}
 
               {llm.length > 0 || hosting ? (
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2">
                   {llm.map((model) => (
                     <span
                       key={model}
                       title={`${labels.modelLabel}: ${model}`}
-                      className="bg-muted text-foreground/80 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+                      className="border-border/60 text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
                     >
                       <ModelIcon model={model} type="mono" size={14} />
                       {model}
@@ -216,7 +206,7 @@ export function AgentSpotlight({
                   {hosting ? (
                     <span
                       title={`${labels.hostingLabel}: ${hosting}`}
-                      className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                      className="border-border/60 text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
                     >
                       <span aria-hidden>{regionFlag(hosting)}</span>
                       {hosting}
@@ -226,105 +216,114 @@ export function AgentSpotlight({
               ) : null}
 
               {examples.length > 0 ? (
-                <div className="mt-5 w-full max-w-lg">
-                  <p className="text-foreground/80 text-sm font-medium">
+                <div className="mt-4">
+                  <p className="text-muted-foreground text-xs font-medium">
                     {labels.askPrompt.replace("{name}", current.name)}
                   </p>
-                  <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                    {examples.map((example) => (
+                  <div className="mt-2 grid gap-2">
+                    {examples.slice(0, 2).map((example) => (
                       <button
                         key={example}
                         type="button"
                         onClick={() => onUsePrompt(example)}
-                        className="group hover:border-primary/50 hover:bg-primary/[0.04] focus-visible:ring-primary/40 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-xs leading-snug transition-colors outline-none focus-visible:ring-2"
+                        className="group border-border/50 hover:border-primary hover:shadow-sm focus-visible:ring-primary/30 flex items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm leading-snug transition-all outline-none focus-visible:ring-2 active:scale-[0.99]"
                       >
-                        <span className="text-foreground/80">{example}</span>
-                        <ArrowRight className="text-muted-foreground group-hover:text-primary size-3.5 shrink-0 transition-colors" />
+                        <span className="text-foreground/90">{example}</span>
+                        <ArrowRight className="text-muted-foreground/40 group-hover:text-primary size-4 shrink-0 transition-all group-hover:translate-x-0.5" />
                       </button>
                     ))}
                   </div>
                 </div>
               ) : null}
             </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">{labels.noResults}</p>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => go(1)}
-          aria-label={labels.next}
-          className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-primary/40 hidden size-9 shrink-0 items-center justify-center self-center rounded-full border transition-colors outline-none focus-visible:ring-2 sm:flex"
-        >
-          <ChevronRight className="size-4" />
-        </button>
+          </div>
+        ) : (
+          <p className="text-muted-foreground w-full text-center text-sm">
+            {labels.noResults}
+          </p>
+        )}
       </div>
 
-      {companies.length > 1 ? (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-          <CompanyChip
-            label={labels.allCompanies}
-            active={company === null}
-            onClick={() => setCompany(null)}
+      <div className="border-border -mx-6 flex flex-col gap-2 border-t px-6 pt-3 sm:flex-row-reverse sm:items-center sm:gap-3 md:-mx-8 md:px-8">
+        <div className="relative w-full shrink-0 sm:w-60">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={labels.searchPlaceholder}
+            className="h-9 pl-9"
+            aria-label={labels.searchPlaceholder}
           />
-          {companies.map((name) => (
-            <CompanyChip
-              key={name}
-              label={name}
-              active={company === name}
-              onClick={() => setCompany(company === name ? null : name)}
-            />
-          ))}
         </div>
-      ) : null}
-
-      <div className="relative">
-        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={labels.searchPlaceholder}
-          className="h-9 pl-9"
-          aria-label={labels.searchPlaceholder}
-        />
+        {companies.length > 1 ? (
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:min-w-0 sm:flex-1 sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden">
+            <CompanyChip
+              label={labels.allCompanies}
+              active={company === null}
+              onClick={() => setCompany(null)}
+            />
+            {companies.map((name) => (
+              <CompanyChip
+                key={name}
+                label={name}
+                active={company === name}
+                onClick={() => setCompany(company === name ? null : name)}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {view.length > 0 ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {view.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-current={option.id === selectedId}
-              onClick={() => onSelect(option.id)}
-              className={cn(
-                "focus-visible:ring-primary/40 flex w-24 shrink-0 flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-colors outline-none focus-visible:ring-2",
-                option.id === selectedId
-                  ? "border-primary bg-primary/[0.04]"
-                  : "border-border hover:bg-muted/50",
-              )}
+        <div className="border-border -mx-6 -mb-3 border-t px-6 md:-mx-8 md:px-8">
+          <div className="relative">
+            <div
+              ref={railRef}
+              onScroll={updateArrows}
+              className="divide-border flex items-stretch divide-x overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              <Avatar className="size-9 rounded-lg">
-                <AvatarImage
-                  src={option.image}
-                  alt=""
-                  className="object-cover"
-                />
-                <AvatarFallback className="rounded-lg text-[11px] font-medium">
-                  {option.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-foreground w-full truncate text-xs font-medium">
-                {option.name}
-              </span>
-              {option.company ? (
-                <span className="text-muted-foreground w-full truncate text-[11px] leading-none">
-                  {option.company}
-                </span>
-              ) : null}
-            </button>
-          ))}
+              {groups.map((group) => (
+                <div
+                  key={group.company || "_none"}
+                  className="flex min-h-[116px] shrink-0 flex-col gap-2 px-5 py-3.5 first:pl-0 last:pr-0"
+                >
+                  <span className="text-muted-foreground truncate text-xs font-medium">
+                    {group.company || "Other"}
+                  </span>
+                  <div className="flex gap-2">
+                    {group.members.map((option) => (
+                      <CoworkerThumb
+                        key={option.id}
+                        option={option}
+                        selected={option.id === selectedId}
+                        onSelect={() => onSelect(option.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {canScrollLeft ? (
+              <button
+                type="button"
+                onClick={() => scrollRail(-1)}
+                aria-label={labels.previous}
+                className="bg-background hover:bg-muted absolute top-1/2 -left-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border shadow-sm transition-colors"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+            ) : null}
+            {canScrollRight ? (
+              <button
+                type="button"
+                onClick={() => scrollRail(1)}
+                aria-label={labels.next}
+                className="bg-background hover:bg-muted absolute top-1/2 -right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-full border shadow-sm transition-colors"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : (
         <p className="text-muted-foreground py-2 text-center text-sm">
@@ -332,6 +331,46 @@ export function AgentSpotlight({
         </p>
       )}
     </div>
+  );
+}
+
+function CoworkerThumb({
+  option,
+  selected,
+  onSelect,
+}: {
+  option: CoworkerOption;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-current={selected}
+      onClick={onSelect}
+      title={option.caption ?? option.name}
+      className={cn(
+        "focus-visible:ring-primary/30 flex w-28 shrink-0 flex-col items-center gap-1.5 rounded-lg border p-2 text-center transition-all outline-none focus-visible:ring-2",
+        selected
+          ? "border-primary/60 bg-primary/[0.04]"
+          : "border-transparent hover:border-primary hover:shadow-sm",
+      )}
+    >
+      <Avatar className="size-9 rounded-lg">
+        <AvatarImage src={option.image} alt="" className="object-cover" />
+        <AvatarFallback className="rounded-lg text-xs font-medium">
+          {option.name.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <span className="text-foreground w-full truncate text-xs font-medium">
+        {option.name}
+      </span>
+      {option.caption ? (
+        <span className="text-muted-foreground w-full truncate text-xs leading-none">
+          {option.caption}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -350,10 +389,10 @@ function CompanyChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "focus-visible:ring-primary/40 shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2",
+        "focus-visible:ring-primary/30 shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2",
         active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:text-foreground hover:bg-muted",
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       {label}

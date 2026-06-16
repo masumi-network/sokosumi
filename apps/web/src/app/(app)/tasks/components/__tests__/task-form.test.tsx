@@ -143,6 +143,10 @@ const baseLabels = {
   createTask: "Create Task",
   cancel: "Cancel",
   ctrl: "Ctrl",
+  taskCreated: "Task created",
+  taskCreatedHint: "Everything's set up and ready to go.",
+  goToTask: "Bring me to the task",
+  createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",
   uploadingFiles: "Uploading {count} files",
 };
@@ -204,10 +208,10 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
-  it("submits draft and ready from create modal actions", async () => {
+  it("submits as draft from create modal actions", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
 
     render(
       <TaskForm
@@ -228,8 +232,25 @@ describe("TaskForm", () => {
         status: TaskStatus.DRAFT,
       }),
     );
+  });
 
-    createTaskMock.mockClear();
+  it("submits as ready from create modal actions", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
 
     await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
@@ -237,6 +258,37 @@ describe("TaskForm", () => {
         status: TaskStatus.READY,
       }),
     );
+  });
+
+  it("shows a success state with a go-to-task action after creating in the modal", async () => {
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+    const onCreateAnother = vi.fn();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={onSuccess}
+        onCreateAnother={onCreateAnother}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    const goToTask = await screen.findByRole("button", {
+      name: baseLabels.goToTask,
+    });
+    expect(onSuccess).not.toHaveBeenCalled();
+
+    await user.click(goToTask);
+    expect(onSuccess).toHaveBeenCalledWith("task-1");
   });
 
   it("toggles status in edit modal and keeps the toggled status on save", async () => {
@@ -387,7 +439,7 @@ describe("TaskForm", () => {
   it("skips design.md attachment when the prefilled link is removed in the editor", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
 
     render(
       <TaskForm
@@ -422,7 +474,7 @@ describe("TaskForm", () => {
   it("passes projectId when creating a task from the project picker", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
 
     render(
       <TaskForm

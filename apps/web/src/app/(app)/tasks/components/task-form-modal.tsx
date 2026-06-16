@@ -32,15 +32,11 @@ export function TaskFormModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="w-svw max-w-5xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[90vw] [&>button]:hidden"
-        onInteractOutside={(event) => event.preventDefault()}
-        onPointerDownOutside={(event) => event.preventDefault()}
-      >
+      <DialogContent className="w-svw max-w-5xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[90vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
-        <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl">
-          <div className="flex shrink-0 items-center justify-between px-6 py-4 md:px-8">
+        <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(656px,92svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between px-6 py-3 md:px-8">
             <div className="w-16" />
             <h3 className="text-base font-semibold">{title}</h3>
             <Button

@@ -143,9 +143,16 @@ async function createTaskFromDescription(input: {
 
   const descriptionForNaming =
     removeDesignMdAttachmentLinks(trimmedDescription).trim();
-  const generatedName = descriptionForNaming
-    ? await openrouterClient.generateTaskName(descriptionForNaming)
-    : null;
+  // Name generation (LLM) and the design.md lookup are independent network
+  // round-trips — run them in parallel so the create feels snappier.
+  const [generatedName, descriptionWithDesignMd] = await Promise.all([
+    descriptionForNaming
+      ? openrouterClient.generateTaskName(descriptionForNaming)
+      : Promise.resolve(null),
+    input.skipDesignMdAttachment
+      ? Promise.resolve(trimmedDescription)
+      : designMdService.appendDesignMdToDescription(trimmedDescription),
+  ]);
   const candidate =
     generatedName ??
     (descriptionForNaming
@@ -153,9 +160,6 @@ async function createTaskFromDescription(input: {
       : "Untitled Task");
   const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
-  const descriptionWithDesignMd = input.skipDesignMdAttachment
-    ? trimmedDescription
-    : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
   return taskService.createTask({
     name,
@@ -283,7 +287,10 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
   }
 }
 
-export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
+export const createTask = withSession<
+  CreateTaskParameters,
+  { taskId: string; name: string }
+>(
   async ({
     description,
     coworkerId,
@@ -303,7 +310,7 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
 
       revalidatePath("/tasks");
       revalidatePath("/projects");
-      return { taskId: task.id };
+      return { taskId: task.id, name: task.name };
     } catch (error) {
       console.error("Failed to create task", error);
       throw new Error("Failed to create task");
