@@ -1,6 +1,6 @@
 /**
- * Better Auth additional-field schema shared by Core and web auth clients.
- * Keep in sync with `apps/core/src/lib/auth.ts` user/org additionalFields.
+ * Better Auth additional-field schema — single source of truth for Core `auth.ts`
+ * and web Better Auth client field inference.
  */
 export const betterAuthUserAdditionalFields = {
   termsAccepted: {
@@ -48,23 +48,3 @@ export const betterAuthOrganizationAdditionalFields = {
     input: false,
   },
 } as const;
-
-/**
- * Phantom options shape for Better Auth client plugin type inference
- * without importing the server `auth` instance.
- */
-export type SokosumiBetterAuthClientOptions = {
-  options: {
-    user: {
-      additionalFields: typeof betterAuthUserAdditionalFields;
-    };
-    plugins: Array<{
-      id: "organization";
-      schema: {
-        organization: {
-          additionalFields: typeof betterAuthOrganizationAdditionalFields;
-        };
-      };
-    }>;
-  };
-};

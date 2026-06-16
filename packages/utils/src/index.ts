@@ -5,7 +5,6 @@ export {
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
-  type SokosumiBetterAuthClientOptions,
 } from "./better-auth-client-schema.js";
 export {
   type ResolveBetterAuthCookiePrefixParams,

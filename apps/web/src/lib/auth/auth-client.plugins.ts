@@ -3,8 +3,9 @@ import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { stripeClient } from "@better-auth/stripe/client";
 import {
+  betterAuthOrganizationAdditionalFields,
+  betterAuthUserAdditionalFields,
   resolveBetterAuthCookieName,
-  type SokosumiBetterAuthClientOptions,
 } from "@sokosumi/utils";
 import {
   adminClient,
@@ -34,11 +35,17 @@ function getLastUsedLoginMethodCookieName(): string {
 /** Plugin list shared by browser and server Better Auth clients. */
 export function getAuthClientPlugins() {
   return [
-    inferAdditionalFields<SokosumiBetterAuthClientOptions>(),
+    inferAdditionalFields({
+      user: betterAuthUserAdditionalFields,
+    }),
     adminClient(),
     apiKeyClient(),
     organizationClient({
-      schema: inferOrgAdditionalFields<SokosumiBetterAuthClientOptions>(),
+      schema: inferOrgAdditionalFields({
+        organization: {
+          additionalFields: betterAuthOrganizationAdditionalFields,
+        },
+      }),
     }),
     passkeyClient(),
     magicLinkClient(),
