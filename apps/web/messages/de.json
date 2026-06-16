@@ -260,7 +260,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Gestartet",
         "completed": "Abgeschlossen",
         "failed": "Fehlgeschlagen",

@@ -238,7 +238,7 @@ export function JobRow({
         <span
           className={cn(
             "size-2 shrink-0 rounded-full",
-            getJobStatusDotColorClass(job.status, job.jobType),
+            getJobStatusDotColorClass(job.status),
           )}
           aria-hidden
         />

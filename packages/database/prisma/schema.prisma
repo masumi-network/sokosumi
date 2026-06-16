@@ -696,7 +696,6 @@ model CreditConsumption {
 enum JobType {
   FREE
   PAID
-  DEMO
 }
 
 model Job {

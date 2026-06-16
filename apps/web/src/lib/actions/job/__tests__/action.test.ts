@@ -97,7 +97,6 @@ vi.mock("@/lib/services", () => ({
   jobService: {
     moveJobToWorkspace: vi.fn(),
     provideJobInput: vi.fn(),
-    startDemoJob: vi.fn(),
   },
 }));
 

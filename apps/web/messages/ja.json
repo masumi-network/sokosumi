@@ -260,7 +260,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "デモ",
         "started": "開始",
         "completed": "完了",
         "failed": "失敗",

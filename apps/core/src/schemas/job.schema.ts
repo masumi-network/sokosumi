@@ -264,20 +264,6 @@ export const createJobRequestSchema = z.object({
   }),
 });
 
-export const createDemoJobRequestSchema = createJobRequestSchema
-  .pick({ inputSchema: true, inputData: true })
-  .extend({
-    result: z.string().nullable().optional().openapi({
-      description:
-        "The demo result markdown returned by the agent for the completed demo run.",
-      example: "# Result\n\nSee https://example.com/output.pdf",
-    }),
-  });
-
-export type CreateDemoJobRequestType = z.infer<
-  typeof createDemoJobRequestSchema
->;
-
 // Preprocess function to handle backward compatibility (job_id -> id)
 function preprocessStartJobResponse(val: unknown): unknown {
   if (typeof val === "object" && val !== null) {
