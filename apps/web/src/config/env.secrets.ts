@@ -109,6 +109,7 @@ const envSecretsSchema = z.object({
   // Shared signing secret (must match Core BETTER_AUTH_SECRET).
   APP_SIGNING_SECRET: z.string().min(1),
 
+  // Max pending invitations per organization (optional; default 100).
   ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
 
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
