@@ -8,7 +8,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 import OrganizationInformationForm from "./form";
 

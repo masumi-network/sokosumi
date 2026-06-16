@@ -4,10 +4,8 @@ import { InvitationStatus, MemberRole } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
-import type {
-  OrganizationMembershipSelf,
-  PendingInvitation,
-} from "@/lib/types/core-dto";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
+import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";

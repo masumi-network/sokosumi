@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import slugify from "slugify";
 import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type { PendingInvitation } from "@/lib/types/core-dto";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
 
 export type BulkInviteResultRow = {
   email: string;

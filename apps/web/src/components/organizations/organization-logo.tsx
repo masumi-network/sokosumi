@@ -2,7 +2,7 @@ import { getOrganizationMetadata, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Building2 } from "lucide-react";
 import Image from "next/image";
 import { Favicon } from "@/components/ui/favicon";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { buildFaviconCandidates } from "@/lib/utils/url";
 
 interface OrganizationLogoProps {

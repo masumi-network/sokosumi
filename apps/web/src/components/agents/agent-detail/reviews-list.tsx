@@ -15,7 +15,7 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import type { AgentReview } from "@/lib/types/core-dto";
+import type { AgentReview } from "@/lib/clients/generated/core";
 
 const PAGE_SIZE = 5;
 

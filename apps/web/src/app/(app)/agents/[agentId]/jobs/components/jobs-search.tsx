@@ -7,8 +7,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
+import type { JobSummary } from "@/lib/clients/generated/core";
 import { jobMatchesQuery, type SearchableJob } from "@/lib/job";
-import type { JobSummary } from "@/lib/types/core-dto";
 
 const MAX_QUERY_LENGTH = 256;
 

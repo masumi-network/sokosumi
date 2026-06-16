@@ -1,7 +1,7 @@
 import { cache } from "react";
 
 import { coreClient } from "@/lib/clients/core.client";
-import type { JobSummary } from "@/lib/types/core-dto";
+import type { JobSummary } from "@/lib/clients/generated/core";
 
 const PAGE_SIZE = 100;
 

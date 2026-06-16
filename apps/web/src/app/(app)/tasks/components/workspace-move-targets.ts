@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 export interface WorkspaceMoveTargetBase {
   id: string;

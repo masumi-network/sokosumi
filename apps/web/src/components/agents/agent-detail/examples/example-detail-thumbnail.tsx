@@ -1,6 +1,6 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { AgentExampleOutput } from "@/lib/types/core-dto";
+import type { AgentExampleOutput } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface ExampleDetailThumbnailProps {

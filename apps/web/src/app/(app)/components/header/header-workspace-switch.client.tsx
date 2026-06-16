@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import useModal from "@/hooks/use-modal";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";

@@ -1,4 +1,5 @@
-import type { AgentDetail, CoreAgentDto } from "@/lib/types/core-dto";
+import type { AgentDetail } from "@/lib/clients/generated/core";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export function createMockCoreAgent(
   overrides: Partial<CoreAgentDto> = {},

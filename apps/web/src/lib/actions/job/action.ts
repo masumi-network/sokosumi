@@ -14,6 +14,7 @@ import {
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
+import type { Job } from "@/lib/clients/generated/core";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
   JOB_NAME_MAX_LENGTH,
@@ -27,7 +28,6 @@ import {
 } from "@/lib/schemas";
 import { callAgentHiredWebHook, jobService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
-import type { Job } from "@/lib/types/core-dto";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   type AuthenticatedRequest,

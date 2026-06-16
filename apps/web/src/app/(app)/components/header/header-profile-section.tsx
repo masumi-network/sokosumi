@@ -5,9 +5,9 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   GetUsersByIdCreditsResponse,
   GetUsersByIdOrganizationsResponse,
+  MemberWithOrganization,
 } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
 
 import HeaderProfileSectionClient from "./header-profile-section.client";
 

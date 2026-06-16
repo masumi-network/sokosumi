@@ -23,11 +23,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import {
   type RemoveOrganizationSchemaType,
   removeOrganizationSchema,
 } from "@/lib/schemas/organization";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
 
 interface OrganizationRemoveFormProps {
   organization: OrganizationRecord;

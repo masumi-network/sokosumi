@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { acknowledgeNoticeAction } from "@/lib/actions/notice";
-import type { Notice } from "@/lib/types/core-dto";
+import type { Notice } from "@/lib/clients/generated/core";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
 interface NoticeDialogProps {

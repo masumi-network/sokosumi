@@ -1,4 +1,4 @@
-import type { JobSummary } from "@/lib/types/core-dto";
+import type { JobSummary } from "@/lib/clients/generated/core";
 
 import { getDateGroupKey } from "@/lib/utils";
 

@@ -11,7 +11,7 @@ import type {
   BetterAuthClientResult,
 } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import type { PendingInvitation } from "@/lib/types/core-dto";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
 
 export enum InvitationAction {
   CANCEL = "CANCEL",

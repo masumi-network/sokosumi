@@ -13,10 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth.client";
-import type {
-  OrganizationMembershipSelf,
-  PendingInvitation,
-} from "@/lib/types/core-dto";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
+import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 import {

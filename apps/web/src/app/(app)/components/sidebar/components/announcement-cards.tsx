@@ -7,7 +7,7 @@ import { useNoticeDialog } from "@/app/components/notice-dialog-context";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import type { Notice } from "@/lib/types/core-dto";
+import type { Notice } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 

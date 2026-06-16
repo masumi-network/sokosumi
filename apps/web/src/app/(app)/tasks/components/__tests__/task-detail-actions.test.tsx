@@ -25,8 +25,8 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
 
 const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =
   vi.hoisted(() => ({

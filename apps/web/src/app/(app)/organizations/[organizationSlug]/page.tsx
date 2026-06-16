@@ -5,12 +5,12 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
 import {
   organizationSeatService,
   organizationService,
   userService,
 } from "@/lib/services";
-import type { PendingInvitation } from "@/lib/types/core-dto";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrganizationRemoveForm from "@/components/organizations/organization-remove/form";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 const deleteOrganizationMock = vi.fn();
 const mockRouterPush = vi.fn();

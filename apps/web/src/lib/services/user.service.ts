@@ -5,8 +5,11 @@ import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
 import { updateCurrentUserViaCore } from "@/lib/auth/core-auth-http.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { MemberRecord, Organization } from "@/lib/clients/generated/core";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type {
+  MemberRecord,
+  MemberWithOrganization,
+  Organization,
+} from "@/lib/clients/generated/core";
 
 /**
  * Service for user-related operations.

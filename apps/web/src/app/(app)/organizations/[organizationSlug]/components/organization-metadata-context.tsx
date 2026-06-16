@@ -13,7 +13,7 @@ import {
   useState,
 } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 interface OrganizationMetadataContextValue {
   metadata: string | null;

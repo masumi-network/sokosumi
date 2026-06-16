@@ -1,6 +1,6 @@
+import type { Agent } from "@/lib/clients/generated/core";
 import type { JobInputsFormSchemaType } from "@/lib/job-input";
 import type { JobStatusResponseSchemaType } from "@/lib/schemas";
-import type { Agent } from "@/lib/types/core-dto";
 
 export type AgentWithAvailability = {
   agent: Agent;

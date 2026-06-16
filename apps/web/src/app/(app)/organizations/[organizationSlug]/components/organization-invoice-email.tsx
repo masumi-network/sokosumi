@@ -28,7 +28,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode, updateOrganizationInvoiceEmail } from "@/lib/actions";
-import type { MemberRecord, OrganizationRecord } from "@/lib/types/core-dto";
+import type {
+  MemberRecord,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 const invoiceEmailFormSchema = z.object({
   invoiceEmail: z

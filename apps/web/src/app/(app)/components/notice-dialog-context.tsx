@@ -3,7 +3,7 @@
 import { NoticeKind } from "@sokosumi/utils";
 import { createContext, useContext, useMemo, useState } from "react";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
-import type { Notice } from "@/lib/types/core-dto";
+import type { Notice } from "@/lib/clients/generated/core";
 
 import { NoticeDialog } from "./notice-dialog";
 

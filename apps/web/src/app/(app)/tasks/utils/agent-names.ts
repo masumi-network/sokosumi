@@ -1,5 +1,6 @@
+import type { Agent } from "@/lib/clients/generated/core";
 import { getAgentName } from "@/lib/helpers/agent";
-import type { Agent, CoreAgentDto } from "@/lib/types/core-dto";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export function buildAgentNameById(
   agents: (Agent | CoreAgentDto)[],

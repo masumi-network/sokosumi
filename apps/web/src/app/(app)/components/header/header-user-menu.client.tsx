@@ -34,7 +34,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
 

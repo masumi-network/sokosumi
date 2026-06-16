@@ -2,7 +2,7 @@
 
 import { SessionUser } from "@sokosumi/utils";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderUserMenu from "./header-user-menu.client";

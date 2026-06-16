@@ -1,9 +1,6 @@
+import type { AgentReview } from "@/lib/clients/generated/core";
 import { getAgentExampleOutputs, getAgentLegal } from "@/lib/helpers/agent";
-import type {
-  AgentRatingStats,
-  AgentReview,
-  CoreAgentDto,
-} from "@/lib/types/core-dto";
+import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 import {

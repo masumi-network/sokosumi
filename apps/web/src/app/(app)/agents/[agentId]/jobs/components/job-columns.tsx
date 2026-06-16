@@ -10,8 +10,8 @@ import { JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
 import useAgentJobStatusData from "@/hooks/use-agent-job-status";
+import type { JobSummary } from "@/lib/clients/generated/core";
 import { getJobStatusData } from "@/lib/helpers/job";
-import type { JobSummary } from "@/lib/types/core-dto";
 import { getJobQueryKey } from "@/queries";
 
 const columnHelper = createColumnHelper<JobSummary>();

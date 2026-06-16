@@ -20,7 +20,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { moveJobToWorkspace } from "@/lib/actions/job/action";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface MoveJobToWorkspaceDialogProps {

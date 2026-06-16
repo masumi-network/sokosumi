@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { OrganizationRemoveModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 interface OrganizationRemoveButtonProps {
   organization: OrganizationRecord;

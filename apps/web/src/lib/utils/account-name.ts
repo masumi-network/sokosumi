@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 /**
  * Resolves an account name from an organization ID and members list.

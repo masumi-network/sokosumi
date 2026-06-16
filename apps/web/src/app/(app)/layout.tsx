@@ -16,7 +16,10 @@ import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { hasAdminRole } from "@/lib/auth/admin-access";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
+import type {
+  GetUsersByIdCreditsResponse,
+  Notice,
+} from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -25,7 +28,6 @@ import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
-import type { Notice } from "@/lib/types/core-dto";
 
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";

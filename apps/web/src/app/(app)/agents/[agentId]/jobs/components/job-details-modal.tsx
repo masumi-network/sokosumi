@@ -19,8 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Job } from "@/lib/clients/generated/core";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
+import type { Job, MemberWithOrganization } from "@/lib/clients/generated/core";
 
 interface JobDetailsModalProps {
   agentId: string;

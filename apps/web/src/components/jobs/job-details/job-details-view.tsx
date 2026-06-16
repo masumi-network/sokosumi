@@ -19,9 +19,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Job } from "@/lib/clients/generated/core";
+import type { Job, MemberWithOrganization } from "@/lib/clients/generated/core";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { getInitials } from "@/lib/utils/text";

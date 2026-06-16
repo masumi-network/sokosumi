@@ -11,10 +11,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { MemberRecord } from "@/lib/clients/generated/core";
+import type {
+  MemberRecord,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
 import { OrganizationDesignMdSection } from "./organization-design-md-section";
 import OrganizationEditButton from "./organization-edit-button";
 import { OrganizationMetadataProvider } from "./organization-metadata-context";

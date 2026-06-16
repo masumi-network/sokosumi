@@ -55,12 +55,14 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type { TaskShare } from "@/lib/clients/generated/core";
+import type {
+  MemberWithOrganization,
+  TaskShare,
+} from "@/lib/clients/generated/core";
 import {
   type TaskLink,
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
-import type { MemberWithOrganization } from "@/lib/types/core-dto";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";

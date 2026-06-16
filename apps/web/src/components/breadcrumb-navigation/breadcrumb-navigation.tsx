@@ -1,8 +1,9 @@
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 import { getAllCoreAgents } from "@/lib/agents/core-loaders";
+import type { Agent } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
-import type { Agent, OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
+import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";

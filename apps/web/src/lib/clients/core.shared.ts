@@ -32,6 +32,7 @@ import type {
   HermesStartOnboardingRequest,
   HermesUpdateInstanceRequest,
   MarkHermesInboxSeenRequest,
+  Notice,
   PaginationMetadata,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
@@ -176,7 +177,6 @@ import {
   searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
-import type { Notice } from "@/lib/types/core-dto";
 
 export type CoreApiPagination = PaginationMetadata;
 

@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { JobSummary } from "@/lib/clients/generated/core";
 import { getJobStatusData } from "@/lib/helpers/job";
-import type { JobSummary } from "@/lib/types/core-dto";
 
 import { getRestClient } from "./client";
 import { makeAgentJobsChannelName } from "./utils";

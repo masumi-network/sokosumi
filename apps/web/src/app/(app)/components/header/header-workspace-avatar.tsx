@@ -5,7 +5,7 @@ import gravatarUrl from "gravatar-url";
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface HeaderWorkspaceAvatarProps {

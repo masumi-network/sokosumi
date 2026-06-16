@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
@@ -42,7 +43,6 @@ import {
   type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
 } from "@/lib/schemas";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
 import {
   ClientTimeoutError,
   raceWithTimeout,

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { OrganizationInformationModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 import { useOrganizationMetadata } from "./organization-metadata-context";
 

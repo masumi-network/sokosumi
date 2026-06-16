@@ -1,5 +1,7 @@
-import type { Member as OrganizationMember } from "@/lib/clients/generated/core";
-import type { PendingInvitation } from "@/lib/types/core-dto";
+import type {
+  Member as OrganizationMember,
+  PendingInvitation,
+} from "@/lib/clients/generated/core";
 
 export type { OrganizationMember };
 

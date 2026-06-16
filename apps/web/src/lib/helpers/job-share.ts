@@ -1,5 +1,5 @@
 import { getEnvPublicConfig } from "@/config/env.public";
-import type { JobShare } from "@/lib/types/core-dto";
+import type { JobShare } from "@/lib/clients/generated/core";
 
 export function getJobShareUrl(share: JobShare): string | null {
   if (!share.token) return null;

@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authClient } from "@/lib/auth/auth.client";
-import type { OrganizationRecord } from "@/lib/types/core-dto";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { uploadUserFileDirect } from "@/lib/utils/user-file-upload.client";
 import OrganizationEditButton from "../organization-edit-button";
 import { OrganizationMetadataProvider } from "../organization-metadata-context";

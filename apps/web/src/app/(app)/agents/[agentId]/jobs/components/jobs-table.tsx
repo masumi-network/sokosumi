@@ -8,7 +8,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeAgentJobsChannelName } from "@/lib/ably";
-import type { JobSummary } from "@/lib/types/core-dto";
+import type { JobSummary } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 

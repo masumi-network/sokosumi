@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
-import type { JobSummary } from "@/lib/types/core-dto";
+import type { JobSummary } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
