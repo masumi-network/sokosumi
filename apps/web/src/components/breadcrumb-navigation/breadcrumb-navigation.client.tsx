@@ -1,13 +1,8 @@
 "use client";
 
-import type {
-  AgentWithRelations,
-  OrganizationWithLimitedInfo,
-} from "@sokosumi/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
-
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,6 +12,10 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { getAgentName } from "@/lib/helpers/agent";
+import type {
+  CoreAgentDto,
+  OrganizationWithLimitedInfo,
+} from "@/lib/types/core-dto";
 
 interface BreadcrumbSegment {
   label: string;
@@ -28,7 +27,7 @@ interface BreadcrumbNavigationClientProps {
   /**
    * Agents for resolving agent IDs to names
    */
-  agents: AgentWithRelations[];
+  agents: CoreAgentDto[];
   /**
    * Messages for resolving path segments to their display labels
    */
@@ -101,7 +100,7 @@ function resolveCurrentSegment(
 function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
-  agents: AgentWithRelations[],
+  agents: CoreAgentDto[],
   organizations: OrganizationWithLimitedInfo[],
   breadcrumbMessages?: Record<string, string>,
 ): BreadcrumbSegment[] {

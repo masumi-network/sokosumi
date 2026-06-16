@@ -1,14 +1,14 @@
-import type { JobWithSokosumiStatus } from "@sokosumi/utils";
+import type { JobSummary } from "@/lib/types/core-dto";
 
 import { getDateGroupKey } from "@/lib/utils";
 
 export interface JobsByDayGroup {
   key: string;
-  jobs: JobWithSokosumiStatus[];
+  jobs: JobSummary[];
 }
 
 export function buildJobDayGroups(
-  jobs: JobWithSokosumiStatus[],
+  jobs: JobSummary[],
   locale: string,
 ): JobsByDayGroup[] {
   const sortedJobs = [...jobs].sort(
@@ -17,7 +17,7 @@ export function buildJobDayGroups(
       new Date(firstJob.createdAt).getTime(),
   );
 
-  const groupsMap = new Map<string, JobWithSokosumiStatus[]>();
+  const groupsMap = new Map<string, JobSummary[]>();
   for (const job of sortedJobs) {
     const groupKey =
       getDateGroupKey(new Date(job.createdAt).getTime(), locale) ?? "";

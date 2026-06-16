@@ -1,6 +1,5 @@
-import type { JobShare } from "@sokosumi/utils";
-
 import { getEnvPublicConfig } from "@/config/env.public";
+import type { JobShare } from "@/lib/types/core-dto";
 
 export function getJobShareUrl(share: JobShare): string | null {
   if (!share.token) return null;

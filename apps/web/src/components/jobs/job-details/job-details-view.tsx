@@ -1,10 +1,8 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/utils";
 import { ArrowLeftRight, List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-
 import Header from "@/app/agents/[agentId]/jobs/components/header";
 import { useJobsHeader } from "@/app/agents/[agentId]/jobs/components/jobs-header-context";
 import { getWorkspaceMoveTargetCount } from "@/app/tasks/components/workspace-move-targets";
@@ -23,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { Job } from "@/lib/clients/generated/core";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
+import type { MemberWithOrganization } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { getInitials } from "@/lib/utils/text";

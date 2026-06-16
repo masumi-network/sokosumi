@@ -1,6 +1,5 @@
 "use client";
 
-import type { UserAgentRatingWithUser } from "@sokosumi/utils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,7 +8,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { RatingListItem } from "@/components/agents/rating-list-item";
 import {
   Pagination,
@@ -17,11 +15,12 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
+import type { AgentReview } from "@/lib/types/core-dto";
 
 const PAGE_SIZE = 5;
 
 interface ReviewsListProps {
-  ratingsWithComments: UserAgentRatingWithUser[];
+  ratingsWithComments: AgentReview[];
 }
 
 export function ReviewsList({ ratingsWithComments }: ReviewsListProps) {

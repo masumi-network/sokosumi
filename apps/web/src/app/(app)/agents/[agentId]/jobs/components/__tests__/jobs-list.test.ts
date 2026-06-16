@@ -1,15 +1,10 @@
-import {
-  JobType,
-  type JobWithSokosumiStatus,
-  SokosumiJobStatus,
-} from "@sokosumi/utils";
+import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
+import type { JobSummary } from "@/lib/types/core-dto";
 
 import { buildJobDayGroups } from "../jobs-list.utils";
 
-function createJob(
-  overrides: Partial<JobWithSokosumiStatus>,
-): JobWithSokosumiStatus {
+function createJob(overrides: Partial<JobSummary>): JobSummary {
   return {
     id: "job-id",
     name: "Job name",
@@ -57,7 +52,7 @@ function createJob(
       name: "Agent",
     },
     ...overrides,
-  } as unknown as JobWithSokosumiStatus;
+  } as unknown as JobSummary;
 }
 
 describe("buildJobDayGroups", () => {

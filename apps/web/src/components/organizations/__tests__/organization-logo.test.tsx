@@ -1,10 +1,9 @@
-import type { Organization } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OrganizationLogo } from "@/components/organizations/organization-logo";
+import type { OrganizationRecord } from "@/lib/types/core-dto";
 import { stubPendingImageLoad } from "@/test/stub-pending-image-load";
 
 vi.mock("next/image", () => ({
@@ -23,13 +22,19 @@ vi.mock("@sokosumi/utils", async () => {
 
 const mockedResolveIpfsOrHttpUrl = vi.mocked(resolveIpfsOrHttpUrl);
 
-function createOrganization(overrides: Partial<Organization>): Organization {
+function createOrganization(
+  overrides: Partial<OrganizationRecord>,
+): OrganizationRecord {
   return {
+    id: "org-1",
     name: "Acme",
+    slug: "acme",
     logo: null,
     metadata: null,
+    stripeCustomerId: null,
+    createdAt: new Date("2026-04-15T10:00:00.000Z"),
     ...overrides,
-  } as unknown as Organization;
+  };
 }
 
 describe("OrganizationLogo", () => {

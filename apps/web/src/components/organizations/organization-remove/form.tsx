@@ -1,14 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Organization } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
 import {
   AlertDialogCancel,
   AlertDialogFooter,
@@ -29,9 +27,10 @@ import {
   type RemoveOrganizationSchemaType,
   removeOrganizationSchema,
 } from "@/lib/schemas/organization";
+import type { OrganizationRecord } from "@/lib/types/core-dto";
 
 interface OrganizationRemoveFormProps {
-  organization: Organization;
+  organization: OrganizationRecord;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
 }

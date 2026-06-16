@@ -1,13 +1,9 @@
-import {
-  JobType,
-  type JobWithSokosumiStatus,
-  SokosumiJobStatus,
-} from "@sokosumi/utils";
+import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-
 import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
+import type { JobSummary } from "@/lib/types/core-dto";
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
@@ -40,10 +36,12 @@ vi.mock("../jobs-list.utils", () => ({
 }));
 
 function createJob(
-  overrides: Partial<Omit<JobWithSokosumiStatus, "user">> & {
-    user?: Partial<NonNullable<JobWithSokosumiStatus["user"]>> | null;
-  },
-): JobWithSokosumiStatus {
+  overrides: Partial<Omit<JobSummary, "user">> & {
+    user?: Partial<NonNullable<JobSummary["user"]>>;
+  } = {},
+): JobSummary {
+  const { user: userOverrides, ...rest } = overrides;
+
   return {
     id: "job-id",
     name: "Job name",
@@ -55,43 +53,25 @@ function createJob(
     agentId: "agent-1",
     userId: "user-1",
     organizationId: null,
-    agentJobId: "agent-job-1",
-    blockchainIdentifier: null,
-    identifierFromPurchaser: null,
-    payByTime: null,
-    submitResultTime: null,
-    unlockTime: null,
-    externalDisputeUnlockTime: null,
-    sellerVkey: null,
-    transaction: null,
-    transactionId: null,
-    refundedTransaction: null,
-    refundedTransactionId: null,
-    share: null,
+    projectId: null,
+    workspace: {
+      id: "workspace-1",
+      organizationId: null,
+      organization: null,
+    },
     taskId: null,
-    task: null,
-    purchase: null,
-    events: [],
     credits: 0,
-    cents: BigInt(0),
-    input: null,
-    inputHash: null,
-    inputSchema: null,
+    onChainStatus: null,
+    onChainTransactionHash: null,
     result: null,
     resultHash: null,
-    jobStatusSettled: false,
     user: {
-      id: "user-1",
-      name: "User",
-      image: null,
+      id: userOverrides?.id ?? "user-1",
+      name: userOverrides?.name ?? "User",
+      image: userOverrides?.image ?? null,
     },
-    organization: null,
-    agent: {
-      id: "agent-1",
-      name: "Agent",
-    },
-    ...overrides,
-  } as unknown as JobWithSokosumiStatus;
+    ...rest,
+  };
 }
 
 describe("JobRow", () => {
@@ -103,9 +83,6 @@ describe("JobRow", () => {
         name: "Jane",
         image: "https://example.com/avatar.png",
       },
-      share: {
-        id: "share-1",
-      } as never,
     });
 
     render(<JobRow job={job} selected={false} onClick={vi.fn()} />);
@@ -116,7 +93,6 @@ describe("JobRow", () => {
   it("does not render shared avatar for owned jobs", () => {
     const job = createJob({
       userId: "current-user",
-      share: null,
     });
 
     render(<JobRow job={job} selected={false} onClick={vi.fn()} />);

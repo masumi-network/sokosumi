@@ -1,16 +1,15 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-
 import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import VerticalDivider from "@/components/vertical-divider";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCredits } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface AgentPriceBottomNavigationProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   /** Trailing action rendered after the price (e.g. hire or create-job). */
   action: ReactNode;
 }
@@ -30,9 +29,7 @@ export function AgentPriceBottomNavigation({
       <div className="flex flex-1 flex-row items-center justify-center gap-2">
         <div className="w-full text-center text-sm font-semibold">
           {t("price", {
-            price: formatCreditsForDisplay(
-              convertCentsToCredits(agent.creditsPrice.cents),
-            ),
+            price: formatCreditsForDisplay(getAgentCredits(agent)),
           })}
         </div>
         <VerticalDivider />

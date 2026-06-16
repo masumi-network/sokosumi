@@ -1,19 +1,18 @@
 "use client";
 
-import type { AgentWithRelations } from "@sokosumi/utils";
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useSyncExternalStore } from "react";
-
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 interface AgentActionButtonsProps {
-  agent: AgentWithRelations;
+  agent: CoreAgentDto;
   showBackButton?: boolean | undefined;
   showShareButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;

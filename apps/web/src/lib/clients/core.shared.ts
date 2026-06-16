@@ -1,5 +1,4 @@
-import type { Notice, NoticeKind } from "@sokosumi/utils";
-
+import { NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -177,6 +176,7 @@ import {
   searchAdminUsers as coreSearchAdminUsers,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
+import type { Notice } from "@/lib/types/core-dto";
 
 export type CoreApiPagination = PaginationMetadata;
 

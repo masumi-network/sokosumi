@@ -1,8 +1,6 @@
 "use client";
 
-import type { AgentRatingStats, AgentWithCreditsPrice } from "@sokosumi/utils";
 import { Suspense, useMemo } from "react";
-
 import {
   Agents,
   AgentsNotAvailable,
@@ -15,9 +13,10 @@ import useGalleryFilter, {
 import { filterAgents } from "@/lib/helpers/agent-filter";
 import { groupAgentsByCategory } from "@/lib/helpers/agent-grouping";
 import type { Category } from "@/lib/types/category";
+import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 
 interface FilteredAgentsProps {
-  agents: AgentWithCreditsPrice[];
+  agents: CoreAgentDto[];
   ratingStatsMap: Record<string, AgentRatingStats>;
   categories: Category[];
 }

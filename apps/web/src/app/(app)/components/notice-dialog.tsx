@@ -1,11 +1,10 @@
 "use client";
 
-import { type Notice, NoticeKind } from "@sokosumi/utils";
+import { NoticeKind } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { acknowledgeNoticeAction } from "@/lib/actions/notice";
+import type { Notice } from "@/lib/types/core-dto";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
 interface NoticeDialogProps {

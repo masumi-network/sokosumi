@@ -1,17 +1,16 @@
 "use client";
 
-import type { AgentRatingStats, AgentWithCreditsPrice } from "@sokosumi/utils";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCredits } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 export function HeaderSkeleton() {
@@ -47,7 +46,7 @@ export function HeaderSkeleton() {
 }
 
 export interface HeaderProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   ratingStats: AgentRatingStats;
   canRate: boolean;
   existingRating: {
@@ -91,9 +90,7 @@ export default function Header({
           <div className="flex items-center gap-1.5">
             <div className="text-sm font-semibold">
               {t("price", {
-                price: formatCreditsForDisplay(
-                  convertCentsToCredits(agent.creditsPrice.cents),
-                ),
+                price: formatCreditsForDisplay(getAgentCredits(agent)),
               })}
             </div>
             {canRate && (

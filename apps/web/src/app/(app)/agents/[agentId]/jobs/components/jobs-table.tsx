@@ -1,15 +1,14 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
-
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeAgentJobsChannelName } from "@/lib/ably";
+import type { JobSummary } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -17,7 +16,7 @@ import { getJobColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
 
 interface JobsTableProps {
-  jobs: JobWithSokosumiStatus[];
+  jobs: JobSummary[];
   userId: string;
 }
 
@@ -31,26 +30,25 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const [routerLoading, setRouterLoading] = useState(false);
 
   // Managed by JobsSearch
-  const [filteredJobs, setFilteredJobs] =
-    useState<JobWithSokosumiStatus[]>(jobs);
+  const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
   const [queryParam] = useQueryState("query", { defaultValue: "" });
 
-  const handleRowClick = async (row: JobWithSokosumiStatus) => {
+  const handleRowClick = async (row: JobSummary) => {
     setRouterLoading(true);
     const qs = new URLSearchParams(window.location.search).toString();
-    const base = `/agents/${row.agent.id}/jobs/${row.id}`;
+    const base = `/agents/${row.agentId}/jobs/${row.id}`;
     const href = qs ? `${base}?${qs}` : base;
     router.push(href);
     setRouterLoading(false);
   };
 
-  const getRowClassName = (row: JobWithSokosumiStatus) =>
+  const getRowClassName = (row: JobSummary) =>
     cn({
       "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
         params.jobId === row.id,
       "text-foreground active:bg-muted hover:bg-muted": params.jobId !== row.id,
     });
-  const getOnRowClick = (row: JobWithSokosumiStatus) => async () => {
+  const getOnRowClick = (row: JobSummary) => async () => {
     if (routerLoading) return;
     await handleRowClick(row);
   };

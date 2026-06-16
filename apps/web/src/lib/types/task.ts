@@ -1,12 +1,11 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { TaskStatus } from "@sokosumi/utils";
-
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   TaskEvent,
   TaskShare,
   UserSummary,
 } from "@/lib/clients/generated/core/types.gen";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export type { TaskEvent };
 
@@ -33,7 +32,7 @@ export interface TaskWithCoworker {
   description?: string | null;
   descriptionPlain?: string | null;
   events: TaskEvent[];
-  agents: AgentWithCreditsPrice[];
+  agents: CoreAgentDto[];
 }
 
 export interface KanbanColumnDefinition {

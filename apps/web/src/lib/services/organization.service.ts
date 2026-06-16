@@ -1,11 +1,11 @@
 import "server-only";
 
-import type { Invitation, MemberRole } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { nanoid } from "nanoid";
 import slugify from "slugify";
-
 import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
 import { coreClient } from "@/lib/clients/core.client";
+import type { PendingInvitation } from "@/lib/types/core-dto";
 
 export type BulkInviteResultRow = {
   email: string;
@@ -85,7 +85,7 @@ export const organizationService = (() => {
 
   async function getPendingInvitations(
     organizationId: string,
-  ): Promise<Invitation[]> {
+  ): Promise<PendingInvitation[]> {
     const { data } =
       await coreClient.getOrganizationPendingInvitations(organizationId);
     return data;

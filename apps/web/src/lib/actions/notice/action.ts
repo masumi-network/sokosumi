@@ -1,9 +1,9 @@
 "use server";
 
-import type { Notice, NoticeKind } from "@sokosumi/utils";
-
+import { NoticeKind } from "@sokosumi/utils";
 import type { ActionError } from "@/lib/actions/errors";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
+import type { Notice } from "@/lib/types/core-dto";
 
 export type PendingNotice = Notice;
 export type NoticeAcknowledgment = Awaited<

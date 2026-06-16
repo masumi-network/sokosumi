@@ -25,6 +25,7 @@ import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
+import type { Notice } from "@/lib/types/core-dto";
 
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
@@ -85,10 +86,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     ? pendingNoticesResult.data
     : [];
   const legalNotices = pendingNotices.filter(
-    (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
+    (notice: Notice) => notice.kind === NoticeKind.LEGAL_TERMS,
   );
   const announcementNotices = pendingNotices.filter(
-    (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
+    (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
   );
   const userImageUrl =
     session.user.image ??

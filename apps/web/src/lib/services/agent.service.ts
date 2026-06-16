@@ -1,64 +1,25 @@
 import "server-only";
 
-import type {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/utils";
-
-import {
-  mapCoreAgentsToAgentWithCreditsPrice,
-  mapCoreAgentToAgentWithCreditsPrice,
-  mapCoreMyAgentReview,
-} from "@/lib/agents/core-dto-mappers";
+import { mapCoreMyAgentReview } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents, getCoreAgentById } from "@/lib/agents/core-loaders";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { Agent, AgentDetail } from "@/lib/clients/generated/core";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export const agentService = (() => {
-  // Public API
   return {
-    /**
-     * Retrieves an available agent by ID, validating access control for the current user.
-     *
-     * - Returns null if the agent doesn't exist, is not shown, or the user lacks access.
-     * - Returns the agent if accessible.
-     *
-     * @param agentId - Unique agent identifier.
-     * @returns The agent with all relations if accessible, null otherwise.
-     */
     getAvailableAgentById: async (
       agentId: string,
-    ): Promise<AgentWithRelations | null> => {
-      // Core returns 404 (→ null) for agents that are not available, matching
-      // the previous DB-side availability gate.
-      const coreAgent = await getCoreAgentById(agentId);
-      if (!coreAgent) return null;
-      return mapCoreAgentToAgentWithCreditsPrice(coreAgent);
+    ): Promise<AgentDetail | null> => {
+      return getCoreAgentById(agentId);
     },
 
-    /**
-     * Retrieves all online agents available to the user, each with its calculated credit price.
-     *
-     * - Excludes agents for which credit price calculation fails.
-     *
-     * @returns Array of agents with their calculated credit prices.
-     */
-    getAvailableAgentsWithCreditsPrice: async (): Promise<
-      AgentWithCreditsPrice[]
-    > => {
-      // Core already computes per-agent credits; the mapper carries them onto
-      // the AgentWithCreditsPrice shape consumers expect.
-      const coreAgents = await getAllCoreAgents();
-      return mapCoreAgentsToAgentWithCreditsPrice(coreAgents);
+    getAvailableAgentsWithCreditsPrice: async (): Promise<Agent[]> => {
+      return getAllCoreAgents();
     },
 
-    /**
-     * Retrieves a random available agent with its calculated credit price.
-     * And the average execution duration of the agent.
-     *
-     * @returns Promise resolving to an agent with its calculated credit price, or null if no agents are available.
-     */
     getRandomAvailableAgentData: async (): Promise<{
-      agent: AgentWithCreditsPrice;
+      agent: CoreAgentDto;
       averageExecutionDuration: number | null;
     } | null> => {
       const coreAgents = await getAllCoreAgents();
@@ -68,18 +29,11 @@ export const agentService = (() => {
       const randomIndex = Math.floor(Math.random() * coreAgents.length);
       const coreAgent = coreAgents[randomIndex];
       return {
-        agent: mapCoreAgentToAgentWithCreditsPrice(coreAgent),
+        agent: coreAgent,
         averageExecutionDuration: coreAgent.metrics.executions.averageTime,
       };
     },
 
-    /**
-     * Check if the authenticated caller is eligible to rate an agent (has
-     * finished at least one job with it).
-     *
-     * Served by Core's `GET /v1/agents/{id}/ratings/eligibility`. Returns false
-     * when the agent is unavailable (Core 404).
-     */
     async canUserRateAgent(agentId: string): Promise<boolean> {
       try {
         const response = await coreClient.getAgentRatingEligibility(agentId);
@@ -92,13 +46,6 @@ export const agentService = (() => {
       }
     },
 
-    /**
-     * Get the authenticated caller's existing rating for an agent.
-     *
-     * Served by Core's `GET /v1/agents/{id}/reviews/me`, which scopes the read
-     * to the session user. Returns null when the agent is unavailable (Core 404)
-     * or the caller has not rated it.
-     */
     async getUserRatingForAgent(agentId: string) {
       try {
         const response = await coreClient.getMyAgentReview(agentId);

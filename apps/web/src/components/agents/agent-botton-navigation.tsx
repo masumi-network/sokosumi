@@ -1,12 +1,11 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
-
 import { AgentHireButton } from "@/components/agents";
 import { AgentPriceBottomNavigation } from "@/components/agents/agent-price-bottom-navigation";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 interface AgentBottomNavigationProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
 }
 
 export default function AgentBottomNavigation({

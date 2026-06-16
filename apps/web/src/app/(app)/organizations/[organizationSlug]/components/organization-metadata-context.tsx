@@ -1,6 +1,5 @@
 "use client";
 
-import type { Organization } from "@sokosumi/utils";
 import {
   buildOrganizationMetadataWithDesignMd,
   parseOrganizationMetadata,
@@ -13,8 +12,8 @@ import {
   useCallback,
   useState,
 } from "react";
-
 import type { DesignMdProfileValue } from "@/components/design-md";
+import type { OrganizationRecord } from "@/lib/types/core-dto";
 
 interface OrganizationMetadataContextValue {
   metadata: string | null;
@@ -25,7 +24,7 @@ const OrganizationMetadataContext =
   createContext<OrganizationMetadataContextValue | null>(null);
 
 interface OrganizationMetadataProviderProps {
-  organization: Organization;
+  organization: OrganizationRecord;
   children: ReactNode;
 }
 

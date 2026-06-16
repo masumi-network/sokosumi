@@ -1,22 +1,14 @@
-import type {
-  AgentWithRelations,
-  OrganizationWithLimitedInfo,
-} from "@sokosumi/utils";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
-
-import { mapCoreAgentsToAgentWithCreditsPrice } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents } from "@/lib/agents/core-loaders";
 import { userService } from "@/lib/services";
+import type { Agent, OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";
 
 interface BreadcrumbNavigationProps {
   className?: string;
-  /**
-   * Optional map of path segments to their display labels
-   */
   segmentLabels?: Record<string, string>;
 }
 
@@ -41,33 +33,29 @@ async function BreadcrumbNavigationInner({
   className?: string | undefined;
   segmentLabels?: Record<string, string>;
 }) {
-  // Breadcrumb labels are nice-to-have, not load-bearing. Both lookups go
-  // through Core (the agent catalog cached, the user's memberships deduped via
-  // React cache); each degrades to an empty fallback independently rather than
-  // blowing up the app shell with an unhandled server-component throw. Only
-  // the session user's own organizations are fetched — slug routes redirect
-  // non-members anyway, so foreign orgs never legitimately resolve here.
   const [messages, agents, organizations] = await Promise.all([
     getMessages(),
-    getAllCoreAgents()
-      .then(mapCoreAgentsToAgentWithCreditsPrice)
-      .catch((error) => {
-        console.warn(
-          "[breadcrumb] agent catalog fetch failed, using empty fallback",
-          { message: (error as Error)?.message },
-        );
-        return [] as AgentWithRelations[];
-      }),
+    getAllCoreAgents().catch((error) => {
+      console.warn(
+        "[breadcrumb] agent catalog fetch failed, using empty fallback",
+        { message: (error as Error)?.message },
+      );
+      return [] as Agent[];
+    }),
     userService
       .getMyMembersWithOrganizations()
       .then((members) =>
-        members.map(
-          ({ organization }): OrganizationWithLimitedInfo => ({
-            id: organization.id,
-            name: organization.name,
-            slug: organization.slug,
-          }),
-        ),
+        members
+          .map(
+            ({ organization }): OrganizationWithLimitedInfo => ({
+              id: organization.id,
+              name: organization.name,
+              slug: organization.slug,
+            }),
+          )
+          .filter(
+            (org): org is OrganizationWithLimitedInfo => org.slug != null,
+          ),
       )
       .catch((error) => {
         console.warn(

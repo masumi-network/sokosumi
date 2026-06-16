@@ -1,12 +1,10 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/utils";
 import { Loader2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { buildWorkspaceMoveTargets } from "@/app/tasks/components/workspace-move-targets";
 import { OrganizationLogo } from "@/components/organizations";
 import {
@@ -22,6 +20,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { moveJobToWorkspace } from "@/lib/actions/job/action";
+import type { MemberWithOrganization } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 interface MoveJobToWorkspaceDialogProps {

@@ -1,6 +1,5 @@
 "use client";
 
-import type { Invitation } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -12,6 +11,7 @@ import type {
   BetterAuthClientResult,
 } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
+import type { PendingInvitation } from "@/lib/types/core-dto";
 
 export enum InvitationAction {
   CANCEL = "CANCEL",
@@ -20,7 +20,7 @@ export enum InvitationAction {
 const {
   Provider: InvitationActionsModalContextProviderBase,
   useModalContext: useInvitationActionsModalContextBase,
-} = createModalContext<Invitation, InvitationAction>();
+} = createModalContext<PendingInvitation, InvitationAction>();
 
 export function InvitationActionsModalContextProvider({
   children,
@@ -33,7 +33,7 @@ export function InvitationActionsModalContextProvider({
   const router = useRouter();
 
   async function onAction(
-    invitation: Invitation,
+    invitation: PendingInvitation,
     action: InvitationAction,
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {

@@ -4,8 +4,6 @@ import type {
   InputGroupSchemaType,
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,7 +14,6 @@ import {
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
-
 import { GroupedInputTabs } from "@/components/common/grouped-input-tabs";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
@@ -24,6 +21,8 @@ import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
 import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCreditsCents } from "@/lib/types/core-dto";
 import { cn, formatDuration } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -47,7 +46,7 @@ interface CommonGroupedFormProps {
 }
 
 interface StandardModeProps extends CommonGroupedFormProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   averageExecutionDuration: number | null;
   inputSchema: InputSchemaSchemaType;
   demoValues: AgentDemoValues | null;
@@ -106,7 +105,7 @@ function JobInputsGroupedFormStandard({
   reset,
   resetMaxUnlockedTo,
 }: StandardModeProps) {
-  const { creditsPrice } = agent;
+  const credits = agent.credits;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
@@ -235,11 +234,7 @@ function JobInputsGroupedFormStandard({
                 {isLast && (
                   <div className="text-muted-foreground text-sm">
                     {t("price", {
-                      price: isDemo
-                        ? 0
-                        : formatCreditsForDisplay(
-                            convertCentsToCredits(creditsPrice.cents),
-                          ),
+                      price: isDemo ? 0 : formatCreditsForDisplay(credits),
                     })}
                   </div>
                 )}
@@ -289,7 +284,7 @@ function JobInputsGroupedFormStandard({
       t,
       isDemo,
       legal,
-      creditsPrice.cents,
+      getAgentCreditsCents(agent),
       loading,
       averageExecutionDuration,
       formattedDuration,

@@ -1,4 +1,4 @@
-import type { MemberWithOrganization, Session } from "@sokosumi/utils";
+import { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { coreClient } from "@/lib/clients/core.client";
@@ -7,6 +7,7 @@ import type {
   GetUsersByIdOrganizationsResponse,
 } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
+import type { MemberWithOrganization } from "@/lib/types/core-dto";
 
 import HeaderProfileSectionClient from "./header-profile-section.client";
 

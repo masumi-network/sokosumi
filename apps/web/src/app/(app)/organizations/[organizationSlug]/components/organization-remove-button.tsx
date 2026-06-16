@@ -1,22 +1,21 @@
 "use client";
 
-import type { Organization } from "@sokosumi/utils";
 import { Trash } from "lucide-react";
 import { useTranslations } from "next-intl";
-
 import { OrganizationRemoveModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
+import type { OrganizationRecord } from "@/lib/types/core-dto";
 
 interface OrganizationRemoveButtonProps {
-  organization: Organization;
+  organization: OrganizationRecord;
   className?: string | undefined;
 }
 
 interface OrganizationRemoveModalHostProps {
   open: boolean;
   onOpenChange: React.Dispatch<React.SetStateAction<boolean>>;
-  organization: Organization;
+  organization: OrganizationRecord;
 }
 
 function OrganizationRemoveModalHost({

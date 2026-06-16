@@ -1,9 +1,8 @@
-import type { Agent, AgentWithCreditsPrice } from "@sokosumi/utils";
-
 import { getAgentName } from "@/lib/helpers/agent";
+import type { Agent, CoreAgentDto } from "@/lib/types/core-dto";
 
 export function buildAgentNameById(
-  agents: (Agent | AgentWithCreditsPrice)[],
+  agents: (Agent | CoreAgentDto)[],
 ): Map<string, string> {
   const agentNameById = new Map<string, string>();
   for (const agent of agents) {

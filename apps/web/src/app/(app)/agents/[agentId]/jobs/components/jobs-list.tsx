@@ -1,14 +1,15 @@
 "use client";
 
-import { type JobWithSokosumiStatus, SokosumiJobStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
-
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
+import type { CoreJobListItem } from "@/lib/helpers/job";
+import type { JobSummary } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -24,7 +25,7 @@ interface JobStatusUpdateData {
 }
 
 interface JobsListProps {
-  jobs: JobWithSokosumiStatus[];
+  jobs: CoreJobListItem[];
   userId: string;
   agentId: string;
   selectedJobId?: string;
@@ -104,9 +105,8 @@ export function JobsList({
   const { locale } = useLocalizedDateTime();
   const routeParams = useParams<{ jobId?: string }>();
   const router = useRouter();
-  const [localJobs, setLocalJobs] = useState<JobWithSokosumiStatus[]>(jobs);
-  const [filteredJobs, setFilteredJobs] =
-    useState<JobWithSokosumiStatus[]>(jobs);
+  const [localJobs, setLocalJobs] = useState<CoreJobListItem[]>(jobs);
+  const [filteredJobs, setFilteredJobs] = useState<CoreJobListItem[]>(jobs);
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
   // Sync local state when jobs prop changes (e.g., after revalidatePath)
@@ -133,7 +133,7 @@ export function JobsList({
     }
 
     const completedAtFallback = new Date();
-    const updater = (prev: JobWithSokosumiStatus[]) =>
+    const updater = (prev: CoreJobListItem[]) =>
       prev.map((job) => {
         const update = latestByJobId.get(job.id);
         if (!update) {
@@ -163,9 +163,9 @@ export function JobsList({
     setFilteredJobs(updater);
   }
 
-  function handleJobClick(job: JobWithSokosumiStatus) {
+  function handleJobClick(job: CoreJobListItem) {
     const qs = new URLSearchParams(window.location.search).toString();
-    const base = `/agents/${job.agent.id}/jobs/${job.id}`;
+    const base = `/agents/${job.agentId}/jobs/${job.id}`;
     router.push(qs ? `${base}?${qs}` : base);
   }
 
@@ -219,9 +219,9 @@ export function JobRow({
   selected,
   onClick,
 }: {
-  job: JobWithSokosumiStatus;
+  job: JobSummary;
   selected: boolean;
-  onClick: (job: JobWithSokosumiStatus) => void;
+  onClick: (job: JobSummary) => void;
 }) {
   const { formatTimeAgo } = useLocalizedDateTime();
 

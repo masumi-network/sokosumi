@@ -1,12 +1,11 @@
-import type { AgentWithRelations } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentDescription, getAgentTags } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
-function AgentDetailOverview({ agent }: { agent: AgentWithRelations }) {
+function AgentDetailOverview({ agent }: { agent: CoreAgentDto }) {
   const t = useTranslations("Components.Agents.AgentDetail.Overview");
   const tTaskDetail = useTranslations("App.Tasks.Detail");
   const agentDescription = getAgentDescription(agent);

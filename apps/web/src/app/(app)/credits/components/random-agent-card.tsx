@@ -1,8 +1,6 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { Suspense, use } from "react";
-
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
 import {
@@ -10,10 +8,11 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 interface RandomAgentCardProps {
   randomAgentPromise: Promise<{
-    agent: AgentWithCreditsPrice;
+    agent: CoreAgentDto;
     averageExecutionDuration: number | null;
   } | null>;
   projectOptionsPromise: Promise<ProjectFilterOption[]>;
@@ -48,7 +47,7 @@ function RandomAgentCardContent({
   averageExecutionDuration,
   projectOptions,
 }: {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   averageExecutionDuration: number | null;
   projectOptions: ProjectFilterOption[];
 }) {

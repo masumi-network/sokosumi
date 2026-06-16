@@ -1,11 +1,10 @@
-import type { ExampleOutput } from "@sokosumi/utils";
 import { Download } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
+import type { AgentExampleOutput } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 interface ExampleDetailThumbnailProps {
-  exampleOutput: ExampleOutput;
+  exampleOutput: AgentExampleOutput;
   onClick?: (() => void) | undefined;
   className?: string | undefined;
 }

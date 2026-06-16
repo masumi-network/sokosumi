@@ -1,12 +1,10 @@
 "use client";
 
-import type { Organization } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,11 +16,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OrganizationRecord } from "@/lib/types/core-dto";
 
 interface LeaveOrganizationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  organization: Organization;
+  organization: OrganizationRecord;
 }
 
 export function LeaveOrganizationModal({

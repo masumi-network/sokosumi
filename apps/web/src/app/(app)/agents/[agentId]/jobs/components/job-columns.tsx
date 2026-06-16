@@ -1,20 +1,20 @@
 "use client";
 
-import { JobType, type JobWithSokosumiStatus } from "@sokosumi/utils";
+import { JobType } from "@sokosumi/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import type { useFormatter, useTranslations } from "next-intl";
 import { useEffect } from "react";
-
 import { DataTableColumnHeader } from "@/components/data-table";
 import { JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
 import useAgentJobStatusData from "@/hooks/use-agent-job-status";
 import { getJobStatusData } from "@/lib/helpers/job";
+import type { JobSummary } from "@/lib/types/core-dto";
 import { getJobQueryKey } from "@/queries";
 
-const columnHelper = createColumnHelper<JobWithSokosumiStatus>();
+const columnHelper = createColumnHelper<JobSummary>();
 
 export function getJobColumns(
   userId: string,
@@ -43,7 +43,7 @@ export function getJobColumns(
       ),
       sortingFn: "datetime",
       enableHiding: false,
-    }) as ColumnDef<JobWithSokosumiStatus>,
+    }) as ColumnDef<JobSummary>,
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
@@ -72,7 +72,7 @@ export function getJobColumns(
       },
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithSokosumiStatus>,
+    }) as ColumnDef<JobSummary>,
 
     nameColumn: columnHelper.accessor("name", {
       id: "name",
@@ -89,7 +89,7 @@ export function getJobColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithSokosumiStatus>,
+    }) as ColumnDef<JobSummary>,
   };
 }
 
@@ -170,7 +170,7 @@ function RealTimeJobStatusBadge({
   className,
 }: {
   userId: string;
-  job: JobWithSokosumiStatus;
+  job: JobSummary;
   className?: string;
 }) {
   const queryClient = useQueryClient();

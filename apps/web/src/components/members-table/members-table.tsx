@@ -1,14 +1,13 @@
 "use client";
 
-import {
-  type Invitation,
-  InvitationStatus,
-  type Member,
-  MemberRole,
-} from "@sokosumi/utils";
+import { InvitationStatus, MemberRole } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
+import type {
+  OrganizationMembershipSelf,
+  PendingInvitation,
+} from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
@@ -19,9 +18,9 @@ import { SeatManagementContextProvider } from "./seat-management-context";
 import type { MemberRowData, OrganizationMember } from "./types";
 
 interface MembersTableProps {
-  me: Member;
+  me: OrganizationMembershipSelf;
   members: OrganizationMember[];
-  pendingInvitations: Invitation[];
+  pendingInvitations: PendingInvitation[];
   showSeatManagement?: boolean;
   unusedSeats?: number;
 }
@@ -67,7 +66,7 @@ export default function MembersTable({
 
 function getColumns(
   t: ReturnType<typeof useTranslations>,
-  me: Member,
+  me: OrganizationMembershipSelf,
   showSeatManagement: boolean,
 ) {
   const {
@@ -88,7 +87,7 @@ function getColumns(
 
 function combineMembersAndPendingInvitations(
   members: OrganizationMember[],
-  pendingInvitations: Invitation[],
+  pendingInvitations: PendingInvitation[],
 ): MemberRowData[] {
   // Sort members by role score, then by name
   const sortedMembers = [...members].sort((a, b) => {
@@ -132,7 +131,7 @@ function convertMemberWithUserToMemberRowData(
 }
 
 function convertInvitationToMemberRowData(
-  invitation: Invitation,
+  invitation: PendingInvitation,
 ): MemberRowData {
   return {
     email: invitation.email,

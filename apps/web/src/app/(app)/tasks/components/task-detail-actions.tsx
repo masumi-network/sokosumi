@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  isTaskArchivableStatus,
-  type MemberWithOrganization,
-} from "@sokosumi/utils";
+import { isTaskArchivableStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
@@ -63,6 +60,7 @@ import {
   type TaskLink,
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
+import type { MemberWithOrganization } from "@/lib/types/core-dto";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";

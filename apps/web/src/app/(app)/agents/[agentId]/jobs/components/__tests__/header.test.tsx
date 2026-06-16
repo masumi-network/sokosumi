@@ -1,8 +1,8 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import Header from "@/app/agents/[agentId]/jobs/components/header";
+import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
+import type { AgentRatingStats } from "@/lib/types/core-dto";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -31,15 +31,12 @@ vi.mock("@/lib/utils/credits", () => ({
 
 describe("Header", () => {
   it("renders detail actions in both desktop and mobile header areas", () => {
-    const agent = {
-      id: "agent-1",
-      creditsPrice: { cents: BigInt(100) },
-    } as AgentWithCreditsPrice;
+    const agent = createMockCoreAgent({ id: "agent-1", credits: 1 });
 
     render(
       <Header
         agent={agent}
-        ratingStats={{ averageRating: 0, ratingCount: 0 } as never}
+        ratingStats={{ total: 0, average: null } satisfies AgentRatingStats}
         canRate={false}
         existingRating={null}
         detailActions={<div data-testid="detail-actions" />}

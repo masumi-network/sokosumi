@@ -1,11 +1,12 @@
 import "server-only";
 
-import type { Member, MemberWithOrganization, Session } from "@sokosumi/utils";
+import { Session } from "@sokosumi/utils";
 import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
 import { updateCurrentUserViaCore } from "@/lib/auth/core-auth-http.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { Organization } from "@/lib/clients/generated/core";
+import type { MemberRecord, Organization } from "@/lib/clients/generated/core";
+import type { MemberWithOrganization } from "@/lib/types/core-dto";
 
 /**
  * Service for user-related operations.
@@ -86,7 +87,7 @@ export const userService = (() => {
    */
   async function getMyMemberInOrganization(
     organizationId: string,
-  ): Promise<Member | null> {
+  ): Promise<MemberRecord | null> {
     const session = await getSession();
     if (!session) {
       return null;

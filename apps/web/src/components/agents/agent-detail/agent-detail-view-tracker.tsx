@@ -1,22 +1,18 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { useEffect } from "react";
-
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCredits } from "@/lib/types/core-dto";
 
 interface AgentDetailViewTrackerProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
 }
 
 export function AgentDetailViewTracker({ agent }: AgentDetailViewTrackerProps) {
   useEffect(() => {
-    fireGTMEvent.viewAgent(
-      getAgentName(agent),
-      convertCentsToCredits(agent.creditsPrice.cents),
-    );
+    fireGTMEvent.viewAgent(getAgentName(agent), getAgentCredits(agent));
   }, [agent]);
 
   return null;

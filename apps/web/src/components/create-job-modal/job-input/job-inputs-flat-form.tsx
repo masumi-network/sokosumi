@@ -4,19 +4,18 @@ import type {
   InputFieldSchemaType,
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo } from "react";
-
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
 import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCreditsCents } from "@/lib/types/core-dto";
 import { cn, formatDuration } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
@@ -28,7 +27,7 @@ import {
 
 // Props for standard create job modal mode
 interface StandardModeProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   averageExecutionDuration: number | null;
   flatInputs: InputFieldSchemaType[];
   inputSchema: InputSchemaSchemaType;
@@ -82,7 +81,7 @@ function JobInputsFlatFormStandard({
   legal,
   className,
 }: StandardModeProps) {
-  const { creditsPrice } = agent;
+  const credits = agent.credits;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
   const { os, isMobile } = useOSDetection();
@@ -129,11 +128,7 @@ function JobInputsFlatFormStandard({
               <div className="flex items-center gap-2">
                 <div className="text-muted-foreground text-sm">
                   {t("price", {
-                    price: isDemo
-                      ? 0
-                      : formatCreditsForDisplay(
-                          convertCentsToCredits(creditsPrice.cents),
-                        ),
+                    price: isDemo ? 0 : formatCreditsForDisplay(credits),
                   })}
                 </div>
                 <Button
@@ -169,7 +164,7 @@ function JobInputsFlatFormStandard({
       t,
       isDemo,
       legal,
-      creditsPrice.cents,
+      getAgentCreditsCents(agent),
       loading,
       averageExecutionDuration,
       formattedDuration,

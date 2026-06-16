@@ -1,5 +1,5 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
 
 vi.mock("server-only", () => ({}));
 
@@ -52,12 +52,11 @@ describe("mapJobsToTasksViewData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getAgentByIdMock.mockResolvedValue({
-      data: {
+      data: createMockCoreAgent({
         id: "agent-1",
         name: "Agent One",
-        overrideName: null,
         icon: null,
-      },
+      }),
     });
   });
 
@@ -118,12 +117,11 @@ describe("mapJobsToTasksViewData", () => {
     const seedTasksById = new Map([
       ["task-seeded", { id: "task-seeded", coworkerId: "coworker-1" }],
     ]);
-    const preloaded = {
+    const preloaded = createMockCoreAgent({
       id: "agent-1",
       name: "Catalog Agent",
-      overrideName: null,
       icon: null,
-    } as AgentWithCreditsPrice;
+    });
 
     const result = await mapJobsToTasksViewData({
       jobs: jobs as never,
