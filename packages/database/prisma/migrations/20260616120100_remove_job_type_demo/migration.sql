@@ -13,7 +13,7 @@ ALTER TABLE "Job"
 DROP TYPE "JobType";
 ALTER TYPE "JobType_new" RENAME TO "JobType";
 
--- Re-add job type check constraints (demo variant removed).
+-- Re-add job type check constraints using current Job columns (demo variant removed).
 ALTER TABLE "Job"
 ADD CONSTRAINT "paid_job_blockchain_required"
 CHECK (
@@ -25,7 +25,7 @@ CHECK (
     "externalDisputeUnlockTime" IS NOT NULL AND
     "sellerVkey" IS NOT NULL AND
     "identifierFromPurchaser" IS NOT NULL AND
-    "creditTransactionId" IS NOT NULL
+    "transactionId" IS NOT NULL
   )
 );
 
@@ -39,13 +39,7 @@ CHECK (
     "unlockTime" IS NULL AND
     "externalDisputeUnlockTime" IS NULL AND
     "sellerVkey" IS NULL AND
-    "purchaseId" IS NULL AND
-    "inputHash" IS NULL AND
-    "resultHash" IS NULL AND
-    "onChainStatus" IS NULL AND
-    "onChainTransactionHash" IS NULL AND
-    "onChainTransactionStatus" IS NULL AND
     "identifierFromPurchaser" IS NULL AND
-    "creditTransactionId" IS NULL
+    "transactionId" IS NULL
   )
 );
