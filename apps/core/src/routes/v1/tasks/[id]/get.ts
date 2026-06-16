@@ -43,34 +43,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { authContext, workspaceContext } = c.var;
 
-    const task = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, id, tx);
+    await requireTaskReadForRouteVars(c.var, id);
 
-      if (
-        isUserAuthContext(authContext) ||
-        (isCoworkerAuthContext(authContext) && authContext.delegation)
-      ) {
-        const requiredWorkspaceContext =
-          requireWorkspaceContext(workspaceContext);
+    let task;
+    if (
+      isUserAuthContext(authContext) ||
+      (isCoworkerAuthContext(authContext) && authContext.delegation)
+    ) {
+      const requiredWorkspaceContext =
+        requireWorkspaceContext(workspaceContext);
 
-        return tx.task.findUnique({
-          where: {
-            id,
-            archivedAt: null,
-            workspaceId: requiredWorkspaceContext.workspaceId,
-          },
-          // Workspace collaborators may read an existing share token here.
-          // Share creation and deletion remain owner-only in the dedicated share routes.
-          include: buildTaskIncludeForViewer(
-            authContext,
-            requiredWorkspaceContext.workspaceId,
-          ),
-        });
-      }
-
+      task = await prisma.task.findUnique({
+        where: {
+          id,
+          archivedAt: null,
+          workspaceId: requiredWorkspaceContext.workspaceId,
+        },
+        // Workspace collaborators may read an existing share token here.
+        // Share creation and deletion remain owner-only in the dedicated share routes.
+        include: buildTaskIncludeForViewer(
+          authContext,
+          requiredWorkspaceContext.workspaceId,
+        ),
+      });
+    } else {
       const coworkerAuthContext = requireCoworkerAuthContext(authContext);
 
-      return tx.task.findUnique({
+      task = await prisma.task.findUnique({
         where: {
           id,
           archivedAt: null,
@@ -79,7 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         include: buildTaskIncludeForViewer(coworkerAuthContext),
       });
-    });
+    }
 
     if (!task) {
       throw notFound("Task not found");
