@@ -199,12 +199,8 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
 
                 return (
                   <SidebarMenuItem key={key}>
-                    <SidebarMenuButton
-                      asChild={!!href}
-                      isActive={isActive}
-                      className=""
-                    >
-                      {href ? (
+                    {href ? (
+                      <SidebarMenuButton asChild isActive={isActive}>
                         <SheetClose asChild>
                           <Link
                             href={href}
@@ -219,19 +215,19 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                             {content}
                           </Link>
                         </SheetClose>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={onClick}
-                          className={cn(
-                            "flex min-h-auto w-full items-center gap-2 px-3",
-                            "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
-                          )}
-                        >
-                          {content}
-                        </button>
-                      )}
-                    </SidebarMenuButton>
+                      </SidebarMenuButton>
+                    ) : (
+                      <SidebarMenuButton
+                        type="button"
+                        onClick={onClick}
+                        className={cn(
+                          "flex min-h-auto w-full items-center gap-2 px-3",
+                          "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                        )}
+                      >
+                        {content}
+                      </SidebarMenuButton>
+                    )}
                   </SidebarMenuItem>
                 );
               },
@@ -250,13 +246,13 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
           loading: tSearch("loading"),
           error: tSearch("error"),
           kind: {
-            task: tHistory("kind.task"),
-            job: tHistory("kind.job"),
-            conversation: tHistory("kind.conversation"),
+            task: tHistory("Row.kind.task"),
+            job: tHistory("Row.kind.job"),
+            conversation: tHistory("Row.kind.conversation"),
           },
           conversationStatus: {
-            active: tHistory("conversationStatus.active"),
-            archived: tHistory("conversationStatus.archived"),
+            active: tHistory("Row.conversationStatus.active"),
+            archived: tHistory("Row.conversationStatus.archived"),
           },
         }}
       />

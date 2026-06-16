@@ -104,7 +104,7 @@ export function HistorySearchDialog({
     if (!open) return;
 
     void loadHistory(debouncedQuery);
-  }, [debouncedQuery, loadHistory, open]);
+  }, [debouncedQuery, open]);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
