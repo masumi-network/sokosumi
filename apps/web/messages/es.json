@@ -124,7 +124,7 @@
       "support": "Soporte",
       "logout": "Cerrar sesión",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits usados",
-      "lowCreditsLabel": "Créditos Bajos {used, number}/{total, number}",
+      "lowCreditsLabel": "Créditos bajos {credits, number}",
       "totalBalanceLabel": "Saldo total",
       "creditsConsumedProgressAria": "Credits de suscripción consumidos",
       "help": "Ayuda",

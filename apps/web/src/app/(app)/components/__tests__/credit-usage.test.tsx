@@ -31,6 +31,10 @@ vi.mock("next-intl", () => ({
         return `${values?.used ?? 0} / ${values?.total ?? 0} credits used`;
       }
 
+      if (key === "lowCreditsLabel") {
+        return `Low credits ${values?.credits ?? 0}`;
+      }
+
       if (key === "creditsExpiresInDays") {
         return `Credits renew in ${values?.days ?? 0} days`;
       }
@@ -145,5 +149,19 @@ describe("CreditUsage", () => {
       "50",
     );
     expect(screen.queryByText("Extra credits")).not.toBeInTheDocument();
+  });
+
+  it("shows remaining balance in the low-credits trigger label", () => {
+    render(
+      <CreditUsage
+        creditUsage={creditUsage}
+        extraCredits={25}
+        creditsLabel="25 available"
+        currentTimestampMs={0}
+        isLowCredits
+      />,
+    );
+
+    expect(screen.getByText("Low credits 75")).toBeInTheDocument();
   });
 });

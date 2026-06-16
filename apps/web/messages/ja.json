@@ -134,7 +134,7 @@
       "expandSidebar": "サイドバーを展開",
       "logout": "ログアウト",
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
-      "lowCreditsLabel": "クレジット残量低下 {used, number}/{total, number}",
+      "lowCreditsLabel": "クレジット残量低下 {credits, number}",
       "totalBalanceLabel": "合計残高",
       "creditsSummary": "クレジット概要:",
       "monthlyUsageLimit": "月間利用上限",

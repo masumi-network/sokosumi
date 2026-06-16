@@ -39,21 +39,6 @@ export default function CreditUsage({
   const creditUsageAriaLabel = t("creditsConsumedProgressAria");
   const usedFormatted = formatCreditsForDisplay(activeCreditUsage.used);
   const totalFormatted = formatCreditsForDisplay(activeCreditUsage.total);
-
-  const normalCreditUsageLabel = t("creditsUsedOfTotal", {
-    used: usedFormatted,
-    total: totalFormatted,
-  });
-
-  const lowCreditUsageLabel = t("lowCreditsLabel", {
-    used: usedFormatted,
-    total: totalFormatted,
-  });
-
-  const triggerLabel = isLowCredits
-    ? lowCreditUsageLabel
-    : normalCreditUsageLabel;
-
   const hasExtraCredits = (extraCredits ?? 0) > 0;
   const totalCreditsNumeric = formatCreditsForDisplay(
     activeCreditUsage.remaining + Math.max(0, extraCredits ?? 0),
@@ -61,6 +46,19 @@ export default function CreditUsage({
   const totalCreditsDisplay = tBilling("balanceCreditsLabel", {
     credits: totalCreditsNumeric,
   });
+
+  const normalCreditUsageLabel = t("creditsUsedOfTotal", {
+    used: usedFormatted,
+    total: totalFormatted,
+  });
+
+  const lowCreditUsageLabel = t("lowCreditsLabel", {
+    credits: totalCreditsNumeric,
+  });
+
+  const triggerLabel = isLowCredits
+    ? lowCreditUsageLabel
+    : normalCreditUsageLabel;
 
   let creditsExpiryLabel: string | null = null;
   if (subscriptionPeriodEndMs) {
@@ -96,7 +94,9 @@ export default function CreditUsage({
               {isLowCredits ? (
                 <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
               ) : null}
-              <span>{triggerLabel}</span>
+              <span className="min-w-0 truncate tabular-nums">
+                {triggerLabel}
+              </span>
               <ChevronDown
                 className="ml-auto size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180"
                 aria-hidden
@@ -175,7 +175,7 @@ export default function CreditUsage({
         {isLowCredits ? (
           <AlertTriangle className="size-3.5" aria-hidden />
         ) : null}
-        <span>{triggerLabel}</span>
+        <span className="truncate tabular-nums">{triggerLabel}</span>
       </div>
       <Progress
         className={progressRootClassName}
