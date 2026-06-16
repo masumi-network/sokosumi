@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
-const CANONICAL_PATH = "/.well-known/oauth-authorization-server/api/auth";
+import { getCoreOAuthAuthorizationServerWellKnownUrl } from "@/lib/auth/oauth-issuer-well-known.server";
 
-export async function GET(request: Request) {
-  const canonicalUrl = new URL(CANONICAL_PATH, request.url);
-  return NextResponse.redirect(canonicalUrl, 308);
+export async function GET() {
+  return NextResponse.redirect(
+    getCoreOAuthAuthorizationServerWellKnownUrl(),
+    308,
+  );
 }
