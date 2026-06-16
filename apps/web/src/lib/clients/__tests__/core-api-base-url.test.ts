@@ -28,7 +28,6 @@ describe("getCoreApiBaseUrl", () => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_CORE_APP_BASE_URL: "https://api.sokosumi.com/",
       NEXT_PUBLIC_NETWORK: "Mainnet",
-      NEXT_PUBLIC_USE_CORE_AUTH_CLIENT: false,
     });
     getEnvSecretsMock.mockReturnValue({
       CORE_APP_BASE_URL: "http://localhost:8787",

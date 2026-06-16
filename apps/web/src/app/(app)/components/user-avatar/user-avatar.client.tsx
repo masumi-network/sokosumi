@@ -1,6 +1,7 @@
 "use client";
 
 import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
+import type { SessionUser } from "@sokosumi/utils";
 import {
   BookOpen,
   Bot,
@@ -22,7 +23,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   DropdownMenu,
@@ -37,7 +37,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
-import type { SessionUser } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 interface UserAvatarClientProps {

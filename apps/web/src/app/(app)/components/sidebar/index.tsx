@@ -1,3 +1,4 @@
+import type { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { resolveLowCreditsBillingPath } from "@/app/components/top-notice-state";
 import UserCredits, {
@@ -10,7 +11,6 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { Session } from "@/lib/auth/auth";
 
 import AdminMenu from "./components/admin-menu";
 import AnnouncementCards from "./components/announcement-cards";

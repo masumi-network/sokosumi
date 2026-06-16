@@ -1,6 +1,5 @@
+import type { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-
-import type { Session } from "@/lib/auth/auth";
 import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core/types.gen";
 import type { CreditUsage } from "@/lib/types/credit";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";

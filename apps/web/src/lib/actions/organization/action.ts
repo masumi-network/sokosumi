@@ -16,7 +16,6 @@ import {
   type BulkInviteResultRow,
   organizationService,
 } from "@/lib/services/organization.service";
-import { preferredOrganizationService } from "@/lib/services/preferred-organization.service";
 import { stripeService } from "@/lib/services/stripe.service";
 import { userService } from "@/lib/services/user.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -236,19 +235,25 @@ export const updatePreferredOrganization = withSession<
     });
   }
 
-  const result =
-    await preferredOrganizationService.persistPreferredOrganizationId(
+  try {
+    const { data } = await coreClient.setMyPreferredOrganization(
       parsedResult.data.organizationId,
     );
 
-  if (!result.ok) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "You are not a member of this organization",
+    return Ok({
+      organizationId: data.organizationId,
     });
-  }
+  } catch (error) {
+    if (
+      error instanceof CoreApiRequestError &&
+      error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED
+    ) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      });
+    }
 
-  return Ok({
-    organizationId: result.organizationId,
-  });
+    throw error;
+  }
 });

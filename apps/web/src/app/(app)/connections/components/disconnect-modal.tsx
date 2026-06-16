@@ -1,11 +1,11 @@
 "use client";
 
+import type { Account } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Account } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface DisconnectModalProps {

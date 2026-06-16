@@ -1,11 +1,10 @@
 import "server-only";
 
+import type { Account, Session } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-
 import type { ActiveSubscription } from "@/components/billing/subscription-plan-utils";
-import type { Account, Session } from "@/lib/auth/auth";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";

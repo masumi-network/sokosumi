@@ -23,6 +23,8 @@ import {
 } from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
+  betterAuthOrganizationAdditionalFields,
+  betterAuthUserAdditionalFields,
   getEmailLocale,
   getOrganizationMetadata,
   getStoredUserName,
@@ -476,43 +478,7 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
     },
-    additionalFields: {
-      termsAccepted: {
-        type: "boolean",
-        required: true,
-        defaultValue: true,
-      },
-      marketingOptIn: {
-        type: "boolean",
-        required: true,
-        defaultValue: true,
-      },
-      notificationsOptIn: {
-        type: "boolean",
-        required: false,
-        defaultValue: true,
-      },
-      logo: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      metadata: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      stripeCustomerId: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-      },
-      onboardingCompleted: {
-        type: "boolean",
-        required: true,
-        defaultValue: false,
-      },
-    },
+    additionalFields: betterAuthUserAdditionalFields,
   },
   plugins: [
     magicLink({
@@ -606,14 +572,7 @@ export const auth = betterAuth({
       },
       schema: {
         organization: {
-          additionalFields: {
-            stripeCustomerId: {
-              type: "string",
-              required: false,
-              defaultValue: null,
-              input: false,
-            },
-          },
+          additionalFields: betterAuthOrganizationAdditionalFields,
         },
       },
       async sendInvitationEmail(data, request) {

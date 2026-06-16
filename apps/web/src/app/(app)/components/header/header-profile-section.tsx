@@ -1,8 +1,7 @@
 import type { MemberWithOrganization } from "@sokosumi/database";
+import type { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
-import type { Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   GetUsersByIdCreditsResponse,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { User } from "better-auth";
+import type { SessionUser } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,7 @@ import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 interface InvitationActionsProps {
   invitation: Pick<PendingInvitationDetail, "id" | "email">;
   organizationSlug: string;
-  user: User | undefined;
+  user: SessionUser | undefined;
 }
 
 export default function InvitationActions({
