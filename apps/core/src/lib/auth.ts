@@ -54,14 +54,15 @@ import {
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
 import {
+  handleStripeAuthWebhookOnEvent,
+  resolveStripeAuthWebhookSecret,
+} from "@/lib/stripe-auth-webhook-on-event";
+import {
   ensureCanAcceptOrganizationInvitation,
   syncLocalFreeSeatsAndCreditsForCurrentMembers,
 } from "@/services/organization-subscription-auth.service";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
-import {
-  handleSubscriptionDeletedEvent,
-  reconcileActiveStripeBackedSubscription,
-} from "@/services/stripe-backed-subscription.service";
+import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
 import {
   handleUserUpdateStripeEmailSync,
   prepareStripeEmailSyncForUserUpdate,
@@ -685,12 +686,16 @@ export const auth = betterAuth({
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
     }),
-    // Subscription/checkout webhooks use a separate Stripe Dashboard endpoint
-    // (POST /auth/stripe/webhook, STRIPE_BA_WEBHOOK_SECRET) — same split as web
-    // today vs Core billing (POST /webhooks/stripe). Consolidate after cutover.
+    // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). When
+    // USE_UNIFIED_STRIPE_WEBHOOK is true, point the Stripe Dashboard here only
+    // and use STRIPE_WEBHOOK_SECRET; billing events are handled from onEvent.
     stripe({
       stripeClient: stripeInstance,
-      stripeWebhookSecret: env.STRIPE_BA_WEBHOOK_SECRET,
+      stripeWebhookSecret: resolveStripeAuthWebhookSecret({
+        useUnifiedStripeWebhook: env.USE_UNIFIED_STRIPE_WEBHOOK,
+        stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+        stripeBetterAuthWebhookSecret: env.STRIPE_BA_WEBHOOK_SECRET,
+      }),
       createCustomerOnSignUp: false,
       subscription: {
         enabled: true,
@@ -742,35 +747,9 @@ export const auth = betterAuth({
         enabled: true,
       },
       onEvent: async (event) => {
-        switch (event.type) {
-          case "customer.subscription.deleted": {
-            const subscription = event.data.object as Stripe.Subscription;
-            try {
-              await handleSubscriptionDeletedEvent(subscription);
-            } catch (error) {
-              Sentry.captureException(error, {
-                tags: {
-                  stripeEventType: "customer.subscription.deleted",
-                  stripeSubscriptionId: subscription.id,
-                },
-                extra: {
-                  customer:
-                    typeof subscription.customer === "string"
-                      ? subscription.customer
-                      : subscription.customer.id,
-                  eventId: event.id,
-                  subscription: subscription.id,
-                },
-              });
-              throw error;
-            }
-            break;
-          }
-          default: {
-            console.info(`Unhandled Stripe event type: ${event.type}`);
-            break;
-          }
-        }
+        await handleStripeAuthWebhookOnEvent(event, {
+          useUnifiedStripeWebhook: env.USE_UNIFIED_STRIPE_WEBHOOK,
+        });
       },
     }),
   ],

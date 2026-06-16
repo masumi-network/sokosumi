@@ -114,6 +114,7 @@ function getDefaultEnv() {
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_test_123",
     STRIPE_BA_WEBHOOK_SECRET: "whsec_ba_test_123",
+    USE_UNIFIED_STRIPE_WEBHOOK: false,
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
   };
@@ -563,6 +564,21 @@ describe("core auth config", () => {
         },
       },
     });
+  });
+
+  it("uses STRIPE_WEBHOOK_SECRET for the auth stripe webhook when unified mode is enabled", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      USE_UNIFIED_STRIPE_WEBHOOK: true,
+    });
+
+    await import("./auth");
+
+    expect(stripePluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stripeWebhookSecret: "whsec_test_123",
+      }),
+    );
   });
 
   it("handles customer.subscription.deleted via the Stripe webhook handlers", async () => {
