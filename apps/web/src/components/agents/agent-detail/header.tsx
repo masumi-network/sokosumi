@@ -10,7 +10,6 @@ import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
-import { AgentDemoButton } from "@/components/agents/agent-demo-button";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import AgentIcon from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
@@ -18,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import useIsClient from "@/hooks/use-is-client";
 import {
   getAgentCategoryStyles,
-  getAgentDemoData,
   getAgentName,
   getAgentResolvedIcon,
   getFullAgentAuthorName,
@@ -46,7 +44,6 @@ function AgentDetailHeader({
   const tJobsHeader = useTranslations("App.Agents.Jobs.Header");
   const { resolvedTheme } = useTheme();
   const isClient = useIsClient();
-  const agentDemoData = getAgentDemoData(agent);
   const categoryStyles = getAgentCategoryStyles(agent);
   const currentTheme = isClient && resolvedTheme === "dark" ? "dark" : "light";
   const gradientBorder = useMemo(
@@ -140,7 +137,6 @@ function AgentDetailHeader({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {agentDemoData && <AgentDemoButton agentId={agent.id} />}
               <AgentHireButton agentId={agent.id} />
             </div>
           </div>

@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Keine Agents verfügbar",
       "agentsNotFound": "Keine Agents gefunden",
       "hire": "Agent beauftragen",
-      "freeDemo": "Kostenlose Demo",
       "AgentCard": {
         "view": "Details anzeigen",
         "pricing": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
@@ -3250,7 +3249,6 @@
         },
         "CreateJob": {
           "title": "Neuer {name}",
-          "demo": "Demo",
           "cancel": "Abbrechen",
           "Information": {
             "title": "Informationen"
@@ -3542,8 +3540,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Job-Input-Schema konnte nicht abgerufen werden",
-        "demoDataInvalid": "Demo-Daten des Agents sind ungültig."
+        "failedToFetchJobInputSchema": "Job-Input-Schema konnte nicht abgerufen werden"
       }
     },
     "Duration": {

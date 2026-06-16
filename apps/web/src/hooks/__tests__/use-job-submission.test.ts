@@ -2,7 +2,6 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const startDemoJobMock = vi.fn();
 const startJobMock = vi.fn();
 const uploadInputDataFilesMock = vi.fn();
 const toastErrorMock = vi.fn();
@@ -51,7 +50,6 @@ vi.mock("@/lib/actions", () => ({
   JobErrorCode: {
     INSUFFICIENT_BALANCE: "INSUFFICIENT_BALANCE",
   },
-  startDemoJob: (...args: unknown[]) => startDemoJobMock(...args),
   startJob: (...args: unknown[]) => startJobMock(...args),
 }));
 
@@ -71,12 +69,6 @@ import { useJobSubmission } from "@/hooks/use-job-submission";
 describe("useJobSubmission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    startDemoJobMock.mockResolvedValue({
-      ok: true,
-      data: {
-        jobId: "job_demo",
-      },
-    });
     startJobMock.mockResolvedValue({
       ok: true,
       data: {
@@ -102,7 +94,6 @@ describe("useJobSubmission", () => {
           credits: 5,
         } as never,
         inputSchema: [] as never,
-        demoValues: null,
         setLoading: setLoadingMock,
         onSuccess: onSuccessMock,
       }),
@@ -148,7 +139,6 @@ describe("useJobSubmission", () => {
           credits: 5,
         } as never,
         inputSchema: [] as never,
-        demoValues: null,
         setLoading: setLoadingMock,
         onSuccess: onSuccessMock,
       }),

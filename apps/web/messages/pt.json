@@ -80,7 +80,6 @@
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
-      "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
@@ -3281,7 +3280,6 @@
         },
         "CreateJob": {
           "title": "Novo {name}",
-          "demo": "Demo",
           "cancel": "Cancelar",
           "Information": {
             "title": "Informação"
@@ -3542,8 +3540,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Falha ao obter o schema de input do job",
-        "demoDataInvalid": "Os dados de demonstração do agente são inválidos."
+        "failedToFetchJobInputSchema": "Falha ao obter o schema de input do job"
       }
     },
     "Duration": {

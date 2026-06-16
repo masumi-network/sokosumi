@@ -7,19 +7,13 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import {
-  CommonErrorCode,
-  JobErrorCode,
-  startDemoJob,
-  startJob,
-} from "@/lib/actions";
+import { CommonErrorCode, JobErrorCode, startJob } from "@/lib/actions";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentCredits, getAgentName } from "@/lib/helpers/agent";
 import {
   type JobInputsFormSchemaType,
   prepareInputValues,
 } from "@/lib/job-input";
-import type { AgentDemoValues } from "@/lib/types/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import {
   getUserFileUploadErrorMessage,
@@ -29,7 +23,6 @@ import {
 export interface UseJobSubmissionOptions {
   agent: CoreAgentDto;
   inputSchema: InputSchemaSchemaType;
-  demoValues: AgentDemoValues | null;
   projectId?: string | null;
   setLoading: (loading: boolean) => void;
   onSuccess: () => void;
@@ -42,7 +35,6 @@ export interface UseJobSubmissionReturn {
 export function useJobSubmission({
   agent,
   inputSchema,
-  demoValues,
   projectId,
   setLoading,
   onSuccess,
@@ -76,31 +68,19 @@ export function useJobSubmission({
           }
         };
 
-        if (demoValues) {
-          result = await startDemoJob({
-            input: {
-              agentId: agentId,
-              inputSchema,
-              inputData: prepareInputValues(demoValues.input),
-              ...(typeof projectId !== "undefined" ? { projectId } : {}),
-            },
-            jobStatusResponse: demoValues.output,
-          });
-        } else {
-          const transformedInputData = prepareInputValues(allValues);
-          const didUploadFiles = await uploadFiles(transformedInputData);
-          if (!didUploadFiles) return;
+        const transformedInputData = prepareInputValues(allValues);
+        const didUploadFiles = await uploadFiles(transformedInputData);
+        if (!didUploadFiles) return;
 
-          result = await startJob({
-            input: {
-              agentId: agentId,
-              maxAcceptedCents,
-              inputSchema,
-              inputData: transformedInputData,
-              ...(typeof projectId !== "undefined" ? { projectId } : {}),
-            },
-          });
-        }
+        result = await startJob({
+          input: {
+            agentId: agentId,
+            maxAcceptedCents,
+            inputSchema,
+            inputData: transformedInputData,
+            ...(typeof projectId !== "undefined" ? { projectId } : {}),
+          },
+        });
 
         setLoading(false);
         if (result.ok) {
@@ -145,7 +125,6 @@ export function useJobSubmission({
     },
     [
       setLoading,
-      demoValues,
       projectId,
       agent,
       agentId,
