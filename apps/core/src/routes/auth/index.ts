@@ -1,9 +1,9 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
 import {
   oauthProviderAuthServerMetadata,
   oauthProviderOpenIdConfigMetadata,
 } from "@better-auth/oauth-provider";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
 
 import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
