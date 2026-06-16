@@ -46,4 +46,15 @@ describe("JobStatusBadge", () => {
       container.querySelector("span[aria-label='completed']"),
     ).toBeInTheDocument();
   });
+
+  it("applies status text color to warning icon", () => {
+    const { container } = render(
+      <JobStatusBadge status={SokosumiJobStatus.INPUT_REQUIRED} />,
+    );
+
+    expect(container.querySelector("svg")).toHaveClass(
+      "size-3",
+      "text-destructive",
+    );
+  });
 });

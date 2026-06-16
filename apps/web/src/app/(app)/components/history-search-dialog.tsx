@@ -22,6 +22,7 @@ import { coreClient } from "@/lib/clients/core.browser.client";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const HISTORY_SEARCH_PAGE_SIZE = 50;
+const SEARCH_STATUS_BADGE_CLASSNAME = "ml-auto shrink-0";
 
 interface HistorySearchDialogLabels {
   dialogTitle: string;
@@ -211,14 +212,19 @@ function HistoryItemStatus({
 }) {
   if (item.kind === "task") {
     const status = item.status as TaskStatus;
-    return <TaskStatusBadge status={status} className="ml-auto" />;
+    return (
+      <TaskStatusBadge
+        status={status}
+        className={SEARCH_STATUS_BADGE_CLASSNAME}
+      />
+    );
   }
 
   if (item.kind === "job") {
     return (
       <JobStatusBadge
         status={item.status as SokosumiJobStatus}
-        className="ml-auto"
+        className={SEARCH_STATUS_BADGE_CLASSNAME}
       />
     );
   }
@@ -227,7 +233,7 @@ function HistoryItemStatus({
     <ConversationStatusBadge
       status={item.status}
       label={labels.conversationStatus[item.status]}
-      className="ml-auto"
+      className={SEARCH_STATUS_BADGE_CLASSNAME}
     />
   );
 }

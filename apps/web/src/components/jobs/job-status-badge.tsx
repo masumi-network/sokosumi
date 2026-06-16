@@ -53,7 +53,12 @@ export function JobStatusBadge({
         className,
       )}
     >
-      {showIcon ? <CircleAlert className="size-3" aria-hidden /> : null}
+      {showIcon ? (
+        <CircleAlert
+          className={cn("size-3 shrink-0", styles.text)}
+          aria-hidden
+        />
+      ) : null}
       <span>{label}</span>
     </span>
   );
