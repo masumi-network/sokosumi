@@ -143,7 +143,7 @@ describe("loadMoreTasksColumn", () => {
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
-      scope: "workspace",
+      scope: "owned",
     });
   });
 

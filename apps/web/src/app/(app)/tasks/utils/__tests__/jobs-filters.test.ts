@@ -96,7 +96,7 @@ describe("jobs-filters", () => {
         projectOptions,
       ),
     ).toEqual({
-      scope: "workspace",
+      scope: "owned",
       agentId: null,
       jobStatus: null,
       projectId: PROJECT_ID,
@@ -107,7 +107,7 @@ describe("jobs-filters", () => {
         { id: "44444444-4444-4444-8444-444444444444", name: "Other" },
       ]),
     ).toEqual({
-      scope: "workspace",
+      scope: "owned",
       agentId: null,
       jobStatus: null,
       projectId: null,
@@ -132,7 +132,7 @@ describe("jobs-filters", () => {
     );
 
     expect(nextSearchParams.toString()).toBe(
-      "create=true&coworker=elena&scope=owned&agentId=agent-1&jobStatus=RUNNING&projectId=33333333-3333-4333-8333-333333333333",
+      "create=true&coworker=elena&agentId=agent-1&jobStatus=RUNNING&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -154,7 +154,7 @@ describe("jobs-filters", () => {
       "org-1",
     );
 
-    expect(nextSearchParams.toString()).toBe("");
+    expect(nextSearchParams.toString()).toBe("scope=workspace");
   });
 
   it("sanitizes agent ids and job statuses", () => {

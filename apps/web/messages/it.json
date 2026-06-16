@@ -2356,6 +2356,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Cerca",
           "exploreAgents": "Agenti",
           "filesAndOutputs": "File e output",
           "taskManager": "Attività",
@@ -2365,6 +2366,14 @@
           "admin": "Amministrazione"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Cerca",
+      "description": "Cerca attività, lavori o conversazioni",
+      "searchPlaceholder": "Cerca...",
+      "empty": "Nessun risultato trovato",
+      "loading": "Caricamento...",
+      "error": "Impossibile caricare i risultati"
     },
     "NoticeDialog": {
       "defaultTitle": "Avviso",
