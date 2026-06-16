@@ -105,7 +105,7 @@ function assertDonePayload(payload: DesignMdJobPayload): DesignMdDonePayload {
 }
 
 function getJobTokenSecret(): string {
-  return getEnvSecrets().BETTER_AUTH_SECRET;
+  return getEnvSecrets().APP_SIGNING_SECRET;
 }
 
 function assertValidJobToken(
