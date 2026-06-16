@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { getAgentCategoryStyles } from "@/lib/helpers/agent";
-import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import { createMockCoreAgent } from "./fixtures/core-agent";
+
+const DEFAULT_CATEGORY_STYLES = {
+  light: { color: "text-default-foreground" },
+  dark: { color: "text-default-foreground" },
+};
 
 describe("getAgentCategoryStyles", () => {
   it("returns styles from the highest-priority category", () => {
@@ -28,12 +32,12 @@ describe("getAgentCategoryStyles", () => {
     expect(getAgentCategoryStyles(agent)).toEqual(styles);
   });
 
-  it("returns undefined when agent has no categories", () => {
+  it("returns default styles when agent has no categories", () => {
     const agent = createMockCoreAgent({ categories: [] });
-    expect(getAgentCategoryStyles(agent)).toBeUndefined();
+    expect(getAgentCategoryStyles(agent)).toEqual(DEFAULT_CATEGORY_STYLES);
   });
 
-  it("returns undefined when first category has no styles", () => {
+  it("returns default styles when category has no styles field", () => {
     const agent = createMockCoreAgent({
       categories: [
         {
@@ -46,8 +50,8 @@ describe("getAgentCategoryStyles", () => {
           priority: 1,
         },
       ],
-    } as Partial<CoreAgentDto>);
+    });
 
-    expect(getAgentCategoryStyles(agent)).toBeUndefined();
+    expect(getAgentCategoryStyles(agent)).toEqual(DEFAULT_CATEGORY_STYLES);
   });
 });
