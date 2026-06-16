@@ -116,8 +116,10 @@ export function HistorySearchDialog({
 
   function handleSelect(item: HistoryItem) {
     const href = getHistoryItemHref(item);
+    // Use the same close path as the dialog itself so we reset state
+    // and ignore any in-flight history requests.
+    handleOpenChange(false);
     router.push(href);
-    onOpenChange(false);
   }
 
   return (

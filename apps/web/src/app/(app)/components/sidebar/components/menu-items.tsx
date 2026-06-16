@@ -251,39 +251,79 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                         </SheetClose>
                       </SidebarMenuButton>
                     ) : (
-                      <SidebarMenuButton
-                        type="button"
-                        onClick={onClick}
-                        aria-keyshortcuts={ariaKeyshortcuts}
-                        tooltip={
-                          shortcutLabel
-                            ? {
-                                children: (
-                                  <span className="flex items-center gap-2">
-                                    <span>{label}</span>
-                                    <span className="text-muted-foreground text-xs tracking-widest">
-                                      {shortcutLabel}
-                                    </span>
-                                  </span>
-                                ),
+                      <>
+                        {key === "search" ? (
+                          <SheetClose asChild>
+                            <SidebarMenuButton
+                              type="button"
+                              onClick={onClick}
+                              aria-keyshortcuts={ariaKeyshortcuts}
+                              tooltip={
+                                shortcutLabel
+                                  ? {
+                                      children: (
+                                        <span className="flex items-center gap-2">
+                                          <span>{label}</span>
+                                          <span className="text-muted-foreground text-xs tracking-widest">
+                                            {shortcutLabel}
+                                          </span>
+                                        </span>
+                                      ),
+                                    }
+                                  : undefined
                               }
-                            : undefined
-                        }
-                        className={cn(
-                          "flex min-h-auto w-full items-center gap-2 px-3",
-                          "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
-                        )}
-                      >
-                        {content}
-                        {shortcutLabel ? (
-                          <span
-                            aria-hidden
-                            className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
+                              className={cn(
+                                "flex min-h-auto w-full items-center gap-2 px-3",
+                                "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                              )}
+                            >
+                              {content}
+                              {shortcutLabel ? (
+                                <span
+                                  aria-hidden
+                                  className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
+                                >
+                                  {shortcutLabel}
+                                </span>
+                              ) : null}
+                            </SidebarMenuButton>
+                          </SheetClose>
+                        ) : (
+                          <SidebarMenuButton
+                            type="button"
+                            onClick={onClick}
+                            aria-keyshortcuts={ariaKeyshortcuts}
+                            tooltip={
+                              shortcutLabel
+                                ? {
+                                    children: (
+                                      <span className="flex items-center gap-2">
+                                        <span>{label}</span>
+                                        <span className="text-muted-foreground text-xs tracking-widest">
+                                          {shortcutLabel}
+                                        </span>
+                                      </span>
+                                    ),
+                                  }
+                                : undefined
+                            }
+                            className={cn(
+                              "flex min-h-auto w-full items-center gap-2 px-3",
+                              "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                            )}
                           >
-                            {shortcutLabel}
-                          </span>
-                        ) : null}
-                      </SidebarMenuButton>
+                            {content}
+                            {shortcutLabel ? (
+                              <span
+                                aria-hidden
+                                className="text-muted-foreground ml-auto hidden shrink-0 text-xs tracking-widest opacity-0 transition-opacity group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 group-data-[collapsible=icon]:hidden md:inline"
+                              >
+                                {shortcutLabel}
+                              </span>
+                            ) : null}
+                          </SidebarMenuButton>
+                        )}
+                      </>
                     )}
                   </SidebarMenuItem>
                 );
