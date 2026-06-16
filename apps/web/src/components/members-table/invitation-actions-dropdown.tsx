@@ -1,4 +1,4 @@
-import { type Invitation, type Member, MemberRole } from "@sokosumi/database";
+import { type Invitation, type Member, MemberRole } from "@sokosumi/utils";
 import { Ellipsis, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

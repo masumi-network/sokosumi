@@ -1,8 +1,11 @@
 "use client";
 
-import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
 import type { SessionUser } from "@sokosumi/utils";
-import { getStoredUserName } from "@sokosumi/utils";
+import {
+  getStoredUserName,
+  MemberRole,
+  type MemberWithOrganization,
+} from "@sokosumi/utils";
 import {
   BookOpen,
   Bot,

@@ -1,4 +1,4 @@
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/utils";
 
 import { getDateGroupKey } from "@/lib/utils";
 

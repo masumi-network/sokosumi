@@ -1,6 +1,6 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/utils";
 import { Loader2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

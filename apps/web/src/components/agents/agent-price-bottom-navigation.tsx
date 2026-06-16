@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";

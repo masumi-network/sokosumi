@@ -1,6 +1,6 @@
 "use client";
 
-import type { Member } from "@sokosumi/database";
+import type { Member } from "@sokosumi/utils";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/utils";
 import { ArrowLeftRight, List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";

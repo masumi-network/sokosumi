@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { TaskStatus } from "@sokosumi/utils";
 
 import type { TasksScope } from "@/app/tasks/utils/tasks-filters";

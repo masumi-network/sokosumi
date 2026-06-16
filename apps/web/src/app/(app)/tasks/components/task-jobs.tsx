@@ -1,4 +1,4 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import Link from "next/link";
 

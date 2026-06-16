@@ -1,8 +1,9 @@
-import { BlobStatus, TaskEventOrigin } from "@sokosumi/database";
 import {
+  BlobStatus,
   extractFileLikeLinks,
   extractHttpLinks,
   SokosumiJobStatus,
+  TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";

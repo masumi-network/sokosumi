@@ -5,7 +5,7 @@ import {
   InvitationStatus,
   type Member,
   MemberRole,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";

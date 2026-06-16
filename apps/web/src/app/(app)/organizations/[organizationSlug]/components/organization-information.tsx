@@ -1,5 +1,9 @@
-import { type Member, MemberRole, type Organization } from "@sokosumi/database";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import {
+  getOrganizationMetadata,
+  type Member,
+  MemberRole,
+  type Organization,
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { CopyableValue } from "@/components/copyable-value";

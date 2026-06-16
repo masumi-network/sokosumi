@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  AgentRatingStats,
-  AgentWithCreditsPrice,
-} from "@sokosumi/database";
+import type { AgentRatingStats, AgentWithCreditsPrice } from "@sokosumi/utils";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";

@@ -1,5 +1,5 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { AgentStatus } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
+import { AgentStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {

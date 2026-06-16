@@ -1,7 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import type { PaidJobWithStatus } from "@sokosumi/database";
+import type { PaidJobWithStatus } from "@sokosumi/utils";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 

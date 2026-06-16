@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {

@@ -1,7 +1,9 @@
 "use client";
 
-import { type MemberWithOrganization } from "@sokosumi/database";
-import { isTaskArchivableStatus } from "@sokosumi/utils";
+import {
+  isTaskArchivableStatus,
+  type MemberWithOrganization,
+} from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AgentJobStatus } from "@sokosumi/database";
+import type { AgentJobStatus } from "@sokosumi/utils";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { coreClient } from "@/lib/clients/core.client";

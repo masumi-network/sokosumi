@@ -1,12 +1,12 @@
 "use client";
 
-import type { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi/hash";
 import {
   type InputFieldSchemaType,
   normalizeAndValidateInputSchema,
 } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
+import type { JobType } from "@sokosumi/utils";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";

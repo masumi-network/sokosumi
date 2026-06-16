@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { ArrowLeft } from "lucide-react";
 
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";

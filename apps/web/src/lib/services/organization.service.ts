@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Invitation, MemberRole } from "@sokosumi/database";
+import type { Invitation, MemberRole } from "@sokosumi/utils";
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 

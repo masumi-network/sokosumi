@@ -1,4 +1,4 @@
-import type { AgentJobStatus } from "@sokosumi/database";
+import type { AgentJobStatus } from "@sokosumi/utils";
 import { Clock } from "lucide-react";
 import { useFormatter } from "next-intl";
 

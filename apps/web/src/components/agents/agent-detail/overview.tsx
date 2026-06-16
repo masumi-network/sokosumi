@@ -1,4 +1,4 @@
-import type { AgentWithRelations } from "@sokosumi/database";
+import type { AgentWithRelations } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/utils";
 import { Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";

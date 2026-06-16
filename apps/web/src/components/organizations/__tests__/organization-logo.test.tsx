@@ -1,4 +1,4 @@
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";

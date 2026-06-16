@@ -2,7 +2,7 @@ import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
   UserAgentRatingWithUser,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 
 import { getAgentExampleOutput, getAgentLegal } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";

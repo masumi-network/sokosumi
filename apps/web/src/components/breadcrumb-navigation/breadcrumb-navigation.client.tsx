@@ -3,7 +3,7 @@
 import type {
   AgentWithRelations,
   OrganizationWithLimitedInfo,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";

@@ -1,4 +1,4 @@
-import type { AgentWithCategories } from "@sokosumi/database";
+import type { AgentWithCategories } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import { getAgentLegal } from "@/lib/helpers/agent";

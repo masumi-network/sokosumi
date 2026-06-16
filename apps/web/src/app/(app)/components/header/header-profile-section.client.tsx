@@ -1,7 +1,6 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
-import type { SessionUser } from "@sokosumi/utils";
+import type { MemberWithOrganization, SessionUser } from "@sokosumi/utils";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { cn } from "@/lib/utils";
 

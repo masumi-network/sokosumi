@@ -1,6 +1,6 @@
 "use client";
 
-import type { Notice } from "@sokosumi/database";
+import type { Notice } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 

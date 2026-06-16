@@ -1,5 +1,5 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { AgentStatus } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
+import { AgentStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { GalleryFilterState } from "@/hooks/use-gallery-filter";
@@ -95,6 +95,7 @@ function createMockAgent(
     exampleOutput: [],
     overrideExampleOutput: [],
     userAgentRating: [],
+    jobs: [],
     creditsPrice: {
       cents: BigInt(0),
     },

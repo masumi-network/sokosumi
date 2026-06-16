@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { Suspense, use } from "react";
 
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";

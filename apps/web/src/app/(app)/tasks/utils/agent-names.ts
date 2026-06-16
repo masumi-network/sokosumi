@@ -1,4 +1,4 @@
-import type { Agent, AgentWithCreditsPrice } from "@sokosumi/database";
+import type { Agent, AgentWithCreditsPrice } from "@sokosumi/utils";
 
 import { getAgentName } from "@/lib/helpers/agent";
 

@@ -1,7 +1,7 @@
 import type {
   AgentWithRelations,
   OrganizationWithLimitedInfo,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 

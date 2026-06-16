@@ -1,4 +1,4 @@
-import type { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/utils";
 import { getOrganizationMetadata, resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Building2 } from "lucide-react";
 import Image from "next/image";

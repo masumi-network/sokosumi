@@ -1,6 +1,6 @@
 "use client";
 
-import { type Notice, NoticeKind } from "@sokosumi/database";
+import { type Notice, NoticeKind } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";

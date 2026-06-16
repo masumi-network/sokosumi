@@ -3,7 +3,7 @@
 import type {
   AgentWithCreditsPrice,
   AgentWithRelations,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 

@@ -1,4 +1,4 @@
-import { type Member, MemberRole } from "@sokosumi/database";
+import { type Member, MemberRole } from "@sokosumi/utils";
 import { Ellipsis } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

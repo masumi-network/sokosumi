@@ -1,12 +1,12 @@
 "use client";
 
-import { JobType, OnChainJobStatus } from "@sokosumi/database";
 import {
   type InputVerificationOptions,
   isInputHashVerified,
   isResultHashVerified,
   type ResultVerificationOptions,
 } from "@sokosumi/masumi/hash";
+import { JobType, OnChainJobStatus } from "@sokosumi/utils";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";

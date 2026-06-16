@@ -1,4 +1,4 @@
-import type { ExampleOutput } from "@sokosumi/database";
+import type { ExampleOutput } from "@sokosumi/utils";
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

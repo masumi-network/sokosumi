@@ -1,6 +1,6 @@
 "use client";
 
-import { type Notice, NoticeKind } from "@sokosumi/database";
+import { type Notice, NoticeKind } from "@sokosumi/utils";
 import { createContext, useContext, useMemo, useState } from "react";
 
 import { getPendingNoticesAction } from "@/lib/actions/notice";

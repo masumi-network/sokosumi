@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
+import type { JobWithSokosumiStatus } from "@sokosumi/utils";
 
 import { getJobStatusData } from "@/lib/helpers/job";
 

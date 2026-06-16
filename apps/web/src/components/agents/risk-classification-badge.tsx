@@ -1,4 +1,4 @@
-import type { RiskClassification } from "@sokosumi/database";
+import type { RiskClassification } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";

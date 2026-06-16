@@ -1,4 +1,4 @@
-import { NoticeKind } from "@sokosumi/database";
+import { NoticeKind } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";

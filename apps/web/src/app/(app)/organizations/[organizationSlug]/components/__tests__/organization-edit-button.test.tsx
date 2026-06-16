@@ -1,4 +1,4 @@
-import { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/utils";
 import {
   act,
   fireEvent,

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/utils";
 import {
   buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,

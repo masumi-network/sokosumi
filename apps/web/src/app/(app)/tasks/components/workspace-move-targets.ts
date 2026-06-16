@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/utils";
 
 export interface WorkspaceMoveTargetBase {
   id: string;

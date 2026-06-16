@@ -1,4 +1,4 @@
-import type { Invitation } from "@sokosumi/database";
+import type { Invitation } from "@sokosumi/utils";
 
 import type { Member as OrganizationMember } from "@/lib/clients/generated/core";
 

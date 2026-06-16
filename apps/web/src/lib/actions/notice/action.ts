@@ -1,6 +1,6 @@
 "use server";
 
-import type { Notice, NoticeKind } from "@sokosumi/database";
+import type { Notice, NoticeKind } from "@sokosumi/utils";
 
 import type { ActionError } from "@/lib/actions/errors";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";

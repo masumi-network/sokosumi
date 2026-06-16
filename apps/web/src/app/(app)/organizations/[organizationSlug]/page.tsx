@@ -1,4 +1,4 @@
-import { type Invitation, MemberRole } from "@sokosumi/database";
+import { type Invitation, MemberRole } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";

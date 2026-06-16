@@ -1,4 +1,4 @@
-import type { AgentRatingStats } from "@sokosumi/database";
+import type { AgentRatingStats } from "@sokosumi/utils";
 import { CircleCheck, Clock, Star } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 

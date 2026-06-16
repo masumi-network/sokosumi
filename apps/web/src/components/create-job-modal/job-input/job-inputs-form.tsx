@@ -1,7 +1,7 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 

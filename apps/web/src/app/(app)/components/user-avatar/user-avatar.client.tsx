@@ -1,7 +1,7 @@
 "use client";
 
-import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
 import type { SessionUser } from "@sokosumi/utils";
+import { MemberRole, type MemberWithOrganization } from "@sokosumi/utils";
 import {
   BookOpen,
   Bot,

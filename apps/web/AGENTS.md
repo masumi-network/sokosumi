@@ -168,10 +168,9 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 ### Database Access
 
-- Use repository pattern from `@sokosumi/database/repositories`
-- Create Prisma client instance at `@/lib/db/prisma`
-- Never access Prisma directly from components
-- Use server actions for mutations
+- **Web does not access Postgres or Prisma.** All reads and writes go through the Core API (`coreClient` in `src/lib/clients/core.client.ts`).
+- Domain types and enums used by web live in `@sokosumi/utils` (`packages/utils/src/domain/`).
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer.
 
 ### Core API reads & caching (performance)
 
@@ -232,9 +231,8 @@ Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_
 ## Development Workflow
 
 1. **Start Development**: `pnpm web:dev`
-2. **Database Changes**: Run migrations with `pnpm prisma:migrate:dev`
-3. **Testing**: Run `pnpm web:test` before committing
-4. **Formatting**: Run `pnpm format` after changes
+2. **Testing**: Run `pnpm web:test` before committing
+3. **Formatting**: Run `pnpm format` after changes
 
 ## Common Patterns
 
@@ -332,8 +330,8 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` / `@sokosumi/database` directly; no passthrough files
-- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; never `@sokosumi/database/helpers`
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` directly; no passthrough files
+- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)
 - [Interface](.cursor/rules/interface.mdc)

@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentRatingStats } from "@sokosumi/database";
+import type { AgentRatingStats } from "@sokosumi/utils";
 import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

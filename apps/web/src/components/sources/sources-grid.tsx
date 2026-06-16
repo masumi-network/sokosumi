@@ -1,4 +1,4 @@
-import { BlobStatus } from "@sokosumi/database";
+import { BlobStatus } from "@sokosumi/utils";
 import { FileIcon } from "lucide-react";
 
 import { Favicon } from "@/components/ui/favicon";

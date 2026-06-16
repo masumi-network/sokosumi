@@ -1,5 +1,4 @@
-import type { MemberWithOrganization } from "@sokosumi/database";
-import type { Session } from "@sokosumi/utils";
+import type { MemberWithOrganization, Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { coreClient } from "@/lib/clients/core.client";

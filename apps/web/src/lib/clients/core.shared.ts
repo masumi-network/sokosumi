@@ -1,4 +1,4 @@
-import type { Notice, NoticeKind } from "@sokosumi/database";
+import type { Notice, NoticeKind } from "@sokosumi/utils";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";

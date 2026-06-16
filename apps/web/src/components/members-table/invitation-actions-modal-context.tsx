@@ -1,6 +1,6 @@
 "use client";
 
-import type { Invitation } from "@sokosumi/database";
+import type { Invitation } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import { BlobStatus } from "@sokosumi/database";
+import { BlobStatus } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";

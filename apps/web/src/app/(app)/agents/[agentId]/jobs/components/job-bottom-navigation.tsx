@@ -1,6 +1,6 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 
 import { AgentPriceBottomNavigation } from "@/components/agents/agent-price-bottom-navigation";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";

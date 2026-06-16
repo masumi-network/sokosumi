@@ -1,5 +1,8 @@
-import { type AgentWithCreditsPrice, JobType } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  type AgentWithCreditsPrice,
+  JobType,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";

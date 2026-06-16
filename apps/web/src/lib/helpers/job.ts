@@ -1,4 +1,4 @@
-import { JobType, type JobWithSokosumiStatus } from "@sokosumi/database";
+import { JobType, type JobWithSokosumiStatus } from "@sokosumi/utils";
 
 import type { JobStatusData } from "@/lib/ably";
 

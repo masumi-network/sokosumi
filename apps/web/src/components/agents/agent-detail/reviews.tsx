@@ -1,7 +1,7 @@
 import type {
   AgentRatingStats,
   UserAgentRatingWithUser,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";

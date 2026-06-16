@@ -3,7 +3,7 @@ import "server-only";
 import type {
   AgentWithCreditsPrice,
   AgentWithRelations,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 
 import {
   mapCoreAgentsToAgentWithCreditsPrice,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { UserAgentRatingWithUser } from "@sokosumi/database";
+import type { UserAgentRatingWithUser } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 

@@ -1,4 +1,4 @@
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createAuthClientMock = vi.fn();

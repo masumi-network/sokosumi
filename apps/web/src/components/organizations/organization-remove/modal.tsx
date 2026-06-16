@@ -1,6 +1,6 @@
 "use client";
 
-import type { Organization } from "@sokosumi/database";
+import type { Organization } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction, useState } from "react";
 

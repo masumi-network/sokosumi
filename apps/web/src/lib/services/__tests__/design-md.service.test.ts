@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/database";
 import type { Session } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

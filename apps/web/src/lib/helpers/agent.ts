@@ -1,3 +1,4 @@
+import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import {
   type Agent,
   type AgentWithCategories,
@@ -7,9 +8,8 @@ import {
   type AgentWithTags,
   type ExampleOutput,
   PricingType,
-} from "@sokosumi/database";
-import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+  resolveIpfsOrHttpUrl,
+} from "@sokosumi/utils";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { jobInputsFormSchema } from "@/lib/job-input/form";

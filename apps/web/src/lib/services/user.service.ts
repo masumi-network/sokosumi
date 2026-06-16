@@ -1,7 +1,6 @@
 import "server-only";
 
-import type { Member, MemberWithOrganization } from "@sokosumi/database";
-import type { Session } from "@sokosumi/utils";
+import type { Member, MemberWithOrganization, Session } from "@sokosumi/utils";
 import { cache } from "react";
 import { getSession } from "@/lib/auth/auth.server";
 import { updateCurrentUserViaCore } from "@/lib/auth/core-auth-http.server";

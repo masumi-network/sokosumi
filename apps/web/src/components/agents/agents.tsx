@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  AgentRatingStats,
-  AgentWithCreditsPrice,
-} from "@sokosumi/database";
+import type { AgentRatingStats, AgentWithCreditsPrice } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { CarouselItem } from "@/components/ui/carousel";

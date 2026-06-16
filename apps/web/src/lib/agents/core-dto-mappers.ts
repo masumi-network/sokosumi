@@ -3,7 +3,7 @@ import type {
   AgentWithCreditsPrice,
   JobWithSokosumiStatus,
   UserAgentRatingWithUser,
-} from "@sokosumi/database";
+} from "@sokosumi/utils";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import type {

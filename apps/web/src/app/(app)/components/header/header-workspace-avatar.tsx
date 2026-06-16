@@ -1,7 +1,6 @@
 "use client";
 
-import type { Organization } from "@sokosumi/database";
-import type { SessionUser } from "@sokosumi/utils";
+import type { Organization, SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { OrganizationLogo } from "@/components/organizations";

@@ -1,9 +1,6 @@
 "use client";
 
-import type {
-  AgentRatingStats,
-  AgentWithCreditsPrice,
-} from "@sokosumi/database";
+import type { AgentRatingStats, AgentWithCreditsPrice } from "@sokosumi/utils";
 import { Suspense, useMemo } from "react";
 
 import {

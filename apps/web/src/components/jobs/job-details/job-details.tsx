@@ -1,6 +1,6 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelProvider, useChannel } from "ably/react";
 

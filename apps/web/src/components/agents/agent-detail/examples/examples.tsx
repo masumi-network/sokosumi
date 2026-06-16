@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExampleOutput } from "@sokosumi/database";
+import type { ExampleOutput } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";

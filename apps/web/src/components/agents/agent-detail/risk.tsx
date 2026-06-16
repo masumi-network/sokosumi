@@ -1,4 +1,4 @@
-import type { AgentWithRelations } from "@sokosumi/database";
+import type { AgentWithRelations } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";

@@ -1,5 +1,5 @@
-import type { Member, Organization } from "@sokosumi/database";
-import { MemberRole } from "@sokosumi/database";
+import type { Member, Organization } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";

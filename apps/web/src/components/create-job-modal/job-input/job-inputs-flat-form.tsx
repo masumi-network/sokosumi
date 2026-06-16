@@ -1,10 +1,10 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import type {
   InputFieldSchemaType,
   InputSchemaSchemaType,
 } from "@sokosumi/masumi/schemas";
+import type { AgentWithCreditsPrice } from "@sokosumi/utils";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
