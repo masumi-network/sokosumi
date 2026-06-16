@@ -1,5 +1,4 @@
-import { JobType } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 
 interface StatusPillStyle {
   bg: string;

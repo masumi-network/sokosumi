@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Organization } from "@sokosumi/database";
 import {
   buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
@@ -20,7 +19,6 @@ import {
 } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
@@ -35,6 +33,7 @@ import {
 } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
@@ -57,7 +56,7 @@ import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
 interface OrganizationInformationFormProps {
-  organization: Organization | null;
+  organization: OrganizationRecord | null;
   organizationMetadata?: string | null;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onLogoUploadBusyChange?: (busy: boolean) => void;

@@ -1,10 +1,8 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import type { PaidJobWithStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
-
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import {
@@ -16,6 +14,7 @@ import {
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
+import type { Job } from "@/lib/clients/generated/core";
 import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
   JOB_NAME_MAX_LENGTH,
@@ -694,9 +693,9 @@ interface RequestRefundJobParameters extends AuthenticatedRequest {
 }
 
 interface RequestRefundJobResponse {
-  id: PaidJobWithStatus["id"];
-  jobType: PaidJobWithStatus["jobType"];
-  status: PaidJobWithStatus["status"];
+  id: Job["id"];
+  jobType: Job["jobType"];
+  status: Job["status"];
 }
 
 export const requestRefundJob = withSession<
@@ -716,7 +715,7 @@ export const requestRefundJob = withSession<
       job: {
         id: job.id,
         jobType: job.jobType,
-        status: job.status as PaidJobWithStatus["status"],
+        status: job.status as Job["status"],
       },
     });
   } catch (error) {

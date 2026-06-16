@@ -1,4 +1,4 @@
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {

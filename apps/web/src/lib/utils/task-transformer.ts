@@ -1,11 +1,10 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-
 import type { Coworker } from "@/lib/clients/generated/core";
 import type {
   Task,
   TaskEvent,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
@@ -26,7 +25,7 @@ function getCommentsCount(events: TaskEvent[]): number {
 
 function parseAgentMentions(
   description: string | null | undefined,
-  agentsById: Map<string, AgentWithCreditsPrice>,
+  agentsById: Map<string, CoreAgentDto>,
 ): string[] {
   if (!description) return [];
 
@@ -45,7 +44,7 @@ function parseAgentMentions(
 
 function replaceMentionsWithAgentNames(
   description: string | null | undefined,
-  agentsById: Map<string, AgentWithCreditsPrice>,
+  agentsById: Map<string, CoreAgentDto>,
 ): string | null {
   if (description === null || description === undefined) {
     return null;
@@ -83,7 +82,7 @@ function replaceMentionsWithAgentNames(
 export function mapTaskToTaskWithCoworker(
   task: TaskListItem | Task,
   coworkersById: Map<string, Coworker>,
-  agentsById: Map<string, AgentWithCreditsPrice>,
+  agentsById: Map<string, CoreAgentDto>,
 ): TaskWithCoworker {
   const coworker = task.coworkerId
     ? (coworkersById.get(task.coworkerId) ?? null)
@@ -91,7 +90,7 @@ export function mapTaskToTaskWithCoworker(
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
     .map((id) => agentsById.get(id))
-    .filter((agent): agent is AgentWithCreditsPrice => Boolean(agent));
+    .filter((agent): agent is CoreAgentDto => Boolean(agent));
   const descriptionPlain = stripMarkdownToText(
     replaceMentionsWithAgentNames(task.description, agentsById),
   )?.slice(0, 200);

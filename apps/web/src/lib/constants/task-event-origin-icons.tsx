@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/utils";
 import {
   CircleHelp,
   Mail,

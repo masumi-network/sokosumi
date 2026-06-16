@@ -41,7 +41,7 @@ describe("getJob", () => {
   it("returns the core job as-is with Date fields intact", async () => {
     // The core `Job` DTO carries no bigint (credits is a number); the bigint
     // `cents` field left the payload together with the Prisma-derived
-    // `JobWithSokosumiStatus` type. Dates are revived by the generated client
+    // `JobSummary` type. Dates are revived by the generated client
     // transformers and must survive the server-action boundary.
     const coreJob = {
       id: "job-1",

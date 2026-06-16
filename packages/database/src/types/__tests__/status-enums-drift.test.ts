@@ -1,17 +1,124 @@
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import {
+  AgentJobStatus,
+  AgentStatus,
+  BlobStatus,
+  InvitationStatus,
+  JobType,
+  MemberRole,
+  NextJobAction,
+  NextJobActionErrorType,
+  NoticeKind,
+  OnChainJobStatus,
+  OnChainTransactionStatus,
+  PricingType,
+  RiskClassification,
+  SokosumiJobStatus,
+  TaskEventOrigin,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { TaskStatus as PrismaTaskStatus } from "../../generated/prisma/enums.js";
+import {
+  AgentJobStatus as PrismaAgentJobStatus,
+  AgentStatus as PrismaAgentStatus,
+  BlobStatus as PrismaBlobStatus,
+  JobType as PrismaJobType,
+  NextJobAction as PrismaNextJobAction,
+  NextJobActionErrorType as PrismaNextJobActionErrorType,
+  NoticeKind as PrismaNoticeKind,
+  OnChainJobStatus as PrismaOnChainJobStatus,
+  OnChainTransactionStatus as PrismaOnChainTransactionStatus,
+  PricingType as PrismaPricingType,
+  RiskClassification as PrismaRiskClassification,
+  TaskEventOrigin as PrismaTaskEventOrigin,
+  TaskLinkType as PrismaTaskLinkType,
+  TaskStatus as PrismaTaskStatus,
+} from "../../generated/prisma/enums.js";
+import { InvitationStatus as DatabaseInvitationStatus } from "../invitation.js";
+import { MemberRole as DatabaseMemberRole } from "../organization.js";
 
 /**
  * `@sokosumi/utils` hosts the client-safe single source of truth for these
  * statuses so the web bundle does not depend on `@sokosumi/database`. The
- * Prisma `TaskStatus` enum can only be edited via the schema, so guard against
+ * Prisma-generated enums can only be edited via the schema, so guard against
  * silent drift between the two definitions here, where both are importable.
  */
 describe("status enum drift guard", () => {
   it("utils TaskStatus matches the Prisma-generated TaskStatus enum", () => {
     expect({ ...TaskStatus }).toEqual({ ...PrismaTaskStatus });
+  });
+
+  it("utils AgentJobStatus matches the Prisma-generated AgentJobStatus enum", () => {
+    expect({ ...AgentJobStatus }).toEqual({ ...PrismaAgentJobStatus });
+  });
+
+  it("utils AgentStatus matches the Prisma-generated AgentStatus enum", () => {
+    expect({ ...AgentStatus }).toEqual({ ...PrismaAgentStatus });
+  });
+
+  it("utils BlobStatus matches the Prisma-generated BlobStatus enum", () => {
+    expect({ ...BlobStatus }).toEqual({ ...PrismaBlobStatus });
+  });
+
+  it("utils JobType matches the Prisma-generated JobType enum", () => {
+    expect({ ...JobType }).toEqual({ ...PrismaJobType });
+  });
+
+  it("utils NoticeKind matches the Prisma-generated NoticeKind enum", () => {
+    expect({ ...NoticeKind }).toEqual({ ...PrismaNoticeKind });
+  });
+
+  it("utils OnChainJobStatus matches the Prisma-generated OnChainJobStatus enum", () => {
+    expect({ ...OnChainJobStatus }).toEqual({ ...PrismaOnChainJobStatus });
+  });
+
+  it("utils OnChainTransactionStatus matches the Prisma-generated OnChainTransactionStatus enum", () => {
+    expect({ ...OnChainTransactionStatus }).toEqual({
+      ...PrismaOnChainTransactionStatus,
+    });
+  });
+
+  it("utils PricingType matches the Prisma-generated PricingType enum", () => {
+    expect({ ...PricingType }).toEqual({ ...PrismaPricingType });
+  });
+
+  it("utils RiskClassification matches the Prisma-generated RiskClassification enum", () => {
+    expect({ ...RiskClassification }).toEqual({ ...PrismaRiskClassification });
+  });
+
+  it("utils TaskEventOrigin matches the Prisma-generated TaskEventOrigin enum", () => {
+    expect({ ...TaskEventOrigin }).toEqual({ ...PrismaTaskEventOrigin });
+  });
+
+  it("utils TaskLinkType matches the Prisma-generated TaskLinkType enum", () => {
+    expect({ ...TaskLinkType }).toEqual({ ...PrismaTaskLinkType });
+  });
+
+  it("utils NextJobAction matches the Prisma-generated NextJobAction enum", () => {
+    expect({ ...NextJobAction }).toEqual({ ...PrismaNextJobAction });
+  });
+
+  it("utils NextJobActionErrorType matches the Prisma-generated NextJobActionErrorType enum", () => {
+    expect({ ...NextJobActionErrorType }).toEqual({
+      ...PrismaNextJobActionErrorType,
+    });
+  });
+
+  it("utils MemberRole matches the database MemberRole enum", () => {
+    expect({ ...MemberRole }).toEqual({
+      OWNER: DatabaseMemberRole.OWNER,
+      ADMIN: DatabaseMemberRole.ADMIN,
+      MEMBER: DatabaseMemberRole.MEMBER,
+    });
+  });
+
+  it("utils InvitationStatus matches the database InvitationStatus map (excluding frontend-only EXPIRED)", () => {
+    const { EXPIRED: _expired, ...databaseStatuses } = DatabaseInvitationStatus;
+    const { EXPIRED: _utilsExpired, ...utilsStatuses } = InvitationStatus;
+
+    expect(utilsStatuses).toEqual(databaseStatuses);
+    expect(InvitationStatus.EXPIRED).toBe("expired");
   });
 
   it("SokosumiJobStatus keeps its canonical lowercase string values", () => {

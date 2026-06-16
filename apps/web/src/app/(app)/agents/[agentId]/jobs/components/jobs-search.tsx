@@ -1,32 +1,35 @@
 "use client";
 
-import type { JobWithSokosumiStatus } from "@sokosumi/database";
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
-
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
+import type { JobSummary } from "@/lib/clients/generated/core";
 import { jobMatchesQuery, type SearchableJob } from "@/lib/job";
 
 const MAX_QUERY_LENGTH = 256;
 
-function toSearchableJob(job: JobWithSokosumiStatus): SearchableJob {
+function toSearchableJob(job: JobSummary): SearchableJob {
   return {
     id: job.id,
-    name: job.name,
-    events: job.events.map((event) => ({
-      input: event.input?.input ?? null,
-      result: event.result ?? null,
-    })),
+    name: job.name ?? null,
+    events: job.result
+      ? [
+          {
+            input: null,
+            result: job.result,
+          },
+        ]
+      : [],
   };
 }
 
 interface JobsSearchProps {
-  jobs: JobWithSokosumiStatus[];
-  onFilteredChange?: (filtered: JobWithSokosumiStatus[], query: string) => void;
+  jobs: JobSummary[];
+  onFilteredChange?: (filtered: JobSummary[], query: string) => void;
 }
 
 export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
@@ -38,8 +41,6 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
 
   const [searchValue, setSearchValue] = useState<string>(queryParam);
 
-  // Effect is necessary: Syncs local state when URL changes (browser navigation)
-  // Handles browser back/forward and direct URL changes
   useEffect(() => {
     setSearchValue(queryParam);
   }, [queryParam]);
@@ -57,14 +58,11 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
     return jobs.filter((j) => matcher(toSearchableJob(j), q));
   }, [jobs, searchValue, matcher]);
 
-  // Effect is necessary: Notifying parent component of filtered results
-  // This is a side effect - communicating state changes to parent
   useEffect(() => {
     onFilteredChange?.(filteredJobs, searchValue);
   }, [filteredJobs, searchValue, onFilteredChange]);
 
   function handleInputChange(next: string) {
-    // Limit input length to prevent performance issues
     const trimmed = next.slice(0, MAX_QUERY_LENGTH);
     setSearchValue(trimmed);
     debouncedSetQuery(trimmed);

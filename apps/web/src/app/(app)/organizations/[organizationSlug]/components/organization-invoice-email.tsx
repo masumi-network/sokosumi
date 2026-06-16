@@ -1,8 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Member, MemberRole, type Organization } from "@sokosumi/database";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import { getOrganizationMetadata, MemberRole } from "@sokosumi/utils";
 import { Loader2, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,7 +9,6 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,6 +28,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode, updateOrganizationInvoiceEmail } from "@/lib/actions";
+import type {
+  MemberRecord,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 const invoiceEmailFormSchema = z.object({
   invoiceEmail: z
@@ -41,8 +43,8 @@ const invoiceEmailFormSchema = z.object({
 type InvoiceEmailFormData = z.infer<typeof invoiceEmailFormSchema>;
 
 interface OrganizationInvoiceEmailProps {
-  organization: Organization;
-  member: Member;
+  organization: OrganizationRecord;
+  member: MemberRecord;
 }
 
 export default function OrganizationInvoiceEmail({

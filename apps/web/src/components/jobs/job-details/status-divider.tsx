@@ -1,8 +1,7 @@
-import type { AgentJobStatus } from "@sokosumi/database";
 import { Clock } from "lucide-react";
 import { useFormatter } from "next-intl";
-
 import { AgentJobStatusBadge } from "@/components/jobs/agent-job-status-badge";
+import type { AgentJobStatus } from "@/lib/types/core-dto";
 
 interface StatusDividerProps {
   jobId: string;

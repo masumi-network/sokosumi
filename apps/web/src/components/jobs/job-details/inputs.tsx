@@ -1,6 +1,5 @@
 "use client";
 
-import type { JobType } from "@sokosumi/database";
 import { hashInput } from "@sokosumi/masumi/hash";
 import {
   type InputFieldSchemaType,
@@ -10,7 +9,6 @@ import { InputType } from "@sokosumi/masumi/types";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
-
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -21,6 +19,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { flattenInputs } from "@/lib/schemas/job";
+import type { JobType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 import { FileChipWithMetadata } from "./file-chip-with-metadata";
