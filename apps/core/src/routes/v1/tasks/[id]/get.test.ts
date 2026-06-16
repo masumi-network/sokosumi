@@ -9,21 +9,22 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTaskById from "./get";
 
-const {
-  prismaTransactionMock,
-  taskFindFirstMock,
-  taskFindUniqueMock,
-  coworkerFindFirstMock,
-} = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  taskFindFirstMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
-  coworkerFindFirstMock: vi.fn(),
-}));
+const { taskFindFirstMock, taskFindUniqueMock, coworkerFindFirstMock } =
+  vi.hoisted(() => ({
+    taskFindFirstMock: vi.fn(),
+    taskFindUniqueMock: vi.fn(),
+    coworkerFindFirstMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    coworker: {
+      findFirst: coworkerFindFirstMock,
+    },
+    task: {
+      findFirst: taskFindFirstMock,
+      findUnique: taskFindUniqueMock,
+    },
   },
 }));
 
@@ -140,19 +141,6 @@ describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     viewerTaskIncludeResult = createTask();
-    prismaTransactionMock.mockImplementation(
-      async (cb: (tx: unknown) => unknown) => {
-        return await cb({
-          coworker: {
-            findFirst: coworkerFindFirstMock,
-          },
-          task: {
-            findFirst: taskFindFirstMock,
-            findUnique: taskFindUniqueMock,
-          },
-        });
-      },
-    );
     coworkerFindFirstMock.mockResolvedValue({
       id: "cow_123",
       slug: "cow",
