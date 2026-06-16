@@ -103,7 +103,7 @@ export default async function UserCredits({
     <div className="flex w-full flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
       {showCtaButtons ? <CreditCta currentPlan={currentPlan} /> : null}
       {showAvatar || showCreditUsage ? (
-        <div className="flex w-full flex-col items-center gap-4">
+        <div className="flex w-full flex-col items-stretch gap-4">
           {showCreditUsage ? (
             <CreditUsageComponent
               creditUsage={creditUsage}

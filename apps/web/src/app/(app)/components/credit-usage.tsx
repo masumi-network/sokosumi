@@ -89,8 +89,8 @@ export default function CreditUsage({
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <div className="group w-full min-w-28 cursor-pointer space-y-1">
-            <div className="text-muted-foreground flex w-full items-center gap-1.5 text-xs font-semibold">
+          <div className="group hover:bg-sidebar-accent focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent w-full min-w-28 cursor-pointer space-y-1 rounded-md px-2 py-2 transition-colors focus-visible:ring-2 focus-visible:outline-hidden">
+            <div className="text-muted-foreground group-hover:text-primary-foreground dark:group-hover:text-primary-foreground group-data-[state=open]:text-primary-foreground flex w-full items-center gap-1.5 text-xs font-semibold">
               {isLowCredits ? (
                 <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
               ) : null}

@@ -64,18 +64,16 @@ export default function Sidebar({
       <SidebarFooter className="shrink-0 px-0">
         <AnnouncementCards />
         <div className="relative flex flex-1 flex-col gap-4 p-2 pt-0 pb-4 group-data-[collapsible=icon]:hidden">
-          <div className="flex flex-col gap-2 px-2">
-            <UserCredits
-              creditsData={creditsData}
-              currentTimestampMs={currentTimestampMs}
-              organizationName={organizationName}
-              session={session}
-              showCtaButtons={false}
-              showCreditUsage
-              showAvatar={false}
-              lowCreditsThreshold={lowCreditsThreshold}
-            />
-          </div>
+          <UserCredits
+            creditsData={creditsData}
+            currentTimestampMs={currentTimestampMs}
+            organizationName={organizationName}
+            session={session}
+            showCtaButtons={false}
+            showCreditUsage
+            showAvatar={false}
+            lowCreditsThreshold={lowCreditsThreshold}
+          />
           <CreditCta currentPlan={creditsData?.subscription?.plan ?? "free"} />
         </div>
       </SidebarFooter>
