@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreditUsage from "@/app/components/credit-usage";
+import { useSidebar } from "@/components/ui/sidebar";
 
 vi.mock("next-intl", () => ({
   useTranslations: (namespace?: string) => {
@@ -79,6 +80,10 @@ vi.mock("@/components/ui/progress", () => ({
   }) => <div data-testid="single-progress" data-value={value} {...props} />,
 }));
 
+vi.mock("@/components/ui/sidebar", () => ({
+  useSidebar: vi.fn(() => ({ state: "expanded", isMobile: false })),
+}));
+
 vi.mock("@/components/ui/tooltip", () => ({
   TooltipProvider: ({ children }: { children: ReactNode }) => children,
   Tooltip: ({ children }: { children: ReactNode }) => children,
@@ -105,6 +110,13 @@ const creditUsage = {
 } as const;
 
 describe("CreditUsage", () => {
+  beforeEach(() => {
+    vi.mocked(useSidebar).mockReturnValue({
+      state: "expanded",
+      isMobile: false,
+    } as ReturnType<typeof useSidebar>);
+  });
+
   it("shows total credits, subscription progress, and extra credits without an extra-credits progress bar", () => {
     render(
       <CreditUsage
@@ -163,5 +175,28 @@ describe("CreditUsage", () => {
     );
 
     expect(screen.getByText("Low credits 75")).toBeInTheDocument();
+  });
+
+  it("renders a circular progress bar with tooltip label when the sidebar is collapsed", () => {
+    vi.mocked(useSidebar).mockReturnValue({
+      state: "collapsed",
+      isMobile: false,
+    } as ReturnType<typeof useSidebar>);
+
+    render(
+      <CreditUsage
+        creditUsage={creditUsage}
+        extraCredits={25}
+        creditsLabel="25 available"
+        currentTimestampMs={0}
+      />,
+    );
+
+    const circularProgress = screen.getByTestId("circular-credit-progress");
+    expect(circularProgress).toHaveAttribute("aria-valuenow", "50");
+    expect(
+      screen.getByRole("button", { name: "50 / 100 credits used" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("single-progress")).not.toBeInTheDocument();
   });
 });

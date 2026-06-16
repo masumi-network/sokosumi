@@ -47,7 +47,7 @@ export default function BuyCreditsButton({
       size="sm"
       onClick={handleClick}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5",
+        "inline-flex shrink-0 items-center justify-center gap-1.5",
         isCollapsed ? "size-8 p-0" : "w-full",
         className,
       )}
