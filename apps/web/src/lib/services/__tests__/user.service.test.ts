@@ -1,6 +1,5 @@
+import type { Session } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { Session } from "@/lib/auth/auth";
 
 export {};
 
@@ -49,8 +48,6 @@ vi.mock("@/lib/auth/core-auth-http.server", () => ({
   updateCurrentUserViaCore: (...args: unknown[]) =>
     updateCurrentUserViaCoreMock(...args),
 }));
-
-vi.mock("@/lib/auth/auth", () => ({}));
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers()),

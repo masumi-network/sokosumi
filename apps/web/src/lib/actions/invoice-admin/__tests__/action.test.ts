@@ -9,7 +9,6 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...args: unknown[]) => revalidatePathMock(...args),
 }));
 
-vi.mock("@/lib/auth/auth", () => ({ auth: {} }));
 vi.mock("@/lib/auth/auth.server", () => ({
   getSessionOrRedirect: vi.fn(),
 }));

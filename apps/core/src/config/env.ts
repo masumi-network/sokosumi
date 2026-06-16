@@ -124,7 +124,7 @@ const envSchema = z.object({
 
   // When true, Stripe Dashboard should send all events to POST /auth/stripe/webhook
   // only (STRIPE_WEBHOOK_SECRET). Billing events are handled from auth onEvent and
-  // POST /webhooks/stripe is disabled. Flip with web NEXT_PUBLIC_USE_CORE_AUTH_CLIENT.
+  // POST /webhooks/stripe is disabled. Stripe Dashboard should use POST /auth/stripe/webhook only.
   USE_UNIFIED_STRIPE_WEBHOOK: z.stringbool().default(false),
 
   // Sync lock configuration

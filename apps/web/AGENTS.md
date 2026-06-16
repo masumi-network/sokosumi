@@ -199,7 +199,7 @@ We are migrating web data access from direct DB reads to the Core API
 
 ### Better Auth ID generation
 
-- `src/lib/auth/auth.ts` sets `advanced.database.generateId: "uuid"` so Better Auth–managed rows get UUID-shaped primary keys, consistent with `@sokosumi/database` Prisma models. Do not remove this without aligning the shared schema and any database migrations.
+- Better Auth runs on **Core**, not web. `apps/core/src/lib/auth.ts` sets `advanced.database.generateId: "uuid"` so Better Auth–managed rows get UUID-shaped primary keys, consistent with `@sokosumi/database` Prisma models. Web reaches auth via `auth.client.ts` / `auth.server.ts` → Core `/auth` only. Do not remove or change UUID generation without aligning the shared schema and any database migrations.
 
 ### Stripe: Sandbox (test) vs production
 

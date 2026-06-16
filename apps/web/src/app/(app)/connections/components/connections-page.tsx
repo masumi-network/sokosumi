@@ -1,5 +1,5 @@
+import { type Account } from "@sokosumi/utils";
 import { Suspense } from "react";
-import { type Account } from "@/lib/auth/auth";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { AccountProvider } from "@/lib/auth/types";
 

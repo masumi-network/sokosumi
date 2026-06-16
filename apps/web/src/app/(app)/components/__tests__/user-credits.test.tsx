@@ -1,8 +1,7 @@
+import type { Session } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import UserCredits from "@/app/components/user-credits";
-import type { Session } from "@/lib/auth/auth";
 
 vi.mock("next-intl/server", () => ({
   getTranslations: (namespace: string) =>

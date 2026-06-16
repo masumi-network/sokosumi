@@ -1,4 +1,4 @@
-import type { Session } from "@/lib/auth/auth";
+import type { Session } from "@sokosumi/utils";
 import { getSession } from "@/lib/auth/auth.server";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 

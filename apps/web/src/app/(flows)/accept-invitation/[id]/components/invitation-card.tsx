@@ -1,4 +1,4 @@
-import type { User } from "better-auth";
+import type { SessionUser } from "@sokosumi/utils";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -20,7 +20,7 @@ import InvitationActions from "./invitation-actions";
 
 interface InvitationCardProps {
   invitation: PendingInvitationDetail;
-  user?: User;
+  user?: SessionUser;
 }
 
 export default function InvitationCard({

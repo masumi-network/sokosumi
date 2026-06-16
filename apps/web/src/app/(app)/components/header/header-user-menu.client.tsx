@@ -1,6 +1,7 @@
 "use client";
 
 import { MemberRole, type MemberWithOrganization } from "@sokosumi/database";
+import type { SessionUser } from "@sokosumi/utils";
 import { getStoredUserName } from "@sokosumi/utils";
 import {
   BookOpen,
@@ -34,8 +35,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-import type { SessionUser } from "@/lib/auth/auth";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
 

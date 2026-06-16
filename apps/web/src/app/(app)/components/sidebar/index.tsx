@@ -1,3 +1,4 @@
+import type { Session } from "@sokosumi/utils";
 import CreditCta from "@/app/components/credit-cta";
 import UserCredits, {
   type UserCreditsData,
@@ -9,7 +10,6 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { Session } from "@/lib/auth/auth";
 
 import AdminMenu from "./components/admin-menu";
 import AnnouncementCards from "./components/announcement-cards";

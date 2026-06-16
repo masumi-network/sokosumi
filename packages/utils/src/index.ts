@@ -3,6 +3,10 @@ export {
   makeUserTasksChannelName,
 } from "./ably-channel.js";
 export {
+  betterAuthOrganizationAdditionalFields,
+  betterAuthUserAdditionalFields,
+} from "./better-auth-client-schema.js";
+export {
   type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
@@ -13,6 +17,12 @@ export {
   resolveBetterAuthProductionUrl,
   resolveBetterAuthPublicBaseUrl,
 } from "./better-auth-public-url.js";
+export type {
+  Account,
+  Session,
+  SessionRecord,
+  SessionUser,
+} from "./better-auth-types.js";
 export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,

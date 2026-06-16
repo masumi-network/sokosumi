@@ -17,11 +17,11 @@ describe("getAuthOAuthRedirect", () => {
     expect(
       getAuthOAuthRedirect({
         redirect: true,
-        url: "/api/auth/oauth2/authorize?client_id=test",
+        url: "/auth/oauth2/authorize?client_id=test",
       }),
     ).toEqual({
       redirect: true,
-      redirectUrl: "/api/auth/oauth2/authorize?client_id=test",
+      redirectUrl: "/auth/oauth2/authorize?client_id=test",
     });
   });
 
@@ -30,12 +30,12 @@ describe("getAuthOAuthRedirect", () => {
       getAuthOAuthRedirect({
         data: {
           redirect: true,
-          url: "/api/auth/oauth2/authorize?client_id=nested",
+          url: "/auth/oauth2/authorize?client_id=nested",
         },
       }),
     ).toEqual({
       redirect: true,
-      redirectUrl: "/api/auth/oauth2/authorize?client_id=nested",
+      redirectUrl: "/auth/oauth2/authorize?client_id=nested",
     });
   });
 

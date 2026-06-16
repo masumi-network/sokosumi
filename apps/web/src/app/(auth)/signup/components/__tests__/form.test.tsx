@@ -170,7 +170,7 @@ describe("SignUpForm OAuth workflow", () => {
       data: {
         user: { id: "user-1" },
         redirect: true,
-        url: "/api/auth/oauth2/authorize?client_id=test-client",
+        url: "/auth/oauth2/authorize?client_id=test-client",
       },
       error: null,
     });
@@ -181,7 +181,7 @@ describe("SignUpForm OAuth workflow", () => {
 
     await waitFor(() => {
       expect(window.location.href).toContain(
-        "/api/auth/oauth2/authorize?client_id=test-client",
+        "/auth/oauth2/authorize?client_id=test-client",
       );
     });
 
@@ -255,7 +255,7 @@ describe("SignUpForm OAuth workflow", () => {
       data: {
         user: { id: "user-3" },
         redirect: true,
-        url: "/api/auth/oauth2/authorize?client_id=test-client",
+        url: "/auth/oauth2/authorize?client_id=test-client",
       },
       error: null,
     });

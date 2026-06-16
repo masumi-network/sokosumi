@@ -17,7 +17,7 @@ export function getBrowserCoreApiBaseUrl(): string {
   );
 }
 
-/** Core Better Auth base URL for browser `authClient` when the Core flag is on. */
+/** Core Better Auth base URL for browser `authClient` (always Core `/auth`). */
 export function getBrowserCoreAuthBaseUrl(): string {
   return joinCoreApiPath(
     stripCoreApiVersionSuffix(getBrowserCoreApiBaseUrl()),
