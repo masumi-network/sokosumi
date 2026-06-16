@@ -178,7 +178,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const takePlusOne = take + 1;
-    const [tasks, count] = await prisma.$transaction([
+    const [tasks, count] = await Promise.all([
       prisma.task.findMany({
         where,
         take: takePlusOne,

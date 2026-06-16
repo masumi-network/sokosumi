@@ -9,17 +9,12 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
 
-const {
-  prismaTransactionMock,
-  requireCoworkerCapabilityMock,
-  taskCountMock,
-  taskFindManyMock,
-} = vi.hoisted(() => ({
-  prismaTransactionMock: vi.fn(),
-  requireCoworkerCapabilityMock: vi.fn(),
-  taskCountMock: vi.fn(),
-  taskFindManyMock: vi.fn(),
-}));
+const { requireCoworkerCapabilityMock, taskCountMock, taskFindManyMock } =
+  vi.hoisted(() => ({
+    requireCoworkerCapabilityMock: vi.fn(),
+    taskCountMock: vi.fn(),
+    taskFindManyMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
@@ -27,7 +22,6 @@ vi.mock("@/helpers/access-control", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
     task: {
       count: taskCountMock,
       findMany: taskFindManyMock,
@@ -132,9 +126,6 @@ describe("GET /tasks", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
-    prismaTransactionMock.mockImplementation(async (operations) => {
-      return await Promise.all(operations);
-    });
   });
 
   it("parses multiple statuses into an IN filter", async () => {
