@@ -18,6 +18,7 @@ interface UserCreditsProps {
   showAvatar?: boolean;
   showCtaButtons?: boolean;
   showCreditUsage?: boolean;
+  lowCreditsThreshold: number;
 }
 
 export default async function UserCredits({
@@ -28,6 +29,7 @@ export default async function UserCredits({
   showAvatar = true,
   showCtaButtons = true,
   showCreditUsage = true,
+  lowCreditsThreshold,
 }: UserCreditsProps) {
   const t = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
@@ -90,10 +92,10 @@ export default async function UserCredits({
   }
 
   return (
-    <div className="flex w-full flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
+    <div className="flex w-full flex-1 flex-col-reverse gap-4 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:flex-none md:flex-initial md:flex-row md:items-center">
       {showCtaButtons ? <CreditCta currentPlan={currentPlan} /> : null}
       {showAvatar || showCreditUsage ? (
-        <div className="flex w-full flex-col items-center gap-4">
+        <div className="flex w-full flex-col items-stretch gap-4 group-data-[collapsible=icon]:items-center">
           {showCreditUsage ? (
             <CreditUsageComponent
               creditUsage={creditUsage}
@@ -101,6 +103,7 @@ export default async function UserCredits({
               creditsLabel={creditsLabel}
               currentTimestampMs={currentTimestampMs}
               subscriptionPeriodEndMs={subscriptionPeriodEndMs}
+              lowCreditsThreshold={lowCreditsThreshold}
             />
           ) : null}
           {showAvatar ? (

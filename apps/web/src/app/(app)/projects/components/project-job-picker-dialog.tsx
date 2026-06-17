@@ -140,7 +140,6 @@ export function ProjectJobPickerDialog({
                   <span className="truncate">{name}</span>
                   <JobStatusBadge
                     status={job.status as SokosumiJobStatus}
-                    jobType={job.jobType}
                     className="ml-auto"
                   />
                 </CommandItem>

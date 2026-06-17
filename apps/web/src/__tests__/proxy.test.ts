@@ -17,7 +17,6 @@ describe("proxy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_URL: "https://feature-123.preview.sokosumi.com/auth",
       MAINTENANCE_MODE: false,
       NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "codex/evaluate-cookie-prefix-usage",

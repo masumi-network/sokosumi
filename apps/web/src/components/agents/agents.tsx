@@ -1,12 +1,8 @@
 "use client";
 
-import type {
-  AgentRatingStats,
-  AgentWithCreditsPrice,
-} from "@sokosumi/database";
 import { useTranslations } from "next-intl";
-
 import { CarouselItem } from "@/components/ui/carousel";
+import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
@@ -69,7 +65,7 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
 }
 
 interface AgentsProps {
-  agents: AgentWithCreditsPrice[];
+  agents: CoreAgentDto[];
   ratingStatsMap: Record<string, AgentRatingStats>;
   className?: string | undefined;
   agentCardClassName?: string | undefined;

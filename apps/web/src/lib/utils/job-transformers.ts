@@ -1,13 +1,11 @@
+import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type {
-  AgentJobStatus,
   NextJobAction,
   NextJobActionErrorType,
-  OnChainJobStatus,
   OnChainTransactionStatus,
-} from "@sokosumi/database";
-import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
-
+} from "@sokosumi/utils";
 import type { JobStatusValue } from "@/lib/schemas";
+import type { AgentJobStatus, OnChainJobStatus } from "@/lib/types/core-dto";
 
 type PaymentPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseOnChainState = PaymentPurchase["onChainState"];

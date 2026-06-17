@@ -1,5 +1,4 @@
-import { JobType } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

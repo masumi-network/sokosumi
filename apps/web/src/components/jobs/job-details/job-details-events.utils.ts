@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/utils";
 
 import type { Job } from "@/lib/clients/generated/core";
 

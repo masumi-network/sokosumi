@@ -1,7 +1,6 @@
 "use server";
 
-import { MemberRole } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, MemberRole } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -170,7 +169,7 @@ export const inviteOrganizationMembersBulk = withSession<
     });
   }
 
-  const invitationLimit = getEnvSecrets().BETTER_AUTH_ORG_INVITATION_LIMIT;
+  const invitationLimit = getEnvSecrets().ORG_INVITATION_LIMIT;
   if (emails.length > invitationLimit) {
     return Err({
       code: CommonErrorCode.BAD_INPUT,

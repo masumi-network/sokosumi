@@ -1,17 +1,16 @@
 "use client";
 
-import type { ExampleOutput } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
-
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AgentExampleOutput } from "@/lib/clients/generated/core";
 
 import ExampleDetailThumbnail from "./example-detail-thumbnail";
 
 function AgentDetailExamples({
   exampleOutputs,
 }: {
-  exampleOutputs: ExampleOutput[];
+  exampleOutputs: AgentExampleOutput[];
 }) {
   const t = useTranslations("Components.Agents.AgentDetail.Examples");
 
@@ -22,8 +21,11 @@ function AgentDetailExamples({
       </h2>
       <ScrollArea className="h-60 w-full">
         <div className="flex h-full gap-2">
-          {exampleOutputs.map((exampleOutput) => (
-            <div key={exampleOutput.id} className="h-full w-full">
+          {exampleOutputs.map((exampleOutput, index) => (
+            <div
+              key={`${exampleOutput.url}-${index}`}
+              className="h-full w-full"
+            >
               <ExampleDetailThumbnail exampleOutput={exampleOutput} />
             </div>
           ))}

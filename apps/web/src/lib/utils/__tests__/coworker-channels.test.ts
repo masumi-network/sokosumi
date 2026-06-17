@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { Coworker } from "@/lib/clients/generated/core";

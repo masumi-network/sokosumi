@@ -1,4 +1,4 @@
-import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/utils";
 
 import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
 import type { CoworkerChannel } from "@/lib/types/coworker";

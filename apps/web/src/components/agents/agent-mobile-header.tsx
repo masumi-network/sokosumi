@@ -1,10 +1,9 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
-
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { Button } from "@/components/ui/button";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export function HeaderSkeleton() {
   return (
@@ -24,7 +23,7 @@ export function HeaderSkeleton() {
 }
 
 interface HeaderProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
 }
 
 export default function AgentMobileHeader({ agent }: HeaderProps) {

@@ -7,16 +7,13 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import {
-  mapCoreAgentMetricsToRatingStats,
-  mapCoreAgentReviews,
-  mapCoreAgentToAgentWithCreditsPrice,
-} from "@/lib/agents/core-dto-mappers";
+import { mapCoreAgentReviews } from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
+import { getAgentRatingStats } from "@/lib/types/core-dto";
 
 export default async function AgentDetailPage({
   params,
@@ -25,12 +22,11 @@ export default async function AgentDetailPage({
 }) {
   const { agentId } = await params;
 
-  const coreAgent = await getCoreAgentById(agentId);
-  if (!coreAgent) {
+  const agent = await getCoreAgentById(agentId);
+  if (!agent) {
     return notFound();
   }
 
-  const agentWithCreditsPrice = mapCoreAgentToAgentWithCreditsPrice(coreAgent);
   const session = await getSession();
   const userId = session?.user.id ?? null;
 
@@ -41,9 +37,9 @@ export default async function AgentDetailPage({
   const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
     reviewsResponse.data,
   );
-  const executedJobsCount = coreAgent.metrics.executions.count;
-  const averageExecutionDuration = coreAgent.metrics.executions.averageTime;
-  const ratingStats = mapCoreAgentMetricsToRatingStats(coreAgent);
+  const executedJobsCount = agent.metrics.executions.count;
+  const averageExecutionDuration = agent.metrics.executions.averageTime;
+  const ratingStats = getAgentRatingStats(agent);
 
   const canRate = userId ? await agentService.canUserRateAgent(agentId) : false;
 
@@ -54,16 +50,16 @@ export default async function AgentDetailPage({
 
   return (
     <CreateJobModalContextProvider
-      agentsWithPrice={[agentWithCreditsPrice]}
+      agentsWithPrice={[agent]}
       averageExecutionDuration={averageExecutionDuration}
       projectOptions={projectOptions}
     >
-      <AgentMobileHeader agent={agentWithCreditsPrice} />
+      <AgentMobileHeader agent={agent} />
       <div className="min-h-full w-full">
         <div className="mx-auto w-full max-w-4xl">
-          <AgentDetailViewTracker agent={agentWithCreditsPrice} />
+          <AgentDetailViewTracker agent={agent} />
           <AgentDetail
-            agent={agentWithCreditsPrice}
+            agent={agent}
             executedJobsCount={executedJobsCount}
             averageExecutionDuration={averageExecutionDuration}
             ratingStats={ratingStats}
@@ -75,8 +71,7 @@ export default async function AgentDetailPage({
           />
         </div>
       </div>
-      <AgentBottomNavigation agent={agentWithCreditsPrice} />
-      {/* Create Job Modal */}
+      <AgentBottomNavigation agent={agent} />
       <CreateJobModal />
     </CreateJobModalContextProvider>
   );

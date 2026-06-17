@@ -1,4 +1,3 @@
-import { JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
 interface StatusPillStyle {
@@ -6,12 +5,6 @@ interface StatusPillStyle {
   text: string;
   dot: string;
 }
-
-const DEMO_JOB_STYLE: StatusPillStyle = {
-  bg: "bg-orange-500/10",
-  text: "text-orange-600 dark:text-orange-400",
-  dot: "bg-orange-500",
-};
 
 const DEFAULT_STATUS_STYLE: StatusPillStyle = {
   bg: "bg-muted",
@@ -85,18 +78,10 @@ const STATUS_PILL_STYLES: Partial<Record<SokosumiJobStatus, StatusPillStyle>> =
 
 export function getJobStatusPillStyle(
   status: SokosumiJobStatus,
-  jobType?: JobType,
 ): StatusPillStyle {
-  if (jobType === JobType.DEMO) {
-    return DEMO_JOB_STYLE;
-  }
-
   return STATUS_PILL_STYLES[status] ?? DEFAULT_STATUS_STYLE;
 }
 
-export function getJobStatusDotColorClass(
-  status: SokosumiJobStatus,
-  jobType?: JobType,
-): string {
-  return getJobStatusPillStyle(status, jobType).dot;
+export function getJobStatusDotColorClass(status: SokosumiJobStatus): string {
+  return getJobStatusPillStyle(status).dot;
 }

@@ -8,7 +8,6 @@ import {
 } from "../generated/prisma/browser.js";
 import type { Job } from "../generated/prisma/client.js";
 import {
-  type DemoJobWithStatus,
   type FreeJobWithStatus,
   type JobEventForStatusCompute,
   type JobEventWithRelations,
@@ -200,8 +199,10 @@ export function computeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
       return computeFreeJobStatus(job);
     case JobType.PAID:
       return computePaidJobStatus(job);
-    case JobType.DEMO:
-      return computeDemoJobStatus(job);
+    default: {
+      const _exhaustive: never = job.jobType;
+      throw new Error(`Unhandled job type: ${_exhaustive}`);
+    }
   }
 }
 
@@ -230,12 +231,6 @@ function computeFreeJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
     default:
       return SokosumiJobStatus.FAILED;
   }
-}
-
-function computeDemoJobStatus(
-  _job: Pick<JobForStatusCompute, "jobType">,
-): SokosumiJobStatus {
-  return SokosumiJobStatus.COMPLETED;
 }
 
 function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
@@ -391,8 +386,6 @@ export function mapJobWithStatus(
       return baseJobWithStatus as PaidJobWithStatus;
     case JobType.FREE:
       return baseJobWithStatus as FreeJobWithStatus;
-    case JobType.DEMO:
-      return baseJobWithStatus as DemoJobWithStatus;
     default: {
       const _exhaustive: never = job.jobType;
       throw new Error(`Unhandled job type: ${_exhaustive}`);
@@ -406,8 +399,4 @@ export function isFreeJob(job: Job): job is FreeJobWithStatus {
 
 export function isPaidJob(job: Job): job is PaidJobWithStatus {
   return job.jobType === JobType.PAID;
-}
-
-export function isDemoJob(job: Job): job is DemoJobWithStatus {
-  return job.jobType === JobType.DEMO;
 }

@@ -1,6 +1,5 @@
-import type { TaskStatus } from "@sokosumi/utils";
-
 import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
+import type { TaskStatus } from "@/lib/types/core-dto";
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnDefinition,

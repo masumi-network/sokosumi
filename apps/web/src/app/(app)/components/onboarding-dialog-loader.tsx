@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/database";
 import type { SubscriptionPlanName } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { Suspense } from "react";
 import Stripe from "stripe";
 import {

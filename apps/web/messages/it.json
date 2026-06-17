@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Nessun agente disponibile",
       "agentsNotFound": "Nessun agente trovato",
       "hire": "Assumi agente",
-      "freeDemo": "Demo gratuita",
       "AgentCard": {
         "view": "Mostra dettagli",
         "pricing": "{price, plural, =0 {Gratis} =1 {1 credito} other {# crediti}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "Espandi barra laterale",
       "logout": "Esci",
       "creditsUsedOfTotal": "{used, number} / {total, number} crediti usati",
+      "lowCreditsLabel": "Crediti bassi {credits, number}",
       "totalBalanceLabel": "Saldo totale",
       "creditsSummary": "Riepilogo crediti:",
       "monthlyUsageLimit": "Limite di utilizzo mensile",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Avviato",
         "completed": "Completato",
         "failed": "Fallito",
@@ -3290,7 +3289,6 @@
         },
         "CreateJob": {
           "title": "Nuovo {name}",
-          "demo": "Demo",
           "cancel": "Annulla",
           "Information": {
             "title": "Informazioni"
@@ -3551,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Impossibile recuperare lo schema di input del job",
-        "demoDataInvalid": "I dati demo dell’agente non sono validi."
+        "failedToFetchJobInputSchema": "Impossibile recuperare lo schema di input del job"
       }
     },
     "Duration": {

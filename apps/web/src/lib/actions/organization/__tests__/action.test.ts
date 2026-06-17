@@ -1,4 +1,4 @@
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -80,7 +80,7 @@ describe("organization actions", () => {
     vi.clearAllMocks();
     inviteOrganizationMemberViaCoreMock.mockResolvedValue(undefined);
     getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_ORG_INVITATION_LIMIT: 100,
+      ORG_INVITATION_LIMIT: 100,
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.ADMIN,
@@ -216,7 +216,7 @@ describe("organization actions", () => {
 
   it("rejects batches over the invitation limit", async () => {
     getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_ORG_INVITATION_LIMIT: 1,
+      ORG_INVITATION_LIMIT: 1,
     });
     const { inviteOrganizationMembersBulk } = await import("../action");
 
