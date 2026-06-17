@@ -11,7 +11,6 @@ import {
   buildHistoryBucketLookupsFromItems,
   type CoworkerBucketSource,
   createEmptyHistoryBucketLookups,
-  type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
