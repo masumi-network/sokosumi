@@ -479,7 +479,7 @@ async function finalizeJobSyncResult(
   }
 
   const latestEvent = updatedJob.events.at(0);
-  await dispatchJobNotification(
+  void dispatchJobNotification(
     updatedJob,
     newJobStatus,
     buildJobNotificationEventId(latestEvent?.id, updatedJob.id, newJobStatus),
