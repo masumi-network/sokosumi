@@ -137,7 +137,7 @@ function parseCoreAuthArrayResponse<T>(
       };
       const shapeFailureMessage = `${failureLogMessage}: response was not an array`;
 
-      console.error(shapeFailureMessage, { path, body });
+      console.error(shapeFailureMessage, { path, bodyType: typeof body });
       reportCoreAuthReadOutage(authReadError, shapeFailureMessage);
 
       return err(authReadError);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ export function CoreAuthReadRetry({
   title,
 }: CoreAuthReadRetryProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   return (
     <Card>
@@ -34,7 +36,8 @@ export function CoreAuthReadRetry({
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.refresh()}
+          disabled={isPending}
+          onClick={() => startTransition(() => router.refresh())}
         >
           {retryLabel}
         </Button>
