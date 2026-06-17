@@ -51,6 +51,13 @@ vi.mock("@/app/history/components/conversation-status-badge", () => ({
   ),
 }));
 
+vi.mock("@/lib/utils/datetime.client", () => ({
+  useLocalizedDateTime: () => ({
+    formatTimeAgo: (date: string | Date) =>
+      new Date(date).toISOString().split("T")[0],
+  }),
+}));
+
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
@@ -61,6 +68,7 @@ const labels = {
   empty: "No history found",
   loading: "Loading history...",
   error: "Failed to load history",
+  updated: "Updated",
   kind: {
     task: "Task",
     job: "Job",
@@ -84,6 +92,7 @@ function createTaskItem(id: string, title: string): HistoryItem {
     credits: null,
     projectId: null,
     coworkerId: null,
+    owner: null,
   };
 }
 
@@ -113,7 +122,7 @@ describe("HistorySearchDialog", () => {
     vi.useRealTimers();
   });
 
-  it("requests workspace scope for organization users", async () => {
+  it("requests owned scope for organization users", async () => {
     render(
       <HistorySearchDialog
         open
@@ -127,7 +136,7 @@ describe("HistorySearchDialog", () => {
       expect(getHistoryMock).toHaveBeenCalledWith({
         q: undefined,
         limit: 50,
-        scope: "workspace",
+        scope: "owned",
       });
     });
   });
