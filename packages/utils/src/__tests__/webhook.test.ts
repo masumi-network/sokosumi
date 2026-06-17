@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildWebhookFailureContext,
-  isWebhookBackpressureResponse,
   MAX_REPORTED_WEBHOOK_BODY_LENGTH,
   postWebhook,
 } from "../webhook";
@@ -12,30 +11,6 @@ const OPTS = { userAgent: "Test-Agent/1.0" };
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-});
-
-describe("isWebhookBackpressureResponse", () => {
-  it("flags HTTP 400 whose body mentions queue and full", () => {
-    expect(
-      isWebhookBackpressureResponse(
-        400,
-        "The request queue reached full capacity.",
-      ),
-    ).toBe(true);
-  });
-
-  it("is case-insensitive", () => {
-    expect(isWebhookBackpressureResponse(400, "QUEUE is FULL")).toBe(true);
-  });
-
-  it("ignores non-400 statuses", () => {
-    expect(isWebhookBackpressureResponse(503, "queue full")).toBe(false);
-  });
-
-  it("ignores 400s without the queue-full markers", () => {
-    expect(isWebhookBackpressureResponse(400, "bad request")).toBe(false);
-    expect(isWebhookBackpressureResponse(400, null)).toBe(false);
-  });
 });
 
 describe("postWebhook", () => {

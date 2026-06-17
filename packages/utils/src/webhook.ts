@@ -11,9 +11,9 @@ export interface PostWebhookOptions {
 }
 
 /**
- * Outcome of a {@link postWebhook} call. Callers decide how to report each
- * variant (e.g. Sentry in web, `console.error` in core); the transport itself
- * never logs.
+ * Outcome of a {@link postWebhook} call. Callers map each variant onto their own
+ * reporting sink (e.g. Sentry `captureMessage` in web and core); the transport
+ * itself never logs.
  */
 export type PostWebhookResult =
   | { status: "ok"; httpStatus: number }
@@ -48,7 +48,7 @@ async function consumeResponseBody(response: Response): Promise<string | null> {
  * body mentions both "queue" and "full". Such responses are expected under load
  * and should not be reported as failures.
  */
-export function isWebhookBackpressureResponse(
+function isWebhookBackpressureResponse(
   httpStatus: number,
   body: string | null,
 ): boolean {

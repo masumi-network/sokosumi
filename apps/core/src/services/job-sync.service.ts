@@ -315,7 +315,8 @@ async function dispatchJobFailureNotification(
       })
         .then((result) => {
           if (result.status === "failed") {
-            Sentry.captureException(result.error, {
+            Sentry.captureMessage("Failed to call job-failure webhook", {
+              level: "warning",
               extra: buildWebhookFailureContext(result, {
                 jobId: job.id,
                 userId: job.userId,
