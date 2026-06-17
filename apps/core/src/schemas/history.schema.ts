@@ -3,7 +3,7 @@ import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
-const historyOwnerSchema = z
+const historyOwnerObjectSchema = z
   .object({
     userId: z.string().openapi({
       description: "User ID of the history item owner",
@@ -18,7 +18,6 @@ const historyOwnerSchema = z
       example: "https://example.com/avatar.jpg",
     }),
   })
-  .nullable()
   .openapi("HistoryOwner");
 
 const historyBaseItemSchema = z.object({
@@ -46,9 +45,15 @@ const historyBaseItemSchema = z.object({
       "User-facing credits. Null means credits do not apply to this item.",
     example: 2.5,
   }),
-  owner: historyOwnerSchema.openapi({
+  // Union-with-null instead of `historyOwnerObjectSchema.nullable()`:
+  // `.nullable()` on a named `.openapi(...)` schema leaks `| null` into the
+  // generated `HistoryOwner` component and makes the client transformer call
+  // the owner converter unconditionally (crashing on null). Mirrors
+  // `jobSchema.share` / `taskSchema.share`.
+  owner: z.union([historyOwnerObjectSchema, z.null()]).openapi({
     description:
       "Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).",
+    example: null,
   }),
 });
 

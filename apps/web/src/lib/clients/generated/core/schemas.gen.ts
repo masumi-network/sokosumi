@@ -4356,7 +4356,16 @@ export const HistoryTaskItemSchema = {
             example: 2.5
         },
         owner: {
-            $ref: '#/components/schemas/HistoryOwner'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            example: null
         },
         kind: {
             type: 'string',
@@ -4417,10 +4426,7 @@ export const HistoryTaskItemSchema = {
 } as const;
 
 export const HistoryOwnerSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         userId: {
             type: 'string',
@@ -4445,8 +4451,7 @@ export const HistoryOwnerSchema = {
         'userId',
         'name',
         'image'
-    ],
-    description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).'
+    ]
 } as const;
 
 export const HistoryJobItemSchema = {
@@ -4494,7 +4499,16 @@ export const HistoryJobItemSchema = {
             example: 2.5
         },
         owner: {
-            $ref: '#/components/schemas/HistoryOwner'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            example: null
         },
         kind: {
             type: 'string',
@@ -4610,7 +4624,16 @@ export const HistoryConversationItemSchema = {
             example: null
         },
         owner: {
-            $ref: '#/components/schemas/HistoryOwner'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            example: null
         },
         kind: {
             type: 'string',

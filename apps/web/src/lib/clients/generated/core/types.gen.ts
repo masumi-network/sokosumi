@@ -1201,7 +1201,10 @@ export type HistoryTaskItem = {
      * User-facing credits. Null means credits do not apply to this item.
      */
     credits: number | null;
-    owner: HistoryOwner;
+    /**
+     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     */
+    owner: HistoryOwner | null;
     kind: 'task';
     status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
@@ -1214,9 +1217,6 @@ export type HistoryTaskItem = {
     coworkerId: string | null;
 };
 
-/**
- * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
- */
 export type HistoryOwner = {
     /**
      * User ID of the history item owner
@@ -1230,7 +1230,7 @@ export type HistoryOwner = {
      * Profile image URL of the owner. Null when no image is set.
      */
     image: string | null;
-} | null;
+};
 
 export type HistoryJobItem = {
     /**
@@ -1257,7 +1257,10 @@ export type HistoryJobItem = {
      * User-facing credits. Null means credits do not apply to this item.
      */
     credits: number | null;
-    owner: HistoryOwner;
+    /**
+     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     */
+    owner: HistoryOwner | null;
     kind: 'job';
     status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
     /**
@@ -1303,7 +1306,10 @@ export type HistoryConversationItem = {
      * Conversations do not currently have credits
      */
     credits: null;
-    owner: HistoryOwner;
+    /**
+     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     */
+    owner: HistoryOwner | null;
     kind: 'conversation';
     status: 'active' | 'archived';
     /**
