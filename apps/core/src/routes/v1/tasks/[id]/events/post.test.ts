@@ -13,6 +13,7 @@ import mountPostTaskEvents from "./post";
 
 const {
   calculateCentsFromMasumiAmountStringsMock,
+  createNotificationMock,
   createPurchaseFromMasumiTaskPaymentMock,
   createTaskEventTransactionMock,
   getCreditCostsOrThrowMock,
@@ -21,6 +22,7 @@ const {
   requireTaskCollaborationMock,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
+  createNotificationMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
@@ -31,6 +33,10 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
+}));
+
+vi.mock("@/helpers/notifications", () => ({
+  createNotification: createNotificationMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -44,6 +50,18 @@ vi.mock("@/lib/ably/publish", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    task: {
+      findUnique: vi.fn().mockResolvedValue({
+        id: "tsk_123",
+        userId: "user_123",
+        name: "Test task",
+        coworker: { name: "Test coworker" },
+        project: { name: "Test project" },
+        projectId: "proj_123",
+        workspaceId: "ws_123",
+        user: { notificationsOptIn: true },
+      }),
+    },
   },
 }));
 
@@ -209,6 +227,7 @@ function mockTransaction(tx: TransactionMock) {
 describe("POST /{id}/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    createNotificationMock.mockResolvedValue(undefined);
     publishTaskEventDataMock.mockResolvedValue(undefined);
     getCreditCostsOrThrowMock.mockResolvedValue([
       {
