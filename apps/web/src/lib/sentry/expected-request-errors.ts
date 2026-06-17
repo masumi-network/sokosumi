@@ -56,6 +56,10 @@ export function isExpectedAuthRequestError(error: unknown): boolean {
   );
 }
 
+export const expectedClientNoiseIgnoreErrors: RegExp[] = [
+  NEXT_ROUTER_HOOKS_MISMATCH,
+];
+
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
   return NEXT_ROUTER_HOOKS_MISMATCH.test(message);
 }

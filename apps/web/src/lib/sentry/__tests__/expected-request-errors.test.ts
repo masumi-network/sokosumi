@@ -34,6 +34,7 @@ describe("isExpectedAuthSentryEvent", () => {
   it("drops UnAuthenticatedError events", () => {
     expect(
       isExpectedAuthSentryEvent({
+        type: undefined,
         exception: {
           values: [
             {
@@ -49,6 +50,7 @@ describe("isExpectedAuthSentryEvent", () => {
   it("drops CoreApiRequestError session expiry events", () => {
     expect(
       isExpectedAuthSentryEvent({
+        type: undefined,
         exception: {
           values: [
             {
@@ -67,6 +69,7 @@ describe("beforeSendServerEvent", () => {
     expect(
       beforeSendServerEvent(
         {
+          type: undefined,
           exception: {
             values: [
               {
@@ -83,6 +86,7 @@ describe("beforeSendServerEvent", () => {
 
   it("passes through unexpected events", () => {
     const event = {
+      type: undefined,
       exception: {
         values: [{ type: "Error", value: "Database unavailable" }],
       },
