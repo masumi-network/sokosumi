@@ -1,3 +1,4 @@
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,6 +40,7 @@ vi.mock("@/lib/gtm-events", () => ({
 
 vi.mock("@/lib/helpers/agent", () => ({
   getAgentName: () => "Demo Agent",
+  getAgentCredits: () => 5,
 }));
 
 vi.mock("@/lib/actions", () => ({
@@ -97,7 +99,7 @@ describe("useJobSubmission", () => {
       useJobSubmission({
         agent: {
           id: "agent_1",
-          creditsPrice: { cents: 500 },
+          credits: 5,
         } as never,
         inputSchema: [] as never,
         demoValues: null,
@@ -120,7 +122,7 @@ describe("useJobSubmission", () => {
     expect(startJobMock).toHaveBeenCalledWith({
       input: {
         agentId: "agent_1",
-        maxAcceptedCents: 500,
+        maxAcceptedCents: convertCreditsToCents(5),
         inputSchema: [],
         inputData: {
           attachment: "https://blob.example/users/user_123/report.pdf",
@@ -143,7 +145,7 @@ describe("useJobSubmission", () => {
       useJobSubmission({
         agent: {
           id: "agent_1",
-          creditsPrice: { cents: 500 },
+          credits: 5,
         } as never,
         inputSchema: [] as never,
         demoValues: null,

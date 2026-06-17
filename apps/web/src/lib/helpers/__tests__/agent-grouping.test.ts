@@ -1,26 +1,22 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { AgentStatus } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
-
 import {
   SPECIAL_AGENT_CATEGORY_SLUGS,
   SYNTHETIC_DEFAULT_CATEGORY,
 } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import { groupAgentsByCategory } from "../agent-grouping";
+import { createMockCoreAgent } from "./fixtures/core-agent";
 
-// Helper function to create mock Prisma Category for agent.categories field
+// Helper function to create mock Core Category for agent.categories field
 function createMockPrismaCategory(
   slug: string,
   name: string,
   priority: number = 0,
 ) {
-  const now = new Date();
   return {
     id: `category-${Math.random().toString(36).substring(7)}`,
-    createdAt: now,
-    updatedAt: now,
     name,
     slug,
     description: null,
@@ -31,82 +27,8 @@ function createMockPrismaCategory(
   };
 }
 
-// Helper function to create mock agents
-function createMockAgent(
-  overrides: Partial<AgentWithCreditsPrice> = {},
-): AgentWithCreditsPrice {
-  const now = new Date();
-  const oldDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-
-  const createdAt = overrides.createdAt ?? oldDate;
-
-  return {
-    id: `agent-${Math.random().toString(36).substring(7)}`,
-    createdAt,
-    updatedAt: now,
-    blockchainIdentifier: `blockchain-${Math.random().toString(36).substring(7)}`,
-    name: "Test Agent",
-    overrideName: null,
-    description: "Test description",
-    overrideDescription: null,
-    apiBaseUrl: "https://api.example.com",
-    overrideApiBaseUrl: null,
-    capabilityName: "test-capability",
-    overrideCapabilityName: null,
-    capabilityVersion: "1.0.0",
-    overrideCapabilityVersion: null,
-    authorName: "Test Author",
-    overrideAuthorName: null,
-    authorImage: null,
-    overrideAuthorImage: null,
-    authorContactEmail: null,
-    overrideAuthorContactEmail: null,
-    authorContactOther: null,
-    overrideAuthorContactOther: null,
-    authorOrganization: null,
-    overrideAuthorOrganization: null,
-    legalPrivacyPolicy: null,
-    overrideLegalPrivacyPolicy: null,
-    legalDpa: null,
-    overrideLegalDpa: null,
-    legalTerms: null,
-    overrideLegalTerms: null,
-    legalOther: null,
-    overrideLegalOther: null,
-    lastUptimeCheck: now,
-    uptimeCount: 100,
-    uptimeCheckCount: 100,
-    image: "https://example.com/image.png",
-    overrideImage: null,
-    icon: null,
-    metadataVersion: 1,
-    paymentType: "WEB3_CARDANO_V1",
-    pricingId: "pricing-1",
-    pricing: {
-      id: "pricing-1",
-      createdAt: now,
-      updatedAt: now,
-      pricingType: "FREE",
-      agentFixedPricingId: null,
-      fixedPricing: null,
-    },
-    status: AgentStatus.ONLINE,
-    isShown: true,
-    riskClassification: "MINIMAL",
-    summary: null,
-    demoInput: null,
-    demoOutput: null,
-    tags: [],
-    overrideTags: [],
-    categories: [],
-    exampleOutput: [],
-    overrideExampleOutput: [],
-    userAgentRating: [],
-    creditsPrice: {
-      cents: BigInt(0),
-    },
-    ...overrides,
-  } as AgentWithCreditsPrice;
+function createMockAgent(overrides: Partial<CoreAgentDto> = {}): CoreAgentDto {
+  return createMockCoreAgent(overrides);
 }
 
 describe("groupAgentsByCategory", () => {
@@ -272,7 +194,7 @@ describe("groupAgentsByCategory", () => {
 
   // Test case 5: Empty inputs - should handle empty agent array
   it("should return empty array when no agents provided", () => {
-    const agents: AgentWithCreditsPrice[] = [];
+    const agents: CoreAgentDto[] = [];
     const categories: Category[] = [
       { slug: "category-1", name: "Category 1", priority: 0 },
     ];

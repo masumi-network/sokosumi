@@ -1,5 +1,4 @@
-import { type Member, MemberRole, type Organization } from "@sokosumi/database";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import { getOrganizationMetadata, MemberRole } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { CopyableValue } from "@/components/copyable-value";
@@ -12,6 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type {
+  MemberRecord,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
 import { OrganizationDesignMdSection } from "./organization-design-md-section";
@@ -20,8 +23,8 @@ import { OrganizationMetadataProvider } from "./organization-metadata-context";
 import OrganizationRemoveButton from "./organization-remove-button";
 
 interface OrganizationInformationProps {
-  organization: Organization;
-  member: Member;
+  organization: OrganizationRecord;
+  member: MemberRecord;
 }
 
 export default async function OrganizationInformation({

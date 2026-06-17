@@ -1,5 +1,4 @@
-import type { Agent } from "@sokosumi/database";
-
+import type { Agent } from "@/lib/clients/generated/core";
 import type { JobInputsFormSchemaType } from "@/lib/job-input";
 import type { JobStatusResponseSchemaType } from "@/lib/schemas";
 

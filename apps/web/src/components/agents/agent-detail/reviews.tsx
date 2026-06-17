@@ -1,13 +1,10 @@
-import type {
-  AgentRatingStats,
-  UserAgentRatingWithUser,
-} from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
-
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
 import { RatingDistribution } from "@/components/agents/rating-distribution";
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AgentReview } from "@/lib/clients/generated/core";
+import type { AgentRatingStats } from "@/lib/types/core-dto";
 
 import { ReviewsList } from "./reviews-list";
 
@@ -15,7 +12,7 @@ interface AgentDetailReviewsProps {
   agentId: string;
   ratingStats: AgentRatingStats;
   distribution: Record<number, number>;
-  ratingsWithComments: UserAgentRatingWithUser[];
+  ratingsWithComments: AgentReview[];
   canRate: boolean;
   existingRating: {
     rating: number;
@@ -33,7 +30,7 @@ export async function AgentDetailReviews({
 }: AgentDetailReviewsProps) {
   const t = await getTranslations("Components.Agents.Reviews");
 
-  const hasRatings = ratingStats.totalRatings > 0;
+  const hasRatings = ratingStats.total > 0;
 
   return (
     <section className="space-y-4">
@@ -46,13 +43,13 @@ export async function AgentDetailReviews({
             <div className="space-y-4">
               <div className="bg-muted/20 border-border/50 space-y-3 rounded-lg border p-3">
                 <StarRating
-                  averageRating={ratingStats.averageRating}
-                  totalRatings={ratingStats.totalRatings}
+                  averageRating={ratingStats.average ?? 0}
+                  totalRatings={ratingStats.total}
                   size="lg"
                 />
                 <RatingDistribution
                   distribution={distribution}
-                  totalRatings={ratingStats.totalRatings}
+                  totalRatings={ratingStats.total}
                 />
               </div>
             </div>

@@ -1,14 +1,8 @@
-import type {
-  AgentRatingStats,
-  AgentWithCreditsPrice,
-} from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-
 import ClickBlocker from "@/components/click-blocker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +16,8 @@ import {
   getAgentSummary,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
+import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCredits } from "@/lib/types/core-dto";
 import { cn, generateGradientBorder } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getCategoryColor } from "@/lib/utils/theme";
@@ -198,7 +194,7 @@ function AgentCardSkeleton({
 }
 
 interface AgentCardProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   showHireButton?: boolean | undefined;
   ratingStats?: AgentRatingStats | undefined;
   className?: string | undefined;
@@ -286,8 +282,8 @@ function AgentCard({
 
             {/* Rating */}
             <StarRating
-              averageRating={ratingStats?.averageRating ?? 0}
-              totalRatings={ratingStats?.totalRatings ?? 5}
+              averageRating={ratingStats?.average ?? 0}
+              totalRatings={ratingStats?.total ?? 5}
               size="sm"
               showRatingNumber={false}
             />
@@ -305,9 +301,7 @@ function AgentCard({
             <div className={cn(agentCardPricingVariants({ size }))}>
               <p className="text-foreground pb-3">
                 {t("pricing", {
-                  price: formatCreditsForDisplay(
-                    convertCentsToCredits(agent.creditsPrice.cents),
-                  ),
+                  price: formatCreditsForDisplay(getAgentCredits(agent)),
                 })}
               </p>
             </div>

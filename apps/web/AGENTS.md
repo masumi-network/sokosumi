@@ -168,14 +168,15 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 ### Database Access
 
-- Use repository pattern from `@sokosumi/database/repositories`
-- Create Prisma client instance at `@/lib/db/prisma`
-- Never access Prisma directly from components
-- Use server actions for mutations
+- **Web does not access Postgres or Prisma.** All reads and writes go through the Core API (`coreClient` in `src/lib/clients/core.client.ts`).
+- **Entity DTOs** (`Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …) come from the generated Core client (`src/lib/clients/generated/core`). Use `src/lib/types/core-dto.ts` for web helpers (`CoreAgentDto`, credit/rating accessors, placeholders) and enum **type** aliases derived from Core fields (`TaskStatus`, `JobType`, `SokosumiJobStatus`, …).
+- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) still live in `@sokosumi/utils` until OpenAPI codegen exports const enums. **Pure helpers** (URLs, credits, locale, auth cookies) also stay in `@sokosumi/utils` — not entity mirrors.
+- Do not import `@sokosumi/database` from web. Do not add Prisma-shaped composites under `packages/utils/src/domain/`.
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`) and call it from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 
 ### Core API reads & caching (performance)
 
-We are migrating web data access from direct DB reads to the Core API
+Web data access for domain entities goes through the Core API
 (`coreClient` in `src/lib/clients/core.client.ts`). Two performance rules:
 
 - **Never blindly cache Core responses across requests.** Every `coreClient`
@@ -232,9 +233,8 @@ Env vars that must be set per environment: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_
 ## Development Workflow
 
 1. **Start Development**: `pnpm web:dev`
-2. **Database Changes**: Run migrations with `pnpm prisma:migrate:dev`
-3. **Testing**: Run `pnpm web:test` before committing
-4. **Formatting**: Run `pnpm format` after changes
+2. **Testing**: Run `pnpm web:test` before committing
+3. **Formatting**: Run `pnpm format` after changes
 
 ## Common Patterns
 
@@ -332,8 +332,8 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import shared symbols from `@sokosumi/utils` / `@sokosumi/database` directly; no passthrough files
-- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; never `@sokosumi/database/helpers`
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import pure helpers from `@sokosumi/utils` directly; no passthrough files
+- [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)
 - [Interface](.cursor/rules/interface.mdc)

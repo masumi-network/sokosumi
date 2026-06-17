@@ -1,14 +1,11 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { convertCentsToCredits } from "@sokosumi/utils";
 import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-
 import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
@@ -26,12 +23,14 @@ import {
   getAgentResolvedIcon,
   getFullAgentAuthorName,
 } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { getAgentCredits } from "@/lib/types/core-dto";
 import { generateGradientBorder } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -136,9 +135,7 @@ function AgentDetailHeader({
             <div className="text-sm md:text-base">
               <span className="font-medium">
                 {t("pricing", {
-                  credits: formatCreditsForDisplay(
-                    convertCentsToCredits(agent.creditsPrice.cents),
-                  ),
+                  credits: formatCreditsForDisplay(getAgentCredits(agent)),
                 })}
               </span>
             </div>

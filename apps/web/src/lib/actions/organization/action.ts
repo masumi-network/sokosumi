@@ -1,7 +1,6 @@
 "use server";
 
-import { MemberRole } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, MemberRole } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";

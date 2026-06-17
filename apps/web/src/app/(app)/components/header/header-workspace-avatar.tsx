@@ -1,16 +1,16 @@
 "use client";
 
-import type { Organization } from "@sokosumi/database";
-import type { SessionUser } from "@sokosumi/utils";
+import { SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface HeaderWorkspaceAvatarProps {
   sessionUser: SessionUser;
-  organization?: Organization | null;
+  organization?: OrganizationRecord | null;
   className?: string;
   logoSize?: number;
 }

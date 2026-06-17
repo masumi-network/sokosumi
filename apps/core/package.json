@@ -52,12 +52,11 @@
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/net": "workspace:*",
     "@sokosumi/utils": "workspace:*",
-
     "@vercel/blob": "2.4.0",
     "@vercel/functions": "3.7.1",
     "@vercel/related-projects": "1.1.0",
     "ably": "2.22.1",
-    "ai": "6.0.206",
+    "ai": "6.0.207",
     "better-auth": "1.6.19",
     "cron-parser": "5.5.0",
     "dotenv": "17.4.2",

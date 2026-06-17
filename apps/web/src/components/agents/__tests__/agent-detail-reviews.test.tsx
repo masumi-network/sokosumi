@@ -48,8 +48,8 @@ describe("AgentDetailReviews", () => {
     const view = await AgentDetailReviews({
       agentId: "agent-1",
       ratingStats: {
-        totalRatings: 0,
-        averageRating: 0,
+        total: 0,
+        average: null,
       },
       distribution: {
         1: 0,

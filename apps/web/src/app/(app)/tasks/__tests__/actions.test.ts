@@ -1,5 +1,4 @@
-import { AgentJobStatus } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { AgentJobStatus, TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listCoworkersMock = vi.fn();

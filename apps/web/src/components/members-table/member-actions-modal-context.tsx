@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";

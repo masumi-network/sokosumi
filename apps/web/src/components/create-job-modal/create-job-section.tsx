@@ -1,12 +1,7 @@
 "use client";
 
-import type {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
 import Markdown from "@/components/markdown";
@@ -17,13 +12,14 @@ import {
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";
 import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   averageExecutionDuration: number | null;
 }
 
@@ -63,7 +59,7 @@ function InformationAccordionItem({
   agent,
   disabled,
 }: {
-  agent: AgentWithRelations;
+  agent: CoreAgentDto;
   disabled?: boolean | undefined;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Information");
@@ -104,7 +100,7 @@ function InputAccordionItem({
   averageExecutionDuration,
   isDemo,
 }: {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   disabled?: boolean | undefined;
   averageExecutionDuration: number | null;
   isDemo: boolean;
