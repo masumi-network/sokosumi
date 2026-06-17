@@ -1,4 +1,4 @@
-import { NoticeKind } from "@sokosumi/database";
+import { NoticeKind } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -16,7 +16,10 @@ import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { hasAdminRole } from "@/lib/auth/admin-access";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
+import type {
+  GetUsersByIdCreditsResponse,
+  Notice,
+} from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -85,10 +88,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     ? pendingNoticesResult.data
     : [];
   const legalNotices = pendingNotices.filter(
-    (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
+    (notice: Notice) => notice.kind === NoticeKind.LEGAL_TERMS,
   );
   const announcementNotices = pendingNotices.filter(
-    (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
+    (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
   );
   const userImageUrl =
     session.user.image ??

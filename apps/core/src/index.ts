@@ -19,7 +19,6 @@ import authRouter from "@/routes/auth/index";
 import debugRouter from "@/routes/debug/index";
 import syncRouter from "@/routes/sync/index";
 import apiV1 from "@/routes/v1/index";
-import webhooksRouter from "@/routes/webhooks/index";
 import wellKnownRouter from "@/routes/well-known/index";
 import { hermesInboxSyncService } from "@/services/hermes-inbox-sync.service";
 
@@ -52,7 +51,6 @@ app.route("/auth", authRouter);
 app.route("/v1", apiV1);
 app.route("/debug", debugRouter);
 app.route("/sync", syncRouter);
-app.route("/webhooks", webhooksRouter);
 
 app.get(
   "/",

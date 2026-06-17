@@ -1,10 +1,6 @@
-import type {
-  AgentRatingStats,
-  AgentWithCreditsPrice,
-  UserAgentRatingWithUser,
-} from "@sokosumi/database";
-
-import { getAgentExampleOutput, getAgentLegal } from "@/lib/helpers/agent";
+import type { AgentReview } from "@/lib/clients/generated/core";
+import { getAgentExampleOutputs, getAgentLegal } from "@/lib/helpers/agent";
+import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 import {
@@ -19,12 +15,12 @@ import { AgentDetailRisk, AgentDetailRiskSkeleton } from "./risk";
 import { AgentDetailStats, AgentDetailStatsSkeleton } from "./stats";
 
 interface AgentDetailProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   executedJobsCount: number;
   averageExecutionDuration: number | null;
   ratingStats: AgentRatingStats;
   ratingDistribution?: Record<number, number> | undefined;
-  ratingsWithComments?: UserAgentRatingWithUser[] | undefined;
+  ratingsWithComments?: AgentReview[] | undefined;
   canRate?: boolean | undefined;
   existingRating?:
     | {
@@ -53,7 +49,7 @@ export function AgentDetail({
   onClose,
   className,
 }: AgentDetailProps) {
-  const exampleOutputs = getAgentExampleOutput(agent);
+  const exampleOutputs = getAgentExampleOutputs(agent);
   const legal = getAgentLegal(agent);
 
   return (
@@ -94,7 +90,7 @@ export function AgentDetail({
       <section className="space-y-4">
         <AgentDetailRisk agent={agent} />
       </section>
-      {(ratingStats.totalRatings > 0 || canRate) && (
+      {(ratingStats.total > 0 || canRate) && (
         <section className="space-y-4">
           <AgentDetailReviews
             agentId={agent.id}

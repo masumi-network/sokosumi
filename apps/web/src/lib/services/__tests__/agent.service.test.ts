@@ -6,8 +6,6 @@ vi.mock("server-only", () => ({}));
 
 const getAllCoreAgentsMock = vi.fn();
 const getCoreAgentByIdMock = vi.fn();
-const mapCoreAgentsToAgentWithCreditsPriceMock = vi.fn();
-const mapCoreAgentToAgentWithCreditsPriceMock = vi.fn();
 const mapCoreMyAgentReviewMock = vi.fn();
 
 const getAgentRatingEligibilityMock = vi.fn();
@@ -29,10 +27,6 @@ vi.mock("@/lib/agents/core-loaders", () => ({
 }));
 
 vi.mock("@/lib/agents/core-dto-mappers", () => ({
-  mapCoreAgentsToAgentWithCreditsPrice: (...args: unknown[]) =>
-    mapCoreAgentsToAgentWithCreditsPriceMock(...args),
-  mapCoreAgentToAgentWithCreditsPrice: (...args: unknown[]) =>
-    mapCoreAgentToAgentWithCreditsPriceMock(...args),
   mapCoreMyAgentReview: (...args: unknown[]) =>
     mapCoreMyAgentReviewMock(...args),
 }));
@@ -49,17 +43,9 @@ vi.mock("@/lib/clients/core.client", () => ({
 describe("agent.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mapper behavior: tag mapped agents so wiring is observable.
-    mapCoreAgentsToAgentWithCreditsPriceMock.mockImplementation(
-      (agents: Array<{ id: string }>) =>
-        agents.map((agent) => ({ id: agent.id, mapped: true })),
-    );
-    mapCoreAgentToAgentWithCreditsPriceMock.mockImplementation(
-      (agent: { id: string }) => ({ id: agent.id, mapped: true }),
-    );
   });
 
-  it("serves priced available agents from core (credits already computed)", async () => {
+  it("serves available agents from core", async () => {
     const coreAgents = [{ id: "agent-1" }];
     getAllCoreAgentsMock.mockResolvedValue(coreAgents);
 
@@ -67,10 +53,7 @@ describe("agent.service", () => {
     const result = await agentService.getAvailableAgentsWithCreditsPrice();
 
     expect(getAllCoreAgentsMock).toHaveBeenCalledTimes(1);
-    expect(mapCoreAgentsToAgentWithCreditsPriceMock).toHaveBeenCalledWith(
-      coreAgents,
-    );
-    expect(result.map((agent) => agent.id)).toEqual(["agent-1"]);
+    expect(result).toEqual(coreAgents);
   });
 
   it("returns null for an unavailable agent by id (core 404)", async () => {
@@ -80,32 +63,31 @@ describe("agent.service", () => {
     const result = await agentService.getAvailableAgentById("missing");
 
     expect(getCoreAgentByIdMock).toHaveBeenCalledWith("missing");
-    expect(mapCoreAgentToAgentWithCreditsPriceMock).not.toHaveBeenCalled();
     expect(result).toBeNull();
   });
 
-  it("maps an available agent fetched by id from core", async () => {
-    getCoreAgentByIdMock.mockResolvedValue({ id: "agent-1" });
+  it("returns an available agent fetched by id from core", async () => {
+    const coreAgent = { id: "agent-1" };
+    getCoreAgentByIdMock.mockResolvedValue(coreAgent);
 
     const { agentService } = await import("../agent.service");
     const result = await agentService.getAvailableAgentById("agent-1");
 
-    expect(result).toEqual({ id: "agent-1", mapped: true });
+    expect(result).toEqual(coreAgent);
   });
 
   it("reads the random agent's average execution time from core metrics", async () => {
-    getAllCoreAgentsMock.mockResolvedValue([
-      {
-        id: "agent-1",
-        metrics: { executions: { averageTime: 42 } },
-      },
-    ]);
+    const coreAgent = {
+      id: "agent-1",
+      metrics: { executions: { averageTime: 42 } },
+    };
+    getAllCoreAgentsMock.mockResolvedValue([coreAgent]);
 
     const { agentService } = await import("../agent.service");
     const result = await agentService.getRandomAvailableAgentData();
 
     expect(result).toEqual({
-      agent: { id: "agent-1", mapped: true },
+      agent: coreAgent,
       averageExecutionDuration: 42,
     });
   });

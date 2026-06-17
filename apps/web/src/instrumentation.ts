@@ -1,6 +1,8 @@
 /* eslint-disable no-restricted-properties */
 import * as Sentry from "@sentry/nextjs";
 
+import { isExpectedAuthRequestError } from "@/lib/sentry/expected-request-errors";
+
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     await import("../sentry.server.config");
@@ -11,4 +13,14 @@ export async function register() {
   }
 }
 
-export const onRequestError = Sentry.captureRequestError;
+export const onRequestError: typeof Sentry.captureRequestError = (
+  error,
+  request,
+  errorContext,
+) => {
+  if (isExpectedAuthRequestError(error)) {
+    return;
+  }
+
+  Sentry.captureRequestError(error, request, errorContext);
+};

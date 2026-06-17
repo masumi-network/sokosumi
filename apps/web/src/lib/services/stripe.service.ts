@@ -1,6 +1,5 @@
 import "server-only";
 
-import { userRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
@@ -8,7 +7,6 @@ import { verifyUserId } from "@/lib/auth/auth.server";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { type Price, stripeClient } from "@/lib/clients/stripe.client";
-import prisma from "@/lib/db/prisma";
 import { CouponNotFoundError } from "@/lib/errors/coupon-errors";
 
 function isEntityNotFoundError(error: unknown): boolean {
@@ -173,35 +171,6 @@ export const stripeService = (() => {
       } catch (error) {
         console.error(
           `Error syncing invoice email with Stripe for organization ${organizationId}:`,
-          error,
-        );
-        return false;
-      }
-    },
-
-    async syncUserEmailWithStripe(
-      userId: string,
-      newEmail: string,
-    ): Promise<boolean> {
-      try {
-        const user = await userRepository.getUserById(userId, prisma);
-
-        if (!user || !user.stripeCustomerId) {
-          // No Stripe customer to update
-          return true;
-        }
-
-        // Update Stripe customer email
-        await stripeClient.updateCustomerEmail(user.stripeCustomerId, newEmail);
-
-        console.log(
-          `✅ Synced user ${userId} email to Stripe customer ${user.stripeCustomerId}`,
-        );
-
-        return true;
-      } catch (error) {
-        console.error(
-          `Error syncing user email with Stripe for user ${userId}:`,
           error,
         );
         return false;

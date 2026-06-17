@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/database";
 import type { Session } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,13 +26,13 @@ vi.mock("@/config/env.public", () => ({
 }));
 
 interface EnvSecretsMock {
-  BETTER_AUTH_SECRET: string;
+  APP_SIGNING_SECRET: string;
   MASUMI_DESIGN_MD_API_KEY?: string;
   MASUMI_DESIGN_MD_API_URL: string;
 }
 
 const getEnvSecretsMock = vi.fn<() => EnvSecretsMock>(() => ({
-  BETTER_AUTH_SECRET: "test-secret",
+  APP_SIGNING_SECRET: "test-secret",
   MASUMI_DESIGN_MD_API_KEY: "api-key",
   MASUMI_DESIGN_MD_API_URL: "https://masumi.example/api/v1",
 }));
@@ -260,7 +260,7 @@ describe("designMdService", () => {
 
   it("throws unconfigured when the Masumi API key is missing", async () => {
     getEnvSecretsMock.mockReturnValueOnce({
-      BETTER_AUTH_SECRET: "test-secret",
+      APP_SIGNING_SECRET: "test-secret",
       MASUMI_DESIGN_MD_API_URL: "https://masumi.example/api/v1",
     });
 

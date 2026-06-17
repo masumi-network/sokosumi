@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/database";
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 

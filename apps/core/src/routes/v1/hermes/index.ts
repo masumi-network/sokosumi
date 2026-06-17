@@ -2078,14 +2078,16 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
   }
 
   if (lastStatus !== "ACTIVE") {
-    Sentry.captureMessage("composio_finalize_not_active", {
+    Sentry.addBreadcrumb({
+      category: "composio_finalize",
+      message: "composio_finalize_not_active",
       level: "warning",
-      tags: { context: "composio_finalize", last_status: lastStatus },
-      extra: {
+      data: {
         userId: userContext.userId,
         provider,
         mode,
         connectionId,
+        lastStatus,
         pollAttempts,
         budgetMs: FINALIZE_POLL_MAX_ATTEMPTS * FINALIZE_POLL_INTERVAL_MS,
       },

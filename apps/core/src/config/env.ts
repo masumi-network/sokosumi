@@ -116,16 +116,9 @@ const envSchema = z.object({
   // 100%-off coupon used to issue admin credit grants free of charge
   STRIPE_SUPPORT_COUPON: z.string().min(1),
 
-  // Signing secret for Core billing webhook (POST /webhooks/stripe).
+  // Signing secret for Stripe webhooks (POST /auth/stripe/webhook). Stripe Dashboard
+  // should send all events here; billing events are handled from auth onEvent.
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
-
-  // Signing secret for Better Auth Stripe plugin (POST /auth/stripe/webhook).
-  STRIPE_BA_WEBHOOK_SECRET: z.string().min(1),
-
-  // When true, Stripe Dashboard should send all events to POST /auth/stripe/webhook
-  // only (STRIPE_WEBHOOK_SECRET). Billing events are handled from auth onEvent and
-  // POST /webhooks/stripe is disabled. Stripe Dashboard should use POST /auth/stripe/webhook only.
-  USE_UNIFIED_STRIPE_WEBHOOK: z.stringbool().default(false),
 
   // Sync lock configuration
   LOCK_TIMEOUT: z.coerce

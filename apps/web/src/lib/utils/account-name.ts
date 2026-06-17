@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@sokosumi/database";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 /**
  * Resolves an account name from an organization ID and members list.

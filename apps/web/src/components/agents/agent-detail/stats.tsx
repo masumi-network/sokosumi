@@ -1,9 +1,8 @@
-import type { AgentRatingStats } from "@sokosumi/database";
 import { CircleCheck, Clock, Star } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { AgentRatingStats } from "@/lib/types/core-dto";
 import { cn, formatDuration } from "@/lib/utils";
 
 function AgentDetailStats({
@@ -21,7 +20,7 @@ function AgentDetailStats({
 
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
 
-  const hasRating = ratingStats && ratingStats.totalRatings > 0;
+  const hasRating = ratingStats && ratingStats.total > 0;
   const desktopGridCols = hasRating
     ? averageExecutionDuration && averageExecutionDuration > 0
       ? "md:grid-cols-3"
@@ -61,8 +60,8 @@ function AgentDetailStats({
             </div>
             <div className="flex items-center gap-1">
               <StarRating
-                averageRating={ratingStats.averageRating}
-                totalRatings={ratingStats.totalRatings}
+                averageRating={ratingStats.average ?? 0}
+                totalRatings={ratingStats.total}
                 showRatingNumber={true}
                 size="md"
               />

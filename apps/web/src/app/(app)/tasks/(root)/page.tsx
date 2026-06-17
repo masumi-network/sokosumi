@@ -1,5 +1,4 @@
-import { AgentJobStatus } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { AgentJobStatus, TaskStatus } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
@@ -18,6 +17,7 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
+import { redirectIfUnauthorizedCoreError } from "@/lib/auth/handle-unauthorized-core-error";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -54,6 +54,18 @@ export const metadata = {
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
+async function loadTasksPageData() {
+  try {
+    return await Promise.all([
+      coworkerService.listCoworkers("tasks"),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+    ]);
+  } catch (error) {
+    return await redirectIfUnauthorizedCoreError(error);
+  }
+}
+
 export default async function TasksPage({ searchParams }: TasksPageProps) {
   const {
     create,
@@ -78,11 +90,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [taskCoworkers, agents, projectsPage] = await Promise.all([
-    coworkerService.listCoworkers("tasks"),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-  ]);
+  const [taskCoworkers, agents, projectsPage] = await loadTasksPageData();
   const filters = parseTasksFilters(
     { scope, coworkerId, status, projectId },
     activeOrganizationId,
