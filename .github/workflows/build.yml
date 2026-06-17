@@ -34,8 +34,7 @@ env:
   GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
   MICROSOFT_CLIENT_ID: "ci-microsoft-client-id"
   MICROSOFT_CLIENT_SECRET: "ci-microsoft-client-secret"
-  AFTER_AGENT_HIRED_WEB_HOOK: https://after-agent-hired-web-hook.com
-  MARKETING_OPT_IN_WEB_HOOK: https://marketing-opt-in-web-hook.com
+  AGENT_HIRED_WEBHOOK: https://example.test/agent-hired
 
 jobs:
   build:
