@@ -8,7 +8,6 @@ describe("buildBucketLookupFromCoworkers", () => {
       ["hannah", "gpt-5-4"],
       [
         {
-          id: "coworker-1",
           slug: "hannah",
           name: "Hannah",
           image: "https://example.com/hannah.webp",

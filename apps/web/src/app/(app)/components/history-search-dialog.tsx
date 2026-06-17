@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
+import { filterCoworkersForUiListing } from "@/lib/coworkers/ui-restricted-slugs";
 
 const HISTORY_SEARCH_PAGE_SIZE = 50;
 const SEARCH_STATUS_BADGE_CLASSNAME = "ml-auto shrink-0";
@@ -71,7 +72,7 @@ export function HistorySearchDialog({
   const loadCoworkers = useEffectEvent(async () => {
     try {
       const response = await coreClient.getCoworkers();
-      setCoworkers(response.data);
+      setCoworkers(filterCoworkersForUiListing(response.data ?? []));
     } catch {
       setCoworkers([]);
     }

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -216,6 +216,88 @@ describe("HistorySearchDialog", () => {
     await waitFor(() => {
       expect(getCoworkersMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("excludes UI-restricted coworkers from bucket icon resolution", async () => {
+    getCoworkersMock.mockResolvedValue({
+      data: [
+        {
+          id: "coworker-hermes",
+          slug: "hermes",
+          name: "Hermes",
+          image: "https://example.com/hermes.webp",
+        },
+        {
+          id: "coworker-elena",
+          slug: "elena",
+          name: "Elena",
+          image: "https://example.com/elena.webp",
+        },
+      ],
+    });
+    getHistoryMock.mockResolvedValue({
+      data: [
+        {
+          id: "conversation-hermes",
+          kind: "conversation",
+          title: "Hermes chat",
+          status: "active",
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          archivedAt: null,
+          description: null,
+          credits: null,
+          bucketSlug: "hermes",
+        },
+        {
+          id: "conversation-elena",
+          kind: "conversation",
+          title: "Elena chat",
+          status: "active",
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+          archivedAt: null,
+          description: null,
+          credits: null,
+          bucketSlug: "elena",
+        },
+      ],
+    });
+
+    render(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Elena chat")).toBeInTheDocument();
+    });
+
+    const hermesItem = screen
+      .getByText("Hermes chat")
+      .closest('[data-slot="command-item"]');
+    const elenaItem = screen
+      .getByText("Elena chat")
+      .closest('[data-slot="command-item"]');
+
+    expect(hermesItem).not.toBeNull();
+    expect(elenaItem).not.toBeNull();
+
+    expect(
+      within(hermesItem as HTMLElement).getByTestId("chat-model-icon"),
+    ).toHaveTextContent(":Conversation");
+    expect(
+      (hermesItem as HTMLElement).querySelector('[data-slot="avatar"]'),
+    ).toBeNull();
+
+    expect(
+      (elenaItem as HTMLElement).querySelector('[data-slot="avatar"]'),
+    ).not.toBeNull();
+    expect(
+      within(elenaItem as HTMLElement).queryByTestId("chat-model-icon"),
+    ).toBeNull();
   });
 
   it("renders resolved model icons for conversation history items", async () => {
