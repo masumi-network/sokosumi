@@ -22,6 +22,7 @@ function buildHistoryItem() {
     credits: 2,
     projectId: null,
     coworkerId: null,
+    owner: null,
   };
 }
 

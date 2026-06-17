@@ -256,6 +256,7 @@ describe("HistorySearchDialog", () => {
           description: null,
           credits: null,
           bucketSlug: "hermes",
+          owner: null,
         },
         {
           id: "conversation-elena",
@@ -267,6 +268,7 @@ describe("HistorySearchDialog", () => {
           description: null,
           credits: null,
           bucketSlug: "elena",
+          owner: null,
         },
       ],
     });
@@ -322,6 +324,7 @@ describe("HistorySearchDialog", () => {
           description: null,
           credits: null,
           bucketSlug: "grok-4-1-fast",
+          owner: null,
         },
       ],
     });
