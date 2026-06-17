@@ -80,7 +80,6 @@
       "agentsNotAvailable": "利用可能なエージェントはありません",
       "agentsNotFound": "エージェントが見つかりません",
       "hire": "エージェントを雇う",
-      "freeDemo": "無料デモ",
       "AgentCard": {
         "view": "詳細を見る",
         "pricing": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "サイドバーを展開",
       "logout": "ログアウト",
       "creditsUsedOfTotal": "{used, number} / {total, number} クレジット使用",
+      "lowCreditsLabel": "クレジット残量低下 {credits, number}",
       "totalBalanceLabel": "合計残高",
       "creditsSummary": "クレジット概要:",
       "monthlyUsageLimit": "月間利用上限",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "デモ",
         "started": "開始",
         "completed": "完了",
         "failed": "失敗",
@@ -2356,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "チャット",
+          "search": "検索",
           "exploreAgents": "エージェント",
           "filesAndOutputs": "ファイルと出力",
           "taskManager": "タスク",
@@ -2365,6 +2365,14 @@
           "admin": "管理"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "検索",
+      "description": "タスク、ジョブ、会話を検索",
+      "searchPlaceholder": "検索...",
+      "empty": "結果が見つかりませんでした",
+      "loading": "読み込み中...",
+      "error": "結果の読み込みに失敗しました"
     },
     "NoticeDialog": {
       "defaultTitle": "お知らせ",
@@ -3281,7 +3289,6 @@
         },
         "CreateJob": {
           "title": "新しい{name}",
-          "demo": "デモ",
           "cancel": "キャンセル",
           "Information": {
             "title": "情報"
@@ -3542,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "ジョブ入力スキーマの取得に失敗しました",
-        "demoDataInvalid": "エージェントのデモデータが無効です。"
+        "failedToFetchJobInputSchema": "ジョブ入力スキーマの取得に失敗しました"
       }
     },
     "Duration": {

@@ -34,10 +34,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@react-email/render": "2.0.8",
+    "@react-email/render": "2.0.9",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "react-email": "6.6.0",
+    "react-email": "6.6.3",
     "use-intl": "4.13.0"
   },
   "devDependencies": {

@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Core `Job` narrowed to the paid variant the refund flow renders (mirrors the
- * former Prisma `PaidJobWithStatus`).
+ * former Prisma `Job`).
  *
  * `unlockTime` is checked by `canRenderRefundRequest` for the COMPLETED and
  * FAILED branches — the only statuses that reach a read (the refund/dispute
@@ -289,10 +289,13 @@ export default function RequestRefundButton({
       jobId: job.id,
     });
     if (result.ok) {
-      setJob((currentJob) => ({
-        ...currentJob,
-        ...result.data.job,
-      }));
+      setJob(
+        (currentJob) =>
+          ({
+            ...currentJob,
+            ...result.data.job,
+          }) as PaidJob,
+      );
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:

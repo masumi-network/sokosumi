@@ -95,7 +95,7 @@ export function sanitizeProjectIdFilterInput(raw: unknown): string | null {
 export function getDefaultTasksScope(
   activeOrganizationId: string | null,
 ): TasksScope {
-  return activeOrganizationId ? "workspace" : "owned";
+  return "owned";
 }
 
 /**

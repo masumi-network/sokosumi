@@ -1,11 +1,11 @@
 "use client";
 
-import type { Member } from "@sokosumi/database";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { TimeAgo } from "@/components/time-ago";
+import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
 import { useSeatManagementContext } from "./seat-management-context";
@@ -15,7 +15,7 @@ const columnHelper = createColumnHelper<MemberRowData>();
 
 export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
-  me: Member,
+  me: OrganizationMembershipSelf,
 ) {
   return {
     nameColumn: columnHelper.accessor("name", {

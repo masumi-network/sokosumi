@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Keine Agents verfügbar",
       "agentsNotFound": "Keine Agents gefunden",
       "hire": "Agent beauftragen",
-      "freeDemo": "Kostenlose Demo",
       "AgentCard": {
         "view": "Details anzeigen",
         "pricing": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
@@ -124,6 +123,7 @@
       "support": "Support",
       "logout": "Abmelden",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits verwendet",
+      "lowCreditsLabel": "Niedrige Credits {credits, number}",
       "totalBalanceLabel": "Gesamtsaldo",
       "creditsConsumedProgressAria": "Verbrauchte Abo-Credits",
       "help": "Hilfe",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Gestartet",
         "completed": "Abgeschlossen",
         "failed": "Fehlgeschlagen",
@@ -2356,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Suche",
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
@@ -2365,6 +2365,14 @@
           "admin": "Administration"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Suche",
+      "description": "Suche nach Aufgaben, Jobs oder Unterhaltungen",
+      "searchPlaceholder": "Suchen...",
+      "empty": "Keine Ergebnisse gefunden",
+      "loading": "Lädt...",
+      "error": "Ergebnisse konnten nicht geladen werden"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",
@@ -3250,7 +3258,6 @@
         },
         "CreateJob": {
           "title": "Neuer {name}",
-          "demo": "Demo",
           "cancel": "Abbrechen",
           "Information": {
             "title": "Informationen"
@@ -3542,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Job-Input-Schema konnte nicht abgerufen werden",
-        "demoDataInvalid": "Demo-Daten des Agents sind ungültig."
+        "failedToFetchJobInputSchema": "Job-Input-Schema konnte nicht abgerufen werden"
       }
     },
     "Duration": {

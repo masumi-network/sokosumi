@@ -1,9 +1,7 @@
 "use client";
 
-import type { Organization } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction, useState } from "react";
-
 import {
   AlertDialog,
   AlertDialogContent,
@@ -11,13 +9,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 import OrganizationRemoveForm from "./form";
 
 interface OrganizationRemoveModalProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  organization: Organization;
+  organization: OrganizationRecord;
 }
 
 export default function OrganizationRemoveModal({

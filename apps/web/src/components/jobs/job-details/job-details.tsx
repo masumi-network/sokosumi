@@ -1,12 +1,11 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelProvider, useChannel } from "ably/react";
-
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import { useSession } from "@/lib/auth/auth.client";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { getJobQueryKey, getJobQueryOptions } from "@/queries";
 
 import JobDetailsView, { type JobDetailsViewProps } from "./job-details-view";

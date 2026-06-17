@@ -80,7 +80,6 @@
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
-      "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "Expandir barra lateral",
       "logout": "Terminar sessão",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
+      "lowCreditsLabel": "Créditos baixos {credits, number}",
       "totalBalanceLabel": "Saldo total",
       "creditsSummary": "Resumo de créditos:",
       "monthlyUsageLimit": "Limite de utilização mensal",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demonstração",
         "started": "Iniciado",
         "completed": "Concluído",
         "failed": "Falhado",
@@ -2356,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Pesquisar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Ficheiros e outputs",
           "taskManager": "Tarefas",
@@ -2365,6 +2365,14 @@
           "admin": "Administração"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Pesquisar",
+      "description": "Pesquisar tarefas, trabalhos ou conversas",
+      "searchPlaceholder": "Pesquisar...",
+      "empty": "Nenhum resultado encontrado",
+      "loading": "Carregando...",
+      "error": "Falha ao carregar os resultados"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",
@@ -3281,7 +3289,6 @@
         },
         "CreateJob": {
           "title": "Novo {name}",
-          "demo": "Demo",
           "cancel": "Cancelar",
           "Information": {
             "title": "Informação"
@@ -3542,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Falha ao obter o schema de input do job",
-        "demoDataInvalid": "Os dados de demonstração do agente são inválidos."
+        "failedToFetchJobInputSchema": "Falha ao obter o schema de input do job"
       }
     },
     "Duration": {

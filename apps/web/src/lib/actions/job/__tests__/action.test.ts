@@ -91,17 +91,12 @@ vi.mock("@/lib/clients/openrouter.client", () => ({
   },
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
-}));
-
 vi.mock("@/lib/services", () => ({
   callAgentHiredWebHook: (...args: unknown[]) =>
     callAgentHiredWebHookMock(...args),
   jobService: {
     moveJobToWorkspace: vi.fn(),
     provideJobInput: vi.fn(),
-    startDemoJob: vi.fn(),
   },
 }));
 

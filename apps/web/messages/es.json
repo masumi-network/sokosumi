@@ -80,7 +80,6 @@
       "agentsNotAvailable": "No hay Agents disponibles",
       "agentsNotFound": "No se encontraron Agents",
       "hire": "Contratar Agent",
-      "freeDemo": "Demo gratuita",
       "AgentCard": {
         "view": "Ver detalles",
         "pricing": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
@@ -124,6 +123,7 @@
       "support": "Soporte",
       "logout": "Cerrar sesión",
       "creditsUsedOfTotal": "{used, number} / {total, number} Credits usados",
+      "lowCreditsLabel": "Créditos bajos {credits, number}",
       "totalBalanceLabel": "Saldo total",
       "creditsConsumedProgressAria": "Credits de suscripción consumidos",
       "help": "Ayuda",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Iniciado",
         "completed": "Completado",
         "failed": "Fallido",
@@ -2356,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Buscar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
@@ -2365,6 +2365,14 @@
           "admin": "Administración"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Buscar",
+      "description": "Buscar tareas, trabajos o conversaciones",
+      "searchPlaceholder": "Buscar...",
+      "empty": "No se encontraron resultados",
+      "loading": "Cargando...",
+      "error": "Error al cargar los resultados"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",
@@ -3250,7 +3258,6 @@
         },
         "CreateJob": {
           "title": "Nuevo {name}",
-          "demo": "Demo",
           "cancel": "Cancelar",
           "Information": {
             "title": "Información"
@@ -3542,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "No se pudo obtener el esquema de Input del job",
-        "demoDataInvalid": "Los datos de demo del Agent no son válidos."
+        "failedToFetchJobInputSchema": "No se pudo obtener el esquema de Input del job"
       }
     },
     "Duration": {

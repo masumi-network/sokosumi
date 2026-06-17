@@ -65,28 +65,28 @@ describe("NewChatTaskActions keyboard shortcut", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("navigates to /chat on Cmd+K", () => {
+  it("navigates to /chat on Cmd+N", () => {
     render(<NewChatTaskActions />);
 
-    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    fireEvent.keyDown(window, { key: "n", metaKey: true });
 
     expect(pushMock).toHaveBeenCalledWith("/chat");
   });
 
-  it("navigates to /chat on Ctrl+K", () => {
+  it("navigates to /chat on Ctrl+N", () => {
     render(<NewChatTaskActions />);
 
-    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
 
     expect(pushMock).toHaveBeenCalledWith("/chat");
   });
 
-  it("ignores Cmd+K when an input element is the event target", () => {
+  it("ignores Cmd+N when an input element is the event target", () => {
     render(<NewChatTaskActions />);
     const input = document.createElement("input");
     document.body.appendChild(input);
 
-    fireEvent.keyDown(input, { key: "k", metaKey: true });
+    fireEvent.keyDown(input, { key: "n", metaKey: true });
 
     expect(pushMock).not.toHaveBeenCalled();
 

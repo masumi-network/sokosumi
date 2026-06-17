@@ -1,6 +1,7 @@
-import type { Invitation } from "@sokosumi/database";
-
-import type { Member as OrganizationMember } from "@/lib/clients/generated/core";
+import type {
+  Member as OrganizationMember,
+  PendingInvitation,
+} from "@/lib/clients/generated/core";
 
 export type { OrganizationMember };
 
@@ -10,5 +11,5 @@ export interface MemberRowData {
   role: string;
   lastSeenAt?: Date | null | undefined;
   member?: OrganizationMember | undefined;
-  invitation?: Invitation | undefined;
+  invitation?: PendingInvitation | undefined;
 }

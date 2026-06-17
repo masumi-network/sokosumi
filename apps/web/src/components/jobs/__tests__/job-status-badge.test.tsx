@@ -1,4 +1,3 @@
-import { JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -13,10 +12,7 @@ vi.mock("next-intl", () => ({
 describe("JobStatusBadge", () => {
   it("renders a pill badge with label by default", () => {
     const { container } = render(
-      <JobStatusBadge
-        status={SokosumiJobStatus.COMPLETED}
-        jobType={JobType.FREE}
-      />,
+      <JobStatusBadge status={SokosumiJobStatus.COMPLETED} />,
     );
 
     expect(screen.getByText("completed")).toBeInTheDocument();
@@ -34,16 +30,23 @@ describe("JobStatusBadge", () => {
 
   it("renders dot-only version when variant is dot", () => {
     const { container } = render(
-      <JobStatusBadge
-        status={SokosumiJobStatus.COMPLETED}
-        jobType={JobType.FREE}
-        variant="dot"
-      />,
+      <JobStatusBadge status={SokosumiJobStatus.COMPLETED} variant="dot" />,
     );
 
     expect(screen.queryByText("completed")).not.toBeInTheDocument();
     expect(
       container.querySelector("span[aria-label='completed']"),
     ).toBeInTheDocument();
+  });
+
+  it("applies status text color to warning icon", () => {
+    const { container } = render(
+      <JobStatusBadge status={SokosumiJobStatus.INPUT_REQUIRED} />,
+    );
+
+    expect(container.querySelector("svg")).toHaveClass(
+      "size-3",
+      "text-destructive",
+    );
   });
 });

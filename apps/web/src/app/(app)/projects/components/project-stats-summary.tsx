@@ -1,4 +1,3 @@
-import type { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import { ListTodo, Sparkles } from "lucide-react";
 import { getTaskStatusDotColorClass } from "@/app/tasks/components/task-status-badge";
@@ -8,6 +7,7 @@ import type {
   ProjectStatsEntry,
   ProjectTaskStatusCount,
 } from "@/lib/clients/generated/core/types.gen";
+import type { SokosumiJobStatus, TaskStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
 type ProjectTaskStatus = ProjectTaskStatusCount["status"];

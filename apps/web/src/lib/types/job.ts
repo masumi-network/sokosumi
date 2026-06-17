@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import type { SokosumiJobStatus } from "@/lib/types/core-dto";
 
 export interface SyncJobTransactionResult {
   jobStatus: SokosumiJobStatus;

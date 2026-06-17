@@ -1,6 +1,5 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import {
   createContext,
   useCallback,
@@ -8,18 +7,18 @@ import {
   useMemo,
   useState,
 } from "react";
-
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
+
+export interface CreateJobModalOpenOptions {
+  projectId?: string | null;
+}
 
 interface CreateJobModalContextType {
   // modal open
   open: boolean;
   setOpen: (open: boolean) => void;
-  handleOpen: (
-    agentId: string,
-    isDemo?: boolean,
-    projectOverrideId?: string | null,
-  ) => void;
+  handleOpen: (agentId: string, options?: CreateJobModalOpenOptions) => void;
   handleClose: () => void;
   // create job form loading
   loading: boolean;
@@ -31,12 +30,11 @@ interface CreateJobModalContextType {
   handleExpand: () => void;
   handleCollapse: () => void;
   // agents with price
-  agentsWithPrice: AgentWithCreditsPrice[];
+  agentsWithPrice: CoreAgentDto[];
   // selected agent
   agentId?: string | undefined;
-  isDemo: boolean;
   setAgentId: (agentId: string) => void;
-  agentWithPrice?: AgentWithCreditsPrice | undefined;
+  agentWithPrice?: CoreAgentDto | undefined;
   // average execution duration
   averageExecutionDuration: number | null;
   // project selection
@@ -59,7 +57,6 @@ const initialState: CreateJobModalContextType = {
   handleCollapse: () => {},
   agentsWithPrice: [],
   agentId: undefined,
-  isDemo: false,
   setAgentId: () => {},
   averageExecutionDuration: null,
   projectOptions: undefined,
@@ -77,7 +74,7 @@ export function CreateJobModalContextProvider({
   defaultProjectId = null,
   children,
 }: {
-  agentsWithPrice: AgentWithCreditsPrice[];
+  agentsWithPrice: CoreAgentDto[];
   averageExecutionDuration: number | null;
   projectOptions?: ProjectFilterOption[] | undefined;
   defaultProjectId?: string | null | undefined;
@@ -87,7 +84,6 @@ export function CreateJobModalContextProvider({
   const [loading, setLoading] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string[]>(["input"]);
   const [agentId, setAgentId] = useState<string | undefined>(undefined);
-  const [isDemo, setIsDemo] = useState(false);
   const [projectId, setProjectIdState] = useState<string | null>(
     defaultProjectId ?? null,
   );
@@ -115,21 +111,15 @@ export function CreateJobModalContextProvider({
     setAccordionValue([]);
   };
 
-  const handleOpen = (
-    agentId: string,
-    isDemo?: boolean,
-    projectOverrideId?: string | null,
-  ) => {
+  const handleOpen = (agentId: string, options?: CreateJobModalOpenOptions) => {
     setOpen(true);
     setAgentId(agentId);
-    setIsDemo(isDemo ?? false);
-    setProjectIdState(projectOverrideId ?? defaultProjectId ?? null);
+    setProjectIdState(options?.projectId ?? defaultProjectId ?? null);
   };
 
   const handleClose = () => {
     setOpen(false);
     setAgentId(undefined);
-    setIsDemo(false);
     setProjectIdState(defaultProjectId ?? null);
   };
 
@@ -147,7 +137,6 @@ export function CreateJobModalContextProvider({
     handleCollapse,
     agentsWithPrice,
     agentId,
-    isDemo,
     setAgentId,
     agentWithPrice,
     averageExecutionDuration,

@@ -1,12 +1,11 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-
 import { AgentPriceBottomNavigation } from "@/components/agents/agent-price-bottom-navigation";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 interface JobBottomNavigationProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   disabled?: boolean;
 }
 

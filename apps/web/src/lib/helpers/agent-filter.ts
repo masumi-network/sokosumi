@@ -1,11 +1,10 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-
 import type { GalleryFilterState } from "@/hooks/use-gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentCategorySlugs } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export const filterAgents = (
-  agents: AgentWithCreditsPrice[],
+  agents: CoreAgentDto[],
   { query, categories }: GalleryFilterState,
 ) => {
   if (!query && categories.length === 0) {

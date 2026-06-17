@@ -988,8 +988,7 @@ export const JobSummarySchema = {
             type: 'string',
             enum: [
                 'FREE',
-                'PAID',
-                'DEMO'
+                'PAID'
             ],
             example: 'PAID'
         },
@@ -2251,623 +2250,6 @@ export const AgentRatingRequestSchema = {
     },
     required: [
         'rating'
-    ]
-} as const;
-
-export const JobSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'job_123'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        completedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        agentId: {
-            type: 'string',
-            example: 'agent_123'
-        },
-        userId: {
-            type: 'string',
-            example: 'user_123'
-        },
-        user: {
-            $ref: '#/components/schemas/UserSummary'
-        },
-        organizationId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'organization_123'
-        },
-        organization: {
-            $ref: '#/components/schemas/OrganizationSummary'
-        },
-        projectId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
-        },
-        taskId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'task_123'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Research Task'
-        },
-        jobType: {
-            type: 'string',
-            enum: [
-                'FREE',
-                'PAID',
-                'DEMO'
-            ],
-            example: 'PAID'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'started',
-                'completed',
-                'processing',
-                'input_required',
-                'result_pending',
-                'failed',
-                'payment_pending',
-                'payment_failed',
-                'refund_pending',
-                'refund_resolved',
-                'dispute_pending',
-                'dispute_resolved'
-            ],
-            example: 'completed'
-        },
-        credits: {
-            type: 'number',
-            example: 5
-        },
-        onChainStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'FUNDS_LOCKED',
-                'FUNDS_OR_DATUM_INVALID',
-                'FUNDS_WITHDRAWN',
-                'RESULT_SUBMITTED',
-                'REFUND_REQUESTED',
-                'REFUND_WITHDRAWN',
-                'DISPUTED',
-                'DISPUTED_WITHDRAWN',
-                null
-            ],
-            example: 'RESULT_SUBMITTED'
-        },
-        onChainTransactionHash: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '0x123abc'
-        },
-        result: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '# Result'
-        },
-        resultHash: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'result_hash_123'
-        },
-        blockchainIdentifier: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '0b00e04c0860a60c61066056281180462d0b12'
-        },
-        payByTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        submitResultTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        unlockTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        externalDisputeUnlockTime: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        sellerVkey: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'seller_vkey_hex'
-        },
-        input: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '{"prompt":"How many planets are in the solar system?"}'
-        },
-        inputHash: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'input_hash_123'
-        },
-        inputSchema: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'input_schema_123'
-        },
-        agentJobId: {
-            type: 'string',
-            example: 'agent_job_123'
-        },
-        identifierFromPurchaser: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'identifier_123'
-        },
-        workspace: {
-            $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        agent: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    example: 'agent_123'
-                },
-                name: {
-                    type: 'string',
-                    example: 'Research Agent'
-                },
-                overrideName: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'My Research Agent'
-                },
-                icon: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/icon.png'
-                },
-                image: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/image.png'
-                },
-                overrideImage: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/override-image.png'
-                },
-                legalPrivacyPolicy: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/privacy'
-                },
-                overrideLegalPrivacyPolicy: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/custom-privacy'
-                },
-                legalTerms: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/terms'
-                },
-                overrideLegalTerms: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/custom-terms'
-                },
-                legalDpa: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/dpa'
-                },
-                overrideLegalDpa: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/custom-dpa'
-                },
-                legalOther: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/support'
-                },
-                overrideLegalOther: {
-                    type: [
-                        'string',
-                        'null'
-                    ],
-                    example: 'https://example.com/custom-support'
-                }
-            },
-            required: [
-                'id',
-                'name'
-            ]
-        },
-        events: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    id: {
-                        type: 'string',
-                        example: 'event_123'
-                    },
-                    createdAt: {
-                        type: 'string',
-                        format: 'date-time',
-                        example: '2021-01-01T00:00:00.000Z'
-                    },
-                    updatedAt: {
-                        type: 'string',
-                        format: 'date-time',
-                        example: '2021-01-01T00:00:00.000Z'
-                    },
-                    status: {
-                        type: 'string',
-                        enum: [
-                            'INITIATED',
-                            'AWAITING_PAYMENT',
-                            'AWAITING_INPUT',
-                            'RUNNING',
-                            'COMPLETED',
-                            'FAILED'
-                        ],
-                        example: 'COMPLETED'
-                    },
-                    inputSchema: {
-                        type: [
-                            'string',
-                            'null'
-                        ],
-                        example: 'input_schema_123'
-                    },
-                    input: {
-                        type: [
-                            'object',
-                            'null'
-                        ],
-                        properties: {
-                            id: {
-                                type: 'string',
-                                example: 'input_123'
-                            },
-                            input: {
-                                type: 'string',
-                                example: '{"prompt":"How many planets are in the solar system?"}'
-                            },
-                            inputHash: {
-                                type: [
-                                    'string',
-                                    'null'
-                                ],
-                                example: 'input_hash_123'
-                            },
-                            signature: {
-                                type: [
-                                    'string',
-                                    'null'
-                                ],
-                                example: 'signature_123'
-                            }
-                        },
-                        required: [
-                            'id',
-                            'input'
-                        ]
-                    },
-                    result: {
-                        type: [
-                            'string',
-                            'null'
-                        ],
-                        example: '# Result'
-                    },
-                    blobs: {
-                        type: 'array',
-                        items: {
-                            $ref: '#/components/schemas/File'
-                        },
-                        example: []
-                    },
-                    links: {
-                        type: 'array',
-                        items: {
-                            $ref: '#/components/schemas/Link'
-                        },
-                        example: []
-                    }
-                },
-                required: [
-                    'id',
-                    'createdAt',
-                    'updatedAt',
-                    'status',
-                    'blobs',
-                    'links'
-                ]
-            }
-        },
-        share: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/JobShare'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            example: null
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'agentId',
-        'userId',
-        'user',
-        'projectId',
-        'jobType',
-        'status',
-        'credits',
-        'agentJobId',
-        'workspace',
-        'agent',
-        'events',
-        'share'
-    ]
-} as const;
-
-export const FileSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cmi4gmksz000104l8wps8p7fp'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        jobId: {
-            type: 'string',
-            example: 'cmi4gmksz000104l8wps8p7fp',
-            description: 'ID of the job'
-        },
-        sourceUrl: {
-            type: 'string',
-            example: 'https://example.com/file.pdf',
-            description: 'Source URL of the file'
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'file.pdf',
-            description: 'Name of the file'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'PENDING',
-                'READY',
-                'FAILED'
-            ],
-            example: 'READY',
-            description: 'Status of the file'
-        },
-        size: {
-            type: [
-                'number',
-                'null'
-            ],
-            example: 1000,
-            description: 'Size in bytes'
-        },
-        mimeType: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'application/pdf',
-            description: 'MIME type of the file'
-        },
-        fileUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://blob.vercel.app/file.pdf',
-            description: 'Publicly accessible URL of the file'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'jobId',
-        'sourceUrl',
-        'status'
-    ]
-} as const;
-
-export const LinkSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cmi4gmksz000104l8wps8p7fp'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        jobId: {
-            type: 'string',
-            example: 'cmi4gmksz000104l8wps8p7fp'
-        },
-        url: {
-            type: 'string',
-            example: 'https://example.com/article1'
-        },
-        title: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'My Job'
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'jobId',
-        'url'
-    ]
-} as const;
-
-export const JobShareSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'share_123'
-        },
-        token: {
-            type: 'string',
-            example: 'public-share-token'
-        },
-        allowSearchIndexing: {
-            type: 'boolean',
-            example: true
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        jobId: {
-            type: 'string',
-            example: 'job_123'
-        }
-    },
-    required: [
-        'id',
-        'token',
-        'allowSearchIndexing',
-        'createdAt',
-        'updatedAt',
-        'jobId'
     ]
 } as const;
 
@@ -6778,6 +6160,622 @@ export const ProjectDeletedSchema = {
     required: [
         'id',
         'deleted'
+    ]
+} as const;
+
+export const JobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'job_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        agentId: {
+            type: 'string',
+            example: 'agent_123'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        user: {
+            $ref: '#/components/schemas/UserSummary'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'organization_123'
+        },
+        organization: {
+            $ref: '#/components/schemas/OrganizationSummary'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'task_123'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Research Task'
+        },
+        jobType: {
+            type: 'string',
+            enum: [
+                'FREE',
+                'PAID'
+            ],
+            example: 'PAID'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'started',
+                'completed',
+                'processing',
+                'input_required',
+                'result_pending',
+                'failed',
+                'payment_pending',
+                'payment_failed',
+                'refund_pending',
+                'refund_resolved',
+                'dispute_pending',
+                'dispute_resolved'
+            ],
+            example: 'completed'
+        },
+        credits: {
+            type: 'number',
+            example: 5
+        },
+        onChainStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'FUNDS_LOCKED',
+                'FUNDS_OR_DATUM_INVALID',
+                'FUNDS_WITHDRAWN',
+                'RESULT_SUBMITTED',
+                'REFUND_REQUESTED',
+                'REFUND_WITHDRAWN',
+                'DISPUTED',
+                'DISPUTED_WITHDRAWN',
+                null
+            ],
+            example: 'RESULT_SUBMITTED'
+        },
+        onChainTransactionHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0x123abc'
+        },
+        result: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '# Result'
+        },
+        resultHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'result_hash_123'
+        },
+        blockchainIdentifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '0b00e04c0860a60c61066056281180462d0b12'
+        },
+        payByTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submitResultTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        unlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        externalDisputeUnlockTime: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sellerVkey: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'seller_vkey_hex'
+        },
+        input: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '{"prompt":"How many planets are in the solar system?"}'
+        },
+        inputHash: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'input_hash_123'
+        },
+        inputSchema: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'input_schema_123'
+        },
+        agentJobId: {
+            type: 'string',
+            example: 'agent_job_123'
+        },
+        identifierFromPurchaser: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'identifier_123'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
+        agent: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'agent_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Research Agent'
+                },
+                overrideName: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'My Research Agent'
+                },
+                icon: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/icon.png'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/image.png'
+                },
+                overrideImage: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/override-image.png'
+                },
+                legalPrivacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/privacy'
+                },
+                overrideLegalPrivacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-privacy'
+                },
+                legalTerms: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/terms'
+                },
+                overrideLegalTerms: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-terms'
+                },
+                legalDpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/dpa'
+                },
+                overrideLegalDpa: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-dpa'
+                },
+                legalOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/support'
+                },
+                overrideLegalOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/custom-support'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        },
+        events: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        example: 'event_123'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    updatedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'INITIATED',
+                            'AWAITING_PAYMENT',
+                            'AWAITING_INPUT',
+                            'RUNNING',
+                            'COMPLETED',
+                            'FAILED'
+                        ],
+                        example: 'COMPLETED'
+                    },
+                    inputSchema: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        example: 'input_schema_123'
+                    },
+                    input: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            id: {
+                                type: 'string',
+                                example: 'input_123'
+                            },
+                            input: {
+                                type: 'string',
+                                example: '{"prompt":"How many planets are in the solar system?"}'
+                            },
+                            inputHash: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                example: 'input_hash_123'
+                            },
+                            signature: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                example: 'signature_123'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'input'
+                        ]
+                    },
+                    result: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        example: '# Result'
+                    },
+                    blobs: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/File'
+                        },
+                        example: []
+                    },
+                    links: {
+                        type: 'array',
+                        items: {
+                            $ref: '#/components/schemas/Link'
+                        },
+                        example: []
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'updatedAt',
+                    'status',
+                    'blobs',
+                    'links'
+                ]
+            }
+        },
+        share: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/JobShare'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'agentId',
+        'userId',
+        'user',
+        'projectId',
+        'jobType',
+        'status',
+        'credits',
+        'agentJobId',
+        'workspace',
+        'agent',
+        'events',
+        'share'
+    ]
+} as const;
+
+export const FileSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'ID of the job'
+        },
+        sourceUrl: {
+            type: 'string',
+            example: 'https://example.com/file.pdf',
+            description: 'Source URL of the file'
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'file.pdf',
+            description: 'Name of the file'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'READY',
+                'FAILED'
+            ],
+            example: 'READY',
+            description: 'Status of the file'
+        },
+        size: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 1000,
+            description: 'Size in bytes'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'application/pdf',
+            description: 'MIME type of the file'
+        },
+        fileUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://blob.vercel.app/file.pdf',
+            description: 'Publicly accessible URL of the file'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'jobId',
+        'sourceUrl',
+        'status'
+    ]
+} as const;
+
+export const LinkSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        url: {
+            type: 'string',
+            example: 'https://example.com/article1'
+        },
+        title: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'My Job'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'jobId',
+        'url'
+    ]
+} as const;
+
+export const JobShareSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'share_123'
+        },
+        token: {
+            type: 'string',
+            example: 'public-share-token'
+        },
+        allowSearchIndexing: {
+            type: 'boolean',
+            example: true
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            example: 'job_123'
+        }
+    },
+    required: [
+        'id',
+        'token',
+        'allowSearchIndexing',
+        'createdAt',
+        'updatedAt',
+        'jobId'
     ]
 } as const;
 

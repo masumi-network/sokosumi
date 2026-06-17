@@ -15,9 +15,6 @@ const envSecretsSchema = z.object({
 
   NETWORK: z.enum(["Mainnet", "Preprod"]).default("Preprod"),
 
-  // Database
-  DATABASE_URL: z.url(),
-
   CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
   // Cron auth — shared bearer for /api/internal/* cron routes.

@@ -1,4 +1,3 @@
-import type { MemberWithOrganization } from "@sokosumi/database";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -13,7 +12,6 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import {
   getTaskLinkActionInput,
@@ -27,6 +25,7 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
 
 const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =

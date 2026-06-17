@@ -2,7 +2,7 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
+import {getExtensionFromUrl, isImageUrl} from "@sokosumi/utils";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { canUseNextImageSrc } from "@/config/next-image";
 

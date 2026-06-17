@@ -80,7 +80,6 @@
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
-      "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
+      "lowCreditsLabel": "Low credits {credits, number}",
       "totalBalanceLabel": "Total balance",
       "creditsSummary": "Credits Summary:",
       "monthlyUsageLimit": "Monthly usage limit",
@@ -277,7 +277,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Started",
         "completed": "Completed",
         "failed": "Failed",
@@ -2367,6 +2366,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
@@ -2376,6 +2376,14 @@
           "admin": "Admin"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Search",
+      "description": "Search for tasks, jobs, or conversations",
+      "searchPlaceholder": "Search...",
+      "empty": "No results found",
+      "loading": "Loading...",
+      "error": "Failed to load results"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",
@@ -3336,7 +3344,6 @@
         },
         "CreateJob": {
           "title": "New {name}",
-          "demo": "Demo",
           "cancel": "Cancel",
           "Information": {
             "title": "Information"
@@ -3597,8 +3604,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema",
-        "demoDataInvalid": "Agent's Demo data is invalid."
+        "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema"
       }
     },
     "Duration": {

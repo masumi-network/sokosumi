@@ -1,22 +1,21 @@
 "use client";
 
-import type { Organization } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction, useState } from "react";
-
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 import OrganizationInformationForm from "./form";
 
 interface OrganizationInformationModalProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  organization: Organization | null;
+  organization: OrganizationRecord | null;
   organizationMetadata?: string | null;
 }
 

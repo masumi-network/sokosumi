@@ -1,11 +1,11 @@
-import { type AgentWithCreditsPrice, JobType } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
+import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 vi.mock("@/components/jobs/job-status-badge", () => ({
   JobStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
@@ -61,7 +61,7 @@ function createJobSummary(overrides: Partial<JobSummary>): JobSummary {
 
 const baseProps = {
   title: "Jobs",
-  agents: [] as AgentWithCreditsPrice[],
+  agents: [] as CoreAgentDto[],
   userId: "user-1",
   emptyLabel: "No jobs yet.",
   untitledLabel: "Untitled job",
@@ -99,16 +99,13 @@ describe("TaskJobsSection", () => {
       <TaskJobs
         {...baseProps}
         jobs={jobs}
-        agents={
-          [
-            {
-              id: "agent-1",
-              name: "Known agent",
-              overrideName: null,
-              icon: null,
-            },
-          ] as AgentWithCreditsPrice[]
-        }
+        agents={[
+          createMockCoreAgent({
+            id: "agent-1",
+            name: "Known agent",
+            icon: null,
+          }),
+        ]}
       />,
     );
 
