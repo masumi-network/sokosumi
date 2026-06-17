@@ -2,8 +2,9 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getHistoryMock, pushMock } = vi.hoisted(() => ({
+const { getHistoryMock, getCoworkersMock, pushMock } = vi.hoisted(() => ({
   getHistoryMock: vi.fn(),
+  getCoworkersMock: vi.fn(),
   pushMock: vi.fn(),
 }));
 
@@ -16,6 +17,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: {
     getHistory: getHistoryMock,
+    getCoworkers: getCoworkersMock,
   },
 }));
 
@@ -24,7 +26,15 @@ vi.mock("@/components/agents/agent-icon", () => ({
 }));
 
 vi.mock("@/components/chat/chat-model-icon", () => ({
-  ChatModelIcon: () => <span data-testid="chat-model-icon" />,
+  ChatModelIcon: ({
+    modelId,
+    modelName,
+  }: {
+    modelId: string;
+    modelName?: string;
+  }) => (
+    <span data-testid="chat-model-icon">{`${modelId}:${modelName ?? ""}`}</span>
+  ),
 }));
 
 vi.mock("@/app/tasks/components/task-status-badge", () => ({
@@ -81,6 +91,16 @@ describe("HistorySearchDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    getCoworkersMock.mockResolvedValue({
+      data: [
+        {
+          id: "coworker-1",
+          slug: "elena",
+          name: "Elena",
+          image: "https://example.com/elena.webp",
+        },
+      ],
+    });
     getHistoryMock.mockImplementation(async ({ q }: { q?: string } = {}) => ({
       data:
         q === "new"
@@ -180,6 +200,54 @@ describe("HistorySearchDialog", () => {
 
     await waitFor(() => {
       expect(screen.getByText("New query result")).toBeInTheDocument();
+    });
+  });
+
+  it("loads coworkers when the dialog opens", async () => {
+    render(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getCoworkersMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("renders resolved model icons for conversation history items", async () => {
+    getHistoryMock.mockResolvedValue({
+      data: [
+        {
+          id: "conversation-1",
+          kind: "conversation",
+          title: "Are you there?",
+          status: "active",
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          archivedAt: null,
+          description: null,
+          credits: null,
+          bucketSlug: "grok-4-1-fast",
+        },
+      ],
+    });
+
+    render(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-model-icon")).toHaveTextContent(
+        "grok-4-1-fast:Grok 4.1 Fast",
+      );
     });
   });
 });
