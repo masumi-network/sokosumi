@@ -2893,6 +2893,9 @@
         "notConnected": "ist nicht verbunden",
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
+        "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
+        "loadError": "Deine verbundenen Konten konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen",
         "DisconnectModal": {
           "title": "{provider} trennen",
           "description": "Möchtest du deinen {provider}-Account wirklich trennen?",
@@ -2901,6 +2904,11 @@
           "success": "Account erfolgreich getrennt",
           "error": "{provider} konnte nicht getrennt werden"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
+        "loadError": "Deine verknüpften Kontodetails konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen"
       },
       "Notifications": {
         "title": "E-Mail-Benachrichtigungen",
@@ -3016,6 +3024,11 @@
           "title": "Client nicht gefunden",
           "description": "Der OAuth-Client konnte nicht gefunden werden.",
           "descriptionWithId": "Der OAuth-Client mit der ID {clientId} existiert nicht."
+        },
+        "loadError": {
+          "title": "Anwendung konnte nicht geladen werden",
+          "description": "Die Anwendungsdetails konnten gerade nicht geladen werden. Bitte versuche es erneut.",
+          "retry": "Erneut versuchen"
         },
         "title": "Anwendung autorisieren",
         "description": "Eine Anwendung möchte auf deinen Account zugreifen",

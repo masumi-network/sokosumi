@@ -131,12 +131,20 @@ export async function OnboardingDialogLoader({
   let personalCurrentPlan: ReturnType<typeof resolveCurrentPlanName> | null =
     null;
   if (subscriptionCheckoutMode !== "organization") {
-    const personalActiveSubscriptions = await listActiveSubscriptions({
+    const personalActiveSubscriptionsResult = await listActiveSubscriptions({
       customerType: "user",
     });
 
+    if (personalActiveSubscriptionsResult.isErr()) {
+      return (
+        <Suspense fallback={null}>
+          <OnboardingSubscriptionReturnHandler />
+        </Suspense>
+      );
+    }
+
     personalCurrentPlan =
-      resolveCurrentPlanName(personalActiveSubscriptions) ?? "free";
+      resolveCurrentPlanName(personalActiveSubscriptionsResult.value) ?? "free";
   }
 
   const currentPlan =

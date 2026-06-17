@@ -2924,6 +2924,9 @@
         "notConnected": "は接続されていません",
         "success": "アカウントを接続しました",
         "error": "{provider} の接続に失敗しました",
+        "loadErrorTitle": "接続済みアカウントを読み込めませんでした",
+        "loadError": "接続済みアカウントを現在読み込めません。",
+        "retry": "再試行",
         "DisconnectModal": {
           "title": "{provider} の接続を解除",
           "description": "{provider} アカウントの接続を解除してよろしいですか？",
@@ -2932,6 +2935,11 @@
           "success": "アカウントの接続を解除しました",
           "error": "{provider} の接続解除に失敗しました"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "アカウント情報を読み込めませんでした",
+        "loadError": "リンク済みアカウントの情報を現在読み込めません。",
+        "retry": "再試行"
       },
       "Notifications": {
         "title": "メール通知",
@@ -3047,6 +3055,11 @@
           "title": "クライアントが見つかりません",
           "description": "OAuthクライアントが見つかりませんでした。",
           "descriptionWithId": "ID {clientId} のOAuthクライアントは存在しません。"
+        },
+        "loadError": {
+          "title": "アプリケーションを読み込めませんでした",
+          "description": "アプリケーションの詳細を現在読み込めません。もう一度お試しください。",
+          "retry": "再試行"
         },
         "title": "アプリケーションを承認",
         "description": "アプリケーションがあなたのアカウントへのアクセスを要求しています",

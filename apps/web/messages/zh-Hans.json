@@ -2924,6 +2924,9 @@
         "notConnected": "未连接",
         "success": "账号连接成功",
         "error": "连接 {provider} 失败",
+        "loadErrorTitle": "无法加载已连接账号",
+        "loadError": "目前无法加载您的已连接账号。",
+        "retry": "重试",
         "DisconnectModal": {
           "title": "断开 {provider}",
           "description": "确定要断开您的 {provider} 账号吗？",
@@ -2932,6 +2935,11 @@
           "success": "账号已断开连接",
           "error": "断开 {provider} 失败"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "无法加载账号详情",
+        "loadError": "目前无法加载您的关联账号详情。",
+        "retry": "重试"
       },
       "Notifications": {
         "title": "电子邮件通知",
@@ -3047,6 +3055,11 @@
           "title": "未找到客户端",
           "description": "未找到该 OAuth 客户端。",
           "descriptionWithId": "ID 为 {clientId} 的 OAuth 客户端不存在。"
+        },
+        "loadError": {
+          "title": "无法加载应用",
+          "description": "目前无法加载应用详情，请重试。",
+          "retry": "重试"
         },
         "title": "授权应用",
         "description": "某个应用希望访问您的账户",

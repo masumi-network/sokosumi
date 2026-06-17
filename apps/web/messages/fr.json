@@ -2924,6 +2924,9 @@
         "notConnected": "n’est pas connecté",
         "success": "Compte connecté avec succès",
         "error": "Échec de la connexion à {provider}",
+        "loadErrorTitle": "Impossible de charger les comptes connectés",
+        "loadError": "Nous n’avons pas pu charger vos comptes connectés pour le moment.",
+        "retry": "Réessayer",
         "DisconnectModal": {
           "title": "Déconnecter {provider}",
           "description": "Êtes-vous sûr de vouloir déconnecter votre compte {provider} ?",
@@ -2932,6 +2935,11 @@
           "success": "Compte déconnecté avec succès",
           "error": "Échec de la déconnexion de {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Impossible de charger les détails du compte",
+        "loadError": "Nous n’avons pas pu charger les détails de votre compte lié pour le moment.",
+        "retry": "Réessayer"
       },
       "Notifications": {
         "title": "Notifications par e-mail",
@@ -3047,6 +3055,11 @@
           "title": "Client introuvable",
           "description": "Le client OAuth est introuvable.",
           "descriptionWithId": "Le client OAuth avec l’ID {clientId} n’existe pas."
+        },
+        "loadError": {
+          "title": "Impossible de charger l’application",
+          "description": "Nous n’avons pas pu charger les détails de l’application pour le moment. Veuillez réessayer.",
+          "retry": "Réessayer"
         },
         "title": "Autoriser l’application",
         "description": "Une application souhaite accéder à votre compte",
