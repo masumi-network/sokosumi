@@ -10,11 +10,15 @@ import {
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
+export interface CreateJobModalOpenOptions {
+  projectId?: string | null;
+}
+
 interface CreateJobModalContextType {
   // modal open
   open: boolean;
   setOpen: (open: boolean) => void;
-  handleOpen: (agentId: string, projectOverrideId?: string | null) => void;
+  handleOpen: (agentId: string, options?: CreateJobModalOpenOptions) => void;
   handleClose: () => void;
   // create job form loading
   loading: boolean;
@@ -107,10 +111,10 @@ export function CreateJobModalContextProvider({
     setAccordionValue([]);
   };
 
-  const handleOpen = (agentId: string, projectOverrideId?: string | null) => {
+  const handleOpen = (agentId: string, options?: CreateJobModalOpenOptions) => {
     setOpen(true);
     setAgentId(agentId);
-    setProjectIdState(projectOverrideId ?? defaultProjectId ?? null);
+    setProjectIdState(options?.projectId ?? defaultProjectId ?? null);
   };
 
   const handleClose = () => {
