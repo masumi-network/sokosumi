@@ -1,14 +1,6 @@
 "use client";
 
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { User } from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import type { HistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
 
@@ -51,35 +43,13 @@ export function HistoryOwnerAvatar({
     return null;
   }
 
-  const image = owner.image ? resolveIpfsOrHttpUrl(owner.image) : null;
-  const ownerName = owner.name.trim();
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className={cn("inline-flex", className)}>
-          <Avatar className="size-5 ring-background shrink-0 ring-2">
-            {image ? (
-              <AvatarImage
-                src={image}
-                alt={ownerName || "User"}
-                className="object-cover"
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-              />
-            ) : null}
-            <AvatarFallback className="bg-muted text-[10px] font-medium">
-              {ownerName.slice(0, 1).toUpperCase() || (
-                <User className="size-3" aria-hidden />
-              )}
-            </AvatarFallback>
-          </Avatar>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={6}>
-        {ownerName}
-      </TooltipContent>
-    </Tooltip>
+    <UserProfileAvatar
+      name={owner.name}
+      image={owner.image}
+      size="sm"
+      showTooltip
+      className={className}
+    />
   );
 }
