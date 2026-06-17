@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs";
 
-import type { CoreAuthReadError } from "@/lib/auth/auth.server";
+import type { CoreAuthReadError } from "@/lib/auth/core-auth-read-error";
 
 export function reportCoreAuthReadOutage(
   error: CoreAuthReadError,
@@ -10,6 +10,10 @@ export function reportCoreAuthReadOutage(
     scope.setTag("context", "core_auth_read");
     scope.setTag("path", error.path);
     scope.setTag("reason", error.reason);
+    scope.setContext("core_auth_read", {
+      message,
+      ...error,
+    });
 
     if (error.status !== undefined) {
       scope.setTag("http_status", String(error.status));

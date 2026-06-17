@@ -25,7 +25,7 @@ export default async function Page() {
         <AccountSettings
           accounts={accountsResult.isOk() ? accountsResult.value : []}
           designMdValue={designMdValue}
-          linkedAccountsLoadError={
+          credentialAccountsLoadError={
             accountsResult.isErr() ? (
               <CoreAuthReadRetry
                 description={t("loadError")}

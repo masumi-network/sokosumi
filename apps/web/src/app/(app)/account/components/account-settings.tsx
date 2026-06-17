@@ -16,7 +16,7 @@ import { PreferencesSection } from "./preferences-section";
 interface AccountSettingsProps {
   accounts: Account[];
   designMdValue?: DesignMdProfileValue;
-  linkedAccountsLoadError?: ReactNode;
+  credentialAccountsLoadError?: ReactNode;
   notificationsOptIn: boolean;
   userLogo?: null | string;
   userMetadata?: null | string;
@@ -26,7 +26,7 @@ interface AccountSettingsProps {
 export function AccountSettings({
   accounts,
   designMdValue,
-  linkedAccountsLoadError,
+  credentialAccountsLoadError,
   notificationsOptIn,
   userLogo,
   userMetadata,
@@ -42,8 +42,8 @@ export function AccountSettings({
         <NameForm />
         <EmailForm />
         <div className="md:col-span-2">
-          {linkedAccountsLoadError ? (
-            linkedAccountsLoadError
+          {credentialAccountsLoadError ? (
+            credentialAccountsLoadError
           ) : hasCredentialAccount ? (
             <PasswordForm />
           ) : (

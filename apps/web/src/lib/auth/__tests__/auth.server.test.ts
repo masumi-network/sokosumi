@@ -4,13 +4,19 @@ const fetchMock = vi.fn();
 const headersMock = vi.fn();
 const captureMessageMock = vi.fn();
 const setTagMock = vi.fn();
+const setContextMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
 vi.mock("@sentry/nextjs", () => ({
   captureMessage: (...args: unknown[]) => captureMessageMock(...args),
-  withScope: (callback: (scope: { setTag: typeof setTagMock }) => void) => {
-    callback({ setTag: setTagMock });
+  withScope: (
+    callback: (scope: {
+      setTag: typeof setTagMock;
+      setContext: typeof setContextMock;
+    }) => void,
+  ) => {
+    callback({ setTag: setTagMock, setContext: setContextMock });
   },
 }));
 
@@ -162,6 +168,27 @@ describe("auth.server", () => {
     }
   });
 
+  it("returns err with reason invalid_json when list-accounts body is not an array", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => null,
+    });
+
+    const { listUserAccounts } = await import("../auth.server");
+
+    const result = await listUserAccounts();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("invalid_json");
+      expect(result.error.path).toBe("/auth/list-accounts");
+    }
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Failed to fetch user accounts from Core: response was not an array",
+      "error",
+    );
+  });
+
   it("returns err when user accounts cannot be loaded", async () => {
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
@@ -264,6 +291,27 @@ describe("auth.server", () => {
     if (result.isOk()) {
       expect(result.value).toEqual([]);
     }
+  });
+
+  it("returns err with reason invalid_json when subscription body is not an array", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    const { listActiveSubscriptions } = await import("../auth.server");
+
+    const result = await listActiveSubscriptions({ customerType: "user" });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("invalid_json");
+      expect(result.error.path).toBe("/auth/subscription/list");
+    }
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Failed to fetch active subscriptions from Core: response was not an array",
+      "error",
+    );
   });
 
   it("returns err when active subscriptions cannot be loaded", async () => {
@@ -375,6 +423,12 @@ describe("auth.server", () => {
       status: 404,
       json: async () => null,
     });
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     const { getOAuthClientPublic } = await import("../auth.server");
 
@@ -385,6 +439,14 @@ describe("auth.server", () => {
       expect(result.value).toBeNull();
     }
     expect(captureMessageMock).not.toHaveBeenCalled();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "Failed to fetch OAuth client from Core",
+      {
+        path: "/auth/oauth2/public-client",
+        status: 404,
+      },
+    );
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
   it("returns err when public OAuth client metadata cannot be loaded", async () => {

@@ -11,19 +11,12 @@ import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 import { reportCoreAuthReadOutage } from "@/lib/sentry/core-auth-read-outage";
 
+import type {
+  CoreAuthReadError,
+  CoreAuthReadErrorReason,
+} from "./core-auth-read-error";
+
 export type { Session };
-
-export type CoreAuthReadErrorReason =
-  | "http"
-  | "invalid_json"
-  | "network"
-  | "timeout";
-
-export interface CoreAuthReadError {
-  path: string;
-  reason: CoreAuthReadErrorReason;
-  status?: number;
-}
 
 interface GetSessionOptions {
   refresh?: boolean;
@@ -131,6 +124,29 @@ async function fetchCoreAuth<T>(
   }
 }
 
+function parseCoreAuthArrayResponse<T>(
+  path: string,
+  failureLogMessage: string,
+  result: Result<unknown, CoreAuthReadError>,
+): Result<T[], CoreAuthReadError> {
+  return result.andThen((body) => {
+    if (!Array.isArray(body)) {
+      const authReadError: CoreAuthReadError = {
+        path,
+        reason: "invalid_json",
+      };
+      const shapeFailureMessage = `${failureLogMessage}: response was not an array`;
+
+      console.error(shapeFailureMessage, { path, body });
+      reportCoreAuthReadOutage(authReadError, shapeFailureMessage);
+
+      return err(authReadError);
+    }
+
+    return ok(body as T[]);
+  });
+}
+
 async function fetchSession(
   requestHeaders: Headers,
   options?: GetSessionOptions,
@@ -194,9 +210,19 @@ export async function getSession(
 
 const getCachedUserAccounts = cache(
   async (): Promise<Result<Account[], CoreAuthReadError>> => {
-    return fetchCoreAuth<Account[]>(CORE_LIST_ACCOUNTS_PATH, await headers(), {
-      failureLogMessage: "Failed to fetch user accounts from Core",
-    });
+    const result = await fetchCoreAuth<unknown>(
+      CORE_LIST_ACCOUNTS_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch user accounts from Core",
+      },
+    );
+
+    return parseCoreAuthArrayResponse<Account>(
+      CORE_LIST_ACCOUNTS_PATH,
+      "Failed to fetch user accounts from Core",
+      result,
+    );
   },
 );
 
@@ -204,7 +230,8 @@ const getCachedUserAccounts = cache(
  * Lists accounts linked to the current user via Core Better Auth.
  *
  * Core (`GET /auth/list-accounts`) always responds with a JSON array on 200 —
- * empty means `[]`, not `null`. Auth failures are non-ok HTTP responses.
+ * empty means `[]`, not `null`. A non-array 200 body is treated as
+ * `invalid_json`. Auth failures are non-ok HTTP responses.
  */
 export async function listUserAccounts(): Promise<
   Result<Account[], CoreAuthReadError>
@@ -219,7 +246,7 @@ const getCachedActiveSubscriptions = cache(
     customerType?: "organization" | "user",
     referenceId?: string,
   ): Promise<Result<ActiveSubscription[], CoreAuthReadError>> => {
-    return fetchCoreAuth<ActiveSubscription[]>(
+    const result = await fetchCoreAuth<unknown>(
       CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
       await headers(),
       {
@@ -230,6 +257,12 @@ const getCachedActiveSubscriptions = cache(
         },
       },
     );
+
+    return parseCoreAuthArrayResponse<ActiveSubscription>(
+      CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
+      "Failed to fetch active subscriptions from Core",
+      result,
+    );
   },
 );
 
@@ -237,7 +270,8 @@ const getCachedActiveSubscriptions = cache(
  * Lists active Stripe-backed subscriptions for the current user or organization.
  *
  * Core (`GET /auth/subscription/list`) always responds with a JSON array on 200 —
- * empty means `[]`, not `null`. Auth failures are non-ok HTTP responses.
+ * empty means `[]`, not `null`. A non-array 200 body is treated as
+ * `invalid_json`. Auth failures are non-ok HTTP responses.
  */
 export async function listActiveSubscriptions(
   options?: ListActiveSubscriptionsOptions,

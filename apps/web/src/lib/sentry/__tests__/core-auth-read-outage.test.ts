@@ -2,11 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captureMessageMock = vi.fn();
 const setTagMock = vi.fn();
+const setContextMock = vi.fn();
 
 vi.mock("@sentry/nextjs", () => ({
   captureMessage: (...args: unknown[]) => captureMessageMock(...args),
-  withScope: (callback: (scope: { setTag: typeof setTagMock }) => void) => {
-    callback({ setTag: setTagMock });
+  withScope: (
+    callback: (scope: {
+      setTag: typeof setTagMock;
+      setContext: typeof setContextMock;
+    }) => void,
+  ) => {
+    callback({ setTag: setTagMock, setContext: setContextMock });
   },
 }));
 
@@ -34,6 +40,12 @@ describe("reportCoreAuthReadOutage", () => {
     expect(setTagMock).toHaveBeenCalledWith("path", "/auth/list-accounts");
     expect(setTagMock).toHaveBeenCalledWith("reason", "http");
     expect(setTagMock).toHaveBeenCalledWith("http_status", "503");
+    expect(setContextMock).toHaveBeenCalledWith("core_auth_read", {
+      message: "Failed to fetch user accounts from Core",
+      path: "/auth/list-accounts",
+      reason: "http",
+      status: 503,
+    });
     expect(captureMessageMock).toHaveBeenCalledWith(
       "Failed to fetch user accounts from Core",
       "error",

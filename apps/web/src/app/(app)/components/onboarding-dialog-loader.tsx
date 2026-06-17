@@ -136,11 +136,6 @@ export async function OnboardingDialogLoader({
     });
 
     if (personalActiveSubscriptionsResult.isErr()) {
-      console.error(
-        "Core auth subscription read outage during onboarding",
-        personalActiveSubscriptionsResult.error,
-      );
-
       return (
         <Suspense fallback={null}>
           <OnboardingSubscriptionReturnHandler />

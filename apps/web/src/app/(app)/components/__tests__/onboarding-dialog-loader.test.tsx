@@ -270,9 +270,6 @@ describe("OnboardingDialogLoader", () => {
         reason: "network",
       }),
     );
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     const { OnboardingDialogLoader } = await import(
       "../onboarding-dialog-loader"
@@ -289,13 +286,6 @@ describe("OnboardingDialogLoader", () => {
     expect(getByTestId("return-handler")).toBeTruthy();
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Core auth subscription read outage during onboarding",
-      {
-        path: "/auth/subscription/list",
-        reason: "network",
-      },
-    );
   });
 
   it("skips full onboarding when personal subscription reads fail", async () => {
@@ -305,9 +295,6 @@ describe("OnboardingDialogLoader", () => {
         reason: "network",
       }),
     );
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     const { OnboardingDialogLoader } = await import(
       "../onboarding-dialog-loader"
@@ -324,12 +311,5 @@ describe("OnboardingDialogLoader", () => {
     expect(getByTestId("return-handler")).toBeTruthy();
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Core auth subscription read outage during onboarding",
-      {
-        path: "/auth/subscription/list",
-        reason: "network",
-      },
-    );
   });
 });
