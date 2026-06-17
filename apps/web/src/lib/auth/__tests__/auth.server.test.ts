@@ -115,12 +115,17 @@ describe("auth.server", () => {
 
     const { listUserAccounts } = await import("../auth.server");
 
-    await expect(listUserAccounts()).resolves.toEqual([
-      {
-        id: "account_1",
-        providerId: "google",
-      },
-    ]);
+    const result = await listUserAccounts();
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual([
+        {
+          id: "account_1",
+          providerId: "google",
+        },
+      ]);
+    }
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("http://localhost:8787/auth/list-accounts"),
@@ -132,12 +137,34 @@ describe("auth.server", () => {
     );
   });
 
-  it("returns an empty array when user accounts cannot be loaded", async () => {
+  it("returns ok with an empty array when the user has no linked accounts", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
+
+    const { listUserAccounts } = await import("../auth.server");
+
+    const result = await listUserAccounts();
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual([]);
+    }
+  });
+
+  it("returns err when user accounts cannot be loaded", async () => {
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
     const { listUserAccounts } = await import("../auth.server");
 
-    await expect(listUserAccounts()).resolves.toEqual([]);
+    const result = await listUserAccounts();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("network");
+      expect(result.error.path).toBe("/auth/list-accounts");
+    }
   });
 
   it("lists active subscriptions with customer type query params", async () => {
@@ -153,14 +180,17 @@ describe("auth.server", () => {
 
     const { listActiveSubscriptions } = await import("../auth.server");
 
-    await expect(
-      listActiveSubscriptions({ customerType: "user" }),
-    ).resolves.toEqual([
-      {
-        plan: "pro",
-        periodEnd: "2026-04-01T00:00:00.000Z",
-      },
-    ]);
+    const result = await listActiveSubscriptions({ customerType: "user" });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual([
+        {
+          plan: "pro",
+          periodEnd: "2026-04-01T00:00:00.000Z",
+        },
+      ]);
+    }
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL("http://localhost:8787/auth/subscription/list?customerType=user"),
@@ -172,17 +202,39 @@ describe("auth.server", () => {
     );
   });
 
-  it("returns an empty array when active subscriptions cannot be loaded", async () => {
+  it("returns ok with an empty array when the user has no active subscriptions", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
+
+    const { listActiveSubscriptions } = await import("../auth.server");
+
+    const result = await listActiveSubscriptions({ customerType: "user" });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual([]);
+    }
+  });
+
+  it("returns err when active subscriptions cannot be loaded", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
+      status: 503,
       json: async () => null,
     });
 
     const { listActiveSubscriptions } = await import("../auth.server");
 
-    await expect(
-      listActiveSubscriptions({ customerType: "user" }),
-    ).resolves.toEqual([]);
+    const result = await listActiveSubscriptions({ customerType: "user" });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("http");
+      expect(result.error.status).toBe(503);
+      expect(result.error.path).toBe("/auth/subscription/list");
+    }
   });
 
   it("fetches public OAuth client metadata", async () => {
@@ -196,10 +248,15 @@ describe("auth.server", () => {
 
     const { getOAuthClientPublic } = await import("../auth.server");
 
-    await expect(getOAuthClientPublic("client_123")).resolves.toEqual({
-      client_id: "client_123",
-      client_name: "My App",
-    });
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toEqual({
+        client_id: "client_123",
+        client_name: "My App",
+      });
+    }
 
     expect(fetchMock).toHaveBeenCalledWith(
       new URL(
@@ -213,11 +270,33 @@ describe("auth.server", () => {
     );
   });
 
-  it("returns null when public OAuth client metadata cannot be loaded", async () => {
+  it("returns ok with null when the OAuth client is absent", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => null,
+    });
+
+    const { getOAuthClientPublic } = await import("../auth.server");
+
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
+  });
+
+  it("returns err when public OAuth client metadata cannot be loaded", async () => {
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
     const { getOAuthClientPublic } = await import("../auth.server");
 
-    await expect(getOAuthClientPublic("client_123")).resolves.toBeNull();
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("network");
+      expect(result.error.path).toBe("/auth/oauth2/public-client");
+    }
   });
 });

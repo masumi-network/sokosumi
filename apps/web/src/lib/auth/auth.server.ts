@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Account, Session } from "@sokosumi/utils";
+import { err, ok, type Result } from "neverthrow";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -10,6 +11,18 @@ import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 
 export type { Session };
+
+export type CoreAuthReadErrorReason =
+  | "http"
+  | "invalid_json"
+  | "network"
+  | "timeout";
+
+export interface CoreAuthReadError {
+  path: string;
+  reason: CoreAuthReadErrorReason;
+  status?: number;
+}
 
 interface GetSessionOptions {
   refresh?: boolean;
@@ -38,7 +51,7 @@ async function fetchCoreAuth<T>(
     failureLogMessage?: string;
     searchParams?: Record<string, string | undefined>;
   },
-): Promise<T | null> {
+): Promise<Result<T, CoreAuthReadError>> {
   const url = new URL(joinCoreApiPath(getServerCoreAppBaseUrl(), path));
 
   for (const [key, value] of Object.entries(options?.searchParams ?? {})) {
@@ -55,16 +68,42 @@ async function fetchCoreAuth<T>(
     });
 
     if (!response.ok) {
-      return null;
+      console.error(
+        options?.failureLogMessage ?? "Failed to fetch from Core auth",
+        { path, status: response.status },
+      );
+      return err({
+        path,
+        reason: "http",
+        status: response.status,
+      });
     }
 
-    return (await response.json()) as T;
+    try {
+      return ok((await response.json()) as T);
+    } catch (error) {
+      console.error(
+        options?.failureLogMessage ?? "Failed to parse Core auth response",
+        { path, error },
+      );
+      return err({
+        path,
+        reason: "invalid_json",
+      });
+    }
   } catch (error) {
+    const reason: CoreAuthReadErrorReason =
+      error instanceof Error && error.name === "TimeoutError"
+        ? "timeout"
+        : "network";
     console.error(
       options?.failureLogMessage ?? "Failed to fetch from Core auth",
-      error,
+      { path, reason, error },
     );
-    return null;
+    return err({
+      path,
+      reason,
+    });
   }
 }
 
@@ -129,33 +168,35 @@ export async function getSession(
   return getCachedSession();
 }
 
-const getCachedUserAccounts = cache(async (): Promise<Account[]> => {
-  const accounts = await fetchCoreAuth<Account[]>(
-    CORE_LIST_ACCOUNTS_PATH,
-    await headers(),
-    {
-      failureLogMessage: "Failed to fetch user accounts from Core",
-    },
-  );
+const getCachedUserAccounts = cache(
+  async (): Promise<Result<Account[], CoreAuthReadError>> => {
+    const result = await fetchCoreAuth<Account[] | null>(
+      CORE_LIST_ACCOUNTS_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch user accounts from Core",
+      },
+    );
 
-  return accounts ?? [];
-});
+    return result.map((accounts) => accounts ?? []);
+  },
+);
 
 /**
  * Lists accounts linked to the current user via Core Better Auth.
  */
-export async function listUserAccounts(): Promise<Account[]> {
+export async function listUserAccounts(): Promise<
+  Result<Account[], CoreAuthReadError>
+> {
   return getCachedUserAccounts();
 }
 
-// Keyed on primitive args so React `cache` dedupes across call sites that pass
-// equivalent options as separate object literals.
 const getCachedActiveSubscriptions = cache(
   async (
     customerType?: "organization" | "user",
     referenceId?: string,
-  ): Promise<ActiveSubscription[]> => {
-    const subscriptions = await fetchCoreAuth<ActiveSubscription[]>(
+  ): Promise<Result<ActiveSubscription[], CoreAuthReadError>> => {
+    const result = await fetchCoreAuth<ActiveSubscription[] | null>(
       CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
       await headers(),
       {
@@ -167,7 +208,7 @@ const getCachedActiveSubscriptions = cache(
       },
     );
 
-    return subscriptions ?? [];
+    return result.map((subscriptions) => subscriptions ?? []);
   },
 );
 
@@ -176,7 +217,7 @@ const getCachedActiveSubscriptions = cache(
  */
 export async function listActiveSubscriptions(
   options?: ListActiveSubscriptionsOptions,
-): Promise<ActiveSubscription[]> {
+): Promise<Result<ActiveSubscription[], CoreAuthReadError>> {
   return getCachedActiveSubscriptions(
     options?.customerType,
     options?.referenceId,
@@ -184,8 +225,10 @@ export async function listActiveSubscriptions(
 }
 
 const getCachedOAuthClientPublic = cache(
-  async (clientId: string): Promise<OAuthClientPublic | null> => {
-    return fetchCoreAuth<OAuthClientPublic>(
+  async (
+    clientId: string,
+  ): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> => {
+    return fetchCoreAuth<OAuthClientPublic | null>(
       CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
       await headers(),
       {
@@ -201,7 +244,7 @@ const getCachedOAuthClientPublic = cache(
  */
 export async function getOAuthClientPublic(
   clientId: string,
-): Promise<OAuthClientPublic | null> {
+): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> {
   return getCachedOAuthClientPublic(clientId);
 }
 

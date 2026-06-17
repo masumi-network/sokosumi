@@ -1,4 +1,6 @@
 import { getUserMetadata } from "@sokosumi/utils";
+import { getTranslations } from "next-intl/server";
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
@@ -6,7 +8,8 @@ import { designMdService } from "@/lib/services/design-md.service";
 import { AccountSettings } from "./components/account-settings";
 
 export default async function Page() {
-  const [accounts, session] = await Promise.all([
+  const t = await getTranslations("App.Account.LinkedAccounts");
+  const [accountsResult, session] = await Promise.all([
     listUserAccounts(),
     getSession(),
   ]);
@@ -19,14 +22,24 @@ export default async function Page() {
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl px-4">
-        <AccountSettings
-          accounts={accounts}
-          designMdValue={designMdValue}
-          notificationsOptIn={session?.user.notificationsOptIn ?? true}
-          userLogo={session?.user.logo}
-          userMetadata={session?.user.metadata}
-          marketingOptIn={session?.user.marketingOptIn ?? false}
-        />
+        {accountsResult.isErr() ? (
+          <div className="py-6">
+            <CoreAuthReadRetry
+              description={t("loadError")}
+              retryLabel={t("retry")}
+              title={t("loadErrorTitle")}
+            />
+          </div>
+        ) : (
+          <AccountSettings
+            accounts={accountsResult.value}
+            designMdValue={designMdValue}
+            notificationsOptIn={session?.user.notificationsOptIn ?? true}
+            userLogo={session?.user.logo}
+            userMetadata={session?.user.metadata}
+            marketingOptIn={session?.user.marketingOptIn ?? false}
+          />
+        )}
       </div>
     </div>
   );

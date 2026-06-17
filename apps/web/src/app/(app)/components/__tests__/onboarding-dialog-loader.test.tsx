@@ -1,5 +1,6 @@
 import { MemberRole } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
+import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -113,12 +114,14 @@ describe("OnboardingDialogLoader", () => {
         purchasedSeats: 3,
       },
     });
-    listActiveSubscriptionsMock.mockResolvedValue([
-      {
-        periodEnd: "2026-04-01T00:00:00.000Z",
-        plan: "pro",
-      },
-    ]);
+    listActiveSubscriptionsMock.mockResolvedValue(
+      ok([
+        {
+          periodEnd: "2026-04-01T00:00:00.000Z",
+          plan: "pro",
+        },
+      ]),
+    );
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 3,
@@ -230,8 +233,8 @@ describe("OnboardingDialogLoader", () => {
     );
   });
 
-  it("defaults personal plan to free when active subscriptions cannot be loaded", async () => {
-    listActiveSubscriptionsMock.mockResolvedValue([]);
+  it("shows no current personal plan when the user has no active subscriptions", async () => {
+    listActiveSubscriptionsMock.mockResolvedValue(ok([]));
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -258,5 +261,40 @@ describe("OnboardingDialogLoader", () => {
       customerType: "user",
     });
     expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it("skips subscription-only onboarding when personal subscription reads fail", async () => {
+    listActiveSubscriptionsMock.mockResolvedValue(
+      err({
+        path: "/auth/subscription/list",
+        reason: "network",
+      }),
+    );
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: null,
+        loginId: "session-1",
+        subscriptionOnly: true,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Core auth subscription read outage during onboarding",
+      {
+        path: "/auth/subscription/list",
+        reason: "network",
+      },
+    );
   });
 });

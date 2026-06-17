@@ -11,6 +11,7 @@ import {
 import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
 
 import { ConsentActions } from "./consent-actions";
+import { ConsentRetryButton } from "./consent-retry-button";
 
 interface ConsentPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -58,7 +59,25 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   // Fetch public client info for display on consent page
-  const client = await getOAuthClientPublic(client_id);
+  const clientResult = await getOAuthClientPublic(client_id);
+
+  if (clientResult.isErr()) {
+    return (
+      <div className="container mx-auto max-w-md py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("loadError.title")}</CardTitle>
+            <CardDescription>{t("loadError.description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ConsentRetryButton label={t("loadError.retry")} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const client = clientResult.value;
 
   if (!client) {
     return (

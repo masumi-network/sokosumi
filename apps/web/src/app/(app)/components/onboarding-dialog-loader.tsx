@@ -131,12 +131,28 @@ export async function OnboardingDialogLoader({
   let personalCurrentPlan: ReturnType<typeof resolveCurrentPlanName> | null =
     null;
   if (subscriptionCheckoutMode !== "organization") {
-    const personalActiveSubscriptions = await listActiveSubscriptions({
+    const personalActiveSubscriptionsResult = await listActiveSubscriptions({
       customerType: "user",
     });
 
-    personalCurrentPlan =
-      resolveCurrentPlanName(personalActiveSubscriptions) ?? "free";
+    if (personalActiveSubscriptionsResult.isErr()) {
+      console.error(
+        "Core auth subscription read outage during onboarding",
+        personalActiveSubscriptionsResult.error,
+      );
+
+      if (subscriptionOnly) {
+        return (
+          <Suspense fallback={null}>
+            <OnboardingSubscriptionReturnHandler />
+          </Suspense>
+        );
+      }
+    } else {
+      personalCurrentPlan =
+        resolveCurrentPlanName(personalActiveSubscriptionsResult.value) ??
+        "free";
+    }
   }
 
   const currentPlan =
