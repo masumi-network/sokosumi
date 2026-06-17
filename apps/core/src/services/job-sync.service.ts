@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobType,
+  NotificationKind,
+  Prisma,
+} from "@sokosumi/database";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseSyncWhere,
@@ -29,6 +34,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
+import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -377,6 +383,64 @@ async function dispatchJobFailureNotification(
   }
 }
 
+async function dispatchJobNotification(
+  job: JobWithSokosumiStatus,
+  jobStatus: SokosumiJobStatus,
+  eventId: string,
+): Promise<void> {
+  if (!job.user.notificationsOptIn) {
+    return;
+  }
+
+  try {
+    const agentName = getAgentName(job.agent);
+    const jobName = job.name ?? "Untitled job";
+
+    let messageKey: string;
+    switch (jobStatus) {
+      case SokosumiJobStatus.COMPLETED:
+      case SokosumiJobStatus.REFUND_RESOLVED:
+      case SokosumiJobStatus.DISPUTE_RESOLVED:
+        messageKey = "Notifications.Job.completed";
+        break;
+      case SokosumiJobStatus.FAILED:
+        messageKey = "Notifications.Job.failed";
+        break;
+      case SokosumiJobStatus.PAYMENT_FAILED:
+        messageKey = "Notifications.Job.paymentFailed";
+        break;
+      case SokosumiJobStatus.INPUT_REQUIRED:
+        messageKey = "Notifications.Job.inputRequired";
+        break;
+      default:
+        return;
+    }
+
+    await createNotification({
+      userId: job.userId,
+      kind: NotificationKind.JOB,
+      referenceId: job.id,
+      eventId,
+      messageKey,
+      messageParams: {
+        agentName,
+        jobName,
+      },
+      metadata: {
+        agentId: job.agentId,
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        jobId: job.id,
+        userId: job.userId,
+        notificationType: "job-notification",
+      },
+    });
+  }
+}
+
 async function finalizeJobSyncResult(
   oldJobStatus: SokosumiJobStatus,
   transactionResult: JobSyncTransactionResult,
@@ -399,6 +463,11 @@ async function finalizeJobSyncResult(
   const newJobStatus = transactionResult.jobStatus;
   if (newJobStatus === oldJobStatus) {
     return;
+  }
+
+  const latestEvent = updatedJob.events.at(0);
+  if (latestEvent) {
+    void dispatchJobNotification(updatedJob, newJobStatus, latestEvent.id);
   }
 
   switch (newJobStatus) {
