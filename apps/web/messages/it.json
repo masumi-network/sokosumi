@@ -2924,6 +2924,9 @@
         "notConnected": "non è collegato",
         "success": "Account collegato correttamente",
         "error": "Impossibile collegare {provider}",
+        "loadErrorTitle": "Impossibile caricare gli account collegati",
+        "loadError": "Non siamo riusciti a caricare i tuoi account collegati in questo momento.",
+        "retry": "Riprova",
         "DisconnectModal": {
           "title": "Scollega {provider}",
           "description": "Vuoi davvero scollegare il tuo account {provider}?",
@@ -2932,6 +2935,11 @@
           "success": "Account scollegato correttamente",
           "error": "Impossibile scollegare {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Impossibile caricare i dettagli dell’account",
+        "loadError": "Non siamo riusciti a caricare i dettagli del tuo account collegato in questo momento.",
+        "retry": "Riprova"
       },
       "Notifications": {
         "title": "Notifiche email",
@@ -3047,6 +3055,11 @@
           "title": "Client non trovato",
           "description": "Il client OAuth non è stato trovato.",
           "descriptionWithId": "Il client OAuth con ID {clientId} non esiste."
+        },
+        "loadError": {
+          "title": "Impossibile caricare l’applicazione",
+          "description": "Non siamo riusciti a caricare i dettagli dell’applicazione in questo momento. Riprova.",
+          "retry": "Riprova"
         },
         "title": "Autorizza applicazione",
         "description": "Un’applicazione vuole accedere al tuo account",

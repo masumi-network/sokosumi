@@ -2924,6 +2924,9 @@
         "notConnected": "não está conectado",
         "success": "Conta conectada com sucesso",
         "error": "Falha ao conectar {provider}",
+        "loadErrorTitle": "Não foi possível carregar as contas conectadas",
+        "loadError": "Não foi possível carregar suas contas conectadas no momento.",
+        "retry": "Tentar novamente",
         "DisconnectModal": {
           "title": "Desconectar {provider}",
           "description": "Tem certeza de que quer desconectar sua conta {provider}?",
@@ -2932,6 +2935,11 @@
           "success": "Conta desconectada com sucesso",
           "error": "Falha ao desconectar {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Não foi possível carregar os detalhes da conta",
+        "loadError": "Não foi possível carregar os detalhes da sua conta vinculada no momento.",
+        "retry": "Tentar novamente"
       },
       "Notifications": {
         "title": "Notificações por e-mail",
@@ -3047,6 +3055,11 @@
           "title": "Cliente não encontrado",
           "description": "Não foi possível encontrar o cliente OAuth.",
           "descriptionWithId": "O cliente OAuth com ID {clientId} não existe."
+        },
+        "loadError": {
+          "title": "Não foi possível carregar o aplicativo",
+          "description": "Não foi possível carregar os detalhes do aplicativo no momento. Tente novamente.",
+          "retry": "Tentar novamente"
         },
         "title": "Autorizar aplicativo",
         "description": "Um aplicativo quer acessar sua conta",

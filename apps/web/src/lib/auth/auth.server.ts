@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Account, Session } from "@sokosumi/utils";
+import { err, ok, type Result } from "neverthrow";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -8,6 +9,12 @@ import type { ActiveSubscription } from "@/components/billing/subscription-plan-
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
+import { reportCoreAuthReadOutage } from "@/lib/sentry/core-auth-read-outage";
+
+import type {
+  CoreAuthReadError,
+  CoreAuthReadErrorReason,
+} from "./core-auth-read-error";
 
 export type { Session };
 
@@ -37,8 +44,9 @@ async function fetchCoreAuth<T>(
   options?: {
     failureLogMessage?: string;
     searchParams?: Record<string, string | undefined>;
+    sentryIgnoreHttpStatuses?: number[];
   },
-): Promise<T | null> {
+): Promise<Result<T, CoreAuthReadError>> {
   const url = new URL(joinCoreApiPath(getServerCoreAppBaseUrl(), path));
 
   for (const [key, value] of Object.entries(options?.searchParams ?? {})) {
@@ -55,17 +63,88 @@ async function fetchCoreAuth<T>(
     });
 
     if (!response.ok) {
-      return null;
+      const failureLogMessage =
+        options?.failureLogMessage ?? "Failed to fetch from Core auth";
+      const authReadError: CoreAuthReadError = {
+        path,
+        reason: "http",
+        status: response.status,
+      };
+
+      // An expected status (e.g. OAuth-client 404 → "not found") is routine,
+      // not an outage: log it at warn and skip the Sentry report so it does
+      // not pollute error logs or alerting.
+      const isIgnoredStatus =
+        options?.sentryIgnoreHttpStatuses?.includes(response.status) ?? false;
+      const logFailure = isIgnoredStatus ? console.warn : console.error;
+
+      logFailure(failureLogMessage, {
+        path,
+        status: response.status,
+      });
+
+      if (!isIgnoredStatus) {
+        reportCoreAuthReadOutage(authReadError, failureLogMessage);
+      }
+
+      return err(authReadError);
     }
 
-    return (await response.json()) as T;
+    try {
+      return ok((await response.json()) as T);
+    } catch (error) {
+      const failureLogMessage =
+        options?.failureLogMessage ?? "Failed to parse Core auth response";
+      const authReadError: CoreAuthReadError = {
+        path,
+        reason: "invalid_json",
+      };
+
+      console.error(failureLogMessage, { path, error });
+      reportCoreAuthReadOutage(authReadError, failureLogMessage);
+
+      return err(authReadError);
+    }
   } catch (error) {
-    console.error(
-      options?.failureLogMessage ?? "Failed to fetch from Core auth",
-      error,
-    );
-    return null;
+    const reason: CoreAuthReadErrorReason =
+      error instanceof Error && error.name === "TimeoutError"
+        ? "timeout"
+        : "network";
+    const failureLogMessage =
+      options?.failureLogMessage ?? "Failed to fetch from Core auth";
+    const authReadError: CoreAuthReadError = {
+      path,
+      reason,
+    };
+
+    console.error(failureLogMessage, { path, reason, error });
+    reportCoreAuthReadOutage(authReadError, failureLogMessage);
+
+    return err(authReadError);
   }
+}
+
+function parseCoreAuthArrayResponse<T>(
+  path: string,
+  failureLogMessage: string,
+  result: Result<unknown, CoreAuthReadError>,
+): Result<T[], CoreAuthReadError> {
+  return result.andThen((body) => {
+    if (!Array.isArray(body)) {
+      const authReadError: CoreAuthReadError = {
+        path,
+        reason: "invalid_json",
+      };
+      const shapeFailureMessage = `${failureLogMessage}: response was not an array`;
+
+      console.error(shapeFailureMessage, { path, bodyType: typeof body });
+      reportCoreAuthReadOutage(authReadError, shapeFailureMessage);
+
+      return err(authReadError);
+    }
+
+    return ok(body as T[]);
+  });
 }
 
 async function fetchSession(
@@ -129,22 +208,34 @@ export async function getSession(
   return getCachedSession();
 }
 
-const getCachedUserAccounts = cache(async (): Promise<Account[]> => {
-  const accounts = await fetchCoreAuth<Account[]>(
-    CORE_LIST_ACCOUNTS_PATH,
-    await headers(),
-    {
-      failureLogMessage: "Failed to fetch user accounts from Core",
-    },
-  );
+const getCachedUserAccounts = cache(
+  async (): Promise<Result<Account[], CoreAuthReadError>> => {
+    const result = await fetchCoreAuth<unknown>(
+      CORE_LIST_ACCOUNTS_PATH,
+      await headers(),
+      {
+        failureLogMessage: "Failed to fetch user accounts from Core",
+      },
+    );
 
-  return accounts ?? [];
-});
+    return parseCoreAuthArrayResponse<Account>(
+      CORE_LIST_ACCOUNTS_PATH,
+      "Failed to fetch user accounts from Core",
+      result,
+    );
+  },
+);
 
 /**
  * Lists accounts linked to the current user via Core Better Auth.
+ *
+ * Core (`GET /auth/list-accounts`) always responds with a JSON array on 200 —
+ * empty means `[]`, not `null`. A non-array 200 body is treated as
+ * `invalid_json`. Auth failures are non-ok HTTP responses.
  */
-export async function listUserAccounts(): Promise<Account[]> {
+export async function listUserAccounts(): Promise<
+  Result<Account[], CoreAuthReadError>
+> {
   return getCachedUserAccounts();
 }
 
@@ -154,8 +245,8 @@ const getCachedActiveSubscriptions = cache(
   async (
     customerType?: "organization" | "user",
     referenceId?: string,
-  ): Promise<ActiveSubscription[]> => {
-    const subscriptions = await fetchCoreAuth<ActiveSubscription[]>(
+  ): Promise<Result<ActiveSubscription[], CoreAuthReadError>> => {
+    const result = await fetchCoreAuth<unknown>(
       CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
       await headers(),
       {
@@ -167,16 +258,24 @@ const getCachedActiveSubscriptions = cache(
       },
     );
 
-    return subscriptions ?? [];
+    return parseCoreAuthArrayResponse<ActiveSubscription>(
+      CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
+      "Failed to fetch active subscriptions from Core",
+      result,
+    );
   },
 );
 
 /**
  * Lists active Stripe-backed subscriptions for the current user or organization.
+ *
+ * Core (`GET /auth/subscription/list`) always responds with a JSON array on 200 —
+ * empty means `[]`, not `null`. A non-array 200 body is treated as
+ * `invalid_json`. Auth failures are non-ok HTTP responses.
  */
 export async function listActiveSubscriptions(
   options?: ListActiveSubscriptionsOptions,
-): Promise<ActiveSubscription[]> {
+): Promise<Result<ActiveSubscription[], CoreAuthReadError>> {
   return getCachedActiveSubscriptions(
     options?.customerType,
     options?.referenceId,
@@ -184,24 +283,40 @@ export async function listActiveSubscriptions(
 }
 
 const getCachedOAuthClientPublic = cache(
-  async (clientId: string): Promise<OAuthClientPublic | null> => {
-    return fetchCoreAuth<OAuthClientPublic>(
+  async (
+    clientId: string,
+  ): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> => {
+    const result = await fetchCoreAuth<OAuthClientPublic | null>(
       CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
       await headers(),
       {
         failureLogMessage: "Failed to fetch OAuth client from Core",
         searchParams: { client_id: clientId },
+        sentryIgnoreHttpStatuses: [404],
       },
     );
+
+    if (
+      result.isErr() &&
+      result.error.reason === "http" &&
+      result.error.status === 404
+    ) {
+      return ok(null);
+    }
+
+    return result;
   },
 );
 
 /**
  * Fetches public OAuth client metadata for the consent screen.
+ *
+ * Core (`GET /auth/oauth2/public-client`) returns client JSON on 200. A missing
+ * or disabled client is HTTP 404, mapped to `ok(null)` — distinct from outages.
  */
 export async function getOAuthClientPublic(
   clientId: string,
-): Promise<OAuthClientPublic | null> {
+): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> {
   return getCachedOAuthClientPublic(clientId);
 }
 

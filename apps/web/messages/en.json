@@ -2978,6 +2978,9 @@
         "notConnected": "is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
+        "loadErrorTitle": "Could not load connected accounts",
+        "loadError": "We could not load your connected accounts right now.",
+        "retry": "Retry",
         "DisconnectModal": {
           "title": "Disconnect {provider}",
           "description": "Are you sure you want to disconnect your {provider} account?",
@@ -2986,6 +2989,11 @@
           "success": "Account disconnected successfully",
           "error": "Failed to disconnect {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Could not load account details",
+        "loadError": "We could not load your linked account details right now.",
+        "retry": "Retry"
       },
       "Notifications": {
         "title": "Email notifications",
@@ -3101,6 +3109,11 @@
           "title": "Client Not Found",
           "description": "The OAuth client could not be found.",
           "descriptionWithId": "The OAuth client with ID {clientId} does not exist."
+        },
+        "loadError": {
+          "title": "Could not load application",
+          "description": "We could not load the application details right now. Please try again.",
+          "retry": "Try again"
         },
         "title": "Authorize Application",
         "description": "An application wants to access your account",
