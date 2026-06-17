@@ -133,6 +133,7 @@
       "expandSidebar": "Développer la barre latérale",
       "logout": "Se déconnecter",
       "creditsUsedOfTotal": "{used, number} / {total, number} crédits utilisés",
+      "lowCreditsLabel": "Crédits faibles {credits, number}",
       "totalBalanceLabel": "Solde total",
       "creditsSummary": "Résumé des crédits :",
       "monthlyUsageLimit": "Limite d’utilisation mensuelle",

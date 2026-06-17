@@ -133,6 +133,7 @@
       "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "creditsUsedOfTotal": "{used, number} / {total, number} credits used",
+      "lowCreditsLabel": "Low credits {credits, number}",
       "totalBalanceLabel": "Total balance",
       "creditsSummary": "Credits Summary:",
       "monthlyUsageLimit": "Monthly usage limit",

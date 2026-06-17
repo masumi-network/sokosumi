@@ -123,12 +123,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
+  const lowCreditsThreshold =
+    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
   const topNotice = resolveAppTopNotice({
     credits: creditsData?.total ?? null,
     currentPlan,
     email: session.user.email,
     emailVerified: session.user.emailVerified,
-    threshold: getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
+    threshold: lowCreditsThreshold,
   });
 
   const content = (
@@ -149,6 +151,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             hermesMenuEnabled={hermesMenuEnabled}
             organizationName={activeOrganization?.name ?? null}
             session={session}
+            lowCreditsThreshold={lowCreditsThreshold}
           />
           <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
             <div
