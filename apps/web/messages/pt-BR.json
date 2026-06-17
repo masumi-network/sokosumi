@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Nenhum agente disponível",
       "agentsNotFound": "Nenhum agente encontrado",
       "hire": "Contratar agente",
-      "freeDemo": "Demo grátis",
       "AgentCard": {
         "view": "Ver detalhes",
         "pricing": "{price, plural, =0 {Grátis} =1 {1 crédito} other {# créditos}}"
@@ -262,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Iniciado",
         "completed": "Concluído",
         "failed": "Falhou",
@@ -3282,7 +3280,6 @@
         },
         "CreateJob": {
           "title": "Novo {name}",
-          "demo": "Demo",
           "cancel": "Cancelar",
           "Information": {
             "title": "Informações"
@@ -3543,8 +3540,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Falha ao buscar o schema de entrada do job",
-        "demoDataInvalid": "Os dados de demo do agente são inválidos."
+        "failedToFetchJobInputSchema": "Falha ao buscar o schema de entrada do job"
       }
     },
     "Duration": {

@@ -55,11 +55,8 @@ export function JobInputVerificationBadge({
   className,
 }: JobInputVerificationBadgeProps) {
   const verificationState = useMemo<VerificationState>(() => {
-    // For FREE and DEMO jobs without identifier, verification is not applicable
-    if (
-      !identifierFromPurchaser &&
-      (jobType === JobType.DEMO || jobType === JobType.FREE)
-    ) {
+    // For FREE jobs without identifier, verification is not applicable
+    if (!identifierFromPurchaser && jobType === JobType.FREE) {
       return {
         direction,
         isPending: false,
@@ -68,7 +65,7 @@ export function JobInputVerificationBadge({
       };
     }
 
-    // For jobs without identifier but not FREE/DEMO, show as unverified
+    // For jobs without identifier but not FREE, show as unverified
     if (!identifierFromPurchaser) {
       return {
         direction,
@@ -107,11 +104,8 @@ export function JobResultVerificationBadge({
   className,
 }: JobResultVerificationBadgeProps) {
   const verificationState = useMemo<VerificationState>(() => {
-    // For FREE and DEMO jobs without identifier, verification is not applicable
-    if (
-      !identifierFromPurchaser &&
-      (jobType === JobType.DEMO || jobType === JobType.FREE)
-    ) {
+    // For FREE jobs without identifier, verification is not applicable
+    if (!identifierFromPurchaser && jobType === JobType.FREE) {
       return {
         direction,
         isPending: false,
@@ -120,7 +114,7 @@ export function JobResultVerificationBadge({
       };
     }
 
-    // For jobs without identifier but not FREE/DEMO, show as unverified
+    // For jobs without identifier but not FREE, show as unverified
     if (!identifierFromPurchaser) {
       return {
         direction,

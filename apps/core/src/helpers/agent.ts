@@ -242,7 +242,7 @@ const calculateAgentCost = (
  * Calculates the average execution time (in seconds) for a given agent's jobs.
  *
  * The function looks at all jobs associated with the specified agent ID,
- * excluding jobs of type 'DEMO', created within the lookback period
+ * created within the lookback period
  * (see TIME.AGENT_EXECUTION_METRICS_DAYS). For each job, it determines the
  * most recent 'COMPLETED' event and calculates the duration from job creation to completion.
  *
@@ -277,7 +277,6 @@ export const calculateAverageExecutionTime = async (
       LIMIT 1
     ) completed_event ON true
     WHERE j."agentId" = $1
-    AND j."jobType" != 'DEMO'
     AND j."createdAt" >= $2
     `,
     agentId,
@@ -291,7 +290,7 @@ export const calculateAverageExecutionTime = async (
  * Calculates the average execution times (in seconds) for multiple agents' jobs.
  *
  * This function examines all jobs associated with each specified agent ID
- * (excluding jobs of type 'DEMO') that were created within the lookback period
+ * that were created within the lookback period
  * (see TIME.AGENT_EXECUTION_METRICS_DAYS). For each job, it finds the most recent
  * 'COMPLETED' job event and calculates the duration from the job's creation to its completion.
  *
@@ -334,7 +333,6 @@ export const calculateAverageExecutionTimes = async (
       LIMIT 1
     ) completed_event ON true
     WHERE j."agentId" = ANY($1::text[])
-    AND j."jobType" != 'DEMO'
     AND j."createdAt" >= $2
     GROUP BY j."agentId"
     `,

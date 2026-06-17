@@ -80,7 +80,6 @@
       "agentsNotAvailable": "暂无可用智能体",
       "agentsNotFound": "未找到智能体",
       "hire": "雇用智能体",
-      "freeDemo": "免费演示",
       "AgentCard": {
         "view": "查看详情",
         "pricing": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}}"
@@ -262,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "演示",
         "started": "已开始",
         "completed": "已完成",
         "failed": "已失败",
@@ -3282,7 +3280,6 @@
         },
         "CreateJob": {
           "title": "新建 {name}",
-          "demo": "演示",
           "cancel": "取消",
           "Information": {
             "title": "信息"
@@ -3543,8 +3540,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "获取作业输入 Schema 失败",
-        "demoDataInvalid": "智能体的演示数据无效。"
+        "failedToFetchJobInputSchema": "获取作业输入 Schema 失败"
       }
     },
     "Duration": {

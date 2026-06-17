@@ -5,12 +5,10 @@ import { useChannel } from "ably/react";
 import { useEffect, useState } from "react";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { jobStatusDataSchema } from "@/lib/ably";
-import type { JobType } from "@/lib/types/core-dto";
 
 interface TaskJobStatusBadgeProps {
   channelName: string;
   jobId: string;
-  jobType: JobType;
   initialStatus: SokosumiJobStatus;
   className?: string;
 }
@@ -18,7 +16,6 @@ interface TaskJobStatusBadgeProps {
 export function TaskJobStatusBadge({
   channelName,
   jobId,
-  jobType,
   initialStatus,
   className,
 }: TaskJobStatusBadgeProps) {
@@ -50,7 +47,6 @@ export function TaskJobStatusBadge({
     <JobStatusBadge
       key={`${jobId}-${status}-real-time-badge`}
       status={status}
-      jobType={jobType}
       className={className}
     />
   );

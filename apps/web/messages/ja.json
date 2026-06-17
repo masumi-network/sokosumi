@@ -80,7 +80,6 @@
       "agentsNotAvailable": "利用可能なエージェントはありません",
       "agentsNotFound": "エージェントが見つかりません",
       "hire": "エージェントを雇う",
-      "freeDemo": "無料デモ",
       "AgentCard": {
         "view": "詳細を見る",
         "pricing": "{price, plural, =0 {無料} =1 {1クレジット} other {# クレジット}}"
@@ -262,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "デモ",
         "started": "開始",
         "completed": "完了",
         "failed": "失敗",
@@ -3282,7 +3280,6 @@
         },
         "CreateJob": {
           "title": "新しい{name}",
-          "demo": "デモ",
           "cancel": "キャンセル",
           "Information": {
             "title": "情報"
@@ -3543,8 +3540,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "ジョブ入力スキーマの取得に失敗しました",
-        "demoDataInvalid": "エージェントのデモデータが無効です。"
+        "failedToFetchJobInputSchema": "ジョブ入力スキーマの取得に失敗しました"
       }
     },
     "Duration": {
