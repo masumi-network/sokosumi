@@ -92,6 +92,7 @@ export function HistorySearchDialogProvider({
           empty: tSearch("empty"),
           loading: tSearch("loading"),
           error: tSearch("error"),
+          updated: tHistory("Row.updated"),
           kind: {
             task: tHistory("Row.kind.task"),
             job: tHistory("Row.kind.job"),
