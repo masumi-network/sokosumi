@@ -1,15 +1,18 @@
 "use client";
 
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
-import { ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import { getHistoryItemHref } from "@/app/history/components/history-list-item";
+import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import { getDefaultHistoryScope } from "@/app/history/utils/history-filters";
+import {
+  buildHistoryBucketLookupsFromItems,
+  type CoworkerBucketSource,
+  createEmptyHistoryBucketLookups,
+} from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { AgentIcon } from "@/components/agents/agent-icon";
-import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import {
   CommandDialog,
@@ -21,6 +24,7 @@ import {
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
+import { filterCoworkersForUiListing } from "@/lib/coworkers/ui-restricted-slugs";
 
 const HISTORY_SEARCH_PAGE_SIZE = 50;
 const SEARCH_STATUS_BADGE_CLASSNAME = "ml-auto shrink-0";
@@ -59,10 +63,20 @@ export function HistorySearchDialog({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [coworkers, setCoworkers] = useState<CoworkerBucketSource[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const requestIdRef = useRef(0);
   const router = useRouter();
+
+  const loadCoworkers = useEffectEvent(async () => {
+    try {
+      const response = await coreClient.getCoworkers();
+      setCoworkers(filterCoworkersForUiListing(response.data ?? []));
+    } catch {
+      setCoworkers([]);
+    }
+  });
 
   const loadHistory = useEffectEvent(async (searchQuery: string) => {
     const requestId = ++requestIdRef.current;
@@ -104,14 +118,29 @@ export function HistorySearchDialog({
   useEffect(() => {
     if (!open) return;
 
+    void loadCoworkers();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
     void loadHistory(debouncedQuery);
   }, [activeOrganizationId, debouncedQuery, open]);
+
+  const bucketLookups = useMemo(
+    () =>
+      history.length > 0
+        ? buildHistoryBucketLookupsFromItems(history, coworkers)
+        : createEmptyHistoryBucketLookups(),
+    [coworkers, history],
+  );
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       setQuery("");
       setDebouncedQuery("");
       setHistory([]);
+      setCoworkers([]);
       setError(null);
       setIsLoading(false);
       requestIdRef.current += 1;
@@ -166,7 +195,11 @@ export function HistorySearchDialog({
                 value={`${item.title} ${item.id}`}
                 onSelect={() => handleSelect(item)}
               >
-                <HistoryItemIcon item={item} labels={labels} />
+                <HistoryTypeIcon
+                  item={item}
+                  labels={labels}
+                  bucketLookups={bucketLookups}
+                />
                 <span className="truncate">{item.title}</span>
                 <HistoryItemStatus item={item} labels={labels} />
               </CommandItem>
@@ -175,39 +208,6 @@ export function HistorySearchDialog({
         ) : null}
       </CommandList>
     </CommandDialog>
-  );
-}
-
-function HistoryItemIcon({
-  item,
-  labels,
-}: {
-  item: HistoryItem;
-  labels: HistorySearchDialogLabels;
-}) {
-  if (item.kind === "task") {
-    return <ListTodo className="size-4" aria-hidden />;
-  }
-
-  if (item.kind === "job") {
-    return (
-      <AgentIcon
-        agent={{
-          name: item.agentName ?? item.title,
-          icon: item.agentIcon ?? null,
-        }}
-        className="size-4"
-      />
-    );
-  }
-
-  return (
-    <ChatModelIcon
-      modelId=""
-      modelName={labels.kind.conversation}
-      className="size-4"
-      size={16}
-    />
   );
 }
 
