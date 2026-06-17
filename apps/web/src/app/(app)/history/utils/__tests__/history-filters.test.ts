@@ -23,11 +23,11 @@ const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
 
 describe("history-filters", () => {
-  it("defaults to workspace scope when an organization is active", () => {
-    expect(getDefaultHistoryScope("org-1")).toBe("workspace");
+  it("defaults to owned scope when an organization is active", () => {
+    expect(getDefaultHistoryScope("org-1")).toBe("owned");
     expect(parseHistoryFilters({}, "org-1")).toEqual({
       q: null,
-      scope: "workspace",
+      scope: "owned",
       type: null,
       status: null,
       projectId: null,
@@ -68,12 +68,10 @@ describe("history-filters", () => {
 
   describe("sanitizeHistoryScopeInput", () => {
     it("returns default scope for non-strings and unknown labels", () => {
-      expect(sanitizeHistoryScopeInput(undefined, "org-1")).toBe("workspace");
-      expect(sanitizeHistoryScopeInput(123, "org-1")).toBe("workspace");
-      expect(sanitizeHistoryScopeInput("not-a-scope", "org-1")).toBe(
-        "workspace",
-      );
-      expect(sanitizeHistoryScopeInput("", "org-1")).toBe("workspace");
+      expect(sanitizeHistoryScopeInput(undefined, "org-1")).toBe("owned");
+      expect(sanitizeHistoryScopeInput(123, "org-1")).toBe("owned");
+      expect(sanitizeHistoryScopeInput("not-a-scope", "org-1")).toBe("owned");
+      expect(sanitizeHistoryScopeInput("", "org-1")).toBe("owned");
     });
 
     it("allows workspace only when an organization is active", () => {
@@ -148,7 +146,7 @@ describe("history-filters", () => {
       parseHistoryFilters({ type: "task", status: "active" }, "org-1"),
     ).toEqual({
       q: null,
-      scope: "workspace",
+      scope: "owned",
       type: "task",
       status: null,
       projectId: null,
@@ -158,7 +156,7 @@ describe("history-filters", () => {
       parseHistoryFilters({ type: "job", status: "archived" }, "org-1"),
     ).toEqual({
       q: null,
-      scope: "workspace",
+      scope: "owned",
       type: "job",
       status: null,
       projectId: null,
@@ -263,7 +261,7 @@ describe("history-filters", () => {
     );
 
     expect(nextSearchParams.toString()).toBe(
-      "create=true&q=research&scope=owned&type=task&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+      "create=true&q=research&type=task&status=READY&projectId=33333333-3333-4333-8333-333333333333",
     );
   });
 
@@ -280,7 +278,7 @@ describe("history-filters", () => {
       currentSearchParams,
       {
         q: null,
-        scope: "workspace",
+        scope: "owned",
         type: null,
         status: null,
         projectId: null,

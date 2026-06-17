@@ -7,6 +7,7 @@ import { jobSyncService } from "./job-sync.service";
 
 const {
   captureExceptionMock,
+  captureMessageMock,
   createJobEventForJobIdMock,
   createJobPurchaseMock,
   fetchAgentJobStatusMock,
@@ -28,6 +29,7 @@ const {
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
+  captureMessageMock: vi.fn(),
   createJobEventForJobIdMock: vi.fn(),
   createJobPurchaseMock: vi.fn(),
   fetchAgentJobStatusMock: vi.fn(),
@@ -55,6 +57,7 @@ vi.mock("@vercel/related-projects", () => ({
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
+  captureMessage: captureMessageMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async () => {
@@ -259,6 +262,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   beforeEach(() => {
     for (const mock of [
       captureExceptionMock,
+      captureMessageMock,
       createJobEventForJobIdMock,
       createJobPurchaseMock,
       fetchAgentJobStatusMock,
@@ -923,6 +927,62 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports job-failure webhook HTTP errors to Sentry with response context", async () => {
+    requestFetchMock.mockResolvedValue(
+      new Response("kaboom", { status: 500, statusText: "Server Error" }),
+    );
+
+    const updatedFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: "author@example.com",
+      },
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.FAILED,
+          result: "boom",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({
+      agent: [createJob()],
+    });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "failed",
+        result: "boom",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(updatedFailedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    await vi.waitFor(() => {
+      expect(captureMessageMock).toHaveBeenCalledWith(
+        "Failed to call job-failure webhook",
+        expect.objectContaining({
+          level: "warning",
+          extra: expect.objectContaining({
+            jobId: "job_1",
+            userId: "user_1",
+            notificationType: "job-failure-webhook",
+            responseStatus: 500,
+            responseBody: "kaboom",
+          }),
+        }),
+      );
+    });
   });
 
   it("publishes on-chain-only payment failures even when the agent status hash is unchanged", async () => {

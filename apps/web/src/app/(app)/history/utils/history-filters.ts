@@ -175,7 +175,7 @@ function finalizeHistoryFilters(filters: HistoryFilters): HistoryFilters {
 export function getDefaultHistoryScope(
   activeOrganizationId: string | null,
 ): HistoryScope {
-  return activeOrganizationId ? "workspace" : "owned";
+  return "owned";
 }
 
 export function sanitizeHistorySearchInput(raw: unknown): string | null {

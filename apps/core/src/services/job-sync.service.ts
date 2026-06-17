@@ -27,11 +27,16 @@ import {
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import { createAgentClient } from "@sokosumi/masumi";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  buildWebhookFailureContext,
+  postWebhook,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
+import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
 import { createNotification } from "@/helpers/notifications";
@@ -317,23 +322,27 @@ async function dispatchJobFailureNotification(
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
 
     if (webhookUrl) {
-      const request = new Request(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(notificationData),
-      });
-
-      void fetch(request).catch((error) => {
-        Sentry.captureException(error, {
-          extra: {
-            jobId: job.id,
-            userId: job.userId,
-            notificationType: "job-failure-webhook",
-          },
+      // Fire-and-forget: dispatch the webhook without blocking the email path.
+      void postWebhook(webhookUrl, notificationData, {
+        userAgent: WEBHOOK_USER_AGENT,
+        timeoutMs: WEBHOOK_TIMEOUT_MS,
+      })
+        .then((result) => {
+          if (result.status === "failed") {
+            Sentry.captureMessage("Failed to call job-failure webhook", {
+              level: "warning",
+              extra: buildWebhookFailureContext(result, {
+                jobId: job.id,
+                userId: job.userId,
+                notificationType: "job-failure-webhook",
+                webhookUrl,
+              }),
+            });
+          }
+        })
+        .catch(() => {
+          // postWebhook never rejects; guard only against the reporter throwing.
         });
-      });
     }
 
     const stakeholderEmails = getEnv().JOB_FAILURE_NOTIFICATION_EMAILS.filter(

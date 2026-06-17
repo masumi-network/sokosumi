@@ -44,6 +44,7 @@ describe("buildHistoryBucketLookups", () => {
         agentId: "agent-1",
         agentName: "Research Agent",
         agentIcon: "https://example.com/research.svg",
+        owner: null,
       },
       {
         kind: "conversation",
@@ -55,6 +56,7 @@ describe("buildHistoryBucketLookups", () => {
         archivedAt: null,
         credits: null,
         bucketSlug: "hannah",
+        owner: null,
       },
       {
         kind: "conversation",
@@ -66,6 +68,7 @@ describe("buildHistoryBucketLookups", () => {
         archivedAt: null,
         credits: null,
         bucketSlug: "gpt-5-4",
+        owner: null,
       },
     ] satisfies HistoryItem[]);
 
