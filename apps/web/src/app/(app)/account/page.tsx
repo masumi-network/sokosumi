@@ -22,24 +22,23 @@ export default async function Page() {
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl px-4">
-        {accountsResult.isErr() ? (
-          <div className="py-6">
-            <CoreAuthReadRetry
-              description={t("loadError")}
-              retryLabel={t("retry")}
-              title={t("loadErrorTitle")}
-            />
-          </div>
-        ) : (
-          <AccountSettings
-            accounts={accountsResult.value}
-            designMdValue={designMdValue}
-            notificationsOptIn={session?.user.notificationsOptIn ?? true}
-            userLogo={session?.user.logo}
-            userMetadata={session?.user.metadata}
-            marketingOptIn={session?.user.marketingOptIn ?? false}
-          />
-        )}
+        <AccountSettings
+          accounts={accountsResult.isOk() ? accountsResult.value : []}
+          designMdValue={designMdValue}
+          linkedAccountsLoadError={
+            accountsResult.isErr() ? (
+              <CoreAuthReadRetry
+                description={t("loadError")}
+                retryLabel={t("retry")}
+                title={t("loadErrorTitle")}
+              />
+            ) : undefined
+          }
+          notificationsOptIn={session?.user.notificationsOptIn ?? true}
+          userLogo={session?.user.logo}
+          userMetadata={session?.user.metadata}
+          marketingOptIn={session?.user.marketingOptIn ?? false}
+        />
       </div>
     </div>
   );

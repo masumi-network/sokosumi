@@ -228,7 +228,7 @@ const getCachedOAuthClientPublic = cache(
   async (
     clientId: string,
   ): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> => {
-    return fetchCoreAuth<OAuthClientPublic | null>(
+    const result = await fetchCoreAuth<OAuthClientPublic | null>(
       CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
       await headers(),
       {
@@ -236,6 +236,16 @@ const getCachedOAuthClientPublic = cache(
         searchParams: { client_id: clientId },
       },
     );
+
+    if (
+      result.isErr() &&
+      result.error.reason === "http" &&
+      result.error.status === 404
+    ) {
+      return ok(null);
+    }
+
+    return result;
   },
 );
 

@@ -1,4 +1,3 @@
-import { type Account } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
@@ -22,31 +21,25 @@ export async function ConnectionsPage() {
     return null;
   }
 
-  if (accountsResult.isErr()) {
-    return (
-      <div className="min-h-full w-full">
-        <div className="mx-auto max-w-4xl space-y-8 px-4">
-          <CoreAuthReadRetry
-            description={t("loadError")}
-            retryLabel={t("retry")}
-            title={t("loadErrorTitle")}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  const accounts: Account[] = accountsResult.value;
-
-  const socialAccounts = accounts.filter(
-    (account) => account.providerId !== AccountProvider.CREDENTIAL,
+  const socialAccountsSection = accountsResult.isErr() ? (
+    <CoreAuthReadRetry
+      description={t("loadError")}
+      retryLabel={t("retry")}
+      title={t("loadErrorTitle")}
+    />
+  ) : (
+    <SocialAccounts
+      socialAccounts={accountsResult.value.filter(
+        (account) => account.providerId !== AccountProvider.CREDENTIAL,
+      )}
+    />
   );
 
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl space-y-8 px-4">
         <div className="space-y-6">
-          <SocialAccounts socialAccounts={socialAccounts} />
+          {socialAccountsSection}
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
             apiKeysContent={<ApiKeysSection />}

@@ -272,6 +272,41 @@ describe("auth.server", () => {
     }
   });
 
+  it("returns err with reason invalid_json when subscription body fails to parse", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error("Unexpected token < in JSON");
+      },
+    });
+
+    const { listActiveSubscriptions } = await import("../auth.server");
+
+    const result = await listActiveSubscriptions({ customerType: "user" });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("invalid_json");
+      expect(result.error.path).toBe("/auth/subscription/list");
+    }
+  });
+
+  it("returns err with reason timeout when subscription request times out", async () => {
+    fetchMock.mockRejectedValue(
+      new DOMException("The operation timed out.", "TimeoutError"),
+    );
+
+    const { listActiveSubscriptions } = await import("../auth.server");
+
+    const result = await listActiveSubscriptions({ customerType: "user" });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("timeout");
+      expect(result.error.path).toBe("/auth/subscription/list");
+    }
+  });
+
   it("fetches public OAuth client metadata", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
@@ -321,6 +356,23 @@ describe("auth.server", () => {
     }
   });
 
+  it("returns ok with null when the OAuth client responds with 404", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => null,
+    });
+
+    const { getOAuthClientPublic } = await import("../auth.server");
+
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toBeNull();
+    }
+  });
+
   it("returns err when public OAuth client metadata cannot be loaded", async () => {
     fetchMock.mockRejectedValue(new Error("Core unreachable"));
 
@@ -331,6 +383,41 @@ describe("auth.server", () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.reason).toBe("network");
+      expect(result.error.path).toBe("/auth/oauth2/public-client");
+    }
+  });
+
+  it("returns err with reason invalid_json when OAuth client body fails to parse", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error("Unexpected token < in JSON");
+      },
+    });
+
+    const { getOAuthClientPublic } = await import("../auth.server");
+
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("invalid_json");
+      expect(result.error.path).toBe("/auth/oauth2/public-client");
+    }
+  });
+
+  it("returns err with reason timeout when OAuth client request times out", async () => {
+    fetchMock.mockRejectedValue(
+      new DOMException("The operation timed out.", "TimeoutError"),
+    );
+
+    const { getOAuthClientPublic } = await import("../auth.server");
+
+    const result = await getOAuthClientPublic("client_123");
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("timeout");
       expect(result.error.path).toBe("/auth/oauth2/public-client");
     }
   });

@@ -297,4 +297,39 @@ describe("OnboardingDialogLoader", () => {
       },
     );
   });
+
+  it("skips full onboarding when personal subscription reads fail", async () => {
+    listActiveSubscriptionsMock.mockResolvedValue(
+      err({
+        path: "/auth/subscription/list",
+        reason: "network",
+      }),
+    );
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: null,
+        loginId: "session-1",
+        subscriptionOnly: false,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Core auth subscription read outage during onboarding",
+      {
+        path: "/auth/subscription/list",
+        reason: "network",
+      },
+    );
+  });
 });
