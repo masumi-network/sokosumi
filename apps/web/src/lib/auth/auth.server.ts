@@ -170,20 +170,17 @@ export async function getSession(
 
 const getCachedUserAccounts = cache(
   async (): Promise<Result<Account[], CoreAuthReadError>> => {
-    const result = await fetchCoreAuth<Account[] | null>(
-      CORE_LIST_ACCOUNTS_PATH,
-      await headers(),
-      {
-        failureLogMessage: "Failed to fetch user accounts from Core",
-      },
-    );
-
-    return result.map((accounts) => accounts ?? []);
+    return fetchCoreAuth<Account[]>(CORE_LIST_ACCOUNTS_PATH, await headers(), {
+      failureLogMessage: "Failed to fetch user accounts from Core",
+    });
   },
 );
 
 /**
  * Lists accounts linked to the current user via Core Better Auth.
+ *
+ * Core (`GET /auth/list-accounts`) always responds with a JSON array on 200 —
+ * empty means `[]`, not `null`. Auth failures are non-ok HTTP responses.
  */
 export async function listUserAccounts(): Promise<
   Result<Account[], CoreAuthReadError>
@@ -196,7 +193,7 @@ const getCachedActiveSubscriptions = cache(
     customerType?: "organization" | "user",
     referenceId?: string,
   ): Promise<Result<ActiveSubscription[], CoreAuthReadError>> => {
-    const result = await fetchCoreAuth<ActiveSubscription[] | null>(
+    return fetchCoreAuth<ActiveSubscription[]>(
       CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
       await headers(),
       {
@@ -207,13 +204,14 @@ const getCachedActiveSubscriptions = cache(
         },
       },
     );
-
-    return result.map((subscriptions) => subscriptions ?? []);
   },
 );
 
 /**
  * Lists active Stripe-backed subscriptions for the current user or organization.
+ *
+ * Core (`GET /auth/subscription/list`) always responds with a JSON array on 200 —
+ * empty means `[]`, not `null`. Auth failures are non-ok HTTP responses.
  */
 export async function listActiveSubscriptions(
   options?: ListActiveSubscriptionsOptions,
@@ -251,6 +249,9 @@ const getCachedOAuthClientPublic = cache(
 
 /**
  * Fetches public OAuth client metadata for the consent screen.
+ *
+ * Core (`GET /auth/oauth2/public-client`) returns client JSON on 200. A missing
+ * or disabled client is HTTP 404, mapped to `ok(null)` — distinct from outages.
  */
 export async function getOAuthClientPublic(
   clientId: string,

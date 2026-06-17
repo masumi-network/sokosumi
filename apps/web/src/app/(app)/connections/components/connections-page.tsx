@@ -12,14 +12,13 @@ import { SocialAccounts } from "./social-accounts";
 
 export async function ConnectionsPage() {
   const t = await getTranslations("App.Account.SocialAccounts");
-  const [accountsResult, session] = await Promise.all([
-    listUserAccounts(),
-    getSession(),
-  ]);
+  const session = await getSession();
 
   if (!session?.user) {
     return null;
   }
+
+  const accountsResult = await listUserAccounts();
 
   const socialAccountsSection = accountsResult.isErr() ? (
     <CoreAuthReadRetry

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import {
   Card,
   CardContent,
@@ -11,7 +12,6 @@ import {
 import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
 
 import { ConsentActions } from "./consent-actions";
-import { ConsentRetryButton } from "./consent-retry-button";
 
 interface ConsentPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -64,15 +64,11 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   if (clientResult.isErr()) {
     return (
       <div className="container mx-auto max-w-md py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("loadError.title")}</CardTitle>
-            <CardDescription>{t("loadError.description")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ConsentRetryButton label={t("loadError.retry")} />
-          </CardContent>
-        </Card>
+        <CoreAuthReadRetry
+          description={t("loadError.description")}
+          retryLabel={t("loadError.retry")}
+          title={t("loadError.title")}
+        />
       </div>
     );
   }
