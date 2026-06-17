@@ -1,0 +1,90 @@
+import type { ErrorEvent, EventHint } from "@sentry/nextjs";
+
+const INVALID_SESSION_MESSAGE = /invalid, expired or missing session/i;
+
+const UNAUTHENTICATED_MESSAGE = /^user is not authenticated$/i;
+
+const NEXT_ROUTER_HOOKS_MISMATCH =
+  /rendered more hooks than during the previous render/i;
+
+function getThrownErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "";
+}
+
+function getThrownErrorName(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name;
+  }
+
+  return "";
+}
+
+function getEventErrorMessage(event: ErrorEvent): string {
+  const exceptionValue = event.exception?.values?.[0]?.value;
+  if (typeof exceptionValue === "string" && exceptionValue.length > 0) {
+    return exceptionValue;
+  }
+
+  if (typeof event.message === "string") {
+    return event.message;
+  }
+
+  return "";
+}
+
+function getEventErrorType(event: ErrorEvent): string | undefined {
+  return event.exception?.values?.[0]?.type;
+}
+
+export function isExpectedAuthRequestError(error: unknown): boolean {
+  if (getThrownErrorName(error) === "UnAuthenticatedError") {
+    return true;
+  }
+
+  const message = getThrownErrorMessage(error);
+  return (
+    UNAUTHENTICATED_MESSAGE.test(message) ||
+    INVALID_SESSION_MESSAGE.test(message)
+  );
+}
+
+export function isExpectedClientNoiseErrorMessage(message: string): boolean {
+  return NEXT_ROUTER_HOOKS_MISMATCH.test(message);
+}
+
+export function isExpectedAuthSentryEvent(event: ErrorEvent): boolean {
+  const message = getEventErrorMessage(event);
+  const type = getEventErrorType(event);
+
+  if (type === "UnAuthenticatedError") {
+    return true;
+  }
+
+  if (type === "CoreApiRequestError" && INVALID_SESSION_MESSAGE.test(message)) {
+    return true;
+  }
+
+  return (
+    UNAUTHENTICATED_MESSAGE.test(message) ||
+    INVALID_SESSION_MESSAGE.test(message)
+  );
+}
+
+export function beforeSendServerEvent(
+  event: ErrorEvent,
+  _hint: EventHint,
+): ErrorEvent | null {
+  if (isExpectedAuthSentryEvent(event)) {
+    return null;
+  }
+
+  return event;
+}

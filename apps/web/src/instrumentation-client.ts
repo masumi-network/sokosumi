@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
-
+import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
 import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-mutation-errors";
 import {
   beforeSendClientEvent,
@@ -21,6 +21,7 @@ Sentry.init({
   ignoreErrors: [
     ...thirdPartyDomMutationIgnoreErrors,
     ...thirdPartyAnalyticsIgnoreErrors,
+    isExpectedClientNoiseErrorMessage,
   ],
   beforeSend: beforeSendClientEvent,
 
