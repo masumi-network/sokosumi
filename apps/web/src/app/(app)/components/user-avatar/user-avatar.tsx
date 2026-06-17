@@ -1,6 +1,5 @@
+import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
-
-import type { Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
 
 import UserAvatarClient from "./user-avatar.client";

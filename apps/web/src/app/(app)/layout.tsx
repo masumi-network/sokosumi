@@ -1,10 +1,11 @@
-import { NoticeKind } from "@sokosumi/database";
+import { NoticeKind } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -14,9 +15,12 @@ import { CoworkersProvider } from "@/contexts/coworkers-context";
 import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { hasAdminRole } from "@/lib/auth/admin-access";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
+import type {
+  GetUsersByIdCreditsResponse,
+  Notice,
+} from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -85,10 +89,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     ? pendingNoticesResult.data
     : [];
   const legalNotices = pendingNotices.filter(
-    (notice) => notice.kind === NoticeKind.LEGAL_TERMS,
+    (notice: Notice) => notice.kind === NoticeKind.LEGAL_TERMS,
   );
   const announcementNotices = pendingNotices.filter(
-    (notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
+    (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
   );
   const userImageUrl =
     session.user.image ??
@@ -120,12 +124,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
+  const lowCreditsThreshold =
+    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
   const topNotice = resolveAppTopNotice({
     credits: creditsData?.total ?? null,
     currentPlan,
     email: session.user.email,
     emailVerified: session.user.emailVerified,
-    threshold: getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD,
+    threshold: lowCreditsThreshold,
   });
 
   const content = (
@@ -138,57 +144,62 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         data-app-shell
         className="flex max-w-svw overflow-clip"
       >
-        <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
-          <Sidebar
-            adminMenuEnabled={adminMenuEnabled}
-            creditsData={creditsData}
-            currentTimestampMs={currentTimestampMs}
-            hermesMenuEnabled={hermesMenuEnabled}
-            organizationName={activeOrganization?.name ?? null}
-            session={session}
-          />
-          <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
-            <div
-              className="flex min-w-0 flex-1 flex-col overflow-clip"
-              data-app-content-inner
-            >
-              <HeaderGate>
-                <Header className="h-16 p-4" session={session} />
-              </HeaderGate>
-              <main
-                className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
-                data-app-main
-              >
-                <EmergencyDialog />
-                {topNotice.kind === "emailVerification" ? (
-                  <EmailVerificationNotice
-                    email={topNotice.email}
-                    emailVerified={false}
-                  />
-                ) : null}
-                {topNotice.kind === "lowCredits" ||
-                topNotice.kind === "outOfCredits" ? (
-                  <LowCreditsNotice
-                    kind={topNotice.kind}
-                    path={topNotice.path}
-                  />
-                ) : null}
-                <div
-                  className="flex h-full flex-1 flex-col overflow-visible"
-                  data-app-main-inner
-                >
-                  {children}
-                </div>
-              </main>
-            </div>
-            <ChatRail
-              organizationSlug={activeOrganization?.slug ?? null}
-              userImageUrl={userImageUrl}
-              userName={session.user.name ?? undefined}
-              initialDesignMdAttachment={initialDesignMdAttachment}
+        <HistorySearchDialogProvider
+          activeOrganizationId={session.session.activeOrganizationId ?? null}
+        >
+          <AppChatRailProvider defaultOpen={defaultChatRailOpen}>
+            <Sidebar
+              adminMenuEnabled={adminMenuEnabled}
+              creditsData={creditsData}
+              currentTimestampMs={currentTimestampMs}
+              hermesMenuEnabled={hermesMenuEnabled}
+              organizationName={activeOrganization?.name ?? null}
+              session={session}
+              lowCreditsThreshold={lowCreditsThreshold}
             />
-          </div>
-        </AppChatRailProvider>
+            <div className="flex min-w-0 flex-1 overflow-clip" data-app-content>
+              <div
+                className="flex min-w-0 flex-1 flex-col overflow-clip"
+                data-app-content-inner
+              >
+                <HeaderGate>
+                  <Header className="h-16 p-4" session={session} />
+                </HeaderGate>
+                <main
+                  className="relative flex max-h-[calc(100svh-64px)] min-h-[calc(100svh-64px)] flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:pt-4"
+                  data-app-main
+                >
+                  <EmergencyDialog />
+                  {topNotice.kind === "emailVerification" ? (
+                    <EmailVerificationNotice
+                      email={topNotice.email}
+                      emailVerified={false}
+                    />
+                  ) : null}
+                  {topNotice.kind === "lowCredits" ||
+                  topNotice.kind === "outOfCredits" ? (
+                    <LowCreditsNotice
+                      kind={topNotice.kind}
+                      path={topNotice.path}
+                    />
+                  ) : null}
+                  <div
+                    className="flex h-full flex-1 flex-col overflow-visible"
+                    data-app-main-inner
+                  >
+                    {children}
+                  </div>
+                </main>
+              </div>
+              <ChatRail
+                organizationSlug={activeOrganization?.slug ?? null}
+                userImageUrl={userImageUrl}
+                userName={session.user.name ?? undefined}
+                initialDesignMdAttachment={initialDesignMdAttachment}
+              />
+            </div>
+          </AppChatRailProvider>
+        </HistorySearchDialogProvider>
       </SidebarProvider>
     </NoticeDialogProvider>
   );

@@ -1,7 +1,6 @@
 "use server";
 
-import { MemberRole } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, MemberRole } from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -16,7 +15,6 @@ import {
   type BulkInviteResultRow,
   organizationService,
 } from "@/lib/services/organization.service";
-import { preferredOrganizationService } from "@/lib/services/preferred-organization.service";
 import { stripeService } from "@/lib/services/stripe.service";
 import { userService } from "@/lib/services/user.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -171,7 +169,7 @@ export const inviteOrganizationMembersBulk = withSession<
     });
   }
 
-  const invitationLimit = getEnvSecrets().BETTER_AUTH_ORG_INVITATION_LIMIT;
+  const invitationLimit = getEnvSecrets().ORG_INVITATION_LIMIT;
   if (emails.length > invitationLimit) {
     return Err({
       code: CommonErrorCode.BAD_INPUT,
@@ -236,19 +234,25 @@ export const updatePreferredOrganization = withSession<
     });
   }
 
-  const result =
-    await preferredOrganizationService.persistPreferredOrganizationId(
+  try {
+    const { data } = await coreClient.setMyPreferredOrganization(
       parsedResult.data.organizationId,
     );
 
-  if (!result.ok) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "You are not a member of this organization",
+    return Ok({
+      organizationId: data.organizationId,
     });
-  }
+  } catch (error) {
+    if (
+      error instanceof CoreApiRequestError &&
+      error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED
+    ) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      });
+    }
 
-  return Ok({
-    organizationId: result.organizationId,
-  });
+    throw error;
+  }
 });

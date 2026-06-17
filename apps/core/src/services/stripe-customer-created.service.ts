@@ -64,7 +64,7 @@ export async function claimWelcomeCoupon(
 
 /**
  * Port of the web app's `handleCustomerCreatedEvent`
- * (`apps/web/src/lib/stripe/webhook-handlers.ts`): writes the Stripe
+ * (Core `stripe-backed-subscription.service.ts`): writes the Stripe
  * customer id back to the user/organization, seeds the initial local free
  * subscription period, and claims the welcome coupon for user customers.
  */

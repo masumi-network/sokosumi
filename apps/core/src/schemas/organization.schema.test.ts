@@ -75,4 +75,32 @@ describe("organizationWithRoleSchema", () => {
 
     expect(result.logo).toBe("");
   });
+
+  it("maps invalid logo URLs to null instead of failing validation", () => {
+    const result = organizationWithRoleSchema.parse({
+      id: "org_123",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      name: "My Organization",
+      slug: "my-org",
+      logo: "not-a-url",
+      metadata: null,
+      role: "member",
+    });
+
+    expect(result.logo).toBeNull();
+  });
+
+  it("normalizes IPFS logo values before validation", () => {
+    const result = organizationWithRoleSchema.parse({
+      id: "org_123",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      name: "My Organization",
+      slug: "my-org",
+      logo: "ipfs://acme-logo",
+      metadata: null,
+      role: "member",
+    });
+
+    expect(result.logo).toBe("https://c-ipfs-gw.nmkr.io/ipfs/acme-logo");
+  });
 });

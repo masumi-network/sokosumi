@@ -1,13 +1,13 @@
 import type { createTaskLink } from "@/lib/actions/task/action";
 import {
-  type TaskEvent,
   type TaskLink,
   TaskLinkRelation,
   type TaskLinkRelation as TaskLinkRelationValue,
   type TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
+import type { TaskStatus } from "@/lib/types/core-dto";
 
-export type TaskStatus = NonNullable<TaskEvent["status"]>;
+export type { TaskStatus };
 
 export interface TaskPickerTask {
   id: string;
@@ -26,6 +26,7 @@ export const TASK_STATUS = {
   DRAFT: "DRAFT",
   READY: "READY",
   INPUT_REQUIRED: "INPUT_REQUIRED",
+  APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
   AUTHENTICATION_REQUIRED: "AUTHENTICATION_REQUIRED",
   OUT_OF_CREDITS: "OUT_OF_CREDITS",
   CREDITS_TOPPED_UP: "CREDITS_TOPPED_UP",

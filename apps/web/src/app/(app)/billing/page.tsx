@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/database";
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import Stripe from "stripe";
 
@@ -17,7 +17,7 @@ import {
 } from "@/components/billing/subscription-plan-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";

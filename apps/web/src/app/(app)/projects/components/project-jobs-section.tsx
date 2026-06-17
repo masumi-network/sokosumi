@@ -140,7 +140,6 @@ export function ProjectJobsSection({
                   <p className="truncate text-sm">{name}</p>
                   <JobStatusBadge
                     status={job.status as SokosumiJobStatus}
-                    jobType={job.jobType}
                     className="shrink-0"
                   />
                   <p className="text-muted-foreground shrink-0 text-xs sm:text-right">

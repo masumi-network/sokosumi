@@ -21,9 +21,16 @@ overrides:
   # by @prisma/dev. Patch within the 1.x line (fix backported to 1.19.13) rather
   # than forcing @prisma/dev onto a major bump.
   "@hono/node-server@<1.19.13": ">=1.19.13 <2"
-  # ws GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) — @vercel/functions@3.7.0
-  # ships ws@8.20.0 (vulnerable). Force all ws 8.x resolutions to the patched line.
-  "ws@>=8.0.0 <8.20.1": "8.21.0"
+  # ws GHSA-96hv-2xvq-fx4p (memory exhaustion DoS) — react-email > socket.io still
+  # resolves ws@8.20.x. Force all ws 8.x below 8.21.0 to the patched line.
+  "ws@>=8.0.0 <8.21.0": "8.21.0"
+  # form-data GHSA-hmw2-7cc7-3qxx (CRLF injection) — postmark > axios > form-data@4.0.5.
+  "form-data@>=4.0.0 <4.0.6": "4.0.6"
+  # js-yaml GHSA-h67p-54hq-rp68 (DoS via merge keys) — @hey-api/openapi-ts dev chain.
+  "js-yaml@<4.2.0": "4.2.0"
+  # @opentelemetry/core GHSA-8988-4f7v-96qf (unbounded baggage memory) — @sentry/* and
+  # lighthouse dev chain. Pin to the patched 2.8 line.
+  "@opentelemetry/core@<2.8.0": "2.8.0"
   # esbuild GHSA-gv7w-rqvm-qjhr (RCE in Deno via NPM_CONFIG_REGISTRY) and
   # GHSA-g7r4-m6w7-qqqr (Windows dev-server arbitrary file read) — transitive
   # via vite@8.0.16 (esbuild@0.27.7) and tsup@8.5.1. Force all resolving copies
@@ -44,6 +51,7 @@ allowBuilds:
   "@prisma/client": false
   "@prisma/engines": false
   "@sentry-internal/node-cpu-profiler": false
+  "@sentry/node-cpu-profiler": true
   "@sentry/cli": false
   "@swc/core": false
   "@tailwindcss/oxide": false

@@ -1,11 +1,11 @@
-import { type Invitation, MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
 import {
   organizationSeatService,
   organizationService,
@@ -85,7 +85,7 @@ export default async function OrganizationPage({
 
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
-  let pendingInvitations: Invitation[] = [];
+  let pendingInvitations: PendingInvitation[] = [];
 
   if (isOwnerOrAdmin) {
     try {

@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.5.2",
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "pnpm -r dev",
     "web:dev": "pnpm --filter web dev",
@@ -17,6 +17,7 @@
     "ai-provider:typecheck": "pnpm --filter @sokosumi/ai-provider typecheck",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "net:build": "pnpm --filter @sokosumi/net build",
+    "packages:build": "pnpm --filter \"./packages/*\" run build",
     "typecheck": "pnpm -r typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",

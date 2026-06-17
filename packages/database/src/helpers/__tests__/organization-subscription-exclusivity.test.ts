@@ -4,29 +4,16 @@ import { describe, it, vi } from "vitest";
 import { resolveOrganizationBillingPlan } from "../organization-billing-plan.js";
 import {
   assertOrganizationSubscriptionChangeAllowed,
-  assertPersonalSubscriptionChangeAllowed,
   hasConsumableEnterpriseContract,
   OrganizationSubscriptionExclusivityError,
-  PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE,
 } from "../organization-subscription-exclusivity.js";
 
 vi.mock("../organization-billing-plan.js", () => ({
   resolveOrganizationBillingPlan: vi.fn(),
 }));
 
-vi.mock("../../repositories/member.repository.js", () => ({
-  memberRepository: {
-    getMembersOrganizationIdsByUserId: vi.fn(),
-  },
-}));
-
-import { memberRepository } from "../../repositories/member.repository.js";
-
 const resolveOrganizationBillingPlanMock = vi.mocked(
   resolveOrganizationBillingPlan,
-);
-const getMembersOrganizationIdsByUserIdMock = vi.mocked(
-  memberRepository.getMembersOrganizationIdsByUserId,
 );
 
 describe("organization subscription exclusivity", () => {
@@ -134,31 +121,6 @@ describe("organization subscription exclusivity", () => {
       () => assertOrganizationSubscriptionChangeAllowed("org-1", {} as never),
       (error: unknown) =>
         error instanceof OrganizationSubscriptionExclusivityError,
-    );
-  });
-
-  it("blocks personal subscription changes for members of consumable enterprise orgs", async () => {
-    getMembersOrganizationIdsByUserIdMock.mockResolvedValue(["org-1"]);
-    resolveOrganizationBillingPlanMock.mockResolvedValue({
-      mode: "enterprise_contract",
-      plan: "enterprise",
-      isConsumable: true,
-      purchasedSeats: 3,
-      contractId: "contract-1",
-      endsAt: new Date("2027-01-01T00:00:00.000Z"),
-      activatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      cancelAtPeriodEnd: false,
-      periodEnd: null,
-    });
-
-    await assert.rejects(
-      () => assertPersonalSubscriptionChangeAllowed("user-1", {} as never),
-      (error: unknown) => {
-        return (
-          error instanceof OrganizationSubscriptionExclusivityError &&
-          error.message === PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE
-        );
-      },
     );
   });
 });

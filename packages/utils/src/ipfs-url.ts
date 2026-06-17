@@ -36,3 +36,29 @@ export function normalizeOrganizationLogo(
   }
   return resolveIpfsOrHttpUrl(trimmed);
 }
+
+/**
+ * Returns a logo safe for Core API responses. Normalizes IPFS values, preserves
+ * an explicit empty string, and maps malformed or non-HTTP(S) values to `null`
+ * so response validation does not fail on legacy database rows.
+ */
+export function sanitizeOrganizationLogoForApi(logo: unknown): string | null {
+  if (logo === "") {
+    return "";
+  }
+  if (typeof logo !== "string") {
+    return null;
+  }
+
+  const normalized = normalizeOrganizationLogo(logo);
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    const { protocol } = new URL(normalized);
+    return protocol === "http:" || protocol === "https:" ? normalized : null;
+  } catch {
+    return null;
+  }
+}

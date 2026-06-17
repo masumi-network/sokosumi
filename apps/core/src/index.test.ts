@@ -69,8 +69,13 @@ vi.mock("@/routes/sync/index", () => {
   return { default: new Hono() };
 });
 
-vi.mock("@/routes/webhooks/index", () => {
-  return { default: new Hono() };
+vi.mock("@/routes/well-known/index", () => {
+  const app = new Hono();
+  app.get("/.well-known/oauth-authorization-server/auth", (c) =>
+    c.json({ issuer: "http://localhost:8787/auth" }),
+  );
+
+  return { default: app };
 });
 
 vi.mock("@/routes/v1/index", () => {

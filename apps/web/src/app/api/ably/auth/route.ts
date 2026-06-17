@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import createAuthTokenRequest from "@/lib/ably/auth";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 
 export async function POST() {
   // check user is authenticated

@@ -1,10 +1,11 @@
 "use client";
 
-import { BlobStatus, TaskEventOrigin } from "@sokosumi/database";
 import {
+  BlobStatus,
   extractFileLikeLinks,
   extractHttpLinks,
   resolveIpfsOrHttpUrl,
+  TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/utils";
 import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";

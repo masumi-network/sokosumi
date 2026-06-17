@@ -1,5 +1,5 @@
+import { type Session } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { getJobQueryOptions } from "@/queries/jobs";
 

@@ -3,6 +3,10 @@ export {
   makeUserTasksChannelName,
 } from "./ably-channel.js";
 export {
+  betterAuthOrganizationAdditionalFields,
+  betterAuthUserAdditionalFields,
+} from "./better-auth-client-schema.js";
+export {
   type ResolveBetterAuthCookiePrefixParams,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
@@ -13,6 +17,12 @@ export {
   resolveBetterAuthProductionUrl,
   resolveBetterAuthPublicBaseUrl,
 } from "./better-auth-public-url.js";
+export type {
+  Account,
+  Session,
+  SessionRecord,
+  SessionUser,
+} from "./better-auth-types.js";
 export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,
@@ -23,6 +33,42 @@ export {
   type CoreApiErrorKind,
 } from "./core-api-error-kind.js";
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
+export type {
+  AgentJobStatus as AgentJobStatusType,
+  AgentStatus as AgentStatusType,
+  BlobStatus as BlobStatusType,
+  InvitationStatus as InvitationStatusType,
+  JobType as JobTypeType,
+  MemberRole as MemberRoleType,
+  NextJobAction as NextJobActionType,
+  NextJobActionErrorType as NextJobActionErrorTypeType,
+  NoticeKind as NoticeKindType,
+  OnChainJobStatus as OnChainJobStatusType,
+  OnChainTransactionStatus as OnChainTransactionStatusType,
+  PaymentType as PaymentTypeType,
+  PricingType as PricingTypeType,
+  RiskClassification as RiskClassificationType,
+  TaskEventOrigin as TaskEventOriginType,
+  TaskLinkType as TaskLinkTypeType,
+} from "./domain/index.js";
+export {
+  AgentJobStatus,
+  AgentStatus,
+  BlobStatus,
+  InvitationStatus,
+  JobType,
+  MemberRole,
+  NextJobAction,
+  NextJobActionErrorType,
+  NoticeKind,
+  OnChainJobStatus,
+  OnChainTransactionStatus,
+  PaymentType,
+  PricingType,
+  RiskClassification,
+  TaskEventOrigin,
+  TaskLinkType,
+} from "./domain/index.js";
 export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,
@@ -38,7 +84,18 @@ export {
   IPFS_GATEWAY_PREFIX,
   normalizeOrganizationLogo,
   resolveIpfsOrHttpUrl,
+  sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
+export {
+  type AppLocale,
+  DEFAULT_LOCALE,
+  getEmailLocale,
+  LOCALE_COOKIE_NAME,
+  parseLocalePreference,
+  resolveLocaleFromAcceptLanguage,
+  resolveRequestLocale,
+  SUPPORTED_LOCALES,
+} from "./locale.js";
 export {
   escapeMarkdownLinkUrl,
   findMarkdownLinks,

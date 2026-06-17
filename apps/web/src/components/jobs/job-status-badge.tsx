@@ -1,6 +1,5 @@
 "use client";
 
-import { JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {
   status: SokosumiJobStatus;
-  jobType?: JobType;
   className?: string;
   variant?: "badge" | "dot";
 }
@@ -22,13 +20,12 @@ function shouldShowWarningIcon(status: SokosumiJobStatus): boolean {
 
 export function JobStatusBadge({
   status,
-  jobType,
   className,
   variant = "badge",
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
-  const label = t(getJobStatusBadgeLabelKey(status, jobType));
-  const styles = getJobStatusPillStyle(status, jobType);
+  const label = t(getJobStatusBadgeLabelKey(status));
+  const styles = getJobStatusPillStyle(status);
   const showIcon = shouldShowWarningIcon(status);
 
   if (variant === "dot") {
@@ -53,7 +50,12 @@ export function JobStatusBadge({
         className,
       )}
     >
-      {showIcon ? <CircleAlert className="size-3" aria-hidden /> : null}
+      {showIcon ? (
+        <CircleAlert
+          className={cn("size-3 shrink-0", styles.text)}
+          aria-hidden
+        />
+      ) : null}
       <span>{label}</span>
     </span>
   );

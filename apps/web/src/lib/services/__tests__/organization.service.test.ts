@@ -16,7 +16,6 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/lib/auth/auth", () => ({ auth: { api: {} } }));
 vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue({}) }));
 
 import {

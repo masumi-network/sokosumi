@@ -23,7 +23,7 @@ import type {
 
 /**
  * Agent row shape required to build a catalog-style agent summary: pricing,
- * non-demo job count and ordered categories.
+ * job count and ordered categories.
  */
 export type AgentSummaryRow = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude &

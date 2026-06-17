@@ -1,36 +1,28 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 import { toast } from "sonner";
-
-import {
-  CommonErrorCode,
-  JobErrorCode,
-  startDemoJob,
-  startJob,
-} from "@/lib/actions";
+import { CommonErrorCode, JobErrorCode, startJob } from "@/lib/actions";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { getAgentName } from "@/lib/helpers/agent";
+import { getAgentCredits, getAgentName } from "@/lib/helpers/agent";
 import {
   type JobInputsFormSchemaType,
   prepareInputValues,
 } from "@/lib/job-input";
-import type { AgentDemoValues } from "@/lib/types/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 import {
   getUserFileUploadErrorMessage,
   uploadInputDataFiles,
 } from "@/lib/utils/user-file-upload.client";
 
 export interface UseJobSubmissionOptions {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   inputSchema: InputSchemaSchemaType;
-  demoValues: AgentDemoValues | null;
   projectId?: string | null;
   setLoading: (loading: boolean) => void;
   onSuccess: () => void;
@@ -43,12 +35,13 @@ export interface UseJobSubmissionReturn {
 export function useJobSubmission({
   agent,
   inputSchema,
-  demoValues,
   projectId,
   setLoading,
   onSuccess,
 }: UseJobSubmissionOptions): UseJobSubmissionReturn {
-  const { id: agentId, creditsPrice } = agent;
+  const { id: agentId } = agent;
+  const credits = getAgentCredits(agent);
+  const maxAcceptedCents = convertCreditsToCents(credits);
   const t = useTranslations("Library.JobInput.Form");
   const router = useRouter();
 
@@ -75,41 +68,26 @@ export function useJobSubmission({
           }
         };
 
-        if (demoValues) {
-          result = await startDemoJob({
-            input: {
-              agentId: agentId,
-              inputSchema,
-              inputData: prepareInputValues(demoValues.input),
-              ...(typeof projectId !== "undefined" ? { projectId } : {}),
-            },
-            jobStatusResponse: demoValues.output,
-          });
-        } else {
-          const transformedInputData = prepareInputValues(allValues);
-          const didUploadFiles = await uploadFiles(transformedInputData);
-          if (!didUploadFiles) return;
+        const transformedInputData = prepareInputValues(allValues);
+        const didUploadFiles = await uploadFiles(transformedInputData);
+        if (!didUploadFiles) return;
 
-          result = await startJob({
-            input: {
-              agentId: agentId,
-              maxAcceptedCents: creditsPrice.cents,
-              inputSchema,
-              inputData: transformedInputData,
-              ...(typeof projectId !== "undefined" ? { projectId } : {}),
-            },
-          });
-        }
+        result = await startJob({
+          input: {
+            agentId: agentId,
+            maxAcceptedCents,
+            inputSchema,
+            inputData: transformedInputData,
+            ...(typeof projectId !== "undefined" ? { projectId } : {}),
+          },
+        });
 
         setLoading(false);
         if (result.ok) {
-          fireGTMEvent.agentHired(
-            getAgentName(agent),
-            convertCentsToCredits(creditsPrice.cents),
-          );
+          fireGTMEvent.agentHired(getAgentName(agent), credits);
           track("Agent hired", {
             agentId: agentId,
-            credits: convertCentsToCredits(creditsPrice.cents),
+            credits: credits,
             jobId: result.data.jobId,
           });
           onSuccess();
@@ -147,11 +125,10 @@ export function useJobSubmission({
     },
     [
       setLoading,
-      demoValues,
       projectId,
       agent,
       agentId,
-      creditsPrice.cents,
+      maxAcceptedCents,
       inputSchema,
       onSuccess,
       router,

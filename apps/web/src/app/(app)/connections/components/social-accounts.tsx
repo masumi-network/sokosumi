@@ -1,14 +1,14 @@
 "use client";
 
+import type { Account } from "@sokosumi/utils";
 import { Plug, Unplug } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { GoogleIcon, MicrosoftIcon } from "@/components/social-icons";
 import { Button } from "@/components/ui/button";
-import type { Account } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
+import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import { AccountProvider } from "@/lib/auth/types";
 
 import DisconnectModal from "./disconnect-modal";
@@ -38,7 +38,7 @@ export function SocialAccounts({ socialAccounts }: SocialAccountsProps) {
     setLoading(true);
     const result = await authClient.linkSocial({
       provider,
-      callbackURL: "/connections",
+      callbackURL: getAbsoluteAuthRedirectUrl("/connections"),
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error", { provider });

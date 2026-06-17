@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
 import { SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME } from "@/lib/subscription-onboarding-gate-cookie";
 import { Err, Ok, type Result } from "@/lib/ts-res";

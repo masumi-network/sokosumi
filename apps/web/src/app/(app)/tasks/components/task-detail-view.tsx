@@ -18,7 +18,7 @@ import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors"
 import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";

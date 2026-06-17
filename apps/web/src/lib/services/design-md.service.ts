@@ -8,9 +8,9 @@ import {
   type DesignMdDonePayload,
   type DesignMdJobPayload,
 } from "@sokosumi/masumi/tools";
+import type { Session } from "@sokosumi/utils";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import type { Session } from "@/lib/auth/auth";
 import { coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
@@ -105,7 +105,7 @@ function assertDonePayload(payload: DesignMdJobPayload): DesignMdDonePayload {
 }
 
 function getJobTokenSecret(): string {
-  return getEnvSecrets().BETTER_AUTH_SECRET;
+  return getEnvSecrets().APP_SIGNING_SECRET;
 }
 
 function assertValidJobToken(

@@ -24,7 +24,7 @@ export default function NewChatTaskActions() {
   const isChatActive = pathname === "/chat" || pathname.startsWith("/chat/");
   const sidebarNewLabel = tChat("sidebarNew");
   const isApplePlatform = useIsApplePlatform();
-  const shortcutLabel = isApplePlatform ? "⌘K" : "Ctrl+K";
+  const shortcutLabel = isApplePlatform ? "⌘N" : "Ctrl+N";
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -37,7 +37,7 @@ export default function NewChatTaskActions() {
       }
 
       if (
-        event.key?.toLowerCase() !== "k" ||
+        event.key?.toLowerCase() !== "n" ||
         !(event.metaKey || event.ctrlKey)
       ) {
         return;
@@ -74,7 +74,7 @@ export default function NewChatTaskActions() {
                 <Link
                   href="/chat"
                   aria-current={isChatActive ? "page" : undefined}
-                  aria-keyshortcuts="Meta+K Control+K"
+                  aria-keyshortcuts="Meta+N Control+N"
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2 px-3",
                     isChatActive

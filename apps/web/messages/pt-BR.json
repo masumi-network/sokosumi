@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Nenhum agente disponível",
       "agentsNotFound": "Nenhum agente encontrado",
       "hire": "Contratar agente",
-      "freeDemo": "Demo grátis",
       "AgentCard": {
         "view": "Ver detalhes",
         "pricing": "{price, plural, =0 {Grátis} =1 {1 crédito} other {# créditos}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "Expandir barra lateral",
       "logout": "Sair",
       "creditsUsedOfTotal": "{used, number} / {total, number} créditos usados",
+      "lowCreditsLabel": "Créditos baixos {credits, number}",
       "totalBalanceLabel": "Saldo total",
       "creditsSummary": "Resumo de créditos:",
       "monthlyUsageLimit": "Limite de uso mensal",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Iniciado",
         "completed": "Concluído",
         "failed": "Falhou",
@@ -1188,6 +1187,7 @@
           "DRAFT": "Rascunho",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
+          "APPROVAL_REQUIRED": "Aprovação necessária",
           "AUTHENTICATION_REQUIRED": "Autenticação necessária",
           "OUT_OF_CREDITS": "Sem créditos",
           "CREDITS_TOPPED_UP": "Créditos recarregados",
@@ -1453,6 +1453,7 @@
           "DRAFT": "Rascunho",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
+          "APPROVAL_REQUIRED": "Aprovação necessária",
           "AUTHENTICATION_REQUIRED": "Autenticação necessária",
           "OUT_OF_CREDITS": "Sem créditos",
           "CREDITS_TOPPED_UP": "Créditos recarregados",
@@ -1699,6 +1700,7 @@
             "DRAFT": "Rascunho",
             "READY": "Pronta",
             "INPUT_REQUIRED": "Entrada",
+            "APPROVAL_REQUIRED": "Aprovação",
             "AUTHENTICATION_REQUIRED": "Auth",
             "OUT_OF_CREDITS": "Créditos",
             "CREDITS_TOPPED_UP": "Recarregado",
@@ -2353,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Pesquisar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Arquivos e saídas",
           "taskManager": "Tarefas",
@@ -2362,6 +2365,14 @@
           "admin": "Administração"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Pesquisar",
+      "description": "Pesquisar tarefas, trabalhos ou conversas",
+      "searchPlaceholder": "Pesquisar...",
+      "empty": "Nenhum resultado encontrado",
+      "loading": "Carregando...",
+      "error": "Falha ao carregar os resultados"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",
@@ -3278,7 +3289,6 @@
         },
         "CreateJob": {
           "title": "Novo {name}",
-          "demo": "Demo",
           "cancel": "Cancelar",
           "Information": {
             "title": "Informações"
@@ -3539,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Falha ao buscar o schema de entrada do job",
-        "demoDataInvalid": "Os dados de demo do agente são inválidos."
+        "failedToFetchJobInputSchema": "Falha ao buscar o schema de entrada do job"
       }
     },
     "Duration": {

@@ -1,49 +1,32 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 export {};
 
 vi.mock("server-only", () => ({}));
 
-const headersMock = vi.fn(async () => new Headers());
-const cookieDeleteMock = vi.fn();
-const cookiesMock = vi.fn(async () => ({
-  delete: cookieDeleteMock,
-}));
-const upgradeSubscriptionMock = vi.fn();
-const createBillingPortalMock = vi.fn();
-const updateOrganizationSeatsImmediatelyMock = vi.fn();
+const updateOrganizationSubscriptionSeatsMock = vi.fn();
 
-vi.mock("next/headers", () => ({
-  cookies: cookiesMock,
-  headers: headersMock,
+vi.mock("@/lib/auth/subscription.server", () => ({
+  openOrganizationBillingPortalServer: vi.fn(),
+  openPersonalBillingPortalServer: vi.fn(),
+  upgradeOrganizationSubscriptionServer: vi.fn(),
+  upgradePersonalSubscriptionServer: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      createBillingPortal: createBillingPortalMock,
-      upgradeSubscription: upgradeSubscriptionMock,
+vi.mock("@/lib/clients/core.client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/clients/core.client")>();
+
+  return {
+    ...actual,
+    coreClient: {
+      ...actual.coreClient,
+      updateOrganizationSubscriptionSeats: (...args: unknown[]) =>
+        updateOrganizationSubscriptionSeatsMock(...args),
     },
-  },
-}));
-
-vi.mock("@/lib/services", () => ({
-  organizationSubscriptionService: {
-    updateOrganizationSeatsImmediately: updateOrganizationSeatsImmediatelyMock,
-  },
-}));
-
-vi.mock("@sokosumi/database/helpers", () => ({
-  assertOrganizationSubscriptionChangeAllowed: vi
-    .fn()
-    .mockResolvedValue(undefined),
-  assertPersonalSubscriptionChangeAllowed: vi.fn().mockResolvedValue(undefined),
-  OrganizationSubscriptionExclusivityError: class OrganizationSubscriptionExclusivityError extends Error {},
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {},
-}));
+  };
+});
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -51,15 +34,6 @@ vi.mock("@/middleware/auth-middleware", () => ({
     async (params: unknown) =>
       await handler(params),
 }));
-
-const session = {
-  user: {
-    id: "user-1",
-  },
-  session: {
-    activeOrganizationId: null,
-  },
-} as never;
 
 const organizationSession = {
   user: {
@@ -73,253 +47,6 @@ const organizationSession = {
 describe("subscription actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("returns BAD_INPUT for invalid plan names", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { upgradePersonalSubscription } = await import("../action");
-
-    const result = await upgradePersonalSubscription({
-      session,
-      plan: "invalid-plan" as never,
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: CommonErrorCode.BAD_INPUT,
-      },
-      ok: false,
-    });
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
-  });
-
-  it("returns checkout url from better-auth upgradeSubscription", async () => {
-    upgradeSubscriptionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/test",
-    });
-
-    const { upgradePersonalSubscription } = await import("../action");
-
-    const result = await upgradePersonalSubscription({
-      session,
-      plan: "starter",
-    });
-
-    expect(result).toEqual({
-      data: {
-        mode: "redirect",
-        url: "https://checkout.stripe.com/session/test",
-      },
-      ok: true,
-    });
-    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
-      body: {
-        cancelUrl: "/billing?tab=subscription&status=cancel",
-        customerType: "user",
-        disableRedirect: true,
-        plan: "starter",
-        returnUrl: "/billing?tab=subscription",
-        successUrl: "/billing?tab=subscription&status=success",
-      },
-      headers: new Headers(),
-    });
-  });
-
-  it("maps better-auth API errors for upgrade flow", async () => {
-    upgradeSubscriptionMock.mockRejectedValue({
-      body: {
-        code: "SUBSCRIPTION_PLAN_NOT_FOUND",
-        message: "Plan does not exist",
-      },
-      status: "error",
-      statusCode: 400,
-    });
-
-    const { upgradePersonalSubscription } = await import("../action");
-
-    const result = await upgradePersonalSubscription({
-      session,
-      plan: "pro",
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: "SUBSCRIPTION_PLAN_NOT_FOUND",
-        message: "Plan does not exist",
-      },
-      ok: false,
-    });
-  });
-
-  it("returns billing portal url from better-auth", async () => {
-    createBillingPortalMock.mockResolvedValue({
-      url: "https://billing.stripe.com/session/test",
-    });
-
-    const { openPersonalBillingPortal } = await import("../action");
-
-    const result = await openPersonalBillingPortal({
-      session,
-    });
-
-    expect(result).toEqual({
-      data: { url: "https://billing.stripe.com/session/test" },
-      ok: true,
-    });
-    expect(createBillingPortalMock).toHaveBeenCalledWith({
-      body: {
-        customerType: "user",
-        disableRedirect: true,
-        returnUrl: "/billing?tab=subscription",
-      },
-      headers: new Headers(),
-    });
-  });
-
-  it("uses returnPath for personal subscription redirect urls", async () => {
-    upgradeSubscriptionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/test",
-    });
-
-    const { upgradePersonalSubscription } = await import("../action");
-
-    const result = await upgradePersonalSubscription({
-      session,
-      plan: "starter",
-      returnPath: "/billing?tab=subscription",
-    });
-
-    expect(result).toEqual({
-      data: {
-        mode: "redirect",
-        url: "https://checkout.stripe.com/session/test",
-      },
-      ok: true,
-    });
-    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
-      body: {
-        cancelUrl: "/billing?tab=subscription&status=cancel",
-        customerType: "user",
-        disableRedirect: true,
-        plan: "starter",
-        returnUrl: "/billing?tab=subscription",
-        successUrl: "/billing?tab=subscription&status=success",
-      },
-      headers: new Headers(),
-    });
-  });
-
-  it("uses returnPath for personal billing portal", async () => {
-    createBillingPortalMock.mockResolvedValue({
-      url: "https://billing.stripe.com/session/test",
-    });
-
-    const { openPersonalBillingPortal } = await import("../action");
-
-    const result = await openPersonalBillingPortal({
-      session,
-      returnPath: "/billing?tab=coupon",
-    });
-
-    expect(result).toEqual({
-      data: { url: "https://billing.stripe.com/session/test" },
-      ok: true,
-    });
-    expect(createBillingPortalMock).toHaveBeenCalledWith({
-      body: {
-        customerType: "user",
-        disableRedirect: true,
-        returnUrl: "/billing?tab=coupon",
-      },
-      headers: new Headers(),
-    });
-  });
-
-  it("returns BAD_INPUT for invalid organization seats", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
-    const { upgradeOrganizationSubscription } = await import("../action");
-
-    const result = await upgradeOrganizationSubscription({
-      session: organizationSession,
-      organizationId: "org-1",
-      plan: "starter",
-      returnPath: "/organizations/org-1",
-      seats: 0,
-    });
-
-    expect(result).toEqual({
-      error: {
-        code: CommonErrorCode.BAD_INPUT,
-      },
-      ok: false,
-    });
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
-  });
-
-  it("returns checkout url for organization subscription upgrade", async () => {
-    upgradeSubscriptionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/org-test",
-    });
-
-    const { upgradeOrganizationSubscription } = await import("../action");
-
-    const result = await upgradeOrganizationSubscription({
-      session: organizationSession,
-      organizationId: "org-1",
-      plan: "pro",
-      returnPath: "/organizations/acme",
-      seats: 7,
-    });
-
-    expect(result).toEqual({
-      data: {
-        mode: "redirect",
-        url: "https://checkout.stripe.com/session/org-test",
-      },
-      ok: true,
-    });
-
-    expect(upgradeSubscriptionMock).toHaveBeenCalledWith({
-      body: {
-        cancelUrl: "/organizations/acme?status=cancel",
-        customerType: "organization",
-        disableRedirect: true,
-        plan: "pro",
-        referenceId: "org-1",
-        returnUrl: "/organizations/acme",
-        seats: 7,
-        successUrl: "/organizations/acme?status=success",
-      },
-      headers: new Headers(),
-    });
-  });
-
-  it("returns billing portal url for organization", async () => {
-    createBillingPortalMock.mockResolvedValue({
-      url: "https://billing.stripe.com/session/org-test",
-    });
-
-    const { openOrganizationBillingPortal } = await import("../action");
-
-    const result = await openOrganizationBillingPortal({
-      session: organizationSession,
-      organizationId: "org-1",
-      returnPath: "/organizations/acme",
-    });
-
-    expect(result).toEqual({
-      data: { url: "https://billing.stripe.com/session/org-test" },
-      ok: true,
-    });
-    expect(createBillingPortalMock).toHaveBeenCalledWith({
-      body: {
-        customerType: "organization",
-        disableRedirect: true,
-        referenceId: "org-1",
-        returnUrl: "/organizations/acme",
-      },
-      headers: new Headers(),
-    });
   });
 
   it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
@@ -338,12 +65,12 @@ describe("subscription actions", () => {
       },
       ok: false,
     });
-    expect(updateOrganizationSeatsImmediatelyMock).not.toHaveBeenCalled();
+    expect(updateOrganizationSubscriptionSeatsMock).not.toHaveBeenCalled();
   });
 
-  it("updates organization seats immediately without redirect flow", async () => {
-    updateOrganizationSeatsImmediatelyMock.mockResolvedValue({
-      seats: 9,
+  it("updates organization seats immediately via core", async () => {
+    updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
+      data: { seats: 9 },
     });
 
     const { updateOrganizationSubscriptionSeats } = await import("../action");
@@ -358,22 +85,77 @@ describe("subscription actions", () => {
       data: { seats: 9 },
       ok: true,
     });
-    expect(updateOrganizationSeatsImmediatelyMock).toHaveBeenCalledWith(
-      "user-1",
+    expect(updateOrganizationSubscriptionSeatsMock).toHaveBeenCalledWith(
       "org-1",
       9,
     );
-    expect(upgradeSubscriptionMock).not.toHaveBeenCalled();
   });
 
-  it("maps unauthorized immediate seat update errors", async () => {
-    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
-      Object.assign(
-        new Error(
-          "Only organization owners and admins can manage subscriptions",
-        ),
-        { status: "FORBIDDEN" },
+  it("maps enterprise exclusivity errors from core seat updates", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Self-serve subscriptions are not available.", {
+        kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_CHANGE_NOT_ALLOWED,
+        status: 400,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Self-serve subscriptions are not available.",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps seats below assigned members to bad input with core message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError(
+        "Purchased seats (3) must be at least 4 to cover all assigned members",
+        {
+          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_SEATS_BELOW_ASSIGNED,
+          status: 400,
+        },
       ),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 3,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.BAD_INPUT,
+        message:
+          "Purchased seats (3) must be at least 4 to cover all assigned members",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps organization_role_forbidden to owner/admin copy", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("You must be OWNER, ADMIN", {
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_ROLE_FORBIDDEN,
+        status: 403,
+      }),
     );
 
     const { CommonErrorCode } = await import("@/lib/actions/errors");
@@ -394,13 +176,146 @@ describe("subscription actions", () => {
     });
   });
 
-  it("maps bad request immediate seat update errors", async () => {
-    updateOrganizationSeatsImmediatelyMock.mockRejectedValue(
-      Object.assign(
-        new Error(
-          "An active organization subscription is required before updating seats.",
-        ),
-        { status: "BAD_REQUEST" },
+  it("maps organization_membership_required with core message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("You are not a member of this organization", {
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED,
+        status: 403,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps organization_not_found kind to owner/admin copy regardless of message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Some reworded organization error", {
+        kind: CORE_API_ERROR_KINDS.ORGANIZATION_NOT_FOUND,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps legacy 404 responses without kind to owner/admin copy", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Organization not found", {
+        status: 404,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Only organization owners and admins can manage subscriptions",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps unauthenticated core responses via toCoreApiActionError", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Unauthorized", {
+        status: 401,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Unauthorized",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps unexpected core errors as internal server errors", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError("Unexpected core failure", {
+        status: 500,
+      }),
+    );
+
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { updateOrganizationSubscriptionSeats } = await import("../action");
+
+    const result = await updateOrganizationSubscriptionSeats({
+      session: organizationSession,
+      organizationId: "org-1",
+      seats: 5,
+    });
+
+    expect(result).toEqual({
+      error: {
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Unexpected core failure",
+      },
+      ok: false,
+    });
+  });
+
+  it("maps missing active subscription to bad input with core message", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    updateOrganizationSubscriptionSeatsMock.mockRejectedValue(
+      new CoreApiRequestError(
+        "An active organization subscription is required before updating seats.",
+        {
+          kind: CORE_API_ERROR_KINDS.SUBSCRIPTION_NOT_ACTIVE,
+          status: 400,
+        },
       ),
     );
 

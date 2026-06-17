@@ -1,25 +1,24 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentCategorySlugs } from "@/lib/helpers/agent";
 import type { Category } from "@/lib/types/category";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export interface AgentCategoryGroup {
   categorySlug: string | null;
   categoryName: string;
   categoryIcon?: string;
-  agents: AgentWithCreditsPrice[];
+  agents: CoreAgentDto[];
 }
 
 export function groupAgentsByCategory(
-  agents: AgentWithCreditsPrice[],
+  agents: CoreAgentDto[],
   categories: Category[],
 ): AgentCategoryGroup[] {
   const sortedCategories = new Map(
     categories.map((cat) => [cat.slug, { name: cat.name, icon: cat.icon }]),
   );
 
-  const groupsBySlug = new Map<string, AgentWithCreditsPrice[]>();
+  const groupsBySlug = new Map<string, CoreAgentDto[]>();
   const categorySlugs = new Set(sortedCategories.keys());
 
   for (const agent of agents) {

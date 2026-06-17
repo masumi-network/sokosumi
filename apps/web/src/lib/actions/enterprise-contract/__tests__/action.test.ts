@@ -11,8 +11,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/auth", () => ({ auth: {} }));
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSessionOrRedirect: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({

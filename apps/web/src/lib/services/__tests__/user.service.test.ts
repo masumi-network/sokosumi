@@ -1,6 +1,5 @@
+import type { Session } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { Session } from "@/lib/auth/auth";
 
 export {};
 
@@ -10,7 +9,7 @@ const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const getOrganizationByIdMock = vi.fn();
-const updateUserMock = vi.fn();
+const updateCurrentUserViaCoreMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => {
   class CoreApiRequestError extends Error {
@@ -41,16 +40,13 @@ vi.mock("@/lib/clients/core.client", () => {
   };
 });
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      updateUser: (...args: unknown[]) => updateUserMock(...args),
-    },
-  },
+vi.mock("@/lib/auth/core-auth-http.server", () => ({
+  updateCurrentUserViaCore: (...args: unknown[]) =>
+    updateCurrentUserViaCoreMock(...args),
 }));
 
 vi.mock("next/headers", () => ({
@@ -224,19 +220,19 @@ describe("user.service", () => {
       expect(result).toBe(false);
     });
 
-    it("marks onboarding complete via Better Auth and returns false when the user has a membership", async () => {
+    it("marks onboarding complete via Core Better Auth HTTP and returns false when the user has a membership", async () => {
       getSessionMock.mockResolvedValue(session);
       getMyMembersWithOrganizationsMock.mockResolvedValue({
         data: [{ id: "member-1", organizationId: "org-1", role: "member" }],
       });
-      updateUserMock.mockResolvedValue({});
+      updateCurrentUserViaCoreMock.mockResolvedValue({});
 
       const { userService } = await import("../user.service");
       const result = await userService.showOnboarding(session);
 
-      expect(updateUserMock).toHaveBeenCalledWith(
-        expect.objectContaining({ body: { onboardingCompleted: true } }),
-      );
+      expect(updateCurrentUserViaCoreMock).toHaveBeenCalledWith({
+        onboardingCompleted: true,
+      });
       expect(result).toBe(false);
     });
 
@@ -247,7 +243,7 @@ describe("user.service", () => {
       const { userService } = await import("../user.service");
       const result = await userService.showOnboarding(session);
 
-      expect(updateUserMock).not.toHaveBeenCalled();
+      expect(updateCurrentUserViaCoreMock).not.toHaveBeenCalled();
       expect(result).toBe(true);
     });
 

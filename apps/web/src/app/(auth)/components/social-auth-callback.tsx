@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-
+import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { socialProviderIdSchema } from "@/lib/schemas/auth";
-import { normalizeAuthReturnUrl } from "@/lib/utils/auth-redirect";
 
 interface SocialAuthCallbackProps {
   eventType: "signUp" | "signIn";

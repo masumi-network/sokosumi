@@ -60,7 +60,9 @@ export function BalanceBillingPortalLink({
             organizationId,
             returnPath: resolvedReturnPath,
           })
-        : await openPersonalBillingPortal({ returnPath: resolvedReturnPath });
+        : await openPersonalBillingPortal({
+            returnPath: resolvedReturnPath,
+          });
 
       if (!result.ok) {
         switch (result.error.code) {

@@ -1,12 +1,7 @@
 "use client";
 
-import type {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
 import Markdown from "@/components/markdown";
@@ -17,13 +12,14 @@ import {
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";
 import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   averageExecutionDuration: number | null;
 }
 
@@ -31,7 +27,7 @@ export default function CreateJobSection({
   agent,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
-  const { accordionValue, setAccordionValue, loading, isDemo } =
+  const { accordionValue, setAccordionValue, loading } =
     useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
@@ -40,7 +36,7 @@ export default function CreateJobSection({
 
   return (
     <div className="bg-background flex min-h-svh w-svw flex-col rounded-none p-4 pt-0 md:min-h-auto md:w-auto md:rounded-xl md:p-6">
-      <CreateJobModalHeader agent={agent} isDemo={isDemo} />
+      <CreateJobModalHeader agent={agent} />
       <Accordion
         type="multiple"
         value={accordionValue}
@@ -52,7 +48,6 @@ export default function CreateJobSection({
           agent={agent}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
-          isDemo={isDemo}
         />
       </Accordion>
     </div>
@@ -63,7 +58,7 @@ function InformationAccordionItem({
   agent,
   disabled,
 }: {
-  agent: AgentWithRelations;
+  agent: CoreAgentDto;
   disabled?: boolean | undefined;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Information");
@@ -102,12 +97,10 @@ function InputAccordionItem({
   agent,
   disabled,
   averageExecutionDuration,
-  isDemo,
 }: {
-  agent: AgentWithCreditsPrice;
+  agent: CoreAgentDto;
   disabled?: boolean | undefined;
   averageExecutionDuration: number | null;
-  isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
   const { projectOptions, projectId, setProjectId } =
@@ -133,7 +126,6 @@ function InputAccordionItem({
         <JobInputsForm
           agent={agent}
           averageExecutionDuration={averageExecutionDuration}
-          isDemo={isDemo}
         />
       </div>
     </AccordionItemWrapper>

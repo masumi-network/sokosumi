@@ -15,9 +15,6 @@ const envSecretsSchema = z.object({
 
   NETWORK: z.enum(["Mainnet", "Preprod"]).default("Preprod"),
 
-  // Database
-  DATABASE_URL: z.url(),
-
   CORE_APP_BASE_URL: z.url().default("http://localhost:8787"),
 
   // Cron auth — shared bearer for /api/internal/* cron routes.
@@ -106,35 +103,14 @@ const envSecretsSchema = z.object({
     .url()
     .default("https://www.masumi.network/api/v1"),
 
-  // Social Secrets
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  // Shared signing secret (must match Core BETTER_AUTH_SECRET).
+  APP_SIGNING_SECRET: z.string().min(1),
 
-  MICROSOFT_CLIENT_ID: z.string().min(1),
-  MICROSOFT_CLIENT_SECRET: z.string().min(1),
+  // Max pending invitations per organization (optional; default 100).
+  ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
 
-  // Better Auth Settings
-  BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
-  BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
-  BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
-  BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
-    .number()
-    .min(0)
-    .default(60 * 5), // 5 minutes
-  BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
-  BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
-  BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: z.coerce
-    .number()
-    .min(172800)
-    .default(604800), // 7 days in seconds
-  BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: z.coerce
-    .number()
-    .min(86400)
-    .default(172800), // 2 days in seconds
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
-  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
 
   // ably keys
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
