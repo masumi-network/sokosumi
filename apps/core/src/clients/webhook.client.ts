@@ -1,11 +1,10 @@
 import * as Sentry from "@sentry/node";
 import { buildWebhookFailureContext, postWebhook } from "@sokosumi/utils";
 
-import { TIME } from "@/config/constants";
+import { TIME, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
 
 const WEBHOOK_TIMEOUT_MS = TIME.WEBHOOK_TIMEOUT * 1000;
-const WEBHOOK_USER_AGENT = "Sokosumi-Core-API/1.0";
 
 export type WebhookType = "userCreated" | "userUpdated" | "accountCreated";
 

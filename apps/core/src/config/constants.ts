@@ -70,6 +70,9 @@ export const LIMITS = {
   MIN_CHARGEABLE_CREDITS: 1e-10,
 } as const;
 
+/** User-Agent sent with outbound webhook requests from the Core API. */
+export const WEBHOOK_USER_AGENT = "Sokosumi-Core-API/1.0";
+
 /**
  * Cryptographic algorithms and settings
  */

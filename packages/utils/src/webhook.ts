@@ -67,7 +67,7 @@ export function isWebhookBackpressureResponse(
  */
 export async function postWebhook(
   webhookUrl: string,
-  payload: Record<string, unknown>,
+  payload: unknown,
   options: PostWebhookOptions,
 ): Promise<PostWebhookResult> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_WEBHOOK_TIMEOUT_MS;
