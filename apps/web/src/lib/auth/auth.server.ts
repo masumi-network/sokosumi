@@ -78,12 +78,19 @@ async function fetchCoreAuth<T>(
         status: response.status,
       };
 
-      console.error(failureLogMessage, {
+      // An expected status (e.g. OAuth-client 404 → "not found") is routine,
+      // not an outage: log it at warn and skip the Sentry report so it does
+      // not pollute error logs or alerting.
+      const isIgnoredStatus =
+        options?.sentryIgnoreHttpStatuses?.includes(response.status) ?? false;
+      const logFailure = isIgnoredStatus ? console.warn : console.error;
+
+      logFailure(failureLogMessage, {
         path,
         status: response.status,
       });
 
-      if (!options?.sentryIgnoreHttpStatuses?.includes(response.status)) {
+      if (!isIgnoredStatus) {
         reportCoreAuthReadOutage(authReadError, failureLogMessage);
       }
 
