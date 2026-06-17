@@ -38,7 +38,7 @@ const route = withGlobalHeaderParameters(
             userId: "cm123456789abcdefghij",
             kind: "JOB",
             referenceId: "cm123456789abcdefghij",
-            action: "completed",
+            eventId: "cm123456789abcdefghij",
             messageKey: "Notifications.Job.completed",
             messageParams: {
               agentName: "Research Agent",
@@ -95,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userId: updated.userId,
       kind: updated.kind,
       referenceId: updated.referenceId,
-      action: updated.action,
+      eventId: updated.eventId,
       messageKey: updated.messageKey,
       messageParams: JSON.parse(updated.messageParams) as Record<
         string,

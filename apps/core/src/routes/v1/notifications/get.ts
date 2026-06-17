@@ -81,7 +81,7 @@ const route = withGlobalHeaderParameters(
               userId: "cm123456789abcdefghij",
               kind: "JOB",
               referenceId: "cm123456789abcdefghij",
-              action: "completed",
+              eventId: "cm123456789abcdefghij",
               messageKey: "Notifications.Job.completed",
               messageParams: {
                 agentName: "Research Agent",
@@ -117,7 +117,7 @@ function mapNotificationToItem(notification: {
   userId: string;
   kind: NotificationKind;
   referenceId: string;
-  action: string;
+  eventId: string;
   messageKey: string;
   messageParams: string;
   metadata: string | null;
@@ -130,7 +130,7 @@ function mapNotificationToItem(notification: {
     userId: notification.userId,
     kind: notification.kind,
     referenceId: notification.referenceId,
-    action: notification.action,
+    eventId: notification.eventId,
     messageKey: notification.messageKey,
     messageParams: JSON.parse(notification.messageParams) as Record<
       string,

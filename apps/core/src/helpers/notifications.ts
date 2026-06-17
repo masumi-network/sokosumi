@@ -6,7 +6,7 @@ export interface CreateNotificationInput {
   userId: string;
   kind: NotificationKind;
   referenceId: string;
-  action: string;
+  eventId: string;
   messageKey: string;
   messageParams: Record<string, unknown>;
   metadata?: Record<string, unknown> | null;
@@ -14,7 +14,9 @@ export interface CreateNotificationInput {
 
 /**
  * Internal helper to create or update a notification.
- * Uses upsert to avoid duplicates based on (userId, kind, referenceId, action).
+ * Uses upsert to avoid duplicates based on (userId, kind, referenceId, eventId).
+ *
+ * eventId references a jobEvent or taskEvent row depending on kind.
  *
  * This is an internal-only helper for Core services to emit notifications.
  * Not exposed as a public API in v1.
@@ -26,18 +28,18 @@ export async function createNotification(
   const prisma = prismaClient;
   const notification = await prisma.notification.upsert({
     where: {
-      userId_kind_referenceId_action: {
+      userId_kind_referenceId_eventId: {
         userId: input.userId,
         kind: input.kind,
         referenceId: input.referenceId,
-        action: input.action,
+        eventId: input.eventId,
       },
     },
     create: {
       userId: input.userId,
       kind: input.kind,
       referenceId: input.referenceId,
-      action: input.action,
+      eventId: input.eventId,
       messageKey: input.messageKey,
       messageParams: JSON.stringify(input.messageParams),
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,

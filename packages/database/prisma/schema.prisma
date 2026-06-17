@@ -274,7 +274,7 @@ model Notification {
   userId        String
   kind          NotificationKind
   referenceId   String
-  action        String
+  eventId       String
   messageKey    String
   messageParams String // JSON
   metadata      String? // JSON
@@ -282,9 +282,11 @@ model Notification {
   readAt        DateTime?
   createdAt     DateTime         @default(now())
 
-  @@unique([userId, kind, referenceId, action])
+  @@unique([userId, kind, referenceId, eventId])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, isRead])
+  @@index([eventId])
+  @@index([kind, eventId])
   @@map("notification")
 }
 

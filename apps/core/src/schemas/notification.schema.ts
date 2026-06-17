@@ -31,9 +31,10 @@ export const notificationItemSchema = z
       description: "ID of the related entity (job id, task id, etc.)",
       example: "cm123456789abcdefghij",
     }),
-    action: z.string().openapi({
-      description: "Event name within the kind",
-      example: "completed",
+    eventId: z.string().openapi({
+      description:
+        "ID of the source event (jobEvent or taskEvent, depending on kind)",
+      example: "cm123456789abcdefghij",
     }),
     messageKey: z.string().openapi({
       description:
