@@ -51,6 +51,7 @@ function createHistoryRow(
     sortAt: new Date("2026-04-02T10:00:00.000Z"),
     status: SokosumiJobStatus.PAYMENT_PENDING,
     title: "Timed out job",
+    userId: "user_123",
     ...overrides,
   };
 }
