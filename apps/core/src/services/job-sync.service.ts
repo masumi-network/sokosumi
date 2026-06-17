@@ -27,6 +27,7 @@ import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
+import { WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
@@ -304,18 +305,22 @@ async function dispatchJobFailureNotification(
     if (webhookUrl) {
       // Fire-and-forget: dispatch the webhook without blocking the email path.
       void postWebhook(webhookUrl, notificationData, {
-        userAgent: "Sokosumi-Core-API/1.0",
-      }).then((result) => {
-        if (result.status === "failed") {
-          Sentry.captureException(result.error, {
-            extra: {
-              jobId: job.id,
-              userId: job.userId,
-              notificationType: "job-failure-webhook",
-            },
-          });
-        }
-      });
+        userAgent: WEBHOOK_USER_AGENT,
+      })
+        .then((result) => {
+          if (result.status === "failed") {
+            Sentry.captureException(result.error, {
+              extra: {
+                jobId: job.id,
+                userId: job.userId,
+                notificationType: "job-failure-webhook",
+              },
+            });
+          }
+        })
+        .catch(() => {
+          // postWebhook never rejects; guard only against the reporter throwing.
+        });
     }
 
     const stakeholderEmails = getEnv().JOB_FAILURE_NOTIFICATION_EMAILS.filter(
