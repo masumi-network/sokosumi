@@ -29,6 +29,7 @@ export interface HistoryRowForApi {
   sortAt: Date;
   status: string;
   title: string;
+  userId: string;
 }
 
 export interface BuildHistoryWhereParams {
@@ -363,6 +364,12 @@ export interface AgentPreview {
   icon: string | null;
 }
 
+export interface UserPreview {
+  userId: string;
+  name: string;
+  image: string | null;
+}
+
 /**
  * Resolves an agent icon to a renderable URL. Reuses the shared getAgentIcon
  * resolution and additionally drops values that are not valid URLs, mirroring
@@ -422,11 +429,53 @@ export async function loadAgentPreviewsByIds(
   );
 }
 
+/**
+ * Batch-loads display name and image for the given user ids. Used to enrich
+ * history rows with owner information so the web client can display owner
+ * avatars in org contexts. Failures degrade to an empty map so callers can
+ * render null owner fields instead of failing the request.
+ */
+export async function loadUserPreviewsByIds(
+  userIds: string[],
+  prismaClient: Pick<typeof prisma, "user">,
+): Promise<Map<string, UserPreview>> {
+  if (userIds.length === 0) {
+    return new Map();
+  }
+
+  const users = await prismaClient.user
+    .findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, image: true },
+    })
+    .catch((error) => {
+      // Best-effort enrichment: degrade to null owner rather than failing
+      // the history request, but log so a real DB failure stays observable.
+      console.warn("Failed to load user previews for history feed", {
+        userIdCount: userIds.length,
+        error,
+      });
+      return [];
+    });
+
+  return new Map(
+    users.map((user) => [
+      user.id,
+      {
+        userId: user.id,
+        name: user.name ?? "Unknown User",
+        image: user.image,
+      },
+    ]),
+  );
+}
+
 export function mapHistoryRow(
   row: HistoryRowForApi,
   options?: {
     jobStatusByEntityId?: Map<string, SokosumiJobStatus>;
     agentPreviewById?: Map<string, AgentPreview>;
+    userPreviewById?: Map<string, UserPreview>;
   },
 ): HistoryItem {
   const jobStatus =
@@ -435,6 +484,18 @@ export function mapHistoryRow(
       : undefined;
   const status = jobStatus ?? row.status;
 
+  const userPreview = options?.userPreviewById?.get(row.userId);
+  const owner =
+    row.kind === HistoryKind.CONVERSATION
+      ? null
+      : userPreview
+        ? {
+            userId: userPreview.userId,
+            name: userPreview.name,
+            image: userPreview.image,
+          }
+        : null;
+
   const baseItem = {
     id: row.entityId,
     title: row.title,
@@ -442,6 +503,7 @@ export function mapHistoryRow(
     status,
     updatedAt: row.sortAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
+    owner,
   };
 
   switch (row.kind) {

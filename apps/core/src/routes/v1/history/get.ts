@@ -7,6 +7,7 @@ import {
   createHistoryPaginationMeta,
   loadAgentPreviewsByIds,
   loadComputedJobStatusByEntityId,
+  loadUserPreviewsByIds,
   mapHistoryRow,
 } from "@/helpers/history";
 import {
@@ -201,12 +202,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           .filter((agentId): agentId is string => agentId != null),
       ),
     ];
-    const [jobStatusByEntityId, agentPreviewById] = await Promise.all([
-      loadComputedJobStatusByEntityId(jobEntityIds, prisma),
-      loadAgentPreviewsByIds(jobAgentIds, prisma),
-    ]);
+    const userIds = [...new Set(pagedRows.map((row) => row.userId))];
+    const [jobStatusByEntityId, agentPreviewById, userPreviewById] =
+      await Promise.all([
+        loadComputedJobStatusByEntityId(jobEntityIds, prisma),
+        loadAgentPreviewsByIds(jobAgentIds, prisma),
+        loadUserPreviewsByIds(userIds, prisma),
+      ]);
     const historyItems = pagedRows.map((row) =>
-      mapHistoryRow(row, { jobStatusByEntityId, agentPreviewById }),
+      mapHistoryRow(row, {
+        jobStatusByEntityId,
+        agentPreviewById,
+        userPreviewById,
+      }),
     );
     const paginationMeta = createHistoryPaginationMeta(
       historyItems,

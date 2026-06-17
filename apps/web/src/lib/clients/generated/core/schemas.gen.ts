@@ -4355,6 +4355,9 @@ export const HistoryTaskItemSchema = {
             description: 'User-facing credits. Null means credits do not apply to this item.',
             example: 2.5
         },
+        owner: {
+            $ref: '#/components/schemas/HistoryOwner'
+        },
         kind: {
             type: 'string',
             enum: [
@@ -4405,11 +4408,45 @@ export const HistoryTaskItemSchema = {
         'updatedAt',
         'archivedAt',
         'credits',
+        'owner',
         'kind',
         'status',
         'projectId',
         'coworkerId'
     ]
+} as const;
+
+export const HistoryOwnerSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        userId: {
+            type: 'string',
+            description: 'User ID of the history item owner',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            description: 'Display name of the owner',
+            example: 'Alice Johnson'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Profile image URL of the owner. Null when no image is set.',
+            example: 'https://example.com/avatar.jpg'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'image'
+    ],
+    description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).'
 } as const;
 
 export const HistoryJobItemSchema = {
@@ -4455,6 +4492,9 @@ export const HistoryJobItemSchema = {
             ],
             description: 'User-facing credits. Null means credits do not apply to this item.',
             example: 2.5
+        },
+        owner: {
+            $ref: '#/components/schemas/HistoryOwner'
         },
         kind: {
             type: 'string',
@@ -4518,6 +4558,7 @@ export const HistoryJobItemSchema = {
         'updatedAt',
         'archivedAt',
         'credits',
+        'owner',
         'kind',
         'status',
         'projectId',
@@ -4568,6 +4609,9 @@ export const HistoryConversationItemSchema = {
             description: 'Conversations do not currently have credits',
             example: null
         },
+        owner: {
+            $ref: '#/components/schemas/HistoryOwner'
+        },
         kind: {
             type: 'string',
             enum: [
@@ -4598,6 +4642,7 @@ export const HistoryConversationItemSchema = {
         'updatedAt',
         'archivedAt',
         'credits',
+        'owner',
         'kind',
         'status',
         'bucketSlug'
