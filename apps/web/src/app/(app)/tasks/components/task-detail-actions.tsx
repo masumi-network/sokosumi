@@ -1,6 +1,5 @@
 "use client";
 
-import { type MemberWithOrganization } from "@sokosumi/database";
 import { isTaskArchivableStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -56,7 +55,10 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type { TaskShare } from "@/lib/clients/generated/core";
+import type {
+  MemberWithOrganization,
+  TaskShare,
+} from "@/lib/clients/generated/core";
 import {
   type TaskLink,
   TaskLinkRelation,

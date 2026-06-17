@@ -1,13 +1,12 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import Link from "next/link";
-
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
 import { makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import { TaskJobStatusBadge } from "./task-job-status-badge.client";
 import {
@@ -17,7 +16,7 @@ import {
 
 interface TaskJobsProps {
   title: string;
-  agents: AgentWithCreditsPrice[];
+  agents: CoreAgentDto[];
   jobs: JobSummary[];
   userId: string | null;
   locale?: string;

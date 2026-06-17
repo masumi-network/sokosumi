@@ -33,6 +33,42 @@ export {
   type CoreApiErrorKind,
 } from "./core-api-error-kind.js";
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
+export type {
+  AgentJobStatus as AgentJobStatusType,
+  AgentStatus as AgentStatusType,
+  BlobStatus as BlobStatusType,
+  InvitationStatus as InvitationStatusType,
+  JobType as JobTypeType,
+  MemberRole as MemberRoleType,
+  NextJobAction as NextJobActionType,
+  NextJobActionErrorType as NextJobActionErrorTypeType,
+  NoticeKind as NoticeKindType,
+  OnChainJobStatus as OnChainJobStatusType,
+  OnChainTransactionStatus as OnChainTransactionStatusType,
+  PaymentType as PaymentTypeType,
+  PricingType as PricingTypeType,
+  RiskClassification as RiskClassificationType,
+  TaskEventOrigin as TaskEventOriginType,
+  TaskLinkType as TaskLinkTypeType,
+} from "./domain/index.js";
+export {
+  AgentJobStatus,
+  AgentStatus,
+  BlobStatus,
+  InvitationStatus,
+  JobType,
+  MemberRole,
+  NextJobAction,
+  NextJobActionErrorType,
+  NoticeKind,
+  OnChainJobStatus,
+  OnChainTransactionStatus,
+  PaymentType,
+  PricingType,
+  RiskClassification,
+  TaskEventOrigin,
+  TaskLinkType,
+} from "./domain/index.js";
 export {
   FILE_EXTENSION_ALLOWLIST,
   getExtensionFromUrl,

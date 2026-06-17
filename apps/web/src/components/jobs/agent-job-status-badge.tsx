@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";

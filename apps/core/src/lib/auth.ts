@@ -55,10 +55,7 @@ import {
 } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
-import {
-  handleStripeAuthWebhookOnEvent,
-  resolveStripeAuthWebhookSecret,
-} from "@/lib/stripe-auth-webhook-on-event";
+import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import {
   ensureCanAcceptOrganizationInvitation,
   syncLocalFreeSeatsAndCreditsForCurrentMembers,
@@ -648,16 +645,11 @@ export const auth = betterAuth({
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
     }),
-    // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). When
-    // USE_UNIFIED_STRIPE_WEBHOOK is true, point the Stripe Dashboard here only
-    // and use STRIPE_WEBHOOK_SECRET; billing events are handled from onEvent.
+    // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
+    // Stripe Dashboard here only; billing events are handled from onEvent.
     stripe({
       stripeClient: stripeInstance,
-      stripeWebhookSecret: resolveStripeAuthWebhookSecret({
-        useUnifiedStripeWebhook: env.USE_UNIFIED_STRIPE_WEBHOOK,
-        stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
-        stripeBetterAuthWebhookSecret: env.STRIPE_BA_WEBHOOK_SECRET,
-      }),
+      stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {
         enabled: true,
@@ -709,9 +701,7 @@ export const auth = betterAuth({
         enabled: true,
       },
       onEvent: async (event) => {
-        await handleStripeAuthWebhookOnEvent(event, {
-          useUnifiedStripeWebhook: env.USE_UNIFIED_STRIPE_WEBHOOK,
-        });
+        await handleStripeAuthWebhookOnEvent(event);
       },
     }),
   ],

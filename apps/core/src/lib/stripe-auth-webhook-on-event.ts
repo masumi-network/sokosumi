@@ -15,9 +15,8 @@ export function isBillingStripeEventType(
 
 export async function handleStripeAuthWebhookOnEvent(
   event: Stripe.Event,
-  options: { useUnifiedStripeWebhook: boolean },
 ): Promise<void> {
-  if (options.useUnifiedStripeWebhook && isBillingStripeEventType(event.type)) {
+  if (isBillingStripeEventType(event.type)) {
     await stripeWebhookService.handleEvent(event);
     return;
   }
@@ -47,14 +46,4 @@ export async function handleStripeAuthWebhookOnEvent(
   }
 
   console.info(`Unhandled Stripe event type: ${event.type}`);
-}
-
-export function resolveStripeAuthWebhookSecret(options: {
-  useUnifiedStripeWebhook: boolean;
-  stripeWebhookSecret: string;
-  stripeBetterAuthWebhookSecret: string;
-}): string {
-  return options.useUnifiedStripeWebhook
-    ? options.stripeWebhookSecret
-    : options.stripeBetterAuthWebhookSecret;
 }

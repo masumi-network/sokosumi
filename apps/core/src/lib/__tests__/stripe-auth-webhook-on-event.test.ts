@@ -22,30 +22,7 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
 import {
   handleStripeAuthWebhookOnEvent,
   isBillingStripeEventType,
-  resolveStripeAuthWebhookSecret,
 } from "../stripe-auth-webhook-on-event";
-
-describe("resolveStripeAuthWebhookSecret", () => {
-  it("uses the Better Auth secret while split endpoints are enabled", () => {
-    expect(
-      resolveStripeAuthWebhookSecret({
-        useUnifiedStripeWebhook: false,
-        stripeWebhookSecret: "whsec_billing",
-        stripeBetterAuthWebhookSecret: "whsec_ba",
-      }),
-    ).toBe("whsec_ba");
-  });
-
-  it("uses the billing secret when unified webhooks are enabled", () => {
-    expect(
-      resolveStripeAuthWebhookSecret({
-        useUnifiedStripeWebhook: true,
-        stripeWebhookSecret: "whsec_billing",
-        stripeBetterAuthWebhookSecret: "whsec_ba",
-      }),
-    ).toBe("whsec_billing");
-  });
-});
 
 describe("isBillingStripeEventType", () => {
   it.each([
@@ -70,56 +47,27 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
   });
 
-  it("routes billing events through stripeWebhookService when unified", async () => {
+  it("routes billing events through stripeWebhookService", async () => {
     const event = {
       id: "evt_invoice",
       type: "invoice.paid",
       data: { object: { id: "in_123" } },
     } as never;
 
-    await handleStripeAuthWebhookOnEvent(event, {
-      useUnifiedStripeWebhook: true,
-    });
+    await handleStripeAuthWebhookOnEvent(event);
 
     expect(handleEventMock).toHaveBeenCalledWith(event);
     expect(handleSubscriptionDeletedEventMock).not.toHaveBeenCalled();
   });
 
-  it("ignores billing events when unified mode is disabled", async () => {
-    const consoleInfoSpy = vi
-      .spyOn(console, "info")
-      .mockImplementation(() => undefined);
-
-    try {
-      await handleStripeAuthWebhookOnEvent(
-        {
-          id: "evt_invoice",
-          type: "invoice.paid",
-          data: { object: { id: "in_123" } },
-        } as never,
-        { useUnifiedStripeWebhook: false },
-      );
-
-      expect(handleEventMock).not.toHaveBeenCalled();
-      expect(consoleInfoSpy).toHaveBeenCalledWith(
-        "Unhandled Stripe event type: invoice.paid",
-      );
-    } finally {
-      consoleInfoSpy.mockRestore();
-    }
-  });
-
-  it("handles customer.subscription.deleted regardless of unified mode", async () => {
+  it("handles customer.subscription.deleted", async () => {
     const subscription = { id: "sub_123", customer: "cus_123" };
 
-    await handleStripeAuthWebhookOnEvent(
-      {
-        id: "evt_sub_deleted",
-        type: "customer.subscription.deleted",
-        data: { object: subscription },
-      } as never,
-      { useUnifiedStripeWebhook: false },
-    );
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_deleted",
+      type: "customer.subscription.deleted",
+      data: { object: subscription },
+    } as never);
 
     expect(handleSubscriptionDeletedEventMock).toHaveBeenCalledWith(
       subscription,
@@ -132,14 +80,11 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     handleSubscriptionDeletedEventMock.mockRejectedValue(failure);
 
     await expect(
-      handleStripeAuthWebhookOnEvent(
-        {
-          id: "evt_sub_deleted",
-          type: "customer.subscription.deleted",
-          data: { object: { id: "sub_123", customer: "cus_123" } },
-        } as never,
-        { useUnifiedStripeWebhook: true },
-      ),
+      handleStripeAuthWebhookOnEvent({
+        id: "evt_sub_deleted",
+        type: "customer.subscription.deleted",
+        data: { object: { id: "sub_123", customer: "cus_123" } },
+      } as never),
     ).rejects.toThrow("delete failed");
 
     expect(captureExceptionMock).toHaveBeenCalledWith(

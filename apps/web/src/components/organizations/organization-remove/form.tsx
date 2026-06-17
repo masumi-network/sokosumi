@@ -1,14 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Organization } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
 import {
   AlertDialogCancel,
   AlertDialogFooter,
@@ -25,13 +23,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { ORGANIZATION_HAS_ADDITIONAL_MEMBERS_ERROR_CODE } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import {
   type RemoveOrganizationSchemaType,
   removeOrganizationSchema,
 } from "@/lib/schemas/organization";
 
 interface OrganizationRemoveFormProps {
-  organization: Organization;
+  organization: OrganizationRecord;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
 }

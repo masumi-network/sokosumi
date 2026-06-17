@@ -1,4 +1,4 @@
-import { InvitationStatus, MemberRole } from "@sokosumi/database";
+import { InvitationStatus, MemberRole } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";

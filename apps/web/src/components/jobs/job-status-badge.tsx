@@ -1,7 +1,6 @@
 "use client";
 
-import { JobType } from "@sokosumi/database";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
 import { CircleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 

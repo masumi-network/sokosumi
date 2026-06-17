@@ -1,6 +1,5 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import {
   createContext,
   useCallback,
@@ -8,8 +7,8 @@ import {
   useMemo,
   useState,
 } from "react";
-
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 interface CreateJobModalContextType {
   // modal open
@@ -31,12 +30,12 @@ interface CreateJobModalContextType {
   handleExpand: () => void;
   handleCollapse: () => void;
   // agents with price
-  agentsWithPrice: AgentWithCreditsPrice[];
+  agentsWithPrice: CoreAgentDto[];
   // selected agent
   agentId?: string | undefined;
   isDemo: boolean;
   setAgentId: (agentId: string) => void;
-  agentWithPrice?: AgentWithCreditsPrice | undefined;
+  agentWithPrice?: CoreAgentDto | undefined;
   // average execution duration
   averageExecutionDuration: number | null;
   // project selection
@@ -77,7 +76,7 @@ export function CreateJobModalContextProvider({
   defaultProjectId = null,
   children,
 }: {
-  agentsWithPrice: AgentWithCreditsPrice[];
+  agentsWithPrice: CoreAgentDto[];
   averageExecutionDuration: number | null;
   projectOptions?: ProjectFilterOption[] | undefined;
   defaultProjectId?: string | null | undefined;

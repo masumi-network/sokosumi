@@ -1,5 +1,4 @@
-import type { Notice, NoticeKind } from "@sokosumi/database";
-
+import { NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -33,6 +32,7 @@ import type {
   HermesStartOnboardingRequest,
   HermesUpdateInstanceRequest,
   MarkHermesInboxSeenRequest,
+  Notice,
   PaginationMetadata,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,

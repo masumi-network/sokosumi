@@ -1,14 +1,13 @@
 import "server-only";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { coreClient } from "@/lib/clients/core.client";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { taskService } from "@/lib/services/task.service";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 type AgentForPreview = Parameters<typeof getAgentName>[0] &
   Parameters<typeof getAgentResolvedIcon>[0];
@@ -20,7 +19,7 @@ interface MapJobsToTasksViewDataParams {
   jobs: JobSummary[];
   coworkersById: Map<string, Parameters<typeof getCoworkerImage>[0]>;
   /** Agents already loaded for the page (e.g. catalog); avoids redundant getAgentById calls. */
-  knownAgentsById?: ReadonlyMap<string, AgentWithCreditsPrice>;
+  knownAgentsById?: ReadonlyMap<string, CoreAgentDto>;
   seedTasksById?: Map<
     string,
     | TaskSeedForJob
@@ -62,7 +61,7 @@ async function getMissingTasksById(
 
 async function resolveAgentsForJobs(
   jobs: JobSummary[],
-  knownAgentsById?: ReadonlyMap<string, AgentWithCreditsPrice>,
+  knownAgentsById?: ReadonlyMap<string, CoreAgentDto>,
 ): Promise<Map<string, AgentForPreview | null>> {
   const agentIds = Array.from(new Set(jobs.map((job) => job.agentId)));
   const resolved = new Map<string, AgentForPreview | null>();

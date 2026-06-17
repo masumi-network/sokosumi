@@ -1,10 +1,8 @@
 "use client";
 
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { Suspense } from "react";
-
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import {
@@ -14,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import RandomAgentCard from "./random-agent-card";
 import SuccessCard, {
@@ -23,7 +22,7 @@ import SuccessCard, {
 
 interface CreditsSuccessModalProps {
   randomAgentPromise: Promise<{
-    agent: AgentWithCreditsPrice;
+    agent: CoreAgentDto;
     averageExecutionDuration: number | null;
   } | null>;
   projectOptionsPromise: Promise<ProjectFilterOption[]>;
