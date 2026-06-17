@@ -1,17 +1,32 @@
 /**
- * Public-safe types for Hermes — these are the only shapes that may cross
- * the server/client boundary. Never include `apiServerKey` or the orchestrator
+ * Public-safe types for Hermes — the only shapes that may cross the
+ * server/client boundary. Never include `apiServerKey` or the orchestrator
  * token here.
+ *
+ * Per the "Core client is the single source of truth" convention (#3199), the
+ * leaf enums and reference shapes are aliased directly from the generated Core
+ * API client, so they can never drift from the API contract. The object
+ * interfaces below are the web's NORMALIZED projections of the Core DTOs: the
+ * `mapHermes*` mappers in `lib/actions/hermes` convert Core's `Date`/nullable
+ * fields into the `string`/required fields the UI consumes, so these
+ * deliberately tighten (rather than re-declare) the corresponding Core shapes.
  */
 
-export type HermesInstanceStatus =
-  | "provisioning"
-  | "infrastructure_ready"
-  | "onboarding"
-  | "running"
-  | "ready"
-  | "suspended"
-  | "error";
+import type {
+  HermesAutonomyLevel as CoreHermesAutonomyLevel,
+  HermesConfirmationCoworkerRef as CoreHermesConfirmationCoworkerRef,
+  HermesConfirmationOrganizationRef as CoreHermesConfirmationOrganizationRef,
+  HermesConfirmationStatus as CoreHermesConfirmationStatus,
+  HermesInstanceStatus as CoreHermesInstanceStatus,
+  HermesIntegrationMode as CoreHermesIntegrationMode,
+  HermesIntegrationProvider as CoreHermesIntegrationProvider,
+  HermesIntegrationStatus as CoreHermesIntegrationStatus,
+  HermesOnboardingStepStatus as CoreHermesOnboardingStepStatus,
+  HermesScheduleKind as CoreHermesScheduleKind,
+  HermesScheduleSource as CoreHermesScheduleSource,
+} from "@/lib/clients/generated/core";
+
+export type HermesInstanceStatus = CoreHermesInstanceStatus;
 
 /**
  * Stable provider slugs for v1 integrations. The orchestrator's
@@ -21,32 +36,11 @@ export type HermesInstanceStatus =
  * Slugs match Composio's provider naming where possible so we don't have to
  * maintain a translation layer.
  */
-export type HermesIntegrationProvider =
-  | "gmail"
-  | "outlook"
-  | "google_calendar"
-  | "google_sheets"
-  | "google_docs"
-  | "outlook_calendar"
-  | "slack"
-  | "teams"
-  | "linear"
-  | "jira"
-  | "github"
-  | "notion"
-  | "hubspot"
-  | "twitter"
-  | "instagram"
-  | "youtube"
-  | "linkedin";
+export type HermesIntegrationProvider = CoreHermesIntegrationProvider;
 
-export type HermesIntegrationStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "error";
+export type HermesIntegrationStatus = CoreHermesIntegrationStatus;
 
-export type HermesIntegrationMode = "read" | "write";
+export type HermesIntegrationMode = CoreHermesIntegrationMode;
 
 /**
  * Operational autonomy tier. Drives both the orchestrator's MCP tool
@@ -57,7 +51,7 @@ export type HermesIntegrationMode = "read" | "write";
  *
  * Defaults to "medium" everywhere.
  */
-export type HermesAutonomyLevel = "low" | "medium" | "high";
+export type HermesAutonomyLevel = CoreHermesAutonomyLevel;
 
 export interface HermesIntegration {
   provider: HermesIntegrationProvider;
@@ -116,14 +110,14 @@ export interface HermesInstancePublic {
   pendingConfirmations: HermesPendingConfirmation[];
 }
 
-export type HermesScheduleSource = "orchestrator" | "hermes";
+export type HermesScheduleSource = CoreHermesScheduleSource;
 
 /**
  *   - "user"          — created by the user. Editable + deletable.
  *   - "system_prompt" — auto-created (e.g. morning brief). Toggle/retime, never delete.
  *   - "system_sweep"  — background housekeeping. Toggle only.
  */
-export type HermesScheduleKind = "user" | "system_prompt" | "system_sweep";
+export type HermesScheduleKind = CoreHermesScheduleKind;
 
 export interface HermesSchedule {
   id: string;
@@ -146,17 +140,10 @@ export interface HermesSchedule {
   addressable: boolean;
 }
 
-export interface HermesConfirmationCoworkerRef {
-  id: string;
-  name: string;
-  image: string | null;
-}
+export type HermesConfirmationCoworkerRef = CoreHermesConfirmationCoworkerRef;
 
-export interface HermesConfirmationOrganizationRef {
-  id: string;
-  name: string;
-  slug: string | null;
-}
+export type HermesConfirmationOrganizationRef =
+  CoreHermesConfirmationOrganizationRef;
 
 /** Organization the user belongs to (confirmation picker, session scope). */
 export type HermesOrganizationOption = HermesConfirmationOrganizationRef;
@@ -178,11 +165,7 @@ export interface HermesPendingConfirmation {
   referencedOrganizations: HermesConfirmationOrganizationRef[];
 }
 
-export type HermesConfirmationStatus =
-  | "approved"
-  | "rejected"
-  | "errored"
-  | "already_resolved";
+export type HermesConfirmationStatus = CoreHermesConfirmationStatus;
 
 export interface HermesConfirmationResolveResult {
   status: HermesConfirmationStatus;
@@ -226,15 +209,7 @@ export interface HermesPersistedMessage {
 // orchestrator — Sokosumi just renders whatever it returns.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type HermesOnboardingStepStatus =
-  | "pending"
-  | "running"
-  | "done"
-  /** Short-circuited by the orchestrator (e.g. "Inbox not connected" when
-   * the user didn't connect a mail provider). Rendered muted, not as
-   * progress or error. */
-  | "skipped"
-  | "error";
+export type HermesOnboardingStepStatus = CoreHermesOnboardingStepStatus;
 
 export interface HermesOnboardingStep {
   id: string;
