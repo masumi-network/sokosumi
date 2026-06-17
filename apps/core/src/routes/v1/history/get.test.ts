@@ -19,6 +19,7 @@ const {
   jobFindManyMock,
   prismaQueryRawMock,
   prismaTransactionMock,
+  userFindManyMock,
 } = vi.hoisted(() => ({
   agentFindManyMock: vi.fn(),
   historyCountMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   jobFindManyMock: vi.fn(),
   prismaQueryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  userFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -43,6 +45,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     job: {
       findMany: jobFindManyMock,
+    },
+    user: {
+      findMany: userFindManyMock,
     },
   },
 }));
@@ -97,6 +102,7 @@ function createHistoryRow(
     sortAt: new Date("2026-04-02T10:00:00.000Z"),
     status: TaskStatus.READY,
     title: "History Row",
+    userId: "user_123",
     ...overrides,
   };
 }
@@ -109,6 +115,7 @@ describe("GET /history", () => {
     historyCountMock.mockResolvedValue(0);
     jobFindManyMock.mockResolvedValue([]);
     agentFindManyMock.mockResolvedValue([]);
+    userFindManyMock.mockResolvedValue([]);
     prismaQueryRawMock.mockResolvedValue([]);
     prismaTransactionMock.mockImplementation(
       async (operations: Array<Promise<unknown>>) =>
