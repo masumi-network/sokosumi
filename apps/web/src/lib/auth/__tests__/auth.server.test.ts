@@ -2,8 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
 const headersMock = vi.fn();
+const captureMessageMock = vi.fn();
+const setTagMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
+
+vi.mock("@sentry/nextjs", () => ({
+  captureMessage: (...args: unknown[]) => captureMessageMock(...args),
+  withScope: (callback: (scope: { setTag: typeof setTagMock }) => void) => {
+    callback({ setTag: setTagMock });
+  },
+}));
 
 vi.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
@@ -165,6 +174,10 @@ describe("auth.server", () => {
       expect(result.error.reason).toBe("network");
       expect(result.error.path).toBe("/auth/list-accounts");
     }
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Failed to fetch user accounts from Core",
+      "error",
+    );
   });
 
   it("returns err with reason invalid_json when the body fails to parse", async () => {
@@ -371,6 +384,7 @@ describe("auth.server", () => {
     if (result.isOk()) {
       expect(result.value).toBeNull();
     }
+    expect(captureMessageMock).not.toHaveBeenCalled();
   });
 
   it("returns err when public OAuth client metadata cannot be loaded", async () => {

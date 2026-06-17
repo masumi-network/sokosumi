@@ -9,6 +9,7 @@ import type { ActiveSubscription } from "@/components/billing/subscription-plan-
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
+import { reportCoreAuthReadOutage } from "@/lib/sentry/core-auth-read-outage";
 
 export type { Session };
 
@@ -50,6 +51,7 @@ async function fetchCoreAuth<T>(
   options?: {
     failureLogMessage?: string;
     searchParams?: Record<string, string | undefined>;
+    sentryIgnoreHttpStatuses?: number[];
   },
 ): Promise<Result<T, CoreAuthReadError>> {
   const url = new URL(joinCoreApiPath(getServerCoreAppBaseUrl(), path));
@@ -68,42 +70,57 @@ async function fetchCoreAuth<T>(
     });
 
     if (!response.ok) {
-      console.error(
-        options?.failureLogMessage ?? "Failed to fetch from Core auth",
-        { path, status: response.status },
-      );
-      return err({
+      const failureLogMessage =
+        options?.failureLogMessage ?? "Failed to fetch from Core auth";
+      const authReadError: CoreAuthReadError = {
         path,
         reason: "http",
         status: response.status,
+      };
+
+      console.error(failureLogMessage, {
+        path,
+        status: response.status,
       });
+
+      if (!options?.sentryIgnoreHttpStatuses?.includes(response.status)) {
+        reportCoreAuthReadOutage(authReadError, failureLogMessage);
+      }
+
+      return err(authReadError);
     }
 
     try {
       return ok((await response.json()) as T);
     } catch (error) {
-      console.error(
-        options?.failureLogMessage ?? "Failed to parse Core auth response",
-        { path, error },
-      );
-      return err({
+      const failureLogMessage =
+        options?.failureLogMessage ?? "Failed to parse Core auth response";
+      const authReadError: CoreAuthReadError = {
         path,
         reason: "invalid_json",
-      });
+      };
+
+      console.error(failureLogMessage, { path, error });
+      reportCoreAuthReadOutage(authReadError, failureLogMessage);
+
+      return err(authReadError);
     }
   } catch (error) {
     const reason: CoreAuthReadErrorReason =
       error instanceof Error && error.name === "TimeoutError"
         ? "timeout"
         : "network";
-    console.error(
-      options?.failureLogMessage ?? "Failed to fetch from Core auth",
-      { path, reason, error },
-    );
-    return err({
+    const failureLogMessage =
+      options?.failureLogMessage ?? "Failed to fetch from Core auth";
+    const authReadError: CoreAuthReadError = {
       path,
       reason,
-    });
+    };
+
+    console.error(failureLogMessage, { path, reason, error });
+    reportCoreAuthReadOutage(authReadError, failureLogMessage);
+
+    return err(authReadError);
   }
 }
 
@@ -188,6 +205,8 @@ export async function listUserAccounts(): Promise<
   return getCachedUserAccounts();
 }
 
+// Keyed on primitive args so React `cache` dedupes across call sites that pass
+// equivalent options as separate object literals.
 const getCachedActiveSubscriptions = cache(
   async (
     customerType?: "organization" | "user",
@@ -232,6 +251,7 @@ const getCachedOAuthClientPublic = cache(
       {
         failureLogMessage: "Failed to fetch OAuth client from Core",
         searchParams: { client_id: clientId },
+        sentryIgnoreHttpStatuses: [404],
       },
     );
 
