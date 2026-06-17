@@ -31,7 +31,7 @@ import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
-import { TIME, WEBHOOK_USER_AGENT } from "@/config/constants";
+import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
@@ -43,7 +43,6 @@ import { sourceImportService } from "@/services/source-import.service";
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
-const WEBHOOK_TIMEOUT_MS = TIME.WEBHOOK_TIMEOUT * 1000;
 const JOB_SYNC_TRANSACTION_OPTIONS = {
   maxWait: 5000,
   timeout: 20_000,

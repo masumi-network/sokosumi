@@ -1,4 +1,5 @@
-const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
+/** Default outbound webhook request timeout when callers omit `timeoutMs`. */
+export const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
 
 /** Response bodies longer than this are truncated before being reported. */
 export const MAX_REPORTED_WEBHOOK_BODY_LENGTH = 500;

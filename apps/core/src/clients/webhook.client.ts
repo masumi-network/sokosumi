@@ -1,10 +1,8 @@
 import * as Sentry from "@sentry/node";
 import { buildWebhookFailureContext, postWebhook } from "@sokosumi/utils";
 
-import { TIME, WEBHOOK_USER_AGENT } from "@/config/constants";
+import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
-
-const WEBHOOK_TIMEOUT_MS = TIME.WEBHOOK_TIMEOUT * 1000;
 
 export type WebhookType = "userCreated" | "userUpdated" | "accountCreated";
 

@@ -1,7 +1,11 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { buildWebhookFailureContext, postWebhook } from "@sokosumi/utils";
+import {
+  buildWebhookFailureContext,
+  DEFAULT_WEBHOOK_TIMEOUT_MS,
+  postWebhook,
+} from "@sokosumi/utils";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
@@ -27,7 +31,10 @@ export async function callAgentHiredWebHook(userId: string, email: string) {
   const result = await postWebhook(
     webhookUrl,
     { userId, email },
-    { userAgent: WEBHOOK_USER_AGENT },
+    {
+      userAgent: WEBHOOK_USER_AGENT,
+      timeoutMs: DEFAULT_WEBHOOK_TIMEOUT_MS,
+    },
   );
 
   if (result.status === "ok") return;
