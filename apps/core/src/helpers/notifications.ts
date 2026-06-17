@@ -48,9 +48,9 @@ export async function createNotification(
       messageKey: input.messageKey,
       messageParams: JSON.stringify(input.messageParams),
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-      // Reset read status on update
       isRead: false,
       readAt: null,
+      createdAt: new Date(),
     },
   });
 

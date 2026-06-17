@@ -165,10 +165,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const takePlusOne = take + 1;
 
-    // For cursor pagination, we need to find the notification by id
     const cursorNotification = cursor
-      ? await prisma.notification.findUnique({
-          where: { id: cursor },
+      ? await prisma.notification.findFirst({
+          where: { AND: [where, { id: cursor }] },
           select: { id: true },
         })
       : undefined;
