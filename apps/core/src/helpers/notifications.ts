@@ -18,6 +18,9 @@ export interface CreateNotificationInput {
  *
  * eventId references a jobEvent or taskEvent row depending on kind.
  *
+ * Duplicate emits update message content only. Read state, feed position, and
+ * stored metadata are preserved unless `metadata` is explicitly provided.
+ *
  * This is an internal-only helper for Core services to emit notifications.
  * Not exposed as a public API in v1.
  */
@@ -47,10 +50,11 @@ export async function createNotification(
     update: {
       messageKey: input.messageKey,
       messageParams: JSON.stringify(input.messageParams),
-      metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-      isRead: false,
-      readAt: null,
-      createdAt: new Date(),
+      ...(input.metadata !== undefined
+        ? {
+            metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+          }
+        : {}),
     },
   });
 
