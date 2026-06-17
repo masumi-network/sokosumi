@@ -13,7 +13,7 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: (...args: unknown[]) => getEnvSecretsMock(...args),
 }));
 
-describe("gtm.service", () => {
+describe("agent-hired-webhook.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
@@ -32,7 +32,9 @@ describe("gtm.service", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { callAgentHiredWebHook } = await import("../gtm.service");
+    const { callAgentHiredWebHook } = await import(
+      "../agent-hired-webhook.service"
+    );
 
     await callAgentHiredWebHook("user-1", "user@example.test");
 

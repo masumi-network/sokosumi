@@ -22,7 +22,7 @@ import {
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import { createAgentClient } from "@sokosumi/masumi";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { postWebhook, SokosumiJobStatus } from "@sokosumi/utils";
 import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -302,22 +302,19 @@ async function dispatchJobFailureNotification(
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
 
     if (webhookUrl) {
-      const request = new Request(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(notificationData),
-      });
-
-      void fetch(request).catch((error) => {
-        Sentry.captureException(error, {
-          extra: {
-            jobId: job.id,
-            userId: job.userId,
-            notificationType: "job-failure-webhook",
-          },
-        });
+      // Fire-and-forget: dispatch the webhook without blocking the email path.
+      void postWebhook(webhookUrl, notificationData, {
+        userAgent: "Sokosumi-Core-API/1.0",
+      }).then((result) => {
+        if (result.status === "failed") {
+          Sentry.captureException(result.error, {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-failure-webhook",
+            },
+          });
+        }
       });
     }
 
