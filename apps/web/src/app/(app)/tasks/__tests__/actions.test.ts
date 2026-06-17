@@ -1,5 +1,4 @@
-import { AgentJobStatus } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
+import { AgentJobStatus, TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listCoworkersMock = vi.fn();
@@ -38,7 +37,7 @@ vi.mock("../utils/tasks-column-page", () => ({
 
 const getSessionMock = vi.fn();
 
-vi.mock("@/lib/auth/utils", () => ({
+vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
@@ -143,7 +142,7 @@ describe("loadMoreTasksColumn", () => {
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
-      scope: "workspace",
+      scope: "owned",
     });
   });
 

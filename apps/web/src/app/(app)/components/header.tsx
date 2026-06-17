@@ -1,5 +1,5 @@
+import type { Session } from "@sokosumi/utils";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
-import type { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 import ChatRailTrigger from "./chat-rail-trigger";

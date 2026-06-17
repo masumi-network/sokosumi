@@ -531,10 +531,6 @@ model Agent {
   overrideTags Tag[]      @relation("AgentTagOverride")
   categories   Category[] @relation("AgentCategory")
 
-  // Demo Input and Output
-  demoInput  String?
-  demoOutput String?
-
   // Summary
   summary String?
 }
@@ -700,7 +696,6 @@ model CreditConsumption {
 enum JobType {
   FREE
   PAID
-  DEMO
 }
 
 model Job {
@@ -1233,6 +1228,7 @@ enum TaskStatus {
   DRAFT
   READY
   INPUT_REQUIRED
+  APPROVAL_REQUIRED
   AUTHENTICATION_REQUIRED
   OUT_OF_CREDITS
   CREDITS_TOPPED_UP

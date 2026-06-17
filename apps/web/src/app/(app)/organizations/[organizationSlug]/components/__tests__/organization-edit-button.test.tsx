@@ -1,4 +1,3 @@
-import { Organization } from "@sokosumi/database";
 import {
   act,
   fireEvent,
@@ -11,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { uploadUserFileDirect } from "@/lib/utils/user-file-upload.client";
 import OrganizationEditButton from "../organization-edit-button";
 import { OrganizationMetadataProvider } from "../organization-metadata-context";
@@ -19,6 +19,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
     refresh: vi.fn(),
+  }),
+  usePathname: () => "/organizations/acme",
+}));
+
+vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
+  useWorkspaceSwitcher: () => ({
+    isPending: false,
+    handleSelectWorkspace: vi.fn(),
   }),
 }));
 
@@ -54,20 +62,23 @@ const mockedUploadLogo = vi.mocked(uploadUserFileDirect);
 const mockedOrganizationUpdate = vi.mocked(authClient.organization.update);
 
 function createOrganization(
-  overrides: Partial<Organization> & Pick<Organization, "id" | "name">,
-): Organization {
+  overrides: Partial<OrganizationRecord> &
+    Pick<OrganizationRecord, "id" | "name">,
+): OrganizationRecord {
   return {
-    metadata: null,
-    logo: null,
     slug: "acme",
+    logo: null,
+    metadata: null,
+    stripeCustomerId: null,
+    createdAt: new Date("2026-04-15T10:00:00.000Z"),
     ...overrides,
-  } as Organization;
+  };
 }
 
 function OrganizationEditButtonHarness({
   organizationSeed,
 }: {
-  organizationSeed: Organization;
+  organizationSeed: OrganizationRecord;
 }) {
   const [tick, setTick] = useState(0);
 
@@ -75,7 +86,7 @@ function OrganizationEditButtonHarness({
     ...organizationSeed,
     // New object reference each parent render (simulates RSC refresh payload).
     _rerenderTick: tick,
-  } as Organization;
+  } as OrganizationRecord;
 
   return (
     <OrganizationMetadataProvider organization={organization}>

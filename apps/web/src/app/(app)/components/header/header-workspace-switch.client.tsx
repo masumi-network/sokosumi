@@ -1,10 +1,9 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
+import { SessionUser } from "@sokosumi/utils";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-
 import { OrganizationInformationModal } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
 import {
@@ -16,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import useModal from "@/hooks/use-modal";
-import type { SessionUser } from "@/lib/auth/auth";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  activateOrganizationWorkspace,
   getAgentJobsBasePath,
   useWorkspaceSwitcher,
 } from "@/app/components/user-avatar/workspace-switcher";
@@ -57,6 +58,85 @@ describe("workspace switcher", () => {
     vi.mocked(authClient.organization.setActive).mockReset();
     vi.mocked(updatePreferredOrganization).mockReset();
     vi.mocked(toast.success).mockReset();
+  });
+
+  describe("activateOrganizationWorkspace", () => {
+    it("sets the active organization and persists it as preferred", async () => {
+      vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+      vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+        ok: true,
+        data: {
+          organizationId: "org-7",
+        },
+      });
+
+      await activateOrganizationWorkspace("org-7");
+
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-7",
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: "org-7",
+      });
+    });
+
+    it("activates the personal workspace when given null", async () => {
+      vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+      vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+        ok: true,
+        data: {
+          organizationId: null,
+        },
+      });
+
+      await activateOrganizationWorkspace(null);
+
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: null,
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: null,
+      });
+    });
+
+    it("still resolves when persisting the preferred organization fails", async () => {
+      vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+      vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+        ok: false,
+        error: {
+          code: "UNAUTHORIZED",
+        },
+      });
+
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      await expect(
+        activateOrganizationWorkspace("org-7"),
+      ).resolves.toBeUndefined();
+
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-7",
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to persist preferred organization:",
+        {
+          code: "UNAUTHORIZED",
+        },
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe("getAgentJobsBasePath", () => {

@@ -21,17 +21,17 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { requestMagicLinkSignIn } from "@/lib/actions/auth";
 import { authClient } from "@/lib/auth/auth.client";
-import { emailSchema } from "@/lib/auth/data";
-import { cn } from "@/lib/utils";
 import {
+  buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   createAuthSessionGetter,
+  getAbsoluteAuthRedirectUrl,
   normalizeAuthReturnUrl,
   waitForAuthSession,
-} from "@/lib/utils/auth-redirect";
-import { buildAuthCallbackUrl } from "@/lib/utils/url";
+} from "@/lib/auth/auth.utils";
+import { emailSchema } from "@/lib/auth/data";
+import { cn } from "@/lib/utils";
 
 export type SocialButtonProviderId = "google" | "microsoft";
 export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
@@ -190,13 +190,13 @@ export default function SocialButtons({
     setIsRequestingMagicLink(true);
 
     try {
-      const result = await requestMagicLinkSignIn(
-        trimmedEmail,
-        effectiveReturnUrl,
-      );
+      const result = await authClient.signIn.magicLink({
+        email: trimmedEmail,
+        callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
+      });
 
-      if (!result.ok) {
-        toast.error(result.error?.message ?? t("magicLinkError"));
+      if (result.error) {
+        toast.error(result.error.message ?? t("magicLinkError"));
         return;
       }
 

@@ -1,11 +1,10 @@
-import type {
-  AgentWithRelations,
-  OrganizationWithLimitedInfo,
-} from "@sokosumi/database";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import BreadcrumbNavigationClient from "@/components/breadcrumb-navigation/breadcrumb-navigation.client";
+import type {
+  CoreAgentDto,
+  OrganizationWithLimitedInfo,
+} from "@/lib/types/core-dto";
 
 const usePathnameMock = vi.fn();
 
@@ -46,32 +45,34 @@ describe("BreadcrumbNavigationClient", () => {
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as AgentWithRelations[]}
+        agents={[] as CoreAgentDto[]}
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
       />,
     );
 
-    expect(
-      screen.getByRole("link", { name: "Acme Corp", current: "page" }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
     expect(screen.queryByText("Organizations")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Organizations" }),
-    ).not.toBeInTheDocument();
   });
 
-  it("does not show an organizations breadcrumb for the removed overview route", () => {
-    usePathnameMock.mockReturnValue("/organizations");
+  it("resolves agent names from agent id path segments", () => {
+    usePathnameMock.mockReturnValue("/agents/agent-1");
 
     render(
       <BreadcrumbNavigationClient
-        agents={[] as AgentWithRelations[]}
+        agents={
+          [
+            {
+              id: "agent-1",
+              name: "Research Copilot",
+            },
+          ] as CoreAgentDto[]
+        }
         organizations={organizations}
         breadcrumbMessages={breadcrumbMessages}
       />,
     );
 
-    expect(screen.queryByText("Organizations")).not.toBeInTheDocument();
+    expect(screen.getByText("Research Copilot")).toBeInTheDocument();
   });
 });

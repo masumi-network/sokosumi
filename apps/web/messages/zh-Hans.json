@@ -80,7 +80,6 @@
       "agentsNotAvailable": "暂无可用智能体",
       "agentsNotFound": "未找到智能体",
       "hire": "雇用智能体",
-      "freeDemo": "免费演示",
       "AgentCard": {
         "view": "查看详情",
         "pricing": "{price, plural, =0 {免费} =1 {1 积分} other {# 积分}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "展开侧边栏",
       "logout": "退出登录",
       "creditsUsedOfTotal": "{used, number} / {total, number} 已使用积分",
+      "lowCreditsLabel": "积分不足 {credits, number}",
       "totalBalanceLabel": "总余额",
       "creditsSummary": "积分摘要：",
       "monthlyUsageLimit": "月度使用上限",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "演示",
         "started": "已开始",
         "completed": "已完成",
         "failed": "已失败",
@@ -1188,6 +1187,7 @@
           "DRAFT": "草稿",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
+          "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",
           "OUT_OF_CREDITS": "积分不足",
           "CREDITS_TOPPED_UP": "积分已充值",
@@ -1453,6 +1453,7 @@
           "DRAFT": "草稿",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
+          "APPROVAL_REQUIRED": "需要批准",
           "AUTHENTICATION_REQUIRED": "需要认证",
           "OUT_OF_CREDITS": "积分不足",
           "CREDITS_TOPPED_UP": "积分已充值",
@@ -1699,6 +1700,7 @@
             "DRAFT": "草稿",
             "READY": "就绪",
             "INPUT_REQUIRED": "需输入",
+            "APPROVAL_REQUIRED": "需批准",
             "AUTHENTICATION_REQUIRED": "需认证",
             "OUT_OF_CREDITS": "额度不足",
             "CREDITS_TOPPED_UP": "已充值",
@@ -2353,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "聊天",
+          "search": "搜索",
           "exploreAgents": "智能体",
           "filesAndOutputs": "文件与输出",
           "taskManager": "任务",
@@ -2362,6 +2365,14 @@
           "admin": "管理"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "搜索",
+      "description": "搜索任务、作业或对话",
+      "searchPlaceholder": "搜索...",
+      "empty": "未找到结果",
+      "loading": "加载中...",
+      "error": "加载结果失败"
     },
     "NoticeDialog": {
       "defaultTitle": "通知",
@@ -3278,7 +3289,6 @@
         },
         "CreateJob": {
           "title": "新建 {name}",
-          "demo": "演示",
           "cancel": "取消",
           "Information": {
             "title": "信息"
@@ -3539,8 +3549,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "获取作业输入 Schema 失败",
-        "demoDataInvalid": "智能体的演示数据无效。"
+        "failedToFetchJobInputSchema": "获取作业输入 Schema 失败"
       }
     },
     "Duration": {

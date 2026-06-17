@@ -1,7 +1,7 @@
 import gravatarUrl from "gravatar-url";
 import { ChatLayoutClient } from "@/app/chat-ui/components/chat-layout-client";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
 import { designMdService } from "@/lib/services/design-md.service";
 

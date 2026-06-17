@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import { getExtensionFromUrl } from "@sokosumi/utils";
+import {getExtensionFromUrl} from "@sokosumi/utils";
 import { FileTypeIcon } from "./file-icon";
 
 const ROOT_NAME = "FileUpload";

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TaskStatus" ADD VALUE 'APPROVAL_REQUIRED';

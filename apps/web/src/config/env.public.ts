@@ -33,7 +33,7 @@ const envPublicConfigSchema = z.object({
     .number()
     .min(0)
     .default(100),
-  NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.coerce.boolean().default(false),
+  NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.stringbool().default(false),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;

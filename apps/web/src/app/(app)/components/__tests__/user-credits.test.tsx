@@ -1,8 +1,7 @@
+import type { Session } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import UserCredits from "@/app/components/user-credits";
-import type { Session } from "@/lib/auth/auth";
 
 vi.mock("next-intl/server", () => ({
   getTranslations: (namespace: string) =>
@@ -108,6 +107,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -129,6 +129,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -150,6 +151,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -167,6 +169,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -193,6 +196,7 @@ describe("UserCredits", () => {
       showAvatar: true,
       showCtaButtons: false,
       showCreditUsage: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -211,6 +215,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);

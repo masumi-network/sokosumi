@@ -1,12 +1,11 @@
 import "server-only";
 
-import type { Invitation, MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { nanoid } from "nanoid";
-import { headers } from "next/headers";
 import slugify from "slugify";
-
-import { auth } from "@/lib/auth/auth";
+import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
 import { coreClient } from "@/lib/clients/core.client";
+import type { PendingInvitation } from "@/lib/clients/generated/core";
 
 export type BulkInviteResultRow = {
   email: string;
@@ -32,8 +31,7 @@ export type PendingInvitationDetail = {
 
 /**
  * Service for organization and invitation related operations: reading pending
- * invitations (via core) and creating organizations / sending invites (via
- * Better Auth).
+ * invitations (via core) and sending invites (via Core Better Auth HTTP).
  */
 export const organizationService = (() => {
   /**
@@ -87,31 +85,10 @@ export const organizationService = (() => {
 
   async function getPendingInvitations(
     organizationId: string,
-  ): Promise<Invitation[]> {
+  ): Promise<PendingInvitation[]> {
     const { data } =
       await coreClient.getOrganizationPendingInvitations(organizationId);
     return data;
-  }
-
-  /**
-   * Creates an organization with the specified user as owner.
-   *
-   * @param name - The name of the organization.
-   * @param userId - The ID of the user who will own the organization.
-   * @returns Promise that resolves to the created organization or null if failed.
-   */
-  async function createOrganizationWithOwner(name: string, userId: string) {
-    const slug = await generateOrganizationSlugFromName(name);
-    const headersList = await headers();
-
-    return await auth.api.createOrganization({
-      body: {
-        name,
-        slug,
-        userId,
-      },
-      headers: headersList,
-    });
   }
 
   /**
@@ -128,19 +105,15 @@ export const organizationService = (() => {
     emails: string[],
     role: MemberRole,
   ): Promise<{ results: BulkInviteResultRow[] }> {
-    const headersList = await headers();
     const results: BulkInviteResultRow[] = [];
 
     for (const email of emails) {
       try {
-        await auth.api.createInvitation({
-          body: {
-            email,
-            role,
-            organizationId,
-            resend: true,
-          },
-          headers: headersList,
+        await inviteOrganizationMemberViaCore({
+          email,
+          role,
+          organizationId,
+          resend: true,
         });
         results.push({ email, status: "sent" });
       } catch (error) {
@@ -160,7 +133,6 @@ export const organizationService = (() => {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
-    createOrganizationWithOwner,
     inviteMultipleMembers,
   };
 })();

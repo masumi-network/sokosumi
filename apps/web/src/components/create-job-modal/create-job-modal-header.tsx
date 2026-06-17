@@ -1,23 +1,19 @@
 "use client";
 
-import type { AgentWithRelations } from "@sokosumi/database";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAgentName } from "@/lib/helpers/agent";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 
 interface CreateJobModalHeaderProps {
-  agent: AgentWithRelations;
-  isDemo: boolean;
+  agent: CoreAgentDto;
 }
 
 export default function CreateJobModalHeader({
   agent,
-  isDemo,
 }: CreateJobModalHeaderProps) {
   const t = useTranslations("App.Agents.Jobs.CreateJob");
   const name = getAgentName(agent);
@@ -40,11 +36,6 @@ export default function CreateJobModalHeader({
         <h3 className="truncate text-base font-medium md:text-lg">
           {t("title", { name })}
         </h3>
-        {isDemo && (
-          <Badge variant="default" className="bg-orange-100 text-orange-800">
-            {t("demo")}
-          </Badge>
-        )}
       </div>
       <Button
         variant="ghost"

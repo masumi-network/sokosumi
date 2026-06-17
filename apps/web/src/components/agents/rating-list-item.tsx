@@ -1,18 +1,17 @@
 "use client";
 
-import type { UserAgentRatingWithUser } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { StarRating } from "@/components/agents/star-rating";
 import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import type { AgentReview } from "@/lib/clients/generated/core";
 
 const COMMENT_TRUNCATE_LENGTH = 60;
 
 interface RatingListItemProps {
-  rating: UserAgentRatingWithUser;
+  rating: AgentReview;
 }
 
 export function RatingListItem({ rating }: RatingListItemProps) {

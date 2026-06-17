@@ -1,10 +1,11 @@
-import { resolveIpfsOrHttpUrl, type TaskStatus } from "@sokosumi/utils";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 import { useFormatter } from "next-intl";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+import type { TaskStatus } from "@/lib/types/core-dto";
 import { HYDRATION_STABLE_TIME_ZONE } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";

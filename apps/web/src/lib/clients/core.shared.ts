@@ -1,5 +1,4 @@
-import type { Notice, NoticeKind } from "@sokosumi/database";
-
+import { NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -24,6 +23,7 @@ import type {
   GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
+  GetUsersByIdTasksCountData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -32,13 +32,12 @@ import type {
   HermesStartOnboardingRequest,
   HermesUpdateInstanceRequest,
   MarkHermesInboxSeenRequest,
+  Notice,
   PaginationMetadata,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
-  PostAgentsByIdDemoJobsData,
-  PostAgentsByIdDemoJobsError,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -119,6 +118,7 @@ import {
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
+  getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
   listAdminTasks as coreListAdminTasks,
@@ -134,7 +134,6 @@ import {
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
-  postAgentsByIdDemoJobs as corePostAgentsByIdDemoJobs,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -503,6 +502,23 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch tasks",
+    );
+  }
+
+  async function getUserTasksCount(
+    userId: string,
+    query?: GetUsersByIdTasksCountData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdTasksCount({
+          client,
+          path: { id: userId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch user task count",
     );
   }
 
@@ -1303,32 +1319,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function createDemoJob(
-    id: string,
-    body: NonNullable<PostAgentsByIdDemoJobsData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      async (client) => {
-        const result = await corePostAgentsByIdDemoJobs({
-          client,
-          path: { id },
-          body,
-        });
-        if (result.error) {
-          return {
-            data: undefined,
-            error: result.error as PostAgentsByIdDemoJobsError,
-            response: result.response,
-          };
-        }
-
-        return result;
-      },
-      "Failed to create demo job",
-    );
-  }
-
   async function getAgentInputSchema(id: string) {
     return executeOperation(
       getClient,
@@ -1381,6 +1371,7 @@ export function createCoreClient(getClient: GetClient) {
         | "DRAFT"
         | "READY"
         | "INPUT_REQUIRED"
+        | "APPROVAL_REQUIRED"
         | "AUTHENTICATION_REQUIRED"
         | "OUT_OF_CREDITS"
         | "CREDITS_TOPPED_UP"
@@ -2287,7 +2278,6 @@ export function createCoreClient(getClient: GetClient) {
     assignOrganizationSeat,
     createConversation,
     createAgentJob,
-    createDemoJob,
     createMyFileUploadSession,
     createTask,
     createTaskLink,
@@ -2384,6 +2374,7 @@ export function createCoreClient(getClient: GetClient) {
     getTaskById,
     getTaskLinks,
     getTasks,
+    getUserTasksCount,
     patchTask,
     putJobShare,
     putTaskShare,

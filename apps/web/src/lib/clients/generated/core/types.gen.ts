@@ -96,7 +96,7 @@ export type CreateInvoice = {
 export type AdminTaskListItem = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     createdAt: Date;
     user: {
         id: string;
@@ -137,7 +137,7 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -194,7 +194,7 @@ export type TaskEvent = {
     comment?: string | null;
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
 
 export type JobSummary = {
@@ -211,7 +211,7 @@ export type JobSummary = {
     workspace: WorkspaceSummary;
     taskId?: string | null;
     name?: string | null;
-    jobType: 'FREE' | 'PAID' | 'DEMO';
+    jobType: 'FREE' | 'PAID';
     status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
     credits: number;
     onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
@@ -268,7 +268,7 @@ export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRela
 export type TaskLinkPeerTask = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     archivedAt: Date | null;
 };
 
@@ -526,125 +526,6 @@ export type AgentRatingRequest = {
      * Optional comment
      */
     comment?: string | null;
-};
-
-export type Job = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    completedAt?: Date | null;
-    agentId: string;
-    userId: string;
-    user: UserSummary;
-    organizationId?: string | null;
-    organization?: OrganizationSummary;
-    projectId: string | null;
-    taskId?: string | null;
-    name?: string | null;
-    jobType: 'FREE' | 'PAID' | 'DEMO';
-    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
-    credits: number;
-    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
-    onChainTransactionHash?: string | null;
-    result?: string | null;
-    resultHash?: string | null;
-    blockchainIdentifier?: string | null;
-    payByTime?: Date | null;
-    submitResultTime?: Date | null;
-    unlockTime?: Date | null;
-    externalDisputeUnlockTime?: Date | null;
-    sellerVkey?: string | null;
-    input?: string | null;
-    inputHash?: string | null;
-    inputSchema?: string | null;
-    agentJobId: string;
-    identifierFromPurchaser?: string | null;
-    workspace: WorkspaceSummary;
-    agent: {
-        id: string;
-        name: string;
-        overrideName?: string | null;
-        icon?: string | null;
-        image?: string | null;
-        overrideImage?: string | null;
-        legalPrivacyPolicy?: string | null;
-        overrideLegalPrivacyPolicy?: string | null;
-        legalTerms?: string | null;
-        overrideLegalTerms?: string | null;
-        legalDpa?: string | null;
-        overrideLegalDpa?: string | null;
-        legalOther?: string | null;
-        overrideLegalOther?: string | null;
-    };
-    events: Array<{
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-        inputSchema?: string | null;
-        input?: {
-            id: string;
-            input: string;
-            inputHash?: string | null;
-            signature?: string | null;
-        } | null;
-        result?: string | null;
-        blobs: Array<File>;
-        links: Array<Link>;
-    }>;
-    share: JobShare | null;
-};
-
-export type File = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    /**
-     * ID of the job
-     */
-    jobId: string;
-    /**
-     * Source URL of the file
-     */
-    sourceUrl: string;
-    /**
-     * Name of the file
-     */
-    name?: string | null;
-    /**
-     * Status of the file
-     */
-    status: 'PENDING' | 'READY' | 'FAILED';
-    /**
-     * Size in bytes
-     */
-    size?: number | null;
-    /**
-     * MIME type of the file
-     */
-    mimeType?: string | null;
-    /**
-     * Publicly accessible URL of the file
-     */
-    fileUrl?: string | null;
-};
-
-export type Link = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    jobId: string;
-    url: string;
-    title?: string | null;
-};
-
-export type JobShare = {
-    id: string;
-    token: string;
-    allowSearchIndexing: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    jobId: string;
 };
 
 export type GetChatUiMessagesResponseData = {
@@ -1321,7 +1202,7 @@ export type HistoryTaskItem = {
      */
     credits: number | null;
     kind: 'task';
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
      * Project ID for the task, when assigned
      */
@@ -1516,7 +1397,7 @@ export type Organization = {
     createdAt: Date;
     name: string;
     slug: string;
-    logo: string | '' | null;
+    logo?: string | '' | null;
     metadata: {
         url?: string | null;
         invoiceEmail?: string | null;
@@ -1694,6 +1575,10 @@ export type ActiveSubscriptionResponse = {
         periodEnd?: Date | null;
         seats?: number | null;
     } | null;
+};
+
+export type TaskCount = {
+    count: number;
 };
 
 export type User = {
@@ -1884,7 +1769,7 @@ export type ProjectStatsEntry = {
 
 export type ProjectTaskStatusCount = {
     count: number;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
 };
 
 export type ProjectJobStatusCount = {
@@ -1908,6 +1793,125 @@ export type PatchProjectRequest = {
 export type ProjectDeleted = {
     id: string;
     deleted: true;
+};
+
+export type Job = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    completedAt?: Date | null;
+    agentId: string;
+    userId: string;
+    user: UserSummary;
+    organizationId?: string | null;
+    organization?: OrganizationSummary;
+    projectId: string | null;
+    taskId?: string | null;
+    name?: string | null;
+    jobType: 'FREE' | 'PAID';
+    status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
+    credits: number;
+    onChainStatus?: 'FUNDS_LOCKED' | 'FUNDS_OR_DATUM_INVALID' | 'FUNDS_WITHDRAWN' | 'RESULT_SUBMITTED' | 'REFUND_REQUESTED' | 'REFUND_WITHDRAWN' | 'DISPUTED' | 'DISPUTED_WITHDRAWN' | null;
+    onChainTransactionHash?: string | null;
+    result?: string | null;
+    resultHash?: string | null;
+    blockchainIdentifier?: string | null;
+    payByTime?: Date | null;
+    submitResultTime?: Date | null;
+    unlockTime?: Date | null;
+    externalDisputeUnlockTime?: Date | null;
+    sellerVkey?: string | null;
+    input?: string | null;
+    inputHash?: string | null;
+    inputSchema?: string | null;
+    agentJobId: string;
+    identifierFromPurchaser?: string | null;
+    workspace: WorkspaceSummary;
+    agent: {
+        id: string;
+        name: string;
+        overrideName?: string | null;
+        icon?: string | null;
+        image?: string | null;
+        overrideImage?: string | null;
+        legalPrivacyPolicy?: string | null;
+        overrideLegalPrivacyPolicy?: string | null;
+        legalTerms?: string | null;
+        overrideLegalTerms?: string | null;
+        legalDpa?: string | null;
+        overrideLegalDpa?: string | null;
+        legalOther?: string | null;
+        overrideLegalOther?: string | null;
+    };
+    events: Array<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: 'INITIATED' | 'AWAITING_PAYMENT' | 'AWAITING_INPUT' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+        inputSchema?: string | null;
+        input?: {
+            id: string;
+            input: string;
+            inputHash?: string | null;
+            signature?: string | null;
+        } | null;
+        result?: string | null;
+        blobs: Array<File>;
+        links: Array<Link>;
+    }>;
+    share: JobShare | null;
+};
+
+export type File = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    /**
+     * ID of the job
+     */
+    jobId: string;
+    /**
+     * Source URL of the file
+     */
+    sourceUrl: string;
+    /**
+     * Name of the file
+     */
+    name?: string | null;
+    /**
+     * Status of the file
+     */
+    status: 'PENDING' | 'READY' | 'FAILED';
+    /**
+     * Size in bytes
+     */
+    size?: number | null;
+    /**
+     * MIME type of the file
+     */
+    mimeType?: string | null;
+    /**
+     * Publicly accessible URL of the file
+     */
+    fileUrl?: string | null;
+};
+
+export type Link = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    jobId: string;
+    url: string;
+    title?: string | null;
+};
+
+export type JobShare = {
+    id: string;
+    token: string;
+    allowSearchIndexing: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    jobId: string;
 };
 
 export type JobInput = {
@@ -1976,7 +1980,7 @@ export type PublicSharedTask = {
     updatedAt: Date;
     name: string;
     description?: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     coworker?: PublicSharedTaskCoworker;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
@@ -2004,7 +2008,7 @@ export type PublicSharedTaskMilestone = {
     createdAt: Date;
     updatedAt: Date;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -2128,7 +2132,7 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -5676,1078 +5680,6 @@ export type PostAgentsByIdJobsResponses = {
 };
 
 export type PostAgentsByIdJobsResponse = PostAgentsByIdJobsResponses[keyof PostAgentsByIdJobsResponses];
-
-export type PostAgentsByIdDemoJobsData = {
-    body?: {
-        inputSchema: {
-            input_data: Array<{
-                id: string;
-                type: 'none';
-                name: string;
-                data?: {
-                    description?: string | null;
-                } | null;
-            } | {
-                id: string;
-                type: 'string';
-                name: string;
-                data?: {
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                } | {
-                    validation: 'format';
-                    value: 'url';
-                } | {
-                    validation: 'format';
-                    value: 'email';
-                }> | null;
-            } | {
-                id: string;
-                type: 'text';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                } | {
-                    validation: 'format';
-                    value: 'url';
-                } | {
-                    validation: 'format';
-                    value: 'email';
-                }> | null;
-            } | {
-                id: string;
-                type: 'textarea';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                }> | null;
-            } | {
-                id: string;
-                type: 'number';
-                name: string;
-                data?: {
-                    default?: number | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'integer';
-                }> | null;
-            } | {
-                id: string;
-                type: 'boolean';
-                name: string;
-                data?: {
-                    default?: boolean | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                }> | null;
-            } | {
-                id: string;
-                type: 'email';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                } | {
-                    validation: 'format';
-                    value: 'email';
-                }> | null;
-            } | {
-                id: string;
-                type: 'password';
-                name: string;
-                data?: {
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                }> | null;
-            } | {
-                id: string;
-                type: 'tel';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'tel_pattern';
-                }> | null;
-            } | {
-                id: string;
-                type: 'url';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                } | {
-                    validation: 'format';
-                    value: 'url';
-                }> | null;
-            } | {
-                id: string;
-                type: 'date';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'datetime-local';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'time';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'month';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'week';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'color';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                }> | null;
-            } | {
-                id: string;
-                type: 'range';
-                name: string;
-                data?: {
-                    description?: string | null;
-                    step?: number | null;
-                    default?: number | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'file';
-                name: string;
-                data: {
-                    description?: string | null;
-                    outputFormat: 'url';
-                };
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'accept';
-                    value: string;
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'hidden';
-                name: string;
-                data?: {
-                    value?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                }> | null;
-            } | {
-                id: string;
-                type: 'search';
-                name: string;
-                data?: {
-                    default?: string | null;
-                    placeholder?: string | null;
-                    description?: string | null;
-                } | null;
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'format';
-                    value: 'nonempty';
-                }> | null;
-            } | {
-                id: string;
-                type: 'checkbox';
-                name: string;
-                data: {
-                    label?: string | null;
-                    description?: string | null;
-                    default?: boolean | null;
-                };
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                }> | null;
-            } | {
-                id: string;
-                type: 'radio';
-                name: string;
-                data: {
-                    default?: string | null;
-                    values: Array<string>;
-                    description?: string | null;
-                };
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'option';
-                name: string;
-                data: {
-                    values: Array<string>;
-                    placeholder?: string | null;
-                    description?: string | null;
-                };
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            } | {
-                id: string;
-                type: 'multiselect';
-                name: string;
-                data: {
-                    values: Array<string>;
-                    placeholder?: string | null;
-                    description?: string | null;
-                };
-                validations?: Array<{
-                    validation: 'optional';
-                    value: 'true' | 'false';
-                } | {
-                    validation: 'min';
-                    value: number | null | string | null;
-                } | {
-                    validation: 'max';
-                    value: number | null | string | null;
-                }> | null;
-            }>;
-        } | {
-            input_groups: Array<{
-                id: string;
-                title: string;
-            } & {
-                input_data: Array<{
-                    id: string;
-                    type: 'none';
-                    name: string;
-                    data?: {
-                        description?: string | null;
-                    } | null;
-                } | {
-                    id: string;
-                    type: 'string';
-                    name: string;
-                    data?: {
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    } | {
-                        validation: 'format';
-                        value: 'url';
-                    } | {
-                        validation: 'format';
-                        value: 'email';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'text';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    } | {
-                        validation: 'format';
-                        value: 'url';
-                    } | {
-                        validation: 'format';
-                        value: 'email';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'textarea';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'number';
-                    name: string;
-                    data?: {
-                        default?: number | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'integer';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'boolean';
-                    name: string;
-                    data?: {
-                        default?: boolean | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'email';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    } | {
-                        validation: 'format';
-                        value: 'email';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'password';
-                    name: string;
-                    data?: {
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'tel';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'tel_pattern';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'url';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    } | {
-                        validation: 'format';
-                        value: 'url';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'date';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'datetime-local';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'time';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'month';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'week';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'color';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'range';
-                    name: string;
-                    data?: {
-                        description?: string | null;
-                        step?: number | null;
-                        default?: number | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'file';
-                    name: string;
-                    data: {
-                        description?: string | null;
-                        outputFormat: 'url';
-                    };
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'accept';
-                        value: string;
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'hidden';
-                    name: string;
-                    data?: {
-                        value?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'search';
-                    name: string;
-                    data?: {
-                        default?: string | null;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    } | null;
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'format';
-                        value: 'nonempty';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'checkbox';
-                    name: string;
-                    data: {
-                        label?: string | null;
-                        description?: string | null;
-                        default?: boolean | null;
-                    };
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'radio';
-                    name: string;
-                    data: {
-                        default?: string | null;
-                        values: Array<string>;
-                        description?: string | null;
-                    };
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'option';
-                    name: string;
-                    data: {
-                        values: Array<string>;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    };
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                } | {
-                    id: string;
-                    type: 'multiselect';
-                    name: string;
-                    data: {
-                        values: Array<string>;
-                        placeholder?: string | null;
-                        description?: string | null;
-                    };
-                    validations?: Array<{
-                        validation: 'optional';
-                        value: 'true' | 'false';
-                    } | {
-                        validation: 'min';
-                        value: number | null | string | null;
-                    } | {
-                        validation: 'max';
-                        value: number | null | string | null;
-                    }> | null;
-                }>;
-            }>;
-        };
-        inputData: {
-            [key: string]: string | number | boolean | Array<string> | Array<number>;
-        };
-        /**
-         * The demo result markdown returned by the agent for the completed demo run.
-         */
-        result?: string | null;
-    };
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
-         */
-        'X-Delegation-User-Id'?: string;
-        /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
-         */
-        'X-Delegation-Organization-Id'?: string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/agents/{id}/demo-jobs';
-};
-
-export type PostAgentsByIdDemoJobsErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Agent not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostAgentsByIdDemoJobsError = PostAgentsByIdDemoJobsErrors[keyof PostAgentsByIdDemoJobsErrors];
-
-export type PostAgentsByIdDemoJobsResponses = {
-    /**
-     * Demo job created successfully
-     */
-    201: {
-        data: Job;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostAgentsByIdDemoJobsResponse = PostAgentsByIdDemoJobsResponses[keyof PostAgentsByIdDemoJobsResponses];
 
 export type GetCategoriesData = {
     body?: never;
@@ -13166,6 +12098,114 @@ export type GetUsersByIdSubscriptionResponses = {
 
 export type GetUsersByIdSubscriptionResponse = GetUsersByIdSubscriptionResponses[keyof GetUsersByIdSubscriptionResponses];
 
+export type GetUsersByIdTasksCountData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Count scope. Defaults to 'workspace' (active workspace only). Use 'all' to count non-archived tasks owned by the user across every workspace.
+         */
+        scope?: 'workspace' | 'all';
+    };
+    url: '/users/{id}/tasks/count';
+};
+
+export type GetUsersByIdTasksCountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdTasksCountError = GetUsersByIdTasksCountErrors[keyof GetUsersByIdTasksCountErrors];
+
+export type GetUsersByIdTasksCountResponses = {
+    /**
+     * Retrieve the user's task count
+     */
+    200: {
+        data: TaskCount;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdTasksCountResponse = GetUsersByIdTasksCountResponses[keyof GetUsersByIdTasksCountResponses];
+
 export type GetUsersByIdData = {
     body?: never;
     path: {
@@ -18072,7 +17112,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
+        status?: Array<'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -19152,7 +18192,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+        status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
         /**

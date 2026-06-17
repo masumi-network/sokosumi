@@ -9,16 +9,13 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { AgentsNotAvailable } from "@/components/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
-import {
-  mapCoreAgentRatingStatsMap,
-  mapCoreAgentsToAgentWithCreditsPrice,
-  mapCoreCategoriesToCategories,
-} from "@/lib/agents/core-dto-mappers";
+import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents } from "@/lib/agents/core-loaders";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
+import { getAgentRatingStatsMap } from "@/lib/types/core-dto";
 
 import FilteredAgents from "./components/filtered-agents";
 
@@ -39,23 +36,24 @@ export default async function GalleryPage() {
       coworkerService.listCoworkers(),
       getSession(),
     ]);
-  const agentsWithPrice = mapCoreAgentsToAgentWithCreditsPrice(coreAgents);
 
-  if (!agentsWithPrice.length) {
+  if (!coreAgents.length) {
     return <AgentsNotAvailable />;
   }
 
   const categories = mapCoreCategoriesToCategories(categoriesResponse.data);
-  const ratingStatsMap = mapCoreAgentRatingStatsMap(coreAgents);
+  const ratingStatsMap = getAgentRatingStatsMap(coreAgents);
   const t = await getTranslations("App.Agents");
 
   // Wiring for the create-task modal so a task can be started in place from the
-  // coworker gallery (no navigation to /tasks, picker step pre-skipped).
+  // coworker gallery (no navigation to /tasks, picker step pre-skipped). All
+  // data still flows from the Core API — coworkers via coworkerService,
+  // agent names from Core agents, design.md via its service.
   const initialDesignMdAttachment = session?.user.id
     ? await designMdService.resolveEffectiveDesignMd()
     : null;
   const coworkerOptions = getCoworkerOptions(coworkers);
-  const agentNameById = buildAgentNameById(agentsWithPrice);
+  const agentNameById = buildAgentNameById(coreAgents);
 
   return (
     <div className="w-full">
@@ -64,7 +62,7 @@ export default async function GalleryPage() {
         <CreateTaskModalProvider>
           <CoworkerGallerySection
             coworkers={coworkers}
-            agentCount={agentsWithPrice.length}
+            agentCount={coreAgents.length}
           />
           <CreateTaskModal
             coworkerOptions={coworkerOptions}
@@ -79,7 +77,7 @@ export default async function GalleryPage() {
             {t("allAgentsTitle")}
           </h2>
           <FilteredAgents
-            agents={agentsWithPrice}
+            agents={coreAgents}
             ratingStatsMap={ratingStatsMap}
             categories={categories}
           />

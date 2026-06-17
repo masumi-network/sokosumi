@@ -53,7 +53,6 @@ describe("SignUp page", () => {
       get: getMock,
     });
     getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_URL: "https://feature-123.preview.sokosumi.com/auth",
       NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "feature/123",
       VERCEL_BRANCH_URL: "",

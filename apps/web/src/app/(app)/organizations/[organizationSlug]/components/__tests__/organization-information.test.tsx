@@ -1,8 +1,11 @@
-import type { Member, Organization } from "@sokosumi/database";
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type {
+  MemberRecord,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 import OrganizationInformation from "../organization-information";
 
@@ -96,8 +99,8 @@ vi.mock("@/lib/services/design-md.service", () => ({
 }));
 
 function createOrganization(
-  overrides: Partial<Organization>,
-): Organization & { _count: { members: number } } {
+  overrides: Partial<OrganizationRecord>,
+): OrganizationRecord {
   return {
     id: "org_1",
     name: "Acme",
@@ -106,12 +109,11 @@ function createOrganization(
     metadata: null,
     stripeCustomerId: null,
     createdAt: new Date("2026-04-15T10:00:00.000Z"),
-    _count: { members: 3 },
     ...overrides,
   };
 }
 
-function createMember(overrides: Partial<Member>): Member {
+function createMember(overrides: Partial<MemberRecord>): MemberRecord {
   return {
     id: "member_1",
     userId: "user_1",

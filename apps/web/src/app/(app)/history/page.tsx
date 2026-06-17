@@ -13,7 +13,7 @@ import {
 } from "@/app/history/utils/history-filters";
 import { buildHistoryBucketLookups } from "@/app/history/utils/history-row-subtitle.server";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { historyService } from "@/lib/services/history.service";
 
@@ -73,6 +73,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
     [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
     [TaskStatus.READY]: t("Filters.statusOptions.READY"),
     [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
+    [TaskStatus.APPROVAL_REQUIRED]: t(
+      "Filters.statusOptions.APPROVAL_REQUIRED",
+    ),
     [TaskStatus.AUTHENTICATION_REQUIRED]: t(
       "Filters.statusOptions.AUTHENTICATION_REQUIRED",
     ),

@@ -1,16 +1,17 @@
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
 export {};
 
-const createInvitationMock = vi.fn();
+const inviteOrganizationMemberViaCoreMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const headersMock = vi.fn();
 const syncOrganizationInvoiceEmailWithStripeMock = vi.fn();
 const updateOrganizationInvoiceEmailMock = vi.fn();
+const setMyPreferredOrganizationMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
   kind?: string;
@@ -29,6 +30,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     updateOrganizationInvoiceEmail: (...args: unknown[]) =>
       updateOrganizationInvoiceEmailMock(...args),
+    setMyPreferredOrganization: (...args: unknown[]) =>
+      setMyPreferredOrganizationMock(...args),
   },
 }));
 
@@ -43,12 +46,9 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      createInvitation: (...args: unknown[]) => createInvitationMock(...args),
-    },
-  },
+vi.mock("@/lib/auth/core-auth-http.server", () => ({
+  inviteOrganizationMemberViaCore: (...args: unknown[]) =>
+    inviteOrganizationMemberViaCoreMock(...args),
 }));
 
 vi.mock("@/lib/services/user.service", () => ({
@@ -60,10 +60,6 @@ vi.mock("@/lib/services/user.service", () => ({
 
 vi.mock("next/headers", () => ({
   headers: () => headersMock(),
-}));
-
-vi.mock("@/lib/services/preferred-organization.service", () => ({
-  preferredOrganizationService: {},
 }));
 
 vi.mock("@/lib/services/stripe.service", () => ({
@@ -82,9 +78,9 @@ const session = {
 describe("organization actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createInvitationMock.mockResolvedValue({});
+    inviteOrganizationMemberViaCoreMock.mockResolvedValue(undefined);
     getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_ORG_INVITATION_LIMIT: 100,
+      ORG_INVITATION_LIMIT: 100,
     });
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.ADMIN,
@@ -113,15 +109,12 @@ describe("organization actions", () => {
       },
     });
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledWith("org-1");
-    expect(createInvitationMock).toHaveBeenCalledTimes(3);
-    expect(createInvitationMock).toHaveBeenNthCalledWith(1, {
-      body: {
-        email: "first@example.com",
-        organizationId: "org-1",
-        resend: true,
-        role: MemberRole.MEMBER,
-      },
-      headers: expect.any(Headers),
+    expect(inviteOrganizationMemberViaCoreMock).toHaveBeenCalledTimes(3);
+    expect(inviteOrganizationMemberViaCoreMock).toHaveBeenNthCalledWith(1, {
+      email: "first@example.com",
+      organizationId: "org-1",
+      resend: true,
+      role: MemberRole.MEMBER,
     });
   });
 
@@ -129,7 +122,7 @@ describe("organization actions", () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    createInvitationMock
+    inviteOrganizationMemberViaCoreMock
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("invite failed"));
     const { inviteOrganizationMembersBulk } = await import("../action");
@@ -170,7 +163,7 @@ describe("organization actions", () => {
         message: "You are not a member of this organization",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
   });
 
   it("rejects members without owner or admin permissions", async () => {
@@ -192,7 +185,7 @@ describe("organization actions", () => {
         message: "Only organization owners and admins can invite members",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
   });
 
   it("rejects empty or invalid email input", async () => {
@@ -218,12 +211,12 @@ describe("organization actions", () => {
       },
     });
     expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
   });
 
   it("rejects batches over the invitation limit", async () => {
     getEnvSecretsMock.mockReturnValue({
-      BETTER_AUTH_ORG_INVITATION_LIMIT: 1,
+      ORG_INVITATION_LIMIT: 1,
     });
     const { inviteOrganizationMembersBulk } = await import("../action");
 
@@ -241,7 +234,7 @@ describe("organization actions", () => {
       },
     });
     expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
   });
 
   it("maps membership lookup failures to INTERNAL_SERVER_ERROR", async () => {
@@ -265,7 +258,7 @@ describe("organization actions", () => {
         code: "INTERNAL_SERVER_ERROR",
       },
     });
-    expect(createInvitationMock).not.toHaveBeenCalled();
+    expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
   });
@@ -429,5 +422,84 @@ describe("updateOrganizationInvoiceEmail", () => {
       }),
     ).rejects.toThrow("Internal Server Error");
     expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("updatePreferredOrganization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("sets the preferred organization via Core", async () => {
+    setMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: "org-1" },
+    });
+    const { updatePreferredOrganization } = await import("../action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: "org-1",
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { organizationId: "org-1" },
+    });
+    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
+  });
+
+  it("clears the preferred organization when null is provided", async () => {
+    setMyPreferredOrganizationMock.mockResolvedValue({
+      data: { organizationId: null },
+    });
+    const { updatePreferredOrganization } = await import("../action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: null,
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { organizationId: null },
+    });
+    expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith(null);
+  });
+
+  it("maps the organization_membership_required kind to UNAUTHORIZED", async () => {
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new MockCoreApiRequestError("Membership check failed", {
+        kind: "organization_membership_required",
+        status: 403,
+      }),
+    );
+    const { updatePreferredOrganization } = await import("../action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: "org-1",
+      session,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "You are not a member of this organization",
+      },
+    });
+  });
+
+  it("rethrows unexpected Core errors", async () => {
+    setMyPreferredOrganizationMock.mockRejectedValue(
+      new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
+    );
+    const { updatePreferredOrganization } = await import("../action");
+
+    await expect(
+      updatePreferredOrganization({
+        organizationId: "org-1",
+        session,
+      }),
+    ).rejects.toThrow("Internal Server Error");
   });
 });

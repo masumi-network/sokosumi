@@ -52,10 +52,19 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
+  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce
+    .number()
+    .min(1000)
+    .default(1000 * 10), // 10 seconds
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
     .number()
     .min(0)
     .default(60 * 5), // 5 minutes
+  BETTER_AUTH_RP_ID: z.string().min(1).default("localhost"),
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  MICROSOFT_CLIENT_ID: z.string().min(1),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1),
   POSTMARK_SERVER_ID: z.string().min(1),
   POSTMARK_FROM_EMAIL: z.email(),
 
@@ -107,7 +116,8 @@ const envSchema = z.object({
   // 100%-off coupon used to issue admin credit grants free of charge
   STRIPE_SUPPORT_COUPON: z.string().min(1),
 
-  // Signing secret for core's own Stripe webhook endpoint (POST /webhooks/stripe)
+  // Signing secret for Stripe webhooks (POST /auth/stripe/webhook). Stripe Dashboard
+  // should send all events here; billing events are handled from auth onEvent.
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 
   // Sync lock configuration

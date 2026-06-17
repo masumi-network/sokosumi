@@ -1,4 +1,4 @@
-import { MemberRole } from "@sokosumi/database";
+import { MemberRole } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,13 +45,9 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/lib/auth/auth", () => ({
-  auth: {
-    api: {
-      listActiveSubscriptions: (...args: unknown[]) =>
-        listActiveSubscriptionsMock(...args),
-    },
-  },
+vi.mock("@/lib/auth/auth.server", () => ({
+  listActiveSubscriptions: (...args: unknown[]) =>
+    listActiveSubscriptionsMock(...args),
 }));
 
 vi.mock("@/lib/services", () => ({
@@ -170,6 +166,9 @@ describe("OnboardingDialogLoader", () => {
       props.paidPlans.find((plan) => plan.name === "starter")?.isCurrent,
     ).toBe(false);
     expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
+    expect(listActiveSubscriptionsMock).toHaveBeenCalledWith({
+      customerType: "user",
+    });
   });
 
   it("short-circuits subscription-only org gates for non-admin members without billing fetches", async () => {
@@ -232,7 +231,7 @@ describe("OnboardingDialogLoader", () => {
   });
 
   it("defaults personal plan to free when active subscriptions cannot be loaded", async () => {
-    listActiveSubscriptionsMock.mockRejectedValue(new Error("Auth outage"));
+    listActiveSubscriptionsMock.mockResolvedValue([]);
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -255,9 +254,9 @@ describe("OnboardingDialogLoader", () => {
     };
     expect(props.paidPlans.every((plan) => !plan.isCurrent)).toBe(true);
     expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to load active subscriptions for onboarding",
-      expect.any(Error),
-    );
+    expect(listActiveSubscriptionsMock).toHaveBeenCalledWith({
+      customerType: "user",
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 });

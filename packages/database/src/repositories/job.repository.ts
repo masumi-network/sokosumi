@@ -14,19 +14,6 @@ import {
 } from "../types/job.js";
 import { creditBucketRepository } from "./credit-bucket.repository.js";
 
-interface CreateDemoJobData {
-  jobType: typeof JobType.DEMO;
-  agentJobId: string;
-  agentId: string;
-  userId: string;
-  organizationId?: string | null;
-  workspaceId: string;
-  inputSchema: InputSchemaSchemaType;
-  input: string;
-  name: string | null;
-  result?: string | null;
-}
-
 interface CreateJobBase {
   agentJobId: string;
   agentId: string;
@@ -78,76 +65,6 @@ export const jobRepository = {
       return null;
     }
     return mapJobWithStatus(job);
-  },
-
-  async createDemoJob(
-    data: CreateDemoJobData,
-    tx: Prisma.TransactionClient,
-  ): Promise<JobWithSokosumiStatus> {
-    const inputSchemaSnapshot = JSON.stringify(data.inputSchema);
-
-    const job = await tx.job.create({
-      data: {
-        agentJobId: data.agentJobId,
-        jobType: JobType.DEMO,
-        agent: {
-          connect: {
-            id: data.agentId,
-          },
-        },
-        user: {
-          connect: {
-            id: data.userId,
-          },
-        },
-        ...(data.organizationId && {
-          organization: {
-            connect: {
-              id: data.organizationId,
-            },
-          },
-        }),
-        workspace: {
-          connect: {
-            id: data.workspaceId,
-          },
-        },
-        events: {
-          create: {
-            status: AgentJobStatus.INITIATED,
-            result: null,
-            inputSchema: inputSchemaSnapshot,
-            input: {
-              create: {
-                input: data.input,
-              },
-            },
-          },
-        },
-        payByTime: null,
-        submitResultTime: null,
-        unlockTime: null,
-        externalDisputeUnlockTime: null,
-        blockchainIdentifier: null,
-        sellerVkey: null,
-        name: data.name,
-      },
-      include: jobInclude,
-    });
-
-    const updatedJob = await tx.job.update({
-      where: { id: job.id },
-      data: {
-        events: {
-          create: {
-            status: AgentJobStatus.COMPLETED,
-            result: data.result,
-          },
-        },
-      },
-      include: jobInclude,
-    });
-    return mapJobWithStatus(updatedJob);
   },
 
   async createJob(
@@ -285,9 +202,6 @@ export const jobRepository = {
       where: {
         userId,
         agentId,
-        jobType: {
-          not: JobType.DEMO,
-        },
         ...jobsFinishedWhereQuery(),
       },
     });
@@ -338,9 +252,4 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
 }
 
 // Export types for use in web app
-export type {
-  CreateDemoJobData,
-  CreateFreeJobData,
-  CreateJobData,
-  CreatePaidJobData,
-};
+export type { CreateFreeJobData, CreateJobData, CreatePaidJobData };

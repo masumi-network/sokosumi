@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -9,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { auth } from "@/lib/auth/auth";
+import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
 
 import { ConsentActions } from "./consent-actions";
 
@@ -51,9 +50,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   // Check if user is authenticated
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!session?.session) {
     const queryString = oauthSearchParams.toString();
@@ -61,24 +58,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   // Fetch public client info for display on consent page
-  let client;
-  try {
-    client = await auth.api.getOAuthClientPublic({
-      query: { client_id },
-      headers: await headers(),
-    });
-  } catch (_error) {
-    return (
-      <div className="container mx-auto max-w-md py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("clientNotFound.title")}</CardTitle>
-            <CardDescription>{t("clientNotFound.description")}</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  const client = await getOAuthClientPublic(client_id);
 
   if (!client) {
     return (

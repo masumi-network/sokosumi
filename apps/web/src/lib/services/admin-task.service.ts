@@ -1,9 +1,8 @@
 import "server-only";
 
-import type { TaskStatus } from "@sokosumi/utils";
-
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
+import type { TaskStatus } from "@/lib/types/core-dto";
 
 /** A task row in the admin task list. */
 export interface AdminTaskListItem {

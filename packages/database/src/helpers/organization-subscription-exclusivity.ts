@@ -1,12 +1,8 @@
 import type { Prisma } from "../generated/prisma/client.js";
-import { memberRepository } from "../repositories/member.repository.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
 
 export const ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE =
   "This organization has an active enterprise contract. Self-serve subscriptions are not available.";
-
-export const PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE =
-  "Personal subscriptions are not available while you belong to an organization with an active enterprise contract.";
 
 export class OrganizationSubscriptionExclusivityError extends Error {
   override readonly name = "OrganizationSubscriptionExclusivityError";
@@ -39,22 +35,5 @@ export async function assertOrganizationSubscriptionChangeAllowed(
     throw new OrganizationSubscriptionExclusivityError(
       ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
     );
-  }
-}
-
-export async function assertPersonalSubscriptionChangeAllowed(
-  userId: string,
-  tx: Prisma.TransactionClient,
-  now: Date = new Date(),
-): Promise<void> {
-  const organizationIds =
-    await memberRepository.getMembersOrganizationIdsByUserId(userId, tx);
-
-  for (const organizationId of organizationIds) {
-    if (await hasConsumableEnterpriseContract(organizationId, tx, now)) {
-      throw new OrganizationSubscriptionExclusivityError(
-        PERSONAL_SUBSCRIPTION_ENTERPRISE_EXCLUSIVITY_MESSAGE,
-      );
-    }
   }
 }

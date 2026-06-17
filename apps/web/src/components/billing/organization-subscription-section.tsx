@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
@@ -124,6 +125,8 @@ export function OrganizationSubscriptionSection({
       }
 
       switch (error.code) {
+        case OrganizationErrorCode.ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE:
+          return t("Errors.enterpriseContractExclusive");
         case CommonErrorCode.BAD_INPUT:
           return t("Errors.badInput");
         case CommonErrorCode.UNAUTHORIZED:

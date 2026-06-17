@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { changeEmail } from "@/lib/auth/auth.client";
+import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import { type EmailFormType, emailFormSchema } from "@/lib/schemas";
 
 export function EmailForm() {
@@ -44,7 +45,7 @@ export function EmailForm() {
   const handleSubmit = async (values: EmailFormType) => {
     const changeEmailResult = await changeEmail({
       newEmail: values.email,
-      callbackURL: "/",
+      callbackURL: getAbsoluteAuthRedirectUrl("/"),
     });
 
     if (changeEmailResult.error) {

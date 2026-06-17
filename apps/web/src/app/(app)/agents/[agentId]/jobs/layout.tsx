@@ -7,15 +7,14 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
-import {
-  createUnavailableAgentWithCreditsPrice,
-  mapCoreAgentMetricsToRatingStats,
-  mapCoreAgentToAgentWithCreditsPrice,
-} from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
+import {
+  createUnavailableCoreAgent,
+  getAgentRatingStats,
+} from "@/lib/types/core-dto";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import JobBottomNavigation from "./components/job-bottom-navigation";
@@ -70,12 +69,10 @@ async function JobLayoutInner({
   const { agentId } = await params;
   const coreAgent = await getCoreAgentById(agentId);
 
-  const agentWithCreditsPrice = coreAgent
-    ? mapCoreAgentToAgentWithCreditsPrice(coreAgent)
-    : createUnavailableAgentWithCreditsPrice(agentId);
+  const agent = coreAgent ?? createUnavailableCoreAgent(agentId);
   const ratingStats = coreAgent
-    ? mapCoreAgentMetricsToRatingStats(coreAgent)
-    : { totalRatings: 0, averageRating: 0 };
+    ? getAgentRatingStats(coreAgent)
+    : { total: 0, average: null };
   const averageExecutionDuration =
     coreAgent?.metrics.executions.averageTime ?? null;
   const disabled = !coreAgent;
@@ -94,13 +91,13 @@ async function JobLayoutInner({
 
   return (
     <CreateJobModalContextProvider
-      agentsWithPrice={[agentWithCreditsPrice]}
+      agentsWithPrice={[agent]}
       averageExecutionDuration={averageExecutionDuration}
       projectOptions={projectOptions}
     >
       <JobsHeaderProvider
         value={{
-          agent: agentWithCreditsPrice,
+          agent,
           ratingStats,
           canRate,
           existingRating,
@@ -128,11 +125,7 @@ async function JobLayoutInner({
             </div>
           </div>
           {modal}
-          <JobBottomNavigation
-            agent={agentWithCreditsPrice}
-            disabled={disabled}
-          />
-          {/* Create Job Modal */}
+          <JobBottomNavigation agent={agent} disabled={disabled} />
           {!disabled && <CreateJobModal />}
         </div>
       </JobsHeaderProvider>

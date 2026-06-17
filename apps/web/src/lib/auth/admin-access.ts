@@ -1,11 +1,10 @@
 import "server-only";
 
+import type { Session } from "@sokosumi/utils";
 import { notFound } from "next/navigation";
-
-import type { Session } from "@/lib/auth/auth";
+import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 
 export { hasAdminRole } from "@/lib/auth/has-admin-role";
 

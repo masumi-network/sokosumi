@@ -12,8 +12,7 @@
  *   computeJobStatus,
  *   mapJobWithStatus,
  *   isPaidJob,
- *   isFreeJob,
- *   isDemoJob
+ *   isFreeJob
  * } from '@sokosumi/database/helpers'
  * ```
  *

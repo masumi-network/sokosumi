@@ -58,8 +58,6 @@ function createMockAgent(overrides: Partial<Agent> = {}): Agent {
     status: "ONLINE",
     isShown: true,
     riskClassification: "MINIMAL",
-    demoInput: null,
-    demoOutput: null,
     summary: null,
     ...overrides,
   };

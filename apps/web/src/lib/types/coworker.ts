@@ -1,4 +1,4 @@
-import type { TaskEventOrigin } from "@sokosumi/database";
+import type { TaskEventOrigin } from "@/lib/types/core-dto";
 
 export interface CoworkerChannel {
   origin: TaskEventOrigin;

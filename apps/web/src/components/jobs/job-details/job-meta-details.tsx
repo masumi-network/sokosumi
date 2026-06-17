@@ -39,11 +39,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
 
       <div className="space-y-3">
         <KeyValueRow label={t("status")}>
-          <JobStatusBadge
-            status={job.status}
-            jobType={job.jobType}
-            className="text-xs"
-          />
+          <JobStatusBadge status={job.status} className="text-xs" />
         </KeyValueRow>
 
         {taskHref ? (

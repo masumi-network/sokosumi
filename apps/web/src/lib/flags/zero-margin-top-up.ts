@@ -1,7 +1,7 @@
 import "server-only";
 
 import { flag } from "flags/next";
-import { getSession } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/auth.server";
 import {
   type CreditTopUpLookupKey,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,

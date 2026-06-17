@@ -37,9 +37,15 @@ import {
 } from "@/components/ui/dialog";
 import { canUseNextImageSrc } from "@/config/next-image";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
-import type { Coworker, CoworkerOffer } from "@/lib/clients/generated/core";
+import type { Coworker } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
+
+// The generated Core barrel exports `Coworker` but not the nested offer type,
+// so derive it from the Coworker DTO (still Core-API sourced, no DB types).
+type CoworkerOffer = NonNullable<
+  NonNullable<Coworker["metadata"]>["offers"]
+>[number];
 
 interface CoworkerGallerySectionProps {
   coworkers: Coworker[];

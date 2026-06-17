@@ -1,6 +1,5 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,7 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-
 import { JobDetails } from "@/components/jobs";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Job } from "@/lib/clients/generated/core";
+import type { Job, MemberWithOrganization } from "@/lib/clients/generated/core";
 
 interface JobDetailsModalProps {
   agentId: string;

@@ -156,7 +156,7 @@ export function ProjectTaskPickerDialog({
                 <span className="truncate">{task.name}</span>
                 <TaskStatusBadge
                   status={task.status as TaskStatus}
-                  className="ml-auto"
+                  className="ml-auto shrink-0"
                 />
               </CommandItem>
             ))}

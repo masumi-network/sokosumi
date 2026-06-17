@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
+import {getExtensionFromUrl, isImageUrl} from "@sokosumi/utils";
 
 export interface FileChipMiniPreviewProps {
   url: string;

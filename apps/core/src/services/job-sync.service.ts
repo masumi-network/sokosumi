@@ -204,7 +204,7 @@ async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
 ): Promise<void> {
-  if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
+  if (!job.user.notificationsOptIn) {
     return;
   }
 
@@ -251,7 +251,7 @@ async function dispatchFinalStatusNotification(
 async function dispatchInputRequiredNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
-  if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
+  if (!job.user.notificationsOptIn) {
     return;
   }
 
@@ -297,10 +297,6 @@ async function dispatchInputRequiredNotification(
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
-  if (job.jobType === JobType.DEMO) {
-    return;
-  }
-
   try {
     const notificationData = buildFailureNotificationData(job);
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
@@ -409,14 +405,14 @@ async function finalizeJobSyncResult(
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      await dispatchFinalStatusNotification(updatedJob, newJobStatus);
+      void dispatchFinalStatusNotification(updatedJob, newJobStatus);
       break;
     case SokosumiJobStatus.INPUT_REQUIRED:
-      await dispatchInputRequiredNotification(updatedJob);
+      void dispatchInputRequiredNotification(updatedJob);
       break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      await dispatchJobFailureNotification(updatedJob);
+      void dispatchJobFailureNotification(updatedJob);
       break;
     default:
       break;
