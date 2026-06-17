@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Aucun agent disponible",
       "agentsNotFound": "Aucun agent trouvé",
       "hire": "Engager un agent",
-      "freeDemo": "Démo gratuite",
       "AgentCard": {
         "view": "Voir les détails",
         "pricing": "{price, plural, =0 {Gratuit} =1 {1 crédit} other {# crédits}}"
@@ -261,7 +260,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Démo",
         "started": "Démarré",
         "completed": "Terminé",
         "failed": "Échec",
@@ -3281,7 +3279,6 @@
         },
         "CreateJob": {
           "title": "Nouveau {name}",
-          "demo": "Démo",
           "cancel": "Annuler",
           "Information": {
             "title": "Informations"
@@ -3542,8 +3539,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Impossible de récupérer le schéma d’entrée du job",
-        "demoDataInvalid": "Les données de démo de l’agent sont invalides."
+        "failedToFetchJobInputSchema": "Impossible de récupérer le schéma d’entrée du job"
       }
     },
     "Duration": {

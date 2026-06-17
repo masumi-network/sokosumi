@@ -194,25 +194,6 @@ type BaseFreeJob = {
   onChainTransactionStatus: null;
 };
 
-type BaseDemoJob = {
-  jobType: typeof JobType.DEMO;
-  transaction: null;
-  transactionId: null;
-  identifierFromPurchaser: null;
-  blockchainIdentifier: null;
-  payByTime: null;
-  submitResultTime: null;
-  unlockTime: null;
-  externalDisputeUnlockTime: null;
-  sellerVkey: null;
-  purchaseId: null;
-  inputHash: null;
-  resultHash: null;
-  onChainStatus: null;
-  onChainTransactionHash: null;
-  onChainTransactionStatus: null;
-};
-
 type BasePaidJob = {
   jobType: typeof JobType.PAID;
   transaction: Transaction;
@@ -227,8 +208,6 @@ type BasePaidJob = {
 };
 
 export type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
-
-export type DemoJobWithStatus = Override<BaseJobWithStatus, BaseDemoJob>;
 
 export type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
 
@@ -249,7 +228,4 @@ export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.FAILED,
 ];
 
-export type JobWithSokosumiStatus =
-  | FreeJobWithStatus
-  | PaidJobWithStatus
-  | DemoJobWithStatus;
+export type JobWithSokosumiStatus = FreeJobWithStatus | PaidJobWithStatus;

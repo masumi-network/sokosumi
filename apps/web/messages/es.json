@@ -80,7 +80,6 @@
       "agentsNotAvailable": "No hay Agents disponibles",
       "agentsNotFound": "No se encontraron Agents",
       "hire": "Contratar Agent",
-      "freeDemo": "Demo gratuita",
       "AgentCard": {
         "view": "Ver detalles",
         "pricing": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
@@ -261,7 +260,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Demo",
         "started": "Iniciado",
         "completed": "Completado",
         "failed": "Fallido",
@@ -3250,7 +3248,6 @@
         },
         "CreateJob": {
           "title": "Nuevo {name}",
-          "demo": "Demo",
           "cancel": "Cancelar",
           "Information": {
             "title": "Información"
@@ -3542,8 +3539,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "No se pudo obtener el esquema de Input del job",
-        "demoDataInvalid": "Los datos de demo del Agent no son válidos."
+        "failedToFetchJobInputSchema": "No se pudo obtener el esquema de Input del job"
       }
     },
     "Duration": {

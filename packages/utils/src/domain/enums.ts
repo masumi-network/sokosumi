@@ -37,7 +37,6 @@ export type BlobStatus = (typeof BlobStatus)[keyof typeof BlobStatus];
 export const JobType = {
   FREE: "FREE",
   PAID: "PAID",
-  DEMO: "DEMO",
 } as const;
 
 export type JobType = (typeof JobType)[keyof typeof JobType];

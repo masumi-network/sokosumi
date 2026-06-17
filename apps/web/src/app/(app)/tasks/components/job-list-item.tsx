@@ -40,11 +40,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
   const coworkerImage = job.coworker?.image ?? null;
   const href = `/agents/${job.agentId}/jobs/${job.id}`;
   const statusBadge = (
-    <JobStatusBadge
-      status={job.status}
-      jobType={job.jobType}
-      className="shrink-0"
-    />
+    <JobStatusBadge status={job.status} className="shrink-0" />
   );
 
   const agentCell = (

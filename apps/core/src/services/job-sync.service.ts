@@ -204,7 +204,7 @@ async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
 ): Promise<void> {
-  if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
+  if (!job.user.notificationsOptIn) {
     return;
   }
 
@@ -251,7 +251,7 @@ async function dispatchFinalStatusNotification(
 async function dispatchInputRequiredNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
-  if (job.jobType === JobType.DEMO || !job.user.notificationsOptIn) {
+  if (!job.user.notificationsOptIn) {
     return;
   }
 
@@ -297,10 +297,6 @@ async function dispatchInputRequiredNotification(
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
-  if (job.jobType === JobType.DEMO) {
-    return;
-  }
-
   try {
     const notificationData = buildFailureNotificationData(job);
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;

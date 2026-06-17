@@ -65,14 +65,12 @@ export function TaskJobs({
               channelName={channelName}
               jobId={job.id}
               initialStatus={job.status as SokosumiJobStatus}
-              jobType={job.jobType}
               className="shrink-0"
             />
           </TaskJobStatusChannelProvider>
         ) : (
           <JobStatusBadge
             status={job.status as SokosumiJobStatus}
-            jobType={job.jobType}
             className="shrink-0"
           />
         );

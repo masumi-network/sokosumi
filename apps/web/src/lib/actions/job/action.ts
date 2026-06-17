@@ -19,7 +19,6 @@ import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
   JOB_NAME_MAX_LENGTH,
   type JobDetailsNameFormSchemaType,
-  type JobStatusResponseSchemaType,
   jobDetailsNameFormSchema,
   type ProvideJobInputSchemaType,
   provideJobInputSchema,
@@ -33,11 +32,6 @@ import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
-
-interface StartDemoJobParameters extends AuthenticatedRequest {
-  input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">;
-  jobStatusResponse: JobStatusResponseSchemaType;
-}
 
 const ZERO_ACCEPTED_CENTS = BigInt(0);
 
@@ -220,34 +214,6 @@ function mapCoreStartJobError(error: CoreApiRequestError): ActionError {
     code: JobErrorCode.AGENT_JOB_START_FAILED,
   };
 }
-
-export const startDemoJob = withSession<
-  StartDemoJobParameters,
-  Result<{ jobId: string }, ActionError>
->(async ({ input, jobStatusResponse, session }) => {
-  const userId = session.user.id;
-
-  const inputDataForService: StartJobInputSchemaType = {
-    ...input,
-    userId,
-    maxAcceptedCents: BigInt(0),
-  };
-
-  // Validation
-  const parsedResult = startJobInputSchema.safeParse(inputDataForService);
-  if (!parsedResult.success) {
-    console.error(`Failed to start demo job: ${parsedResult.error}`);
-
-    return Err({
-      message: "Bad Input",
-      code: CommonErrorCode.BAD_INPUT,
-    });
-  }
-  const parsed = parsedResult.data;
-
-  const job = await jobService.startDemoJob(parsed, jobStatusResponse);
-  return Ok({ jobId: job.id });
-});
 
 interface StartJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;
