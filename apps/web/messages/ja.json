@@ -2355,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "チャット",
+          "search": "検索",
           "exploreAgents": "エージェント",
           "filesAndOutputs": "ファイルと出力",
           "taskManager": "タスク",
@@ -2364,6 +2365,14 @@
           "admin": "管理"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "検索",
+      "description": "タスク、ジョブ、会話を検索",
+      "searchPlaceholder": "検索...",
+      "empty": "結果が見つかりませんでした",
+      "loading": "読み込み中...",
+      "error": "結果の読み込みに失敗しました"
     },
     "NoticeDialog": {
       "defaultTitle": "お知らせ",

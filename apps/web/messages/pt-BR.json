@@ -2355,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Pesquisar",
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Arquivos e saídas",
           "taskManager": "Tarefas",
@@ -2364,6 +2365,14 @@
           "admin": "Administração"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Pesquisar",
+      "description": "Pesquisar tarefas, trabalhos ou conversas",
+      "searchPlaceholder": "Pesquisar...",
+      "empty": "Nenhum resultado encontrado",
+      "loading": "Carregando...",
+      "error": "Falha ao carregar os resultados"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

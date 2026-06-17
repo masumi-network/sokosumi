@@ -2366,6 +2366,7 @@
         },
         "MenuItems": {
           "chat": "Chat",
+          "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
@@ -2375,6 +2376,14 @@
           "admin": "Admin"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "Search",
+      "description": "Search for tasks, jobs, or conversations",
+      "searchPlaceholder": "Search...",
+      "empty": "No results found",
+      "loading": "Loading...",
+      "error": "Failed to load results"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",
