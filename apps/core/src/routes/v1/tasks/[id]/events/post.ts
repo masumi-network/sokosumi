@@ -374,10 +374,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (taskWithRelations) {
-        void dispatchTaskNotification(
-          taskWithRelations,
-          event.id,
-          event.status,
+        waitUntil(
+          dispatchTaskNotification(taskWithRelations, event.id, event.status),
         );
       }
     }
