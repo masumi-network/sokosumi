@@ -1,13 +1,6 @@
-import { JobType, SokosumiJobStatus } from "@sokosumi/utils";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 
-export function getJobStatusBadgeLabelKey(
-  status: SokosumiJobStatus,
-  jobType?: JobType,
-) {
-  if (jobType === JobType.DEMO) {
-    return "demo";
-  }
-
+export function getJobStatusBadgeLabelKey(status: SokosumiJobStatus) {
   switch (status) {
     case SokosumiJobStatus.COMPLETED:
       return "completed";

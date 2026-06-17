@@ -1,17 +1,9 @@
-import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import type { AgentExampleOutput } from "@/lib/clients/generated/core";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
-import { jobInputsFormSchema } from "@/lib/job-input/form";
-import { jobStatusResponseSchema } from "@/lib/schemas";
 import { categoryStylesSchema } from "@/lib/schemas/category";
-import { flattenInputs } from "@/lib/schemas/job";
-import type {
-  AgentDemoData,
-  AgentDemoValues,
-  AgentLegal,
-} from "@/lib/types/agent";
+import type { AgentLegal } from "@/lib/types/agent";
 import type { CategoryStyles } from "@/lib/types/category";
 import { type CoreAgentDto, isCoreAgentDetail } from "@/lib/types/core-dto";
 
@@ -196,53 +188,6 @@ export function getAgentResolvedExampleOutputUrl(
   exampleOutput: AgentExampleOutput,
 ): string {
   return resolveIpfsOrHttpUrl(exampleOutput.url);
-}
-
-export function getAgentDemoValues(
-  agent: CoreAgentDto,
-  inputSchema: InputSchemaSchemaType,
-): AgentDemoValues | null {
-  const demoData = getAgentDemoData(agent);
-  if (!demoData) {
-    return null;
-  }
-
-  try {
-    const flatInputs = flattenInputs(inputSchema);
-
-    const inputParsedResult = jobInputsFormSchema(flatInputs).safeParse(
-      JSON.parse(demoData.demoInput),
-    );
-    if (!inputParsedResult.success) {
-      console.error(
-        "Failed to parse agent demo input",
-        inputParsedResult.error,
-      );
-      return null;
-    }
-
-    const outputParsedResult = jobStatusResponseSchema.safeParse(
-      JSON.parse(demoData.demoOutput),
-    );
-    if (!outputParsedResult.success) {
-      console.error(
-        "Failed to parse agent demo output",
-        outputParsedResult.error,
-      );
-      return null;
-    }
-
-    return { input: inputParsedResult.data, output: outputParsedResult.data };
-  } catch (error) {
-    console.error("Failed to parse agent demo values", error);
-    return null;
-  }
-}
-
-export function getAgentDemoData(_agent: CoreAgentDto): AgentDemoData | null {
-  // The Core API does not expose agent demo input/output, so demo data is
-  // unavailable. The demo feature is slated for full removal as a follow-up.
-  return null;
 }
 
 const DEFAULT_CATEGORY_STYLES: CategoryStyles = {

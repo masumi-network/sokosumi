@@ -14,8 +14,6 @@ type JobWithSettlementFields = Pick<
 
 export function isJobSettled(job: JobWithSettlementFields): boolean {
   switch (job.jobType) {
-    case JobType.DEMO:
-      return true;
     case JobType.FREE:
       return job.completedAt != null;
     case JobType.PAID:

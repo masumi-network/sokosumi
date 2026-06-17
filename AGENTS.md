@@ -269,6 +269,7 @@ docs(readme): update setup instructions
 
 ### Code Changes
 
+- **Prioritize maintainability** over short-term wins — see [maintainability](.cursor/rules/maintainability.mdc)
 - Prefer editing existing files over creating new ones
 - Use semantic search to understand codebase before making changes
 - Follow the three-layer architecture pattern
@@ -319,6 +320,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Additional Rules
 
+- [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
 - [Linting](.cursor/rules/lint.mdc)
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)

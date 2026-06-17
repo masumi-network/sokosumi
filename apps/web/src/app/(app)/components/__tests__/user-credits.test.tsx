@@ -107,6 +107,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -128,6 +129,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -149,6 +151,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -166,6 +169,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -192,6 +196,7 @@ describe("UserCredits", () => {
       showAvatar: true,
       showCtaButtons: false,
       showCreditUsage: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);
@@ -210,6 +215,7 @@ describe("UserCredits", () => {
       organizationName: null,
       session,
       showAvatar: false,
+      lowCreditsThreshold: 100,
     });
 
     render(view);

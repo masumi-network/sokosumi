@@ -80,7 +80,6 @@
       "agentsNotAvailable": "Aucun agent disponible",
       "agentsNotFound": "Aucun agent trouvé",
       "hire": "Engager un agent",
-      "freeDemo": "Démo gratuite",
       "AgentCard": {
         "view": "Voir les détails",
         "pricing": "{price, plural, =0 {Gratuit} =1 {1 crédit} other {# crédits}}"
@@ -134,6 +133,7 @@
       "expandSidebar": "Développer la barre latérale",
       "logout": "Se déconnecter",
       "creditsUsedOfTotal": "{used, number} / {total, number} crédits utilisés",
+      "lowCreditsLabel": "Crédits faibles {credits, number}",
       "totalBalanceLabel": "Solde total",
       "creditsSummary": "Résumé des crédits :",
       "monthlyUsageLimit": "Limite d’utilisation mensuelle",
@@ -261,7 +261,6 @@
     },
     "Jobs": {
       "StatusBadge": {
-        "demo": "Démo",
         "started": "Démarré",
         "completed": "Terminé",
         "failed": "Échec",
@@ -3281,7 +3280,6 @@
         },
         "CreateJob": {
           "title": "Nouveau {name}",
-          "demo": "Démo",
           "cancel": "Annuler",
           "Information": {
             "title": "Informations"
@@ -3542,8 +3540,7 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Impossible de récupérer le schéma d’entrée du job",
-        "demoDataInvalid": "Les données de démo de l’agent sont invalides."
+        "failedToFetchJobInputSchema": "Impossible de récupérer le schéma d’entrée du job"
       }
     },
     "Duration": {

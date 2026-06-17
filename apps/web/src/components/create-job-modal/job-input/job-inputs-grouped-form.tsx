@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
-import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
+import type { AgentLegal } from "@/lib/types/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { getAgentCreditsCents } from "@/lib/types/core-dto";
 import { cn, formatDuration } from "@/lib/utils";
@@ -49,7 +49,6 @@ interface StandardModeProps extends CommonGroupedFormProps {
   agent: CoreAgentDto;
   averageExecutionDuration: number | null;
   inputSchema: InputSchemaSchemaType;
-  demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   customOnSubmit?: undefined;
   customRenderGroupFooter?: undefined;
@@ -69,7 +68,6 @@ interface CustomModeProps extends CommonGroupedFormProps {
   agent?: undefined;
   averageExecutionDuration?: undefined;
   inputSchema?: undefined;
-  demoValues?: undefined;
   legal?: undefined;
 }
 
@@ -94,7 +92,6 @@ function JobInputsGroupedFormStandard({
   averageExecutionDuration,
   groups,
   inputSchema,
-  demoValues,
   legal,
   className,
   activeGroupIndex,
@@ -127,14 +124,12 @@ function JobInputsGroupedFormStandard({
   const { handleSubmit } = useJobSubmission({
     agent,
     inputSchema,
-    demoValues,
     projectId,
     setLoading,
     onSuccess: handleClose,
   });
 
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
-  const isDemo = !!demoValues;
 
   const handleGroupNext = useCallback(
     (groupValues: JobInputsFormSchemaType) => {
@@ -191,17 +186,11 @@ function JobInputsGroupedFormStandard({
         ),
       );
 
-      const demoOrDefaults = demoValues
-        ? Object.fromEntries(
-            Object.entries(demoValues.input).filter(([key]) =>
-              groupFieldIds.includes(key),
-            ),
-          )
-        : defaultValues(group.input_data);
+      const defaults = defaultValues(group.input_data);
 
-      return { ...demoOrDefaults, ...fromAccumulated };
+      return { ...defaults, ...fromAccumulated };
     },
-    [groups, collectedGroupValues, demoValues],
+    [groups, collectedGroupValues],
   );
 
   const renderGroupFooter = useCallback(
@@ -223,7 +212,6 @@ function JobInputsGroupedFormStandard({
                 type="reset"
                 variant="secondary"
                 onClick={() => handleGroupClear(groupIndex, formReset)}
-                disabled={isDemo}
               >
                 {t("clear")}
               </Button>
@@ -234,7 +222,7 @@ function JobInputsGroupedFormStandard({
                 {isLast && (
                   <div className="text-muted-foreground text-sm">
                     {t("price", {
-                      price: isDemo ? 0 : formatCreditsForDisplay(credits),
+                      price: formatCreditsForDisplay(credits),
                     })}
                   </div>
                 )}
@@ -251,8 +239,7 @@ function JobInputsGroupedFormStandard({
                         )}
                         {t("submit")}
                       </div>
-                      {!isDemo &&
-                        averageExecutionDuration &&
+                      {averageExecutionDuration &&
                         averageExecutionDuration > 0 && (
                           <span>{`(~${formattedDuration})`}</span>
                         )}
@@ -282,7 +269,6 @@ function JobInputsGroupedFormStandard({
     [
       goBack,
       t,
-      isDemo,
       legal,
       getAgentCreditsCents(agent),
       loading,
@@ -321,7 +307,6 @@ function JobInputsGroupedFormStandard({
           disabled={loading}
           isActive={open && activeGroupIndex === index}
           t={t}
-          inputsDisabled={isDemo}
           preventEnterSubmit={isLast}
         />
       )}

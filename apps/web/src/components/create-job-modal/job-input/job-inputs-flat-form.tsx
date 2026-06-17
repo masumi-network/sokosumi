@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useJobSubmission } from "@/hooks/use-job-submission";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
-import type { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
+import type { AgentLegal } from "@/lib/types/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { getAgentCreditsCents } from "@/lib/types/core-dto";
 import { cn, formatDuration } from "@/lib/utils";
@@ -31,7 +31,6 @@ interface StandardModeProps {
   averageExecutionDuration: number | null;
   flatInputs: InputFieldSchemaType[];
   inputSchema: InputSchemaSchemaType;
-  demoValues: AgentDemoValues | null;
   legal: AgentLegal | null;
   className?: string;
   // Custom mode props should be undefined
@@ -53,7 +52,6 @@ interface CustomModeProps {
   // Standard mode props should be undefined
   agent?: undefined;
   averageExecutionDuration?: undefined;
-  demoValues?: undefined;
   legal?: undefined;
 }
 
@@ -77,7 +75,6 @@ function JobInputsFlatFormStandard({
   averageExecutionDuration,
   flatInputs,
   inputSchema,
-  demoValues,
   legal,
   className,
 }: StandardModeProps) {
@@ -92,14 +89,12 @@ function JobInputsFlatFormStandard({
   const { handleSubmit } = useJobSubmission({
     agent,
     inputSchema,
-    demoValues,
     projectId,
     setLoading,
     onSuccess: handleClose,
   });
 
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
-  const isDemo = !!demoValues;
 
   const handleFlatSubmit = useCallback(
     (values: JobInputsFormSchemaType) => {
@@ -115,12 +110,7 @@ function JobInputsFlatFormStandard({
       return (
         <>
           <div className="flex items-end justify-between gap-2">
-            <Button
-              type="reset"
-              variant="secondary"
-              onClick={reset}
-              disabled={isDemo}
-            >
+            <Button type="reset" variant="secondary" onClick={reset}>
               {t("clear")}
             </Button>
             <div className="flex flex-col items-end gap-2">
@@ -128,7 +118,7 @@ function JobInputsFlatFormStandard({
               <div className="flex items-center gap-2">
                 <div className="text-muted-foreground text-sm">
                   {t("price", {
-                    price: isDemo ? 0 : formatCreditsForDisplay(credits),
+                    price: formatCreditsForDisplay(credits),
                   })}
                 </div>
                 <Button
@@ -142,11 +132,9 @@ function JobInputsFlatFormStandard({
                     )}
                     {t("submit")}
                   </div>
-                  {!isDemo &&
-                    averageExecutionDuration &&
-                    averageExecutionDuration > 0 && (
-                      <span>{`(~${formattedDuration})`}</span>
-                    )}
+                  {averageExecutionDuration && averageExecutionDuration > 0 && (
+                    <span>{`(~${formattedDuration})`}</span>
+                  )}
                   {!isMobile && (
                     <div className="flex items-center gap-1">
                       {os === "MacOS" ? <Command /> : t("ctrl")}
@@ -162,7 +150,6 @@ function JobInputsFlatFormStandard({
     },
     [
       t,
-      isDemo,
       legal,
       getAgentCreditsCents(agent),
       loading,
@@ -174,8 +161,8 @@ function JobInputsFlatFormStandard({
   );
 
   const flatDefaultValues = useMemo(
-    () => (demoValues ? demoValues.input : defaultValues(flatInputs)),
-    [demoValues, flatInputs],
+    () => defaultValues(flatInputs),
+    [flatInputs],
   );
 
   return (
@@ -188,7 +175,6 @@ function JobInputsFlatFormStandard({
       disabled={loading}
       isActive={open}
       t={t}
-      inputsDisabled={isDemo}
       preventEnterSubmit
     />
   );

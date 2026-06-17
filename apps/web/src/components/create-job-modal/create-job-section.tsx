@@ -27,7 +27,7 @@ export default function CreateJobSection({
   agent,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
-  const { accordionValue, setAccordionValue, loading, isDemo } =
+  const { accordionValue, setAccordionValue, loading } =
     useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
@@ -36,7 +36,7 @@ export default function CreateJobSection({
 
   return (
     <div className="bg-background flex min-h-svh w-svw flex-col rounded-none p-4 pt-0 md:min-h-auto md:w-auto md:rounded-xl md:p-6">
-      <CreateJobModalHeader agent={agent} isDemo={isDemo} />
+      <CreateJobModalHeader agent={agent} />
       <Accordion
         type="multiple"
         value={accordionValue}
@@ -48,7 +48,6 @@ export default function CreateJobSection({
           agent={agent}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
-          isDemo={isDemo}
         />
       </Accordion>
     </div>
@@ -98,12 +97,10 @@ function InputAccordionItem({
   agent,
   disabled,
   averageExecutionDuration,
-  isDemo,
 }: {
   agent: CoreAgentDto;
   disabled?: boolean | undefined;
   averageExecutionDuration: number | null;
-  isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
   const { projectOptions, projectId, setProjectId } =
@@ -129,7 +126,6 @@ function InputAccordionItem({
         <JobInputsForm
           agent={agent}
           averageExecutionDuration={averageExecutionDuration}
-          isDemo={isDemo}
         />
       </div>
     </AccordionItemWrapper>

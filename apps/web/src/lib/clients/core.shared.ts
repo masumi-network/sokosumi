@@ -38,8 +38,6 @@ import type {
   PatchJobsByIdData,
   PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
-  PostAgentsByIdDemoJobsData,
-  PostAgentsByIdDemoJobsError,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -136,7 +134,6 @@ import {
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
-  postAgentsByIdDemoJobs as corePostAgentsByIdDemoJobs,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -1322,32 +1319,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function createDemoJob(
-    id: string,
-    body: NonNullable<PostAgentsByIdDemoJobsData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      async (client) => {
-        const result = await corePostAgentsByIdDemoJobs({
-          client,
-          path: { id },
-          body,
-        });
-        if (result.error) {
-          return {
-            data: undefined,
-            error: result.error as PostAgentsByIdDemoJobsError,
-            response: result.response,
-          };
-        }
-
-        return result;
-      },
-      "Failed to create demo job",
-    );
-  }
-
   async function getAgentInputSchema(id: string) {
     return executeOperation(
       getClient,
@@ -2307,7 +2278,6 @@ export function createCoreClient(getClient: GetClient) {
     assignOrganizationSeat,
     createConversation,
     createAgentJob,
-    createDemoJob,
     createMyFileUploadSession,
     createTask,
     createTaskLink,
