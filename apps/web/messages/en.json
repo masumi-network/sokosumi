@@ -3639,7 +3639,9 @@
         "completed": "{agentName} completed {jobName}",
         "failed": "{agentName} failed to complete {jobName}",
         "paymentFailed": "Payment failed for {jobName}",
-        "inputRequired": "{agentName} needs your input for {jobName}"
+        "inputRequired": "{agentName} needs your input for {jobName}",
+        "refundResolved": "{jobName} was refunded",
+        "disputeResolved": "Dispute resolved for {jobName}"
       },
       "Task": {
         "inputRequired": "{coworkerName} needs your input for {taskName}",
