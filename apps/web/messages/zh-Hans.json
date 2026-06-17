@@ -2355,6 +2355,7 @@
         },
         "MenuItems": {
           "chat": "聊天",
+          "search": "搜索",
           "exploreAgents": "智能体",
           "filesAndOutputs": "文件与输出",
           "taskManager": "任务",
@@ -2364,6 +2365,14 @@
           "admin": "管理"
         }
       }
+    },
+    "HistorySearchDialog": {
+      "title": "搜索",
+      "description": "搜索任务、作业或对话",
+      "searchPlaceholder": "搜索...",
+      "empty": "未找到结果",
+      "loading": "加载中...",
+      "error": "加载结果失败"
     },
     "NoticeDialog": {
       "defaultTitle": "通知",

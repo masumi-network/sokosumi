@@ -1,22 +1,19 @@
 "use client";
 
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
-import { ListTodo } from "lucide-react";
 import Link from "next/link";
 import {
   CHAT_APP_ROUTE_PREFIX,
   FALLBACK_BUCKET_SEGMENT,
 } from "@/app/chat-ui/utils/chat-route-base";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
+import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import {
   getHistoryRowSubtitle,
   type HistoryBucketLookups,
 } from "@/app/history/utils/history-row-subtitle";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { AgentIcon } from "@/components/agents/agent-icon";
-import { ChatModelIcon } from "@/components/chat/chat-model-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { HistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -175,84 +172,6 @@ function HistoryTypeColumn({
         {labels.kind[item.kind]}
       </span>
     </div>
-  );
-}
-
-function HistoryTypeIcon({
-  item,
-  labels,
-  bucketLookups,
-}: {
-  item: HistoryItem;
-  labels: HistoryListItemLabels;
-  bucketLookups: HistoryBucketLookups;
-}) {
-  if (item.kind === "task") {
-    return <ListTodo className="size-4" />;
-  }
-
-  if (item.kind === "job") {
-    return (
-      <AgentIcon
-        agent={{
-          name: item.agentName ?? item.title,
-          icon: item.agentIcon ?? null,
-        }}
-        className="size-4"
-      />
-    );
-  }
-
-  const bucketIcon = item.bucketSlug
-    ? bucketLookups.bucketIconBySlug[item.bucketSlug]
-    : undefined;
-
-  return (
-    <HistoryConversationIcon
-      bucketIcon={bucketIcon}
-      fallbackLabel={labels.kind.conversation}
-    />
-  );
-}
-
-function HistoryConversationIcon({
-  bucketIcon,
-  fallbackLabel,
-}: {
-  bucketIcon: HistoryBucketLookups["bucketIconBySlug"][string] | undefined;
-  fallbackLabel: string;
-}) {
-  if (bucketIcon?.kind === "model") {
-    return (
-      <ChatModelIcon
-        modelId={bucketIcon.modelId}
-        modelName={bucketIcon.modelName}
-        className="size-4"
-        size={16}
-      />
-    );
-  }
-
-  if (bucketIcon?.kind === "coworker") {
-    return (
-      <Avatar className="size-4">
-        {bucketIcon.imageUrl ? (
-          <AvatarImage src={bucketIcon.imageUrl} alt={bucketIcon.name} />
-        ) : null}
-        <AvatarFallback className="bg-primary text-primary-foreground text-[8px]">
-          {bucketIcon.name.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
-  return (
-    <ChatModelIcon
-      modelId=""
-      modelName={fallbackLabel}
-      className="size-4"
-      size={16}
-    />
   );
 }
 
