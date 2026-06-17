@@ -148,6 +148,12 @@ export async function OnboardingDialogLoader({
           </Suspense>
         );
       }
+      // Non-subscription-only (first-run) onboarding intentionally does NOT
+      // gate on a subscription-read outage: personalCurrentPlan stays null, so
+      // currentPlan falls back to "free" and every paid plan renders as an
+      // upsell with none marked current. That is a safe failure mode here —
+      // unlike the subscription-only path above, which gates to avoid
+      // re-prompting an already-subscribed user.
     } else {
       personalCurrentPlan =
         resolveCurrentPlanName(personalActiveSubscriptionsResult.value) ??

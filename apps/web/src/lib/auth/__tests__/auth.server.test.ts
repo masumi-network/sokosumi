@@ -167,6 +167,41 @@ describe("auth.server", () => {
     }
   });
 
+  it("returns err with reason invalid_json when the body fails to parse", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error("Unexpected token < in JSON");
+      },
+    });
+
+    const { listUserAccounts } = await import("../auth.server");
+
+    const result = await listUserAccounts();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("invalid_json");
+      expect(result.error.path).toBe("/auth/list-accounts");
+    }
+  });
+
+  it("returns err with reason timeout when the request times out", async () => {
+    fetchMock.mockRejectedValue(
+      new DOMException("The operation timed out.", "TimeoutError"),
+    );
+
+    const { listUserAccounts } = await import("../auth.server");
+
+    const result = await listUserAccounts();
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.reason).toBe("timeout");
+      expect(result.error.path).toBe("/auth/list-accounts");
+    }
+  });
+
   it("lists active subscriptions with customer type query params", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
