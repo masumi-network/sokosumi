@@ -85,8 +85,6 @@ export async function postWebhook(
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
     const body = await consumeResponseBody(response);
 
     if (response.ok) {
@@ -112,8 +110,6 @@ export async function postWebhook(
       body: body ?? undefined,
     };
   } catch (fetchError) {
-    clearTimeout(timeoutId);
-
     let error: Error;
     if (fetchError instanceof Error) {
       error =
@@ -125,6 +121,8 @@ export async function postWebhook(
     }
 
     return { status: "failed", error };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

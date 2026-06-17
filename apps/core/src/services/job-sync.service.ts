@@ -22,12 +22,16 @@ import {
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import { createAgentClient } from "@sokosumi/masumi";
-import { postWebhook, SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  buildWebhookFailureContext,
+  postWebhook,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
-import { WEBHOOK_USER_AGENT } from "@/config/constants";
+import { TIME, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
@@ -39,6 +43,7 @@ import { sourceImportService } from "@/services/source-import.service";
 const JOB_SYNC_CONCURRENCY = 5;
 const JOB_SYNC_REMOTE_TIMEOUT_BUFFER_MS = 250;
 const JOB_SYNC_REMOTE_TIMEOUT_MS = 10_000;
+const WEBHOOK_TIMEOUT_MS = TIME.WEBHOOK_TIMEOUT * 1000;
 const JOB_SYNC_TRANSACTION_OPTIONS = {
   maxWait: 5000,
   timeout: 20_000,
@@ -306,15 +311,17 @@ async function dispatchJobFailureNotification(
       // Fire-and-forget: dispatch the webhook without blocking the email path.
       void postWebhook(webhookUrl, notificationData, {
         userAgent: WEBHOOK_USER_AGENT,
+        timeoutMs: WEBHOOK_TIMEOUT_MS,
       })
         .then((result) => {
           if (result.status === "failed") {
             Sentry.captureException(result.error, {
-              extra: {
+              extra: buildWebhookFailureContext(result, {
                 jobId: job.id,
                 userId: job.userId,
                 notificationType: "job-failure-webhook",
-              },
+                webhookUrl,
+              }),
             });
           }
         })
