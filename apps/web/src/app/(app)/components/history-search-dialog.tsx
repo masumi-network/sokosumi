@@ -202,21 +202,24 @@ export function HistorySearchDialog({
                 key={item.id}
                 value={`${item.title} ${item.id}`}
                 onSelect={() => handleSelect(item)}
-                className="flex items-center gap-2"
+                className="flex items-start gap-2"
               >
                 <HistoryTypeIcon
                   item={item}
                   labels={labels}
                   bucketLookups={bucketLookups}
+                  className="mt-0.5 size-4"
                 />
-                <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate">{item.title}</span>
                   <HistoryMetaTime
                     updatedAt={item.updatedAt}
                     formatTimeAgo={formatTimeAgo}
                     updatedLabel={labels.updated}
-                    className="text-muted-foreground/70 hidden text-xs sm:block"
+                    className="text-muted-foreground/70 mt-0.5 block text-left text-xs sm:text-left"
                   />
+                </div>
+                <div className="flex shrink-0 items-center gap-2 self-center">
                   {showOwner && (
                     <HistoryOwnerAvatar
                       owner={item.owner}
