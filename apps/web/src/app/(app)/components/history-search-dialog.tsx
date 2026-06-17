@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import { getHistoryItemHref } from "@/app/history/components/history-list-item";
+import {
+  HistoryMetaTime,
+  HistoryOwnerAvatar,
+} from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import { getDefaultHistoryScope } from "@/app/history/utils/history-filters";
 import {
@@ -25,6 +29,7 @@ import {
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 import { filterCoworkersForUiListing } from "@/lib/coworkers/ui-restricted-slugs";
+import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 const HISTORY_SEARCH_PAGE_SIZE = 50;
 const SEARCH_STATUS_BADGE_CLASSNAME = "ml-auto shrink-0";
@@ -36,6 +41,7 @@ interface HistorySearchDialogLabels {
   empty: string;
   loading: string;
   error: string;
+  updated: string;
   kind: {
     task: string;
     job: string;
@@ -68,6 +74,8 @@ export function HistorySearchDialog({
   const [isLoading, setIsLoading] = useState(false);
   const requestIdRef = useRef(0);
   const router = useRouter();
+  const { formatTimeAgo } = useLocalizedDateTime();
+  const showOwner = activeOrganizationId !== null;
 
   const loadCoworkers = useEffectEvent(async () => {
     try {
@@ -194,14 +202,32 @@ export function HistorySearchDialog({
                 key={item.id}
                 value={`${item.title} ${item.id}`}
                 onSelect={() => handleSelect(item)}
+                className="flex items-start gap-2"
               >
                 <HistoryTypeIcon
                   item={item}
                   labels={labels}
                   bucketLookups={bucketLookups}
+                  className="mt-0.5 size-4"
                 />
-                <span className="truncate">{item.title}</span>
-                <HistoryItemStatus item={item} labels={labels} />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate">{item.title}</span>
+                  <HistoryMetaTime
+                    updatedAt={item.updatedAt}
+                    formatTimeAgo={formatTimeAgo}
+                    updatedLabel={labels.updated}
+                    className="text-muted-foreground/70 mt-0.5 block text-left text-xs sm:text-left"
+                  />
+                </div>
+                <div className="flex shrink-0 items-center gap-2 self-center">
+                  {showOwner && (
+                    <HistoryOwnerAvatar
+                      owner={item.owner}
+                      className="hidden sm:inline-flex"
+                    />
+                  )}
+                  <HistoryItemStatus item={item} labels={labels} />
+                </div>
               </CommandItem>
             ))}
           </CommandGroup>

@@ -137,6 +137,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           bucketLookups={bucketLookups}
           filterResetKey={filterResetKey}
           filters={filters}
+          activeOrganizationId={activeOrganizationId}
           labels={{
             empty: {
               title: t("Empty.title"),

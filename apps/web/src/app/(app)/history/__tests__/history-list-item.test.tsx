@@ -114,6 +114,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      owner: null,
     };
 
     render(
@@ -121,6 +122,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -140,6 +142,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      owner: null,
     } as unknown as HistoryItem;
 
     render(
@@ -147,6 +150,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -167,6 +171,7 @@ describe("HistoryListItem", () => {
       archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
+      owner: null,
     };
 
     render(
@@ -174,6 +179,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -196,6 +202,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      owner: null,
     };
 
     render(
@@ -203,6 +210,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -221,6 +229,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      owner: null,
     };
 
     render(
@@ -228,6 +237,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -246,6 +256,7 @@ describe("HistoryListItem", () => {
       archivedAt: new Date("2026-02-20T10:00:00.000Z"),
       credits: null,
       bucketSlug: "hannah",
+      owner: null,
     };
 
     render(
@@ -253,6 +264,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={createEmptyHistoryBucketLookups()}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -272,6 +284,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      owner: null,
     };
     const job: HistoryItem = {
       kind: "job",
@@ -286,6 +299,7 @@ describe("HistoryListItem", () => {
       agentId: "agent-1",
       agentName: null,
       agentIcon: null,
+      owner: null,
     };
 
     expect(getHistoryItemHref(task)).toBe("/tasks/task-1");
@@ -303,6 +317,7 @@ describe("HistoryListItem", () => {
       archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
+      owner: null,
     };
 
     expect(getHistoryItemHref(conversation)).toBe(
@@ -321,6 +336,7 @@ describe("HistoryListItem", () => {
       archivedAt: null,
       credits: null,
       bucketSlug: null,
+      owner: null,
     };
 
     expect(getHistoryItemHref(conversation)).toBe(
@@ -342,6 +358,7 @@ describe("HistoryListItem", () => {
       agentId: "agent-1",
       agentName: "Research Agent",
       agentIcon: "https://example.com/research.svg",
+      owner: null,
     };
 
     render(
@@ -349,6 +366,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={bucketLookups}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -374,6 +392,7 @@ describe("HistoryListItem", () => {
       archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
+      owner: null,
     };
 
     render(
@@ -381,6 +400,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={bucketLookups}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -399,6 +419,7 @@ describe("HistoryListItem", () => {
       archivedAt: null,
       credits: null,
       bucketSlug: "gpt-5-4",
+      owner: null,
     };
 
     render(
@@ -406,6 +427,7 @@ describe("HistoryListItem", () => {
         item={item}
         bucketLookups={bucketLookups}
         labels={labels}
+        activeOrganizationId={null}
       />,
     );
 
@@ -431,6 +453,7 @@ describe("HistoryListItem", () => {
       agentId: "agent-1",
       agentName: "Research Agent",
       agentIcon: null,
+      owner: null,
     };
 
     expect(getHistoryRowSubtitle(item, bucketLookups, labels)).toBe(
@@ -450,6 +473,7 @@ describe("HistoryListItem", () => {
       credits: 1,
       projectId: null,
       coworkerId: null,
+      owner: null,
     };
     const taskWithoutDescription: HistoryItem = {
       ...taskWithDescription,
