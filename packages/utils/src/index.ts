@@ -171,3 +171,11 @@ export {
   buildUserUploadPrefix,
   sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
+export {
+  buildWebhookFailureContext,
+  isWebhookBackpressureResponse,
+  MAX_REPORTED_WEBHOOK_BODY_LENGTH,
+  type PostWebhookOptions,
+  type PostWebhookResult,
+  postWebhook,
+} from "./webhook.js";
