@@ -26,6 +26,7 @@ const {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
+    prefetch: vi.fn(),
   }),
 }));
 
@@ -220,6 +221,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -246,6 +248,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -274,6 +277,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={onSuccess}
         onCreateAnother={onCreateAnother}
       />,
@@ -357,7 +361,7 @@ describe("TaskForm", () => {
   it("selects initialValues.coworkerId when provided", () => {
     render(
       <TaskForm
-        variant="modal"
+        variant="page"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -382,7 +386,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-2" }}
+        initialValues={{ projectId: "project-2", coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -400,6 +404,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -424,7 +429,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ description: "Write docs" }}
+        initialValues={{ description: "Write docs", coworkerId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -448,6 +453,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -484,7 +490,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-1" }}
+        initialValues={{ projectId: "project-1", coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -584,14 +590,12 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /Soko/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: /Elena/i })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    // The create modal opens on the agent-spotlight step; the stored coworker
+    // (Soko) should be the spotlighted selection, not Elena (the default).
+    expect(screen.getByRole("heading", { name: "Soko" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Elena" }),
+    ).not.toBeInTheDocument();
   });
 
   it("passes agent mention options to MarkdownEditor", () => {
@@ -603,6 +607,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         agentNameById={new Map([["agent-1", "Writer Agent"]])}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -660,6 +665,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -766,6 +772,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -826,6 +833,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -886,6 +894,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -920,6 +929,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onCreateTask={onCreateTask}
         onSuccess={vi.fn()}
       />,
