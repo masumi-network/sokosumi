@@ -43,9 +43,9 @@ export {
   HIGH_CREDIT_TOPUP_LOOKUP_KEY,
   isPositiveIntegerCredits,
   MID_CREDIT_TOPUP_LOOKUP_KEY,
-  selectCreditTopUpTier,
   STANDARD_CREDIT_TOPUP_TIERS,
   type StandardCreditTopUpLookupKey,
+  selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
 export type {

@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  type CreditTopUpTier,
   getCreditTopUpLookupKeyByCredits,
   getCreditTopUpTotalMinorUnits,
   HIGH_CREDIT_TOPUP_LOOKUP_KEY,
   MID_CREDIT_TOPUP_LOOKUP_KEY,
-  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
-  type CreditTopUpTier,
-  selectCreditTopUpTier,
   STANDARD_CREDIT_TOPUP_TIERS,
+  selectCreditTopUpTier,
+  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "../credit-topup-pricing.js";
 
 describe("credit-topup-pricing", () => {
