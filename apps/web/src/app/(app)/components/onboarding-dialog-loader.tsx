@@ -1,17 +1,14 @@
 import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { MemberRole } from "@sokosumi/utils";
 import { Suspense } from "react";
-import Stripe from "stripe";
 import {
   type PaidSubscriptionPlanView,
   resolveCurrentPlanName,
 } from "@/components/billing/subscription-plan-utils";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { listActiveSubscriptions } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 import { organizationSeatService, userService } from "@/lib/services";
-import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 
 import {
   OnboardingDialog,
@@ -19,7 +16,6 @@ import {
 } from "./onboarding-dialog";
 import { OnboardingSubscriptionReturnHandler } from "./onboarding-subscription-return-handler";
 
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const PLAN_ORDER = [
   "free",
   "starter",
@@ -63,11 +59,12 @@ export async function OnboardingDialogLoader({
     }
   }
 
-  let subscriptionCatalog: Awaited<
-    ReturnType<typeof getSubscriptionCatalog>
-  > | null = null;
+  let subscriptionCatalog:
+    | Awaited<ReturnType<typeof coreClient.getSubscriptionCatalog>>["data"]
+    | null = null;
   try {
-    subscriptionCatalog = await getSubscriptionCatalog(stripeInstance);
+    const response = await coreClient.getSubscriptionCatalog();
+    subscriptionCatalog = response.data;
   } catch (error) {
     console.error("Failed to load subscription catalog for onboarding", error);
   }

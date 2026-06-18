@@ -2407,6 +2407,127 @@ export const ChatUiMessageSchema = {
     ]
 } as const;
 
+export const CreditCheckoutSessionSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://checkout.stripe.com/...'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
+export const CreateCreditCheckoutSessionSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1000
+        },
+        returnPath: {
+            type: 'string',
+            example: '/billing?tab=credits'
+        },
+        promotionCodeId: {
+            type: 'string',
+            example: 'promo_123'
+        },
+        priceLookupKeyOverride: {
+            type: 'string',
+            enum: [
+                'credit_20_margin',
+                'credit_15_margin',
+                'credit_10_margin',
+                'credit_0_margin'
+            ],
+            example: 'credit_20_margin'
+        },
+        origin: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://app.sokosumi.com'
+        },
+        ttlDays: {
+            type: 'string',
+            example: '30'
+        }
+    },
+    required: [
+        'credits'
+    ]
+} as const;
+
+export const CheckoutSessionAnalyticsSchema = {
+    type: 'object',
+    properties: {
+        sessionId: {
+            type: 'string',
+            example: 'cs_test_123'
+        },
+        currency: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'eur'
+        },
+        value: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 12000
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    itemId: {
+                        type: 'string',
+                        example: 'prod_123'
+                    },
+                    itemName: {
+                        type: 'string',
+                        example: 'Credits'
+                    },
+                    quantity: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        example: 1
+                    }
+                },
+                required: [
+                    'itemId',
+                    'itemName',
+                    'quantity'
+                ]
+            },
+            example: []
+        }
+    },
+    required: [
+        'sessionId',
+        'currency',
+        'value',
+        'items'
+    ]
+} as const;
+
 export const ConversationListSchema = {
     type: 'array',
     items: {
@@ -2843,6 +2964,69 @@ export const CreateConversationMessageRequestSchema = {
         'role',
         'content'
     ]
+} as const;
+
+export const CouponDetailsSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'coupon_123'
+        },
+        percentOff: {
+            type: 'number',
+            example: 100
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 100
+        },
+        ttlDays: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '30'
+        }
+    },
+    required: [
+        'id',
+        'percentOff',
+        'credits',
+        'ttlDays'
+    ]
+} as const;
+
+export const ClaimedPromotionCodeSchema = {
+    type: 'object',
+    properties: {
+        promotionCodeId: {
+            type: 'string',
+            example: 'promo_123'
+        },
+        active: {
+            type: 'boolean',
+            example: true
+        }
+    },
+    required: [
+        'promotionCodeId',
+        'active'
+    ]
+} as const;
+
+export const ClaimCouponSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        }
+    }
 } as const;
 
 export const CreditCostSchema = {
@@ -7998,6 +8182,120 @@ export const CreditPriceOptionSchema = {
         'amountPerCredit',
         'currency',
         'nickname'
+    ]
+} as const;
+
+export const CreditTopUpPriceCatalogSchema = {
+    type: 'object',
+    properties: {
+        credit_20_margin: {
+            $ref: '#/components/schemas/CreditTopUpPrice'
+        },
+        credit_15_margin: {
+            $ref: '#/components/schemas/CreditTopUpPrice'
+        },
+        credit_10_margin: {
+            $ref: '#/components/schemas/CreditTopUpPrice'
+        },
+        credit_0_margin: {
+            $ref: '#/components/schemas/CreditTopUpPrice'
+        }
+    }
+} as const;
+
+export const CreditTopUpPriceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'price_123'
+        },
+        amountPerCredit: {
+            type: 'number',
+            example: 120
+        },
+        currency: {
+            type: 'string',
+            example: 'eur'
+        }
+    },
+    required: [
+        'id',
+        'amountPerCredit',
+        'currency'
+    ]
+} as const;
+
+export const SubscriptionCatalogSchema = {
+    type: 'object',
+    properties: {
+        free: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        },
+        starter: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        },
+        standard: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        },
+        pro: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        }
+    },
+    required: [
+        'free',
+        'starter',
+        'standard',
+        'pro'
+    ]
+} as const;
+
+export const SubscriptionCatalogPlanSchema = {
+    type: 'object',
+    properties: {
+        credits: {
+            type: 'number',
+            example: 100
+        },
+        currency: {
+            type: 'string',
+            example: 'eur'
+        },
+        monthlyAmount: {
+            type: 'number',
+            example: 2900
+        },
+        name: {
+            type: 'string',
+            enum: [
+                'free',
+                'starter',
+                'standard',
+                'pro'
+            ],
+            example: 'starter'
+        },
+        priceId: {
+            type: 'string',
+            example: 'price_123'
+        },
+        productId: {
+            type: 'string',
+            example: 'prod_123'
+        },
+        slug: {
+            type: 'string',
+            example: 'starter'
+        }
+    },
+    required: [
+        'credits',
+        'currency',
+        'monthlyAmount',
+        'name',
+        'priceId',
+        'productId',
+        'slug'
     ]
 } as const;
 

@@ -1,9 +1,14 @@
-import type { Stripe } from "stripe";
-
+import { isPositiveIntegerCredits } from "@sokosumi/utils";
 import { CouponTypeError } from "@/lib/errors/coupon-errors";
-import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
 
-export function getCreditsForCoupon(coupon: Stripe.Coupon): number {
+interface CouponCreditsMetadata {
+  metadata?: {
+    credits?: string;
+  } | null;
+  percent_off?: number | null;
+}
+
+export function getCreditsForCoupon(coupon: CouponCreditsMetadata): number {
   if (!coupon.percent_off) {
     throw new CouponTypeError("Coupon must have percent_off");
   }

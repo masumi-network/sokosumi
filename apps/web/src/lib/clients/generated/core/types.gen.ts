@@ -560,6 +560,31 @@ export type ChatUiMessage = {
     };
 };
 
+export type CreditCheckoutSession = {
+    url: string;
+};
+
+export type CreateCreditCheckoutSession = {
+    organizationId?: string | null;
+    credits: number;
+    returnPath?: string;
+    promotionCodeId?: string;
+    priceLookupKeyOverride?: 'credit_20_margin' | 'credit_15_margin' | 'credit_10_margin' | 'credit_0_margin';
+    origin?: string;
+    ttlDays?: string;
+};
+
+export type CheckoutSessionAnalytics = {
+    sessionId: string;
+    currency: string | null;
+    value: number | null;
+    items: Array<{
+        itemId: string;
+        itemName: string;
+        quantity: number | null;
+    }>;
+};
+
 export type ConversationList = Array<Conversation>;
 
 export type Conversation = {
@@ -705,6 +730,22 @@ export type CreateConversationMessageRequest = {
         type: string;
         text: string;
     }>;
+};
+
+export type CouponDetails = {
+    id: string;
+    percentOff: number;
+    credits: number;
+    ttlDays: string | null;
+};
+
+export type ClaimedPromotionCode = {
+    promotionCodeId: string;
+    active: boolean;
+};
+
+export type ClaimCoupon = {
+    organizationId?: string | null;
 };
 
 export type CreditCost = {
@@ -2166,6 +2207,36 @@ export type CreditPriceOption = {
     amountPerCredit: number;
     currency: string;
     nickname: string | null;
+};
+
+export type CreditTopUpPriceCatalog = {
+    credit_20_margin?: CreditTopUpPrice;
+    credit_15_margin?: CreditTopUpPrice;
+    credit_10_margin?: CreditTopUpPrice;
+    credit_0_margin?: CreditTopUpPrice;
+};
+
+export type CreditTopUpPrice = {
+    id: string;
+    amountPerCredit: number;
+    currency: string;
+};
+
+export type SubscriptionCatalog = {
+    free: SubscriptionCatalogPlan;
+    starter: SubscriptionCatalogPlan;
+    standard: SubscriptionCatalogPlan;
+    pro: SubscriptionCatalogPlan;
+};
+
+export type SubscriptionCatalogPlan = {
+    credits: number;
+    currency: string;
+    monthlyAmount: number;
+    name: 'free' | 'starter' | 'standard' | 'pro';
+    priceId: string;
+    productId: string;
+    slug: string;
 };
 
 export type EffectiveDesignMd = {
@@ -6183,6 +6254,165 @@ export type GetChatStreamByConversationIdResponses = {
 
 export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationIdResponses[keyof GetChatStreamByConversationIdResponses];
 
+export type CreateCreditCheckoutSessionData = {
+    body?: CreateCreditCheckoutSession;
+    path?: never;
+    query?: never;
+    url: '/checkout/credits';
+};
+
+export type CreateCreditCheckoutSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateCreditCheckoutSessionError = CreateCreditCheckoutSessionErrors[keyof CreateCreditCheckoutSessionErrors];
+
+export type CreateCreditCheckoutSessionResponses = {
+    /**
+     * Checkout session URL
+     */
+    201: {
+        data: CreditCheckoutSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateCreditCheckoutSessionResponse = CreateCreditCheckoutSessionResponses[keyof CreateCreditCheckoutSessionResponses];
+
+export type GetCheckoutSessionAnalyticsData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe Checkout session id
+         */
+        sessionId: string;
+    };
+    query?: never;
+    url: '/checkout/sessions/{sessionId}';
+};
+
+export type GetCheckoutSessionAnalyticsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCheckoutSessionAnalyticsError = GetCheckoutSessionAnalyticsErrors[keyof GetCheckoutSessionAnalyticsErrors];
+
+export type GetCheckoutSessionAnalyticsResponses = {
+    /**
+     * Checkout session analytics payload
+     */
+    200: {
+        data: CheckoutSessionAnalytics;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCheckoutSessionAnalyticsResponse = GetCheckoutSessionAnalyticsResponses[keyof GetCheckoutSessionAnalyticsResponses];
+
 export type GetConversationsData = {
     body?: never;
     headers?: {
@@ -6888,6 +7118,198 @@ export type PostConversationsByIdMessagesResponses = {
 };
 
 export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
+
+export type GetCouponDetailsData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe coupon id
+         */
+        couponId: string;
+    };
+    query?: never;
+    url: '/coupons/{couponId}';
+};
+
+export type GetCouponDetailsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCouponDetailsError = GetCouponDetailsErrors[keyof GetCouponDetailsErrors];
+
+export type GetCouponDetailsResponses = {
+    /**
+     * Coupon details
+     */
+    200: {
+        data: CouponDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCouponDetailsResponse = GetCouponDetailsResponses[keyof GetCouponDetailsResponses];
+
+export type ClaimCouponData = {
+    body?: ClaimCoupon;
+    path: {
+        /**
+         * Stripe coupon id
+         */
+        couponId: string;
+    };
+    query?: never;
+    url: '/coupons/{couponId}/claim';
+};
+
+export type ClaimCouponErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ClaimCouponError = ClaimCouponErrors[keyof ClaimCouponErrors];
+
+export type ClaimCouponResponses = {
+    /**
+     * Claimed promotion code
+     */
+    201: {
+        data: ClaimedPromotionCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ClaimCouponResponse = ClaimCouponResponses[keyof ClaimCouponResponses];
 
 export type GetCreditCostsData = {
     body?: never;
@@ -19511,6 +19933,123 @@ export type ListCreditPricesResponses = {
 };
 
 export type ListCreditPricesResponse = ListCreditPricesResponses[keyof ListCreditPricesResponses];
+
+export type GetCreditTopUpPriceCatalogData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Comma-separated additional Stripe lookup keys to include in the catalog.
+         */
+        extraLookupKeys?: string;
+    };
+    url: '/products/credits/catalog';
+};
+
+export type GetCreditTopUpPriceCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCreditTopUpPriceCatalogError = GetCreditTopUpPriceCatalogErrors[keyof GetCreditTopUpPriceCatalogErrors];
+
+export type GetCreditTopUpPriceCatalogResponses = {
+    /**
+     * Credit top-up prices keyed by lookup key
+     */
+    200: {
+        data: CreditTopUpPriceCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCreditTopUpPriceCatalogResponse = GetCreditTopUpPriceCatalogResponses[keyof GetCreditTopUpPriceCatalogResponses];
+
+export type GetSubscriptionCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/products/subscription';
+};
+
+export type GetSubscriptionCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSubscriptionCatalogError = GetSubscriptionCatalogErrors[keyof GetSubscriptionCatalogErrors];
+
+export type GetSubscriptionCatalogResponses = {
+    /**
+     * Subscription catalog for billing and onboarding UI
+     */
+    200: {
+        data: SubscriptionCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSubscriptionCatalogResponse = GetSubscriptionCatalogResponses[keyof GetSubscriptionCatalogResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

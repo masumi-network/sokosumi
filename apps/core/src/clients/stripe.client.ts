@@ -1,6 +1,13 @@
+import {
+  BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  CREDIT_TOPUP_LOOKUP_KEYS,
+  type CreditTopUpLookupKey,
+  getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
+} from "@sokosumi/utils";
 import Stripe from "stripe";
 
-import { getEnv } from "@/config/env";
+import { getEnv, getWebAppBaseUrl } from "@/config/env";
 
 interface CreateOrganizationCustomerInput {
   invoiceEmail?: null | string;
@@ -28,9 +35,6 @@ const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY, {
 // Mirrors the web stripe client's credit-price selection
 // (`apps/web/src/lib/clients/stripe.client.ts`).
 const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
-const BASE_CREDIT_TOPUP_LOOKUP_KEY = "credit_20_margin";
-/** Known credit top-up lookup keys; widen this union as more keys move to core. */
-type CreditTopUpLookupKey = typeof BASE_CREDIT_TOPUP_LOOKUP_KEY;
 let cachedStripeAccountId: string | null = null;
 const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
 const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
@@ -87,6 +91,28 @@ function selectPreferredCreditPrice(
   }
 
   return null;
+}
+
+function normalizeCheckoutReturnPath(returnPath: string | undefined): string {
+  if (!returnPath) {
+    return "/billing?tab=credits";
+  }
+
+  return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
+}
+
+function buildCheckoutReturnUrl(
+  checkoutBaseUrl: string,
+  returnPath: string | undefined,
+  searchParams: Record<string, string>,
+): string {
+  const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
+  const querySuffix = Object.entries(searchParams)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+  const querySeparator = normalizedReturnPath.includes("?") ? "&" : "?";
+
+  return `${checkoutBaseUrl}${normalizedReturnPath}${querySeparator}${querySuffix}`;
 }
 
 function validatePrice(price: Stripe.Price): CreditPrice {
@@ -432,6 +458,168 @@ export const stripeClient = {
 
   async getBaseCreditTopUpPrice(): Promise<CreditPrice> {
     return await this.getPriceByLookupKey(BASE_CREDIT_TOPUP_LOOKUP_KEY);
+  },
+
+  async getCreditTopUpPriceByCredits(
+    credits: number,
+    lookupKeyOverride?: CreditTopUpLookupKey,
+  ): Promise<CreditPrice> {
+    const lookupKey = getCreditTopUpLookupKeyByCredits(
+      credits,
+      lookupKeyOverride,
+    );
+    return await this.getPriceByLookupKey(lookupKey);
+  },
+
+  async getCreditTopUpPriceCatalog(
+    extraLookupKeys: CreditTopUpLookupKey[] = [],
+  ): Promise<Record<CreditTopUpLookupKey, CreditPrice>> {
+    const lookupKeys = [...CREDIT_TOPUP_LOOKUP_KEYS, ...extraLookupKeys];
+    const uniqueLookupKeys = [...new Set(lookupKeys)] as CreditTopUpLookupKey[];
+    const prices = await Promise.all(
+      uniqueLookupKeys.map(async (lookupKey) => [
+        lookupKey,
+        await this.getPriceByLookupKey(lookupKey),
+      ]),
+    );
+
+    return Object.fromEntries(prices) as Record<
+      CreditTopUpLookupKey,
+      CreditPrice
+    >;
+  },
+
+  async getPromotionCode(
+    customerId: string,
+    couponId: string,
+  ): Promise<Stripe.PromotionCode | null> {
+    const promotionCodes = await stripe.promotionCodes.list({
+      coupon: couponId,
+      customer: customerId,
+      limit: 1,
+    });
+
+    if (promotionCodes.data.length === 0) {
+      return null;
+    }
+
+    return promotionCodes.data[0];
+  },
+
+  async createPromotionCode(
+    customerId: string,
+    couponId: string,
+    maxRedemptions: number = 1,
+    metadata?: Record<string, string>,
+  ): Promise<Stripe.PromotionCode | null> {
+    const promotionCode = await stripe.promotionCodes.create(
+      {
+        customer: customerId,
+        promotion: {
+          coupon: couponId,
+          type: "coupon",
+        },
+        max_redemptions: maxRedemptions,
+        metadata,
+      },
+      {
+        idempotencyKey: `${customerId}-${couponId}`,
+      },
+    );
+    return promotionCode;
+  },
+
+  async getCheckoutSession(
+    sessionId: string,
+  ): Promise<Stripe.Checkout.Session> {
+    return await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: [
+        "line_items",
+        "line_items.data.price.product",
+        "discounts.coupon",
+      ],
+    });
+  },
+
+  async createCreditCheckoutSession(params: {
+    stripeCustomerId: string;
+    userId: string;
+    organizationId: string | null;
+    credits: number;
+    price: CreditPrice;
+    origin?: string | null;
+    promotionCodeId?: string | null;
+    returnPath?: string;
+    ttlDays?: string;
+  }): Promise<Stripe.Checkout.Session> {
+    if (params.price.amountPerCredit === 0) {
+      throw new Error(
+        "Price amountPerCredit is 0 – cannot create checkout session for free product",
+      );
+    }
+
+    const checkoutUnitAmount = getCreditTopUpTotalMinorUnits(
+      params.credits,
+      params.price.amountPerCredit,
+    );
+    const creditsLabel = params.credits.toLocaleString("en-US");
+    const checkoutBaseUrl = (params.origin ?? getWebAppBaseUrl()).replace(
+      /\/$/,
+      "",
+    );
+    const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
+    const sessionMetadata = {
+      credits: params.credits,
+      userId: params.userId,
+      ...(params.organizationId && { organizationId: params.organizationId }),
+      ...(params.ttlDays ? { ttl_days: params.ttlDays } : {}),
+    };
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: params.price.currency,
+            product: getEnv().STRIPE_CREDIT_PRODUCT_ID,
+            unit_amount: checkoutUnitAmount,
+          },
+          quantity: 1,
+        },
+      ],
+      customer: params.stripeCustomerId,
+      customer_update: {
+        address: "auto",
+        name: "auto",
+      },
+      metadata: sessionMetadata,
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          metadata: sessionMetadata,
+        },
+      },
+      billing_address_collection: "required",
+      tax_id_collection: { enabled: true },
+      custom_text: {
+        submit: {
+          message: checkoutCreditsMessage,
+        },
+      },
+      success_url: buildCheckoutReturnUrl(checkoutBaseUrl, params.returnPath, {
+        session_id: "{CHECKOUT_SESSION_ID}",
+      }),
+      cancel_url: buildCheckoutReturnUrl(checkoutBaseUrl, params.returnPath, {
+        cancel: "true",
+      }),
+    };
+
+    if (params.promotionCodeId) {
+      sessionParams.discounts = [{ promotion_code: params.promotionCodeId }];
+    } else {
+      sessionParams.allow_promotion_codes = false;
+    }
+
+    return await stripe.checkout.sessions.create(sessionParams);
   },
 
   /**

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreditsForm from "@/components/credits/credits-form";
-import { CreditTopUpPriceCatalog } from "@/lib/clients/stripe.client";
+import type { CreditTopUpPriceCatalog } from "@/lib/clients/generated/core";
 
 const mockRouterPush = vi.fn();
 const purchaseCreditsMock = vi.fn();

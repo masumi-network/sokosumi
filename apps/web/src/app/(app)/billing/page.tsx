@@ -1,7 +1,9 @@
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
-import { MemberRole } from "@sokosumi/utils";
+import {
+  MemberRole,
+  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
+} from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-import Stripe from "stripe";
 
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
@@ -16,17 +18,13 @@ import {
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
-import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
-import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const PLAN_ORDER = [
   "free",
   "starter",
@@ -81,7 +79,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   if (activeOrganization) {
     const [member, subscriptionCatalog] = await Promise.all([
       userService.getMyMemberInOrganization(activeOrganization.id),
-      getSubscriptionCatalog(stripeInstance),
+      coreClient.getSubscriptionCatalog().then((response) => response.data),
     ]);
     const isOwnerOrAdmin =
       member?.role === MemberRole.OWNER || member?.role === MemberRole.ADMIN;
@@ -276,7 +274,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   ] = await Promise.all([
     coreClient.getMyCredits(),
     coreClient.getMyActiveSubscription(),
-    getSubscriptionCatalog(stripeInstance),
+    coreClient.getSubscriptionCatalog().then((response) => response.data),
     coreClient.getMyStripeCustomer(),
   ]);
   const latestPersonalSubscription = personalSubscription.data.subscription;

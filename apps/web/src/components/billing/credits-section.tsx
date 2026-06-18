@@ -1,12 +1,12 @@
+import type { CreditTopUpLookupKey } from "@sokosumi/utils";
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
 import CreditsSuccessModal from "@/app/credits/components/success-modal";
 import CreditsForm from "@/components/credits/credits-form";
-import { stripeClient } from "@/lib/clients";
+import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
-import type { CreditTopUpLookupKey } from "@/lib/stripe/credit-topup-pricing";
 
 interface CreditsSectionProps {
   isPurchaseEnabled?: boolean;
@@ -29,19 +29,16 @@ export default async function CreditsSection({
   const sessionId = searchParams?.session_id;
   const cancel = searchParams?.cancel;
 
-  const basePriceCatalog = await stripeClient.getCreditTopUpPriceCatalog();
-  const priceCatalog = priceLookupKeyOverride
-    ? {
-        ...basePriceCatalog,
-        [priceLookupKeyOverride]: await stripeClient.getPriceByLookupKey(
-          priceLookupKeyOverride,
-        ),
-      }
-    : basePriceCatalog;
+  const { data: priceCatalog } = await coreClient.getCreditTopUpPriceCatalog(
+    priceLookupKeyOverride,
+  );
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
   const projectOptionsPromise = getProjectFilterOptions();
   const checkoutSession = sessionId
-    ? await stripeClient.getCheckoutSession(sessionId).catch(() => null)
+    ? await coreClient
+        .getCheckoutSessionAnalytics(sessionId)
+        .then((response) => response.data)
+        .catch(() => null)
     : null;
 
   return (

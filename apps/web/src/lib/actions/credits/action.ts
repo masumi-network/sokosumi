@@ -1,18 +1,18 @@
 "use server";
 
+import { isPositiveIntegerCredits } from "@sokosumi/utils";
+import { headers } from "next/headers";
+
 import {
   type ActionError,
   CommonErrorCode,
   CreditsErrorCode,
 } from "@/lib/actions/errors";
-import { stripeClient } from "@/lib/clients/stripe.client";
+import { coreClient } from "@/lib/clients/core.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { resolveZeroMarginTopUpLookupKey } from "@/lib/flags/zero-margin-top-up";
 import { userService } from "@/lib/services";
-import { stripeService } from "@/lib/services/stripe.service";
-import { isPositiveIntegerCredits } from "@/lib/stripe/credit-topup-pricing";
 import { Err, Ok, type Result } from "@/lib/ts-res";
-import { getCreditsForCoupon } from "@/lib/utils/credits";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -28,9 +28,6 @@ export const purchaseCredits = withSession<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
 >(async ({ organizationId, credits, session, returnPath }) => {
-  const userId = session.user.id;
-
-  // Validate input
   if (!isPositiveIntegerCredits(credits)) {
     return Err({
       message: "Invalid credits",
@@ -38,7 +35,6 @@ export const purchaseCredits = withSession<
     });
   }
 
-  // Verify user is member of the organization
   if (organizationId) {
     const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member) {
@@ -50,27 +46,19 @@ export const purchaseCredits = withSession<
   }
 
   try {
+    const headerList = await headers();
     const priceLookupKeyOverride = resolveZeroMarginTopUpLookupKey(
       session.user.email,
     );
-    const price = priceLookupKeyOverride
-      ? await stripeClient.getCreditTopUpPriceByCredits(
-          credits,
-          priceLookupKeyOverride,
-        )
-      : await stripeClient.getCreditTopUpPriceByCredits(credits);
-
-    // Create the checkout session
-    const { url } = await stripeService.createStripeCheckoutSession(
-      userId,
+    const { data } = await coreClient.createCreditCheckoutSession({
       organizationId,
       credits,
-      price,
-      null,
       returnPath,
-    );
+      priceLookupKeyOverride: priceLookupKeyOverride ?? undefined,
+      origin: headerList.get("origin") ?? undefined,
+    });
 
-    return Ok({ url });
+    return Ok({ url: data.url });
   } catch (error) {
     console.error("Failed to purchase credits", error);
     return Err({
@@ -89,9 +77,6 @@ export const claimFreeCreditsWithCoupon = withSession<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
 >(async ({ organizationId, couponId, session, returnPath }) => {
-  const userId = session.user.id;
-
-  // If organizationId is provided, verify user is a member
   if (organizationId) {
     const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member) {
@@ -103,32 +88,26 @@ export const claimFreeCreditsWithCoupon = withSession<
   }
 
   try {
-    const coupon = await stripeService.getCoupon(couponId);
-    const credits = getCreditsForCoupon(coupon);
-    const couponTtlDays = coupon.metadata?.ttl_days;
-    const promo = await stripeService.claimCoupon(couponId, 1, {
-      userId,
-      organizationId,
-    });
-    if (!promo || !promo.active) {
+    const { data: coupon } = await coreClient.getCouponDetails(couponId);
+    const promo = await coreClient.claimCoupon(couponId, { organizationId });
+    if (!promo.data.active) {
       return Err({
         message: "Invalid coupon",
         code: CreditsErrorCode.INVALID_COUPON,
       });
     }
-    const price = await stripeClient.getBaseCreditTopUpPrice();
 
-    // Create the checkout session (for org if orgId provided, else personal)
-    const { url } = await stripeService.createStripeCheckoutSession(
-      userId,
+    const headerList = await headers();
+    const { data } = await coreClient.createCreditCheckoutSession({
       organizationId,
-      credits,
-      price,
-      promo.id,
-      returnPath ?? "/coupon",
-      couponTtlDays ?? undefined,
-    );
-    return Ok({ url });
+      credits: coupon.credits,
+      promotionCodeId: promo.data.promotionCodeId,
+      returnPath: returnPath ?? "/coupon",
+      ttlDays: coupon.ttlDays ?? undefined,
+      origin: headerList.get("origin") ?? undefined,
+    });
+
+    return Ok({ url: data.url });
   } catch (error) {
     console.error("Failed to get free credits with coupon", error);
     if (error instanceof CouponError) {

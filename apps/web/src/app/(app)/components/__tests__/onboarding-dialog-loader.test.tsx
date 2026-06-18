@@ -17,19 +17,6 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
-vi.mock("stripe", () => ({
-  __esModule: true,
-  default: vi.fn(function MockStripe() {
-    return {};
-  }),
-}));
-
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => ({
-    STRIPE_SECRET_KEY: "sk_test_mock",
-  }),
-}));
-
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
     status?: number;
@@ -43,6 +30,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getOrganizationBillingPlan: (...args: unknown[]) =>
       getOrganizationBillingPlanMock(...args),
+    getSubscriptionCatalog: (...args: unknown[]) =>
+      getSubscriptionCatalogMock(...args),
   },
 }));
 
@@ -59,11 +48,6 @@ vi.mock("@/lib/services", () => ({
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
-}));
-
-vi.mock("@/lib/stripe/subscription-catalog", () => ({
-  getSubscriptionCatalog: (...args: unknown[]) =>
-    getSubscriptionCatalogMock(...args),
 }));
 
 vi.mock("../onboarding-dialog", () => ({
@@ -103,7 +87,9 @@ function createSubscriptionCatalog() {
 describe("OnboardingDialogLoader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
+    getSubscriptionCatalogMock.mockResolvedValue({
+      data: createSubscriptionCatalog(),
+    });
     getOrganizationBillingPlanMock.mockResolvedValue({
       data: {
         cancelAtPeriodEnd: false,

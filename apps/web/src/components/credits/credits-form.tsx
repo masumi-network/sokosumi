@@ -1,6 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  type CreditTopUpLookupKey,
+  getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
+  isPositiveIntegerCredits,
+} from "@sokosumi/utils";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -31,19 +38,12 @@ import {
   CreditsErrorCode,
   purchaseCredits,
 } from "@/lib/actions";
-import type { Organization } from "@/lib/clients/generated/core";
 import type {
+  CreditTopUpPrice,
   CreditTopUpPriceCatalog,
-  Price,
-} from "@/lib/clients/stripe.client";
+  Organization,
+} from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import {
-  BASE_CREDIT_TOPUP_LOOKUP_KEY,
-  type CreditTopUpLookupKey,
-  getCreditTopUpLookupKeyByCredits,
-  getCreditTopUpTotalMinorUnits,
-  isPositiveIntegerCredits,
-} from "@/lib/stripe/credit-topup-pricing";
 import { cn } from "@/lib/utils";
 
 function hasValidCreditsInput(credits: number | null | undefined): boolean {
@@ -53,7 +53,7 @@ function hasValidCreditsInput(credits: number | null | undefined): boolean {
 interface CreditPricingSummary {
   baseTierTotalMinorUnits: number;
   hasDiscountComparison: boolean;
-  price: Price;
+  price: CreditTopUpPrice;
   savingsMinorUnits: number | null;
   totalMinorUnits: number;
 }

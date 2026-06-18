@@ -35,19 +35,6 @@ vi.mock("next-intl/server", () => ({
       values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-vi.mock("stripe", () => ({
-  __esModule: true,
-  default: vi.fn(function MockStripe() {
-    return {};
-  }),
-}));
-
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => ({
-    STRIPE_SECRET_KEY: "sk_test_mock",
-  }),
-}));
-
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
@@ -76,6 +63,8 @@ vi.mock("@/lib/clients/core.client", () => ({
       getOrganizationBillingPlanMock(...args),
     getOrganizationStripeCustomer: (...args: unknown[]) =>
       getOrganizationStripeCustomerMock(...args),
+    getSubscriptionCatalog: (...args: unknown[]) =>
+      getSubscriptionCatalogMock(...args),
   },
 }));
 
@@ -94,11 +83,6 @@ vi.mock("@/lib/services", () => ({
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
-}));
-
-vi.mock("@/lib/stripe/subscription-catalog", () => ({
-  getSubscriptionCatalog: (...args: unknown[]) =>
-    getSubscriptionCatalogMock(...args),
 }));
 
 vi.mock("@/lib/utils/credits", () => ({
@@ -242,7 +226,9 @@ describe("BillingPage", () => {
         },
       },
     });
-    getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
+    getSubscriptionCatalogMock.mockResolvedValue({
+      data: createSubscriptionCatalog(),
+    });
     getMyStripeCustomerMock.mockResolvedValue({
       data: { stripeCustomerId: "cus_user_1" },
     });

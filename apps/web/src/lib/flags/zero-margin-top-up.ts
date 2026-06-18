@@ -1,11 +1,11 @@
 import "server-only";
 
-import { flag } from "flags/next";
-import { getSession } from "@/lib/auth/auth.server";
 import {
   type CreditTopUpLookupKey,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
-} from "@/lib/stripe/credit-topup-pricing";
+} from "@sokosumi/utils";
+import { flag } from "flags/next";
+import { getSession } from "@/lib/auth/auth.server";
 import { getEmailDomain } from "../utils";
 
 const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
