@@ -33,6 +33,7 @@ const organizations: OrganizationWithLimitedInfo[] = [
 const breadcrumbMessages = {
   admin: "Admin",
   organizations: "Organizations",
+  users: "Users",
   agents: "Agents",
 };
 
@@ -107,5 +108,21 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText("Organizations")).toBeInTheDocument();
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+  });
+
+  it("shows admin users list breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/admin/users");
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Users")).toBeInTheDocument();
+    expect(screen.queryByText("users")).not.toBeInTheDocument();
   });
 });

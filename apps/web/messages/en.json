@@ -264,6 +264,7 @@
       "account": "Account",
       "admin": "Admin",
       "organizations": "Organizations",
+      "users": "Users",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
       "invoices": "Invoices",
