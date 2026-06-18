@@ -2444,16 +2444,6 @@ export const CreateCreditCheckoutSessionSchema = {
             type: 'string',
             example: 'promo_123'
         },
-        priceLookupKeyOverride: {
-            type: 'string',
-            enum: [
-                'credit_20_margin',
-                'credit_15_margin',
-                'credit_10_margin',
-                'credit_0_margin'
-            ],
-            example: 'credit_20_margin'
-        },
         origin: {
             type: 'string',
             format: 'uri',
@@ -8185,44 +8175,58 @@ export const CreditPriceOptionSchema = {
     ]
 } as const;
 
-export const CreditTopUpPriceCatalogSchema = {
+export const CreditTopUpPricingSchema = {
     type: 'object',
     properties: {
-        credit_20_margin: {
-            $ref: '#/components/schemas/CreditTopUpPrice'
+        currency: {
+            type: 'string',
+            example: 'eur'
         },
-        credit_15_margin: {
-            $ref: '#/components/schemas/CreditTopUpPrice'
+        tiers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CreditTopUpTier'
+            },
+            example: [
+                {
+                    minCredits: 1,
+                    amountPerCredit: 120
+                }
+            ]
         },
-        credit_10_margin: {
-            $ref: '#/components/schemas/CreditTopUpPrice'
+        referenceAmountPerCredit: {
+            type: 'number',
+            example: 120
         },
-        credit_0_margin: {
-            $ref: '#/components/schemas/CreditTopUpPrice'
+        canPurchaseOnFreePlan: {
+            type: 'boolean',
+            example: false
         }
-    }
+    },
+    required: [
+        'currency',
+        'tiers',
+        'referenceAmountPerCredit',
+        'canPurchaseOnFreePlan'
+    ]
 } as const;
 
-export const CreditTopUpPriceSchema = {
+export const CreditTopUpTierSchema = {
     type: 'object',
     properties: {
-        id: {
-            type: 'string',
-            example: 'price_123'
+        minCredits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1
         },
         amountPerCredit: {
             type: 'number',
             example: 120
-        },
-        currency: {
-            type: 'string',
-            example: 'eur'
         }
     },
     required: [
-        'id',
-        'amountPerCredit',
-        'currency'
+        'minCredits',
+        'amountPerCredit'
     ]
 } as const;
 

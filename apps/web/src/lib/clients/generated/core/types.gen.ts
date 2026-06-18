@@ -569,7 +569,6 @@ export type CreateCreditCheckoutSession = {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string;
-    priceLookupKeyOverride?: 'credit_20_margin' | 'credit_15_margin' | 'credit_10_margin' | 'credit_0_margin';
     origin?: string;
     ttlDays?: string;
 };
@@ -2209,17 +2208,16 @@ export type CreditPriceOption = {
     nickname: string | null;
 };
 
-export type CreditTopUpPriceCatalog = {
-    credit_20_margin?: CreditTopUpPrice;
-    credit_15_margin?: CreditTopUpPrice;
-    credit_10_margin?: CreditTopUpPrice;
-    credit_0_margin?: CreditTopUpPrice;
+export type CreditTopUpPricing = {
+    currency: string;
+    tiers: Array<CreditTopUpTier>;
+    referenceAmountPerCredit: number;
+    canPurchaseOnFreePlan: boolean;
 };
 
-export type CreditTopUpPrice = {
-    id: string;
+export type CreditTopUpTier = {
+    minCredits: number;
     amountPerCredit: number;
-    currency: string;
 };
 
 export type SubscriptionCatalog = {
@@ -19937,12 +19935,7 @@ export type ListCreditPricesResponse = ListCreditPricesResponses[keyof ListCredi
 export type GetCreditTopUpPriceCatalogData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Comma-separated additional Stripe lookup keys to include in the catalog.
-         */
-        extraLookupKeys?: string;
-    };
+    query?: never;
     url: '/products/credits/catalog';
 };
 
@@ -19981,10 +19974,10 @@ export type GetCreditTopUpPriceCatalogError = GetCreditTopUpPriceCatalogErrors[k
 
 export type GetCreditTopUpPriceCatalogResponses = {
     /**
-     * Credit top-up prices keyed by lookup key
+     * Account-resolved credit top-up pricing
      */
     200: {
-        data: CreditTopUpPriceCatalog;
+        data: CreditTopUpPricing;
         meta: {
             timestamp: Date;
             requestId: string;

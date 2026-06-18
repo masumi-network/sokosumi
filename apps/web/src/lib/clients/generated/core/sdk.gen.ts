@@ -1682,7 +1682,7 @@ export const listCreditPrices = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Tiered credit top-up price catalog keyed by Stripe lookup keys. Pass extra lookup keys (comma-separated) to include optional tiers such as zero-margin pricing.
+ * Account-resolved credit top-up pricing for the authenticated user. Pricing tiers and zero-margin eligibility are determined server-side; no request input influences pricing.
  */
 export const getCreditTopUpPriceCatalog = <ThrowOnError extends boolean = false>(options?: Options<GetCreditTopUpPriceCatalogData, ThrowOnError>): RequestResult<GetCreditTopUpPriceCatalogResponses, GetCreditTopUpPriceCatalogErrors, ThrowOnError> => (options?.client ?? client).get<GetCreditTopUpPriceCatalogResponses, GetCreditTopUpPriceCatalogErrors, ThrowOnError>({
     responseTransformer: getCreditTopUpPriceCatalogResponseTransformer,
