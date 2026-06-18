@@ -1,6 +1,8 @@
+import * as Sentry from "@sentry/node";
 import type { Notification, NotificationKind } from "@sokosumi/database";
 
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 export interface CreateNotificationInput {
@@ -16,6 +18,41 @@ export interface CreateNotificationInput {
 export interface CreateNotificationResult {
   notification: Notification;
   created: boolean;
+}
+
+async function publishNotificationCreated(
+  notification: Notification,
+): Promise<void> {
+  try {
+    await publishNotificationEvent({
+      userId: notification.userId,
+      notification: {
+        id: notification.id,
+        userId: notification.userId,
+        kind: notification.kind,
+        referenceId: notification.referenceId,
+        eventId: notification.eventId,
+        messageKey: notification.messageKey,
+        messageParams: JSON.parse(notification.messageParams),
+        metadata: notification.metadata
+          ? JSON.parse(notification.metadata)
+          : null,
+        isRead: notification.isRead,
+        readAt: notification.readAt?.toISOString() ?? null,
+        createdAt: notification.createdAt.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error("Failed to publish notification over Ably:", error);
+    Sentry.captureException(error, {
+      extra: {
+        notificationId: notification.id,
+        userId: notification.userId,
+        kind: notification.kind,
+        errorType: "ably-publish-notification",
+      },
+    });
+  }
 }
 
 /**
@@ -54,6 +91,8 @@ export async function createNotification(
             : JSON.stringify(input.metadata),
       },
     });
+
+    await publishNotificationCreated(notification);
 
     return { notification, created: true };
   } catch (error) {

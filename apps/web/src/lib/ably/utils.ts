@@ -4,5 +4,6 @@
  */
 export {
   makeAgentJobsChannelName,
+  makeUserNotificationsChannelName,
   makeUserTasksChannelName,
 } from "@sokosumi/utils";

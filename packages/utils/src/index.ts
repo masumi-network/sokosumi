@@ -1,5 +1,6 @@
 export {
   makeAgentJobsChannelName,
+  makeUserNotificationsChannelName,
   makeUserTasksChannelName,
 } from "./ably-channel.js";
 export {
@@ -113,6 +114,7 @@ export {
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
+export { NotificationKind } from "./notification-kind.js";
 export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { type NotificationKind, type Prisma } from "@sokosumi/database";
+import { type Prisma } from "@sokosumi/database";
+import { type NotificationKind } from "@sokosumi/utils";
 
 import { badRequest } from "@/helpers/error";
 import {
