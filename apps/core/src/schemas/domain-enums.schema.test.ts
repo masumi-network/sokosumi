@@ -7,6 +7,9 @@ import {
   MEMBER_ROLE_VALUES,
   memberRoleNullableSchema,
   memberRoleSchema,
+  STRIPE_SUBSCRIPTION_STATUS_VALUES,
+  stripeSubscriptionStatusNullableSchema,
+  stripeSubscriptionStatusSchema,
 } from "./domain-enums.schema";
 
 describe("domain enum schemas", () => {
@@ -50,14 +53,32 @@ describe("domain enum schemas", () => {
     expect(memberRoleNullableSchema.parse(null)).toBeNull();
     expect(() => memberRoleNullableSchema.parse("superadmin")).toThrow();
   });
+
+  it("stripeSubscriptionStatusSchema accepts Stripe statuses and rejects unknown values", () => {
+    for (const status of STRIPE_SUBSCRIPTION_STATUS_VALUES) {
+      expect(stripeSubscriptionStatusSchema.parse(status)).toBe(status);
+    }
+
+    expect(() => stripeSubscriptionStatusSchema.parse("unknown")).toThrow();
+  });
+
+  it("stripeSubscriptionStatusNullableSchema accepts Stripe statuses and null", () => {
+    for (const status of STRIPE_SUBSCRIPTION_STATUS_VALUES) {
+      expect(stripeSubscriptionStatusNullableSchema.parse(status)).toBe(status);
+    }
+
+    expect(stripeSubscriptionStatusNullableSchema.parse(null)).toBeNull();
+    expect(() =>
+      stripeSubscriptionStatusNullableSchema.parse("unknown"),
+    ).toThrow();
+  });
 });
 
 /*
  * Phase-1 audit (deferred): these schemas still use bare `string` for
- * role/status/kind because the values are external (Stripe subscription
- * status, Better Auth platform role, Hermes API) rather than Sokosumi
- * Postgres enums. Tighten in a follow-up once the sources are catalogued:
+ * role/kind because the values are intentionally open-ended rather than
+ * Sokosumi Postgres enums. Tighten in a follow-up only if the source contracts
+ * become closed sets:
  *   - user.schema.ts: role (platform Better Auth role)
- *   - subscription.schema.ts: status (Stripe subscription status)
  *   - hermes.schema.ts: role, kind (external Hermes API strings)
  */

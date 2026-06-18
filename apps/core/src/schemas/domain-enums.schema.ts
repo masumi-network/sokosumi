@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { InvitationStatus, MemberRole } from "@sokosumi/database";
+import type Stripe from "stripe";
 
 /** Stored organization member roles (Postgres string column, not a Prisma enum). */
 export const MEMBER_ROLE_VALUES = [
@@ -36,4 +37,40 @@ export const invitationStatusSchema = z
   .openapi({
     example: InvitationStatus.PENDING,
     description: "Invitation lifecycle status stored in the database",
+  });
+
+/** Stripe subscription statuses mirrored in our persisted Subscription.status. */
+export const STRIPE_SUBSCRIPTION_STATUS_VALUES = [
+  "active",
+  "canceled",
+  "incomplete",
+  "incomplete_expired",
+  "past_due",
+  "paused",
+  "trialing",
+  "unpaid",
+] as const satisfies readonly Stripe.Subscription.Status[];
+
+type MissingStripeSubscriptionStatus = Exclude<
+  Stripe.Subscription.Status,
+  (typeof STRIPE_SUBSCRIPTION_STATUS_VALUES)[number]
+>;
+
+const _stripeSubscriptionStatusValuesAreExhaustive: Record<
+  MissingStripeSubscriptionStatus,
+  never
+> = {};
+
+export const stripeSubscriptionStatusSchema = z
+  .enum(STRIPE_SUBSCRIPTION_STATUS_VALUES)
+  .openapi({
+    example: "active",
+    description: "Stripe subscription lifecycle status",
+  });
+
+export const stripeSubscriptionStatusNullableSchema =
+  stripeSubscriptionStatusSchema.nullable().openapi({
+    example: "active",
+    enum: [...STRIPE_SUBSCRIPTION_STATUS_VALUES, null],
+    description: "Stripe subscription lifecycle status, or null when absent",
   });

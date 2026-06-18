@@ -42,7 +42,10 @@ export type AdminUserOverviewItem = {
      * Active subscription plan, if any
      */
     subscriptionPlan: string | null;
-    subscriptionStatus: string | null;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
     /**
      * Number of tasks the user has started (status beyond DRAFT)
      */
@@ -1605,7 +1608,10 @@ export type ProvisionedStripeCustomer = {
 export type ActiveSubscriptionResponse = {
     subscription: {
         plan: string;
-        status: string;
+        /**
+         * Stripe subscription lifecycle status
+         */
+        status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
         cancelAtPeriodEnd?: boolean | null;
         periodStart?: Date | null;
         periodEnd?: Date | null;
@@ -9960,7 +9966,10 @@ export type GetUsersByIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                status: string;
+                /**
+                 * Stripe subscription lifecycle status
+                 */
+                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -9988,7 +9997,10 @@ export type GetUsersByIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    status: string;
+                    /**
+                     * Stripe subscription lifecycle status
+                     */
+                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -10499,7 +10511,10 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                status: string;
+                /**
+                 * Stripe subscription lifecycle status
+                 */
+                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -10527,7 +10542,10 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    status: string;
+                    /**
+                     * Stripe subscription lifecycle status
+                     */
+                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;

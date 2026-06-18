@@ -101,7 +101,19 @@ export const AdminUserOverviewItemSchema = {
                 'string',
                 'null'
             ],
-            example: 'active'
+            enum: [
+                'active',
+                'canceled',
+                'incomplete',
+                'incomplete_expired',
+                'past_due',
+                'paused',
+                'trialing',
+                'unpaid',
+                null
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         },
         startedTaskCount: {
             type: 'integer',
@@ -5420,7 +5432,18 @@ export const ActiveSubscriptionResponseSchema = {
                 },
                 status: {
                     type: 'string',
-                    example: 'active'
+                    enum: [
+                        'active',
+                        'canceled',
+                        'incomplete',
+                        'incomplete_expired',
+                        'past_due',
+                        'paused',
+                        'trialing',
+                        'unpaid'
+                    ],
+                    example: 'active',
+                    description: 'Stripe subscription lifecycle status'
                 },
                 cancelAtPeriodEnd: {
                     type: [
