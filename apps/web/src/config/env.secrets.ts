@@ -60,8 +60,6 @@ const envSecretsSchema = z.object({
   VERCEL_GIT_COMMIT_REF: z.string().optional(),
   VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
-  PAYMENT_API_KEY: z.string().min(1),
-  PAYMENT_API_URL: z.url().default("https://payment.masumi.network/api/v1"),
   MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
   MASUMI_DESIGN_MD_API_URL: z
     .url()
