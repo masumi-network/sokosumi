@@ -27,6 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import { CompanyMark } from "@/components/agents/company-mark";
+import { TagIcon } from "@/components/agents/tag-icon";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,8 +171,9 @@ function MetaTags({
       {shownModels.map((model) => (
         <span
           key={model}
-          className="bg-muted/70 text-muted-foreground inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
         >
+          <TagIcon name={model} size={12} />
           {model}
         </span>
       ))}

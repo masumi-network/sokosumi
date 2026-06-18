@@ -1,8 +1,8 @@
 "use client";
 
-import { ModelIcon } from "@lobehub/icons";
 import { Check } from "lucide-react";
 
+import { TagIcon } from "@/components/agents/tag-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
@@ -121,7 +121,7 @@ export function CoworkerCard({
               title={`${labels.modelLabel}: ${model}`}
               className="bg-muted/60 text-foreground/80 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs leading-none font-medium"
             >
-              <ModelIcon model={model} type="mono" size={13} />
+              <TagIcon name={model} size={13} />
               {model}
             </span>
           ))}

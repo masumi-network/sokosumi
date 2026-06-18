@@ -1,10 +1,10 @@
 "use client";
 
-import { ModelIcon } from "@lobehub/icons";
 import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CompanyMark } from "@/components/agents/company-mark";
+import { TagIcon } from "@/components/agents/tag-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -199,7 +199,7 @@ export function AgentSpotlight({
                       title={`${labels.modelLabel}: ${model}`}
                       className="border-border/60 text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium"
                     >
-                      <ModelIcon model={model} type="mono" size={14} />
+                      <TagIcon name={model} size={14} />
                       {model}
                     </span>
                   ))}
