@@ -2,11 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  BASE_CREDIT_TOPUP_LOOKUP_KEY,
-  type CreditTopUpLookupKey,
-  getCreditTopUpLookupKeyByCredits,
   getCreditTopUpTotalMinorUnits,
   isPositiveIntegerCredits,
+  selectCreditTopUpTier,
 } from "@sokosumi/utils";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -39,8 +37,7 @@ import {
   purchaseCredits,
 } from "@/lib/actions";
 import type {
-  CreditTopUpPrice,
-  CreditTopUpPriceCatalog,
+  CreditTopUpPricing,
   Organization,
 } from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -51,54 +48,36 @@ function hasValidCreditsInput(credits: number | null | undefined): boolean {
 }
 
 interface CreditPricingSummary {
-  baseTierTotalMinorUnits: number;
+  amountPerCredit: number;
+  currency: string;
   hasDiscountComparison: boolean;
-  price: CreditTopUpPrice;
+  referenceTotalMinorUnits: number;
   savingsMinorUnits: number | null;
   totalMinorUnits: number;
 }
 
 function getCreditPricingSummary(
   credits: number,
-  priceCatalog: CreditTopUpPriceCatalog,
-  priceLookupKeyOverride?: CreditTopUpLookupKey,
+  pricing: CreditTopUpPricing,
 ): CreditPricingSummary {
-  const selectedLookupKey = getCreditTopUpLookupKeyByCredits(
-    credits,
-    priceLookupKeyOverride,
-  );
-  const price = priceCatalog[selectedLookupKey];
-
-  if (!price) {
-    throw new Error(`Missing credit top-up price for ${selectedLookupKey}`);
-  }
-
-  const baseTierPrice = priceCatalog[BASE_CREDIT_TOPUP_LOOKUP_KEY];
-
-  if (!baseTierPrice) {
-    throw new Error(
-      `Missing credit top-up price for ${BASE_CREDIT_TOPUP_LOOKUP_KEY}`,
-    );
-  }
-
+  const tier = selectCreditTopUpTier(pricing.tiers, credits);
   const totalMinorUnits = getCreditTopUpTotalMinorUnits(
     credits,
-    price.amountPerCredit,
+    tier.amountPerCredit,
   );
-  const baseTierTotalMinorUnits = getCreditTopUpTotalMinorUnits(
+  const referenceTotalMinorUnits = getCreditTopUpTotalMinorUnits(
     credits,
-    baseTierPrice.amountPerCredit,
+    pricing.referenceAmountPerCredit,
   );
-  const hasDiscountComparison =
-    baseTierPrice.currency === price.currency &&
-    baseTierTotalMinorUnits > totalMinorUnits;
+  const hasDiscountComparison = referenceTotalMinorUnits > totalMinorUnits;
 
   return {
-    baseTierTotalMinorUnits,
+    amountPerCredit: tier.amountPerCredit,
+    currency: pricing.currency,
     hasDiscountComparison,
-    price,
+    referenceTotalMinorUnits,
     savingsMinorUnits: hasDiscountComparison
-      ? baseTierTotalMinorUnits - totalMinorUnits
+      ? referenceTotalMinorUnits - totalMinorUnits
       : null,
     totalMinorUnits,
   };
@@ -124,17 +103,15 @@ type CreditsFormData = z.infer<ReturnType<typeof creditsFormSchema>>;
 
 interface CreditsFormProps {
   isPurchaseEnabled?: boolean;
-  priceCatalog: CreditTopUpPriceCatalog;
+  pricing: CreditTopUpPricing;
   organization: Organization | null;
-  priceLookupKeyOverride?: CreditTopUpLookupKey;
   returnPath?: string;
 }
 
 export default function CreditsForm({
   isPurchaseEnabled = true,
-  priceCatalog,
+  pricing,
   organization,
-  priceLookupKeyOverride,
   returnPath,
 }: CreditsFormProps) {
   const quickAmounts = [5_000, 20_000, 50_000, 100_000];
@@ -234,26 +211,21 @@ export default function CreditsForm({
   const selectedPricing =
     selectedCredits === null
       ? null
-      : getCreditPricingSummary(
-          selectedCredits,
-          priceCatalog,
-          priceLookupKeyOverride,
-        );
-  const selectedPrice = selectedPricing?.price ?? null;
+      : getCreditPricingSummary(selectedCredits, pricing);
   const formattedSelectedTotal =
     selectedPricing === null
       ? null
       : formatter.number(selectedPricing.totalMinorUnits / 100, {
           style: "currency",
-          currency: selectedPricing.price.currency.toUpperCase(),
+          currency: selectedPricing.currency.toUpperCase(),
           notation: "compact",
         });
   const formattedBaseTierTotal =
     selectedPricing === null || !selectedPricing.hasDiscountComparison
       ? null
-      : formatter.number(selectedPricing.baseTierTotalMinorUnits / 100, {
+      : formatter.number(selectedPricing.referenceTotalMinorUnits / 100, {
           style: "currency",
-          currency: selectedPricing.price.currency.toUpperCase(),
+          currency: selectedPricing.currency.toUpperCase(),
           notation: "compact",
         });
   const formattedSavings =
@@ -262,7 +234,7 @@ export default function CreditsForm({
       ? null
       : formatter.number(selectedPricing.savingsMinorUnits / 100, {
           style: "currency",
-          currency: selectedPricing.price.currency.toUpperCase(),
+          currency: selectedPricing.currency.toUpperCase(),
           notation: "compact",
         });
   const isQuickAmountSelected =
@@ -294,45 +266,48 @@ export default function CreditsForm({
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {quickAmounts.map((amount) => {
-                    const pricing = getCreditPricingSummary(
+                    const pricingSummary = getCreditPricingSummary(
                       amount,
-                      priceCatalog,
-                      priceLookupKeyOverride,
+                      pricing,
                     );
                     const formattedTotal = formatter.number(
-                      pricing.totalMinorUnits / 100,
+                      pricingSummary.totalMinorUnits / 100,
                       {
                         style: "currency",
-                        currency: pricing.price.currency.toUpperCase(),
+                        currency: pricingSummary.currency.toUpperCase(),
                         notation: "compact",
                       },
                     );
-                    const formattedCompareAt = pricing.hasDiscountComparison
-                      ? formatter.number(
-                          pricing.baseTierTotalMinorUnits / 100,
-                          {
-                            style: "currency",
-                            currency: pricing.price.currency.toUpperCase(),
-                            notation: "compact",
-                          },
-                        )
-                      : null;
+                    const formattedCompareAt =
+                      pricingSummary.hasDiscountComparison
+                        ? formatter.number(
+                            pricingSummary.referenceTotalMinorUnits / 100,
+                            {
+                              style: "currency",
+                              currency: pricingSummary.currency.toUpperCase(),
+                              notation: "compact",
+                            },
+                          )
+                        : null;
                     const formattedPerCredit = formatter.number(
-                      pricing.price.amountPerCredit / 100,
+                      pricingSummary.amountPerCredit / 100,
                       {
                         style: "currency",
-                        currency: pricing.price.currency.toUpperCase(),
+                        currency: pricingSummary.currency.toUpperCase(),
                         maximumFractionDigits: 4,
                       },
                     );
                     const formattedCardSavings =
-                      pricing.savingsMinorUnits === null
+                      pricingSummary.savingsMinorUnits === null
                         ? null
-                        : formatter.number(pricing.savingsMinorUnits / 100, {
-                            style: "currency",
-                            currency: pricing.price.currency.toUpperCase(),
-                            notation: "compact",
-                          });
+                        : formatter.number(
+                            pricingSummary.savingsMinorUnits / 100,
+                            {
+                              style: "currency",
+                              currency: pricingSummary.currency.toUpperCase(),
+                              notation: "compact",
+                            },
+                          );
                     const isSelected = selectedCredits === amount;
 
                     return (
@@ -440,7 +415,7 @@ export default function CreditsForm({
               </Button>
               {!isQuickAmountSelected &&
               selectedCredits !== null &&
-              selectedPrice ? (
+              selectedPricing !== null ? (
                 <div className="space-y-1 text-right">
                   {formattedSelectedTotal ? (
                     <p className="text-2xl font-medium md:text-3xl">
@@ -460,10 +435,10 @@ export default function CreditsForm({
                   <p className="text-muted-foreground text-sm">
                     {t("costPerCredit", {
                       cost: formatter.number(
-                        selectedPrice.amountPerCredit / 100,
+                        selectedPricing.amountPerCredit / 100,
                         {
                           style: "currency",
-                          currency: selectedPrice.currency.toUpperCase(),
+                          currency: selectedPricing.currency.toUpperCase(),
                           maximumFractionDigits: 4,
                         },
                       ),

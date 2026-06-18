@@ -1,4 +1,4 @@
-import { type CreditTopUpLookupKey, NoticeKind } from "@sokosumi/utils";
+import { NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -654,13 +654,12 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getCreditTopUpPriceCatalog(extraLookupKeys?: string) {
+  async function getCreditTopUpPriceCatalog() {
     return executeOperation(
       getClient,
       (client) =>
         coreGetCreditTopUpPriceCatalog({
           client,
-          query: extraLookupKeys ? { extraLookupKeys } : undefined,
           cache: "no-store",
         }),
       "Failed to fetch credit top-up price catalog",
@@ -684,7 +683,6 @@ export function createCoreClient(getClient: GetClient) {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string;
-    priceLookupKeyOverride?: CreditTopUpLookupKey;
     origin?: string;
     ttlDays?: string;
   }) {
