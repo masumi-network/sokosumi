@@ -3578,6 +3578,25 @@
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {seg} other {seg}}"
       }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} completó {jobName}",
+        "failed": "{agentName} no pudo completar {jobName}",
+        "paymentFailed": "Error de pago para {jobName}",
+        "inputRequired": "{agentName} necesita tu input para {jobName}",
+        "refundResolved": "{jobName} fue reembolsado",
+        "disputeResolved": "Disputa resuelta para {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} necesita tu input para {taskName}",
+        "approvalRequired": "{coworkerName} necesita tu aprobación para {taskName}",
+        "authenticationRequired": "{coworkerName} necesita autenticación para {taskName}",
+        "outOfCredits": "{coworkerName} se quedó sin créditos para {taskName}",
+        "completed": "{coworkerName} completó {taskName}",
+        "failed": "{coworkerName} no pudo completar {taskName}",
+        "canceled": "{taskName} fue cancelado"
+      }
     }
   }
 }

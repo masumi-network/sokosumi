@@ -3578,6 +3578,25 @@
         "minutes": "{value, plural, =1 {#分} other {#分}}",
         "seconds": "{value, plural, =1 {#秒} other {#秒}}"
       }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName}が{jobName}を完了しました",
+        "failed": "{agentName}は{jobName}を完了できませんでした",
+        "paymentFailed": "{jobName}の支払いに失敗しました",
+        "inputRequired": "{agentName}は{jobName}の入力を必要としています",
+        "refundResolved": "{jobName}は返金されました",
+        "disputeResolved": "{jobName}の異議申し立てが解決されました"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName}は{taskName}の入力を必要としています",
+        "approvalRequired": "{coworkerName}は{taskName}の承認を必要としています",
+        "authenticationRequired": "{coworkerName}は{taskName}の認証を必要としています",
+        "outOfCredits": "{coworkerName}は{taskName}のクレジットを使い果たしました",
+        "completed": "{coworkerName}が{taskName}を完了しました",
+        "failed": "{coworkerName}は{taskName}を完了できませんでした",
+        "canceled": "{taskName}はキャンセルされました"
+      }
     }
   }
 }
