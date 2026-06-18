@@ -1,6 +1,5 @@
 import {
   BASE_CREDIT_TOPUP_LOOKUP_KEY,
-  CREDIT_TOPUP_LOOKUP_KEYS,
   type CreditTopUpLookupKey,
   getCreditTopUpLookupKeyByCredits,
   getCreditTopUpTotalMinorUnits,
@@ -469,24 +468,6 @@ export const stripeClient = {
       lookupKeyOverride,
     );
     return await this.getPriceByLookupKey(lookupKey);
-  },
-
-  async getCreditTopUpPriceCatalog(
-    extraLookupKeys: CreditTopUpLookupKey[] = [],
-  ): Promise<Record<CreditTopUpLookupKey, CreditPrice>> {
-    const lookupKeys = [...CREDIT_TOPUP_LOOKUP_KEYS, ...extraLookupKeys];
-    const uniqueLookupKeys = [...new Set(lookupKeys)] as CreditTopUpLookupKey[];
-    const prices = await Promise.all(
-      uniqueLookupKeys.map(async (lookupKey) => [
-        lookupKey,
-        await this.getPriceByLookupKey(lookupKey),
-      ]),
-    );
-
-    return Object.fromEntries(prices) as Record<
-      CreditTopUpLookupKey,
-      CreditPrice
-    >;
   },
 
   async getPromotionCode(
