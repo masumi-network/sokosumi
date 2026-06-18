@@ -1,4 +1,3 @@
-import type { CreditTopUpLookupKey } from "@sokosumi/utils";
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
 import CreditsSuccessModal from "@/app/credits/components/success-modal";
@@ -11,7 +10,6 @@ import { agentService } from "@/lib/services";
 interface CreditsSectionProps {
   isPurchaseEnabled?: boolean;
   organization: Organization | null;
-  priceLookupKeyOverride?: CreditTopUpLookupKey;
   returnPath?: string;
   searchParams?: {
     cancel?: string;
@@ -22,16 +20,13 @@ interface CreditsSectionProps {
 export default async function CreditsSection({
   isPurchaseEnabled = true,
   organization,
-  priceLookupKeyOverride,
   returnPath,
   searchParams,
 }: CreditsSectionProps) {
   const sessionId = searchParams?.session_id;
   const cancel = searchParams?.cancel;
 
-  const { data: priceCatalog } = await coreClient.getCreditTopUpPriceCatalog(
-    priceLookupKeyOverride,
-  );
+  const { data: pricing } = await coreClient.getCreditTopUpPriceCatalog();
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
   const projectOptionsPromise = getProjectFilterOptions();
   const checkoutSession = sessionId
@@ -45,8 +40,7 @@ export default async function CreditsSection({
     <>
       <CreditsForm
         isPurchaseEnabled={isPurchaseEnabled}
-        priceLookupKeyOverride={priceLookupKeyOverride}
-        priceCatalog={priceCatalog}
+        pricing={pricing}
         organization={organization}
         returnPath={returnPath}
       />

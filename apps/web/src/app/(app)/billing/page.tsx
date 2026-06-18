@@ -1,8 +1,5 @@
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
-import {
-  MemberRole,
-  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
-} from "@sokosumi/utils";
+import { MemberRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
@@ -20,7 +17,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
@@ -60,21 +56,21 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
   const t = await getTranslations("App.Billing");
-  const [query, session, activeOrganization, isZeroMarginTopUpEnabled] =
-    await Promise.all([
-      searchParams,
-      getSession(),
-      userService.getActiveOrganization(),
-      zeroMarginTopUpEnabled(),
-    ]);
+  const [query, session, activeOrganization] = await Promise.all([
+    searchParams,
+    getSession(),
+    userService.getActiveOrganization(),
+  ]);
   const activeTab = parseBillingTab(query.tab);
 
   if (!session) {
     return null;
   }
-  const creditsPriceLookupKeyOverride = isZeroMarginTopUpEnabled
-    ? ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY
-    : undefined;
+
+  const creditPricing = await coreClient
+    .getCreditTopUpPriceCatalog()
+    .then((response) => response.data);
+  const canPurchaseOnFreePlan = creditPricing.canPurchaseOnFreePlan;
 
   if (activeOrganization) {
     const [member, subscriptionCatalog] = await Promise.all([
@@ -115,7 +111,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       isEnterpriseContract && billingPlan.isConsumable;
     const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
-      isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
+      isOwnerOrAdmin && (currentPlan !== "free" || canPurchaseOnFreePlan);
     const creditsCheckoutParams =
       canPurchaseCredits && activeTab === "credits"
         ? { cancel: query.cancel, session_id: query.session_id }
@@ -248,7 +244,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <CreditsSection
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={activeOrganization}
-                priceLookupKeyOverride={creditsPriceLookupKeyOverride}
                 returnPath="/billing?tab=credits"
                 searchParams={creditsCheckoutParams}
               />
@@ -294,7 +289,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     };
   });
 
-  const canPurchaseCredits = currentPlan !== "free" || isZeroMarginTopUpEnabled;
+  const canPurchaseCredits = currentPlan !== "free" || canPurchaseOnFreePlan;
   const creditsCheckoutParams =
     canPurchaseCredits && activeTab === "credits"
       ? { cancel: query.cancel, session_id: query.session_id }
@@ -353,7 +348,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             <CreditsSection
               isPurchaseEnabled={canPurchaseCredits}
               organization={null}
-              priceLookupKeyOverride={creditsPriceLookupKeyOverride}
               returnPath="/billing?tab=credits"
               searchParams={creditsCheckoutParams}
             />

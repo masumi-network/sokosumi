@@ -10,7 +10,6 @@ import {
 } from "@/lib/actions/errors";
 import { coreClient } from "@/lib/clients/core.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
-import { resolveZeroMarginTopUpLookupKey } from "@/lib/flags/zero-margin-top-up";
 import { userService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -27,7 +26,7 @@ interface PurchaseCreditsParameters extends AuthenticatedRequest {
 export const purchaseCredits = withSession<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, credits, session, returnPath }) => {
+>(async ({ organizationId, credits, returnPath }) => {
   if (!isPositiveIntegerCredits(credits)) {
     return Err({
       message: "Invalid credits",
@@ -47,14 +46,10 @@ export const purchaseCredits = withSession<
 
   try {
     const headerList = await headers();
-    const priceLookupKeyOverride = resolveZeroMarginTopUpLookupKey(
-      session.user.email,
-    );
     const { data } = await coreClient.createCreditCheckoutSession({
       organizationId,
       credits,
       returnPath,
-      priceLookupKeyOverride: priceLookupKeyOverride ?? undefined,
       origin: headerList.get("origin") ?? undefined,
     });
 
