@@ -33,11 +33,11 @@ export const subscriptionCatalogSchema = z
   })
   .openapi("SubscriptionCatalog");
 
-export type SubscriptionCatalogResponse = {
+export interface SubscriptionCatalogResponse {
   free: SubscriptionCatalogPlanResponse;
   starter: SubscriptionCatalogPlanResponse;
   standard: SubscriptionCatalogPlanResponse;
   pro: SubscriptionCatalogPlanResponse;
-};
+}
 
 export const FREE_SUBSCRIPTION_PLAN_CREDITS = FREE_SUBSCRIPTION_MONTHLY_CREDITS;
