@@ -5,6 +5,7 @@ import {
   INVITATION_DB_STATUS_VALUES,
   invitationStatusSchema,
   MEMBER_ROLE_VALUES,
+  memberRoleNullableSchema,
   memberRoleSchema,
 } from "./domain-enums.schema";
 
@@ -41,23 +42,22 @@ describe("domain enum schemas", () => {
     expect(() => invitationStatusSchema.parse("unknown")).toThrow();
   });
 
-  /**
-   * Phase-1 audit: these schemas still use bare `string` for role/status/kind
-   * because the values are external (Stripe, Better Auth platform role, Hermes)
-   * rather than Sokosumi Postgres enums. Tighten in a follow-up when sources
-   * are catalogued.
-   */
-  it("documents remaining bare string role/status/kind fields outside phase-1 scope", () => {
-    expect([
-      "user.schema.ts: role (platform Better Auth role)",
-      "subscription.schema.ts: status (Stripe subscription status)",
-      "hermes.schema.ts: role, kind (external Hermes API strings)",
-    ]).toMatchInlineSnapshot(`
-      [
-        "user.schema.ts: role (platform Better Auth role)",
-        "subscription.schema.ts: status (Stripe subscription status)",
-        "hermes.schema.ts: role, kind (external Hermes API strings)",
-      ]
-    `);
+  it("memberRoleNullableSchema accepts member roles and null, rejects unknown values", () => {
+    for (const role of MEMBER_ROLE_VALUES) {
+      expect(memberRoleNullableSchema.parse(role)).toBe(role);
+    }
+
+    expect(memberRoleNullableSchema.parse(null)).toBeNull();
+    expect(() => memberRoleNullableSchema.parse("superadmin")).toThrow();
   });
 });
+
+/*
+ * Phase-1 audit (deferred): these schemas still use bare `string` for
+ * role/status/kind because the values are external (Stripe subscription
+ * status, Better Auth platform role, Hermes API) rather than Sokosumi
+ * Postgres enums. Tighten in a follow-up once the sources are catalogued:
+ *   - user.schema.ts: role (platform Better Auth role)
+ *   - subscription.schema.ts: status (Stripe subscription status)
+ *   - hermes.schema.ts: role, kind (external Hermes API strings)
+ */
