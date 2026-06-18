@@ -55,6 +55,7 @@ import {
 } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import {
   ensureCanAcceptOrganizationInvitation,
@@ -424,9 +425,15 @@ export const auth = betterAuth({
           MessageStream: "authentications",
         })
         .catch((error) => {
-          Sentry.captureException(error, {
-            tags: {
-              context: "reset_password_email",
+          captureExternalServiceError(error, {
+            label: "reset_password_email",
+            sentry: {
+              tags: {
+                context: "reset_password_email",
+              },
+              extra: {
+                userId: user.id,
+              },
             },
             extra: {
               userId: user.id,
@@ -453,9 +460,15 @@ export const auth = betterAuth({
           MessageStream: "authentications",
         })
         .catch((error) => {
-          Sentry.captureException(error, {
-            tags: {
-              context: "verification_email",
+          captureExternalServiceError(error, {
+            label: "verification_email",
+            sentry: {
+              tags: {
+                context: "verification_email",
+              },
+              extra: {
+                userId: user.id,
+              },
             },
             extra: {
               userId: user.id,
@@ -502,9 +515,15 @@ export const auth = betterAuth({
             MessageStream: "authentications",
           })
           .catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "magic_link_email",
+            captureExternalServiceError(error, {
+              label: "magic_link_email",
+              sentry: {
+                tags: {
+                  context: "magic_link_email",
+                },
+                extra: {
+                  email,
+                },
               },
               extra: {
                 email,
@@ -591,9 +610,16 @@ export const auth = betterAuth({
             MessageStream: "organizations",
           })
           .catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "organization_invitation_email",
+            captureExternalServiceError(error, {
+              label: "organization_invitation_email",
+              sentry: {
+                tags: {
+                  context: "organization_invitation_email",
+                },
+                extra: {
+                  invitationId: data.id,
+                  organizationId: data.organization.id,
+                },
               },
               extra: {
                 invitationId: data.id,
