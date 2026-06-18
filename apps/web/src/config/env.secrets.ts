@@ -45,9 +45,6 @@ const envSecretsSchema = z.object({
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
-  // Postmark
-  POSTMARK_SERVER_ID: z.string().min(1),
-
   // Vercel
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z
