@@ -135,7 +135,8 @@ describe("createCreditCheckoutSession pricing authority", () => {
       promotion: {
         coupon: {
           id: "coupon_1",
-          metadata: { ttl_days: "30" },
+          percent_off: 100,
+          metadata: { credits: "1000", ttl_days: "30" },
         },
       },
     });
@@ -143,7 +144,7 @@ describe("createCreditCheckoutSession pricing authority", () => {
     await stripeBillingService.createCreditCheckoutSession({
       userId: "user_1",
       organizationId: null,
-      credits: 500,
+      credits: 1000,
       promotionCodeId: "promo_1",
     });
 
@@ -153,6 +154,61 @@ describe("createCreditCheckoutSession pricing authority", () => {
         couponTtlDays: "30",
       }),
     );
+  });
+
+  it("re-derives credits from the coupon and ignores an inflated client value", async () => {
+    getPromotionCodeByIdMock.mockResolvedValue({
+      id: "promo_1",
+      customer: "cus_123",
+      promotion: {
+        coupon: {
+          id: "coupon_1",
+          percent_off: 100,
+          metadata: { credits: "1000" },
+        },
+      },
+    });
+
+    await stripeBillingService.createCreditCheckoutSession({
+      userId: "user_1",
+      organizationId: null,
+      credits: 9_999_999,
+      promotionCodeId: "promo_1",
+    });
+
+    // Price is computed for the coupon's credits, not the client's value.
+    expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(
+      1000,
+      undefined,
+    );
+    expect(createCreditCheckoutSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ credits: 1000 }),
+    );
+  });
+
+  it("rejects a promotion code whose coupon has no credit metadata", async () => {
+    getPromotionCodeByIdMock.mockResolvedValue({
+      id: "promo_1",
+      customer: "cus_123",
+      promotion: {
+        coupon: {
+          id: "coupon_1",
+          percent_off: 100,
+          metadata: {},
+        },
+      },
+    });
+
+    await expect(
+      stripeBillingService.createCreditCheckoutSession({
+        userId: "user_1",
+        organizationId: null,
+        credits: 1000,
+        promotionCodeId: "promo_1",
+      }),
+    ).rejects.toThrow("Invalid promotion code");
+
+    expect(createCreditCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("rejects promotion codes scoped to another Stripe customer", async () => {

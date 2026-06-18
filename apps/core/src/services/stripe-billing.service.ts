@@ -128,21 +128,23 @@ function getPromotionCodeCustomerId(
   return customer.id;
 }
 
-function getPromotionCodeCouponTtlDays(
+function getPromotionCodeCoupon(
   promotionCode: Stripe.PromotionCode,
-): string | undefined {
+): Stripe.Coupon | null {
   const coupon = (promotionCode as PromotionCodeWithExpandedCoupon).promotion
     ?.coupon;
 
-  if (
-    typeof coupon !== "object" ||
-    coupon === null ||
-    !("metadata" in coupon)
-  ) {
-    return undefined;
+  if (typeof coupon !== "object" || coupon === null) {
+    return null;
   }
 
-  return coupon.metadata?.ttl_days;
+  return coupon;
+}
+
+function getPromotionCodeCouponTtlDays(
+  promotionCode: Stripe.PromotionCode,
+): string | undefined {
+  return getPromotionCodeCoupon(promotionCode)?.metadata?.ttl_days;
 }
 
 async function isCheckoutSessionOwnedByUser(
@@ -386,10 +388,14 @@ export const stripeBillingService = {
     const zeroMarginLookupKey = await resolveZeroMarginLookupKeyForUser(
       params.userId,
     );
-    const price = await stripeClient.getCreditTopUpPriceByCredits(
-      params.credits,
-      zeroMarginLookupKey,
-    );
+
+    // Credits default to the client-requested amount, but a coupon checkout
+    // MUST grant exactly the coupon's credits. The discount is fully
+    // server-applied, so without this a caller could pair a 100%-off promotion
+    // code with an inflated `credits` value and mint free credits. When a
+    // promotion code is supplied we re-derive credits from its coupon and
+    // ignore the client value.
+    let effectiveCredits = params.credits;
     let couponTtlDays: string | undefined;
 
     if (params.promotionCodeId) {
@@ -405,14 +411,33 @@ export const stripeBillingService = {
         throw badRequest("Invalid promotion code");
       }
 
+      const coupon = getPromotionCodeCoupon(promotionCode);
+      if (!coupon) {
+        throw badRequest("Invalid promotion code");
+      }
+
+      try {
+        effectiveCredits = getCreditsForCoupon(coupon);
+      } catch (error) {
+        if (error instanceof CouponTypeError) {
+          throw badRequest("Invalid promotion code");
+        }
+        throw error;
+      }
+
       couponTtlDays = getPromotionCodeCouponTtlDays(promotionCode);
     }
+
+    const price = await stripeClient.getCreditTopUpPriceByCredits(
+      effectiveCredits,
+      zeroMarginLookupKey,
+    );
 
     const session = await stripeClient.createCreditCheckoutSession({
       stripeCustomerId,
       userId: params.userId,
       organizationId: params.organizationId,
-      credits: params.credits,
+      credits: effectiveCredits,
       price,
       promotionCodeId: params.promotionCodeId,
       returnPath: params.returnPath,
