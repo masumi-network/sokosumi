@@ -124,6 +124,7 @@ import {
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminOrganizationMemberOverview as coreListAdminOrganizationMemberOverview,
   listAdminOrganizationOverview as coreListAdminOrganizationOverview,
   listAdminTasks as coreListAdminTasks,
   listAdminUserOverview as coreListAdminUserOverview,
@@ -768,6 +769,23 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization overview",
+    );
+  }
+
+  async function listAdminOrganizationMemberOverview(
+    slug: string,
+    query: { cursor?: string; limit?: number },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminOrganizationMemberOverview({
+          client,
+          path: { slug },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list organization members",
     );
   }
 
@@ -2441,6 +2459,7 @@ export function createCoreClient(getClient: GetClient) {
     getAdminOrganizationBySlug,
     listAdminOrganizationOverview,
     getAdminOrganizationOverviewBySlug,
+    listAdminOrganizationMemberOverview,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,

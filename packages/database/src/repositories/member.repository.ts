@@ -354,6 +354,62 @@ export const memberRepository = (() => {
     });
   }
 
+  /**
+   * Paginated member listing for the admin organization detail view. Ordered by
+   * role, then user name, with member id as a stable cursor tiebreaker.
+   */
+  async function listMembersForAdminOverview(
+    params: {
+      organizationId: string;
+      cursor?: string;
+      take: number;
+      skip?: number;
+    },
+    tx: Prisma.TransactionClient,
+  ): Promise<{
+    members: MemberWithUserAndLastSeen[];
+    total: number;
+  }> {
+    const where = { organizationId: params.organizationId };
+
+    const [members, total] = await Promise.all([
+      tx.member.findMany({
+        where,
+        include: memberUserInclude,
+        orderBy: [...memberOrderBy, { id: "asc" }],
+        take: params.take,
+        skip: params.skip,
+        cursor: params.cursor ? { id: params.cursor } : undefined,
+      }),
+      tx.member.count({ where }),
+    ]);
+
+    const userIds = members.map((member) => member.userId);
+    if (userIds.length === 0) {
+      return { members: [], total };
+    }
+
+    const lastSessionByUser = await tx.session.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds } },
+      _max: { updatedAt: true },
+    });
+
+    const lastSeenByUserId = new Map<string, Date>(
+      lastSessionByUser.flatMap((group) =>
+        group._max.updatedAt ? [[group.userId, group._max.updatedAt]] : [],
+      ),
+    );
+
+    return {
+      members: members.map((member) => ({
+        ...member,
+        lastSeenAt: lastSeenByUserId.get(member.userId) ?? null,
+      })),
+      total,
+    };
+  }
+
   return {
     assignSeat,
     createMember,
@@ -368,6 +424,7 @@ export const memberRepository = (() => {
     getMembersWithUser,
     getMembersWithUserAndLastSeen,
     getMembersByOrganizationId,
+    listMembersForAdminOverview,
     removeMember,
     unassignSeat,
     updateMemberRole,

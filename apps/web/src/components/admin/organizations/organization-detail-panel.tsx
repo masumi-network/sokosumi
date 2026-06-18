@@ -5,7 +5,7 @@ import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { listAdminOrganizationMembersAction } from "@/lib/actions/admin-organizations/action";
 import {
   addAdminOrganizationMemberAction,
   assignAdminOrganizationMemberSeatAction,
@@ -44,21 +45,33 @@ import {
 } from "@/lib/actions/admin-organizations/member-actions";
 import { searchUsersClient } from "@/lib/actions/admin-search/client";
 import type { ActionError } from "@/lib/actions/errors";
-import type { AdminOrganizationOverviewDetail } from "@/lib/services/admin-organization.service";
+import type {
+  AdminOrganizationMemberOverviewItem,
+  AdminOrganizationMemberOverviewPage,
+  AdminOrganizationOverviewDetail,
+} from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type { Result } from "@/lib/ts-res";
 
 interface OrganizationDetailPanelProps {
   detail: AdminOrganizationOverviewDetail;
+  initialMembersPage: AdminOrganizationMemberOverviewPage;
 }
 
 export function OrganizationDetailPanel({
   detail,
+  initialMembersPage,
 }: OrganizationDetailPanelProps) {
   const t = useTranslations("App.Admin.Organizations.OrganizationDetail");
   const formatter = useFormatter();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [members, setMembers] = useState<AdminOrganizationMemberOverviewItem[]>(
+    initialMembersPage.members,
+  );
+  const [memberTotal, setMemberTotal] = useState(initialMembersPage.total);
+  const [nextCursor, setNextCursor] = useState(initialMembersPage.nextCursor);
+  const latestMembersRequestId = useRef(0);
   const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
     null,
   );
@@ -68,8 +81,38 @@ export function OrganizationDetailPanel({
 
   const showSeatManagement = detail.seatSummary.paidPlan != null;
 
+  function fetchMembersPage(cursor?: string) {
+    const requestId = ++latestMembersRequestId.current;
+    startTransition(async () => {
+      const result = await listAdminOrganizationMembersAction({
+        slug: detail.organization.slug,
+        cursor,
+      });
+      if (requestId !== latestMembersRequestId.current) {
+        return;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("members.loadError"));
+        return;
+      }
+      setMembers((current) =>
+        cursor ? [...current, ...result.data.members] : result.data.members,
+      );
+      setMemberTotal(result.data.total);
+      setNextCursor(result.data.nextCursor);
+    });
+  }
+
   function refresh() {
     router.refresh();
+    fetchMembersPage();
+  }
+
+  function handleLoadMore() {
+    if (!nextCursor) {
+      return;
+    }
+    fetchMembersPage(nextCursor);
   }
 
   function runMemberAction(
@@ -157,18 +200,31 @@ export function OrganizationDetailPanel({
 
         <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
           <h2 className="font-medium">{t("credits.title")}</h2>
-          <p className="text-2xl font-semibold tabular-nums">
-            {formatter.number(detail.totalCredits)}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {t("credits.description")}
-          </p>
+          {detail.totalCredits != null ? (
+            <>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatter.number(detail.totalCredits)}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("credits.description")}
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("credits.perMember")}
+            </p>
+          )}
         </section>
       </div>
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="font-medium">{t("members.title")}</h2>
+          <div>
+            <h2 className="font-medium">{t("members.title")}</h2>
+            <p className="text-muted-foreground text-sm tabular-nums">
+              {t("members.totalCount", { count: memberTotal })}
+            </p>
+          </div>
           <div className="flex flex-wrap items-end gap-2">
             <div className="w-72">
               <AsyncSearchCombobox<AdminUserOption>
@@ -220,174 +276,192 @@ export function OrganizationDetailPanel({
           </div>
         </div>
 
-        <div
-          className="overflow-hidden rounded-lg border"
-          aria-busy={isPending}
-        >
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="pl-4">{t("members.user")}</TableHead>
-                <TableHead>{t("members.role")}</TableHead>
-                <TableHead className="text-right">
-                  {t("members.credits")}
-                </TableHead>
-                <TableHead>{t("members.subscription")}</TableHead>
-                {showSeatManagement ? (
-                  <TableHead>{t("members.seat")}</TableHead>
-                ) : null}
-                <TableHead className="pr-4 text-right">
-                  {t("members.actions")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detail.members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="pl-4">
-                    <span className="flex flex-col">
-                      <span className="font-medium">{member.user.name}</span>
-                      <span className="text-muted-foreground text-xs">
-                        {member.user.email}
-                      </span>
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{member.role}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatter.number(member.credits)}
-                  </TableCell>
-                  <TableCell>
-                    {member.subscriptionPlan ? (
-                      <span className="flex items-center gap-2">
-                        <span>{member.subscriptionPlan}</span>
-                        {member.subscriptionStatus ? (
-                          <Badge variant="outline">
-                            {member.subscriptionStatus}
-                          </Badge>
-                        ) : null}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
+        {members.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{t("members.empty")}</p>
+        ) : (
+          <div
+            className="overflow-hidden rounded-lg border"
+            aria-busy={isPending}
+          >
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="pl-4">{t("members.user")}</TableHead>
+                  <TableHead>{t("members.role")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("members.credits")}
+                  </TableHead>
+                  <TableHead>{t("members.subscription")}</TableHead>
                   {showSeatManagement ? (
-                    <TableCell>
-                      {member.seatAssignedAt
-                        ? t("members.seatAssigned")
-                        : t("members.seatUnassigned")}
-                    </TableCell>
+                    <TableHead>{t("members.seat")}</TableHead>
                   ) : null}
-                  <TableCell className="pr-4 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Ellipsis className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            runMemberAction(
-                              () =>
-                                updateAdminOrganizationMemberRoleAction({
-                                  slug: detail.organization.slug,
-                                  memberId: member.id,
-                                  role: MemberRole.OWNER,
-                                }),
-                              t("roleUpdateSuccess"),
-                            )
-                          }
-                        >
-                          {t("actions.makeOwner")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            runMemberAction(
-                              () =>
-                                updateAdminOrganizationMemberRoleAction({
-                                  slug: detail.organization.slug,
-                                  memberId: member.id,
-                                  role: MemberRole.ADMIN,
-                                }),
-                              t("roleUpdateSuccess"),
-                            )
-                          }
-                        >
-                          {t("actions.makeAdmin")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            runMemberAction(
-                              () =>
-                                updateAdminOrganizationMemberRoleAction({
-                                  slug: detail.organization.slug,
-                                  memberId: member.id,
-                                  role: MemberRole.MEMBER,
-                                }),
-                              t("roleUpdateSuccess"),
-                            )
-                          }
-                        >
-                          {t("actions.makeMember")}
-                        </DropdownMenuItem>
-                        {showSeatManagement ? (
-                          member.seatAssignedAt ? (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                runMemberAction(
-                                  () =>
-                                    unassignAdminOrganizationMemberSeatAction({
-                                      slug: detail.organization.slug,
-                                      memberId: member.id,
-                                    }),
-                                  t("seatUnassignSuccess"),
-                                )
-                              }
-                            >
-                              {t("actions.unassignSeat")}
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                runMemberAction(
-                                  () =>
-                                    assignAdminOrganizationMemberSeatAction({
-                                      slug: detail.organization.slug,
-                                      memberId: member.id,
-                                    }),
-                                  t("seatAssignSuccess"),
-                                )
-                              }
-                            >
-                              {t("actions.assignSeat")}
-                            </DropdownMenuItem>
-                          )
-                        ) : null}
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() =>
-                            runMemberAction(
-                              () =>
-                                removeAdminOrganizationMemberAction({
-                                  slug: detail.organization.slug,
-                                  memberId: member.id,
-                                }),
-                              t("removeSuccess"),
-                            )
-                          }
-                        >
-                          {t("actions.remove")}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  <TableHead className="pr-4 text-right">
+                    {t("members.actions")}
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="pl-4">
+                      <span className="flex flex-col">
+                        <span className="font-medium">{member.user.name}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {member.user.email}
+                        </span>
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{member.role}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatter.number(member.credits)}
+                    </TableCell>
+                    <TableCell>
+                      {member.subscriptionPlan ? (
+                        <span className="flex items-center gap-2">
+                          <span>{member.subscriptionPlan}</span>
+                          {member.subscriptionStatus ? (
+                            <Badge variant="outline">
+                              {member.subscriptionStatus}
+                            </Badge>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    {showSeatManagement ? (
+                      <TableCell>
+                        {member.seatAssignedAt
+                          ? t("members.seatAssigned")
+                          : t("members.seatUnassigned")}
+                      </TableCell>
+                    ) : null}
+                    <TableCell className="pr-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Ellipsis className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  updateAdminOrganizationMemberRoleAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                    role: MemberRole.OWNER,
+                                  }),
+                                t("roleUpdateSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.makeOwner")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  updateAdminOrganizationMemberRoleAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                    role: MemberRole.ADMIN,
+                                  }),
+                                t("roleUpdateSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.makeAdmin")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  updateAdminOrganizationMemberRoleAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                    role: MemberRole.MEMBER,
+                                  }),
+                                t("roleUpdateSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.makeMember")}
+                          </DropdownMenuItem>
+                          {showSeatManagement ? (
+                            member.seatAssignedAt ? (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  runMemberAction(
+                                    () =>
+                                      unassignAdminOrganizationMemberSeatAction(
+                                        {
+                                          slug: detail.organization.slug,
+                                          memberId: member.id,
+                                        },
+                                      ),
+                                    t("seatUnassignSuccess"),
+                                  )
+                                }
+                              >
+                                {t("actions.unassignSeat")}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  runMemberAction(
+                                    () =>
+                                      assignAdminOrganizationMemberSeatAction({
+                                        slug: detail.organization.slug,
+                                        memberId: member.id,
+                                      }),
+                                    t("seatAssignSuccess"),
+                                  )
+                                }
+                              >
+                                {t("actions.assignSeat")}
+                              </DropdownMenuItem>
+                            )
+                          ) : null}
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  removeAdminOrganizationMemberAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                  }),
+                                t("removeSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.remove")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {nextCursor ? (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={isPending}
+            >
+              {t("members.loadMore")}
+            </Button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

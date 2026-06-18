@@ -2652,10 +2652,15 @@
           },
           "credits": {
             "title": "Guthaben gesamt",
-            "description": "Kombiniertes verfügbares Guthaben für diese Organisation."
+            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
+            "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
           },
           "members": {
             "title": "Mitglieder",
+            "totalCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+            "empty": "Noch keine Mitglieder.",
+            "loadMore": "Mehr laden",
+            "loadError": "Mitglieder konnten nicht geladen werden.",
             "user": "Benutzer",
             "role": "Rolle",
             "credits": "Guthaben",

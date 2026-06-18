@@ -15,6 +15,10 @@ import { buildCreditsPayload } from "@/helpers/subscription.js";
 
 const ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY = 5;
 
+type AdminOrganizationMemberRecord = Awaited<
+  ReturnType<typeof memberRepository.getMembersWithUserAndLastSeen>
+>[number];
+
 interface AdminOrganizationBillingSnapshot {
   mode: "enterprise_contract" | "self_serve";
   plan: "free" | "starter" | "standard" | "pro" | "enterprise";
@@ -37,6 +41,75 @@ function mapBillingPlan(
     purchasedSeats: billingPlan.purchasedSeats,
     cancelAtPeriodEnd: billingPlan.cancelAtPeriodEnd,
     periodEnd: billingPlan.periodEnd,
+  };
+}
+
+export async function buildAdminOrganizationMemberOverviewItem(
+  member: AdminOrganizationMemberRecord,
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+) {
+  const payload = await buildCreditsPayload({
+    userId: member.userId,
+    organizationId,
+    referenceId: organizationId,
+    tx,
+  });
+
+  return {
+    id: member.id,
+    organizationId: member.organizationId,
+    role: member.role,
+    seatAssignedAt: member.seatAssignedAt,
+    createdAt: member.createdAt,
+    user: {
+      id: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+    },
+    lastSeenAt: member.lastSeenAt,
+    credits: payload.credits.total,
+    subscriptionPlan: payload.credits.subscription?.plan ?? null,
+    subscriptionStatus: payload.credits.subscription?.status ?? null,
+  };
+}
+
+export async function buildAdminOrganizationMemberOverviewPage(
+  slug: string,
+  pagination: {
+    cursor?: string;
+    take: number;
+    skip?: number;
+  },
+  tx: Prisma.TransactionClient,
+) {
+  const organization =
+    await organizationRepository.getOrganizationLimitedInfoBySlug(slug, tx);
+
+  if (!organization) {
+    return null;
+  }
+
+  const { members, total } = await memberRepository.listMembersForAdminOverview(
+    {
+      organizationId: organization.id,
+      ...pagination,
+    },
+    tx,
+  );
+
+  const limit = pLimit(ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY);
+  const items = await Promise.all(
+    members.map((member) =>
+      limit(() =>
+        buildAdminOrganizationMemberOverviewItem(member, organization.id, tx),
+      ),
+    ),
+  );
+
+  return {
+    members: items,
+    total,
   };
 }
 
@@ -98,8 +171,7 @@ export async function buildAdminOrganizationOverviewDetail(
     tx,
     now,
   );
-  const [members, assignedCount, subscription] = await Promise.all([
-    memberRepository.getMembersWithUserAndLastSeen(organization.id, tx),
+  const [assignedCount, subscription] = await Promise.all([
     memberRepository.getAssignedMemberCount(organization.id, tx),
     billingPlan.mode === "self_serve"
       ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
@@ -123,41 +195,10 @@ export async function buildAdminOrganizationOverviewDetail(
         )
       : null;
 
-  const limit = pLimit(ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY);
-  const memberOverviews = await Promise.all(
-    members.map((member) =>
-      limit(async () => {
-        const payload = await buildCreditsPayload({
-          userId: member.userId,
-          organizationId: organization.id,
-          referenceId: organization.id,
-          tx,
-        });
-
-        return {
-          id: member.id,
-          organizationId: member.organizationId,
-          role: member.role,
-          seatAssignedAt: member.seatAssignedAt,
-          createdAt: member.createdAt,
-          user: {
-            id: member.user.id,
-            name: member.user.name,
-            email: member.user.email,
-          },
-          lastSeenAt: member.lastSeenAt,
-          credits: payload.credits.total,
-          subscriptionPlan: payload.credits.subscription?.plan ?? null,
-          subscriptionStatus: payload.credits.subscription?.status ?? null,
-        };
-      }),
-    ),
-  );
-
   const totalCredits =
     billingPlan.mode === "enterprise_contract"
       ? (enterpriseContract?.poolRemainingCredits ?? 0)
-      : memberOverviews.reduce((sum, member) => sum + member.credits, 0);
+      : null;
 
   return {
     organization: {
@@ -197,7 +238,6 @@ export async function buildAdminOrganizationOverviewDetail(
       isEnterpriseContract: billingPlan.mode === "enterprise_contract",
     },
     totalCredits,
-    members: memberOverviews,
   };
 }
 

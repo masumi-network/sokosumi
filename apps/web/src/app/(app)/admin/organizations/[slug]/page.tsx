@@ -17,9 +17,11 @@ export default async function AdminOrganizationDetailPage({
   params,
 }: AdminOrganizationDetailPageProps) {
   const { slug } = await params;
-  const detail = await adminOrganizationService.getOrganizationOverview(
-    decodeURIComponent(slug),
-  );
+  const decodedSlug = decodeURIComponent(slug);
+  const [detail, initialMembersPage] = await Promise.all([
+    adminOrganizationService.getOrganizationOverview(decodedSlug),
+    adminOrganizationService.listOrganizationMembers(decodedSlug),
+  ]);
 
   if (!detail) {
     notFound();
@@ -28,7 +30,10 @@ export default async function AdminOrganizationDetailPage({
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-6xl px-4 py-2">
-        <OrganizationDetailPanel detail={detail} />
+        <OrganizationDetailPanel
+          detail={detail}
+          initialMembersPage={initialMembersPage}
+        />
       </div>
     </div>
   );

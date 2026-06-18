@@ -186,6 +186,29 @@ export const adminOrganizationMemberOverviewItemSchema = z
   })
   .openapi("AdminOrganizationMemberOverviewItem");
 
+export const ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT = 50;
+
+export const adminOrganizationMemberOverviewQuerySchema = z
+  .object({})
+  .extend(cursorPaginationQuerySchema.shape)
+  .extend({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT)
+      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Number of members to return (max ${ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT})`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+      }),
+  });
+
+export const adminOrganizationMemberOverviewListSchema = z.array(
+  adminOrganizationMemberOverviewItemSchema,
+);
+
 export const adminOrganizationOverviewDetailSchema = z
   .object({
     organization: z.object({
@@ -231,11 +254,11 @@ export const adminOrganizationOverviewDetailSchema = z
       paidPlan: z.string().nullable(),
       isEnterpriseContract: z.boolean(),
     }),
-    totalCredits: z.number().openapi({
-      description: "Total available organization credits",
+    totalCredits: z.number().nullable().openapi({
+      description:
+        "Enterprise pool remaining credits; null for self-serve organizations where credits are per member",
       example: 1200,
     }),
-    members: z.array(adminOrganizationMemberOverviewItemSchema),
   })
   .openapi("AdminOrganizationOverviewDetail");
 

@@ -2683,10 +2683,15 @@
           },
           "credits": {
             "title": "クレジット合計",
-            "description": "この組織で利用可能なクレジットの合計。"
+            "description": "この組織で利用可能なクレジットの合計。",
+            "perMember": "クレジットは下のメンバーごとに表示されます。"
           },
           "members": {
             "title": "メンバー",
+            "totalCount": "{count, plural, other {# 人のメンバー}}",
+            "empty": "メンバーがまだいません。",
+            "loadMore": "さらに読み込む",
+            "loadError": "メンバーの読み込みに失敗しました。",
             "user": "ユーザー",
             "role": "役割",
             "credits": "クレジット",

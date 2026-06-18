@@ -116,10 +116,9 @@ export type AdminOrganizationOverviewDetail = {
         isEnterpriseContract: boolean;
     };
     /**
-     * Total available organization credits
+     * Enterprise pool remaining credits; null for self-serve organizations where credits are per member
      */
-    totalCredits: number;
-    members: Array<AdminOrganizationMemberOverviewItem>;
+    totalCredits: number | null;
 };
 
 export type AdminOrganizationMemberOverviewItem = {
@@ -2736,6 +2735,87 @@ export type GetAdminOrganizationOverviewBySlugResponses = {
 };
 
 export type GetAdminOrganizationOverviewBySlugResponse = GetAdminOrganizationOverviewBySlugResponses[keyof GetAdminOrganizationOverviewBySlugResponses];
+
+export type ListAdminOrganizationMemberOverviewData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of members to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/organizations/{slug}/members/overview';
+};
+
+export type ListAdminOrganizationMemberOverviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminOrganizationMemberOverviewError = ListAdminOrganizationMemberOverviewErrors[keyof ListAdminOrganizationMemberOverviewErrors];
+
+export type ListAdminOrganizationMemberOverviewResponses = {
+    /**
+     * Paginated list of organization members for the admin overview
+     */
+    200: {
+        data: Array<AdminOrganizationMemberOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminOrganizationMemberOverviewResponse = ListAdminOrganizationMemberOverviewResponses[keyof ListAdminOrganizationMemberOverviewResponses];
 
 export type AddAdminOrganizationMemberData = {
     body?: AdminAddOrganizationMemberBody;

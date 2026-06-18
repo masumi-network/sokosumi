@@ -2683,10 +2683,15 @@
           },
           "credits": {
             "title": "积分总计",
-            "description": "该组织可用的积分合计。"
+            "description": "该组织可用的积分合计。",
+            "perMember": "积分按成员列在下方。"
           },
           "members": {
             "title": "成员",
+            "totalCount": "{count, plural, other {# 名成员}}",
+            "empty": "尚无成员。",
+            "loadMore": "加载更多",
+            "loadError": "加载成员失败。",
             "user": "用户",
             "role": "角色",
             "credits": "积分",

@@ -441,15 +441,12 @@ export const AdminOrganizationOverviewDetailSchema = {
             ]
         },
         totalCredits: {
-            type: 'number',
-            description: 'Total available organization credits',
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Enterprise pool remaining credits; null for self-serve organizations where credits are per member',
             example: 1200
-        },
-        members: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/AdminOrganizationMemberOverviewItem'
-            }
         }
     },
     required: [
@@ -458,8 +455,7 @@ export const AdminOrganizationOverviewDetailSchema = {
         'subscription',
         'enterpriseContract',
         'seatSummary',
-        'totalCredits',
-        'members'
+        'totalCredits'
     ]
 } as const;
 

@@ -12,10 +12,14 @@ const {
   listOrganizationsForAdminOverviewMock,
   buildAdminOrganizationOverviewItemMock,
   buildAdminOrganizationOverviewDetailMock,
+  buildAdminOrganizationMemberOverviewPageMock,
+  getAdminOrganizationBySlugMock,
 } = vi.hoisted(() => ({
   listOrganizationsForAdminOverviewMock: vi.fn(),
   buildAdminOrganizationOverviewItemMock: vi.fn(),
   buildAdminOrganizationOverviewDetailMock: vi.fn(),
+  buildAdminOrganizationMemberOverviewPageMock: vi.fn(),
+  getAdminOrganizationBySlugMock: vi.fn(),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -28,6 +32,9 @@ vi.mock("@/helpers/admin-organization-overview.js", () => ({
   buildAdminOrganizationOverviewItem: buildAdminOrganizationOverviewItemMock,
   buildAdminOrganizationOverviewDetail:
     buildAdminOrganizationOverviewDetailMock,
+  buildAdminOrganizationMemberOverviewPage:
+    buildAdminOrganizationMemberOverviewPageMock,
+  getAdminOrganizationBySlug: getAdminOrganizationBySlugMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -42,6 +49,9 @@ const { default: mountListAdminOrganizationOverview } = await import(
 );
 const { default: mountGetAdminOrganizationOverviewBySlug } = await import(
   "./organizations/[slug]/overview/get.js"
+);
+const { default: mountListAdminOrganizationMemberOverview } = await import(
+  "./organizations/[slug]/members/overview/get.js"
 );
 
 interface AppOptions {
@@ -182,8 +192,7 @@ describe("GET /v1/admin/organizations/{slug}/overview", () => {
         paidPlan: "starter",
         isEnterpriseContract: false,
       },
-      totalCredits: 250,
-      members: [],
+      totalCredits: null,
     });
   });
 
@@ -194,13 +203,70 @@ describe("GET /v1/admin/organizations/{slug}/overview", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.organization.slug).toBe("acme-corp");
-    expect(body.data.totalCredits).toBe(250);
+    expect(body.data.totalCredits).toBeNull();
+    expect(body.data.members).toBeUndefined();
   });
 
   it("returns 404 when organization is missing", async () => {
     buildAdminOrganizationOverviewDetailMock.mockResolvedValue(null);
     const app = createApp(mountGetAdminOrganizationOverviewBySlug);
     const res = await app.request("/missing/overview");
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("GET /v1/admin/organizations/{slug}/members/overview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAdminOrganizationBySlugMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme Corp",
+      slug: "acme-corp",
+    });
+    buildAdminOrganizationMemberOverviewPageMock.mockResolvedValue({
+      members: [
+        {
+          id: "member_1",
+          organizationId: "org_1",
+          role: "owner",
+          seatAssignedAt: null,
+          createdAt: new Date("2025-01-01T00:00:00.000Z"),
+          user: {
+            id: "user_1",
+            name: "Jane Doe",
+            email: "jane@example.com",
+          },
+          lastSeenAt: null,
+          credits: 42,
+          subscriptionPlan: "starter",
+          subscriptionStatus: "active",
+        },
+      ],
+      total: 1,
+    });
+  });
+
+  it("returns paginated organization members", async () => {
+    const app = createApp(mountListAdminOrganizationMemberOverview);
+    const res = await app.request("/acme-corp/members/overview");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data[0]).toMatchObject({
+      id: "member_1",
+      credits: 42,
+    });
+    expect(body.meta.pagination).toMatchObject({
+      total: 1,
+      nextCursor: null,
+    });
+  });
+
+  it("returns 404 when organization is missing", async () => {
+    getAdminOrganizationBySlugMock.mockResolvedValue(null);
+    const app = createApp(mountListAdminOrganizationMemberOverview);
+    const res = await app.request("/missing/members/overview");
 
     expect(res.status).toBe(404);
   });

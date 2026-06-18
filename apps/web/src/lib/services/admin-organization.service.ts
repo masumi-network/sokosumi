@@ -82,8 +82,18 @@ export interface AdminOrganizationOverviewDetail {
     paidPlan: string | null;
     isEnterpriseContract: boolean;
   };
-  totalCredits: number;
+  totalCredits: number | null;
+}
+
+export interface AdminOrganizationMemberOverviewPage {
   members: AdminOrganizationMemberOverviewItem[];
+  total: number;
+  nextCursor: string | null;
+}
+
+export interface ListAdminOrganizationMembersParams {
+  cursor?: string;
+  limit?: number;
 }
 
 export interface ListAdminOrganizationsParams {
@@ -160,18 +170,6 @@ export const adminOrganizationService = {
         enterpriseContract: detail.enterpriseContract,
         seatSummary: detail.seatSummary,
         totalCredits: detail.totalCredits,
-        members: detail.members.map((member) => ({
-          id: member.id,
-          organizationId: member.organizationId,
-          role: member.role,
-          seatAssignedAt: member.seatAssignedAt,
-          createdAt: member.createdAt,
-          user: member.user,
-          lastSeenAt: member.lastSeenAt,
-          credits: member.credits,
-          subscriptionPlan: member.subscriptionPlan,
-          subscriptionStatus: member.subscriptionStatus,
-        })),
       };
     } catch (error) {
       if (error instanceof CoreApiRequestError && error.status === 404) {
@@ -180,5 +178,32 @@ export const adminOrganizationService = {
 
       throw error;
     }
+  },
+
+  async listOrganizationMembers(
+    slug: string,
+    params: ListAdminOrganizationMembersParams = {},
+  ): Promise<AdminOrganizationMemberOverviewPage> {
+    const result = await coreClient.listAdminOrganizationMemberOverview(
+      slug,
+      params,
+    );
+
+    return {
+      members: result.data.map((member) => ({
+        id: member.id,
+        organizationId: member.organizationId,
+        role: member.role,
+        seatAssignedAt: member.seatAssignedAt,
+        createdAt: member.createdAt,
+        user: member.user,
+        lastSeenAt: member.lastSeenAt,
+        credits: member.credits,
+        subscriptionPlan: member.subscriptionPlan,
+        subscriptionStatus: member.subscriptionStatus,
+      })),
+      total: result.meta.pagination.total,
+      nextCursor: result.meta.pagination.nextCursor,
+    };
   },
 };

@@ -2782,10 +2782,15 @@
           },
           "credits": {
             "title": "Total credits",
-            "description": "Combined available credits for this organization."
+            "description": "Combined available credits for this organization.",
+            "perMember": "Credits are listed per member below."
           },
           "members": {
             "title": "Members",
+            "totalCount": "{count, plural, one {# member} other {# members}}",
+            "empty": "No members yet.",
+            "loadMore": "Load more",
+            "loadError": "Failed to load members.",
             "user": "User",
             "role": "Role",
             "credits": "Credits",

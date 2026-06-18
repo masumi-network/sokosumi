@@ -2683,10 +2683,15 @@
           },
           "credits": {
             "title": "Créditos totais",
-            "description": "Créditos disponíveis combinados para esta organização."
+            "description": "Créditos disponíveis combinados para esta organização.",
+            "perMember": "Os créditos são listados por membro abaixo."
           },
           "members": {
             "title": "Membros",
+            "totalCount": "{count, plural, one {# membro} other {# membros}}",
+            "empty": "Ainda não há membros.",
+            "loadMore": "Carregar mais",
+            "loadError": "Falha ao carregar membros.",
             "user": "Usuário",
             "role": "Função",
             "credits": "Créditos",
