@@ -59,6 +59,7 @@ describe("getCreditTopUpPricing", () => {
       { minCredits: 100_000, amountPerCredit: 110 },
     ]);
     expect(pricing.referenceAmountPerCredit).toBe(120);
+    expect(getPriceByLookupKeyMock).not.toHaveBeenCalledWith("credit_0_margin");
   });
 
   it("returns a single zero-margin tier for an allowlisted user", async () => {
@@ -69,6 +70,7 @@ describe("getCreditTopUpPricing", () => {
     expect(pricing.canPurchaseOnFreePlan).toBe(true);
     expect(pricing.tiers).toEqual([{ minCredits: 1, amountPerCredit: 100 }]);
     expect(pricing.referenceAmountPerCredit).toBe(100);
+    expect(getPriceByLookupKeyMock).toHaveBeenCalledWith("credit_0_margin");
   });
 });
 
