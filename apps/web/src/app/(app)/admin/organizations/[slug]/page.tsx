@@ -18,14 +18,15 @@ export default async function AdminOrganizationDetailPage({
 }: AdminOrganizationDetailPageProps) {
   const { slug } = await params;
   const decodedSlug = decodeURIComponent(slug);
-  const [detail, initialMembersPage] = await Promise.all([
-    adminOrganizationService.getOrganizationOverview(decodedSlug),
-    adminOrganizationService.listOrganizationMembers(decodedSlug),
-  ]);
+  const detail =
+    await adminOrganizationService.getOrganizationOverview(decodedSlug);
 
   if (!detail) {
     notFound();
   }
+
+  const initialMembersPage =
+    await adminOrganizationService.listOrganizationMembers(decodedSlug);
 
   return (
     <div className="min-h-full w-full">

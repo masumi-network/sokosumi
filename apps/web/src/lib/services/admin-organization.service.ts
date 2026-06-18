@@ -116,22 +116,16 @@ export const adminOrganizationService = {
   async getOrganizationOptionBySlug(
     slug: string,
   ): Promise<AdminOrganizationOption | null> {
-    try {
-      const result = await coreClient.getAdminOrganizationBySlug(slug);
-      const detail = result.data;
+    const result = await coreClient.searchAdminOrganizations(slug);
+    const organization = result.data
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        slug: item.slug,
+      }))
+      .find((option) => option.slug === slug);
 
-      return {
-        id: detail.organization.id,
-        name: detail.organization.name,
-        slug: detail.organization.slug,
-      };
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-
-      throw error;
-    }
+    return organization ?? null;
   },
 
   async listOrganizations(

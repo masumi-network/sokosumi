@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { memberRepository } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { notFound } from "@/helpers/error";
@@ -9,7 +8,10 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
-import { mapSeatRepositoryError } from "@/services/organization-seat.service";
+import {
+  mapSeatRepositoryError,
+  unassignOrganizationMemberSeatWithCreditSync,
+} from "@/services/organization-seat.service";
 
 const route = createRoute({
   method: "delete",
@@ -41,17 +43,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
-        const member = await memberRepository.unassignSeat(
-          memberId,
+      const result = await prisma.$transaction(async (tx) =>
+        unassignOrganizationMemberSeatWithCreditSync(
           organization.id,
+          memberId,
           tx,
-        );
-
-        return {
-          memberId: member.id,
-        };
-      });
+        ),
+      );
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));
     } catch (error) {

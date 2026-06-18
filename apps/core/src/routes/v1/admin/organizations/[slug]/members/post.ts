@@ -9,6 +9,7 @@ import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overvie
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { buildCreditsPayload } from "@/helpers/subscription.js";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -95,6 +96,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Member not found");
     }
 
+    const payload = await prisma.$transaction(async (tx) =>
+      buildCreditsPayload({
+        userId: createdMember.userId,
+        organizationId: organization.id,
+        referenceId: organization.id,
+        tx,
+      }),
+    );
+
     return created(
       c,
       adminOrganizationMemberOverviewItemSchema.parse({
@@ -109,9 +119,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           email: createdMember.user.email,
         },
         lastSeenAt: createdMember.lastSeenAt,
-        credits: 0,
-        subscriptionPlan: null,
-        subscriptionStatus: null,
+        credits: payload.credits.total,
+        subscriptionPlan: payload.credits.subscription?.plan ?? null,
+        subscriptionStatus: payload.credits.subscription?.status ?? null,
       }),
     );
   });

@@ -2,36 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const {
-  searchAdminOrganizationsMock,
-  getAdminOrganizationBySlugMock,
-  MockCoreApiRequestError,
-} = vi.hoisted(() => {
-  class MockCoreApiRequestError extends Error {
-    status?: number;
-
-    constructor(message: string, options?: { status?: number }) {
-      super(message);
-      this.name = "CoreApiRequestError";
-      this.status = options?.status;
-    }
-  }
-
-  return {
-    searchAdminOrganizationsMock: vi.fn(),
-    getAdminOrganizationBySlugMock: vi.fn(),
-    MockCoreApiRequestError,
-  };
-});
+const { searchAdminOrganizationsMock } = vi.hoisted(() => ({
+  searchAdminOrganizationsMock: vi.fn(),
+}));
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     searchAdminOrganizations: (...args: unknown[]) =>
       searchAdminOrganizationsMock(...args),
-    getAdminOrganizationBySlug: (...args: unknown[]) =>
-      getAdminOrganizationBySlugMock(...args),
   },
-  CoreApiRequestError: MockCoreApiRequestError,
+  CoreApiRequestError: class extends Error {},
 }));
 
 import { adminOrganizationService } from "../admin-organization.service";
@@ -55,24 +35,25 @@ describe("adminOrganizationService", () => {
   });
 
   describe("getOrganizationOptionBySlug", () => {
-    it("returns the mapped option when core returns one", async () => {
-      getAdminOrganizationBySlugMock.mockResolvedValue({
-        data: {
-          organization: { id: "o1", name: "Acme", slug: "acme" },
-        },
+    it("returns the exact slug match from search results", async () => {
+      searchAdminOrganizationsMock.mockResolvedValue({
+        data: [
+          { id: "o1", name: "Acme", slug: "acme" },
+          { id: "o2", name: "Acme Labs", slug: "acme-labs" },
+        ],
       });
 
       const result =
         await adminOrganizationService.getOrganizationOptionBySlug("acme");
 
-      expect(getAdminOrganizationBySlugMock).toHaveBeenCalledWith("acme");
+      expect(searchAdminOrganizationsMock).toHaveBeenCalledWith("acme");
       expect(result).toEqual({ id: "o1", name: "Acme", slug: "acme" });
     });
 
-    it("returns null when core responds 404", async () => {
-      getAdminOrganizationBySlugMock.mockRejectedValue(
-        new MockCoreApiRequestError("Not Found", { status: 404 }),
-      );
+    it("returns null when search has no exact slug match", async () => {
+      searchAdminOrganizationsMock.mockResolvedValue({
+        data: [{ id: "o2", name: "Acme Labs", slug: "acme-labs" }],
+      });
 
       const result =
         await adminOrganizationService.getOrganizationOptionBySlug("missing");
@@ -80,10 +61,8 @@ describe("adminOrganizationService", () => {
       expect(result).toBeNull();
     });
 
-    it("rethrows non-404 core errors", async () => {
-      getAdminOrganizationBySlugMock.mockRejectedValue(
-        new MockCoreApiRequestError("Boom", { status: 500 }),
-      );
+    it("rethrows search errors", async () => {
+      searchAdminOrganizationsMock.mockRejectedValue(new Error("Boom"));
 
       await expect(
         adminOrganizationService.getOrganizationOptionBySlug("acme"),
