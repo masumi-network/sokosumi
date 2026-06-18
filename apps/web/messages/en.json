@@ -2728,6 +2728,10 @@
             "title": "Users",
             "description": "Searchable overview of all users with credits, subscription, and activity."
           },
+          "organizations": {
+            "title": "Organizations",
+            "description": "Searchable overview of organizations with members, billing, and credits."
+          },
           "tasks": {
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
@@ -2748,6 +2752,81 @@
           "registered": "Registered",
           "loadMore": "Load more",
           "loadError": "Failed to load users."
+        }
+      },
+      "Organizations": {
+        "title": "Organizations",
+        "description": "Searchable overview of all organizations",
+        "OrganizationList": {
+          "searchPlaceholder": "Search by name or slug…",
+          "totalCount": "{count, plural, one {# organization} other {# organizations}}",
+          "empty": "No organizations found.",
+          "organization": "Organization",
+          "members": "Members",
+          "billing": "Billing",
+          "subscription": "Subscription",
+          "totalCredits": "Total credits",
+          "seats": "{count, plural, =1 {# seat} other {# seats}}",
+          "created": "Created",
+          "loadMore": "Load more",
+          "loadError": "Failed to load organizations."
+        },
+        "OrganizationDetail": {
+          "backToList": "Back to organizations",
+          "billing": {
+            "title": "Billing",
+            "plan": "Plan: {plan}",
+            "mode": "Mode: {mode}",
+            "seats": "{purchased} purchased · {assigned} assigned · {unused} unused",
+            "subscription": "Subscription: {plan} ({status})",
+            "enterprisePool": "Enterprise pool: {credits} credits"
+          },
+          "credits": {
+            "title": "Total credits",
+            "description": "Combined available credits for this organization."
+          },
+          "members": {
+            "title": "Members",
+            "user": "User",
+            "role": "Role",
+            "credits": "Credits",
+            "subscription": "Subscription",
+            "seat": "Seat",
+            "seatAssigned": "Assigned",
+            "seatUnassigned": "Unassigned",
+            "actions": "Actions"
+          },
+          "roles": {
+            "owner": "Owner",
+            "admin": "Admin",
+            "member": "Member"
+          },
+          "addMember": {
+            "submit": "Add member",
+            "success": "Member added",
+            "userRequired": "Select a user to add",
+            "combobox": {
+              "placeholder": "Select user…",
+              "search": "Search users…",
+              "empty": "No users found.",
+              "loading": "Searching…",
+              "error": "Search failed.",
+              "idle": "Type to search users."
+            }
+          },
+          "actions": {
+            "makeOwner": "Make owner",
+            "makeAdmin": "Make admin",
+            "makeMember": "Make member",
+            "assignSeat": "Assign seat",
+            "unassignSeat": "Unassign seat",
+            "remove": "Remove member"
+          },
+          "memberActionError": "Member action failed.",
+          "roleUpdateSuccess": "Role updated.",
+          "seatAssignSuccess": "Seat assigned.",
+          "seatUnassignSuccess": "Seat unassigned.",
+          "removeSuccess": "Member removed."
         }
       },
       "Tasks": {

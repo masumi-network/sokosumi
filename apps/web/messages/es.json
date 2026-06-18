@@ -2598,6 +2598,10 @@
             "title": "Usuarios",
             "description": "Resumen con búsqueda de todos los usuarios con créditos, suscripción y actividad."
           },
+          "organizations": {
+            "title": "Organizaciones",
+            "description": "Resumen con búsqueda de organizaciones con miembros, facturación y créditos."
+          },
           "tasks": {
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
@@ -2618,6 +2622,81 @@
           "registered": "Registrado",
           "loadMore": "Cargar más",
           "loadError": "No se pudieron cargar los usuarios."
+        }
+      },
+      "Organizations": {
+        "title": "Organizaciones",
+        "description": "Resumen con búsqueda de todas las organizaciones",
+        "OrganizationList": {
+          "searchPlaceholder": "Buscar por nombre o slug…",
+          "totalCount": "{count, plural, one {# organización} other {# organizaciones}}",
+          "empty": "No se encontraron organizaciones.",
+          "organization": "Organización",
+          "members": "Miembros",
+          "billing": "Facturación",
+          "subscription": "Suscripción",
+          "totalCredits": "Créditos totales",
+          "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
+          "created": "Creada",
+          "loadMore": "Cargar más",
+          "loadError": "No se pudieron cargar las organizaciones."
+        },
+        "OrganizationDetail": {
+          "backToList": "Volver a organizaciones",
+          "billing": {
+            "title": "Facturación",
+            "plan": "Plan: {plan}",
+            "mode": "Modo: {mode}",
+            "seats": "{purchased} comprados · {assigned} asignados · {unused} sin usar",
+            "subscription": "Suscripción: {plan} ({status})",
+            "enterprisePool": "Pool enterprise: {credits} créditos"
+          },
+          "credits": {
+            "title": "Créditos totales",
+            "description": "Créditos disponibles combinados para esta organización."
+          },
+          "members": {
+            "title": "Miembros",
+            "user": "Usuario",
+            "role": "Rol",
+            "credits": "Créditos",
+            "subscription": "Suscripción",
+            "seat": "Seat",
+            "seatAssigned": "Asignado",
+            "seatUnassigned": "Sin asignar",
+            "actions": "Acciones"
+          },
+          "roles": {
+            "owner": "Propietario",
+            "admin": "Admin",
+            "member": "Miembro"
+          },
+          "addMember": {
+            "submit": "Añadir miembro",
+            "success": "Miembro añadido",
+            "userRequired": "Selecciona un usuario para añadir",
+            "combobox": {
+              "placeholder": "Seleccionar usuario…",
+              "search": "Buscar usuarios…",
+              "empty": "No se encontraron usuarios.",
+              "loading": "Buscando…",
+              "error": "La búsqueda falló.",
+              "idle": "Escribe para buscar usuarios."
+            }
+          },
+          "actions": {
+            "makeOwner": "Hacer propietario",
+            "makeAdmin": "Hacer admin",
+            "makeMember": "Hacer miembro",
+            "assignSeat": "Asignar Seat",
+            "unassignSeat": "Quitar Seat",
+            "remove": "Eliminar miembro"
+          },
+          "memberActionError": "La acción del miembro falló.",
+          "roleUpdateSuccess": "Rol actualizado.",
+          "seatAssignSuccess": "Seat asignado.",
+          "seatUnassignSuccess": "Seat eliminado.",
+          "removeSuccess": "Miembro eliminado."
         }
       },
       "Invoices": {

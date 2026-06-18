@@ -2629,6 +2629,10 @@
             "title": "用户",
             "description": "可搜索的全部用户概览，包含积分、订阅和活动。"
           },
+          "organizations": {
+            "title": "组织",
+            "description": "可搜索的组织概览，包含成员、计费和积分。"
+          },
           "tasks": {
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
@@ -2649,6 +2653,81 @@
           "registered": "注册日期",
           "loadMore": "加载更多",
           "loadError": "加载用户失败。"
+        }
+      },
+      "Organizations": {
+        "title": "组织",
+        "description": "可搜索的全部组织概览",
+        "OrganizationList": {
+          "searchPlaceholder": "按名称或 slug 搜索…",
+          "totalCount": "{count, plural, other {# 个组织}}",
+          "empty": "未找到组织。",
+          "organization": "组织",
+          "members": "成员",
+          "billing": "计费",
+          "subscription": "订阅",
+          "totalCredits": "积分总计",
+          "seats": "{count, plural, other {# 个席位}}",
+          "created": "创建时间",
+          "loadMore": "加载更多",
+          "loadError": "加载组织失败。"
+        },
+        "OrganizationDetail": {
+          "backToList": "返回组织列表",
+          "billing": {
+            "title": "计费",
+            "plan": "方案：{plan}",
+            "mode": "模式：{mode}",
+            "seats": "{purchased} 已购买 · {assigned} 已分配 · {unused} 未使用",
+            "subscription": "订阅：{plan}（{status}）",
+            "enterprisePool": "企业池：{credits} 积分"
+          },
+          "credits": {
+            "title": "积分总计",
+            "description": "该组织可用的积分合计。"
+          },
+          "members": {
+            "title": "成员",
+            "user": "用户",
+            "role": "角色",
+            "credits": "积分",
+            "subscription": "订阅",
+            "seat": "Seat",
+            "seatAssigned": "已分配",
+            "seatUnassigned": "未分配",
+            "actions": "操作"
+          },
+          "roles": {
+            "owner": "所有者",
+            "admin": "管理员",
+            "member": "成员"
+          },
+          "addMember": {
+            "submit": "添加成员",
+            "success": "成员已添加",
+            "userRequired": "请选择要添加的用户",
+            "combobox": {
+              "placeholder": "选择用户…",
+              "search": "搜索用户…",
+              "empty": "未找到用户。",
+              "loading": "搜索中…",
+              "error": "搜索失败。",
+              "idle": "输入以搜索用户。"
+            }
+          },
+          "actions": {
+            "makeOwner": "设为所有者",
+            "makeAdmin": "设为管理员",
+            "makeMember": "设为成员",
+            "assignSeat": "分配 Seat",
+            "unassignSeat": "移除 Seat",
+            "remove": "移除成员"
+          },
+          "memberActionError": "成员操作失败。",
+          "roleUpdateSuccess": "角色已更新。",
+          "seatAssignSuccess": "Seat 已分配。",
+          "seatUnassignSuccess": "Seat 已移除。",
+          "removeSuccess": "成员已移除。"
         }
       },
       "Invoices": {

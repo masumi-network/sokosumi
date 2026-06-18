@@ -1,0 +1,209 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { createMiddleware } from "hono/factory";
+import type { RequestIdVariables } from "hono/request-id";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { errorHandler } from "@/helpers/error-handler.js";
+import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
+import type { AuthVariables } from "@/middleware/auth";
+import { requireAdminAuthContext } from "@/middleware/auth";
+
+const {
+  listOrganizationsForAdminOverviewMock,
+  buildAdminOrganizationOverviewItemMock,
+  buildAdminOrganizationOverviewDetailMock,
+} = vi.hoisted(() => ({
+  listOrganizationsForAdminOverviewMock: vi.fn(),
+  buildAdminOrganizationOverviewItemMock: vi.fn(),
+  buildAdminOrganizationOverviewDetailMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  organizationRepository: {
+    listOrganizationsForAdminOverview: listOrganizationsForAdminOverviewMock,
+  },
+}));
+
+vi.mock("@/helpers/admin-organization-overview.js", () => ({
+  buildAdminOrganizationOverviewItem: buildAdminOrganizationOverviewItemMock,
+  buildAdminOrganizationOverviewDetail:
+    buildAdminOrganizationOverviewDetailMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({}),
+  },
+}));
+
+const { default: mountListAdminOrganizationOverview } = await import(
+  "./organizations/overview/get.js"
+);
+const { default: mountGetAdminOrganizationOverviewBySlug } = await import(
+  "./organizations/[slug]/overview/get.js"
+);
+
+interface AppOptions {
+  role?: string;
+  actor?: "user" | "coworker";
+}
+
+function createApp(
+  mountRoutes: (app: OpenAPIHonoWithAuth) => void,
+  options: AppOptions = {},
+) {
+  const { role = "admin", actor = "user" } = options;
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & RequestIdVariables;
+  }>({
+    defaultHook: defaultValidationHook,
+  });
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_admin_test");
+    c.set("isAuthenticated", true);
+
+    if (actor === "coworker") {
+      c.set("authContext", { actor: "coworker", coworkerId: "cow_123" });
+    } else {
+      c.set("authContext", {
+        actor: "user",
+        userId: "user_admin",
+        organizationId: null,
+        role,
+      });
+    }
+
+    await next();
+  });
+
+  app.use(
+    "*",
+    createMiddleware(async (c, next) => {
+      requireAdminAuthContext(c.var.authContext);
+      await next();
+    }),
+  );
+
+  app.onError(errorHandler);
+  mountRoutes(app as unknown as OpenAPIHonoWithAuth);
+
+  return app;
+}
+
+describe("GET /v1/admin/organizations/overview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listOrganizationsForAdminOverviewMock.mockResolvedValue({
+      organizations: [
+        {
+          id: "org_1",
+          name: "Acme Corp",
+          slug: "acme-corp",
+          createdAt: new Date("2025-01-01T00:00:00.000Z"),
+          _count: { members: 3 },
+        },
+      ],
+      total: 1,
+    });
+    buildAdminOrganizationOverviewItemMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme Corp",
+      slug: "acme-corp",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      memberCount: 3,
+      billingMode: "self_serve",
+      billingPlan: "starter",
+      purchasedSeats: 5,
+      subscriptionPlan: "starter",
+      subscriptionStatus: "active",
+      totalCredits: 100,
+    });
+  });
+
+  it("returns enriched organizations with pagination meta", async () => {
+    const app = createApp(mountListAdminOrganizationOverview);
+    const res = await app.request("/overview?query=acme");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data[0]).toMatchObject({
+      id: "org_1",
+      slug: "acme-corp",
+      memberCount: 3,
+      totalCredits: 100,
+    });
+    expect(body.meta.pagination).toMatchObject({
+      total: 1,
+      nextCursor: null,
+    });
+  });
+
+  it("rejects non-admin users", async () => {
+    const app = createApp(mountListAdminOrganizationOverview, { role: "user" });
+    const res = await app.request("/overview");
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("GET /v1/admin/organizations/{slug}/overview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    buildAdminOrganizationOverviewDetailMock.mockResolvedValue({
+      organization: {
+        id: "org_1",
+        name: "Acme Corp",
+        slug: "acme-corp",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        stripeCustomerId: "cus_123",
+      },
+      billingPlan: {
+        mode: "self_serve",
+        plan: "starter",
+        isConsumable: false,
+        purchasedSeats: 5,
+        cancelAtPeriodEnd: false,
+        periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+      },
+      subscription: {
+        plan: "starter",
+        status: "active",
+        cancelAtPeriodEnd: false,
+        periodStart: new Date("2026-02-01T00:00:00.000Z"),
+        periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+        seats: 5,
+      },
+      enterpriseContract: null,
+      seatSummary: {
+        assignedCount: 2,
+        memberCount: 3,
+        purchasedSeats: 5,
+        unusedSeats: 3,
+        paidPlan: "starter",
+        isEnterpriseContract: false,
+      },
+      totalCredits: 250,
+      members: [],
+    });
+  });
+
+  it("returns organization overview detail", async () => {
+    const app = createApp(mountGetAdminOrganizationOverviewBySlug);
+    const res = await app.request("/acme-corp/overview");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.organization.slug).toBe("acme-corp");
+    expect(body.data.totalCredits).toBe(250);
+  });
+
+  it("returns 404 when organization is missing", async () => {
+    buildAdminOrganizationOverviewDetailMock.mockResolvedValue(null);
+    const app = createApp(mountGetAdminOrganizationOverviewBySlug);
+    const res = await app.request("/missing/overview");
+
+    expect(res.status).toBe(404);
+  });
+});

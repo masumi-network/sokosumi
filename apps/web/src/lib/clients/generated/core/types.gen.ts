@@ -52,10 +52,134 @@ export type AdminUserOverviewItem = {
     startedTaskCount: number;
 };
 
+export type AdminOrganizationOverviewItem = {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: Date;
+    memberCount: number;
+    billingMode: 'enterprise_contract' | 'self_serve';
+    billingPlan: 'free' | 'starter' | 'standard' | 'pro' | 'enterprise';
+    purchasedSeats: number;
+    /**
+     * Active organization subscription plan, if any
+     */
+    subscriptionPlan: string | null;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+    /**
+     * Total available organization credits
+     */
+    totalCredits: number;
+};
+
 export type AdminOrganizationOption = {
     id: string;
     name: string;
     slug: string;
+};
+
+export type AdminOrganizationOverviewDetail = {
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+        createdAt: Date;
+        stripeCustomerId: string | null;
+    };
+    billingPlan: {
+        mode: 'enterprise_contract' | 'self_serve';
+        plan: 'free' | 'starter' | 'standard' | 'pro' | 'enterprise';
+        isConsumable: boolean;
+        purchasedSeats: number;
+        cancelAtPeriodEnd: boolean;
+        periodEnd: Date | null;
+    };
+    subscription: {
+        plan: string;
+        status: string;
+        cancelAtPeriodEnd: boolean;
+        periodStart: Date | null;
+        periodEnd: Date | null;
+        seats: number;
+    } | null;
+    enterpriseContract: {
+        poolRemainingCredits: number;
+        monthlyCredits: number | null;
+        purchasedSeats: number;
+        isConsumable: boolean;
+    } | null;
+    seatSummary: {
+        assignedCount: number;
+        memberCount: number;
+        purchasedSeats: number;
+        unusedSeats: number;
+        paidPlan: string | null;
+        isEnterpriseContract: boolean;
+    };
+    /**
+     * Total available organization credits
+     */
+    totalCredits: number;
+    members: Array<AdminOrganizationMemberOverviewItem>;
+};
+
+export type AdminOrganizationMemberOverviewItem = {
+    id: string;
+    organizationId: string;
+    role: 'owner' | 'admin' | 'member';
+    seatAssignedAt: Date | null;
+    createdAt: Date;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    lastSeenAt: Date | null;
+    /**
+     * Available credits for this member in the organization
+     */
+    credits: number;
+    /**
+     * Member subscription plan in organization context
+     */
+    subscriptionPlan: string | null;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+};
+
+export type AdminAddOrganizationMemberBody = {
+    /**
+     * User ID to add as a member
+     */
+    userId: string;
+    role?: 'owner' | 'admin' | 'member';
+};
+
+export type AdminUpdateOrganizationMemberRoleBody = {
+    role: 'owner' | 'admin' | 'member';
+};
+
+export type OrganizationSeatAssignment = {
+    /**
+     * ID of the member the seat was assigned to
+     */
+    memberId: string;
+    /**
+     * When the seat was assigned
+     */
+    seatAssignedAt: Date;
+};
+
+export type OrganizationSeatUnassignment = {
+    /**
+     * ID of the member the seat was unassigned from
+     */
+    memberId: string;
 };
 
 export type InvoiceListItem = {
@@ -1655,24 +1779,6 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
-export type OrganizationSeatAssignment = {
-    /**
-     * ID of the member the seat was assigned to
-     */
-    memberId: string;
-    /**
-     * When the seat was assigned
-     */
-    seatAssignedAt: Date;
-};
-
-export type OrganizationSeatUnassignment = {
-    /**
-     * ID of the member the seat was unassigned from
-     */
-    memberId: string;
-};
-
 export type PendingInvitation = {
     id: string;
     organizationId: string;
@@ -1984,6 +2090,86 @@ export type JobEvent = {
     result?: string | null;
     files: Array<File>;
     links: Array<Link>;
+};
+
+export type NotificationList = Array<NotificationItem>;
+
+export type NotificationItem = {
+    /**
+     * Unique identifier for the notification
+     */
+    id: string;
+    /**
+     * User ID of the notification owner
+     */
+    userId: string;
+    kind: NotificationKind;
+    /**
+     * ID of the related entity (job id, task id, etc.)
+     */
+    referenceId: string;
+    /**
+     * ID of the source event (jobEvent or taskEvent, depending on kind)
+     */
+    eventId: string;
+    /**
+     * i18n message key for translation (e.g. Notifications.Job.completed)
+     */
+    messageKey: string;
+    /**
+     * ICU interpolation parameters for the message
+     */
+    messageParams: {
+        [key: string]: unknown;
+    };
+    /**
+     * Optional metadata for deep-linking or context
+     */
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Whether the notification has been read
+     */
+    isRead: boolean;
+    /**
+     * When the notification was marked as read
+     */
+    readAt: Date | null;
+    /**
+     * When the notification was created
+     */
+    createdAt: Date;
+};
+
+/**
+ * Notification source domain
+ */
+export const NotificationKind = {
+    JOB: 'JOB',
+    TASK: 'TASK',
+    CONVERSATION: 'CONVERSATION',
+    BILLING: 'BILLING',
+    SYSTEM: 'SYSTEM'
+} as const;
+
+/**
+ * Notification source domain
+ */
+export type NotificationKind = typeof NotificationKind[keyof typeof NotificationKind];
+
+export type UnreadCount = {
+    /**
+     * Number of unread notifications
+     */
+    count: number;
+};
+
+export type MarkAllReadResponse = {
+    /**
+     * Number of notifications marked as read
+     */
+    count: number;
 };
 
 export type GetInvitationResult = {
@@ -2353,6 +2539,75 @@ export type ListAdminUserOverviewResponses = {
 
 export type ListAdminUserOverviewResponse = ListAdminUserOverviewResponses[keyof ListAdminUserOverviewResponses];
 
+export type ListAdminOrganizationOverviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched case-insensitively against organization name and slug. Empty or missing lists all organizations.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/organizations/overview';
+};
+
+export type ListAdminOrganizationOverviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminOrganizationOverviewError = ListAdminOrganizationOverviewErrors[keyof ListAdminOrganizationOverviewErrors];
+
+export type ListAdminOrganizationOverviewResponses = {
+    /**
+     * Paginated list of organizations for the admin overview
+     */
+    200: {
+        data: Array<AdminOrganizationOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminOrganizationOverviewResponse = ListAdminOrganizationOverviewResponses[keyof ListAdminOrganizationOverviewResponses];
+
 export type SearchAdminOrganizationsData = {
     body?: never;
     path?: never;
@@ -2413,6 +2668,519 @@ export type SearchAdminOrganizationsResponses = {
 };
 
 export type SearchAdminOrganizationsResponse = SearchAdminOrganizationsResponses[keyof SearchAdminOrganizationsResponses];
+
+export type GetAdminOrganizationOverviewBySlugData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/overview';
+};
+
+export type GetAdminOrganizationOverviewBySlugErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminOrganizationOverviewBySlugError = GetAdminOrganizationOverviewBySlugErrors[keyof GetAdminOrganizationOverviewBySlugErrors];
+
+export type GetAdminOrganizationOverviewBySlugResponses = {
+    /**
+     * Organization overview for the admin console
+     */
+    200: {
+        data: AdminOrganizationOverviewDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminOrganizationOverviewBySlugResponse = GetAdminOrganizationOverviewBySlugResponses[keyof GetAdminOrganizationOverviewBySlugResponses];
+
+export type AddAdminOrganizationMemberData = {
+    body?: AdminAddOrganizationMemberBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members';
+};
+
+export type AddAdminOrganizationMemberErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminOrganizationMemberError = AddAdminOrganizationMemberErrors[keyof AddAdminOrganizationMemberErrors];
+
+export type AddAdminOrganizationMemberResponses = {
+    /**
+     * The newly added organization member
+     */
+    201: {
+        data: AdminOrganizationMemberOverviewItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminOrganizationMemberResponse = AddAdminOrganizationMemberResponses[keyof AddAdminOrganizationMemberResponses];
+
+export type RemoveAdminOrganizationMemberData = {
+    body?: never;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}';
+};
+
+export type RemoveAdminOrganizationMemberErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveAdminOrganizationMemberError = RemoveAdminOrganizationMemberErrors[keyof RemoveAdminOrganizationMemberErrors];
+
+export type RemoveAdminOrganizationMemberResponses = {
+    /**
+     * Member removed
+     */
+    204: void;
+};
+
+export type RemoveAdminOrganizationMemberResponse = RemoveAdminOrganizationMemberResponses[keyof RemoveAdminOrganizationMemberResponses];
+
+export type UpdateAdminOrganizationMemberRoleData = {
+    body?: AdminUpdateOrganizationMemberRoleBody;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}/role';
+};
+
+export type UpdateAdminOrganizationMemberRoleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateAdminOrganizationMemberRoleError = UpdateAdminOrganizationMemberRoleErrors[keyof UpdateAdminOrganizationMemberRoleErrors];
+
+export type UpdateAdminOrganizationMemberRoleResponses = {
+    /**
+     * The updated organization member
+     */
+    200: {
+        data: AdminOrganizationMemberOverviewItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateAdminOrganizationMemberRoleResponse = UpdateAdminOrganizationMemberRoleResponses[keyof UpdateAdminOrganizationMemberRoleResponses];
+
+export type UnassignAdminOrganizationMemberSeatData = {
+    body?: never;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}/seat';
+};
+
+export type UnassignAdminOrganizationMemberSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UnassignAdminOrganizationMemberSeatError = UnassignAdminOrganizationMemberSeatErrors[keyof UnassignAdminOrganizationMemberSeatErrors];
+
+export type UnassignAdminOrganizationMemberSeatResponses = {
+    /**
+     * The unassigned seat
+     */
+    200: {
+        data: OrganizationSeatUnassignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UnassignAdminOrganizationMemberSeatResponse = UnassignAdminOrganizationMemberSeatResponses[keyof UnassignAdminOrganizationMemberSeatResponses];
+
+export type AssignAdminOrganizationMemberSeatData = {
+    body?: never;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}/seat';
+};
+
+export type AssignAdminOrganizationMemberSeatErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AssignAdminOrganizationMemberSeatError = AssignAdminOrganizationMemberSeatErrors[keyof AssignAdminOrganizationMemberSeatErrors];
+
+export type AssignAdminOrganizationMemberSeatResponses = {
+    /**
+     * The assigned seat
+     */
+    200: {
+        data: OrganizationSeatAssignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
 
 export type GetAdminOrganizationBySlugData = {
     body?: never;
@@ -16010,6 +16778,350 @@ export type PutJobsByIdWorkspaceResponses = {
 };
 
 export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
+
+export type GetNotificationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Comma-separated notification kinds to filter (e.g. JOB,TASK,CONVERSATION)
+         */
+        kind?: Array<NotificationKind>;
+        /**
+         * Filter by read status (true or false)
+         */
+        isRead?: 'true' | 'false';
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/notifications';
+};
+
+export type GetNotificationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsError = GetNotificationsErrors[keyof GetNotificationsErrors];
+
+export type GetNotificationsResponses = {
+    /**
+     * Retrieve notification feed items
+     */
+    200: {
+        data: NotificationList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsResponse = GetNotificationsResponses[keyof GetNotificationsResponses];
+
+export type GetNotificationsUnreadCountData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/unread-count';
+};
+
+export type GetNotificationsUnreadCountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsUnreadCountError = GetNotificationsUnreadCountErrors[keyof GetNotificationsUnreadCountErrors];
+
+export type GetNotificationsUnreadCountResponses = {
+    /**
+     * Unread count retrieved
+     */
+    200: {
+        data: UnreadCount;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsUnreadCountResponse = GetNotificationsUnreadCountResponses[keyof GetNotificationsUnreadCountResponses];
+
+export type PatchNotificationsByIdReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Notification ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/{id}/read';
+};
+
+export type PatchNotificationsByIdReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsByIdReadError = PatchNotificationsByIdReadErrors[keyof PatchNotificationsByIdReadErrors];
+
+export type PatchNotificationsByIdReadResponses = {
+    /**
+     * Notification marked as read
+     */
+    200: {
+        data: NotificationItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsByIdReadResponse = PatchNotificationsByIdReadResponses[keyof PatchNotificationsByIdReadResponses];
+
+export type PatchNotificationsReadAllData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/read-all';
+};
+
+export type PatchNotificationsReadAllErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsReadAllError = PatchNotificationsReadAllErrors[keyof PatchNotificationsReadAllErrors];
+
+export type PatchNotificationsReadAllResponses = {
+    /**
+     * All notifications marked as read
+     */
+    200: {
+        data: MarkAllReadResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsReadAllResponse = PatchNotificationsReadAllResponses[keyof PatchNotificationsReadAllResponses];
 
 export type GetInvitationsByIdData = {
     body?: never;

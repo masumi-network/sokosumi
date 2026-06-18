@@ -1,4 +1,5 @@
 import type { Member, Prisma } from "../generated/prisma/client.js";
+import { assertOrganizationRetainsOwner } from "../helpers/organization-owner.js";
 import {
   ensureAssignedSeatsWithinCapacity,
   getSortedUniqueUserIds,
@@ -293,6 +294,38 @@ export const memberRepository = (() => {
     });
   }
 
+  async function updateMemberRole(
+    memberId: string,
+    organizationId: string,
+    role: MemberRole,
+    tx: Prisma.TransactionClient,
+  ): Promise<Member> {
+    await assertOrganizationRetainsOwner(organizationId, memberId, role, tx);
+
+    return await tx.member.update({
+      where: {
+        id: memberId,
+      },
+      data: {
+        role,
+      },
+    });
+  }
+
+  async function removeMember(
+    memberId: string,
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await assertOrganizationRetainsOwner(organizationId, memberId, null, tx);
+
+    await tx.member.delete({
+      where: {
+        id: memberId,
+      },
+    });
+  }
+
   async function unassignSeat(
     memberId: string,
     organizationId: string,
@@ -335,6 +368,8 @@ export const memberRepository = (() => {
     getMembersWithUser,
     getMembersWithUserAndLastSeen,
     getMembersByOrganizationId,
+    removeMember,
     unassignSeat,
+    updateMemberRole,
   };
 })();
