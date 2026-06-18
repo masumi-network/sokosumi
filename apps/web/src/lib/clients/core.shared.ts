@@ -1,4 +1,4 @@
-import { NoticeKind } from "@sokosumi/utils";
+import { type CreditTopUpLookupKey, NoticeKind } from "@sokosumi/utils";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
@@ -684,7 +684,7 @@ export function createCoreClient(getClient: GetClient) {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string;
-    priceLookupKeyOverride?: string;
+    priceLookupKeyOverride?: CreditTopUpLookupKey;
     origin?: string;
     ttlDays?: string;
   }) {
