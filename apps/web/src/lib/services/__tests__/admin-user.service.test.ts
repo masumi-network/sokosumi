@@ -3,13 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const searchAdminUsersMock = vi.fn();
-const listAdminUserOverviewMock = vi.fn();
+const listAdminUsersMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     searchAdminUsers: (...args: unknown[]) => searchAdminUsersMock(...args),
-    listAdminUserOverview: (...args: unknown[]) =>
-      listAdminUserOverviewMock(...args),
+    listAdminUsers: (...args: unknown[]) => listAdminUsersMock(...args),
   },
   CoreApiRequestError: class extends Error {},
 }));
@@ -36,7 +35,7 @@ describe("adminUserService", () => {
 
   it("maps overview rows and pagination", async () => {
     const createdAt = new Date("2025-01-01T00:00:00.000Z");
-    listAdminUserOverviewMock.mockResolvedValue({
+    listAdminUsersMock.mockResolvedValue({
       data: [
         {
           id: "user_1",
@@ -58,7 +57,7 @@ describe("adminUserService", () => {
 
     const result = await adminUserService.listUsers({ query: "ada" });
 
-    expect(listAdminUserOverviewMock).toHaveBeenCalledWith({ query: "ada" });
+    expect(listAdminUsersMock).toHaveBeenCalledWith({ query: "ada" });
     expect(result.users).toEqual([
       {
         id: "user_1",
@@ -76,7 +75,7 @@ describe("adminUserService", () => {
   });
 
   it("passes cursor and limit through and surfaces nextCursor", async () => {
-    listAdminUserOverviewMock.mockResolvedValue({
+    listAdminUsersMock.mockResolvedValue({
       data: [],
       meta: {
         timestamp: new Date("2025-01-01T00:00:00.000Z"),
@@ -95,7 +94,7 @@ describe("adminUserService", () => {
       limit: 10,
     });
 
-    expect(listAdminUserOverviewMock).toHaveBeenCalledWith({
+    expect(listAdminUsersMock).toHaveBeenCalledWith({
       cursor: "user_0",
       limit: 10,
     });

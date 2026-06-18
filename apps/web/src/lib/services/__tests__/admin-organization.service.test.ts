@@ -57,7 +57,9 @@ describe("adminOrganizationService", () => {
   describe("getOrganizationOptionBySlug", () => {
     it("returns the mapped option when core returns one", async () => {
       getAdminOrganizationBySlugMock.mockResolvedValue({
-        data: { id: "o1", name: "Acme", slug: "acme", extra: "ignored" },
+        data: {
+          organization: { id: "o1", name: "Acme", slug: "acme" },
+        },
       });
 
       const result =

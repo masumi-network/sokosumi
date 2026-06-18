@@ -4,31 +4,6 @@ export type ClientOptions = {
     baseUrl: `${string}://openapi-core.snapshot.json` | (string & {});
 };
 
-export type AdminUserOption = {
-    id: string;
-    name: string;
-    email: string;
-};
-
-export type PaginationMetadata = {
-    /**
-     * Cursor for the current page
-     */
-    cursor: string | null;
-    /**
-     * Number of items returned
-     */
-    limit: number;
-    /**
-     * Total number of items
-     */
-    total: number;
-    /**
-     * Cursor for the next page
-     */
-    nextCursor: string | null;
-};
-
 export type AdminUserOverviewItem = {
     id: string;
     name: string;
@@ -50,6 +25,31 @@ export type AdminUserOverviewItem = {
      * Number of tasks the user has started (status beyond DRAFT)
      */
     startedTaskCount: number;
+};
+
+export type PaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Total number of items
+     */
+    total: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
+export type AdminUserOption = {
+    id: string;
+    name: string;
+    email: string;
 };
 
 export type AdminOrganizationOverviewItem = {
@@ -2404,6 +2404,75 @@ export type DelegationUserId = string;
  */
 export type DelegationOrganizationId = string;
 
+export type ListAdminUsersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched case-insensitively against user name and email. Empty or missing lists all users.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/users';
+};
+
+export type ListAdminUsersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminUsersError = ListAdminUsersErrors[keyof ListAdminUsersErrors];
+
+export type ListAdminUsersResponses = {
+    /**
+     * Paginated list of users for the admin overview
+     */
+    200: {
+        data: Array<AdminUserOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
+
 export type SearchAdminUsersData = {
     body?: never;
     path?: never;
@@ -2413,7 +2482,7 @@ export type SearchAdminUsersData = {
          */
         query?: string;
     };
-    url: '/admin/users';
+    url: '/admin/users/search';
 };
 
 export type SearchAdminUsersErrors = {
@@ -2465,76 +2534,7 @@ export type SearchAdminUsersResponses = {
 
 export type SearchAdminUsersResponse = SearchAdminUsersResponses[keyof SearchAdminUsersResponses];
 
-export type ListAdminUserOverviewData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Optional search term matched case-insensitively against user name and email. Empty or missing lists all users.
-         */
-        query?: string;
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 50)
-         */
-        limit?: number;
-    };
-    url: '/admin/users/overview';
-};
-
-export type ListAdminUserOverviewErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ListAdminUserOverviewError = ListAdminUserOverviewErrors[keyof ListAdminUserOverviewErrors];
-
-export type ListAdminUserOverviewResponses = {
-    /**
-     * Paginated list of users for the admin overview
-     */
-    200: {
-        data: Array<AdminUserOverviewItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type ListAdminUserOverviewResponse = ListAdminUserOverviewResponses[keyof ListAdminUserOverviewResponses];
-
-export type ListAdminOrganizationOverviewData = {
+export type ListAdminOrganizationsData = {
     body?: never;
     path?: never;
     query?: {
@@ -2551,10 +2551,10 @@ export type ListAdminOrganizationOverviewData = {
          */
         limit?: number;
     };
-    url: '/admin/organizations/overview';
+    url: '/admin/organizations';
 };
 
-export type ListAdminOrganizationOverviewErrors = {
+export type ListAdminOrganizationsErrors = {
     /**
      * Unauthorized
      */
@@ -2585,9 +2585,9 @@ export type ListAdminOrganizationOverviewErrors = {
     };
 };
 
-export type ListAdminOrganizationOverviewError = ListAdminOrganizationOverviewErrors[keyof ListAdminOrganizationOverviewErrors];
+export type ListAdminOrganizationsError = ListAdminOrganizationsErrors[keyof ListAdminOrganizationsErrors];
 
-export type ListAdminOrganizationOverviewResponses = {
+export type ListAdminOrganizationsResponses = {
     /**
      * Paginated list of organizations for the admin overview
      */
@@ -2601,7 +2601,7 @@ export type ListAdminOrganizationOverviewResponses = {
     };
 };
 
-export type ListAdminOrganizationOverviewResponse = ListAdminOrganizationOverviewResponses[keyof ListAdminOrganizationOverviewResponses];
+export type ListAdminOrganizationsResponse = ListAdminOrganizationsResponses[keyof ListAdminOrganizationsResponses];
 
 export type SearchAdminOrganizationsData = {
     body?: never;
@@ -2612,7 +2612,7 @@ export type SearchAdminOrganizationsData = {
          */
         query?: string;
     };
-    url: '/admin/organizations';
+    url: '/admin/organizations/search';
 };
 
 export type SearchAdminOrganizationsErrors = {
@@ -2664,16 +2664,16 @@ export type SearchAdminOrganizationsResponses = {
 
 export type SearchAdminOrganizationsResponse = SearchAdminOrganizationsResponses[keyof SearchAdminOrganizationsResponses];
 
-export type GetAdminOrganizationOverviewBySlugData = {
+export type GetAdminOrganizationBySlugData = {
     body?: never;
     path: {
         slug: string;
     };
     query?: never;
-    url: '/admin/organizations/{slug}/overview';
+    url: '/admin/organizations/{slug}';
 };
 
-export type GetAdminOrganizationOverviewBySlugErrors = {
+export type GetAdminOrganizationBySlugErrors = {
     /**
      * Unauthorized
      */
@@ -2718,9 +2718,9 @@ export type GetAdminOrganizationOverviewBySlugErrors = {
     };
 };
 
-export type GetAdminOrganizationOverviewBySlugError = GetAdminOrganizationOverviewBySlugErrors[keyof GetAdminOrganizationOverviewBySlugErrors];
+export type GetAdminOrganizationBySlugError = GetAdminOrganizationBySlugErrors[keyof GetAdminOrganizationBySlugErrors];
 
-export type GetAdminOrganizationOverviewBySlugResponses = {
+export type GetAdminOrganizationBySlugResponses = {
     /**
      * Organization overview for the admin console
      */
@@ -2734,9 +2734,9 @@ export type GetAdminOrganizationOverviewBySlugResponses = {
     };
 };
 
-export type GetAdminOrganizationOverviewBySlugResponse = GetAdminOrganizationOverviewBySlugResponses[keyof GetAdminOrganizationOverviewBySlugResponses];
+export type GetAdminOrganizationBySlugResponse = GetAdminOrganizationBySlugResponses[keyof GetAdminOrganizationBySlugResponses];
 
-export type ListAdminOrganizationMemberOverviewData = {
+export type ListAdminOrganizationMembersData = {
     body?: never;
     path: {
         slug: string;
@@ -2751,10 +2751,10 @@ export type ListAdminOrganizationMemberOverviewData = {
          */
         limit?: number;
     };
-    url: '/admin/organizations/{slug}/members/overview';
+    url: '/admin/organizations/{slug}/members';
 };
 
-export type ListAdminOrganizationMemberOverviewErrors = {
+export type ListAdminOrganizationMembersErrors = {
     /**
      * Unauthorized
      */
@@ -2799,9 +2799,9 @@ export type ListAdminOrganizationMemberOverviewErrors = {
     };
 };
 
-export type ListAdminOrganizationMemberOverviewError = ListAdminOrganizationMemberOverviewErrors[keyof ListAdminOrganizationMemberOverviewErrors];
+export type ListAdminOrganizationMembersError = ListAdminOrganizationMembersErrors[keyof ListAdminOrganizationMembersErrors];
 
-export type ListAdminOrganizationMemberOverviewResponses = {
+export type ListAdminOrganizationMembersResponses = {
     /**
      * Paginated list of organization members for the admin overview
      */
@@ -2815,7 +2815,7 @@ export type ListAdminOrganizationMemberOverviewResponses = {
     };
 };
 
-export type ListAdminOrganizationMemberOverviewResponse = ListAdminOrganizationMemberOverviewResponses[keyof ListAdminOrganizationMemberOverviewResponses];
+export type ListAdminOrganizationMembersResponse = ListAdminOrganizationMembersResponses[keyof ListAdminOrganizationMembersResponses];
 
 export type AddAdminOrganizationMemberData = {
     body?: AdminAddOrganizationMemberBody;
@@ -3257,78 +3257,6 @@ export type AssignAdminOrganizationMemberSeatResponses = {
 };
 
 export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
-
-export type GetAdminOrganizationBySlugData = {
-    body?: never;
-    path: {
-        slug: string;
-    };
-    query?: never;
-    url: '/admin/organizations/{slug}';
-};
-
-export type GetAdminOrganizationBySlugErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetAdminOrganizationBySlugError = GetAdminOrganizationBySlugErrors[keyof GetAdminOrganizationBySlugErrors];
-
-export type GetAdminOrganizationBySlugResponses = {
-    /**
-     * Organization matching the slug
-     */
-    200: {
-        data: AdminOrganizationOption;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetAdminOrganizationBySlugResponse = GetAdminOrganizationBySlugResponses[keyof GetAdminOrganizationBySlugResponses];
 
 export type ListAdminInvoicesData = {
     body?: never;

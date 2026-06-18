@@ -24,8 +24,8 @@ import {
 
 const route = createRoute({
   method: "get",
-  path: "/{slug}/members/overview",
-  operationId: "listAdminOrganizationMemberOverview",
+  path: "/{slug}/members",
+  operationId: "listAdminOrganizationMembers",
   description:
     "Paginated organization members with credits and subscription details (admin only).",
   tags: ["Admin"],

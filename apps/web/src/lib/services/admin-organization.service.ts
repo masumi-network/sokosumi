@@ -118,11 +118,12 @@ export const adminOrganizationService = {
   ): Promise<AdminOrganizationOption | null> {
     try {
       const result = await coreClient.getAdminOrganizationBySlug(slug);
+      const detail = result.data;
 
       return {
-        id: result.data.id,
-        name: result.data.name,
-        slug: result.data.slug,
+        id: detail.organization.id,
+        name: detail.organization.name,
+        slug: detail.organization.slug,
       };
     } catch (error) {
       if (error instanceof CoreApiRequestError && error.status === 404) {
@@ -136,7 +137,7 @@ export const adminOrganizationService = {
   async listOrganizations(
     params: ListAdminOrganizationsParams = {},
   ): Promise<AdminOrganizationOverviewPage> {
-    const result = await coreClient.listAdminOrganizationOverview(params);
+    const result = await coreClient.listAdminOrganizations(params);
 
     return {
       organizations: result.data.map((organization) => ({
@@ -160,7 +161,7 @@ export const adminOrganizationService = {
     slug: string,
   ): Promise<AdminOrganizationOverviewDetail | null> {
     try {
-      const result = await coreClient.getAdminOrganizationOverviewBySlug(slug);
+      const result = await coreClient.getAdminOrganizationBySlug(slug);
       const detail = result.data;
 
       return {
@@ -184,10 +185,7 @@ export const adminOrganizationService = {
     slug: string,
     params: ListAdminOrganizationMembersParams = {},
   ): Promise<AdminOrganizationMemberOverviewPage> {
-    const result = await coreClient.listAdminOrganizationMemberOverview(
-      slug,
-      params,
-    );
+    const result = await coreClient.listAdminOrganizationMembers(slug, params);
 
     return {
       members: result.data.map((member) => ({

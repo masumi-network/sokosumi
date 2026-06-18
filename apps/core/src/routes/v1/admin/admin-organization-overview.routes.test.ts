@@ -44,14 +44,14 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-const { default: mountListAdminOrganizationOverview } = await import(
-  "./organizations/overview/get.js"
+const { default: mountListAdminOrganizations } = await import(
+  "./organizations/get.js"
 );
-const { default: mountGetAdminOrganizationOverviewBySlug } = await import(
-  "./organizations/[slug]/overview/get.js"
+const { default: mountGetAdminOrganizationBySlug } = await import(
+  "./organizations/[slug]/get.js"
 );
-const { default: mountListAdminOrganizationMemberOverview } = await import(
-  "./organizations/[slug]/members/overview/get.js"
+const { default: mountListAdminOrganizationMembers } = await import(
+  "./organizations/[slug]/members/get.js"
 );
 
 interface AppOptions {
@@ -102,7 +102,7 @@ function createApp(
   return app;
 }
 
-describe("GET /v1/admin/organizations/overview", () => {
+describe("GET /v1/admin/organizations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listOrganizationsForAdminOverviewMock.mockResolvedValue({
@@ -132,8 +132,8 @@ describe("GET /v1/admin/organizations/overview", () => {
   });
 
   it("returns enriched organizations with pagination meta", async () => {
-    const app = createApp(mountListAdminOrganizationOverview);
-    const res = await app.request("/overview?query=acme");
+    const app = createApp(mountListAdminOrganizations);
+    const res = await app.request("/?query=acme");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -149,14 +149,14 @@ describe("GET /v1/admin/organizations/overview", () => {
   });
 
   it("rejects non-admin users", async () => {
-    const app = createApp(mountListAdminOrganizationOverview, { role: "user" });
-    const res = await app.request("/overview");
+    const app = createApp(mountListAdminOrganizations, { role: "user" });
+    const res = await app.request("/");
 
     expect(res.status).toBe(403);
   });
 });
 
-describe("GET /v1/admin/organizations/{slug}/overview", () => {
+describe("GET /v1/admin/organizations/{slug}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     buildAdminOrganizationOverviewDetailMock.mockResolvedValue({
@@ -197,8 +197,8 @@ describe("GET /v1/admin/organizations/{slug}/overview", () => {
   });
 
   it("returns organization overview detail", async () => {
-    const app = createApp(mountGetAdminOrganizationOverviewBySlug);
-    const res = await app.request("/acme-corp/overview");
+    const app = createApp(mountGetAdminOrganizationBySlug);
+    const res = await app.request("/acme-corp");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -209,14 +209,14 @@ describe("GET /v1/admin/organizations/{slug}/overview", () => {
 
   it("returns 404 when organization is missing", async () => {
     buildAdminOrganizationOverviewDetailMock.mockResolvedValue(null);
-    const app = createApp(mountGetAdminOrganizationOverviewBySlug);
-    const res = await app.request("/missing/overview");
+    const app = createApp(mountGetAdminOrganizationBySlug);
+    const res = await app.request("/missing");
 
     expect(res.status).toBe(404);
   });
 });
 
-describe("GET /v1/admin/organizations/{slug}/members/overview", () => {
+describe("GET /v1/admin/organizations/{slug}/members", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getAdminOrganizationBySlugMock.mockResolvedValue({
@@ -248,8 +248,8 @@ describe("GET /v1/admin/organizations/{slug}/members/overview", () => {
   });
 
   it("returns paginated organization members", async () => {
-    const app = createApp(mountListAdminOrganizationMemberOverview);
-    const res = await app.request("/acme-corp/members/overview");
+    const app = createApp(mountListAdminOrganizationMembers);
+    const res = await app.request("/acme-corp/members");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -265,8 +265,8 @@ describe("GET /v1/admin/organizations/{slug}/members/overview", () => {
 
   it("returns 404 when organization is missing", async () => {
     getAdminOrganizationBySlugMock.mockResolvedValue(null);
-    const app = createApp(mountListAdminOrganizationMemberOverview);
-    const res = await app.request("/missing/members/overview");
+    const app = createApp(mountListAdminOrganizationMembers);
+    const res = await app.request("/missing/members");
 
     expect(res.status).toBe(404);
   });

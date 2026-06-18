@@ -4,23 +4,21 @@ import mountRemoveAdminOrganizationMember from "./[slug]/members/[memberId]/dele
 import mountUpdateAdminOrganizationMemberRole from "./[slug]/members/[memberId]/role/patch.js";
 import mountUnassignAdminOrganizationMemberSeat from "./[slug]/members/[memberId]/seat/delete.js";
 import mountAssignAdminOrganizationMemberSeat from "./[slug]/members/[memberId]/seat/put.js";
-import mountListAdminOrganizationMemberOverview from "./[slug]/members/overview/get.js";
+import mountListAdminOrganizationMembers from "./[slug]/members/get.js";
 import mountAddAdminOrganizationMember from "./[slug]/members/post.js";
-import mountGetAdminOrganizationOverviewBySlug from "./[slug]/overview/get.js";
-import mountSearchAdminOrganizations from "./get.js";
-import mountListAdminOrganizationOverview from "./overview/get.js";
+import mountListAdminOrganizations from "./get.js";
+import mountSearchAdminOrganizations from "./search/get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
-mountListAdminOrganizationOverview(app);
+mountListAdminOrganizations(app);
 mountSearchAdminOrganizations(app);
-mountGetAdminOrganizationOverviewBySlug(app);
-mountListAdminOrganizationMemberOverview(app);
+mountGetAdminOrganizationBySlug(app);
+mountListAdminOrganizationMembers(app);
 mountAddAdminOrganizationMember(app);
 mountRemoveAdminOrganizationMember(app);
 mountUpdateAdminOrganizationMemberRole(app);
 mountAssignAdminOrganizationMemberSeat(app);
 mountUnassignAdminOrganizationMemberSeat(app);
-mountGetAdminOrganizationBySlug(app);
 
 export default app;

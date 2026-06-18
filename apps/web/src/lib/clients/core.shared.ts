@@ -70,7 +70,6 @@ import {
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   getAdminInvoice as coreGetAdminInvoice,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
-  getAdminOrganizationOverviewBySlug as coreGetAdminOrganizationOverviewBySlug,
   getAdminTask as coreGetAdminTask,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
@@ -124,10 +123,10 @@ import {
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
-  listAdminOrganizationMemberOverview as coreListAdminOrganizationMemberOverview,
-  listAdminOrganizationOverview as coreListAdminOrganizationOverview,
+  listAdminOrganizationMembers as coreListAdminOrganizationMembers,
+  listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
-  listAdminUserOverview as coreListAdminUserOverview,
+  listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
@@ -656,7 +655,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function listAdminUserOverview(query: {
+  async function listAdminUsers(query: {
     query?: string;
     cursor?: string;
     limit?: number;
@@ -664,7 +663,7 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreListAdminUserOverview({
+        coreListAdminUsers({
           client,
           query,
           cache: "no-store",
@@ -738,11 +737,11 @@ export function createCoreClient(getClient: GetClient) {
           path: { slug },
           cache: "no-store",
         }),
-      "Failed to fetch organization",
+      "Failed to fetch organization overview",
     );
   }
 
-  async function listAdminOrganizationOverview(query: {
+  async function listAdminOrganizations(query: {
     query?: string;
     cursor?: string;
     limit?: number;
@@ -750,7 +749,7 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreListAdminOrganizationOverview({
+        coreListAdminOrganizations({
           client,
           query,
           cache: "no-store",
@@ -759,27 +758,14 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getAdminOrganizationOverviewBySlug(slug: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetAdminOrganizationOverviewBySlug({
-          client,
-          path: { slug },
-          cache: "no-store",
-        }),
-      "Failed to fetch organization overview",
-    );
-  }
-
-  async function listAdminOrganizationMemberOverview(
+  async function listAdminOrganizationMembers(
     slug: string,
     query: { cursor?: string; limit?: number },
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        coreListAdminOrganizationMemberOverview({
+        coreListAdminOrganizationMembers({
           client,
           path: { slug },
           query,
@@ -2452,14 +2438,13 @@ export function createCoreClient(getClient: GetClient) {
     getCategories,
     getCoworkers,
     searchAdminUsers,
-    listAdminUserOverview,
+    listAdminUsers,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
-    listAdminOrganizationOverview,
-    getAdminOrganizationOverviewBySlug,
-    listAdminOrganizationMemberOverview,
+    listAdminOrganizations,
+    listAdminOrganizationMembers,
     addAdminOrganizationMember,
     removeAdminOrganizationMember,
     updateAdminOrganizationMemberRole,
