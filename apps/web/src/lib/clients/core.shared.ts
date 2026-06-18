@@ -683,8 +683,6 @@ export function createCoreClient(getClient: GetClient) {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string;
-    origin?: string;
-    ttlDays?: string;
   }) {
     return executeOperation(
       getClient,

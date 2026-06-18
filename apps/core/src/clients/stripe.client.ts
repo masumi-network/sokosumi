@@ -97,6 +97,10 @@ function normalizeCheckoutReturnPath(returnPath: string | undefined): string {
     return "/billing?tab=credits";
   }
 
+  if (!returnPath.startsWith("/") || returnPath.startsWith("//")) {
+    return "/billing?tab=credits";
+  }
+
   return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
 }
 
@@ -107,7 +111,12 @@ function buildCheckoutReturnUrl(
 ): string {
   const normalizedReturnPath = normalizeCheckoutReturnPath(returnPath);
   const querySuffix = Object.entries(searchParams)
-    .map(([key, value]) => `${key}=${value}`)
+    .map(([key, value]) => {
+      const encodedKey = encodeURIComponent(key);
+      const encodedValue =
+        value === "{CHECKOUT_SESSION_ID}" ? value : encodeURIComponent(value);
+      return `${encodedKey}=${encodedValue}`;
+    })
     .join("&");
   const querySeparator = normalizedReturnPath.includes("?") ? "&" : "?";
 
@@ -510,6 +519,18 @@ export const stripeClient = {
     return promotionCode;
   },
 
+  async getPromotionCodeById(
+    promotionCodeId: string,
+  ): Promise<Stripe.PromotionCode | null> {
+    try {
+      return await stripe.promotionCodes.retrieve(promotionCodeId, {
+        expand: ["promotion.coupon"],
+      });
+    } catch {
+      return null;
+    }
+  },
+
   async getCheckoutSession(
     sessionId: string,
   ): Promise<Stripe.Checkout.Session> {
@@ -528,10 +549,9 @@ export const stripeClient = {
     organizationId: string | null;
     credits: number;
     price: CreditPrice;
-    origin?: string | null;
     promotionCodeId?: string | null;
     returnPath?: string;
-    ttlDays?: string;
+    couponTtlDays?: string;
   }): Promise<Stripe.Checkout.Session> {
     if (params.price.amountPerCredit === 0) {
       throw new Error(
@@ -544,16 +564,13 @@ export const stripeClient = {
       params.price.amountPerCredit,
     );
     const creditsLabel = params.credits.toLocaleString("en-US");
-    const checkoutBaseUrl = (params.origin ?? getWebAppBaseUrl()).replace(
-      /\/$/,
-      "",
-    );
+    const checkoutBaseUrl = getWebAppBaseUrl().replace(/\/$/, "");
     const checkoutCreditsMessage = `${creditsLabel} credits will be added to your account after checkout.`;
     const sessionMetadata = {
       credits: params.credits,
       userId: params.userId,
       ...(params.organizationId && { organizationId: params.organizationId }),
-      ...(params.ttlDays ? { ttl_days: params.ttlDays } : {}),
+      ...(params.couponTtlDays ? { ttl_days: params.couponTtlDays } : {}),
     };
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",

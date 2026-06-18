@@ -78,8 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       credits: body.credits,
       returnPath: body.returnPath,
       promotionCodeId: body.promotionCodeId ?? null,
-      origin: body.origin ?? null,
-      ttlDays: body.ttlDays,
     });
 
     return created(c, creditCheckoutSessionSchema.parse(session));

@@ -569,8 +569,6 @@ export type CreateCreditCheckoutSession = {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string;
-    origin?: string;
-    ttlDays?: string;
 };
 
 export type CheckoutSessionAnalytics = {
@@ -6367,6 +6365,20 @@ export type GetCheckoutSessionAnalyticsErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;

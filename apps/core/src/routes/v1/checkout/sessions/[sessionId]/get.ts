@@ -49,17 +49,20 @@ const route = createRoute({
       },
     ),
     401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const { sessionId } = c.req.valid("param");
 
-    const analytics =
-      await stripeBillingService.getCheckoutSessionAnalytics(sessionId);
+    const analytics = await stripeBillingService.getCheckoutSessionAnalytics(
+      sessionId,
+      userContext.userId,
+    );
 
     return ok(c, checkoutSessionAnalyticsSchema.parse(analytics));
   });

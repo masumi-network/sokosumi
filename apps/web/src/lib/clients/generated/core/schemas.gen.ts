@@ -2443,15 +2443,6 @@ export const CreateCreditCheckoutSessionSchema = {
         promotionCodeId: {
             type: 'string',
             example: 'promo_123'
-        },
-        origin: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://app.sokosumi.com'
-        },
-        ttlDays: {
-            type: 'string',
-            example: '30'
         }
     },
     required: [

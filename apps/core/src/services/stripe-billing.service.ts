@@ -27,6 +27,13 @@ export class CouponTypeError extends Error {
   }
 }
 
+interface PromotionCodeWithExpandedCoupon
+  extends Omit<Stripe.PromotionCode, "promotion"> {
+  promotion?: {
+    coupon?: string | Stripe.Coupon;
+  };
+}
+
 function getCreditsForCoupon(coupon: Stripe.Coupon): number {
   if (!coupon.percent_off) {
     throw new CouponTypeError("Coupon must have percent_off");
@@ -87,6 +94,92 @@ function mapCheckoutSessionAnalytics(session: Stripe.Checkout.Session): {
     value: session.amount_total,
     items,
   };
+}
+
+function getCheckoutSessionCustomerId(
+  session: Stripe.Checkout.Session,
+): string | null {
+  const { customer } = session;
+
+  if (!customer) {
+    return null;
+  }
+
+  if (typeof customer === "string") {
+    return customer;
+  }
+
+  return customer.id;
+}
+
+function getPromotionCodeCustomerId(
+  promotionCode: Stripe.PromotionCode,
+): string | null {
+  const { customer } = promotionCode;
+
+  if (!customer) {
+    return null;
+  }
+
+  if (typeof customer === "string") {
+    return customer;
+  }
+
+  return customer.id;
+}
+
+function getPromotionCodeCouponTtlDays(
+  promotionCode: Stripe.PromotionCode,
+): string | undefined {
+  const coupon = (promotionCode as PromotionCodeWithExpandedCoupon).promotion
+    ?.coupon;
+
+  if (
+    typeof coupon !== "object" ||
+    coupon === null ||
+    !("metadata" in coupon)
+  ) {
+    return undefined;
+  }
+
+  return coupon.metadata?.ttl_days;
+}
+
+async function isCheckoutSessionOwnedByUser(
+  session: Stripe.Checkout.Session,
+  userId: string,
+): Promise<boolean> {
+  if (session.metadata?.userId === userId) {
+    return true;
+  }
+
+  const sessionCustomerId = getCheckoutSessionCustomerId(session);
+  if (!sessionCustomerId) {
+    return false;
+  }
+
+  const [user, memberOrganizations] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeCustomerId: true },
+    }),
+    prisma.organization.findMany({
+      where: {
+        members: {
+          some: { userId },
+        },
+      },
+      select: { stripeCustomerId: true },
+    }),
+  ]);
+
+  if (user?.stripeCustomerId === sessionCustomerId) {
+    return true;
+  }
+
+  return memberOrganizations.some(
+    (organization) => organization.stripeCustomerId === sessionCustomerId,
+  );
 }
 
 async function ensureStripeCustomerId(
@@ -283,8 +376,6 @@ export const stripeBillingService = {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string | null;
-    origin?: string | null;
-    ttlDays?: string;
   }): Promise<{ url: string }> {
     const stripeCustomerId = await ensureStripeCustomerId(
       params.userId,
@@ -299,6 +390,23 @@ export const stripeBillingService = {
       params.credits,
       zeroMarginLookupKey,
     );
+    let couponTtlDays: string | undefined;
+
+    if (params.promotionCodeId) {
+      const promotionCode = await stripeClient.getPromotionCodeById(
+        params.promotionCodeId,
+      );
+      if (!promotionCode) {
+        throw badRequest("Invalid promotion code");
+      }
+
+      const promotionCodeCustomerId = getPromotionCodeCustomerId(promotionCode);
+      if (promotionCodeCustomerId !== stripeCustomerId) {
+        throw badRequest("Invalid promotion code");
+      }
+
+      couponTtlDays = getPromotionCodeCouponTtlDays(promotionCode);
+    }
 
     const session = await stripeClient.createCreditCheckoutSession({
       stripeCustomerId,
@@ -306,10 +414,9 @@ export const stripeBillingService = {
       organizationId: params.organizationId,
       credits: params.credits,
       price,
-      origin: params.origin,
       promotionCodeId: params.promotionCodeId,
       returnPath: params.returnPath,
-      ttlDays: params.ttlDays,
+      couponTtlDays,
     });
 
     if (!session.url) {
@@ -319,8 +426,13 @@ export const stripeBillingService = {
     return { url: session.url };
   },
 
-  async getCheckoutSessionAnalytics(sessionId: string) {
+  async getCheckoutSessionAnalytics(sessionId: string, userId: string) {
     const session = await stripeClient.getCheckoutSession(sessionId);
+    const isOwnedByUser = await isCheckoutSessionOwnedByUser(session, userId);
+    if (!isOwnedByUser) {
+      throw notFound("Checkout session not found");
+    }
+
     return mapCheckoutSessionAnalytics(session);
   },
 

@@ -1,14 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findUniqueMock = vi.fn();
+const organizationFindManyMock = vi.fn();
+const organizationFindUniqueMock = vi.fn();
 const getPriceByLookupKeyMock = vi.fn();
 const getCreditTopUpPriceByCreditsMock = vi.fn();
 const createCreditCheckoutSessionMock = vi.fn();
+const getCheckoutSessionMock = vi.fn();
+const getPromotionCodeByIdMock = vi.fn();
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: (...args: unknown[]) => findUniqueMock(...args) },
-    organization: { findUnique: vi.fn() },
+    organization: {
+      findMany: (...args: unknown[]) => organizationFindManyMock(...args),
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
   },
 }));
 
@@ -20,6 +27,9 @@ vi.mock("@/clients/stripe.client", () => ({
       getCreditTopUpPriceByCreditsMock(...args),
     createCreditCheckoutSession: (...args: unknown[]) =>
       createCreditCheckoutSessionMock(...args),
+    getCheckoutSession: (...args: unknown[]) => getCheckoutSessionMock(...args),
+    getPromotionCodeById: (...args: unknown[]) =>
+      getPromotionCodeByIdMock(...args),
   },
 }));
 
@@ -33,6 +43,7 @@ const PRICE = (amountPerCredit: number) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  organizationFindManyMock.mockResolvedValue([]);
   // Standard prices keyed by lookup key.
   getPriceByLookupKeyMock.mockImplementation(async (lookupKey: string) => {
     const map: Record<string, number> = {
@@ -115,5 +126,111 @@ describe("createCreditCheckoutSession pricing authority", () => {
       5_000,
       "credit_0_margin",
     );
+  });
+
+  it("derives checkout ttl_days from the claimed Stripe promotion code", async () => {
+    getPromotionCodeByIdMock.mockResolvedValue({
+      id: "promo_1",
+      customer: "cus_123",
+      promotion: {
+        coupon: {
+          id: "coupon_1",
+          metadata: { ttl_days: "30" },
+        },
+      },
+    });
+
+    await stripeBillingService.createCreditCheckoutSession({
+      userId: "user_1",
+      organizationId: null,
+      credits: 500,
+      promotionCodeId: "promo_1",
+    });
+
+    expect(createCreditCheckoutSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promotionCodeId: "promo_1",
+        couponTtlDays: "30",
+      }),
+    );
+  });
+
+  it("rejects promotion codes scoped to another Stripe customer", async () => {
+    getPromotionCodeByIdMock.mockResolvedValue({
+      id: "promo_1",
+      customer: "cus_other",
+      promotion: {
+        coupon: {
+          id: "coupon_1",
+          metadata: { ttl_days: "30" },
+        },
+      },
+    });
+
+    await expect(
+      stripeBillingService.createCreditCheckoutSession({
+        userId: "user_1",
+        organizationId: null,
+        credits: 500,
+        promotionCodeId: "promo_1",
+      }),
+    ).rejects.toThrow("Invalid promotion code");
+
+    expect(createCreditCheckoutSessionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("getCheckoutSessionAnalytics ownership", () => {
+  beforeEach(() => {
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_123",
+      amount_total: 12000,
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+  });
+
+  it("returns analytics for a checkout session owned by the user customer", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+
+    const analytics = await stripeBillingService.getCheckoutSessionAnalytics(
+      "cs_123",
+      "user_1",
+    );
+
+    expect(analytics).toMatchObject({
+      sessionId: "cs_123",
+      currency: "eur",
+      value: 12000,
+    });
+  });
+
+  it("returns analytics for a checkout session owned by a member organization", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+    organizationFindManyMock.mockResolvedValue([
+      { stripeCustomerId: "cus_org" },
+    ]);
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_123",
+      amount_total: 12000,
+      currency: "eur",
+      customer: "cus_org",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_123", "user_1"),
+    ).resolves.toMatchObject({ sessionId: "cs_123" });
+  });
+
+  it("rejects checkout session analytics when the customer is not owned by the caller", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_123", "user_1"),
+    ).rejects.toThrow("Checkout session not found");
   });
 });

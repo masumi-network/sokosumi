@@ -33,14 +33,12 @@ export const createCreditCheckoutSessionSchema = z
     returnPath: z
       .string()
       .optional()
+      .refine(
+        (value) => !value || (value.startsWith("/") && !value.startsWith("//")),
+        "returnPath must be a relative path",
+      )
       .openapi({ example: "/billing?tab=credits" }),
     promotionCodeId: z.string().optional().openapi({ example: "promo_123" }),
-    origin: z
-      .string()
-      .url()
-      .optional()
-      .openapi({ example: "https://app.sokosumi.com" }),
-    ttlDays: z.string().optional().openapi({ example: "30" }),
   })
   .openapi("CreateCreditCheckoutSession");
 

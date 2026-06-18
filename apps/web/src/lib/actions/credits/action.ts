@@ -1,7 +1,6 @@
 "use server";
 
 import { isPositiveIntegerCredits } from "@sokosumi/utils";
-import { headers } from "next/headers";
 
 import {
   type ActionError,
@@ -45,12 +44,10 @@ export const purchaseCredits = withSession<
   }
 
   try {
-    const headerList = await headers();
     const { data } = await coreClient.createCreditCheckoutSession({
       organizationId,
       credits,
       returnPath,
-      origin: headerList.get("origin") ?? undefined,
     });
 
     return Ok({ url: data.url });
@@ -92,14 +89,11 @@ export const claimFreeCreditsWithCoupon = withSession<
       });
     }
 
-    const headerList = await headers();
     const { data } = await coreClient.createCreditCheckoutSession({
       organizationId,
       credits: coupon.credits,
       promotionCodeId: promo.data.promotionCodeId,
       returnPath: returnPath ?? "/coupon",
-      ttlDays: coupon.ttlDays ?? undefined,
-      origin: headerList.get("origin") ?? undefined,
     });
 
     return Ok({ url: data.url });
