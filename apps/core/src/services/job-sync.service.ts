@@ -43,6 +43,7 @@ import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -249,7 +250,15 @@ async function dispatchFinalStatusNotification(
         MessageStream: "outbound",
       })
       .catch((error) => {
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: "job-final-status",
+          sentry: {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-final-status",
+            },
+          },
           extra: {
             jobId: job.id,
             userId: job.userId,
@@ -295,7 +304,15 @@ async function dispatchInputRequiredNotification(
         MessageStream: "outbound",
       })
       .catch((error) => {
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: "job-input-required",
+          sentry: {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-input-required",
+            },
+          },
           extra: {
             jobId: job.id,
             userId: job.userId,
@@ -382,7 +399,15 @@ async function dispatchJobFailureNotification(
         MessageStream: "outbound",
       })
       .catch((error) => {
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: "job-failure-email",
+          sentry: {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-failure-email",
+            },
+          },
           extra: {
             jobId: job.id,
             userId: job.userId,
@@ -846,7 +871,13 @@ async function runSyncPhase(
         return await processor(job, options);
       } catch (error) {
         logJobSyncError(kind, job.id, error);
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: `[sync/jobs/${kind}]`,
+          sentry: {
+            extra: {
+              jobId: job.id,
+            },
+          },
           extra: {
             jobId: job.id,
           },

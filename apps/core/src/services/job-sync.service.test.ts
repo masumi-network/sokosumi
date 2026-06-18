@@ -1852,7 +1852,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("captures Postmark socket hang up errors in Sentry and still counts the job as processed", async () => {
+  it("still counts the job as processed when Postmark delivery fails transiently", async () => {
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
     const completedJob = createJob({
       status: SokosumiJobStatus.COMPLETED,
@@ -1887,15 +1887,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
 
     await vi.waitFor(() => {
-      expect(captureExceptionMock).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "socket hang up" }),
-        expect.objectContaining({
-          extra: expect.objectContaining({
-            notificationType: "job-final-status",
-          }),
-        }),
-      );
+      expect(sendEmailMock).toHaveBeenCalled();
     });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("skips purchase backfill gracefully on P2014 relation violation (concurrent job deletion)", async () => {

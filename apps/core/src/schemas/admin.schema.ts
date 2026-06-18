@@ -3,6 +3,7 @@ import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { stripeSubscriptionStatusNullableSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 
@@ -88,7 +89,7 @@ export const adminUserOverviewItemSchema = z
       description: "Active subscription plan, if any",
       example: "pro",
     }),
-    subscriptionStatus: z.string().nullable().openapi({ example: "active" }),
+    subscriptionStatus: stripeSubscriptionStatusNullableSchema,
     startedTaskCount: z.number().int().min(0).openapi({
       description: "Number of tasks the user has started (status beyond DRAFT)",
       example: 7,

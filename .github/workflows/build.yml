@@ -16,7 +16,6 @@ env:
   SOKOSUMI_API_URL: "https://api.sokosumi.com"
   PAYMENT_API_KEY: "ci-payment-api-key"
   REGISTRY_API_KEY: "ci-registry-api-key"
-  STRIPE_PUBLISHABLE_KEY: "pk_test_ci_build_placeholder"
   STRIPE_SECRET_KEY: "sk_test_ci_build_placeholder"
   STRIPE_WEBHOOK_SECRET: "whsec_ci_build_placeholder"
   STRIPE_WELCOME_COUPON: "ci-stripe-welcome-coupon"
