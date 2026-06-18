@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { memberRoleSchema } from "@/schemas/domain-enums.schema";
 import { organizationRecordSchema } from "@/schemas/organization.schema";
 
 const memberUserSchema = z.object({
@@ -17,7 +18,7 @@ export const memberWithUserSchema = z
   .object({
     id: z.string().openapi({ example: "member_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
-    role: z.string().openapi({ example: "member" }),
+    role: memberRoleSchema,
     seatAssignedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
     user: memberUserSchema,
@@ -42,7 +43,7 @@ export const memberRecordSchema = z
     id: z.string().openapi({ example: "member_123" }),
     userId: z.string().openapi({ example: "user_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
-    role: z.string().openapi({ example: "member" }),
+    role: memberRoleSchema,
     seatAssignedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
   })
@@ -60,7 +61,7 @@ export const memberWithOrganizationSchema = z
     id: z.string().openapi({ example: "member_123" }),
     userId: z.string().openapi({ example: "user_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
-    role: z.string().openapi({ example: "member" }),
+    role: memberRoleSchema,
     seatAssignedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
     organization: organizationRecordSchema,
