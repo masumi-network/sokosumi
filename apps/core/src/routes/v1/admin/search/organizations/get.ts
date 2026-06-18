@@ -14,7 +14,7 @@ const SEARCH_LIMIT = 20;
 
 const route = createRoute({
   method: "get",
-  path: "/search",
+  path: "/organizations",
   operationId: "searchAdminOrganizations",
   description: "Search organizations by name or slug (admin only).",
   tags: ["Admin"],

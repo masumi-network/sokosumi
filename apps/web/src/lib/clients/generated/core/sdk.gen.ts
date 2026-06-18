@@ -20,6 +20,24 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Search users by name or email (admin only).
+ */
+export const searchAdminUsers = <ThrowOnError extends boolean = false>(options?: Options<SearchAdminUsersData, ThrowOnError>): RequestResult<SearchAdminUsersResponses, SearchAdminUsersErrors, ThrowOnError> => (options?.client ?? client).get<SearchAdminUsersResponses, SearchAdminUsersErrors, ThrowOnError>({
+    responseTransformer: searchAdminUsersResponseTransformer,
+    url: '/admin/search/users',
+    ...options
+});
+
+/**
+ * Search organizations by name or slug (admin only).
+ */
+export const searchAdminOrganizations = <ThrowOnError extends boolean = false>(options?: Options<SearchAdminOrganizationsData, ThrowOnError>): RequestResult<SearchAdminOrganizationsResponses, SearchAdminOrganizationsErrors, ThrowOnError> => (options?.client ?? client).get<SearchAdminOrganizationsResponses, SearchAdminOrganizationsErrors, ThrowOnError>({
+    responseTransformer: searchAdminOrganizationsResponseTransformer,
+    url: '/admin/search/organizations',
+    ...options
+});
+
+/**
  * Paginated overview of all users with available credits, active subscription, and started-task counts (admin only).
  */
 export const listAdminUsers = <ThrowOnError extends boolean = false>(options?: Options<ListAdminUsersData, ThrowOnError>): RequestResult<ListAdminUsersResponses, ListAdminUsersErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminUsersResponses, ListAdminUsersErrors, ThrowOnError>({
@@ -29,29 +47,11 @@ export const listAdminUsers = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Search users by name or email (admin only).
- */
-export const searchAdminUsers = <ThrowOnError extends boolean = false>(options?: Options<SearchAdminUsersData, ThrowOnError>): RequestResult<SearchAdminUsersResponses, SearchAdminUsersErrors, ThrowOnError> => (options?.client ?? client).get<SearchAdminUsersResponses, SearchAdminUsersErrors, ThrowOnError>({
-    responseTransformer: searchAdminUsersResponseTransformer,
-    url: '/admin/users/search',
-    ...options
-});
-
-/**
  * Paginated overview of all organizations with member counts, billing, and subscription (admin only).
  */
 export const listAdminOrganizations = <ThrowOnError extends boolean = false>(options?: Options<ListAdminOrganizationsData, ThrowOnError>): RequestResult<ListAdminOrganizationsResponses, ListAdminOrganizationsErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminOrganizationsResponses, ListAdminOrganizationsErrors, ThrowOnError>({
     responseTransformer: listAdminOrganizationsResponseTransformer,
     url: '/admin/organizations',
-    ...options
-});
-
-/**
- * Search organizations by name or slug (admin only).
- */
-export const searchAdminOrganizations = <ThrowOnError extends boolean = false>(options?: Options<SearchAdminOrganizationsData, ThrowOnError>): RequestResult<SearchAdminOrganizationsResponses, SearchAdminOrganizationsErrors, ThrowOnError> => (options?.client ?? client).get<SearchAdminOrganizationsResponses, SearchAdminOrganizationsErrors, ThrowOnError>({
-    responseTransformer: searchAdminOrganizationsResponseTransformer,
-    url: '/admin/organizations/search',
     ...options
 });
 

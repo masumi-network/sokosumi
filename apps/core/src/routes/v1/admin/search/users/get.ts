@@ -14,7 +14,7 @@ const SEARCH_LIMIT = 20;
 
 const route = createRoute({
   method: "get",
-  path: "/search",
+  path: "/users",
   operationId: "searchAdminUsers",
   description: "Search users by name or email (admin only).",
   tags: ["Admin"],

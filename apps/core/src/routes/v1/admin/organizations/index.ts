@@ -7,12 +7,10 @@ import mountAssignAdminOrganizationMemberSeat from "./[slug]/members/[memberId]/
 import mountListAdminOrganizationMembers from "./[slug]/members/get.js";
 import mountAddAdminOrganizationMember from "./[slug]/members/post.js";
 import mountListAdminOrganizations from "./get.js";
-import mountSearchAdminOrganizations from "./search/get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
 mountListAdminOrganizations(app);
-mountSearchAdminOrganizations(app);
 mountGetAdminOrganizationBySlug(app);
 mountListAdminOrganizationMembers(app);
 mountAddAdminOrganizationMember(app);

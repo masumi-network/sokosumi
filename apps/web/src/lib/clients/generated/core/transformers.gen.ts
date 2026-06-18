@@ -2,6 +2,16 @@
 
 import type { AddAdminOrganizationMemberResponse, AssignAdminOrganizationMemberSeatResponse, CreateAdminInvoiceResponse, DeleteCoworkersByIdApiKeysByKeyIdResponse, DeleteCoworkersByIdResponse, DeleteCreditCostsByIdResponse, DeleteHermesMeInstanceIntegrationsByProviderResponse, DeleteHermesMeInstanceResponse, DeleteJobsByIdShareResponse, DeleteOrganizationsByIdMembersByMemberIdSeatResponse, DeleteProjectsByIdJobsByJobIdResponse, DeleteProjectsByIdResponse, DeleteProjectsByIdTasksByTaskIdResponse, DeleteTasksByIdLinksByLinkIdResponse, DeleteTasksByIdResponse, DeleteTasksByIdShareResponse, DeleteUsersByIdOauthConsentsByConsentIdResponse, GetAdminInvoiceResponse, GetAdminOrganizationBySlugResponse, GetAdminTaskResponse, GetAgentsByIdInputSchemaResponse, GetAgentsByIdJobsResponse, GetAgentsByIdRatingsEligibilityResponse, GetAgentsByIdResponse, GetAgentsByIdReviewsMeResponse, GetAgentsByIdReviewsResponse, GetAgentsResponse, GetCategoriesResponse, GetChatResponse, GetConversationsByIdMessagesResponse, GetConversationsByIdResponse, GetConversationsResponse, GetCoworkersByIdApiKeysResponse, GetCoworkersByIdResponse, GetCoworkersMeEventsResponse, GetCoworkersMeResponse, GetCoworkersResponse, GetCreditCostsByIdResponse, GetCreditCostsResponse, GetEnterpriseContractsByIdPeriodsPreviewResponse, GetEnterpriseContractsByIdResponse, GetEnterpriseContractsResponse, GetHermesMeInstanceIntegrationsResponse, GetHermesMeInstanceOnboardingProgressResponse, GetHermesMeInstanceResponse, GetHermesMeInstanceSchedulesResponse, GetHermesMeMessagesResponse, GetHermesMeUnreadCountResponse, GetHistoryResponse, GetInvitationsByIdResponse, GetJobsByIdEventsResponse, GetJobsByIdFilesResponse, GetJobsByIdInputRequestResponse, GetJobsByIdLinksResponse, GetJobsByIdResponse, GetJobsResponse, GetNotificationsResponse, GetNotificationsUnreadCountResponse, GetOrganizationBySlugResponse, GetOrganizationEnterpriseContractSummaryResponse, GetOrganizationsByIdBillingPlanResponse, GetOrganizationsByIdDesignMdResponse, GetOrganizationsByIdInvitationsResponse, GetOrganizationsByIdMembersResponse, GetOrganizationsByIdResponse, GetOrganizationsByIdSeatSummaryResponse, GetOrganizationsByIdStripeCustomerResponse, GetOrganizationsByIdSubscriptionResponse, GetProjectsByIdResponse, GetProjectsResponse, GetProjectsStatsResponse, GetShareByTokenResponse, GetTasksByIdEventsResponse, GetTasksByIdJobsResponse, GetTasksByIdLinksResponse, GetTasksByIdResponse, GetTasksResponse, GetUsersByIdCreditsResponse, GetUsersByIdDesignMdResponse, GetUsersByIdMembersResponse, GetUsersByIdNoticesPendingResponse, GetUsersByIdOnboardingResponse, GetUsersByIdOrganizationsByOrganizationIdCreditsResponse, GetUsersByIdOrganizationsByOrganizationIdMemberResponse, GetUsersByIdOrganizationsResponse, GetUsersByIdPreferencesResponse, GetUsersByIdResponse, GetUsersByIdStripeCustomerResponse, GetUsersByIdSubscriptionResponse, GetUsersByIdTasksCountResponse, GetUsersByIdUploadsResponse, GetUsersRegisteredResponse, GetWorkspacesDesignMdResponse, ListAdminInvoicesResponse, ListAdminOrganizationMembersResponse, ListAdminOrganizationsResponse, ListAdminTasksResponse, ListAdminUsersResponse, ListCreditPricesResponse, MarkAdminInvoicePaidResponse, PatchConversationsByIdArchiveResponse, PatchConversationsByIdResponse, PatchCoworkersByIdApiKeysByKeyIdResponse, PatchCoworkersByIdResponse, PatchCoworkersByIdWhitelistResponse, PatchCreditCostsByIdResponse, PatchEnterpriseContractsByIdResponse, PatchHermesMeInstanceResponse, PatchHermesMeInstanceSchedulesByScheduleIdResponse, PatchJobsByIdResponse, PatchNotificationsByIdReadResponse, PatchNotificationsReadAllResponse, PatchOrganizationsByIdInvoiceEmailResponse, PatchProjectsByIdResponse, PatchTasksByIdLinksByLinkIdResponse, PatchTasksByIdResponse, PatchUsersByIdPreferencesResponse, PostAgentsByIdJobsResponse, PostAgentsByIdRatingsResponse, PostConversationsByIdMessagesResponse, PostConversationsResponse, PostCoworkersByIdApiKeysResponse, PostCoworkersResponse, PostCreditCostsResponse, PostEnterpriseContractsByIdActivateResponse, PostEnterpriseContractsByIdCancelResponse, PostEnterpriseContractsResponse, PostHermesChatResponse, PostHermesMeInboxSeenResponse, PostHermesMeInstanceConfirmationsByConfirmationIdApproveResponse, PostHermesMeInstanceConfirmationsByConfirmationIdRejectResponse, PostHermesMeInstanceIntegrationsFinalizeResponse, PostHermesMeInstanceIntegrationsInitiateResponse, PostHermesMeInstanceOnboardResponse, PostHermesMeInstanceResponse, PostHermesMeSecretsResponse, PostJobsByIdInputsResponse, PostJobsByIdRefundResponse, PostOrganizationsByIdStripeCustomerResponse, PostProjectsByIdJobsResponse, PostProjectsByIdTasksResponse, PostProjectsResponse, PostTasksByIdEventsResponse, PostTasksByIdJobsResponse, PostTasksByIdLinksResponse, PostTasksResponse, PostUsersByIdNoticesByNoticeIdAcknowledgeResponse, PostUsersByIdOnboardingResponse, PostUsersByIdStripeCustomerResponse, PostUsersByIdUploadsResponse, PostUsersByIdUtmAttributionResponse, PutJobsByIdShareResponse, PutJobsByIdWorkspaceResponse, PutOrganizationsByIdDesignMdResponse, PutOrganizationsByIdMembersByMemberIdSeatResponse, PutOrganizationsByIdSubscriptionSeatsResponse, PutTasksByIdShareResponse, PutTasksByIdWorkspaceResponse, PutUsersByIdDesignMdResponse, PutUsersByIdPreferredOrganizationResponse, SearchAdminOrganizationsResponse, SearchAdminUsersResponse, UnassignAdminOrganizationMemberSeatResponse, UpdateAdminOrganizationMemberRoleResponse } from './types.gen';
 
+export const searchAdminUsersResponseTransformer = async (data: any): Promise<SearchAdminUsersResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
+export const searchAdminOrganizationsResponseTransformer = async (data: any): Promise<SearchAdminOrganizationsResponse> => {
+    data.meta.timestamp = new Date(data.meta.timestamp);
+    return data;
+};
+
 const adminUserOverviewItemSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     return data;
@@ -13,11 +23,6 @@ export const listAdminUsersResponseTransformer = async (data: any): Promise<List
     return data;
 };
 
-export const searchAdminUsersResponseTransformer = async (data: any): Promise<SearchAdminUsersResponse> => {
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
 const adminOrganizationOverviewItemSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     return data;
@@ -25,11 +30,6 @@ const adminOrganizationOverviewItemSchemaResponseTransformer = (data: any) => {
 
 export const listAdminOrganizationsResponseTransformer = async (data: any): Promise<ListAdminOrganizationsResponse> => {
     data.data = data.data.map((item: any) => adminOrganizationOverviewItemSchemaResponseTransformer(item));
-    data.meta.timestamp = new Date(data.meta.timestamp);
-    return data;
-};
-
-export const searchAdminOrganizationsResponseTransformer = async (data: any): Promise<SearchAdminOrganizationsResponse> => {
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

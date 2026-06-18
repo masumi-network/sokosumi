@@ -4,6 +4,37 @@ export type ClientOptions = {
     baseUrl: `${string}://openapi-core.snapshot.json` | (string & {});
 };
 
+export type AdminUserOption = {
+    id: string;
+    name: string;
+    email: string;
+};
+
+export type PaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Total number of items
+     */
+    total: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
+export type AdminOrganizationOption = {
+    id: string;
+    name: string;
+    slug: string;
+};
+
 export type AdminUserOverviewItem = {
     id: string;
     name: string;
@@ -27,31 +58,6 @@ export type AdminUserOverviewItem = {
     startedTaskCount: number;
 };
 
-export type PaginationMetadata = {
-    /**
-     * Cursor for the current page
-     */
-    cursor: string | null;
-    /**
-     * Number of items returned
-     */
-    limit: number;
-    /**
-     * Total number of items
-     */
-    total: number;
-    /**
-     * Cursor for the next page
-     */
-    nextCursor: string | null;
-};
-
-export type AdminUserOption = {
-    id: string;
-    name: string;
-    email: string;
-};
-
 export type AdminOrganizationOverviewItem = {
     id: string;
     name: string;
@@ -69,12 +75,6 @@ export type AdminOrganizationOverviewItem = {
      * Stripe subscription lifecycle status, or null when absent
      */
     subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
-};
-
-export type AdminOrganizationOption = {
-    id: string;
-    name: string;
-    slug: string;
 };
 
 export type AdminOrganizationOverviewDetail = {
@@ -2404,6 +2404,128 @@ export type DelegationUserId = string;
  */
 export type DelegationOrganizationId = string;
 
+export type SearchAdminUsersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Search term matched against name and email (users) or name and slug (organizations). Empty or whitespace-only queries return an empty list.
+         */
+        query?: string;
+    };
+    url: '/admin/search/users';
+};
+
+export type SearchAdminUsersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchAdminUsersError = SearchAdminUsersErrors[keyof SearchAdminUsersErrors];
+
+export type SearchAdminUsersResponses = {
+    /**
+     * Users matching the search query
+     */
+    200: {
+        data: Array<AdminUserOption>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchAdminUsersResponse = SearchAdminUsersResponses[keyof SearchAdminUsersResponses];
+
+export type SearchAdminOrganizationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Search term matched against name and email (users) or name and slug (organizations). Empty or whitespace-only queries return an empty list.
+         */
+        query?: string;
+    };
+    url: '/admin/search/organizations';
+};
+
+export type SearchAdminOrganizationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchAdminOrganizationsError = SearchAdminOrganizationsErrors[keyof SearchAdminOrganizationsErrors];
+
+export type SearchAdminOrganizationsResponses = {
+    /**
+     * Organizations matching the search query
+     */
+    200: {
+        data: Array<AdminOrganizationOption>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchAdminOrganizationsResponse = SearchAdminOrganizationsResponses[keyof SearchAdminOrganizationsResponses];
+
 export type ListAdminUsersData = {
     body?: never;
     path?: never;
@@ -2473,67 +2595,6 @@ export type ListAdminUsersResponses = {
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
 
-export type SearchAdminUsersData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Search term matched against name and email (users) or name and slug (organizations). Empty or whitespace-only queries return an empty list.
-         */
-        query?: string;
-    };
-    url: '/admin/users/search';
-};
-
-export type SearchAdminUsersErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type SearchAdminUsersError = SearchAdminUsersErrors[keyof SearchAdminUsersErrors];
-
-export type SearchAdminUsersResponses = {
-    /**
-     * Users matching the search query
-     */
-    200: {
-        data: Array<AdminUserOption>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type SearchAdminUsersResponse = SearchAdminUsersResponses[keyof SearchAdminUsersResponses];
-
 export type ListAdminOrganizationsData = {
     body?: never;
     path?: never;
@@ -2602,67 +2663,6 @@ export type ListAdminOrganizationsResponses = {
 };
 
 export type ListAdminOrganizationsResponse = ListAdminOrganizationsResponses[keyof ListAdminOrganizationsResponses];
-
-export type SearchAdminOrganizationsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Search term matched against name and email (users) or name and slug (organizations). Empty or whitespace-only queries return an empty list.
-         */
-        query?: string;
-    };
-    url: '/admin/organizations/search';
-};
-
-export type SearchAdminOrganizationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type SearchAdminOrganizationsError = SearchAdminOrganizationsErrors[keyof SearchAdminOrganizationsErrors];
-
-export type SearchAdminOrganizationsResponses = {
-    /**
-     * Organizations matching the search query
-     */
-    200: {
-        data: Array<AdminOrganizationOption>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type SearchAdminOrganizationsResponse = SearchAdminOrganizationsResponses[keyof SearchAdminOrganizationsResponses];
 
 export type GetAdminOrganizationBySlugData = {
     body?: never;

@@ -23,10 +23,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 const { default: mountSearchAdminUsers } = await import(
-  "./users/search/get.js"
+  "./search/users/get.js"
 );
 const { default: mountSearchAdminOrganizations } = await import(
-  "./organizations/search/get.js"
+  "./search/organizations/get.js"
 );
 
 interface AppOptions {
@@ -87,7 +87,7 @@ describe("admin search routes", () => {
   describe("admin access", () => {
     it("returns 403 for non-admin users", async () => {
       const app = createApp(mountSearchAdminUsers, { role: "user" });
-      const response = await app.request("http://localhost/search?query=ada");
+      const response = await app.request("http://localhost/users?query=ada");
 
       expect(response.status).toBe(403);
       expect(searchUsersMock).not.toHaveBeenCalled();
@@ -95,20 +95,20 @@ describe("admin search routes", () => {
 
     it("returns 403 for coworker auth", async () => {
       const app = createApp(mountSearchAdminUsers, { actor: "coworker" });
-      const response = await app.request("http://localhost/search?query=ada");
+      const response = await app.request("http://localhost/users?query=ada");
 
       expect(response.status).toBe(403);
     });
   });
 
-  describe("GET /admin/users/search", () => {
+  describe("GET /admin/search/users", () => {
     it("returns mapped user options for an admin", async () => {
       searchUsersMock.mockResolvedValue([
         { id: "user_1", name: "Ada", email: "ada@example.com", role: "user" },
       ]);
       const app = createApp(mountSearchAdminUsers);
 
-      const response = await app.request("http://localhost/search?query=ada");
+      const response = await app.request("http://localhost/users?query=ada");
       const body = (await response.json()) as {
         data: Array<{ id: string; name: string; email: string }>;
       };
@@ -127,21 +127,23 @@ describe("admin search routes", () => {
     it("passes an empty string when query is omitted", async () => {
       const app = createApp(mountSearchAdminUsers);
 
-      const response = await app.request("http://localhost/search");
+      const response = await app.request("http://localhost/users");
 
       expect(response.status).toBe(200);
       expect(searchUsersMock).toHaveBeenCalledWith("", 20, expect.anything());
     });
   });
 
-  describe("GET /admin/organizations/search", () => {
+  describe("GET /admin/search/organizations", () => {
     it("returns mapped organization options for an admin", async () => {
       searchOrganizationsMock.mockResolvedValue([
         { id: "org_1", name: "Acme", slug: "acme", extra: "ignored" },
       ]);
       const app = createApp(mountSearchAdminOrganizations);
 
-      const response = await app.request("http://localhost/search?query=acme");
+      const response = await app.request(
+        "http://localhost/organizations?query=acme",
+      );
       const body = (await response.json()) as {
         data: Array<{ id: string; name: string; slug: string }>;
       };
