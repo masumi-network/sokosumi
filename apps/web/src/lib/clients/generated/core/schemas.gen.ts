@@ -5674,7 +5674,8 @@ export const PendingInvitationSchema = {
             enum: [
                 'owner',
                 'admin',
-                'member'
+                'member',
+                null
             ],
             example: 'member',
             description: 'Organization member role'

@@ -1674,7 +1674,7 @@ export type PendingInvitation = {
     /**
      * Organization member role
      */
-    role: 'owner' | 'admin' | 'member';
+    role: 'owner' | 'admin' | 'member' | null;
     /**
      * Invitation lifecycle status stored in the database
      */

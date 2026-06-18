@@ -14,9 +14,11 @@ export const memberRoleSchema = z.enum(MEMBER_ROLE_VALUES).openapi({
   description: "Organization member role",
 });
 
-export const memberRoleNullableSchema = memberRoleSchema
-  .nullable()
-  .openapi({ example: MemberRole.MEMBER });
+export const memberRoleNullableSchema = memberRoleSchema.nullable().openapi({
+  example: MemberRole.MEMBER,
+  enum: [...MEMBER_ROLE_VALUES, null],
+  description: "Organization member role",
+});
 
 /** Invitation statuses persisted in Postgres (excludes frontend-only `expired`). */
 export const INVITATION_DB_STATUS_VALUES = [
