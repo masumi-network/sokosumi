@@ -193,15 +193,6 @@ function buildJobLink(job: JobWithSokosumiStatus): string {
   return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
 }
 
-function buildJobNotificationEventId(
-  latestEventId: string | undefined,
-  jobId: string,
-  jobStatus: SokosumiJobStatus,
-): string {
-  const baseId = latestEventId ?? jobId;
-  return `${baseId}:${jobStatus}`;
-}
-
 function buildFailureNotificationData(
   job: JobWithSokosumiStatus,
 ): JobFailureNotificationEmailProps {
@@ -513,11 +504,9 @@ async function finalizeJobSyncResult(
   }
 
   const latestEvent = updatedJob.events.at(0);
-  void dispatchJobNotification(
-    updatedJob,
-    newJobStatus,
-    buildJobNotificationEventId(latestEvent?.id, updatedJob.id, newJobStatus),
-  );
+  if (latestEvent?.id) {
+    void dispatchJobNotification(updatedJob, newJobStatus, latestEvent.id);
+  }
 
   switch (newJobStatus) {
     case SokosumiJobStatus.COMPLETED:

@@ -888,7 +888,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       userId: "user_1",
       kind: NotificationKind.JOB,
       referenceId: "job_1",
-      eventId: "event_2:completed",
+      eventId: "event_2",
       messageKey: "Notifications.Job.completed",
       messageParams: {
         agentName: "Display Name",
@@ -962,7 +962,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         userId: "user_1",
         kind: NotificationKind.JOB,
         referenceId: "job_1",
-        eventId: "event_2:payment_failed",
+        eventId: "event_2",
         messageKey: "Notifications.Job.paymentFailed",
       }),
     );
@@ -1618,7 +1618,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       userId: "user_1",
       kind: NotificationKind.JOB,
       referenceId: "job_1",
-      eventId: "event_2:input_required",
+      eventId: "event_2",
       messageKey: "Notifications.Job.inputRequired",
       messageParams: {
         agentName: "Display Name",
