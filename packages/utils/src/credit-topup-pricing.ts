@@ -62,3 +62,48 @@ export function getCreditTopUpLookupKeyByCredits(
 
   return HIGH_CREDIT_TOPUP_LOOKUP_KEY;
 }
+
+export interface CreditTopUpTier {
+  minCredits: number;
+  amountPerCredit: number;
+}
+
+/**
+ * Volume breakpoints for standard credit top-up pricing, mapped to their Stripe
+ * lookup keys. Single source of truth for the tier curve — keep aligned with
+ * {@link getCreditTopUpLookupKeyByCredits}. A tier applies from its `minCredits`
+ * (inclusive) up to the next tier's `minCredits` (exclusive).
+ */
+export const STANDARD_CREDIT_TOPUP_TIERS: ReadonlyArray<{
+  minCredits: number;
+  lookupKey: StandardCreditTopUpLookupKey;
+}> = [
+  { minCredits: 1, lookupKey: BASE_CREDIT_TOPUP_LOOKUP_KEY },
+  { minCredits: BASE_TIER_MAX_CREDITS, lookupKey: MID_CREDIT_TOPUP_LOOKUP_KEY },
+  { minCredits: MID_TIER_MAX_CREDITS, lookupKey: HIGH_CREDIT_TOPUP_LOOKUP_KEY },
+];
+
+/**
+ * Picks the tier whose `minCredits` is the greatest value not exceeding
+ * `credits`. Margin-free: operates purely on opaque tiers, so the web app never
+ * needs to know about lookup keys or margin levels.
+ */
+export function selectCreditTopUpTier(
+  tiers: CreditTopUpTier[],
+  credits: number,
+): CreditTopUpTier {
+  if (!isPositiveIntegerCredits(credits)) {
+    throw new Error("Credits must be a positive integer");
+  }
+  const sorted = [...tiers].sort((a, b) => a.minCredits - b.minCredits);
+  let selected: CreditTopUpTier | undefined;
+  for (const tier of sorted) {
+    if (credits >= tier.minCredits) {
+      selected = tier;
+    }
+  }
+  if (!selected) {
+    throw new Error("No credit top-up tier available for the given credits");
+  }
+  return selected;
+}
