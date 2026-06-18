@@ -1,10 +1,11 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { stripeSubscriptionStatusSchema } from "@/schemas/domain-enums.schema";
 
 export const subscriptionSchema = z.object({
   plan: z.string().openapi({ example: "starter" }),
-  status: z.string().openapi({ example: "active" }),
+  status: stripeSubscriptionStatusSchema,
   periodStart: dateTimeSchema.nullish(),
   periodEnd: dateTimeSchema.nullish(),
   cancelAtPeriodEnd: z.boolean().nullish().openapi({ example: false }),
@@ -39,7 +40,7 @@ export const activeSubscriptionResponseSchema = z
     subscription: z
       .object({
         plan: z.string().openapi({ example: "starter" }),
-        status: z.string().openapi({ example: "active" }),
+        status: stripeSubscriptionStatusSchema,
         cancelAtPeriodEnd: z.boolean().nullish().openapi({ example: false }),
         periodStart: dateTimeSchema.nullish(),
         periodEnd: dateTimeSchema.nullish(),

@@ -1,7 +1,9 @@
 import type { Session } from "@sokosumi/utils";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import UserCredits from "@/app/components/user-credits";
+import UserCredits, {
+  type UserCreditsData,
+} from "@/app/components/user-credits";
 
 vi.mock("next-intl/server", () => ({
   getTranslations: (namespace: string) =>
@@ -75,7 +77,10 @@ const session = {
   },
 } as unknown as Session;
 
-function createCreditsResponse(plan: string | null, buffer: number) {
+function createCreditsResponse(
+  plan: string | null,
+  buffer: number,
+): { data: { credits: UserCreditsData } } {
   return {
     data: {
       credits: {
