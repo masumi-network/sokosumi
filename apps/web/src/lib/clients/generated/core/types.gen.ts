@@ -1403,7 +1403,10 @@ export type MemberWithOrganization = {
     id: string;
     userId: string;
     organizationId: string;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
     seatAssignedAt: Date | null;
     createdAt: Date;
     organization: OrganizationRecord;
@@ -1430,14 +1433,20 @@ export type Organization = {
         invoiceEmail?: string | null;
         [key: string]: unknown;
     } | null;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
 };
 
 export type MemberRecord = {
     id: string;
     userId: string;
     organizationId: string;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
     seatAssignedAt: Date | null;
     createdAt: Date;
 };
@@ -1622,7 +1631,10 @@ export type User = {
 export type Member = {
     id: string;
     organizationId: string;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
     seatAssignedAt: Date | null;
     createdAt: Date;
     user: {
@@ -1659,8 +1671,14 @@ export type PendingInvitation = {
     id: string;
     organizationId: string;
     email: string;
-    role: string | null;
-    status: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Invitation lifecycle status stored in the database
+     */
+    status: 'pending' | 'accepted' | 'rejected' | 'canceled';
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;

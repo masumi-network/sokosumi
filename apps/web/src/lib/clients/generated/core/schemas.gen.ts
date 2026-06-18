@@ -4859,7 +4859,13 @@ export const MemberWithOrganizationSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         seatAssignedAt: {
             type: [
@@ -5007,7 +5013,13 @@ export const OrganizationSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         }
     },
     required: [
@@ -5037,7 +5049,13 @@ export const MemberRecordSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         seatAssignedAt: {
             type: [
@@ -5526,7 +5544,13 @@ export const MemberSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         seatAssignedAt: {
             type: [
@@ -5647,11 +5671,24 @@ export const PendingInvitationSchema = {
                 'string',
                 'null'
             ],
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         status: {
             type: 'string',
-            example: 'pending'
+            enum: [
+                'pending',
+                'accepted',
+                'rejected',
+                'canceled'
+            ],
+            example: 'pending',
+            description: 'Invitation lifecycle status stored in the database'
         },
         expiresAt: {
             type: 'string',
