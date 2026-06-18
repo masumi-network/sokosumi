@@ -35,7 +35,7 @@ const envSecretsSchema = z.object({
     .transform((val: string) => val.trim().toLowerCase() === "true")
     .default(false),
 
-  // Stripe
+  // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
   // Vercel
