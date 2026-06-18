@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { sanitizeOrganizationLogoForApi } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { memberRoleSchema } from "@/schemas/domain-enums.schema";
 
 const organizationLogoSchema = z.preprocess(
   (logo) => sanitizeOrganizationLogoForApi(logo),
@@ -30,7 +31,7 @@ export type Organization = z.infer<typeof organizationSchema>;
 
 export const organizationWithRoleSchema = organizationSchema
   .extend({
-    role: z.string().openapi({ example: "member" }),
+    role: memberRoleSchema,
   })
   .openapi("Organization");
 

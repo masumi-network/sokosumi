@@ -1,6 +1,10 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  invitationStatusSchema,
+  memberRoleNullableSchema,
+} from "@/schemas/domain-enums.schema";
 
 /**
  * Raw pending-invitation fields, mirroring the `Invitation` model. Used by the
@@ -11,8 +15,8 @@ export const pendingInvitationSchema = z
     id: z.string().openapi({ example: "inv_123" }),
     organizationId: z.string().openapi({ example: "org_123" }),
     email: z.string().openapi({ example: "jane@example.com" }),
-    role: z.string().nullable().openapi({ example: "member" }),
-    status: z.string().openapi({ example: "pending" }),
+    role: memberRoleNullableSchema,
+    status: invitationStatusSchema,
     expiresAt: dateTimeSchema,
     inviterId: z.string().openapi({ example: "user_123" }),
     createdAt: dateTimeSchema,

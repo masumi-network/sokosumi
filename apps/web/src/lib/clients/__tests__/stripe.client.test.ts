@@ -70,7 +70,6 @@ describe("stripe.client lookup-key pricing", () => {
     getEnvSecretsMock.mockReturnValue({
       STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
       STRIPE_SECRET_KEY: "sk_test_mock",
-      STRIPE_WEBHOOK_SECRET: "whsec_test_mock",
       VERCEL_URL: "https://app.test",
     });
   });

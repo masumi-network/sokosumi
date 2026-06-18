@@ -20,10 +20,7 @@ describe("proxy", () => {
       MAINTENANCE_MODE: false,
       NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "codex/evaluate-cookie-prefix-usage",
-      VERCEL_BRANCH_URL:
-        "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.vercel.app",
       VERCEL_ENV: "preview",
-      VERCEL_PROJECT_PRODUCTION_URL: undefined,
       VERCEL_URL: "https://sokosumi-app-preprod-abc123.vercel.app",
     });
     getSessionCookieMock.mockReturnValue("session-token");
