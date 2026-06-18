@@ -81,14 +81,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("You can only mark your own notifications as read");
     }
 
-    // Mark as read
-    const updated = await prisma.notification.update({
-      where: { id },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
-    });
+    const updated = notification.isRead
+      ? notification
+      : await prisma.notification.update({
+          where: { id },
+          data: {
+            isRead: true,
+            readAt: new Date(),
+          },
+        });
 
     const result = {
       id: updated.id,
