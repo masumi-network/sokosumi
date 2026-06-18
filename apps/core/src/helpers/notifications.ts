@@ -23,9 +23,10 @@ export interface CreateNotificationResult {
  *
  * eventId references a jobEvent or taskEvent row depending on kind.
  *
- * Duplicate emits for the same (userId, kind, referenceId, eventId) are
- * idempotent no-ops. Existing content, metadata, read state, and feed position
- * must not change after insert.
+ * Duplicate emits for the same
+ * (userId, kind, referenceId, eventId, messageKey) are idempotent no-ops.
+ * Existing content, metadata, read state, and feed position must not change
+ * after insert.
  *
  * This is an internal-only helper for Core services to emit notifications.
  * Not exposed as a public API in v1.
@@ -40,13 +41,13 @@ export async function createNotification(
     kind: input.kind,
     referenceId: input.referenceId,
     eventId: input.eventId,
+    messageKey: input.messageKey,
   };
 
   try {
     const notification = await prisma.notification.create({
       data: {
         ...uniqueKey,
-        messageKey: input.messageKey,
         messageParams: JSON.stringify(input.messageParams),
         metadata:
           input.metadata === undefined || input.metadata === null
@@ -63,7 +64,7 @@ export async function createNotification(
 
     const notification = await prisma.notification.findUnique({
       where: {
-        userId_kind_referenceId_eventId: uniqueKey,
+        userId_kind_referenceId_eventId_messageKey: uniqueKey,
       },
     });
 

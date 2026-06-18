@@ -1065,7 +1065,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "old-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1076,7 +1076,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
       {},
     );
-    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(refundJobMock).not.toHaveBeenCalled();
     expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
       network: "Preprod",
@@ -1098,6 +1097,70 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "event_1",
+        messageKey: "Notifications.Job.paymentFailed",
+      }),
+    );
+  });
+
+  it("creates a distinct in-app notification when purchase status changes without an agent event update", async () => {
+    const sharedEvent = createJobEvent({
+      id: "event_2",
+      status: AgentJobStatus.COMPLETED,
+      result: "done",
+      statusHash: "new-hash",
+    });
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      events: [sharedEvent],
+    });
+    const paymentFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+      events: [sharedEvent],
+    });
+
+    mockInitialJobQueries({
+      purchase: [completedJob],
+    });
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
+    createJobEventForJobIdMock.mockResolvedValueOnce({ id: "event_3" });
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "event_2",
+        messageKey: "Notifications.Job.paymentFailed",
+      }),
+    );
   });
 
   it("ignores late completed agent results when a purchase-state payment failure resolves in the same sync cycle", async () => {
@@ -1133,7 +1196,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1275,7 +1338,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1472,7 +1535,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(refundResolvedJob);
+    getJobByIdMock.mockResolvedValue(refundResolvedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1541,7 +1604,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(disputeResolvedJob);
+    getJobByIdMock.mockResolvedValue(disputeResolvedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
