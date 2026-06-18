@@ -101,7 +101,8 @@ function normalizeCheckoutReturnPath(returnPath: string | undefined): string {
     return "/billing?tab=credits";
   }
 
-  return returnPath.startsWith("/") ? returnPath : `/${returnPath}`;
+  // Guaranteed to start with a single "/" by the guard above.
+  return returnPath;
 }
 
 function buildCheckoutReturnUrl(
@@ -462,6 +463,37 @@ export const stripeClient = {
       console.error("Error retrieving price by lookup key", error);
       throw error;
     }
+  },
+
+  /**
+   * Resolves several lookup keys in a single `prices.list` call (all credit
+   * top-up prices live on one product), returning a key→price map. Avoids one
+   * round-trip per tier on the hot catalog endpoint.
+   */
+  async getPricesByLookupKeys(
+    lookupKeys: CreditTopUpLookupKey[],
+  ): Promise<Map<CreditTopUpLookupKey, CreditPrice>> {
+    const matchingPrices = await stripe.prices.list({
+      lookup_keys: lookupKeys,
+      product: getEnv().STRIPE_CREDIT_PRODUCT_ID,
+      active: true,
+      limit: 100,
+    });
+
+    const pricesByKey = new Map<CreditTopUpLookupKey, CreditPrice>();
+    for (const lookupKey of lookupKeys) {
+      const matchedPrice = selectPreferredCreditPrice(
+        matchingPrices.data.filter((price) => price.lookup_key === lookupKey),
+      );
+      if (!matchedPrice) {
+        throw new Error(
+          `No valid credit price found for lookup key ${lookupKey}. Expected currencies: ${SUPPORTED_CREDIT_PRICE_CURRENCIES.join(", ")}`,
+        );
+      }
+      pricesByKey.set(lookupKey, validatePrice(matchedPrice));
+    }
+
+    return pricesByKey;
   },
 
   async getBaseCreditTopUpPrice(): Promise<CreditPrice> {

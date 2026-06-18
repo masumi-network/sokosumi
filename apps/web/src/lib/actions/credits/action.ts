@@ -7,7 +7,7 @@ import {
   CommonErrorCode,
   CreditsErrorCode,
 } from "@/lib/actions/errors";
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { Err, Ok, type Result } from "@/lib/ts-res";
@@ -68,7 +68,7 @@ interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
 export const claimFreeCreditsWithCoupon = withSession<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, couponId, session, returnPath }) => {
+>(async ({ organizationId, couponId, returnPath }) => {
   if (organizationId) {
     const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member) {
@@ -102,6 +102,18 @@ export const claimFreeCreditsWithCoupon = withSession<
     if (error instanceof CouponError) {
       return Err({
         code: error.code,
+      });
+    }
+    // Core returns 404 (unknown coupon) or 400 (not a valid credit coupon) when
+    // the coupon cannot be validated/claimed; surface the specific
+    // invalid-coupon message instead of a generic internal error.
+    if (
+      error instanceof CoreApiRequestError &&
+      (error.status === 400 || error.status === 404)
+    ) {
+      return Err({
+        message: "Invalid coupon",
+        code: CreditsErrorCode.INVALID_COUPON,
       });
     }
     return Err({

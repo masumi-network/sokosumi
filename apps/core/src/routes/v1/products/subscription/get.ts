@@ -4,7 +4,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
-import { subscriptionCatalogSchema } from "@/schemas/billing.schema";
+import { subscriptionCatalogSchema } from "@/schemas/subscription-catalog.schema";
 import { stripeBillingService } from "@/services/stripe-billing.service";
 
 const route = createRoute({

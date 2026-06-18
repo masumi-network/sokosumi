@@ -1,7 +1,5 @@
 import { z } from "@hono/zod-openapi";
 
-import { subscriptionCatalogSchema } from "@/schemas/subscription-catalog.schema";
-
 export const creditTopUpTierSchema = z
   .object({
     minCredits: z.number().int().positive().openapi({ example: 1 }),
@@ -93,5 +91,3 @@ export const claimedPromotionCodeSchema = z
     active: z.boolean().openapi({ example: true }),
   })
   .openapi("ClaimedPromotionCode");
-
-export { subscriptionCatalogSchema };

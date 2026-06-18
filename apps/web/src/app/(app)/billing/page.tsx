@@ -244,6 +244,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <CreditsSection
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={activeOrganization}
+                pricing={creditPricing}
                 returnPath="/billing?tab=credits"
                 searchParams={creditsCheckoutParams}
               />
@@ -348,6 +349,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             <CreditsSection
               isPurchaseEnabled={canPurchaseCredits}
               organization={null}
+              pricing={creditPricing}
               returnPath="/billing?tab=credits"
               searchParams={creditsCheckoutParams}
             />

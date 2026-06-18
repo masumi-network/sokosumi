@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findUniqueMock = vi.fn();
+const userUpdateMock = vi.fn();
 const organizationFindManyMock = vi.fn();
 const organizationFindUniqueMock = vi.fn();
+const organizationUpdateMock = vi.fn();
 const getPriceByLookupKeyMock = vi.fn();
+const getPricesByLookupKeysMock = vi.fn();
 const getCreditTopUpPriceByCreditsMock = vi.fn();
 const createCreditCheckoutSessionMock = vi.fn();
 const getCheckoutSessionMock = vi.fn();
@@ -11,13 +14,18 @@ const getPromotionCodeByIdMock = vi.fn();
 const getCouponByIdMock = vi.fn();
 const getPromotionCodeMock = vi.fn();
 const createPromotionCodeMock = vi.fn();
+const createUserCustomerMock = vi.fn();
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    user: { findUnique: (...args: unknown[]) => findUniqueMock(...args) },
+    user: {
+      findUnique: (...args: unknown[]) => findUniqueMock(...args),
+      update: (...args: unknown[]) => userUpdateMock(...args),
+    },
     organization: {
       findMany: (...args: unknown[]) => organizationFindManyMock(...args),
       findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+      update: (...args: unknown[]) => organizationUpdateMock(...args),
     },
   },
 }));
@@ -26,6 +34,8 @@ vi.mock("@/clients/stripe.client", () => ({
   stripeClient: {
     getPriceByLookupKey: (...args: unknown[]) =>
       getPriceByLookupKeyMock(...args),
+    getPricesByLookupKeys: (...args: unknown[]) =>
+      getPricesByLookupKeysMock(...args),
     getCreditTopUpPriceByCredits: (...args: unknown[]) =>
       getCreditTopUpPriceByCreditsMock(...args),
     createCreditCheckoutSession: (...args: unknown[]) =>
@@ -37,6 +47,7 @@ vi.mock("@/clients/stripe.client", () => ({
     getPromotionCode: (...args: unknown[]) => getPromotionCodeMock(...args),
     createPromotionCode: (...args: unknown[]) =>
       createPromotionCodeMock(...args),
+    createUserCustomer: (...args: unknown[]) => createUserCustomerMock(...args),
   },
 }));
 
@@ -61,6 +72,14 @@ beforeEach(() => {
     };
     return PRICE(map[lookupKey]);
   });
+  getPricesByLookupKeysMock.mockImplementation(async (lookupKeys: string[]) => {
+    const map: Record<string, number> = {
+      credit_20_margin: 120,
+      credit_15_margin: 115,
+      credit_10_margin: 110,
+    };
+    return new Map(lookupKeys.map((key) => [key, PRICE(map[key])]));
+  });
 });
 
 describe("getCreditTopUpPricing", () => {
@@ -77,6 +96,12 @@ describe("getCreditTopUpPricing", () => {
       { minCredits: 100_000, amountPerCredit: 110 },
     ]);
     expect(pricing.referenceAmountPerCredit).toBe(120);
+    // Tiers are resolved in a single batched lookup, not one call per tier.
+    expect(getPricesByLookupKeysMock).toHaveBeenCalledWith([
+      "credit_20_margin",
+      "credit_15_margin",
+      "credit_10_margin",
+    ]);
     expect(getPriceByLookupKeyMock).not.toHaveBeenCalledWith("credit_0_margin");
   });
 
@@ -300,6 +325,32 @@ describe("claimCoupon validation", () => {
     ).rejects.toThrow();
 
     expect(createPromotionCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("persists a newly created user Stripe customer id (write-through)", async () => {
+    findUniqueMock.mockResolvedValue({
+      id: "user_1",
+      name: "Bob",
+      email: "bob@example.com",
+      stripeCustomerId: null,
+    });
+    createUserCustomerMock.mockResolvedValue({ id: "cus_new" });
+    getCouponByIdMock.mockResolvedValue({
+      id: "coupon_1",
+      percent_off: 100,
+      metadata: { credits: "100" },
+    });
+
+    await stripeBillingService.claimCoupon({
+      userId: "user_1",
+      organizationId: null,
+      couponId: "coupon_1",
+    });
+
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user_1" },
+      data: { stripeCustomerId: "cus_new" },
+    });
   });
 });
 

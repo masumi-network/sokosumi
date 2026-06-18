@@ -215,6 +215,15 @@ async function ensureStripeCustomerId(
       invoiceEmail: getOrganizationMetadata(organization.metadata).invoiceEmail,
     });
 
+    // Persist the id immediately (write-through) rather than waiting for the
+    // customer.created webhook. The create is idempotent, but persisting here
+    // avoids a duplicate Stripe customer if the webhook is delayed beyond
+    // Stripe's idempotency window, and keeps ownership checks consistent.
+    await prisma.organization.update({
+      where: { id: organization.id },
+      data: { stripeCustomerId: customer.id },
+    });
+
     return customer.id;
   }
 
@@ -235,6 +244,15 @@ async function ensureStripeCustomerId(
     email: user.email,
     name: user.name,
     userId: user.id,
+  });
+
+  // Persist the id immediately (write-through) rather than waiting for the
+  // customer.created webhook. The create is idempotent, but persisting here
+  // avoids a duplicate Stripe customer if the webhook is delayed beyond
+  // Stripe's idempotency window, and keeps ownership checks consistent.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { stripeCustomerId: customer.id },
   });
 
   return customer.id;
@@ -268,16 +286,20 @@ export const stripeBillingService = {
       };
     }
 
-    const pricedTiers = await Promise.all(
-      STANDARD_CREDIT_TOPUP_TIERS.map(async (tier) => {
-        const price = await stripeClient.getPriceByLookupKey(tier.lookupKey);
-        return {
-          minCredits: tier.minCredits,
-          amountPerCredit: price.amountPerCredit,
-          currency: price.currency,
-        };
-      }),
+    const pricesByKey = await stripeClient.getPricesByLookupKeys(
+      STANDARD_CREDIT_TOPUP_TIERS.map((tier) => tier.lookupKey),
     );
+    const pricedTiers = STANDARD_CREDIT_TOPUP_TIERS.map((tier) => {
+      const price = pricesByKey.get(tier.lookupKey);
+      if (!price) {
+        throw badRequest(`Missing credit price for tier ${tier.lookupKey}`);
+      }
+      return {
+        minCredits: tier.minCredits,
+        amountPerCredit: price.amountPerCredit,
+        currency: price.currency,
+      };
+    });
 
     const [baseTier] = pricedTiers;
     if (!baseTier) {
@@ -365,13 +387,18 @@ export const stripeBillingService = {
         active: promotionCode.active,
       };
     } catch (error) {
+      // createPromotionCode is idempotent (`${customerId}-${couponId}`), so a
+      // failure here is most likely a code created by a concurrent request
+      // between the check above and this create. Re-fetch and reuse it; if
+      // there is still none, the create genuinely failed — surface the
+      // original error rather than masking it with a generic message.
       console.error("Error claiming coupon:", error);
       const fallbackPromotionCode = await stripeClient.getPromotionCode(
         stripeCustomerId,
         params.couponId,
       );
       if (!fallbackPromotionCode) {
-        throw badRequest("Failed to claim coupon");
+        throw error;
       }
 
       return {
