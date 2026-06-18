@@ -24,6 +24,9 @@ vi.mock("next-intl", () => ({
     if (key === "creditAmount") {
       return `${values?.count} credits`;
     }
+    if (key === "youSaveLabel") {
+      return `you save ${values?.amount}`;
+    }
     return key;
   },
   useFormatter: () => ({
@@ -143,6 +146,15 @@ describe("CreditsForm", () => {
         selector: customAmountPerCreditSelector,
       }),
     ).toBeInTheDocument();
+
+    // Total price (displayed in footer summary)
+    expect(screen.getByText("EUR:17250.00")).toBeInTheDocument();
+
+    // Reference total (strikethrough, what you'd pay at base tier)
+    expect(screen.getByText("EUR:18000.00")).toBeInTheDocument();
+
+    // Savings label with formatted amount
+    expect(screen.getByText("you save EUR:750.00")).toBeInTheDocument();
   });
 
   it("allows single-credit granularity without a hard max", () => {
