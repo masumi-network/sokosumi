@@ -22,6 +22,7 @@ import type { HistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { getNotificationHref } from "@/lib/utils/notification-href";
 
 export interface HistoryListItemLabels {
   credit: string;
@@ -171,16 +172,14 @@ export function isArchivedHistoryItem(item: HistoryItem): boolean {
 }
 
 export function getHistoryItemHref(item: HistoryItem): string {
-  switch (item.kind) {
-    case "task":
-      return `/tasks/${encodeURIComponent(item.id)}`;
-    case "job":
-      return `/agents/${encodeURIComponent(item.agentId)}/jobs/${encodeURIComponent(item.id)}`;
-    case "conversation": {
-      const bucketSegment = item.bucketSlug ?? FALLBACK_BUCKET_SEGMENT;
-      return `${CHAT_APP_ROUTE_PREFIX}/${encodeURIComponent(bucketSegment)}/conversation/${encodeURIComponent(item.id)}?open=1`;
-    }
-  }
+  return getNotificationHref({
+    kind: item.kind,
+    referenceId: item.id,
+    metadata:
+      item.kind === "job"
+        ? { agentId: item.agentId }
+        : { bucketSlug: item.bucketSlug },
+  });
 }
 
 function HistoryTypeColumn({

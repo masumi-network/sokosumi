@@ -12,6 +12,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
+import { NotificationProvider } from "@/contexts/notification-provider";
 import QueryProvider from "@/contexts/query-provider";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
 import { hasAdminRole } from "@/lib/auth/admin-access";
@@ -37,6 +38,7 @@ import Header from "./components/header";
 import HeaderGate from "./components/header-gate";
 import LowCreditsNotice from "./components/low-credits-notice";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
+import { NotificationToastListener } from "./components/notification-toast-listener";
 import { OnboardingDialogLoader } from "./components/onboarding-dialog-loader";
 import Sidebar from "./components/sidebar";
 import { resolveAppTopNotice } from "./components/top-notice-state";
@@ -208,22 +210,25 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     <QueryProvider>
       <AuthSessionGuard />
       <ConversationsProvider>
-        <CoworkersProvider initialCoworkers={coworkers}>
-          {content}
-          {shouldShowOnboarding ? (
-            <OnboardingDialogLoader
-              activeOrganization={activeOrganization}
-              loginId={session.session.id}
-              subscriptionOnly={false}
-            />
-          ) : shouldLoadSubscriptionOnboarding ? (
-            <OnboardingDialogLoader
-              activeOrganization={activeOrganization}
-              loginId={session.session.id}
-              subscriptionOnly
-            />
-          ) : null}
-        </CoworkersProvider>
+        <NotificationProvider userId={session.user.id}>
+          <NotificationToastListener userId={session.user.id} />
+          <CoworkersProvider initialCoworkers={coworkers}>
+            {content}
+            {shouldShowOnboarding ? (
+              <OnboardingDialogLoader
+                activeOrganization={activeOrganization}
+                loginId={session.session.id}
+                subscriptionOnly={false}
+              />
+            ) : shouldLoadSubscriptionOnboarding ? (
+              <OnboardingDialogLoader
+                activeOrganization={activeOrganization}
+                loginId={session.session.id}
+                subscriptionOnly
+              />
+            ) : null}
+          </CoworkersProvider>
+        </NotificationProvider>
       </ConversationsProvider>
     </QueryProvider>
   );
