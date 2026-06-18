@@ -228,8 +228,8 @@ export function OrganizationDetailPanel({
               {t("members.totalCount", { count: memberTotal })}
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="w-72">
+          <div className="flex min-w-0 flex-wrap items-end gap-2">
+            <div className="min-w-0 w-72">
               <AsyncSearchCombobox<AdminUserOption>
                 value={selectedUser}
                 onChange={setSelectedUser}

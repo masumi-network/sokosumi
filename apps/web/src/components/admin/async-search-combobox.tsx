@@ -188,12 +188,18 @@ export function AsyncSearchCombobox<T>({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-full justify-between font-normal"
+          className="w-full min-w-0 justify-between gap-2 overflow-hidden font-normal"
         >
-          <span className={cn(!value && "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              !value && "text-muted-foreground",
+            )}
+            title={value ? getTriggerLabel(value) : undefined}
+          >
             {value ? getTriggerLabel(value) : labels.placeholder}
           </span>
-          <ChevronsUpDown className="size-4 opacity-50" />
+          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
