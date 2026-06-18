@@ -1,37 +1,37 @@
 import { createRoute } from "@hono/zod-openapi";
 import { organizationRepository } from "@sokosumi/database/repositories";
 
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { buildAdminOrganizationOverviewItem } from "@/helpers/admin-organization-overview.js";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
-  adminOrganizationSearchResponseSchema,
-  adminSearchQuerySchema,
+  adminOrganizationOverviewListSchema,
+  adminOrganizationOverviewQuerySchema,
 } from "@/schemas/admin.schema";
-
-const SEARCH_LIMIT = 20;
 
 const route = createRoute({
   method: "get",
   path: "/",
-  operationId: "searchAdminOrganizations",
-  description: "Search organizations by name or slug (admin only).",
+  operationId: "listAdminOrganizations",
+  description:
+    "Paginated overview of all organizations with member counts, billing, and subscription (admin only).",
   tags: ["Admin"],
   request: {
-    query: adminSearchQuerySchema,
+    query: adminOrganizationOverviewQuerySchema,
   },
   responses: {
-    200: jsonSuccessResponse(
-      adminOrganizationSearchResponseSchema,
-      "Organizations matching the search query",
-      {
-        data: [{ id: "org_123", name: "Acme Corp", slug: "acme-corp" }],
-        meta: {
-          timestamp: "2025-01-01T00:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-        },
-      },
+    200: jsonPaginatedSuccessResponse(
+      adminOrganizationOverviewListSchema,
+      "Paginated list of organizations for the admin overview",
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -40,20 +40,37 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { query } = c.req.valid("query");
+    const queryParams = c.req.valid("query");
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const now = new Date();
 
-    const organizations = await organizationRepository.searchOrganizations(
-      query ?? "",
-      SEARCH_LIMIT,
-      prisma,
+    const { organizations, total } =
+      await organizationRepository.listOrganizationsForAdminOverview(
+        { query: queryParams.query, cursor, take: take + 1, skip },
+        prisma,
+      );
+
+    const hasMore = organizations.length === take + 1;
+    const pageOrganizations = organizations.slice(0, take);
+
+    const items = await Promise.all(
+      pageOrganizations.map((organization) =>
+        buildAdminOrganizationOverviewItem(organization, prisma, now),
+      ),
     );
 
-    const options = organizations.map((organization) => ({
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-    }));
+    const paginationMeta = createPaginationMeta(
+      pageOrganizations,
+      total,
+      take,
+      hasMore,
+      cursor,
+    );
 
-    return ok(c, adminOrganizationSearchResponseSchema.parse(options));
+    return ok(
+      c,
+      adminOrganizationOverviewListSchema.parse(items),
+      paginationMeta,
+    );
   });
 }

@@ -1,11 +1,9 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountSearchAdminUsers from "./get.js";
-import mountListAdminUserOverview from "./overview/get.js";
+import mountListAdminUsers from "./get.js";
 
 const app = new OpenAPIHonoWithAuth();
 
-mountSearchAdminUsers(app);
-mountListAdminUserOverview(app);
+mountListAdminUsers(app);
 
 export default app;
