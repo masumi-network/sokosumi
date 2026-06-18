@@ -2666,7 +2666,6 @@
           "members": "Membres",
           "billing": "Facturation",
           "subscription": "Abonnement",
-          "totalCredits": "Crédits totaux",
           "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
           "created": "Créée",
           "loadMore": "Charger plus",

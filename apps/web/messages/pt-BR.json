@@ -2666,7 +2666,6 @@
           "members": "Membros",
           "billing": "Cobrança",
           "subscription": "Assinatura",
-          "totalCredits": "Créditos totais",
           "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
           "created": "Criada",
           "loadMore": "Carregar mais",

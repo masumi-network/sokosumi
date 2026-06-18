@@ -2765,7 +2765,6 @@
           "members": "Members",
           "billing": "Billing",
           "subscription": "Subscription",
-          "totalCredits": "Total credits",
           "seats": "{count, plural, =1 {# seat} other {# seats}}",
           "created": "Created",
           "loadMore": "Load more",

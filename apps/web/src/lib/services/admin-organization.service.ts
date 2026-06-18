@@ -19,7 +19,6 @@ export interface AdminOrganizationOverviewItem {
   purchasedSeats: number;
   subscriptionPlan: string | null;
   subscriptionStatus: string | null;
-  totalCredits: number;
 }
 
 export interface AdminOrganizationOverviewPage {
@@ -141,7 +140,6 @@ export const adminOrganizationService = {
         purchasedSeats: organization.purchasedSeats,
         subscriptionPlan: organization.subscriptionPlan,
         subscriptionStatus: organization.subscriptionStatus,
-        totalCredits: organization.totalCredits,
       })),
       total: result.meta.pagination.total,
       nextCursor: result.meta.pagination.nextCursor,

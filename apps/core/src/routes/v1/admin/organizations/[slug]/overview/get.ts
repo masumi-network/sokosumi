@@ -36,9 +36,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { slug } = c.req.valid("param");
 
-    const detail = await prisma.$transaction(async (tx) =>
-      buildAdminOrganizationOverviewDetail(slug, tx),
-    );
+    const detail = await buildAdminOrganizationOverviewDetail(slug, prisma);
 
     if (!detail) {
       throw notFound("Organization not found");

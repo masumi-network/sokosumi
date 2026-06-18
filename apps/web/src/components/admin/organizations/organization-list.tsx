@@ -116,9 +116,6 @@ export function OrganizationList({ initialPage }: OrganizationListProps) {
                 <TableHead className="text-right">{t("members")}</TableHead>
                 <TableHead>{t("billing")}</TableHead>
                 <TableHead>{t("subscription")}</TableHead>
-                <TableHead className="text-right">
-                  {t("totalCredits")}
-                </TableHead>
                 <TableHead className="pr-4">{t("created")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -166,9 +163,6 @@ export function OrganizationList({ initialPage }: OrganizationListProps) {
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatter.number(organization.totalCredits)}
                   </TableCell>
                   <TableCell className="pr-4">
                     {formatter.dateTime(organization.createdAt, {

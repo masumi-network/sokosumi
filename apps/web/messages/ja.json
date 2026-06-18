@@ -2666,7 +2666,6 @@
           "members": "メンバー",
           "billing": "請求",
           "subscription": "サブスクリプション",
-          "totalCredits": "クレジット合計",
           "seats": "{count, plural, other {# 席}}",
           "created": "作成日",
           "loadMore": "さらに読み込む",

@@ -69,10 +69,6 @@ export type AdminOrganizationOverviewItem = {
      * Stripe subscription lifecycle status, or null when absent
      */
     subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
-    /**
-     * Total available organization credits
-     */
-    totalCredits: number;
 };
 
 export type AdminOrganizationOption = {

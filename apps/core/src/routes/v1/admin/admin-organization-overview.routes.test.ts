@@ -118,7 +118,6 @@ describe("GET /v1/admin/organizations/overview", () => {
       purchasedSeats: 5,
       subscriptionPlan: "starter",
       subscriptionStatus: "active",
-      totalCredits: 100,
     });
   });
 
@@ -132,7 +131,6 @@ describe("GET /v1/admin/organizations/overview", () => {
       id: "org_1",
       slug: "acme-corp",
       memberCount: 3,
-      totalCredits: 100,
     });
     expect(body.meta.pagination).toMatchObject({
       total: 1,

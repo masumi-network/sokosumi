@@ -38,7 +38,7 @@ export const listAdminUserOverview = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Paginated overview of all organizations with member counts, billing, subscription, and total credits (admin only).
+ * Paginated overview of all organizations with member counts, billing, and subscription (admin only).
  */
 export const listAdminOrganizationOverview = <ThrowOnError extends boolean = false>(options?: Options<ListAdminOrganizationOverviewData, ThrowOnError>): RequestResult<ListAdminOrganizationOverviewResponses, ListAdminOrganizationOverviewErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminOrganizationOverviewResponses, ListAdminOrganizationOverviewErrors, ThrowOnError>({
     responseTransformer: listAdminOrganizationOverviewResponseTransformer,

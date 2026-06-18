@@ -2666,7 +2666,6 @@
           "members": "成员",
           "billing": "计费",
           "subscription": "订阅",
-          "totalCredits": "积分总计",
           "seats": "{count, plural, other {# 个席位}}",
           "created": "创建时间",
           "loadMore": "加载更多",

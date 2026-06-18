@@ -23,7 +23,7 @@ const route = createRoute({
   path: "/overview",
   operationId: "listAdminOrganizationOverview",
   description:
-    "Paginated overview of all organizations with member counts, billing, subscription, and total credits (admin only).",
+    "Paginated overview of all organizations with member counts, billing, and subscription (admin only).",
   tags: ["Admin"],
   request: {
     query: adminOrganizationOverviewQuerySchema,
@@ -53,11 +53,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const hasMore = organizations.length === take + 1;
     const pageOrganizations = organizations.slice(0, take);
 
-    const items = await prisma.$transaction(async (tx) =>
-      Promise.all(
-        pageOrganizations.map((organization) =>
-          buildAdminOrganizationOverviewItem(organization, tx, now),
-        ),
+    const items = await Promise.all(
+      pageOrganizations.map((organization) =>
+        buildAdminOrganizationOverviewItem(organization, prisma, now),
       ),
     );
 

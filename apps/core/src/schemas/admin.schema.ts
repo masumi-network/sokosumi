@@ -154,10 +154,6 @@ export const adminOrganizationOverviewItemSchema = z
       example: "starter",
     }),
     subscriptionStatus: stripeSubscriptionStatusNullableSchema,
-    totalCredits: z.number().openapi({
-      description: "Total available organization credits",
-      example: 1200,
-    }),
   })
   .openapi("AdminOrganizationOverviewItem");
 

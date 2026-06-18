@@ -21,45 +21,6 @@ interface AdminOrganizationBillingSnapshot {
   periodEnd: Date | null;
 }
 
-async function resolveOrganizationTotalCredits(
-  organizationId: string,
-  billingPlan: Awaited<ReturnType<typeof resolveOrganizationBillingPlan>>,
-  tx: Prisma.TransactionClient,
-  now: Date,
-): Promise<number> {
-  if (billingPlan.mode === "enterprise_contract") {
-    const summary = await getEnterpriseContractBillingSummary(
-      billingPlan,
-      organizationId,
-      tx,
-      now,
-    );
-    return summary?.poolRemainingCredits ?? 0;
-  }
-
-  const members = await memberRepository.getMembersByOrganizationId(
-    organizationId,
-    tx,
-  );
-  if (members.length === 0) {
-    return 0;
-  }
-
-  const creditsByMember = await Promise.all(
-    members.map(async (member) => {
-      const payload = await buildCreditsPayload({
-        userId: member.userId,
-        organizationId,
-        referenceId: organizationId,
-        tx,
-      });
-      return payload.credits.total;
-    }),
-  );
-
-  return creditsByMember.reduce((sum, credits) => sum + credits, 0);
-}
-
 function mapBillingPlan(
   billingPlan: Awaited<ReturnType<typeof resolveOrganizationBillingPlan>>,
 ): AdminOrganizationBillingSnapshot {
@@ -99,12 +60,6 @@ export async function buildAdminOrganizationOverviewItem(
           tx,
         )
       : null;
-  const totalCredits = await resolveOrganizationTotalCredits(
-    organization.id,
-    billingPlan,
-    tx,
-    now,
-  );
 
   return {
     id: organization.id,
@@ -117,7 +72,6 @@ export async function buildAdminOrganizationOverviewItem(
     purchasedSeats: billingPlan.purchasedSeats,
     subscriptionPlan: subscription?.plan ?? null,
     subscriptionStatus: subscription?.status ?? null,
-    totalCredits,
   };
 }
 
@@ -141,18 +95,16 @@ export async function buildAdminOrganizationOverviewDetail(
     tx,
     now,
   );
-  const [members, assignedCount, subscription, totalCredits] =
-    await Promise.all([
-      memberRepository.getMembersWithUserAndLastSeen(organization.id, tx),
-      memberRepository.getAssignedMemberCount(organization.id, tx),
-      billingPlan.mode === "self_serve"
-        ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-            organization.id,
-            tx,
-          )
-        : Promise.resolve(null),
-      resolveOrganizationTotalCredits(organization.id, billingPlan, tx, now),
-    ]);
+  const [members, assignedCount, subscription] = await Promise.all([
+    memberRepository.getMembersWithUserAndLastSeen(organization.id, tx),
+    memberRepository.getAssignedMemberCount(organization.id, tx),
+    billingPlan.mode === "self_serve"
+      ? subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+          organization.id,
+          tx,
+        )
+      : Promise.resolve(null),
+  ]);
 
   const paidPlan = billingPlan.plan === "free" ? null : billingPlan.plan;
   const hasSeatEntitlements = paidPlan != null;
@@ -195,6 +147,11 @@ export async function buildAdminOrganizationOverviewDetail(
       };
     }),
   );
+
+  const totalCredits =
+    billingPlan.mode === "enterprise_contract"
+      ? (enterpriseContract?.poolRemainingCredits ?? 0)
+      : memberOverviews.reduce((sum, member) => sum + member.credits, 0);
 
   return {
     organization: {

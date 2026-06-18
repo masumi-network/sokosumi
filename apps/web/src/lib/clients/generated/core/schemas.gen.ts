@@ -208,11 +208,6 @@ export const AdminOrganizationOverviewItemSchema = {
             ],
             example: 'active',
             description: 'Stripe subscription lifecycle status, or null when absent'
-        },
-        totalCredits: {
-            type: 'number',
-            description: 'Total available organization credits',
-            example: 1200
         }
     },
     required: [
@@ -225,8 +220,7 @@ export const AdminOrganizationOverviewItemSchema = {
         'billingPlan',
         'purchasedSeats',
         'subscriptionPlan',
-        'subscriptionStatus',
-        'totalCredits'
+        'subscriptionStatus'
     ]
 } as const;
 
