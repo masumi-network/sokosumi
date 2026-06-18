@@ -1,10 +1,15 @@
-import type { CreditTopUpLookupKey } from "@sokosumi/utils";
-import { getOrganizationMetadata } from "@sokosumi/utils";
+import {
+  type CreditTopUpLookupKey,
+  getOrganizationMetadata,
+  STANDARD_CREDIT_TOPUP_TIERS,
+} from "@sokosumi/utils";
 import type Stripe from "stripe";
 
-import { type CreditPrice, stripeClient } from "@/clients/stripe.client";
+import { stripeClient } from "@/clients/stripe.client";
 import { badRequest, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { resolveZeroMarginTopUpLookupKey } from "@/lib/zero-margin-top-up";
+import type { CreditTopUpPricing } from "@/schemas/billing.schema";
 import type { SubscriptionCatalog } from "@/services/subscription-catalog.service";
 import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 
@@ -140,15 +145,61 @@ async function ensureStripeCustomerId(
   return customer.id;
 }
 
+async function resolveZeroMarginLookupKeyForUser(
+  userId: string,
+): Promise<CreditTopUpLookupKey | undefined> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  return resolveZeroMarginTopUpLookupKey(user?.email);
+}
+
 export const stripeBillingService = {
   async getSubscriptionCatalog(): Promise<SubscriptionCatalog> {
     return await getSubscriptionCatalog();
   },
 
-  async getCreditTopUpPriceCatalog(
-    extraLookupKeys: CreditTopUpLookupKey[] = [],
-  ): Promise<Record<CreditTopUpLookupKey, CreditPrice>> {
-    return await stripeClient.getCreditTopUpPriceCatalog(extraLookupKeys);
+  async getCreditTopUpPricing(userId: string): Promise<CreditTopUpPricing> {
+    const zeroMarginLookupKey = await resolveZeroMarginLookupKeyForUser(userId);
+
+    if (zeroMarginLookupKey) {
+      const price = await stripeClient.getPriceByLookupKey(zeroMarginLookupKey);
+      return {
+        currency: price.currency,
+        tiers: [{ minCredits: 1, amountPerCredit: price.amountPerCredit }],
+        referenceAmountPerCredit: price.amountPerCredit,
+        canPurchaseOnFreePlan: true,
+      };
+    }
+
+    const pricedTiers = await Promise.all(
+      STANDARD_CREDIT_TOPUP_TIERS.map(async (tier) => {
+        const price = await stripeClient.getPriceByLookupKey(tier.lookupKey);
+        return {
+          minCredits: tier.minCredits,
+          amountPerCredit: price.amountPerCredit,
+          currency: price.currency,
+        };
+      }),
+    );
+
+    const [baseTier] = pricedTiers;
+    if (!baseTier) {
+      throw badRequest("No credit top-up tiers configured");
+    }
+
+    return {
+      currency: baseTier.currency,
+      tiers: pricedTiers.map(({ minCredits, amountPerCredit }) => ({
+        minCredits,
+        amountPerCredit,
+      })),
+      // Base (smallest-volume) tier is the most expensive per credit; it is the
+      // reference against which higher-volume savings are displayed.
+      referenceAmountPerCredit: baseTier.amountPerCredit,
+      canPurchaseOnFreePlan: false,
+    };
   },
 
   async getCouponDetails(couponId: string): Promise<{
@@ -232,7 +283,6 @@ export const stripeBillingService = {
     credits: number;
     returnPath?: string;
     promotionCodeId?: string | null;
-    priceLookupKeyOverride?: CreditTopUpLookupKey;
     origin?: string | null;
     ttlDays?: string;
   }): Promise<{ url: string }> {
@@ -240,9 +290,15 @@ export const stripeBillingService = {
       params.userId,
       params.organizationId,
     );
-    const price = params.priceLookupKeyOverride
-      ? await stripeClient.getPriceByLookupKey(params.priceLookupKeyOverride)
-      : await stripeClient.getCreditTopUpPriceByCredits(params.credits);
+    // Pricing curve is resolved server-side from the authenticated user — the
+    // client cannot supply a lookup-key override.
+    const zeroMarginLookupKey = await resolveZeroMarginLookupKeyForUser(
+      params.userId,
+    );
+    const price = await stripeClient.getCreditTopUpPriceByCredits(
+      params.credits,
+      zeroMarginLookupKey,
+    );
 
     const session = await stripeClient.createCreditCheckoutSession({
       stripeCustomerId,
