@@ -12,10 +12,10 @@ const getMyCreditsMock = vi.fn();
 const getMyOrganizationCreditsMock = vi.fn();
 const getMyActiveSubscriptionMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
+const getCreditTopUpPriceCatalogMock = vi.fn();
 const getMyStripeCustomerMock = vi.fn();
 const getOrganizationStripeCustomerMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
-const zeroMarginTopUpEnabledMock = vi.fn();
 const balanceBillingPortalLinkMock = vi.fn();
 const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
@@ -52,6 +52,8 @@ class MockCoreApiRequestError extends Error {
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
+    getCreditTopUpPriceCatalog: (...args: unknown[]) =>
+      getCreditTopUpPriceCatalogMock(...args),
     getMyActiveSubscription: (...args: unknown[]) =>
       getMyActiveSubscriptionMock(...args),
     getMyCredits: (...args: unknown[]) => getMyCreditsMock(...args),
@@ -66,11 +68,6 @@ vi.mock("@/lib/clients/core.client", () => ({
     getSubscriptionCatalog: (...args: unknown[]) =>
       getSubscriptionCatalogMock(...args),
   },
-}));
-
-vi.mock("@/lib/flags/zero-margin-top-up", () => ({
-  zeroMarginTopUpEnabled: (...args: unknown[]) =>
-    zeroMarginTopUpEnabledMock(...args),
 }));
 
 vi.mock("@/lib/services", () => ({
@@ -168,6 +165,19 @@ function createSubscriptionCatalog() {
   };
 }
 
+function createCreditTopUpPricing(
+  overrides: { canPurchaseOnFreePlan?: boolean } = {},
+) {
+  return {
+    data: {
+      currency: "eur",
+      tiers: [{ minCredits: 1, amountPerCredit: 120 }],
+      referenceAmountPerCredit: 120,
+      canPurchaseOnFreePlan: overrides.canPurchaseOnFreePlan ?? false,
+    },
+  };
+}
+
 function mockSelfServeOrganizationBillingPlan(
   plan: "free" | "pro" | "standard" | "starter",
   purchasedSeats: number,
@@ -229,6 +239,9 @@ describe("BillingPage", () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       data: createSubscriptionCatalog(),
     });
+    getCreditTopUpPriceCatalogMock.mockResolvedValue(
+      createCreditTopUpPricing(),
+    );
     getMyStripeCustomerMock.mockResolvedValue({
       data: { stripeCustomerId: "cus_user_1" },
     });
@@ -244,9 +257,11 @@ describe("BillingPage", () => {
     });
   });
 
-  it("passes the zero-margin override to personal billing credits when the flag is enabled", async () => {
+  it("allows purchase on personal billing for free-plan users when canPurchaseOnFreePlan is true", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
-    zeroMarginTopUpEnabledMock.mockResolvedValue(true);
+    getCreditTopUpPriceCatalogMock.mockResolvedValue(
+      createCreditTopUpPricing({ canPurchaseOnFreePlan: true }),
+    );
     getMyActiveSubscriptionMock.mockResolvedValue({
       data: {
         subscription: {
@@ -272,13 +287,12 @@ describe("BillingPage", () => {
       expect.objectContaining({
         isPurchaseEnabled: true,
         organization: null,
-        priceLookupKeyOverride: "credit_0_margin",
         returnPath: "/billing?tab=credits",
       }),
     );
   });
 
-  it("passes the zero-margin override to organization billing credits when the flag is enabled", async () => {
+  it("allows purchase on organization billing for free-plan users when canPurchaseOnFreePlan is true", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: "org-1",
       name: "Org One",
@@ -287,7 +301,9 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(true);
+    getCreditTopUpPriceCatalogMock.mockResolvedValue(
+      createCreditTopUpPricing({ canPurchaseOnFreePlan: true }),
+    );
     mockSelfServeOrganizationBillingPlan("free", 2);
 
     const { default: BillingPage } = await import("../page");
@@ -306,15 +322,26 @@ describe("BillingPage", () => {
         organization: expect.objectContaining({
           id: "org-1",
         }),
-        priceLookupKeyOverride: "credit_0_margin",
         returnPath: "/billing?tab=credits",
       }),
     );
   });
 
-  it("keeps tiered billing pricing when the flag is disabled", async () => {
+  it("disables purchase on personal billing when user is on free plan and canPurchaseOnFreePlan is false", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
+    getCreditTopUpPriceCatalogMock.mockResolvedValue(
+      createCreditTopUpPricing({ canPurchaseOnFreePlan: false }),
+    );
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: {
+        subscription: {
+          periodEnd: "2026-03-01T00:00:00.000Z",
+          plan: "free",
+          seats: 1,
+          status: "active",
+        },
+      },
+    });
 
     const { default: BillingPage } = await import("../page");
 
@@ -328,8 +355,8 @@ describe("BillingPage", () => {
 
     expect(creditsSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        isPurchaseEnabled: false,
         organization: null,
-        priceLookupKeyOverride: undefined,
         returnPath: "/billing?tab=credits",
       }),
     );
@@ -337,7 +364,6 @@ describe("BillingPage", () => {
 
   it("shows the personal credits tab even on the free plan", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     getMyActiveSubscriptionMock.mockResolvedValue({
       data: {
         subscription: {
@@ -390,7 +416,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockSelfServeOrganizationBillingPlan("free", 5);
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
@@ -438,7 +463,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockSelfServeOrganizationBillingPlan("pro", 10);
 
     const { default: BillingPage } = await import("../page");
@@ -467,7 +491,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockSelfServeOrganizationBillingPlan("pro", 10);
 
     const { default: BillingPage } = await import("../page");
@@ -496,7 +519,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(true, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
       activatedAt: new Date("2026-01-15T00:00:00.000Z"),
@@ -547,7 +569,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(true, 10);
     // Core re-resolved the org to a non-enterprise plan (404 -> null) even
     // though the page locally believed it was on an enterprise contract.
@@ -588,7 +609,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(true, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
       activatedAt: new Date("2026-01-15T00:00:00.000Z"),
@@ -636,7 +656,6 @@ describe("BillingPage", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    zeroMarginTopUpEnabledMock.mockResolvedValue(false);
     mockEnterpriseOrganizationBillingPlan(false, 10);
     getEnterpriseContractBillingSummaryMock.mockResolvedValue({
       activatedAt: new Date("2026-01-15T00:00:00.000Z"),
