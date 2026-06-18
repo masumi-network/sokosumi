@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import { NotificationKind, TaskEventOrigin } from "@sokosumi/database";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
@@ -20,6 +20,7 @@ const {
   prismaTransactionMock,
   publishTaskEventDataMock,
   requireTaskCollaborationMock,
+  waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createNotificationMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
+  waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -45,6 +47,12 @@ vi.mock("@/helpers/task-credits", () => ({
 
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventDataMock,
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilCapturedPromises.push(promise);
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -227,7 +235,11 @@ function mockTransaction(tx: TransactionMock) {
 describe("POST /{id}/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createNotificationMock.mockResolvedValue(undefined);
+    waitUntilCapturedPromises.length = 0;
+    createNotificationMock.mockResolvedValue({
+      notification: { id: "notif_1" },
+      created: true,
+    });
     publishTaskEventDataMock.mockResolvedValue(undefined);
     getCreditCostsOrThrowMock.mockResolvedValue([
       {
@@ -297,6 +309,60 @@ describe("POST /{id}/events", () => {
         data: { status: TaskStatus.OUT_OF_CREDITS },
       }),
     );
+  });
+
+  it("creates an in-app notification for user-meaningful status transitions", async () => {
+    const createdEvent = createTaskEvent({
+      id: "event_input_required",
+      status: TaskStatus.INPUT_REQUIRED,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Need input",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(waitUntilCapturedPromises).toHaveLength(1);
+    await waitUntilCapturedPromises[0];
+
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      kind: NotificationKind.TASK,
+      referenceId: TASK_ID,
+      eventId: "event_input_required",
+      messageKey: "Notifications.Task.inputRequired",
+      messageParams: {
+        coworkerName: "Test coworker",
+        taskName: "Test task",
+        projectName: "Test project",
+      },
+      metadata: {
+        projectId: "proj_123",
+        workspaceId: "ws_123",
+      },
+    });
   });
 
   it("returns 409 when the serializable transaction hits a write conflict", async () => {

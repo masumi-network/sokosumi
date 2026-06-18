@@ -1,4 +1,9 @@
-import { AgentJobStatus, AgentStatus, JobType } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  AgentStatus,
+  JobType,
+  NotificationKind,
+} from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +14,7 @@ const {
   captureExceptionMock,
   captureMessageMock,
   createJobEventForJobIdMock,
+  createNotificationMock,
   createJobPurchaseMock,
   fetchAgentJobStatusMock,
   getJobByIdMock,
@@ -31,6 +37,7 @@ const {
   captureExceptionMock: vi.fn(),
   captureMessageMock: vi.fn(),
   createJobEventForJobIdMock: vi.fn(),
+  createNotificationMock: vi.fn(),
   createJobPurchaseMock: vi.fn(),
   fetchAgentJobStatusMock: vi.fn(),
   getJobByIdMock: vi.fn(),
@@ -139,6 +146,10 @@ vi.mock("@/helpers/purchase", () => ({
 
 vi.mock("@/lib/ably/publish", () => ({
   publishJobStatusData: publishJobStatusDataMock,
+}));
+
+vi.mock("@/helpers/notifications", () => ({
+  createNotification: createNotificationMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -264,6 +275,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       captureExceptionMock,
       captureMessageMock,
       createJobEventForJobIdMock,
+      createNotificationMock,
       createJobPurchaseMock,
       fetchAgentJobStatusMock,
       getJobByIdMock,
@@ -319,6 +331,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     sourceImportEnqueueMock.mockResolvedValue(undefined);
     refundJobMock.mockResolvedValue(undefined);
     createJobPurchaseMock.mockResolvedValue(undefined);
+    createNotificationMock.mockResolvedValue({
+      notification: { id: "notif_1" },
+      created: true,
+    });
     updateJobPurchaseByJobIdMock.mockResolvedValue(undefined);
     global.fetch = requestFetchMock as unknown as typeof fetch;
     requestFetchMock.mockResolvedValue(new Response(null, { status: 200 }));
@@ -868,6 +884,20 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
     });
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      kind: NotificationKind.JOB,
+      referenceId: "job_1",
+      eventId: "event_2:completed",
+      messageKey: "Notifications.Job.completed",
+      messageParams: {
+        agentName: "Display Name",
+        jobName: "Untitled job",
+      },
+      metadata: {
+        agentId: "agent_1",
+      },
+    });
   });
 
   it("emits failure notifications for terminal payment failures", async () => {
@@ -927,6 +957,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_1",
+        kind: NotificationKind.JOB,
+        referenceId: "job_1",
+        eventId: "event_2:payment_failed",
+        messageKey: "Notifications.Job.paymentFailed",
+      }),
+    );
   });
 
   it("reports job-failure webhook HTTP errors to Sentry with response context", async () => {
@@ -1575,6 +1614,20 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         Tag: "job-input-required",
       }),
     );
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      kind: NotificationKind.JOB,
+      referenceId: "job_1",
+      eventId: "event_2:input_required",
+      messageKey: "Notifications.Job.inputRequired",
+      messageParams: {
+        agentName: "Display Name",
+        jobName: "Untitled job",
+      },
+      metadata: {
+        agentId: "agent_1",
+      },
+    });
   });
 
   it("does not fail the sync when webhook, email, or ably publishing fails", async () => {
