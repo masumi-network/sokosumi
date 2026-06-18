@@ -8,7 +8,6 @@ const getMyMemberInOrganizationMock = vi.fn();
 const createCreditCheckoutSessionMock = vi.fn();
 const getCouponDetailsMock = vi.fn();
 const claimCouponMock = vi.fn();
-const resolveZeroMarginTopUpLookupKeyMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ origin: "https://app.sokosumi.test" }),
@@ -37,11 +36,6 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/lib/flags/zero-margin-top-up", () => ({
-  resolveZeroMarginTopUpLookupKey: (...args: unknown[]) =>
-    resolveZeroMarginTopUpLookupKeyMock(...args),
-}));
-
 describe("credits actions", () => {
   const session = {
     user: {
@@ -55,7 +49,6 @@ describe("credits actions", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveZeroMarginTopUpLookupKeyMock.mockReturnValue(undefined);
   });
 
   it("creates checkout via Core in purchaseCredits", async () => {
@@ -75,7 +68,6 @@ describe("credits actions", () => {
       organizationId: null,
       credits: 10_100,
       returnPath: undefined,
-      priceLookupKeyOverride: undefined,
       origin: "https://app.sokosumi.test",
     });
     expect(result).toEqual({
@@ -84,11 +76,10 @@ describe("credits actions", () => {
     });
   });
 
-  it("uses the server-derived lookup key override in purchaseCredits", async () => {
+  it("passes returnPath to the checkout session when provided", async () => {
     createCreditCheckoutSessionMock.mockResolvedValue({
-      data: { url: "https://checkout.stripe.com/session/zero-margin" },
+      data: { url: "https://checkout.stripe.com/session/tiered" },
     });
-    resolveZeroMarginTopUpLookupKeyMock.mockReturnValue("credit_0_margin");
 
     const { purchaseCredits } = await import("../action");
 
@@ -103,35 +94,11 @@ describe("credits actions", () => {
       organizationId: null,
       credits: 250_000,
       returnPath: "/billing?tab=credits",
-      priceLookupKeyOverride: "credit_0_margin",
       origin: "https://app.sokosumi.test",
     });
     expect(result).toEqual({
       ok: true,
-      data: { url: "https://checkout.stripe.com/session/zero-margin" },
-    });
-  });
-
-  it("ignores forged lookup key overrides from the client payload", async () => {
-    createCreditCheckoutSessionMock.mockResolvedValue({
       data: { url: "https://checkout.stripe.com/session/tiered" },
-    });
-
-    const { purchaseCredits } = await import("../action");
-
-    await purchaseCredits({
-      session,
-      organizationId: null,
-      credits: 250_000,
-      priceLookupKeyOverride: "credit_0_margin",
-    } as never);
-
-    expect(createCreditCheckoutSessionMock).toHaveBeenCalledWith({
-      organizationId: null,
-      credits: 250_000,
-      returnPath: undefined,
-      priceLookupKeyOverride: undefined,
-      origin: "https://app.sokosumi.test",
     });
   });
 

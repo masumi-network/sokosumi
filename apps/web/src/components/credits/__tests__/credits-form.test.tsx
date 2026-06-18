@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import CreditsForm from "@/components/credits/credits-form";
-import type { CreditTopUpPriceCatalog } from "@/lib/clients/generated/core";
+import type { CreditTopUpPricing } from "@/lib/clients/generated/core";
 
 const mockRouterPush = vi.fn();
 const purchaseCreditsMock = vi.fn();
@@ -72,27 +72,15 @@ vi.mock("@/lib/gtm-events", () => ({
 /** Footer summary uses `text-sm`; quick-pick cards use `text-xs`. */
 const customAmountPerCreditSelector = "p.text-muted-foreground.text-sm";
 
-const priceCatalog: CreditTopUpPriceCatalog = {
-  credit_0_margin: {
-    id: "price_0",
-    amountPerCredit: 1.0,
-    currency: "usd",
-  },
-  credit_20_margin: {
-    id: "price_20",
-    amountPerCredit: 1.2,
-    currency: "usd",
-  },
-  credit_15_margin: {
-    id: "price_15",
-    amountPerCredit: 1.15,
-    currency: "usd",
-  },
-  credit_10_margin: {
-    id: "price_10",
-    amountPerCredit: 1.1,
-    currency: "usd",
-  },
+const pricing: CreditTopUpPricing = {
+  currency: "eur",
+  tiers: [
+    { minCredits: 1, amountPerCredit: 120 },
+    { minCredits: 10_000, amountPerCredit: 115 },
+    { minCredits: 100_000, amountPerCredit: 110 },
+  ],
+  referenceAmountPerCredit: 120,
+  canPurchaseOnFreePlan: false,
 };
 
 describe("CreditsForm", () => {
@@ -102,9 +90,11 @@ describe("CreditsForm", () => {
 
   it("updates displayed per-credit cost when entered credits cross pricing tiers", async () => {
     const user = userEvent.setup();
-    render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
+    render(<CreditsForm pricing={pricing} organization={null} />);
 
-    expect(screen.getByText("USD:0.0120 per credit")).toBeInTheDocument();
+    // Quick-pick 5_000 at tier 1 (amountPerCredit=120): 120/100 = 1.20 EUR/credit
+    // formatter: EUR:1.2000 (maximumFractionDigits=4)
+    expect(screen.getByText("EUR:1.2000 per credit")).toBeInTheDocument();
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
@@ -112,55 +102,51 @@ describe("CreditsForm", () => {
 
     await user.clear(creditsInput);
     await user.type(creditsInput, "10000");
+    // 10_000 credits at tier 2 (amountPerCredit=115): 115/100 = 1.15 → EUR:1.1500
     expect(
-      screen.getByText("USD:0.0115 per credit", {
+      screen.getByText("EUR:1.1500 per credit", {
         selector: customAmountPerCreditSelector,
       }),
     ).toBeInTheDocument();
 
     await user.clear(creditsInput);
-    await user.type(creditsInput, "100000");
-    expect(screen.getByText("USD:0.0110 per credit")).toBeInTheDocument();
+    // Use 150_000 (not a quick-pick amount) so the footer summary renders
+    await user.type(creditsInput, "150000");
+    // 150_000 credits at tier 3 (amountPerCredit=110): 110/100 = 1.10 → EUR:1.1000
+    expect(
+      screen.getByText("EUR:1.1000 per credit", {
+        selector: customAmountPerCreditSelector,
+      }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText("Credits expire after 180 days."),
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the displayed cost fixed when a lookup key override is provided", async () => {
+  it("shows correct total for a custom amount at a discounted tier", async () => {
     const user = userEvent.setup();
-    render(
-      <CreditsForm
-        priceCatalog={priceCatalog}
-        organization={null}
-        priceLookupKeyOverride="credit_0_margin"
-      />,
-    );
-
-    expect(screen.getAllByText("USD:0.0100 per credit")).toHaveLength(4);
+    render(<CreditsForm pricing={pricing} organization={null} />);
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
     });
 
     await user.clear(creditsInput);
-    await user.type(creditsInput, "10000");
-    expect(
-      screen.getByText("USD:0.0100 per credit", {
-        selector: customAmountPerCreditSelector,
-      }),
-    ).toBeInTheDocument();
+    // 15_000 credits at tier 2 (amountPerCredit=115): total = 15_000 × 115 = 1_725_000 minor units → 17250.00 EUR
+    // referenceAmountPerCredit=120: reference total = 15_000 × 120 = 1_800_000 → 18000.00 EUR
+    // savings = 1_800_000 - 1_725_000 = 75_000 minor units → 750.00 EUR
+    await user.type(creditsInput, "15000");
 
-    await user.clear(creditsInput);
-    await user.type(creditsInput, "250000");
+    // per-credit cost in footer: 115/100 = 1.15 → EUR:1.1500
     expect(
-      screen.getByText("USD:0.0100 per credit", {
+      screen.getByText("EUR:1.1500 per credit", {
         selector: customAmountPerCreditSelector,
       }),
     ).toBeInTheDocument();
   });
 
   it("allows single-credit granularity without a hard max", () => {
-    render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
+    render(<CreditsForm pricing={pricing} organization={null} />);
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
@@ -171,7 +157,7 @@ describe("CreditsForm", () => {
   });
 
   it("does not render coupon input on top-up page", () => {
-    render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
+    render(<CreditsForm pricing={pricing} organization={null} />);
 
     expect(
       screen.queryByRole("textbox", {
@@ -184,7 +170,7 @@ describe("CreditsForm", () => {
     render(
       <CreditsForm
         isPurchaseEnabled={false}
-        priceCatalog={priceCatalog}
+        pricing={pricing}
         organization={null}
       />,
     );
@@ -211,7 +197,7 @@ describe("CreditsForm", () => {
     render(
       <CreditsForm
         isPurchaseEnabled={false}
-        priceCatalog={priceCatalog}
+        pricing={pricing}
         organization={{ id: "org-1", name: "Org One" } as never}
       />,
     );
@@ -234,7 +220,7 @@ describe("CreditsForm", () => {
       error: { code: "INVALID_CREDITS" },
     });
 
-    render(<CreditsForm priceCatalog={priceCatalog} organization={null} />);
+    render(<CreditsForm pricing={pricing} organization={null} />);
 
     const creditsInput = screen.getByRole("spinbutton", {
       name: "creditsLabel",
@@ -250,7 +236,7 @@ describe("CreditsForm", () => {
     });
   });
 
-  it("does not submit the lookup key override when provided for display", async () => {
+  it("submits with returnPath when provided", async () => {
     const user = userEvent.setup();
     purchaseCreditsMock.mockResolvedValue({
       ok: false,
@@ -259,9 +245,8 @@ describe("CreditsForm", () => {
 
     render(
       <CreditsForm
-        priceCatalog={priceCatalog}
+        pricing={pricing}
         organization={null}
-        priceLookupKeyOverride="credit_0_margin"
         returnPath="/billing?tab=credits"
       />,
     );
