@@ -43,8 +43,10 @@ import {
   updateAdminOrganizationMemberRoleAction,
 } from "@/lib/actions/admin-organizations/member-actions";
 import { searchUsersClient } from "@/lib/actions/admin-search/client";
+import type { ActionError } from "@/lib/actions/errors";
 import type { AdminOrganizationOverviewDetail } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
+import type { Result } from "@/lib/ts-res";
 
 interface OrganizationDetailPanelProps {
   detail: AdminOrganizationOverviewDetail;
@@ -71,13 +73,13 @@ export function OrganizationDetailPanel({
   }
 
   function runMemberAction(
-    action: () => Promise<{ ok: boolean; error?: { message?: string } }>,
+    action: () => Promise<Result<void, ActionError>>,
     successMessage: string,
   ) {
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
-        toast.error(result.error?.message ?? t("memberActionError"));
+        toast.error(result.error.message ?? t("memberActionError"));
         return;
       }
       toast.success(successMessage);
@@ -168,17 +170,26 @@ export function OrganizationDetailPanel({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="font-medium">{t("members.title")}</h2>
           <div className="flex flex-wrap items-end gap-2">
-            <AsyncSearchCombobox<AdminUserOption>
-              value={selectedUser}
-              onValueChange={setSelectedUser}
-              onSearch={searchUsersClient}
-              getOptionLabel={(user) => `${user.name} (${user.email})`}
-              getOptionValue={(user) => user.id}
-              labels={buildComboboxLabels((key) =>
-                t(`addMember.combobox.${key}`),
-              )}
-              className="w-72"
-            />
+            <div className="w-72">
+              <AsyncSearchCombobox<AdminUserOption>
+                value={selectedUser}
+                onChange={setSelectedUser}
+                search={searchUsersClient}
+                getKey={(user) => user.id}
+                getTriggerLabel={(user) => `${user.name} (${user.email})`}
+                renderOption={(user) => (
+                  <span className="flex flex-col">
+                    <span>{user.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {user.email}
+                    </span>
+                  </span>
+                )}
+                labels={buildComboboxLabels((key) =>
+                  t(`addMember.combobox.${key}`),
+                )}
+              />
+            </div>
             <Select
               value={selectedRole}
               onValueChange={(value) =>
