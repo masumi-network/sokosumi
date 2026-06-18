@@ -3,7 +3,6 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { getNotificationHref } from "@/lib/utils/notification-href";

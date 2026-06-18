@@ -2,10 +2,6 @@
 
 import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 import Link from "next/link";
-import {
-  CHAT_APP_ROUTE_PREFIX,
-  FALLBACK_BUCKET_SEGMENT,
-} from "@/app/chat-ui/utils/chat-route-base";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import {
   HistoryMetaTime,

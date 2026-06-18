@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ export function NotificationsPageContent({
   const t = useTranslations("Notifications");
   const tCenter = useTranslations("Components.NotificationCenter");
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);

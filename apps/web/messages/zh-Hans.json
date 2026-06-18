@@ -1152,16 +1152,16 @@
       }
     }
   },
-    "NotificationCenter": {
-      "notifications": "Notifications",
-      "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
-      "title": "Notifications",
-      "pageTitle": "Notifications",
-      "emptyState": "Aucune notification pour le moment",
-      "seeMore": "Voir plus",
-      "loading": "Chargement...",
-      "loadMore": "Charger plus"
-    },
+  "NotificationCenter": {
+    "notifications": "Notifications",
+    "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
+    "title": "Notifications",
+    "pageTitle": "Notifications",
+    "emptyState": "Aucune notification pour le moment",
+    "seeMore": "Voir plus",
+    "loading": "Chargement...",
+    "loadMore": "Charger plus"
+  },
   "App": {
     "enabled": "已启用",
     "disabled": "已停用",
