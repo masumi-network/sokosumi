@@ -8,9 +8,12 @@ import {
   organizationRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
+import pLimit from "p-limit";
 
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary.js";
 import { buildCreditsPayload } from "@/helpers/subscription.js";
+
+const ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY = 5;
 
 interface AdminOrganizationBillingSnapshot {
   mode: "enterprise_contract" | "self_serve";
@@ -120,32 +123,35 @@ export async function buildAdminOrganizationOverviewDetail(
         )
       : null;
 
+  const limit = pLimit(ADMIN_ORGANIZATION_MEMBER_CREDITS_CONCURRENCY);
   const memberOverviews = await Promise.all(
-    members.map(async (member) => {
-      const payload = await buildCreditsPayload({
-        userId: member.userId,
-        organizationId: organization.id,
-        referenceId: organization.id,
-        tx,
-      });
+    members.map((member) =>
+      limit(async () => {
+        const payload = await buildCreditsPayload({
+          userId: member.userId,
+          organizationId: organization.id,
+          referenceId: organization.id,
+          tx,
+        });
 
-      return {
-        id: member.id,
-        organizationId: member.organizationId,
-        role: member.role,
-        seatAssignedAt: member.seatAssignedAt,
-        createdAt: member.createdAt,
-        user: {
-          id: member.user.id,
-          name: member.user.name,
-          email: member.user.email,
-        },
-        lastSeenAt: member.lastSeenAt,
-        credits: payload.credits.total,
-        subscriptionPlan: payload.credits.subscription?.plan ?? null,
-        subscriptionStatus: payload.credits.subscription?.status ?? null,
-      };
-    }),
+        return {
+          id: member.id,
+          organizationId: member.organizationId,
+          role: member.role,
+          seatAssignedAt: member.seatAssignedAt,
+          createdAt: member.createdAt,
+          user: {
+            id: member.user.id,
+            name: member.user.name,
+            email: member.user.email,
+          },
+          lastSeenAt: member.lastSeenAt,
+          credits: payload.credits.total,
+          subscriptionPlan: payload.credits.subscription?.plan ?? null,
+          subscriptionStatus: payload.credits.subscription?.status ?? null,
+        };
+      }),
+    ),
   );
 
   const totalCredits =
