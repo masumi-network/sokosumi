@@ -52,6 +52,7 @@ import type {
 } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type { Result } from "@/lib/ts-res";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface OrganizationDetailPanelProps {
   detail: AdminOrganizationOverviewDetail;
@@ -191,7 +192,9 @@ export function OrganizationDetailPanel({
             <p className="text-sm">
               {t("billing.enterprisePool", {
                 credits: formatter.number(
-                  detail.enterpriseContract.poolRemainingCredits,
+                  formatCreditsForDisplay(
+                    detail.enterpriseContract.poolRemainingCredits,
+                  ),
                 ),
               })}
             </p>
@@ -203,7 +206,7 @@ export function OrganizationDetailPanel({
           {detail.totalCredits != null ? (
             <>
               <p className="text-2xl font-semibold tabular-nums">
-                {formatter.number(detail.totalCredits)}
+                {formatter.number(formatCreditsForDisplay(detail.totalCredits))}
               </p>
               <p className="text-muted-foreground text-sm">
                 {t("credits.description")}
@@ -315,7 +318,9 @@ export function OrganizationDetailPanel({
                       <Badge variant="secondary">{member.role}</Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatter.number(member.credits)}
+                      {formatter.number(
+                        formatCreditsForDisplay(member.credits),
+                      )}
                     </TableCell>
                     <TableCell>
                       {member.subscriptionPlan ? (
