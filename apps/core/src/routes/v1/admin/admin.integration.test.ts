@@ -59,22 +59,22 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     getOrgBySlugMock.mockResolvedValue(null);
   });
 
-  it("rejects an authenticated non-admin with 403 on /users", async () => {
+  it("rejects an authenticated non-admin with 403 on /users/search", async () => {
     mockSession("user");
 
     const response = await adminRouter.request(
-      "http://localhost/users?query=ada",
+      "http://localhost/users/search?query=ada",
     );
 
     expect(response.status).toBe(403);
     expect(searchUsersMock).not.toHaveBeenCalled();
   });
 
-  it("rejects an authenticated non-admin with 403 on /organizations", async () => {
+  it("rejects an authenticated non-admin with 403 on /organizations/search", async () => {
     mockSession("user");
 
     const response = await adminRouter.request(
-      "http://localhost/organizations?query=acme",
+      "http://localhost/organizations/search?query=acme",
     );
 
     expect(response.status).toBe(403);
@@ -85,7 +85,7 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     getSessionMock.mockResolvedValue(null);
 
     const response = await adminRouter.request(
-      "http://localhost/users?query=ada",
+      "http://localhost/users/search?query=ada",
     );
 
     expect(response.status).toBe(401);
@@ -99,7 +99,7 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     ]);
 
     const response = await adminRouter.request(
-      "http://localhost/users?query=ada",
+      "http://localhost/users/search?query=ada",
     );
     const body = (await response.json()) as {
       data: Array<{ id: string; name: string; email: string }>;
@@ -119,7 +119,7 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     ]);
 
     const response = await adminRouter.request(
-      "http://localhost/organizations?query=acme",
+      "http://localhost/organizations/search?query=acme",
     );
     const body = (await response.json()) as {
       data: Array<{ id: string; name: string; slug: string }>;
