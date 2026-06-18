@@ -2716,7 +2716,8 @@
               "empty": "Nessun utente trovato.",
               "loading": "Ricerca…",
               "error": "Ricerca non riuscita.",
-              "idle": "Digita per cercare utenti."
+              "idle": "Digita per cercare utenti.",
+              "clear": "Cancella selezione"
             }
           },
           "actions": {

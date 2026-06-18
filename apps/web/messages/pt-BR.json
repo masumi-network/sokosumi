@@ -2716,7 +2716,8 @@
               "empty": "Nenhum usuário encontrado.",
               "loading": "Pesquisando…",
               "error": "A pesquisa falhou.",
-              "idle": "Digite para pesquisar usuários."
+              "idle": "Digite para pesquisar usuários.",
+              "clear": "Limpar seleção"
             }
           },
           "actions": {

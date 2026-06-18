@@ -2685,7 +2685,8 @@
               "empty": "No se encontraron usuarios.",
               "loading": "Buscando…",
               "error": "La búsqueda falló.",
-              "idle": "Escribe para buscar usuarios."
+              "idle": "Escribe para buscar usuarios.",
+              "clear": "Borrar selección"
             }
           },
           "actions": {

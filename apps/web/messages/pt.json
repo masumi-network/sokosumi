@@ -2716,7 +2716,8 @@
               "empty": "Nenhum utilizador encontrado.",
               "loading": "A pesquisar…",
               "error": "A pesquisa falhou.",
-              "idle": "Escreva para pesquisar utilizadores."
+              "idle": "Escreva para pesquisar utilizadores.",
+              "clear": "Limpar seleção"
             }
           },
           "actions": {

@@ -244,9 +244,11 @@ export function OrganizationDetailPanel({
                     </span>
                   </span>
                 )}
-                labels={buildComboboxLabels((key) =>
-                  t(`addMember.combobox.${key}`),
+                labels={buildComboboxLabels(
+                  (key) => t(`addMember.combobox.${key}`),
+                  { clear: t("addMember.combobox.clear") },
                 )}
+                allowClear
               />
             </div>
             <Select

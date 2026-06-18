@@ -2685,7 +2685,8 @@
               "empty": "Keine Benutzer gefunden.",
               "loading": "Suche läuft…",
               "error": "Suche fehlgeschlagen.",
-              "idle": "Tippe, um Benutzer zu suchen."
+              "idle": "Tippe, um Benutzer zu suchen.",
+              "clear": "Auswahl löschen"
             }
           },
           "actions": {

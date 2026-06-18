@@ -2815,7 +2815,8 @@
               "empty": "No users found.",
               "loading": "Searching…",
               "error": "Search failed.",
-              "idle": "Type to search users."
+              "idle": "Type to search users.",
+              "clear": "Clear selection"
             }
           },
           "actions": {
