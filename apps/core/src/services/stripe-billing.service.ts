@@ -323,6 +323,15 @@ export const stripeBillingService = {
     maxRedemptions?: number;
     metadata?: Record<string, string>;
   }): Promise<{ promotionCodeId: string; active: boolean }> {
+    // Only credit-grant coupons (percent_off + credits metadata) may be
+    // claimed. Validate before minting a customer-scoped promotion code so a
+    // direct API caller cannot claim an arbitrary or non-credit coupon.
+    const coupon = await stripeClient.getCouponById(params.couponId);
+    if (!coupon) {
+      throw new CouponNotFoundError(params.couponId);
+    }
+    getCreditsForCoupon(coupon);
+
     const stripeCustomerId = await ensureStripeCustomerId(
       params.userId,
       params.organizationId,

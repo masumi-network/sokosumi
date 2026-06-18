@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { forbidden, notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { created } from "@/helpers/response";
@@ -11,7 +11,11 @@ import {
   claimCouponSchema,
   claimedPromotionCodeSchema,
 } from "@/schemas/billing.schema";
-import { stripeBillingService } from "@/services/stripe-billing.service";
+import {
+  CouponNotFoundError,
+  CouponTypeError,
+  stripeBillingService,
+} from "@/services/stripe-billing.service";
 
 const params = z.object({
   couponId: z.string().openapi({
@@ -69,26 +73,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const organizationId = body.organizationId ?? null;
 
     if (organizationId) {
-      try {
-        await resolveMemberOrganizationById({
-          id: organizationId,
-          userId: userContext.userId,
-          tx: prisma,
-        });
-      } catch (error) {
-        if (error instanceof Error && error.message.includes("not found")) {
-          throw notFound("Organization not found");
-        }
-        throw forbidden("You are not a member of this organization");
-      }
+      // resolveMemberOrganizationById throws typed HTTPExceptions
+      // (organization_not_found / organization_membership_required) that the
+      // global error handler maps to the right status and error kind.
+      await resolveMemberOrganizationById({
+        id: organizationId,
+        userId: userContext.userId,
+        tx: prisma,
+      });
     }
 
-    const promotionCode = await stripeBillingService.claimCoupon({
-      userId: userContext.userId,
-      organizationId,
-      couponId,
-    });
+    try {
+      const promotionCode = await stripeBillingService.claimCoupon({
+        userId: userContext.userId,
+        organizationId,
+        couponId,
+      });
 
-    return created(c, claimedPromotionCodeSchema.parse(promotionCode));
+      return created(c, claimedPromotionCodeSchema.parse(promotionCode));
+    } catch (error) {
+      if (error instanceof CouponNotFoundError) {
+        throw notFound(error.message);
+      }
+      if (error instanceof CouponTypeError) {
+        throw badRequest(error.message);
+      }
+      throw error;
+    }
   });
 }

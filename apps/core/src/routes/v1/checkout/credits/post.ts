@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { created } from "@/helpers/response";
@@ -58,18 +57,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const organizationId = body.organizationId ?? null;
 
     if (organizationId) {
-      try {
-        await resolveMemberOrganizationById({
-          id: organizationId,
-          userId: userContext.userId,
-          tx: prisma,
-        });
-      } catch (error) {
-        if (error instanceof Error && error.message.includes("not found")) {
-          throw notFound("Organization not found");
-        }
-        throw forbidden("You are not a member of this organization");
-      }
+      // resolveMemberOrganizationById throws typed HTTPExceptions
+      // (organization_not_found / organization_membership_required) that the
+      // global error handler maps to the right status and error kind.
+      await resolveMemberOrganizationById({
+        id: organizationId,
+        userId: userContext.userId,
+        tx: prisma,
+      });
     }
 
     const session = await stripeBillingService.createCreditCheckoutSession({

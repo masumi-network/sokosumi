@@ -8,6 +8,9 @@ const getCreditTopUpPriceByCreditsMock = vi.fn();
 const createCreditCheckoutSessionMock = vi.fn();
 const getCheckoutSessionMock = vi.fn();
 const getPromotionCodeByIdMock = vi.fn();
+const getCouponByIdMock = vi.fn();
+const getPromotionCodeMock = vi.fn();
+const createPromotionCodeMock = vi.fn();
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -30,6 +33,10 @@ vi.mock("@/clients/stripe.client", () => ({
     getCheckoutSession: (...args: unknown[]) => getCheckoutSessionMock(...args),
     getPromotionCodeById: (...args: unknown[]) =>
       getPromotionCodeByIdMock(...args),
+    getCouponById: (...args: unknown[]) => getCouponByIdMock(...args),
+    getPromotionCode: (...args: unknown[]) => getPromotionCodeMock(...args),
+    createPromotionCode: (...args: unknown[]) =>
+      createPromotionCodeMock(...args),
   },
 }));
 
@@ -233,6 +240,66 @@ describe("createCreditCheckoutSession pricing authority", () => {
     ).rejects.toThrow("Invalid promotion code");
 
     expect(createCreditCheckoutSessionMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("claimCoupon validation", () => {
+  beforeEach(() => {
+    findUniqueMock.mockResolvedValue({
+      email: "bob@example.com",
+      stripeCustomerId: "cus_123",
+    });
+    getPromotionCodeMock.mockResolvedValue(null);
+    createPromotionCodeMock.mockResolvedValue({ id: "promo_1", active: true });
+  });
+
+  it("claims a valid credit coupon", async () => {
+    getCouponByIdMock.mockResolvedValue({
+      id: "coupon_1",
+      percent_off: 100,
+      metadata: { credits: "100" },
+    });
+
+    const result = await stripeBillingService.claimCoupon({
+      userId: "user_1",
+      organizationId: null,
+      couponId: "coupon_1",
+    });
+
+    expect(result).toEqual({ promotionCodeId: "promo_1", active: true });
+    expect(createPromotionCodeMock).toHaveBeenCalled();
+  });
+
+  it("rejects an unknown coupon without minting a promotion code", async () => {
+    getCouponByIdMock.mockResolvedValue(null);
+
+    await expect(
+      stripeBillingService.claimCoupon({
+        userId: "user_1",
+        organizationId: null,
+        couponId: "coupon_missing",
+      }),
+    ).rejects.toThrow("Coupon not found");
+
+    expect(createPromotionCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-credit coupon without minting a promotion code", async () => {
+    getCouponByIdMock.mockResolvedValue({
+      id: "coupon_1",
+      percent_off: 100,
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.claimCoupon({
+        userId: "user_1",
+        organizationId: null,
+        couponId: "coupon_1",
+      }),
+    ).rejects.toThrow();
+
+    expect(createPromotionCodeMock).not.toHaveBeenCalled();
   });
 });
 
