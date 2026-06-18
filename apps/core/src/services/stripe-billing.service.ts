@@ -1,3 +1,5 @@
+import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   type CreditTopUpLookupKey,
   getOrganizationMetadata,
@@ -6,7 +8,7 @@ import {
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { resolveZeroMarginTopUpLookupKey } from "@/lib/zero-margin-top-up";
 import type { CreditTopUpPricing } from "@/schemas/billing.schema";
@@ -268,6 +270,31 @@ async function resolveZeroMarginLookupKeyForUser(
   return resolveZeroMarginTopUpLookupKey(user?.email);
 }
 
+/**
+ * Whether the billing account behind a credit purchase is on the free plan.
+ * Org-scoped purchases resolve the organization's billing plan; personal
+ * purchases resolve the user's active personal subscription (none == free).
+ */
+async function isAccountOnFreePlan(
+  userId: string,
+  organizationId: string | null,
+): Promise<boolean> {
+  if (organizationId) {
+    const billingPlan = await resolveOrganizationBillingPlan(
+      organizationId,
+      prisma,
+    );
+    return billingPlan.plan === "free";
+  }
+
+  const subscription =
+    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+      userId,
+      prisma,
+    );
+  return (subscription?.plan ?? "free") === "free";
+}
+
 export const stripeBillingService = {
   async getSubscriptionCatalog(): Promise<SubscriptionCatalog> {
     return await getSubscriptionCatalog();
@@ -424,6 +451,20 @@ export const stripeBillingService = {
     const zeroMarginLookupKey = await resolveZeroMarginLookupKeyForUser(
       params.userId,
     );
+
+    // Paid credit purchases require an active (non-free) plan. Zero-margin
+    // accounts are the only group allowed to buy on the free plan, mirroring
+    // the catalog's `canPurchaseOnFreePlan`. Enforced here (not just in the web
+    // UI) so Core remains the sole authority. Coupon redemptions
+    // (`promotionCodeId` present) are exempt — they grant coupon-defined credits
+    // and are allowed on any plan.
+    if (
+      !params.promotionCodeId &&
+      !zeroMarginLookupKey &&
+      (await isAccountOnFreePlan(params.userId, params.organizationId))
+    ) {
+      throw forbidden("Credit purchases require an active subscription");
+    }
 
     // Credits default to the client-requested amount, but a coupon checkout
     // MUST grant exactly the coupon's credits. The discount is fully
