@@ -63,6 +63,29 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
+export const AdminOrganizationOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Acme Corp'
+        },
+        slug: {
+            type: 'string',
+            example: 'acme-corp'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
 export const AdminUserOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -134,7 +157,7 @@ export const AdminUserOverviewItemSchema = {
     ]
 } as const;
 
-export const AdminOrganizationOptionSchema = {
+export const AdminOrganizationOverviewItemSchema = {
     type: 'object',
     properties: {
         id: {
@@ -148,12 +171,479 @@ export const AdminOrganizationOptionSchema = {
         slug: {
             type: 'string',
             example: 'acme-corp'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        memberCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 12
+        },
+        billingMode: {
+            type: 'string',
+            enum: [
+                'enterprise_contract',
+                'self_serve'
+            ],
+            example: 'self_serve'
+        },
+        billingPlan: {
+            type: 'string',
+            enum: [
+                'free',
+                'starter',
+                'standard',
+                'pro',
+                'enterprise'
+            ],
+            example: 'starter'
+        },
+        purchasedSeats: {
+            type: 'integer',
+            example: 5
+        },
+        subscriptionPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Active organization subscription plan, if any',
+            example: 'starter'
+        },
+        subscriptionStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'active',
+                'canceled',
+                'incomplete',
+                'incomplete_expired',
+                'past_due',
+                'paused',
+                'trialing',
+                'unpaid',
+                null
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         }
     },
     required: [
         'id',
         'name',
-        'slug'
+        'slug',
+        'createdAt',
+        'memberCount',
+        'billingMode',
+        'billingPlan',
+        'purchasedSeats',
+        'subscriptionPlan',
+        'subscriptionStatus'
+    ]
+} as const;
+
+export const AdminOrganizationOverviewDetailSchema = {
+    type: 'object',
+    properties: {
+        organization: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Corp'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-corp'
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                stripeCustomerId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'cus_123'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug',
+                'createdAt',
+                'stripeCustomerId'
+            ]
+        },
+        billingPlan: {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'enterprise_contract',
+                        'self_serve'
+                    ]
+                },
+                plan: {
+                    type: 'string',
+                    enum: [
+                        'free',
+                        'starter',
+                        'standard',
+                        'pro',
+                        'enterprise'
+                    ]
+                },
+                isConsumable: {
+                    type: 'boolean'
+                },
+                purchasedSeats: {
+                    type: 'integer'
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                periodEnd: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'plan',
+                'isConsumable',
+                'purchasedSeats',
+                'cancelAtPeriodEnd',
+                'periodEnd'
+            ]
+        },
+        subscription: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                plan: {
+                    type: 'string'
+                },
+                status: {
+                    type: 'string'
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                periodStart: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                periodEnd: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                seats: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'plan',
+                'status',
+                'cancelAtPeriodEnd',
+                'periodStart',
+                'periodEnd',
+                'seats'
+            ]
+        },
+        enterpriseContract: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                poolRemainingCredits: {
+                    type: 'number'
+                },
+                monthlyCredits: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                purchasedSeats: {
+                    type: 'integer'
+                },
+                isConsumable: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'poolRemainingCredits',
+                'monthlyCredits',
+                'purchasedSeats',
+                'isConsumable'
+            ]
+        },
+        seatSummary: {
+            type: 'object',
+            properties: {
+                assignedCount: {
+                    type: 'integer'
+                },
+                memberCount: {
+                    type: 'integer'
+                },
+                purchasedSeats: {
+                    type: 'integer'
+                },
+                unusedSeats: {
+                    type: 'integer'
+                },
+                paidPlan: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                isEnterpriseContract: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'assignedCount',
+                'memberCount',
+                'purchasedSeats',
+                'unusedSeats',
+                'paidPlan',
+                'isEnterpriseContract'
+            ]
+        },
+        totalCredits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Enterprise pool remaining credits; null for self-serve organizations where credits are per member',
+            example: 1200
+        }
+    },
+    required: [
+        'organization',
+        'billingPlan',
+        'subscription',
+        'enterpriseContract',
+        'seatSummary',
+        'totalCredits'
+    ]
+} as const;
+
+export const AdminOrganizationMemberOverviewItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'member_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member'
+        },
+        seatAssignedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Jane Doe'
+                },
+                email: {
+                    type: 'string',
+                    example: 'jane@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        },
+        lastSeenAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        credits: {
+            type: 'number',
+            description: 'Available credits for this member in the organization',
+            example: 42.5
+        },
+        subscriptionPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Member subscription plan in organization context',
+            example: 'starter'
+        },
+        subscriptionStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'active',
+                'canceled',
+                'incomplete',
+                'incomplete_expired',
+                'past_due',
+                'paused',
+                'trialing',
+                'unpaid',
+                null
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'role',
+        'seatAssignedAt',
+        'createdAt',
+        'user',
+        'lastSeenAt',
+        'credits',
+        'subscriptionPlan',
+        'subscriptionStatus'
+    ]
+} as const;
+
+export const AdminAddOrganizationMemberBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'User ID to add as a member',
+            example: 'user_123'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            default: 'member',
+            example: 'member'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
+export const AdminUpdateOrganizationMemberRoleBodySchema = {
+    type: 'object',
+    properties: {
+        role: {
+            type: 'string',
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'admin'
+        }
+    },
+    required: [
+        'role'
+    ]
+} as const;
+
+export const OrganizationSeatAssignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was assigned to',
+            example: 'member_123'
+        },
+        seatAssignedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the seat was assigned'
+        }
+    },
+    required: [
+        'memberId',
+        'seatAssignedAt'
+    ]
+} as const;
+
+export const OrganizationSeatUnassignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was unassigned from',
+            example: 'member_123'
+        }
+    },
+    required: [
+        'memberId'
     ]
 } as const;
 
@@ -5639,41 +6129,6 @@ export const MemberSchema = {
     ]
 } as const;
 
-export const OrganizationSeatAssignmentSchema = {
-    type: 'object',
-    properties: {
-        memberId: {
-            type: 'string',
-            description: 'ID of the member the seat was assigned to',
-            example: 'member_123'
-        },
-        seatAssignedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'When the seat was assigned'
-        }
-    },
-    required: [
-        'memberId',
-        'seatAssignedAt'
-    ]
-} as const;
-
-export const OrganizationSeatUnassignmentSchema = {
-    type: 'object',
-    properties: {
-        memberId: {
-            type: 'string',
-            description: 'ID of the member the seat was unassigned from',
-            example: 'member_123'
-        }
-    },
-    required: [
-        'memberId'
-    ]
-} as const;
-
 export const PendingInvitationSchema = {
     type: 'object',
     properties: {
@@ -7002,6 +7457,144 @@ export const Job_EventSchema = {
         'status',
         'files',
         'links'
+    ]
+} as const;
+
+export const NotificationListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/NotificationItem'
+    }
+} as const;
+
+export const NotificationItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Unique identifier for the notification',
+            example: 'cm123456789abcdefghij'
+        },
+        userId: {
+            type: 'string',
+            description: 'User ID of the notification owner',
+            example: 'cm123456789abcdefghij'
+        },
+        kind: {
+            $ref: '#/components/schemas/NotificationKind'
+        },
+        referenceId: {
+            type: 'string',
+            description: 'ID of the related entity (job id, task id, etc.)',
+            example: 'cm123456789abcdefghij'
+        },
+        eventId: {
+            type: 'string',
+            description: 'ID of the source event (jobEvent or taskEvent, depending on kind)',
+            example: 'cm123456789abcdefghij'
+        },
+        messageKey: {
+            type: 'string',
+            description: 'i18n message key for translation (e.g. Notifications.Job.completed)',
+            example: 'Notifications.Job.completed'
+        },
+        messageParams: {
+            type: 'object',
+            additionalProperties: {},
+            description: 'ICU interpolation parameters for the message',
+            example: {
+                agentName: 'Research Agent',
+                jobName: 'Market Analysis'
+            }
+        },
+        metadata: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {},
+            description: 'Optional metadata for deep-linking or context',
+            example: {
+                agentId: 'agent_123',
+                projectId: 'proj_456'
+            }
+        },
+        isRead: {
+            type: 'boolean',
+            description: 'Whether the notification has been read',
+            example: false
+        },
+        readAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the notification was marked as read'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-06-16T15:00:00.000Z',
+            description: 'When the notification was created'
+        }
+    },
+    required: [
+        'id',
+        'userId',
+        'kind',
+        'referenceId',
+        'eventId',
+        'messageKey',
+        'messageParams',
+        'metadata',
+        'isRead',
+        'readAt',
+        'createdAt'
+    ]
+} as const;
+
+export const NotificationKindSchema = {
+    type: 'string',
+    enum: [
+        'JOB',
+        'TASK',
+        'CONVERSATION',
+        'BILLING',
+        'SYSTEM'
+    ],
+    description: 'Notification source domain',
+    example: 'JOB'
+} as const;
+
+export const UnreadCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of unread notifications',
+            example: 5
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkAllReadResponseSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of notifications marked as read',
+            example: 10
+        }
+    },
+    required: [
+        'count'
     ]
 } as const;
 

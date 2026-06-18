@@ -117,8 +117,11 @@ function generateSegments(
 
       if (segment === "conversation") return;
 
-      // No org overview page — /organizations redirects home (SOK-546).
-      if (segment === "organizations") return;
+      // No org overview page — /organizations/* hides the parent segment (SOK-546).
+      // Admin org routes keep it for Admin > Organizations > {name}.
+      if (segment === "organizations" && pathSegments[0] === "organizations") {
+        return;
+      }
 
       // Skip UUIDs and long IDs in breadcrumbs (they're not user-friendly)
       // UUIDs are typically 36 characters with dashes, or 32 hex characters
