@@ -24,19 +24,25 @@ export const creditTopUpPriceSchema = z
 
 export type CreditTopUpPrice = z.infer<typeof creditTopUpPriceSchema>;
 
-export const creditTopUpPriceCatalogSchema = z
-  .record(creditTopUpLookupKeySchema, creditTopUpPriceSchema)
-  .openapi("CreditTopUpPriceCatalog");
-
-export const creditTopUpCatalogQuerySchema = z
+export const creditTopUpTierSchema = z
   .object({
-    extraLookupKeys: z.string().optional().openapi({
-      example: "credit_0_margin",
-      description:
-        "Comma-separated additional Stripe lookup keys to include in the catalog.",
-    }),
+    minCredits: z.number().int().positive().openapi({ example: 1 }),
+    amountPerCredit: z.number().openapi({ example: 120 }),
   })
-  .openapi("CreditTopUpCatalogQuery");
+  .openapi("CreditTopUpTier");
+
+export const creditTopUpPricingSchema = z
+  .object({
+    currency: z.string().openapi({ example: "eur" }),
+    tiers: z
+      .array(creditTopUpTierSchema)
+      .openapi({ example: [{ minCredits: 1, amountPerCredit: 120 }] }),
+    referenceAmountPerCredit: z.number().openapi({ example: 120 }),
+    canPurchaseOnFreePlan: z.boolean().openapi({ example: false }),
+  })
+  .openapi("CreditTopUpPricing");
+
+export type CreditTopUpPricing = z.infer<typeof creditTopUpPricingSchema>;
 
 export const createCreditCheckoutSessionSchema = z
   .object({
@@ -51,7 +57,6 @@ export const createCreditCheckoutSessionSchema = z
       .optional()
       .openapi({ example: "/billing?tab=credits" }),
     promotionCodeId: z.string().optional().openapi({ example: "promo_123" }),
-    priceLookupKeyOverride: creditTopUpLookupKeySchema.optional(),
     origin: z
       .string()
       .url()
