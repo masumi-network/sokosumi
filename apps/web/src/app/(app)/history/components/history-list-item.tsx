@@ -1,6 +1,10 @@
 "use client";
 
-import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import {
+  NotificationKind,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/utils";
 import Link from "next/link";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
 import {
@@ -169,7 +173,7 @@ export function isArchivedHistoryItem(item: HistoryItem): boolean {
 
 export function getHistoryItemHref(item: HistoryItem): string {
   return getNotificationHref({
-    kind: item.kind,
+    kind: item.kind.toUpperCase() as NotificationKind,
     referenceId: item.id,
     metadata:
       item.kind === "job"
