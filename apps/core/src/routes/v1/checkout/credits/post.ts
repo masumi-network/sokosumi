@@ -78,7 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       credits: body.credits,
       returnPath: body.returnPath,
       promotionCodeId: body.promotionCodeId ?? null,
-      priceLookupKeyOverride: body.priceLookupKeyOverride,
       origin: body.origin ?? null,
       ttlDays: body.ttlDays,
     });

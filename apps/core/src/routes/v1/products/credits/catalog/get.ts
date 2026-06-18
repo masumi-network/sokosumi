@@ -1,15 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-import type { CreditTopUpLookupKey } from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
-import {
-  creditTopUpCatalogQuerySchema,
-  creditTopUpLookupKeySchema,
-  creditTopUpPriceCatalogSchema,
-} from "@/schemas/billing.schema";
+import { creditTopUpPricingSchema } from "@/schemas/billing.schema";
 import { stripeBillingService } from "@/services/stripe-billing.service";
 
 const route = createRoute({
@@ -17,22 +12,22 @@ const route = createRoute({
   path: "/credits/catalog",
   operationId: "getCreditTopUpPriceCatalog",
   description:
-    "Tiered credit top-up price catalog keyed by Stripe lookup keys. Pass extra lookup keys (comma-separated) to include optional tiers such as zero-margin pricing.",
+    "Account-resolved credit top-up pricing for the authenticated user. Pricing tiers and zero-margin eligibility are determined server-side; no request input influences pricing.",
   tags: ["Products"],
-  request: {
-    query: creditTopUpCatalogQuerySchema,
-  },
   responses: {
     200: jsonSuccessResponse(
-      creditTopUpPriceCatalogSchema,
-      "Credit top-up prices keyed by lookup key",
+      creditTopUpPricingSchema,
+      "Account-resolved credit top-up pricing",
       {
         data: {
-          credit_20_margin: {
-            id: "price_123",
-            amountPerCredit: 120,
-            currency: "eur",
-          },
+          currency: "eur",
+          tiers: [
+            { minCredits: 1, amountPerCredit: 120 },
+            { minCredits: 10000, amountPerCredit: 115 },
+            { minCredits: 100000, amountPerCredit: 110 },
+          ],
+          referenceAmountPerCredit: 120,
+          canPurchaseOnFreePlan: false,
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -45,29 +40,14 @@ const route = createRoute({
   },
 });
 
-function parseExtraLookupKeys(
-  rawValue: string | undefined,
-): CreditTopUpLookupKey[] {
-  if (!rawValue?.trim()) {
-    return [];
-  }
-
-  return rawValue
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => creditTopUpLookupKeySchema.parse(value));
-}
-
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
-    const { extraLookupKeys } = c.req.valid("query");
+    const userContext = requireUserContext(c.var.authContext);
 
-    const catalog = await stripeBillingService.getCreditTopUpPriceCatalog(
-      parseExtraLookupKeys(extraLookupKeys),
+    const pricing = await stripeBillingService.getCreditTopUpPricing(
+      userContext.userId,
     );
 
-    return ok(c, creditTopUpPriceCatalogSchema.parse(catalog));
+    return ok(c, creditTopUpPricingSchema.parse(pricing));
   });
 }

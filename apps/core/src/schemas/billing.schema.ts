@@ -1,28 +1,6 @@
 import { z } from "@hono/zod-openapi";
-import {
-  CREDIT_TOPUP_LOOKUP_KEYS,
-  type CreditTopUpLookupKey,
-  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
-} from "@sokosumi/utils";
 
 import { subscriptionCatalogSchema } from "@/schemas/subscription-catalog.schema";
-
-export const creditTopUpLookupKeySchema = z
-  .enum([...CREDIT_TOPUP_LOOKUP_KEYS, ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY] as [
-    CreditTopUpLookupKey,
-    ...CreditTopUpLookupKey[],
-  ])
-  .openapi({ example: "credit_20_margin" });
-
-export const creditTopUpPriceSchema = z
-  .object({
-    id: z.string().openapi({ example: "price_123" }),
-    amountPerCredit: z.number().openapi({ example: 120 }),
-    currency: z.string().openapi({ example: "eur" }),
-  })
-  .openapi("CreditTopUpPrice");
-
-export type CreditTopUpPrice = z.infer<typeof creditTopUpPriceSchema>;
 
 export const creditTopUpTierSchema = z
   .object({
