@@ -9,10 +9,6 @@ const createCreditCheckoutSessionMock = vi.fn();
 const getCouponDetailsMock = vi.fn();
 const claimCouponMock = vi.fn();
 
-vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ origin: "https://app.sokosumi.test" }),
-}));
-
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     (handler: (params: unknown) => Promise<unknown>) =>
@@ -68,7 +64,6 @@ describe("credits actions", () => {
       organizationId: null,
       credits: 10_100,
       returnPath: undefined,
-      origin: "https://app.sokosumi.test",
     });
     expect(result).toEqual({
       ok: true,
@@ -94,7 +89,6 @@ describe("credits actions", () => {
       organizationId: null,
       credits: 250_000,
       returnPath: "/billing?tab=credits",
-      origin: "https://app.sokosumi.test",
     });
     expect(result).toEqual({
       ok: true,
@@ -138,8 +132,6 @@ describe("credits actions", () => {
       credits: 250_000,
       promotionCodeId: "promo_1",
       returnPath: "/coupon",
-      ttlDays: "90",
-      origin: "https://app.sokosumi.test",
     });
     expect(result).toEqual({
       ok: true,
