@@ -19,6 +19,7 @@ import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";
+import { UserAccountMenuItems } from "./user-account-menu-items";
 
 interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
@@ -26,6 +27,7 @@ interface HeaderWorkspaceSwitchProps {
   activeOrganizationId: string | null;
   isPending: boolean;
   onSelectWorkspace: (workspaceId: string | null) => void;
+  secondaryLabel?: string;
 }
 
 interface WorkspaceItem {
@@ -108,6 +110,7 @@ export default function HeaderWorkspaceSwitch({
   activeOrganizationId,
   isPending,
   onSelectWorkspace,
+  secondaryLabel,
 }: HeaderWorkspaceSwitchProps) {
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
@@ -220,6 +223,14 @@ export default function HeaderWorkspaceSwitch({
             </Avatar>
             <span>{tOrganizationSwitcher("addOrganization")}</span>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <UserAccountMenuItems
+            sessionUser={sessionUser}
+            members={members}
+            activeOrganizationId={activeOrganizationId}
+            secondaryLabel={secondaryLabel}
+            onClose={() => setIsDropdownOpen(false)}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </>

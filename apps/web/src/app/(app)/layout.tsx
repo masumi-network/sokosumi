@@ -1,7 +1,8 @@
 import { NoticeKind } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
@@ -31,6 +32,7 @@ import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
+import { getDefaultAuthenticatedLandingPath } from "@/lib/utils/landing-path";
 
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
@@ -40,6 +42,7 @@ import HeaderGate from "./components/header-gate";
 import LowCreditsNotice from "./components/low-credits-notice";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
+import { NotificationToaster } from "./components/notification-toaster.client";
 import { OnboardingDialogLoader } from "./components/onboarding-dialog-loader";
 import Sidebar from "./components/sidebar";
 import { resolveAppTopNotice } from "./components/top-notice-state";
@@ -61,6 +64,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AppLayout({ children }: AppLayoutProps) {
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname");
+
+  // Redirect before rendering client providers. A redirect-only `/` page leaves
+  // the router on `/` during client navigation and triggers hook mismatches.
+  if (pathname === "/") {
+    redirect(await getDefaultAuthenticatedLandingPath());
+  }
+
   const cookieStorePromise = cookies();
   const session = await getSessionOrRedirect();
 
@@ -213,6 +225,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <ConversationsProvider>
         <DynamicAblyProvider>
           <NotificationProvider userId={session.user.id}>
+            <NotificationToaster />
             <NotificationToastListener userId={session.user.id} />
             <CoworkersProvider initialCoworkers={coworkers}>
               {content}

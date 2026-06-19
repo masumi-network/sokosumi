@@ -56,10 +56,6 @@ export function NotificationsPageContent({
 
   useEffect(() => {
     setNotifications((prev) => {
-      if (prev.length === 0) {
-        return prev;
-      }
-
       const providerById = new Map(
         providerNotifications.map((notification) => [
           notification.id,

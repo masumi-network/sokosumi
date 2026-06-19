@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
+import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 
@@ -52,18 +53,20 @@ export function NotificationToastListener({
                   toast.dismiss(toastId);
                 })();
               }}
-              className="bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground border-border flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 shadow-lg transition-colors"
+              className="bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground border-border flex w-full cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-colors"
             >
-              <Bell className="text-muted-foreground mt-0.5 size-5 shrink-0" />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="text-sm font-medium leading-snug">{message}</p>
-              </div>
-              <span className="bg-green-500 mt-1.5 size-2 shrink-0 rounded-full" />
+              <Bell className="text-muted-foreground size-5 shrink-0" />
+              <p className="min-w-0 flex-1 text-left text-sm font-medium leading-snug">
+                {message}
+              </p>
+              <span className="bg-green-500 size-2 shrink-0 rounded-full" />
             </button>
           ),
           {
-            duration: 5000,
-            position: "top-right",
+            id: notification.id,
+            toasterId: NOTIFICATION_TOASTER_ID,
+            duration: Infinity,
+            dismissible: true,
           },
         );
       }

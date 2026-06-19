@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import type { SessionUser } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
@@ -9,11 +9,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/contexts/notification-provider";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
+import HeaderWorkspaceAvatar from "./header-workspace-avatar";
 import { NotificationDropdownContent } from "./notification-dropdown-content";
 
-export function HeaderNotificationBell() {
+interface HeaderNotificationAvatarProps {
+  sessionUser: SessionUser;
+  organization?: OrganizationRecord | null;
+}
+
+export function HeaderNotificationAvatar({
+  sessionUser,
+  organization,
+}: HeaderNotificationAvatarProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { unreadCount } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
@@ -23,13 +33,16 @@ export function HeaderNotificationBell() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="hover:bg-accent hover:text-accent-foreground relative flex size-8 shrink-0 items-center justify-center rounded-md transition-colors"
+          className="hover:opacity-80 relative flex shrink-0 items-center transition-opacity"
           aria-label={t("notifications")}
         >
-          <Bell className="size-5" aria-hidden />
+          <HeaderWorkspaceAvatar
+            sessionUser={sessionUser}
+            organization={organization ?? null}
+          />
           {unreadCount > 0 ? (
             <span
-              className="bg-green-500 absolute right-0.5 top-0.5 size-2 rounded-full"
+              className="bg-green-500 absolute right-0 top-0 size-2 rounded-full ring-2 ring-background"
               aria-label={t("unreadBadge", { count: unreadCount })}
             />
           ) : null}
