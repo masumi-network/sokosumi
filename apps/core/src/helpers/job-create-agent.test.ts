@@ -207,7 +207,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(createCall.data).not.toHaveProperty("project");
   });
 
-  it("clamps a generated job name to the max length", async () => {
+  it("preserves a generated job name longer than the previous max length", async () => {
     generateJobNameMock.mockResolvedValue("x".repeat(200));
 
     await createAgentJobForUser(
@@ -221,6 +221,6 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(generateJobNameMock).toHaveBeenCalled();
     const createCall = txJobCreateMock.mock.calls[0]?.[0];
-    expect(createCall.data.name).toBe("x".repeat(120));
+    expect(createCall.data.name).toBe("x".repeat(200));
   });
 });

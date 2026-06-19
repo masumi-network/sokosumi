@@ -22,11 +22,9 @@ describe("resolveTaskName", () => {
     expect(generateTaskNameMock).not.toHaveBeenCalled();
   });
 
-  it("clamps a provided name to 120 characters", async () => {
+  it("preserves a provided name longer than 120 characters", async () => {
     const long = "A".repeat(200);
-    expect(await resolveTaskName({ name: long, description: null })).toBe(
-      "A".repeat(120),
-    );
+    expect(await resolveTaskName({ name: long, description: null })).toBe(long);
   });
 
   it("generates from the description when no name is provided", async () => {
@@ -58,8 +56,8 @@ describe("resolveTaskName", () => {
     expect(generateTaskNameMock).not.toHaveBeenCalled();
   });
 
-  it("clamps a generated name to 120 characters", async () => {
+  it("preserves a generated name longer than 120 characters", async () => {
     generateTaskNameMock.mockResolvedValue("B".repeat(200));
-    expect(await resolveTaskName({ description: "x" })).toBe("B".repeat(120));
+    expect(await resolveTaskName({ description: "x" })).toBe("B".repeat(200));
   });
 });

@@ -12,7 +12,7 @@ import type {
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
+import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -304,7 +304,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     desiredStatus,
   }) => {
     const trimmedDescription = description.trim();
-    const trimmedName = clampTaskNameForCoreApi(name);
+    const trimmedName = normalizeTaskNameForCoreApi(name);
     if (!trimmedDescription) {
       throw new Error("Description required");
     }

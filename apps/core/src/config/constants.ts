@@ -44,6 +44,14 @@ export const LIMITS = {
   /** Maximum password length */
   PASSWORD_MAX_LENGTH: 256,
 
+  /**
+   * Maximum length for user-supplied task and job names. Generous sanity
+   * ceiling (not a product limit) to bound abuse: oversized names would bloat
+   * storage, break UI rendering, and exceed downstream payload caps (e.g. Ably
+   * notification messages embed the job name).
+   */
+  NAME_MAX_LENGTH: 10_000,
+
   /** Default pagination limit */
   DEFAULT_PAGINATION_LIMIT: 20,
 
