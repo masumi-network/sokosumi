@@ -36,6 +36,13 @@ interface PromotionCodeWithExpandedCoupon
   };
 }
 
+/**
+ * Parses the credit grant encoded on a coupon for the client-facing
+ * checkout/claim flows, throwing typed `CouponTypeError`s that the routes map
+ * to 400/404. A sibling `getCreditsForCoupon` in `stripe.client.ts` throws
+ * plain `Error`s for the internal webhook-replay invoice path — keep the two
+ * validation rules in sync.
+ */
 function getCreditsForCoupon(coupon: Stripe.Coupon): number {
   if (!coupon.percent_off) {
     throw new CouponTypeError("Coupon must have percent_off");

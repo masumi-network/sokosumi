@@ -145,6 +145,14 @@ function validatePrice(price: Stripe.Price): CreditPrice {
   };
 }
 
+/**
+ * Parses the credit grant encoded on a coupon. Intentionally throws plain
+ * `Error`s: this copy backs the webhook-replay invoice path where a typed
+ * coupon error carries no benefit. The service layer has a sibling
+ * `getCreditsForCoupon` (`stripe-billing.service.ts`) that throws
+ * `CouponTypeError` for the client-facing checkout/claim flows — keep the two
+ * validation rules in sync.
+ */
 function getCreditsForCoupon(coupon: Stripe.Coupon): number {
   if (!coupon.percent_off) {
     throw new Error("Coupon must have percent_off");

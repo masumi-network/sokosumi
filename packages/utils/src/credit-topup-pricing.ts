@@ -40,6 +40,16 @@ export function getCreditTopUpTotalMinorUnits(
   return totalMinorUnits;
 }
 
+/**
+ * Resolves the Stripe lookup key for a credit top-up.
+ *
+ * @param lookupKeyOverride - SERVER-RESOLVED ONLY. Must never be populated from
+ * client input: it can force the zero-margin key
+ * ({@link ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY}) and bypass the volume curve.
+ * Core resolves it from the authenticated user (see
+ * `resolveZeroMarginLookupKeyForUser`); the web app stays margin-agnostic and
+ * passes nothing.
+ */
 export function getCreditTopUpLookupKeyByCredits(
   credits: number,
   lookupKeyOverride?: CreditTopUpLookupKey,
