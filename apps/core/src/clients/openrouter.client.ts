@@ -13,6 +13,11 @@ interface OpenRouterRequestOptions {
   abortSignal?: AbortSignal;
 }
 
+// Best-effort name generation must not stall task/job creation: bound each
+// request so a slow or hung OpenRouter call aborts and falls back to a
+// non-LLM name instead of blocking the create request indefinitely.
+const NAME_GENERATION_TIMEOUT_MS = 10_000;
+
 const RESPONSES_API_EVENTS = {
   OUTPUT_TEXT_DELTA: "response.output_text.delta",
   COMPLETED: "response.completed",
@@ -60,6 +65,7 @@ export const openrouterClient = (() => {
 
       try {
         const { text } = await generateText({
+          abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
           system: systemPrompt,
           prompt: userPrompt,
@@ -90,6 +96,7 @@ export const openrouterClient = (() => {
 
       try {
         const { text } = await generateText({
+          abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
           system: systemPrompt,
           prompt: userPrompt,
