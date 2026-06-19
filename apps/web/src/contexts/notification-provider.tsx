@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, use, useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { NotificationEventData } from "@/lib/ably";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -17,6 +24,33 @@ interface NotificationContextValue {
 const NotificationContext = createContext<NotificationContextValue | null>(
   null,
 );
+
+const NOTIFICATION_LIST_LIMIT = 10;
+
+function mergeNotificationList(
+  current: NotificationItem[],
+  fetched: NotificationItem[],
+): NotificationItem[] {
+  const fetchedIds = new Set(fetched.map((notification) => notification.id));
+  const pendingRealtime = current.filter(
+    (notification) => !fetchedIds.has(notification.id),
+  );
+
+  return [...pendingRealtime, ...fetched].slice(0, NOTIFICATION_LIST_LIMIT);
+}
+
+function mergeUnreadCount(
+  current: NotificationItem[],
+  fetched: NotificationItem[],
+  serverCount: number,
+): number {
+  const fetchedIds = new Set(fetched.map((notification) => notification.id));
+  const pendingUnread = current.filter(
+    (notification) => !fetchedIds.has(notification.id) && !notification.isRead,
+  ).length;
+
+  return serverCount + pendingUnread;
+}
 
 export function useNotifications() {
   const context = use(NotificationContext);
@@ -40,29 +74,42 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const fetchGenerationRef = useRef(0);
 
   const fetchNotifications = useCallback(async () => {
+    const generation = ++fetchGenerationRef.current;
+
     try {
       const [listResponse, countResponse] = await Promise.all([
-        coreClient.getNotifications({ limit: 10 }),
+        coreClient.getNotifications({ limit: NOTIFICATION_LIST_LIMIT }),
         coreClient.getNotificationsUnreadCount(),
       ]);
 
-      setNotifications(listResponse.data);
-      setUnreadCount(countResponse.data.count);
+      if (generation !== fetchGenerationRef.current) {
+        return;
+      }
+
+      setNotifications((prev) => {
+        const merged = mergeNotificationList(prev, listResponse.data);
+        setUnreadCount(
+          mergeUnreadCount(prev, listResponse.data, countResponse.data.count),
+        );
+        return merged;
+      });
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     } finally {
-      setIsLoading(false);
+      if (generation === fetchGenerationRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   const markRead = useCallback(async (id: string) => {
-    let wasUnread = false;
+    let shouldDecrementUnread = false;
     setNotifications((prev) => {
-      wasUnread = prev.some(
-        (notification) => notification.id === id && !notification.isRead,
-      );
+      const existing = prev.find((notification) => notification.id === id);
+      shouldDecrementUnread = existing ? !existing.isRead : true;
       return prev;
     });
 
@@ -74,7 +121,7 @@ export function NotificationProvider({
         prev.map((n) => (n.id === id ? updatedNotification : n)),
       );
 
-      if (wasUnread && updatedNotification.isRead) {
+      if (shouldDecrementUnread && updatedNotification.isRead) {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
     } catch (error) {
@@ -113,7 +160,10 @@ export function NotificationProvider({
           setUnreadCount((count) => count + 1);
         }
 
-        return [convertedNotification, ...prev].slice(0, 10);
+        return [convertedNotification, ...prev].slice(
+          0,
+          NOTIFICATION_LIST_LIMIT,
+        );
       });
     },
     [],
