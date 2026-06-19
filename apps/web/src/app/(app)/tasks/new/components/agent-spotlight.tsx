@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { CompanyMark } from "@/components/agents/company-mark";
 import { TagIcon } from "@/components/agents/tag-icon";
@@ -21,6 +28,7 @@ export interface AgentSpotlightLabels {
   next: string;
   searchPlaceholder: string;
   allCompanies: string;
+  selectFromFilters?: string;
   noResults: string;
 }
 
@@ -29,6 +37,7 @@ interface AgentSpotlightProps {
   selectedId: string;
   onSelect: (id: string) => void;
   onUsePrompt: (prompt: string) => void;
+  onSelectionInViewChange?: (inView: boolean) => void;
   defaultSlug?: string;
   labels: AgentSpotlightLabels;
 }
@@ -52,6 +61,7 @@ export function AgentSpotlight({
   selectedId,
   onSelect,
   onUsePrompt,
+  onSelectionInViewChange,
   defaultSlug = "elena",
   labels,
 }: AgentSpotlightProps) {
@@ -104,7 +114,14 @@ export function AgentSpotlight({
       });
   }, [view]);
 
-  const current = options.find((option) => option.id === selectedId);
+  const current = useMemo(
+    () => view.find((option) => option.id === selectedId),
+    [view, selectedId],
+  );
+
+  useLayoutEffect(() => {
+    onSelectionInViewChange?.(current !== undefined);
+  }, [current, onSelectionInViewChange]);
 
   const llm = current?.profile?.llm ?? [];
   const hosting = current?.profile?.hosting;
@@ -237,9 +254,13 @@ export function AgentSpotlight({
               ) : null}
             </div>
           </div>
-        ) : (
+        ) : view.length === 0 ? (
           <p className="text-muted-foreground w-full text-center text-sm">
             {labels.noResults}
+          </p>
+        ) : (
+          <p className="text-muted-foreground w-full text-center text-sm">
+            {labels.selectFromFilters ?? labels.noResults}
           </p>
         )}
       </div>

@@ -479,6 +479,7 @@ export function TaskForm({
   // coworker is preselected (e.g. opened from the agents page) we skip step 1.
   const useWizard = isModal && mode === "create";
   const [step, setStep] = useState<1 | 2>(hasExplicitInitialCoworker ? 2 : 1);
+  const [agentSelectionInView, setAgentSelectionInView] = useState(true);
   const showTaskStep = !useWizard || step === 2;
   const continueLabel = labels.continueLabel ?? "Continue";
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
@@ -581,6 +582,7 @@ export function TaskForm({
                 options={coworkerOptions}
                 selectedId={coworkerId}
                 onSelect={handleCoworkerSelect}
+                onSelectionInViewChange={setAgentSelectionInView}
                 onUsePrompt={(prompt) => {
                   setDescription(prompt);
                   setStep(2);
@@ -598,6 +600,7 @@ export function TaskForm({
                   searchPlaceholder:
                     labels.searchPlaceholder ?? "Search agents…",
                   allCompanies: labels.allCompanies ?? "All",
+                  selectFromFilters: labels.chooseAgent,
                   noResults: labels.noResults ?? "No agents found.",
                 }}
               />
@@ -807,8 +810,11 @@ export function TaskForm({
             <Button
               type="button"
               className="min-w-28"
-              disabled={!coworkerId}
-              onClick={() => setStep(2)}
+              disabled={!coworkerId || !agentSelectionInView}
+              onClick={() => {
+                if (!agentSelectionInView) return;
+                setStep(2);
+              }}
             >
               {continueLabel}
             </Button>
