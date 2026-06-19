@@ -3664,6 +3664,25 @@
         "minutes": "{value, plural, =1 {分} other {分}}",
         "seconds": "{value, plural, =1 {秒} other {秒}}"
       }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} 已完成 {jobName}",
+        "failed": "{agentName} 未能完成 {jobName}",
+        "paymentFailed": "{jobName} 付款失败",
+        "inputRequired": "{agentName} 需要你为 {jobName} 提供输入",
+        "refundResolved": "{jobName} 已退款",
+        "disputeResolved": "{jobName} 的争议已解决"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} 需要你为 {taskName} 提供输入",
+        "approvalRequired": "{coworkerName} 需要你批准 {taskName}",
+        "authenticationRequired": "{coworkerName} 需要为 {taskName} 进行身份验证",
+        "outOfCredits": "{coworkerName} 的 {taskName} 积分已用完",
+        "completed": "{coworkerName} 已完成 {taskName}",
+        "failed": "{coworkerName} 未能完成 {taskName}",
+        "canceled": "{taskName} 已取消"
+      }
     }
   }
 }

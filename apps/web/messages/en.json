@@ -3719,6 +3719,25 @@
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {sec} other {sec}}"
       }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} completed {jobName}",
+        "failed": "{agentName} failed to complete {jobName}",
+        "paymentFailed": "Payment failed for {jobName}",
+        "inputRequired": "{agentName} needs your input for {jobName}",
+        "refundResolved": "{jobName} was refunded",
+        "disputeResolved": "Dispute resolved for {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} needs your input for {taskName}",
+        "approvalRequired": "{coworkerName} needs your approval for {taskName}",
+        "authenticationRequired": "{coworkerName} needs authentication for {taskName}",
+        "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
+        "completed": "{coworkerName} completed {taskName}",
+        "failed": "{coworkerName} failed to complete {taskName}",
+        "canceled": "{taskName} was canceled"
+      }
     }
   }
 }
