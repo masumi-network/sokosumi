@@ -99,7 +99,7 @@ describe("withUnauthorizedCoreRedirect", () => {
 
   it("redirects when a wrapped client method rejects with unauthorized Core errors", async () => {
     const client = withUnauthorizedCoreRedirect({
-      getTask: () =>
+      getTask: (_taskId: string) =>
         Promise.reject(
           new CoreApiRequestError("Invalid, expired or missing session", {
             status: 401,
@@ -114,7 +114,7 @@ describe("withUnauthorizedCoreRedirect", () => {
 
   it("returns resolved values from wrapped client methods", async () => {
     const client = withUnauthorizedCoreRedirect({
-      getTask: () => Promise.resolve({ id: "task-id" }),
+      getTask: (_taskId: string) => Promise.resolve({ id: "task-id" }),
     });
 
     await expect(client.getTask("task-id")).resolves.toEqual({ id: "task-id" });
@@ -123,7 +123,7 @@ describe("withUnauthorizedCoreRedirect", () => {
   it("rethrows unrelated errors from wrapped client methods", async () => {
     const boom = new Error("boom");
     const client = withUnauthorizedCoreRedirect({
-      getTask: () => Promise.reject(boom),
+      getTask: (_taskId: string) => Promise.reject(boom),
     });
 
     await expect(client.getTask("task-id")).rejects.toBe(boom);

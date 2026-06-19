@@ -44,9 +44,11 @@ export function withUnauthorizedCoreRedirect<T extends object>(client: T): T {
         return value;
       }
 
+      const method = value as (this: T, ...args: unknown[]) => unknown;
+
       function guardedMethod(this: unknown, ...args: unknown[]) {
         try {
-          const result = Reflect.apply(value, target, args) as unknown;
+          const result = method.apply(target, args) as unknown;
 
           if (
             result !== null &&
