@@ -1,18 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createJobRequestSchema,
-  JOB_NAME_MAX_LENGTH,
-  patchJobRequestSchema,
-} from "./job.schema";
+import { createJobRequestSchema, patchJobRequestSchema } from "./job.schema";
 
 const validInputSchema = {
   input_data: [],
 };
 
 describe("job request schemas", () => {
-  it("accepts generated job names up to 120 characters", () => {
-    const name = "a".repeat(JOB_NAME_MAX_LENGTH);
+  it("accepts long job names", () => {
+    const name = "a".repeat(500);
 
     expect(() =>
       createJobRequestSchema.parse({
@@ -25,22 +21,6 @@ describe("job request schemas", () => {
     ).not.toThrow();
 
     expect(() => patchJobRequestSchema.parse({ name })).not.toThrow();
-  });
-
-  it("rejects job names longer than 120 characters", () => {
-    const name = "a".repeat(JOB_NAME_MAX_LENGTH + 1);
-
-    expect(() =>
-      createJobRequestSchema.parse({
-        inputSchema: validInputSchema,
-        inputData: {
-          prompt: "hello",
-        },
-        name,
-      }),
-    ).toThrow();
-
-    expect(() => patchJobRequestSchema.parse({ name })).toThrow();
   });
 
   it("rejects inputData values that mix strings and numbers in one array", () => {

@@ -24,7 +24,6 @@ export const createTaskRequestSchema = z
       .string()
       .trim()
       .min(1)
-      .max(120)
       .optional()
       .openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),

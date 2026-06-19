@@ -16,8 +16,6 @@ import { linkSchema } from "./link.schema.js";
 import { jobShareSchema } from "./share.schema.js";
 import { workspaceSummarySchema } from "./workspace.schema.js";
 
-export const JOB_NAME_MAX_LENGTH = 120;
-
 export const jobInputSchema = z
   .object({
     id: z.string().openapi({ example: "cmi4gmksz000104l8wps8p7fp" }),
@@ -231,10 +229,7 @@ export const jobSchema = z
 /** Body for `PATCH /jobs/{id}`. Add optional fields here as more attributes become editable. */
 export const patchJobRequestSchema = z
   .object({
-    name: z.union([
-      z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH),
-      z.null(),
-    ]),
+    name: z.union([z.string().trim().min(1), z.null()]),
   })
   .strict();
 
@@ -257,7 +252,7 @@ export const createJobRequestSchema = z.object({
     .nullable()
     .optional()
     .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
-  name: z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH).optional().openapi({
+  name: z.string().trim().min(1).optional().openapi({
     example: "My Job",
     description:
       "If not provided, an AI-generated name will be created based on the agent details and input data.",

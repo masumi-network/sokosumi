@@ -24,7 +24,7 @@ const paramsSchema = z.object({
 
 export const patchTaskRequestSchema = z
   .object({
-    name: z.string().min(1).max(120).optional().openapi({
+    name: z.string().min(1).optional().openapi({
       example: "Updated task title",
     }),
     description: z.string().nullish().openapi({

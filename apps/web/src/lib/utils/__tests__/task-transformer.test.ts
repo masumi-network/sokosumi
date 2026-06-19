@@ -7,7 +7,6 @@ import type {
 } from "@/lib/clients/generated/core/types.gen";
 import {
   clampTaskNameForCoreApi,
-  DEFAULT_TASK_NAME_MAX_LENGTH,
   mapTaskToTaskWithCoworker,
 } from "@/lib/utils/task-transformer";
 
@@ -153,11 +152,9 @@ describe("clampTaskNameForCoreApi", () => {
     );
   });
 
-  it("truncates names that exceed the Core API limit", () => {
-    const longName = "a".repeat(DEFAULT_TASK_NAME_MAX_LENGTH + 10);
+  it("preserves long names after trimming whitespace", () => {
+    const longName = "a".repeat(200);
 
-    expect(clampTaskNameForCoreApi(longName)).toBe(
-      "a".repeat(DEFAULT_TASK_NAME_MAX_LENGTH),
-    );
+    expect(clampTaskNameForCoreApi(`  ${longName}  `)).toBe(longName);
   });
 });
