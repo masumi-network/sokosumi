@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/utils";
 
+import { LIMITS } from "@/config/constants";
 import {
   requireTaskAssignableCoworker,
   requireTaskOwnership,
@@ -24,7 +25,7 @@ const paramsSchema = z.object({
 
 export const patchTaskRequestSchema = z
   .object({
-    name: z.string().min(1).max(120).optional().openapi({
+    name: z.string().min(1).max(LIMITS.NAME_MAX_LENGTH).optional().openapi({
       example: "Updated task title",
     }),
     description: z.string().nullish().openapi({

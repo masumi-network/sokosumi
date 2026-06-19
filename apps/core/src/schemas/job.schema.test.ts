@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  createJobRequestSchema,
-  JOB_NAME_MAX_LENGTH,
-  patchJobRequestSchema,
-} from "./job.schema";
+import { LIMITS } from "@/config/constants";
+import { createJobRequestSchema, patchJobRequestSchema } from "./job.schema";
 
 const validInputSchema = {
   input_data: [],
 };
 
 describe("job request schemas", () => {
-  it("accepts generated job names up to 120 characters", () => {
-    const name = "a".repeat(JOB_NAME_MAX_LENGTH);
+  it("accepts long job names", () => {
+    const name = "a".repeat(500);
 
     expect(() =>
       createJobRequestSchema.parse({
@@ -27,15 +24,27 @@ describe("job request schemas", () => {
     expect(() => patchJobRequestSchema.parse({ name })).not.toThrow();
   });
 
-  it("rejects job names longer than 120 characters", () => {
-    const name = "a".repeat(JOB_NAME_MAX_LENGTH + 1);
+  it("accepts job names at the maximum length", () => {
+    const name = "a".repeat(LIMITS.NAME_MAX_LENGTH);
 
     expect(() =>
       createJobRequestSchema.parse({
         inputSchema: validInputSchema,
-        inputData: {
-          prompt: "hello",
-        },
+        inputData: { prompt: "hello" },
+        name,
+      }),
+    ).not.toThrow();
+
+    expect(() => patchJobRequestSchema.parse({ name })).not.toThrow();
+  });
+
+  it("rejects job names beyond the maximum length", () => {
+    const name = "a".repeat(LIMITS.NAME_MAX_LENGTH + 1);
+
+    expect(() =>
+      createJobRequestSchema.parse({
+        inputSchema: validInputSchema,
+        inputData: { prompt: "hello" },
         name,
       }),
     ).toThrow();
