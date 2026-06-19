@@ -49,6 +49,18 @@ Resume runs: pick start phase with **artifact-aware resume** (below) — not sta
 | Linear project | `Sokosumi` |
 | Issue model | **Single issue** — `## Requirement` + `## Sapphire status` on Linear; investigation and spec stay **in session** only |
 
+## Role models
+
+Investigator runs on the **orchestrator model** (no override). Phases 2–4 delegate to subagents — use `/sapphire-tech-lead`, `/sapphire-coder`, `/sapphire-reviewer` or Task with the same `model` slug.
+
+| Role | Subagent | Model |
+|------|----------|-------|
+| Tech Lead | `sapphire-tech-lead` | `claude-opus-4-8` |
+| Coder(s) | `sapphire-coder` | `composer-2.5` |
+| Reviewer | `sapphire-reviewer` | `gpt-5.5-medium` |
+
+Subagent definitions: `.cursor/agents/sapphire-*.md`. When launching Task subagents for coders, always pass `model: composer-2.5`.
+
 ## Session artifacts (critical)
 
 Investigation and spec are **working documents for this agent run**. Keep them in orchestrator context and pass them to the next phase — **do not** write `## Investigation` or `## Spec` to the Linear issue description.
@@ -93,8 +105,8 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 ### Phase 2 — Tech Lead
 
-1. Read Requirement (Linear) + Investigation (**session**).
-2. Write final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
+1. Delegate to **`sapphire-tech-lead`** (`model: claude-opus-4-8`) with Requirement (Linear) + Investigation (**session**).
+2. Receive final spec per `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md`.
 3. Keep the spec markdown **in session** — pass the full text to Coder and Reviewer. Do **not** merge `## Spec` into the Linear description.
 4. **Gate (blocking):** `save_comment` → `**Sapphire · Tech Lead complete**` (coder count, order, 3–5 bullets). Then `save_issue` → Tech Lead row `done`. Do **not** open Phase 3 until both succeed.
 5. **Continue in this run** — proceed to Phase 3 without stopping.
@@ -102,8 +114,8 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 ### Phase 3 — Coder(s)
 
 1. Read **session spec** (plus session investigation for context). Requirement from Linear when needed.
-2. If Tech Lead defined multiple coders, launch **parallel** Task subagents — one per coder block — with non-overlapping file ownership.
-3. If single coder, implement in this run.
+2. If Tech Lead defined multiple coders, launch **parallel** **`sapphire-coder`** Task subagents (`model: composer-2.5`) — one per coder block — with non-overlapping file ownership.
+3. If single coder, delegate to **`sapphire-coder`** (`model: composer-2.5`).
 4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**).
 5. Open PR; PR body must reference the Linear issue id.
 6. **Gate (blocking):** `save_comment` → `**PR handoff**`. Then `save_comment` → `**Sapphire · Coder complete**`. Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until all three succeed.
@@ -111,7 +123,7 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 
 ### Phase 4 — Reviewer
 
-1. Run `/goal` per `REVIEWER.md` until all criteria pass.
+1. Delegate to **`sapphire-reviewer`** (`model: gpt-5.5-medium`) — run `/goal` per `REVIEWER.md` until all criteria pass.
 2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
 3. Fix on PR branch when needed; loop.
 4. **Gate (blocking):** On pass — `save_comment` → `**Sapphire · Reviewer complete**` with evidence; `save_issue` → Reviewer row `done` (full description merge); then `save_issue` → `state: "In Review"` only. All four status rows must be `done` before exit.

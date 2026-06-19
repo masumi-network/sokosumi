@@ -25,7 +25,7 @@ When Tech Lead defined one coder block (or no breakdown section):
 When Tech Lead defined `### Coder A`, `### Coder B`, …:
 
 1. Respect **Execution order** — sequential coders wait for dependencies.
-2. Launch parallel Task subagents for independent coders with disjoint file ownership.
+2. Launch parallel **`sapphire-coder`** Task subagents (`model: composer-2.5`) for independent coders with disjoint file ownership.
 3. Orchestrator merges work on one branch / one PR when all coders finish.
 4. One PR per issue — do not open multiple PRs for the same SOK unless human asked.
 
