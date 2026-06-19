@@ -10,6 +10,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
+
 import {
   makeUserNotificationsChannelName,
   type NotificationEventData,
@@ -17,6 +19,10 @@ import {
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
+
+function dismissNotificationToast(notificationId: string) {
+  toast.dismiss(notificationId);
+}
 
 interface NotificationContextValue {
   notifications: NotificationItem[];
@@ -55,8 +61,12 @@ function mergeUnreadCount(
   const pendingUnread = current.filter(
     (notification) => !fetchedIds.has(notification.id) && !notification.isRead,
   ).length;
+  const fetchedUnread = fetched.filter(
+    (notification) => !notification.isRead,
+  ).length;
+  const localKnownUnread = fetchedUnread + pendingUnread;
 
-  return serverCount + pendingUnread;
+  return Math.max(serverCount, localKnownUnread);
 }
 
 interface NotificationState {
@@ -192,6 +202,8 @@ function NotificationProviderBody({
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
+  const notificationsRef = useRef(notifications);
+  notificationsRef.current = notifications;
 
   const fetchNotifications = useCallback(async () => {
     const generation = ++fetchGenerationRef.current;
@@ -229,6 +241,12 @@ function NotificationProviderBody({
     try {
       await coreClient.patchNotificationsReadAll();
 
+      for (const notification of notificationsRef.current) {
+        if (!notification.isRead) {
+          dismissNotificationToast(notification.id);
+        }
+      }
+
       dispatch({ type: "mark_all_read" });
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
@@ -239,6 +257,8 @@ function NotificationProviderBody({
   const markRead = useCallback(async (id: string) => {
     try {
       const response = await coreClient.patchNotificationRead({ id });
+
+      dismissNotificationToast(id);
 
       dispatch({
         type: "mark_read_success",

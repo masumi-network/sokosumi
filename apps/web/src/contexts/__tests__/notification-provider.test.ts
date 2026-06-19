@@ -48,4 +48,23 @@ describe("notificationReducer", () => {
     ).toEqual(["notification-realtime", "notification-fetched"]);
     expect(afterFetch.unreadCount).toBe(1);
   });
+
+  it("does not double-count unread realtime items already included in server count", () => {
+    const realtimeNotification = createNotification({
+      id: "notification-realtime",
+    });
+
+    const afterRealtime = notificationReducer(
+      { notifications: [], unreadCount: 0 },
+      { type: "realtime", notification: realtimeNotification },
+    );
+
+    const afterFetch = notificationReducer(afterRealtime, {
+      type: "fetch_success",
+      fetched: [],
+      serverUnreadCount: 1,
+    });
+
+    expect(afterFetch.unreadCount).toBe(1);
+  });
 });
