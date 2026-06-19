@@ -34,6 +34,21 @@ export {
   type CoreApiErrorKind,
 } from "./core-api-error-kind.js";
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
+export {
+  BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  CREDIT_TOPUP_LOOKUP_KEYS,
+  type CreditTopUpLookupKey,
+  type CreditTopUpTier,
+  getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
+  HIGH_CREDIT_TOPUP_LOOKUP_KEY,
+  isPositiveIntegerCredits,
+  MID_CREDIT_TOPUP_LOOKUP_KEY,
+  STANDARD_CREDIT_TOPUP_TIERS,
+  type StandardCreditTopUpLookupKey,
+  selectCreditTopUpTier,
+  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
+} from "./credit-topup-pricing.js";
 export type {
   AgentJobStatus as AgentJobStatusType,
   AgentStatus as AgentStatusType,

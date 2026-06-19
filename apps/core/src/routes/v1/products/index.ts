@@ -1,16 +1,18 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import mountGetCreditTopUpPriceCatalog from "./credits/catalog/get.js";
 import mountListCreditPrices from "./credits/get.js";
+import mountGetSubscriptionCatalog from "./subscription/get.js";
 
 /**
  * Product catalog reads (Stripe-backed). `/credits` lists the credit
- * product's prices; `/subscription` is the planned sibling for subscription
- * product information. Session-scoped — pricing is not sensitive and the
- * same reads back both the admin invoice form and future user-facing billing
- * surfaces.
+ * product's prices; `/credits/catalog` returns tiered lookup-key pricing;
+ * `/subscription` exposes self-serve subscription plans.
  */
 const app = new OpenAPIHonoWithAuth();
 
 mountListCreditPrices(app);
+mountGetCreditTopUpPriceCatalog(app);
+mountGetSubscriptionCatalog(app);
 
 export default app;

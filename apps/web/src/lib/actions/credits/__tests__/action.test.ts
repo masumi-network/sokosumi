@@ -5,12 +5,9 @@ vi.mock("server-only", () => ({}));
 export {};
 
 const getMyMemberInOrganizationMock = vi.fn();
-const createStripeCheckoutSessionMock = vi.fn();
-const getCouponMock = vi.fn();
+const createCreditCheckoutSessionMock = vi.fn();
+const getCouponDetailsMock = vi.fn();
 const claimCouponMock = vi.fn();
-const getCreditTopUpPriceByCreditsMock = vi.fn();
-const getBaseCreditTopUpPriceMock = vi.fn();
-const resolveZeroMarginTopUpLookupKeyMock = vi.fn();
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -26,27 +23,13 @@ vi.mock("@/lib/services", () => ({
   },
 }));
 
-vi.mock("@/lib/services/stripe.service", () => ({
-  stripeService: {
-    createStripeCheckoutSession: (...args: unknown[]) =>
-      createStripeCheckoutSessionMock(...args),
-    getCoupon: (...args: unknown[]) => getCouponMock(...args),
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClient: {
+    createCreditCheckoutSession: (...args: unknown[]) =>
+      createCreditCheckoutSessionMock(...args),
+    getCouponDetails: (...args: unknown[]) => getCouponDetailsMock(...args),
     claimCoupon: (...args: unknown[]) => claimCouponMock(...args),
   },
-}));
-
-vi.mock("@/lib/clients/stripe.client", () => ({
-  stripeClient: {
-    getCreditTopUpPriceByCredits: (...args: unknown[]) =>
-      getCreditTopUpPriceByCreditsMock(...args),
-    getBaseCreditTopUpPrice: (...args: unknown[]) =>
-      getBaseCreditTopUpPriceMock(...args),
-  },
-}));
-
-vi.mock("@/lib/flags/zero-margin-top-up", () => ({
-  resolveZeroMarginTopUpLookupKey: (...args: unknown[]) =>
-    resolveZeroMarginTopUpLookupKeyMock(...args),
 }));
 
 describe("credits actions", () => {
@@ -62,17 +45,11 @@ describe("credits actions", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveZeroMarginTopUpLookupKeyMock.mockReturnValue(undefined);
   });
 
-  it("resolves tiered price in purchaseCredits and passes it to checkout", async () => {
-    getCreditTopUpPriceByCreditsMock.mockResolvedValue({
-      id: "price_tiered",
-      amountPerCredit: 15,
-      currency: "eur",
-    });
-    createStripeCheckoutSessionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/tiered",
+  it("creates checkout via Core in purchaseCredits", async () => {
+    createCreditCheckoutSessionMock.mockResolvedValue({
+      data: { url: "https://checkout.stripe.com/session/tiered" },
     });
 
     const { purchaseCredits } = await import("../action");
@@ -83,35 +60,21 @@ describe("credits actions", () => {
       credits: 10_100,
     });
 
-    expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(10_100);
-    expect(createStripeCheckoutSessionMock).toHaveBeenCalledWith(
-      "user-1",
-      null,
-      10_100,
-      {
-        id: "price_tiered",
-        amountPerCredit: 15,
-        currency: "eur",
-      },
-      null,
-      undefined,
-    );
+    expect(createCreditCheckoutSessionMock).toHaveBeenCalledWith({
+      organizationId: null,
+      credits: 10_100,
+      returnPath: undefined,
+    });
     expect(result).toEqual({
       ok: true,
       data: { url: "https://checkout.stripe.com/session/tiered" },
     });
   });
 
-  it("uses the server-derived lookup key override in purchaseCredits", async () => {
-    getCreditTopUpPriceByCreditsMock.mockResolvedValue({
-      id: "price_zero_margin",
-      amountPerCredit: 10,
-      currency: "eur",
+  it("passes returnPath to the checkout session when provided", async () => {
+    createCreditCheckoutSessionMock.mockResolvedValue({
+      data: { url: "https://checkout.stripe.com/session/tiered" },
     });
-    createStripeCheckoutSessionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/zero-margin",
-    });
-    resolveZeroMarginTopUpLookupKeyMock.mockReturnValue("credit_0_margin");
 
     const { purchaseCredits } = await import("../action");
 
@@ -122,70 +85,34 @@ describe("credits actions", () => {
       returnPath: "/billing?tab=credits",
     });
 
-    expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(
-      250_000,
-      "credit_0_margin",
-    );
-    expect(createStripeCheckoutSessionMock).toHaveBeenCalledWith(
-      "user-1",
-      null,
-      250_000,
-      {
-        id: "price_zero_margin",
-        amountPerCredit: 10,
-        currency: "eur",
-      },
-      null,
-      "/billing?tab=credits",
-    );
-    expect(result).toEqual({
-      ok: true,
-      data: { url: "https://checkout.stripe.com/session/zero-margin" },
-    });
-  });
-
-  it("ignores forged lookup key overrides from the client payload", async () => {
-    getCreditTopUpPriceByCreditsMock.mockResolvedValue({
-      id: "price_tiered",
-      amountPerCredit: 15,
-      currency: "eur",
-    });
-    createStripeCheckoutSessionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/tiered",
-    });
-
-    const { purchaseCredits } = await import("../action");
-
-    await purchaseCredits({
-      session,
+    expect(createCreditCheckoutSessionMock).toHaveBeenCalledWith({
       organizationId: null,
       credits: 250_000,
-      priceLookupKeyOverride: "credit_0_margin",
-    } as never);
-
-    expect(getCreditTopUpPriceByCreditsMock).toHaveBeenCalledWith(250_000);
+      returnPath: "/billing?tab=credits",
+    });
+    expect(result).toEqual({
+      ok: true,
+      data: { url: "https://checkout.stripe.com/session/tiered" },
+    });
   });
 
-  it("uses base tier price for coupon checkout regardless of coupon credits", async () => {
-    getCouponMock.mockResolvedValue({
-      id: "coupon_1",
-      metadata: {
-        credits: "250000",
-        ttl_days: "90",
+  it("claims coupon and creates checkout via Core", async () => {
+    getCouponDetailsMock.mockResolvedValue({
+      data: {
+        id: "coupon_1",
+        credits: 250_000,
+        percentOff: 100,
+        ttlDays: "90",
       },
-      percent_off: 100,
     });
     claimCouponMock.mockResolvedValue({
-      id: "promo_1",
-      active: true,
+      data: {
+        promotionCodeId: "promo_1",
+        active: true,
+      },
     });
-    getBaseCreditTopUpPriceMock.mockResolvedValue({
-      id: "price_base",
-      amountPerCredit: 20,
-      currency: "eur",
-    });
-    createStripeCheckoutSessionMock.mockResolvedValue({
-      url: "https://checkout.stripe.com/session/coupon",
+    createCreditCheckoutSessionMock.mockResolvedValue({
+      data: { url: "https://checkout.stripe.com/session/coupon" },
     });
 
     const { claimFreeCreditsWithCoupon } = await import("../action");
@@ -196,21 +123,16 @@ describe("credits actions", () => {
       couponId: "coupon_1",
     });
 
-    expect(getBaseCreditTopUpPriceMock).toHaveBeenCalledTimes(1);
-    expect(getCreditTopUpPriceByCreditsMock).not.toHaveBeenCalled();
-    expect(createStripeCheckoutSessionMock).toHaveBeenCalledWith(
-      "user-1",
-      null,
-      250_000,
-      {
-        id: "price_base",
-        amountPerCredit: 20,
-        currency: "eur",
-      },
-      "promo_1",
-      "/coupon",
-      "90",
-    );
+    expect(getCouponDetailsMock).toHaveBeenCalledWith("coupon_1");
+    expect(claimCouponMock).toHaveBeenCalledWith("coupon_1", {
+      organizationId: null,
+    });
+    expect(createCreditCheckoutSessionMock).toHaveBeenCalledWith({
+      organizationId: null,
+      credits: 250_000,
+      promotionCodeId: "promo_1",
+      returnPath: "/coupon",
+    });
     expect(result).toEqual({
       ok: true,
       data: { url: "https://checkout.stripe.com/session/coupon" },
@@ -234,8 +156,7 @@ describe("credits actions", () => {
         code: CreditsErrorCode.INVALID_CREDITS,
       },
     });
-    expect(getCreditTopUpPriceByCreditsMock).not.toHaveBeenCalled();
-    expect(createStripeCheckoutSessionMock).not.toHaveBeenCalled();
+    expect(createCreditCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
   it("returns UNAUTHORIZED for organization purchase when user is not a member", async () => {
@@ -256,7 +177,6 @@ describe("credits actions", () => {
         code: CommonErrorCode.UNAUTHORIZED,
       },
     });
-    expect(getCreditTopUpPriceByCreditsMock).not.toHaveBeenCalled();
-    expect(createStripeCheckoutSessionMock).not.toHaveBeenCalled();
+    expect(createCreditCheckoutSessionMock).not.toHaveBeenCalled();
   });
 });

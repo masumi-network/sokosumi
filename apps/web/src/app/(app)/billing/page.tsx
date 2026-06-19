@@ -1,7 +1,6 @@
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import { MemberRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-import Stripe from "stripe";
 
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
@@ -16,17 +15,12 @@ import {
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { zeroMarginTopUpEnabled } from "@/lib/flags/zero-margin-top-up";
 import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
-import { ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY } from "@/lib/stripe/credit-topup-pricing";
-import { getSubscriptionCatalog } from "@/lib/stripe/subscription-catalog";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
-const stripeInstance = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 const PLAN_ORDER = [
   "free",
   "starter",
@@ -62,26 +56,26 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
   const t = await getTranslations("App.Billing");
-  const [query, session, activeOrganization, isZeroMarginTopUpEnabled] =
-    await Promise.all([
-      searchParams,
-      getSession(),
-      userService.getActiveOrganization(),
-      zeroMarginTopUpEnabled(),
-    ]);
+  const [query, session, activeOrganization] = await Promise.all([
+    searchParams,
+    getSession(),
+    userService.getActiveOrganization(),
+  ]);
   const activeTab = parseBillingTab(query.tab);
 
   if (!session) {
     return null;
   }
-  const creditsPriceLookupKeyOverride = isZeroMarginTopUpEnabled
-    ? ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY
-    : undefined;
+
+  const creditPricing = await coreClient
+    .getCreditTopUpPriceCatalog()
+    .then((response) => response.data);
+  const canPurchaseOnFreePlan = creditPricing.canPurchaseOnFreePlan;
 
   if (activeOrganization) {
     const [member, subscriptionCatalog] = await Promise.all([
       userService.getMyMemberInOrganization(activeOrganization.id),
-      getSubscriptionCatalog(stripeInstance),
+      coreClient.getSubscriptionCatalog().then((response) => response.data),
     ]);
     const isOwnerOrAdmin =
       member?.role === MemberRole.OWNER || member?.role === MemberRole.ADMIN;
@@ -117,7 +111,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       isEnterpriseContract && billingPlan.isConsumable;
     const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
-      isOwnerOrAdmin && (currentPlan !== "free" || isZeroMarginTopUpEnabled);
+      isOwnerOrAdmin && (currentPlan !== "free" || canPurchaseOnFreePlan);
     const creditsCheckoutParams =
       canPurchaseCredits && activeTab === "credits"
         ? { cancel: query.cancel, session_id: query.session_id }
@@ -250,7 +244,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <CreditsSection
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={activeOrganization}
-                priceLookupKeyOverride={creditsPriceLookupKeyOverride}
+                pricing={creditPricing}
                 returnPath="/billing?tab=credits"
                 searchParams={creditsCheckoutParams}
               />
@@ -276,7 +270,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   ] = await Promise.all([
     coreClient.getMyCredits(),
     coreClient.getMyActiveSubscription(),
-    getSubscriptionCatalog(stripeInstance),
+    coreClient.getSubscriptionCatalog().then((response) => response.data),
     coreClient.getMyStripeCustomer(),
   ]);
   const latestPersonalSubscription = personalSubscription.data.subscription;
@@ -296,7 +290,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     };
   });
 
-  const canPurchaseCredits = currentPlan !== "free" || isZeroMarginTopUpEnabled;
+  const canPurchaseCredits = currentPlan !== "free" || canPurchaseOnFreePlan;
   const creditsCheckoutParams =
     canPurchaseCredits && activeTab === "credits"
       ? { cancel: query.cancel, session_id: query.session_id }
@@ -355,7 +349,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             <CreditsSection
               isPurchaseEnabled={canPurchaseCredits}
               organization={null}
-              priceLookupKeyOverride={creditsPriceLookupKeyOverride}
+              pricing={creditPricing}
               returnPath="/billing?tab=credits"
               searchParams={creditsCheckoutParams}
             />

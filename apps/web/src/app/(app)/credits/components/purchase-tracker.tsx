@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import type Stripe from "stripe";
 
+import type { CheckoutSessionAnalytics } from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 interface PurchaseTrackerProps {
-  checkoutSession: Stripe.Checkout.Session;
+  checkoutSession: CheckoutSessionAnalytics;
 }
 
 export interface CheckoutSessionData {
@@ -23,8 +23,6 @@ export interface CheckoutSessionData {
 export default function PurchaseTracker({
   checkoutSession,
 }: PurchaseTrackerProps) {
-  // Effect is necessary: Analytics tracking when component is displayed
-  // Fires once on mount to track purchase conversion
   useEffect(() => {
     const { session_id, currency, value, items } =
       mapCheckoutSession(checkoutSession);
@@ -35,34 +33,16 @@ export default function PurchaseTracker({
 }
 
 function mapCheckoutSession(
-  session: Stripe.Checkout.Session,
+  session: CheckoutSessionAnalytics,
 ): CheckoutSessionData {
-  const lineItems = session.line_items?.data ?? [];
-  const items = lineItems
-    .map((item) => {
-      if (
-        item.price?.product &&
-        typeof item.price.product === "object" &&
-        "id" in item.price.product &&
-        "name" in item.price.product
-      ) {
-        return {
-          item_id: item.price.product.id,
-          item_name: item.price.product.name,
-          quantity: item.quantity,
-        };
-      }
-    })
-    .filter(Boolean) as {
-    item_id: string;
-    item_name: string;
-    quantity: number;
-  }[];
-
   return {
-    session_id: session.id,
+    session_id: session.sessionId,
     currency: session.currency,
-    items,
-    value: session.amount_total,
+    value: session.value,
+    items: session.items.map((item) => ({
+      item_id: item.itemId,
+      item_name: item.itemName,
+      quantity: item.quantity,
+    })),
   };
 }

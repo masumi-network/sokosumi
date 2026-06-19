@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   stripeConstructorMock,
+  stripeCheckoutSessionsCreateMock,
+  stripeCheckoutSessionsRetrieveMock,
   stripeCouponsRetrieveMock,
   stripeCustomersCreateMock,
   stripeInvoiceItemsCreateMock,
@@ -11,6 +13,8 @@ const {
   stripeProductsRetrieveMock,
 } = vi.hoisted(() => ({
   stripeConstructorMock: vi.fn(),
+  stripeCheckoutSessionsCreateMock: vi.fn(),
+  stripeCheckoutSessionsRetrieveMock: vi.fn(),
   stripeCouponsRetrieveMock: vi.fn(),
   stripeCustomersCreateMock: vi.fn(),
   stripeInvoiceItemsCreateMock: vi.fn(),
@@ -28,6 +32,15 @@ vi.mock("stripe", () => ({
 
     coupons = {
       retrieve: (...args: unknown[]) => stripeCouponsRetrieveMock(...args),
+    };
+
+    checkout = {
+      sessions: {
+        create: (...args: unknown[]) =>
+          stripeCheckoutSessionsCreateMock(...args),
+        retrieve: (...args: unknown[]) =>
+          stripeCheckoutSessionsRetrieveMock(...args),
+      },
     };
 
     products = {
@@ -59,6 +72,7 @@ vi.mock("@/config/env", () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
     STRIPE_SECRET_KEY: "sk_test_core",
   }),
+  getWebAppBaseUrl: () => "https://app.sokosumi.test",
 }));
 
 function mockCreditProductAndCoupon(
@@ -340,6 +354,69 @@ describe("stripeClient", () => {
     ).rejects.toThrow("Coupon metadata credits must be a positive integer");
 
     expect(stripeInvoiceItemsCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("creates credit checkout sessions with the configured web origin only", async () => {
+    stripeCheckoutSessionsCreateMock.mockResolvedValue({
+      id: "cs_123",
+      url: "https://checkout.stripe.com/c/pay/cs_123",
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.createCreditCheckoutSession({
+      stripeCustomerId: "cus_1",
+      userId: "user_1",
+      organizationId: null,
+      credits: 1000,
+      price: {
+        id: "price_credits",
+        amountPerCredit: 120,
+        currency: "eur",
+      },
+      returnPath: "/billing?tab=credits",
+    });
+
+    expect(stripeCheckoutSessionsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url:
+          "https://app.sokosumi.test/billing?tab=credits&session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://app.sokosumi.test/billing?tab=credits&cancel=true",
+      }),
+    );
+  });
+
+  it("does not put ttl_days metadata on paid credit checkout sessions", async () => {
+    stripeCheckoutSessionsCreateMock.mockResolvedValue({
+      id: "cs_123",
+      url: "https://checkout.stripe.com/c/pay/cs_123",
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.createCreditCheckoutSession({
+      stripeCustomerId: "cus_1",
+      userId: "user_1",
+      organizationId: "org_1",
+      credits: 1000,
+      price: {
+        id: "price_credits",
+        amountPerCredit: 120,
+        currency: "eur",
+      },
+    });
+
+    expect(stripeCheckoutSessionsCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: expect.not.objectContaining({
+              ttl_days: expect.anything(),
+            }),
+          },
+        },
+        metadata: expect.not.objectContaining({ ttl_days: expect.anything() }),
+      }),
+    );
   });
 });
 

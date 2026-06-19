@@ -7,6 +7,5 @@ export * from "./organization.service";
 export * from "./organization-seat.service";
 export * from "./project.service";
 export * from "./share.service";
-export * from "./stripe.service";
 export * from "./user.service";
 export * from "./utm.service";

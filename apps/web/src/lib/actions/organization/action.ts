@@ -15,7 +15,6 @@ import {
   type BulkInviteResultRow,
   organizationService,
 } from "@/lib/services/organization.service";
-import { stripeService } from "@/lib/services/stripe.service";
 import { userService } from "@/lib/services/user.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -108,12 +107,6 @@ export const updateOrganizationInvoiceEmail = withSession<
     }
     throw error;
   }
-
-  // Sync with Stripe if the organization has a Stripe customer
-  await stripeService.syncOrganizationInvoiceEmailWithStripe(
-    organizationId,
-    invoiceEmail,
-  );
 
   return Ok({
     invoiceEmail: persisted.invoiceEmail,

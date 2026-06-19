@@ -56,7 +56,9 @@ import type {
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
+  claimCoupon as coreClaimCoupon,
   createAdminInvoice as coreCreateAdminInvoice,
+  createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -79,10 +81,13 @@ import {
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
+  getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
+  getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
+  getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
@@ -109,6 +114,7 @@ import {
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
+  getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
@@ -652,6 +658,91 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to list credit prices",
+    );
+  }
+
+  async function getCreditTopUpPriceCatalog() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCreditTopUpPriceCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch credit top-up price catalog",
+    );
+  }
+
+  async function getSubscriptionCatalog() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetSubscriptionCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch subscription catalog",
+    );
+  }
+
+  async function createCreditCheckoutSession(body: {
+    organizationId?: string | null;
+    credits: number;
+    returnPath?: string;
+    promotionCodeId?: string;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateCreditCheckoutSession({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create credit checkout session",
+    );
+  }
+
+  async function getCheckoutSessionAnalytics(sessionId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCheckoutSessionAnalytics({
+          client,
+          path: { sessionId },
+          cache: "no-store",
+        }),
+      "Failed to fetch checkout session analytics",
+    );
+  }
+
+  async function getCouponDetails(couponId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCouponDetails({
+          client,
+          path: { couponId },
+          cache: "no-store",
+        }),
+      "Failed to fetch coupon details",
+    );
+  }
+
+  async function claimCoupon(
+    couponId: string,
+    body: { organizationId?: string | null } = {},
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreClaimCoupon({
+          client,
+          path: { couponId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to claim coupon",
     );
   }
 
@@ -2455,6 +2546,12 @@ export function createCoreClient(getClient: GetClient) {
     getAdminInvoice,
     markAdminInvoicePaid,
     listCreditPrices,
+    getCreditTopUpPriceCatalog,
+    getSubscriptionCatalog,
+    createCreditCheckoutSession,
+    getCheckoutSessionAnalytics,
+    getCouponDetails,
+    claimCoupon,
     getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,

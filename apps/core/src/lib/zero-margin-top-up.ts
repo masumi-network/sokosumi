@@ -1,13 +1,11 @@
-import "server-only";
-
-import { flag } from "flags/next";
-import { getSession } from "@/lib/auth/auth.server";
 import {
   type CreditTopUpLookupKey,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
-} from "@/lib/stripe/credit-topup-pricing";
-import { getEmailDomain } from "../utils";
+} from "@sokosumi/utils";
 
+// NOTE: allowlist copied verbatim from the former web flag
+// (apps/web/src/lib/flags/zero-margin-top-up.ts). Core is now the sole owner;
+// this list must never reach a browser bundle.
 const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
   "aladin-freelance.com",
   "almamedia.es",
@@ -112,25 +110,29 @@ const ZERO_MARGIN_TOP_UP_DOMAINS = new Set([
   "wisecrackers.nl",
 ]);
 
+function getEmailDomain(email: string): string | null {
+  const atIndex = email.lastIndexOf("@");
+  if (atIndex < 0 || atIndex === email.length - 1) {
+    return null;
+  }
+  return email.slice(atIndex + 1).toLowerCase();
+}
+
 function isZeroMarginTopUpDomain(email: string): boolean {
   const domain = getEmailDomain(email);
   return domain !== null && ZERO_MARGIN_TOP_UP_DOMAINS.has(domain);
 }
 
+/**
+ * Resolves whether the given user email is entitled to zero-margin credit
+ * pricing. Authoritative server-side gate — the web app never sees this list
+ * and cannot influence the result.
+ */
 export function resolveZeroMarginTopUpLookupKey(
   email: string | null | undefined,
 ): CreditTopUpLookupKey | undefined {
   if (!email || !isZeroMarginTopUpDomain(email)) {
     return undefined;
   }
-
   return ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY;
 }
-
-export const zeroMarginTopUpEnabled = flag({
-  key: "zero-margin-top-up-enabled",
-  decide: async () => {
-    const session = await getSession();
-    return resolveZeroMarginTopUpLookupKey(session?.user?.email) !== undefined;
-  },
-});
