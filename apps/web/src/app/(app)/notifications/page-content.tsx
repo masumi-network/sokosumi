@@ -10,7 +10,7 @@ import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
-import { formatNotificationTime } from "@/lib/utils/notification-time";
+import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 
 interface NotificationsPageContentProps {
   userId: string;
@@ -21,7 +21,8 @@ export function NotificationsPageContent({
 }: NotificationsPageContentProps) {
   const tCenter = useTranslations("Components.NotificationCenter");
   const formatMessage = useNotificationMessage();
-  const { markRead } = useNotifications();
+  const formatTime = useNotificationTimeFormatter();
+  const { markRead, notifications: providerNotifications } = useNotifications();
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +54,45 @@ export function NotificationsPageContent({
     void fetchNotifications();
   }, [fetchNotifications]);
 
+  useEffect(() => {
+    setNotifications((prev) => {
+      if (prev.length === 0) {
+        return prev;
+      }
+
+      const providerById = new Map(
+        providerNotifications.map((notification) => [
+          notification.id,
+          notification,
+        ]),
+      );
+      let changed = false;
+      let next = prev.map((notification) => {
+        const updated = providerById.get(notification.id);
+        if (
+          updated &&
+          (updated.isRead !== notification.isRead ||
+            updated.readAt !== notification.readAt)
+        ) {
+          changed = true;
+          return updated;
+        }
+        return notification;
+      });
+
+      const prevIds = new Set(prev.map((notification) => notification.id));
+      const newItems = providerNotifications.filter(
+        (notification) => !prevIds.has(notification.id),
+      );
+      if (newItems.length > 0) {
+        changed = true;
+        next = [...newItems, ...next];
+      }
+
+      return changed ? next : prev;
+    });
+  }, [providerNotifications]);
+
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (!notification.isRead) {
       try {
@@ -65,6 +105,7 @@ export function NotificationsPageContent({
         );
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
+        return;
       }
     }
 
@@ -144,7 +185,7 @@ export function NotificationsPageContent({
                 ) : null}
               </div>
               <p className="text-muted-foreground text-xs">
-                {formatNotificationTime(notification.createdAt)}
+                {formatTime(notification.createdAt)}
               </p>
             </button>
           );

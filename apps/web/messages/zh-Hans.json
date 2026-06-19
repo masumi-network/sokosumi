@@ -655,6 +655,16 @@
         "error": "退出登录失败"
       }
     },
+    "NotificationCenter": {
+      "notifications": "通知",
+      "unreadBadge": "{count, plural, =1 {1 条未读通知} other {# 条未读通知}}",
+      "title": "通知",
+      "pageTitle": "通知",
+      "emptyState": "暂无通知",
+      "seeMore": "查看更多",
+      "loading": "加载中...",
+      "loadMore": "加载更多"
+    },
     "HashValue": {
       "copy": "复制",
       "copySuccess": "已复制到剪贴板",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "完成新手引导失败",
         "unexpectedError": "发生意外错误"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "通知",
-      "unreadBadge": "{count, plural, =1 {1 条未读通知} other {# 条未读通知}}",
-      "title": "通知",
-      "pageTitle": "通知",
-      "emptyState": "暂无通知",
-      "seeMore": "查看更多",
-      "loading": "加载中...",
-      "loadMore": "加载更多"
     }
   },
   "App": {

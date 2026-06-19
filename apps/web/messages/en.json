@@ -671,6 +671,16 @@
         "error": "Failed to log out"
       }
     },
+    "NotificationCenter": {
+      "notifications": "Notifications",
+      "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
+      "title": "Notifications",
+      "pageTitle": "Notifications",
+      "emptyState": "No notifications yet",
+      "seeMore": "See more",
+      "loading": "Loading...",
+      "loadMore": "Load more"
+    },
     "HashValue": {
       "copy": "Copy",
       "copySuccess": "Copied to clipboard",
@@ -1161,16 +1171,6 @@
         "failedToComplete": "Failed to complete onboarding",
         "unexpectedError": "An unexpected error occurred"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "Notifications",
-      "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
-      "title": "Notifications",
-      "pageTitle": "Notifications",
-      "emptyState": "No notifications yet",
-      "seeMore": "See more",
-      "loading": "Loading...",
-      "loadMore": "Load more"
     }
   },
   "App": {

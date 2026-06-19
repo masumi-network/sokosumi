@@ -3,6 +3,7 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useNotifications } from "@/contexts/notification-provider";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
@@ -15,6 +16,7 @@ export function NotificationToastListener({
   userId,
 }: NotificationToastListenerProps) {
   const formatMessage = useNotificationMessage();
+  const { markRead } = useNotifications();
   const router = useRouter();
 
   useNotificationRealtime({
@@ -37,8 +39,18 @@ export function NotificationToastListener({
             <button
               type="button"
               onClick={() => {
-                router.push(href);
-                toast.dismiss(toastId);
+                void (async () => {
+                  if (!notification.isRead) {
+                    try {
+                      await markRead(notification.id);
+                    } catch {
+                      return;
+                    }
+                  }
+
+                  router.push(href);
+                  toast.dismiss(toastId);
+                })();
               }}
               className="bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground border-border flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 shadow-lg transition-colors"
             >

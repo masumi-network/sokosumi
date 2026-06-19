@@ -655,6 +655,16 @@
         "error": "Abmelden fehlgeschlagen"
       }
     },
+    "NotificationCenter": {
+      "notifications": "Benachrichtigungen",
+      "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
+      "title": "Benachrichtigungen",
+      "pageTitle": "Benachrichtigungen",
+      "emptyState": "Noch keine Benachrichtigungen",
+      "seeMore": "Mehr anzeigen",
+      "loading": "Lädt...",
+      "loadMore": "Mehr laden"
+    },
     "HashValue": {
       "copy": "Kopieren",
       "copySuccess": "In Zwischenablage kopiert",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "Onboarding konnte nicht abgeschlossen werden",
         "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "Benachrichtigungen",
-      "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
-      "title": "Benachrichtigungen",
-      "pageTitle": "Benachrichtigungen",
-      "emptyState": "Noch keine Benachrichtigungen",
-      "seeMore": "Mehr anzeigen",
-      "loading": "Lädt...",
-      "loadMore": "Mehr laden"
     }
   },
   "App": {

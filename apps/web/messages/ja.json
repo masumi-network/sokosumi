@@ -655,6 +655,16 @@
         "error": "ログアウトに失敗しました"
       }
     },
+    "NotificationCenter": {
+      "notifications": "通知",
+      "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
+      "title": "通知",
+      "pageTitle": "通知",
+      "emptyState": "まだ通知はありません",
+      "seeMore": "もっと見る",
+      "loading": "読み込み中...",
+      "loadMore": "さらに読み込む"
+    },
     "HashValue": {
       "copy": "コピー",
       "copySuccess": "クリップボードにコピーしました",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "オンボーディングの完了に失敗しました",
         "unexpectedError": "予期しないエラーが発生しました"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "通知",
-      "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
-      "title": "通知",
-      "pageTitle": "通知",
-      "emptyState": "まだ通知はありません",
-      "seeMore": "もっと見る",
-      "loading": "読み込み中...",
-      "loadMore": "さらに読み込む"
     }
   },
   "App": {

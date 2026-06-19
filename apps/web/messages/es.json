@@ -655,6 +655,16 @@
         "error": "Error al cerrar sesión"
       }
     },
+    "NotificationCenter": {
+      "notifications": "Notificaciones",
+      "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
+      "title": "Notificaciones",
+      "pageTitle": "Notificaciones",
+      "emptyState": "Aún no hay notificaciones",
+      "seeMore": "Ver más",
+      "loading": "Cargando...",
+      "loadMore": "Cargar más"
+    },
     "HashValue": {
       "copy": "Copiar",
       "copySuccess": "Copiado al portapapeles",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "No se pudo completar el onboarding",
         "unexpectedError": "Ocurrió un error inesperado"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "Notificaciones",
-      "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
-      "title": "Notificaciones",
-      "pageTitle": "Notificaciones",
-      "emptyState": "Aún no hay notificaciones",
-      "seeMore": "Ver más",
-      "loading": "Cargando...",
-      "loadMore": "Cargar más"
     }
   },
   "App": {

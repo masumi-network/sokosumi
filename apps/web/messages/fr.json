@@ -655,6 +655,16 @@
         "error": "Échec de la déconnexion"
       }
     },
+    "NotificationCenter": {
+      "notifications": "Notifications",
+      "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
+      "title": "Notifications",
+      "pageTitle": "Notifications",
+      "emptyState": "Aucune notification pour le moment",
+      "seeMore": "Voir plus",
+      "loading": "Chargement...",
+      "loadMore": "Charger plus"
+    },
     "HashValue": {
       "copy": "Copier",
       "copySuccess": "Copié dans le presse-papiers",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "Impossible de terminer l’onboarding",
         "unexpectedError": "Une erreur inattendue est survenue"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "Notifications",
-      "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
-      "title": "Notifications",
-      "pageTitle": "Notifications",
-      "emptyState": "Aucune notification pour le moment",
-      "seeMore": "Voir plus",
-      "loading": "Chargement...",
-      "loadMore": "Charger plus"
     }
   },
   "App": {

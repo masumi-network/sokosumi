@@ -655,6 +655,16 @@
         "error": "Failed to log out"
       }
     },
+    "NotificationCenter": {
+      "notifications": "Notificações",
+      "unreadBadge": "{count, plural, =1 {1 notificação não lida} other {# notificações não lidas}}",
+      "title": "Notificações",
+      "pageTitle": "Notificações",
+      "emptyState": "Ainda sem notificações",
+      "seeMore": "Ver mais",
+      "loading": "A carregar...",
+      "loadMore": "Carregar mais"
+    },
     "HashValue": {
       "copy": "Copy",
       "copySuccess": "Copied to clipboard",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "Não foi possível concluir o onboarding",
         "unexpectedError": "Ocorreu um erro inesperado"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "Notificações",
-      "unreadBadge": "{count, plural, =1 {1 notificação não lida} other {# notificações não lidas}}",
-      "title": "Notificações",
-      "pageTitle": "Notificações",
-      "emptyState": "Ainda sem notificações",
-      "seeMore": "Ver mais",
-      "loading": "A carregar...",
-      "loadMore": "Carregar mais"
     }
   },
   "App": {

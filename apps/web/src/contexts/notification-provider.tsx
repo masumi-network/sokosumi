@@ -58,16 +58,28 @@ export function NotificationProvider({
   }, []);
 
   const markRead = useCallback(async (id: string) => {
+    let wasUnread = false;
+    setNotifications((prev) => {
+      wasUnread = prev.some(
+        (notification) => notification.id === id && !notification.isRead,
+      );
+      return prev;
+    });
+
     try {
       const response = await coreClient.patchNotificationRead({ id });
-
       const updatedNotification = response.data;
+
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? updatedNotification : n)),
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+
+      if (wasUnread && updatedNotification.isRead) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
+      throw error;
     }
   }, []);
 

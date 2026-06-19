@@ -655,6 +655,16 @@
         "error": "Impossibile uscire"
       }
     },
+    "NotificationCenter": {
+      "notifications": "Notifiche",
+      "unreadBadge": "{count, plural, =1 {1 notifica non letta} other {# notifiche non lette}}",
+      "title": "Notifiche",
+      "pageTitle": "Notifiche",
+      "emptyState": "Nessuna notifica per ora",
+      "seeMore": "Vedi altro",
+      "loading": "Caricamento...",
+      "loadMore": "Carica altro"
+    },
     "HashValue": {
       "copy": "Copia",
       "copySuccess": "Copiato negli appunti",
@@ -1150,16 +1160,6 @@
         "failedToComplete": "Impossibile completare l’onboarding",
         "unexpectedError": "Si è verificato un errore imprevisto"
       }
-    },
-    "NotificationCenter": {
-      "notifications": "Notifiche",
-      "unreadBadge": "{count, plural, =1 {1 notifica non letta} other {# notifiche non lette}}",
-      "title": "Notifiche",
-      "pageTitle": "Notifiche",
-      "emptyState": "Nessuna notifica per ora",
-      "seeMore": "Vedi altro",
-      "loading": "Caricamento...",
-      "loadMore": "Carica altro"
     }
   },
   "App": {

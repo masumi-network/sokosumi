@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/contexts/notification-provider";
 import { getNotificationHref } from "@/lib/utils/notification-href";
-import { formatNotificationTime } from "@/lib/utils/notification-time";
+import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 
 import { NotificationItem } from "./notification-item";
 
@@ -22,6 +22,7 @@ export function NotificationDropdownContent({
 }: NotificationDropdownContentProps) {
   const t = useTranslations("Components.NotificationCenter");
   const router = useRouter();
+  const formatTime = useNotificationTimeFormatter();
   const { notifications, markRead, isLoading } = useNotifications();
 
   const handleNotificationClick = async (notificationId: string) => {
@@ -29,7 +30,11 @@ export function NotificationDropdownContent({
     if (!notification) return;
 
     if (!notification.isRead) {
-      await markRead(notificationId);
+      try {
+        await markRead(notificationId);
+      } catch {
+        return;
+      }
     }
 
     const href = getNotificationHref({
@@ -74,7 +79,7 @@ export function NotificationDropdownContent({
             key={notification.id}
             notification={notification}
             onClick={() => handleNotificationClick(notification.id)}
-            formatTime={formatNotificationTime}
+            formatTime={formatTime}
           />
         ))}
       </div>
