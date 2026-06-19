@@ -142,7 +142,6 @@ export function NotificationsPageContent({
         );
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
-        return;
       }
     }
 

@@ -19,9 +19,22 @@ import {
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
+import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 
 function dismissNotificationToast(notificationId: string) {
   toast.dismiss(notificationId);
+}
+
+function dismissAllNotificationToasts() {
+  for (const activeToast of toast.getToasts()) {
+    if ("dismiss" in activeToast) {
+      continue;
+    }
+
+    if (activeToast.toasterId === NOTIFICATION_TOASTER_ID) {
+      toast.dismiss(activeToast.id);
+    }
+  }
 }
 
 interface NotificationContextValue {
@@ -202,8 +215,6 @@ function NotificationProviderBody({
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
-  const notificationsRef = useRef(notifications);
-  notificationsRef.current = notifications;
 
   const fetchNotifications = useCallback(async () => {
     const generation = ++fetchGenerationRef.current;
@@ -241,11 +252,7 @@ function NotificationProviderBody({
     try {
       await coreClient.patchNotificationsReadAll();
 
-      for (const notification of notificationsRef.current) {
-        if (!notification.isRead) {
-          dismissNotificationToast(notification.id);
-        }
-      }
+      dismissAllNotificationToasts();
 
       dispatch({ type: "mark_all_read" });
     } catch (error) {
