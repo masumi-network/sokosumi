@@ -57,7 +57,6 @@ const requestJobRefundMock = vi.fn();
 const createAgentJobMock = vi.fn();
 const getAgentByIdMock = vi.fn();
 const getMyCreditsMock = vi.fn();
-const generateJobNameMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 const callAgentHiredWebHookMock = vi.fn();
 
@@ -83,12 +82,6 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
   toCoreApiActionError: (...args: unknown[]) =>
     toCoreApiActionErrorMock(...args),
-}));
-
-vi.mock("@/lib/clients/openrouter.client", () => ({
-  openrouterClient: {
-    generateJobName: (...args: unknown[]) => generateJobNameMock(...args),
-  },
 }));
 
 vi.mock("@/lib/services", () => ({
@@ -123,12 +116,9 @@ describe("startJob", () => {
         },
       },
     });
-    generateJobNameMock.mockResolvedValue(
-      "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create requests are sent",
-    );
   });
 
-  it("creates an immediate job through the core client with a generated name", async () => {
+  it("creates an immediate job through the core client", async () => {
     createAgentJobMock.mockResolvedValue({
       data: {
         id: "job-1",
@@ -154,16 +144,9 @@ describe("startJob", () => {
       inputSchema: { input_data: [] },
       inputData: { prompt: "hello" },
       maxCredits: 1,
-      name: "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create",
     });
+    expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty("name");
     expect(getAgentByIdMock).toHaveBeenCalledWith("agent-1");
-    expect(generateJobNameMock).toHaveBeenCalledWith(
-      {
-        name: "Research Agent",
-        description: "Researches topics",
-      },
-      { prompt: "hello" },
-    );
     expect(callAgentHiredWebHookMock).toHaveBeenCalledWith(
       "user-1",
       "ada@example.com",
@@ -207,8 +190,8 @@ describe("startJob", () => {
       inputData: { prompt: "hello" },
       maxCredits: 1,
       projectId: "project-1",
-      name: "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create",
     });
+    expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty("name");
     expect(result).toEqual({
       ok: true,
       data: {
@@ -241,7 +224,6 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
-    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
@@ -269,7 +251,6 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
-    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(sentrySetTagMock).toHaveBeenCalledWith(
       "error_type",
       "job_start_agent_fetch_failed",
@@ -313,8 +294,8 @@ describe("startJob", () => {
     expect(createAgentJobMock).toHaveBeenCalledWith("agent-1", {
       inputSchema: { input_data: [] },
       inputData: { prompt: "hello" },
-      name: "Generated research title that is intentionally longer than the Core job name limit so it is trimmed safely before create",
     });
+    expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty("name");
     expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty(
       "maxCredits",
     );
@@ -332,7 +313,6 @@ describe("startJob", () => {
     } as never);
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
-    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
@@ -395,7 +375,6 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
-    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {
@@ -519,7 +498,6 @@ describe("startJob", () => {
     });
 
     expect(createAgentJobMock).not.toHaveBeenCalled();
-    expect(generateJobNameMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       ok: false,
       error: {

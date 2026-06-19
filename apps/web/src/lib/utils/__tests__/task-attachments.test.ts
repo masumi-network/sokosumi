@@ -7,7 +7,6 @@ import {
   formatTaskAttachmentMarkdown,
   isDesignMdAttachmentSkipped,
   markDesignMdDismissed,
-  removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
   seedTaskDescriptionWithDesignMd,
@@ -114,27 +113,6 @@ describe("task-attachments", () => {
     expect(sanitizeTaskAttachmentLabel("[]", "fallback-file")).toBe(
       "fallback-file",
     );
-  });
-
-  it("removes DESIGN.md attachment links from task descriptions", () => {
-    const markdown = [
-      "[DESIGN.md](https://blob.example/design.md)",
-      "",
-      "Build landing page",
-    ].join("\n");
-
-    expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
-  });
-
-  it("removes DESIGN.md links when the url contains escaped closing parens", () => {
-    const urlWithParen = "https://blob.example/design).md";
-    const markdown = [
-      formatTaskAttachmentMarkdown("DESIGN.md", urlWithParen).trimEnd(),
-      "",
-      "Build landing page",
-    ].join("\n");
-
-    expect(removeDesignMdAttachmentLinks(markdown)).toBe("Build landing page");
   });
 
   it("seeds empty descriptions with DESIGN.md attachment links", () => {

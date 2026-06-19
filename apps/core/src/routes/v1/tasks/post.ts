@@ -7,6 +7,7 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
+import { resolveTaskName } from "@/helpers/task-name";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -19,7 +20,13 @@ import { taskInclude } from "@/types/task";
 
 export const createTaskRequestSchema = z
   .object({
-    name: z.string().min(1).max(120).openapi({ example: "Review onboarding" }),
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .optional()
+      .openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),
     projectId: z
       .string()
@@ -87,6 +94,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
+    const resolvedName = await resolveTaskName({
+      name: body.name,
+      description: body.description,
+    });
+
     const task = await prisma.$transaction(async (tx) => {
       validateTaskCoworkerAssignment({
         status: body.status,
@@ -117,7 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           projectId: body.projectId ?? null,
-          name: body.name,
+          name: resolvedName,
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,
           status: body.status,

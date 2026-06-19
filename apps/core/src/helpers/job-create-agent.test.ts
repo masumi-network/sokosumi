@@ -9,6 +9,7 @@ import { createAgentJobForUser } from "./job";
 const {
   agentFindFirstMock,
   createAgentClientMock,
+  generateJobNameMock,
   getAgentCostMock,
   getCreditCostsOrThrowMock,
   projectFindFirstMock,
@@ -17,6 +18,7 @@ const {
 } = vi.hoisted(() => ({
   agentFindFirstMock: vi.fn(),
   createAgentClientMock: vi.fn(),
+  generateJobNameMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -36,7 +38,7 @@ vi.mock("@sokosumi/masumi", () => ({
 
 vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: {
-    generateJobName: vi.fn(),
+    generateJobName: generateJobNameMock,
   },
 }));
 
@@ -203,5 +205,22 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     const createCall = txJobCreateMock.mock.calls[0]?.[0];
     expect(projectFindFirstMock).not.toHaveBeenCalled();
     expect(createCall.data).not.toHaveProperty("project");
+  });
+
+  it("clamps a generated job name to the max length", async () => {
+    generateJobNameMock.mockResolvedValue("x".repeat(200));
+
+    await createAgentJobForUser(
+      createInput({
+        agentInput: {
+          ...createInput().agentInput,
+          name: undefined,
+        },
+      }),
+    );
+
+    expect(generateJobNameMock).toHaveBeenCalled();
+    const createCall = txJobCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.name).toBe("x".repeat(120));
   });
 });

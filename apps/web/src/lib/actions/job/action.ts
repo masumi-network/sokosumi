@@ -5,19 +5,14 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import {
-  type CoreJobInputData,
-  toCoreJobInputData,
-} from "@/lib/actions/job/core-job-input";
+import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import {
   CoreApiRequestError,
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type { Job } from "@/lib/clients/generated/core";
-import { openrouterClient } from "@/lib/clients/openrouter.client";
 import {
-  JOB_NAME_MAX_LENGTH,
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
   type ProvideJobInputSchemaType,
@@ -34,13 +29,6 @@ import {
 } from "@/middleware/auth-middleware";
 
 const ZERO_ACCEPTED_CENTS = BigInt(0);
-
-function normalizeCoreJobName(name: string | null): string | null {
-  const trimmedName = name?.trim();
-  if (!trimmedName) return null;
-
-  return trimmedName.slice(0, JOB_NAME_MAX_LENGTH);
-}
 
 async function resolveAvailableCredits(): Promise<number | null> {
   try {
@@ -126,47 +114,6 @@ async function fetchAgentRowForCoreJobStart(agentId: string): Promise<{
             severity: "warning",
             domain: "job_start",
             category: "core_api",
-          },
-        },
-      });
-    });
-
-    return null;
-  }
-}
-
-/**
- * OpenRouter name generation — call only after agent fetch and credit
- * preflights succeed so rejected starts do not incur LLM latency or cost.
- */
-async function generateCoreJobNameForJobStart(
-  agentId: string,
-  agent: { name: string; description: string },
-  inputData: CoreJobInputData,
-): Promise<string | null> {
-  try {
-    const generatedName = await openrouterClient.generateJobName(
-      {
-        name: agent.name,
-        description: agent.description,
-      },
-      inputData,
-    );
-
-    return normalizeCoreJobName(generatedName);
-  } catch (error) {
-    Sentry.withScope((scope) => {
-      scope.setTag("error_type", "job_name_generation_failed");
-      scope.setContext("job_name_generation", {
-        agentId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      Sentry.captureException(error, {
-        contexts: {
-          error_classification: {
-            severity: "warning",
-            domain: "job_name_generation",
-            category: "action_layer",
           },
         },
       });
@@ -339,18 +286,6 @@ export const startJob = withSession<
         }
       }
 
-      const generatedName =
-        agentRow == null
-          ? null
-          : await generateCoreJobNameForJobStart(
-              parsed.agentId,
-              {
-                name: agentRow.name,
-                description: agentRow.description,
-              },
-              coreInputData,
-            );
-
       const job = await coreClient.createAgentJob(parsed.agentId, {
         inputSchema: parsed.inputSchema,
         inputData: coreInputData,
@@ -360,7 +295,6 @@ export const startJob = withSession<
         ...(typeof parsed.projectId !== "undefined"
           ? { projectId: parsed.projectId }
           : {}),
-        ...(generatedName ? { name: generatedName } : {}),
       });
 
       // Add success breadcrumb
