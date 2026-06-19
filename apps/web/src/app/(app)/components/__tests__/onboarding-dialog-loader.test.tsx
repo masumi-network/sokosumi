@@ -1,5 +1,6 @@
 import { MemberRole } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
+import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,19 +17,6 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
-vi.mock("stripe", () => ({
-  __esModule: true,
-  default: vi.fn(function MockStripe() {
-    return {};
-  }),
-}));
-
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => ({
-    STRIPE_SECRET_KEY: "sk_test_mock",
-  }),
-}));
-
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
     status?: number;
@@ -42,6 +30,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getOrganizationBillingPlan: (...args: unknown[]) =>
       getOrganizationBillingPlanMock(...args),
+    getSubscriptionCatalog: (...args: unknown[]) =>
+      getSubscriptionCatalogMock(...args),
   },
 }));
 
@@ -58,11 +48,6 @@ vi.mock("@/lib/services", () => ({
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
-}));
-
-vi.mock("@/lib/stripe/subscription-catalog", () => ({
-  getSubscriptionCatalog: (...args: unknown[]) =>
-    getSubscriptionCatalogMock(...args),
 }));
 
 vi.mock("../onboarding-dialog", () => ({
@@ -102,7 +87,9 @@ function createSubscriptionCatalog() {
 describe("OnboardingDialogLoader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getSubscriptionCatalogMock.mockResolvedValue(createSubscriptionCatalog());
+    getSubscriptionCatalogMock.mockResolvedValue({
+      data: createSubscriptionCatalog(),
+    });
     getOrganizationBillingPlanMock.mockResolvedValue({
       data: {
         cancelAtPeriodEnd: false,
@@ -113,12 +100,14 @@ describe("OnboardingDialogLoader", () => {
         purchasedSeats: 3,
       },
     });
-    listActiveSubscriptionsMock.mockResolvedValue([
-      {
-        periodEnd: "2026-04-01T00:00:00.000Z",
-        plan: "pro",
-      },
-    ]);
+    listActiveSubscriptionsMock.mockResolvedValue(
+      ok([
+        {
+          periodEnd: "2026-04-01T00:00:00.000Z",
+          plan: "pro",
+        },
+      ]),
+    );
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 3,
@@ -230,8 +219,8 @@ describe("OnboardingDialogLoader", () => {
     );
   });
 
-  it("defaults personal plan to free when active subscriptions cannot be loaded", async () => {
-    listActiveSubscriptionsMock.mockResolvedValue([]);
+  it("shows no current personal plan when the user has no active subscriptions", async () => {
+    listActiveSubscriptionsMock.mockResolvedValue(ok([]));
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -258,5 +247,55 @@ describe("OnboardingDialogLoader", () => {
       customerType: "user",
     });
     expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it("skips subscription-only onboarding when personal subscription reads fail", async () => {
+    listActiveSubscriptionsMock.mockResolvedValue(
+      err({
+        path: "/auth/subscription/list",
+        reason: "network",
+      }),
+    );
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: null,
+        loginId: "session-1",
+        subscriptionOnly: true,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+  });
+
+  it("skips full onboarding when personal subscription reads fail", async () => {
+    listActiveSubscriptionsMock.mockResolvedValue(
+      err({
+        path: "/auth/subscription/list",
+        reason: "network",
+      }),
+    );
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: null,
+        loginId: "session-1",
+        subscriptionOnly: false,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
   });
 });

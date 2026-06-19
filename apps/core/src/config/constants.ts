@@ -1,3 +1,5 @@
+import { DEFAULT_WEBHOOK_TIMEOUT_MS } from "@sokosumi/utils";
+
 /**
  * Application constants for the Core API
  * Centralized configuration values for better maintainability
@@ -7,9 +9,6 @@
  * Time durations in seconds
  */
 export const TIME = {
-  /** Webhook request timeout (10 seconds) */
-  WEBHOOK_TIMEOUT: 10,
-
   /** Email verification link expiration (2 days) */
   EMAIL_VERIFICATION_EXPIRES: 2 * 24 * 60 * 60,
 
@@ -69,6 +68,12 @@ export const LIMITS = {
   /** Minimum chargeable credits */
   MIN_CHARGEABLE_CREDITS: 1e-10,
 } as const;
+
+/** User-Agent sent with outbound webhook requests from the Core API. */
+export const WEBHOOK_USER_AGENT = "Sokosumi-Core-API/1.0";
+
+/** Outbound webhook request timeout for Core API callers (from `@sokosumi/utils`). */
+export const WEBHOOK_TIMEOUT_MS = DEFAULT_WEBHOOK_TIMEOUT_MS;
 
 /**
  * Cryptographic algorithms and settings

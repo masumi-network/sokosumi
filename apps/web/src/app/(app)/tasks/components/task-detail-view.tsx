@@ -26,6 +26,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
+import { formatShortDateTime } from "@/lib/utils/datetime";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
@@ -228,12 +229,13 @@ async function TaskOverviewSection({
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
-  const [coworkers, agents, project, t, tStatus] = await Promise.all([
+  const [coworkers, agents, project, t, tStatus, locale] = await Promise.all([
     coworkersPromise,
     agentsPromise,
     projectPromise,
     getTranslations("App.Tasks.Detail"),
     getTranslations("App.Tasks.Filters.statusOptions"),
+    getLocale(),
   ]);
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
     task,
@@ -254,6 +256,8 @@ async function TaskOverviewSection({
       <TaskMetadata
         task={task}
         project={project ? { id: project.id, name: project.name } : null}
+        createdAtLabel={formatShortDateTime(task.createdAt, locale)}
+        updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
         labels={{
           propertiesTitle: t("properties"),
           status: t("status"),

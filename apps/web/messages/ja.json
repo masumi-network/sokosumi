@@ -247,6 +247,8 @@
       "billing": "請求",
       "account": "アカウント",
       "admin": "管理",
+      "organizations": "組織",
+      "users": "ユーザー",
       "edit": "編集",
       "enterprise-contracts": "エンタープライズ契約",
       "mcp": "Model Context Protocol（MCP）",
@@ -2629,6 +2631,10 @@
             "title": "ユーザー",
             "description": "クレジット、サブスクリプション、アクティビティを含む全ユーザーの検索可能な一覧。"
           },
+          "organizations": {
+            "title": "組織",
+            "description": "メンバー、請求、クレジットを含む組織の検索可能な一覧。"
+          },
           "tasks": {
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
@@ -2649,6 +2655,86 @@
           "registered": "登録日",
           "loadMore": "さらに読み込む",
           "loadError": "ユーザーの読み込みに失敗しました。"
+        }
+      },
+      "Organizations": {
+        "title": "組織",
+        "description": "すべての組織の検索可能な一覧",
+        "OrganizationList": {
+          "searchPlaceholder": "名前またはスラッグで検索…",
+          "totalCount": "{count, plural, other {# 件の組織}}",
+          "empty": "組織が見つかりません。",
+          "organization": "組織",
+          "members": "メンバー",
+          "billing": "請求",
+          "subscription": "サブスクリプション",
+          "seats": "{count, plural, other {# 席}}",
+          "created": "作成日",
+          "loadMore": "さらに読み込む",
+          "loadError": "組織の読み込みに失敗しました。"
+        },
+        "OrganizationDetail": {
+          "backToList": "組織一覧に戻る",
+          "billing": {
+            "title": "請求",
+            "plan": "プラン: {plan}",
+            "mode": "モード: {mode}",
+            "seats": "{purchased} 購入済み · {assigned} 割り当て済み · {unused} 未使用",
+            "subscription": "サブスクリプション: {plan} ({status})",
+            "enterprisePool": "エンタープライズプール: {credits} クレジット"
+          },
+          "credits": {
+            "title": "クレジット合計",
+            "description": "この組織で利用可能なクレジットの合計。",
+            "perMember": "クレジットは下のメンバーごとに表示されます。"
+          },
+          "members": {
+            "title": "メンバー",
+            "totalCount": "{count, plural, other {# 人のメンバー}}",
+            "empty": "メンバーがまだいません。",
+            "loadMore": "さらに読み込む",
+            "loadError": "メンバーの読み込みに失敗しました。",
+            "user": "ユーザー",
+            "role": "役割",
+            "credits": "クレジット",
+            "subscription": "サブスクリプション",
+            "seat": "Seat",
+            "seatAssigned": "割り当て済み",
+            "seatUnassigned": "未割り当て",
+            "actions": "操作"
+          },
+          "roles": {
+            "owner": "オーナー",
+            "admin": "管理者",
+            "member": "メンバー"
+          },
+          "addMember": {
+            "submit": "メンバーを追加",
+            "success": "メンバーを追加しました",
+            "userRequired": "追加するユーザーを選択してください",
+            "combobox": {
+              "placeholder": "ユーザーを選択…",
+              "search": "ユーザーを検索…",
+              "empty": "ユーザーが見つかりません。",
+              "loading": "検索中…",
+              "error": "検索に失敗しました。",
+              "idle": "入力してユーザーを検索してください。",
+              "clear": "選択をクリア"
+            }
+          },
+          "actions": {
+            "makeOwner": "オーナーにする",
+            "makeAdmin": "管理者にする",
+            "makeMember": "メンバーにする",
+            "assignSeat": "Seatを割り当て",
+            "unassignSeat": "Seatを削除",
+            "remove": "メンバーを削除"
+          },
+          "memberActionError": "メンバー操作に失敗しました。",
+          "roleUpdateSuccess": "役割を更新しました。",
+          "seatAssignSuccess": "Seatを割り当てました。",
+          "seatUnassignSuccess": "Seatを削除しました。",
+          "removeSuccess": "メンバーを削除しました。"
         }
       },
       "Invoices": {
@@ -2924,6 +3010,9 @@
         "notConnected": "は接続されていません",
         "success": "アカウントを接続しました",
         "error": "{provider} の接続に失敗しました",
+        "loadErrorTitle": "接続済みアカウントを読み込めませんでした",
+        "loadError": "接続済みアカウントを現在読み込めません。",
+        "retry": "再試行",
         "DisconnectModal": {
           "title": "{provider} の接続を解除",
           "description": "{provider} アカウントの接続を解除してよろしいですか？",
@@ -2932,6 +3021,11 @@
           "success": "アカウントの接続を解除しました",
           "error": "{provider} の接続解除に失敗しました"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "アカウント情報を読み込めませんでした",
+        "loadError": "リンク済みアカウントの情報を現在読み込めません。",
+        "retry": "再試行"
       },
       "Notifications": {
         "title": "メール通知",
@@ -3047,6 +3141,11 @@
           "title": "クライアントが見つかりません",
           "description": "OAuthクライアントが見つかりませんでした。",
           "descriptionWithId": "ID {clientId} のOAuthクライアントは存在しません。"
+        },
+        "loadError": {
+          "title": "アプリケーションを読み込めませんでした",
+          "description": "アプリケーションの詳細を現在読み込めません。もう一度お試しください。",
+          "retry": "再試行"
         },
         "title": "アプリケーションを承認",
         "description": "アプリケーションがあなたのアカウントへのアクセスを要求しています",
@@ -3564,6 +3663,25 @@
         "hours": "{value, plural, =1 {#時間} other {#時間}}",
         "minutes": "{value, plural, =1 {#分} other {#分}}",
         "seconds": "{value, plural, =1 {#秒} other {#秒}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName}が{jobName}を完了しました",
+        "failed": "{agentName}は{jobName}を完了できませんでした",
+        "paymentFailed": "{jobName}の支払いに失敗しました",
+        "inputRequired": "{agentName}は{jobName}の入力を必要としています",
+        "refundResolved": "{jobName}は返金されました",
+        "disputeResolved": "{jobName}の異議申し立てが解決されました"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName}は{taskName}の入力を必要としています",
+        "approvalRequired": "{coworkerName}は{taskName}の承認を必要としています",
+        "authenticationRequired": "{coworkerName}は{taskName}の認証を必要としています",
+        "outOfCredits": "{coworkerName}は{taskName}のクレジットを使い果たしました",
+        "completed": "{coworkerName}が{taskName}を完了しました",
+        "failed": "{coworkerName}は{taskName}を完了できませんでした",
+        "canceled": "{taskName}はキャンセルされました"
       }
     }
   }

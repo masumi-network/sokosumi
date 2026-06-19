@@ -63,6 +63,29 @@ export const PaginationMetadataSchema = {
     ]
 } as const;
 
+export const AdminOrganizationOptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'org_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Acme Corp'
+        },
+        slug: {
+            type: 'string',
+            example: 'acme-corp'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug'
+    ]
+} as const;
+
 export const AdminUserOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -101,7 +124,19 @@ export const AdminUserOverviewItemSchema = {
                 'string',
                 'null'
             ],
-            example: 'active'
+            enum: [
+                'active',
+                'canceled',
+                'incomplete',
+                'incomplete_expired',
+                'past_due',
+                'paused',
+                'trialing',
+                'unpaid',
+                null
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         },
         startedTaskCount: {
             type: 'integer',
@@ -122,7 +157,7 @@ export const AdminUserOverviewItemSchema = {
     ]
 } as const;
 
-export const AdminOrganizationOptionSchema = {
+export const AdminOrganizationOverviewItemSchema = {
     type: 'object',
     properties: {
         id: {
@@ -136,12 +171,479 @@ export const AdminOrganizationOptionSchema = {
         slug: {
             type: 'string',
             example: 'acme-corp'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        memberCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 12
+        },
+        billingMode: {
+            type: 'string',
+            enum: [
+                'enterprise_contract',
+                'self_serve'
+            ],
+            example: 'self_serve'
+        },
+        billingPlan: {
+            type: 'string',
+            enum: [
+                'free',
+                'starter',
+                'standard',
+                'pro',
+                'enterprise'
+            ],
+            example: 'starter'
+        },
+        purchasedSeats: {
+            type: 'integer',
+            example: 5
+        },
+        subscriptionPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Active organization subscription plan, if any',
+            example: 'starter'
+        },
+        subscriptionStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'active',
+                'canceled',
+                'incomplete',
+                'incomplete_expired',
+                'past_due',
+                'paused',
+                'trialing',
+                'unpaid',
+                null
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
         }
     },
     required: [
         'id',
         'name',
-        'slug'
+        'slug',
+        'createdAt',
+        'memberCount',
+        'billingMode',
+        'billingPlan',
+        'purchasedSeats',
+        'subscriptionPlan',
+        'subscriptionStatus'
+    ]
+} as const;
+
+export const AdminOrganizationOverviewDetailSchema = {
+    type: 'object',
+    properties: {
+        organization: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'org_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Corp'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'acme-corp'
+                },
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                stripeCustomerId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'cus_123'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'slug',
+                'createdAt',
+                'stripeCustomerId'
+            ]
+        },
+        billingPlan: {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'enterprise_contract',
+                        'self_serve'
+                    ]
+                },
+                plan: {
+                    type: 'string',
+                    enum: [
+                        'free',
+                        'starter',
+                        'standard',
+                        'pro',
+                        'enterprise'
+                    ]
+                },
+                isConsumable: {
+                    type: 'boolean'
+                },
+                purchasedSeats: {
+                    type: 'integer'
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                periodEnd: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'mode',
+                'plan',
+                'isConsumable',
+                'purchasedSeats',
+                'cancelAtPeriodEnd',
+                'periodEnd'
+            ]
+        },
+        subscription: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                plan: {
+                    type: 'string'
+                },
+                status: {
+                    type: 'string'
+                },
+                cancelAtPeriodEnd: {
+                    type: 'boolean'
+                },
+                periodStart: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                periodEnd: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                seats: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'plan',
+                'status',
+                'cancelAtPeriodEnd',
+                'periodStart',
+                'periodEnd',
+                'seats'
+            ]
+        },
+        enterpriseContract: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                poolRemainingCredits: {
+                    type: 'number'
+                },
+                monthlyCredits: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                purchasedSeats: {
+                    type: 'integer'
+                },
+                isConsumable: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'poolRemainingCredits',
+                'monthlyCredits',
+                'purchasedSeats',
+                'isConsumable'
+            ]
+        },
+        seatSummary: {
+            type: 'object',
+            properties: {
+                assignedCount: {
+                    type: 'integer'
+                },
+                memberCount: {
+                    type: 'integer'
+                },
+                purchasedSeats: {
+                    type: 'integer'
+                },
+                unusedSeats: {
+                    type: 'integer'
+                },
+                paidPlan: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                isEnterpriseContract: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'assignedCount',
+                'memberCount',
+                'purchasedSeats',
+                'unusedSeats',
+                'paidPlan',
+                'isEnterpriseContract'
+            ]
+        },
+        totalCredits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Enterprise pool remaining credits; null for self-serve organizations where credits are per member',
+            example: 1200
+        }
+    },
+    required: [
+        'organization',
+        'billingPlan',
+        'subscription',
+        'enterpriseContract',
+        'seatSummary',
+        'totalCredits'
+    ]
+} as const;
+
+export const AdminOrganizationMemberOverviewItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'member_123'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member'
+        },
+        seatAssignedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'user_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Jane Doe'
+                },
+                email: {
+                    type: 'string',
+                    example: 'jane@example.com'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        },
+        lastSeenAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        credits: {
+            type: 'number',
+            description: 'Available credits for this member in the organization',
+            example: 42.5
+        },
+        subscriptionPlan: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Member subscription plan in organization context',
+            example: 'starter'
+        },
+        subscriptionStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'active',
+                'canceled',
+                'incomplete',
+                'incomplete_expired',
+                'past_due',
+                'paused',
+                'trialing',
+                'unpaid',
+                null
+            ],
+            example: 'active',
+            description: 'Stripe subscription lifecycle status, or null when absent'
+        }
+    },
+    required: [
+        'id',
+        'organizationId',
+        'role',
+        'seatAssignedAt',
+        'createdAt',
+        'user',
+        'lastSeenAt',
+        'credits',
+        'subscriptionPlan',
+        'subscriptionStatus'
+    ]
+} as const;
+
+export const AdminAddOrganizationMemberBodySchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'User ID to add as a member',
+            example: 'user_123'
+        },
+        role: {
+            type: 'string',
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            default: 'member',
+            example: 'member'
+        }
+    },
+    required: [
+        'userId'
+    ]
+} as const;
+
+export const AdminUpdateOrganizationMemberRoleBodySchema = {
+    type: 'object',
+    properties: {
+        role: {
+            type: 'string',
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'admin'
+        }
+    },
+    required: [
+        'role'
+    ]
+} as const;
+
+export const OrganizationSeatAssignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was assigned to',
+            example: 'member_123'
+        },
+        seatAssignedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the seat was assigned'
+        }
+    },
+    required: [
+        'memberId',
+        'seatAssignedAt'
+    ]
+} as const;
+
+export const OrganizationSeatUnassignmentSchema = {
+    type: 'object',
+    properties: {
+        memberId: {
+            type: 'string',
+            description: 'ID of the member the seat was unassigned from',
+            example: 'member_123'
+        }
+    },
+    required: [
+        'memberId'
     ]
 } as const;
 
@@ -2407,6 +2909,108 @@ export const ChatUiMessageSchema = {
     ]
 } as const;
 
+export const CreditCheckoutSessionSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://checkout.stripe.com/...'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
+export const CreateCreditCheckoutSessionSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1000
+        },
+        returnPath: {
+            type: 'string',
+            example: '/billing?tab=credits'
+        },
+        promotionCodeId: {
+            type: 'string',
+            example: 'promo_123'
+        }
+    },
+    required: [
+        'credits'
+    ]
+} as const;
+
+export const CheckoutSessionAnalyticsSchema = {
+    type: 'object',
+    properties: {
+        sessionId: {
+            type: 'string',
+            example: 'cs_test_123'
+        },
+        currency: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'eur'
+        },
+        value: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 12000
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    itemId: {
+                        type: 'string',
+                        example: 'prod_123'
+                    },
+                    itemName: {
+                        type: 'string',
+                        example: 'Credits'
+                    },
+                    quantity: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        example: 1
+                    }
+                },
+                required: [
+                    'itemId',
+                    'itemName',
+                    'quantity'
+                ]
+            },
+            example: []
+        }
+    },
+    required: [
+        'sessionId',
+        'currency',
+        'value',
+        'items'
+    ]
+} as const;
+
 export const ConversationListSchema = {
     type: 'array',
     items: {
@@ -2843,6 +3447,69 @@ export const CreateConversationMessageRequestSchema = {
         'role',
         'content'
     ]
+} as const;
+
+export const CouponDetailsSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'coupon_123'
+        },
+        percentOff: {
+            type: 'number',
+            example: 100
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 100
+        },
+        ttlDays: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '30'
+        }
+    },
+    required: [
+        'id',
+        'percentOff',
+        'credits',
+        'ttlDays'
+    ]
+} as const;
+
+export const ClaimedPromotionCodeSchema = {
+    type: 'object',
+    properties: {
+        promotionCodeId: {
+            type: 'string',
+            example: 'promo_123'
+        },
+        active: {
+            type: 'boolean',
+            example: true
+        }
+    },
+    required: [
+        'promotionCodeId',
+        'active'
+    ]
+} as const;
+
+export const ClaimCouponSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'org_123'
+        }
+    }
 } as const;
 
 export const CreditCostSchema = {
@@ -4355,6 +5022,18 @@ export const HistoryTaskItemSchema = {
             description: 'User-facing credits. Null means credits do not apply to this item.',
             example: 2.5
         },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            example: null
+        },
         kind: {
             type: 'string',
             enum: [
@@ -4405,10 +5084,40 @@ export const HistoryTaskItemSchema = {
         'updatedAt',
         'archivedAt',
         'credits',
+        'owner',
         'kind',
         'status',
         'projectId',
         'coworkerId'
+    ]
+} as const;
+
+export const HistoryOwnerSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            description: 'User ID of the history item owner',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            description: 'Display name of the owner',
+            example: 'Alice Johnson'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Profile image URL of the owner. Null when no image is set.',
+            example: 'https://example.com/avatar.jpg'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'image'
     ]
 } as const;
 
@@ -4455,6 +5164,18 @@ export const HistoryJobItemSchema = {
             ],
             description: 'User-facing credits. Null means credits do not apply to this item.',
             example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            example: null
         },
         kind: {
             type: 'string',
@@ -4518,6 +5239,7 @@ export const HistoryJobItemSchema = {
         'updatedAt',
         'archivedAt',
         'credits',
+        'owner',
         'kind',
         'status',
         'projectId',
@@ -4568,6 +5290,18 @@ export const HistoryConversationItemSchema = {
             description: 'Conversations do not currently have credits',
             example: null
         },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).',
+            example: null
+        },
         kind: {
             type: 'string',
             enum: [
@@ -4598,6 +5332,7 @@ export const HistoryConversationItemSchema = {
         'updatedAt',
         'archivedAt',
         'credits',
+        'owner',
         'kind',
         'status',
         'bucketSlug'
@@ -4791,7 +5526,13 @@ export const MemberWithOrganizationSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         seatAssignedAt: {
             type: [
@@ -4939,7 +5680,13 @@ export const OrganizationSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         }
     },
     required: [
@@ -4969,7 +5716,13 @@ export const MemberRecordSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         seatAssignedAt: {
             type: [
@@ -5334,7 +6087,18 @@ export const ActiveSubscriptionResponseSchema = {
                 },
                 status: {
                     type: 'string',
-                    example: 'active'
+                    enum: [
+                        'active',
+                        'canceled',
+                        'incomplete',
+                        'incomplete_expired',
+                        'past_due',
+                        'paused',
+                        'trialing',
+                        'unpaid'
+                    ],
+                    example: 'active',
+                    description: 'Stripe subscription lifecycle status'
                 },
                 cancelAtPeriodEnd: {
                     type: [
@@ -5458,7 +6222,13 @@ export const MemberSchema = {
         },
         role: {
             type: 'string',
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member'
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         seatAssignedAt: {
             type: [
@@ -5524,41 +6294,6 @@ export const MemberSchema = {
     ]
 } as const;
 
-export const OrganizationSeatAssignmentSchema = {
-    type: 'object',
-    properties: {
-        memberId: {
-            type: 'string',
-            description: 'ID of the member the seat was assigned to',
-            example: 'member_123'
-        },
-        seatAssignedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'When the seat was assigned'
-        }
-    },
-    required: [
-        'memberId',
-        'seatAssignedAt'
-    ]
-} as const;
-
-export const OrganizationSeatUnassignmentSchema = {
-    type: 'object',
-    properties: {
-        memberId: {
-            type: 'string',
-            description: 'ID of the member the seat was unassigned from',
-            example: 'member_123'
-        }
-    },
-    required: [
-        'memberId'
-    ]
-} as const;
-
 export const PendingInvitationSchema = {
     type: 'object',
     properties: {
@@ -5579,11 +6314,25 @@ export const PendingInvitationSchema = {
                 'string',
                 'null'
             ],
-            example: 'member'
+            enum: [
+                'owner',
+                'admin',
+                'member',
+                null
+            ],
+            example: 'member',
+            description: 'Organization member role'
         },
         status: {
             type: 'string',
-            example: 'pending'
+            enum: [
+                'pending',
+                'accepted',
+                'rejected',
+                'canceled'
+            ],
+            example: 'pending',
+            description: 'Invitation lifecycle status stored in the database'
         },
         expiresAt: {
             type: 'string',
@@ -6876,6 +7625,144 @@ export const Job_EventSchema = {
     ]
 } as const;
 
+export const NotificationListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/NotificationItem'
+    }
+} as const;
+
+export const NotificationItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Unique identifier for the notification',
+            example: 'cm123456789abcdefghij'
+        },
+        userId: {
+            type: 'string',
+            description: 'User ID of the notification owner',
+            example: 'cm123456789abcdefghij'
+        },
+        kind: {
+            $ref: '#/components/schemas/NotificationKind'
+        },
+        referenceId: {
+            type: 'string',
+            description: 'ID of the related entity (job id, task id, etc.)',
+            example: 'cm123456789abcdefghij'
+        },
+        eventId: {
+            type: 'string',
+            description: 'ID of the source event (jobEvent or taskEvent, depending on kind)',
+            example: 'cm123456789abcdefghij'
+        },
+        messageKey: {
+            type: 'string',
+            description: 'i18n message key for translation (e.g. Notifications.Job.completed)',
+            example: 'Notifications.Job.completed'
+        },
+        messageParams: {
+            type: 'object',
+            additionalProperties: {},
+            description: 'ICU interpolation parameters for the message',
+            example: {
+                agentName: 'Research Agent',
+                jobName: 'Market Analysis'
+            }
+        },
+        metadata: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {},
+            description: 'Optional metadata for deep-linking or context',
+            example: {
+                agentId: 'agent_123',
+                projectId: 'proj_456'
+            }
+        },
+        isRead: {
+            type: 'boolean',
+            description: 'Whether the notification has been read',
+            example: false
+        },
+        readAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When the notification was marked as read'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-06-16T15:00:00.000Z',
+            description: 'When the notification was created'
+        }
+    },
+    required: [
+        'id',
+        'userId',
+        'kind',
+        'referenceId',
+        'eventId',
+        'messageKey',
+        'messageParams',
+        'metadata',
+        'isRead',
+        'readAt',
+        'createdAt'
+    ]
+} as const;
+
+export const NotificationKindSchema = {
+    type: 'string',
+    enum: [
+        'JOB',
+        'TASK',
+        'CONVERSATION',
+        'BILLING',
+        'SYSTEM'
+    ],
+    description: 'Notification source domain',
+    example: 'JOB'
+} as const;
+
+export const UnreadCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of unread notifications',
+            example: 5
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
+export const MarkAllReadResponseSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of notifications marked as read',
+            example: 10
+        }
+    },
+    required: [
+        'count'
+    ]
+} as const;
+
 export const GetInvitationResultSchema = {
     oneOf: [
         {
@@ -8046,6 +8933,134 @@ export const CreditPriceOptionSchema = {
         'amountPerCredit',
         'currency',
         'nickname'
+    ]
+} as const;
+
+export const CreditTopUpPricingSchema = {
+    type: 'object',
+    properties: {
+        currency: {
+            type: 'string',
+            example: 'eur'
+        },
+        tiers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CreditTopUpTier'
+            },
+            example: [
+                {
+                    minCredits: 1,
+                    amountPerCredit: 120
+                }
+            ]
+        },
+        referenceAmountPerCredit: {
+            type: 'number',
+            example: 120
+        },
+        canPurchaseOnFreePlan: {
+            type: 'boolean',
+            example: false
+        }
+    },
+    required: [
+        'currency',
+        'tiers',
+        'referenceAmountPerCredit',
+        'canPurchaseOnFreePlan'
+    ]
+} as const;
+
+export const CreditTopUpTierSchema = {
+    type: 'object',
+    properties: {
+        minCredits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1
+        },
+        amountPerCredit: {
+            type: 'number',
+            example: 120
+        }
+    },
+    required: [
+        'minCredits',
+        'amountPerCredit'
+    ]
+} as const;
+
+export const SubscriptionCatalogSchema = {
+    type: 'object',
+    properties: {
+        free: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        },
+        starter: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        },
+        standard: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        },
+        pro: {
+            $ref: '#/components/schemas/SubscriptionCatalogPlan'
+        }
+    },
+    required: [
+        'free',
+        'starter',
+        'standard',
+        'pro'
+    ]
+} as const;
+
+export const SubscriptionCatalogPlanSchema = {
+    type: 'object',
+    properties: {
+        credits: {
+            type: 'number',
+            example: 100
+        },
+        currency: {
+            type: 'string',
+            example: 'eur'
+        },
+        monthlyAmount: {
+            type: 'number',
+            example: 2900
+        },
+        name: {
+            type: 'string',
+            enum: [
+                'free',
+                'starter',
+                'standard',
+                'pro'
+            ],
+            example: 'starter'
+        },
+        priceId: {
+            type: 'string',
+            example: 'price_123'
+        },
+        productId: {
+            type: 'string',
+            example: 'prod_123'
+        },
+        slug: {
+            type: 'string',
+            example: 'starter'
+        }
+    },
+    required: [
+        'credits',
+        'currency',
+        'monthlyAmount',
+        'name',
+        'priceId',
+        'productId',
+        'slug'
     ]
 } as const;
 

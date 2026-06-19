@@ -60,11 +60,6 @@ import { TaskProjectSelect } from "./task-project-select";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
-function deriveTaskName(description: string): string {
-  const firstLine = description.split("\n").find((line) => line.trim());
-  return firstLine?.trim().slice(0, 60) || "Untitled task";
-}
-
 export interface TaskFormLabels {
   details: string;
   detailsDescription: string;
@@ -248,9 +243,6 @@ export function TaskForm({
   );
   const isSubmittingAny = isSubmitting || isSubmittingDraft;
   useEffect(() => {
-    onSubmittingChange?.(isSubmittingAny);
-  }, [isSubmittingAny, onSubmittingChange]);
-  useEffect(() => {
     onCreatedChange?.(createdTask !== null);
   }, [createdTask, onCreatedChange]);
 
@@ -278,6 +270,9 @@ export function TaskForm({
 
   const isNameRequired = mode === "edit";
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
+  useEffect(() => {
+    onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
+  }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const isSaveDisabled =
     !description.trim() ||
     (isNameRequired && !name.trim()) ||
@@ -318,7 +313,7 @@ export function TaskForm({
             router.prefetch(`/tasks/${result.taskId}`);
             setCreatedTask({
               id: result.taskId,
-              name: result.name?.trim() || deriveTaskName(trimmedDescription),
+              name: result.name?.trim() || "Untitled task",
               status: isDraft ? "DRAFT" : "READY",
               statusLabel: isDraft ? labels.statusDraft : labels.statusReady,
             });

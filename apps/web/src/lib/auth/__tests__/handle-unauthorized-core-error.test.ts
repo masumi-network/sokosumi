@@ -21,6 +21,7 @@ vi.mock("next/headers", () => ({
 import {
   isUnauthorizedCoreApiError,
   redirectIfUnauthorizedCoreError,
+  withUnauthorizedCoreRedirect,
 } from "@/lib/auth/handle-unauthorized-core-error";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
@@ -81,6 +82,51 @@ describe("redirectIfUnauthorizedCoreError", () => {
     const error = new Error("boom");
 
     await expect(redirectIfUnauthorizedCoreError(error)).rejects.toBe(error);
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("withUnauthorizedCoreRedirect", () => {
+  beforeEach(() => {
+    redirectMock.mockClear();
+    headersMock.mockResolvedValue(
+      new Headers({
+        "x-pathname": "/tasks/example",
+        "x-search-params": "",
+      }),
+    );
+  });
+
+  it("redirects when a wrapped client method rejects with unauthorized Core errors", async () => {
+    const client = withUnauthorizedCoreRedirect({
+      getTask: (_taskId: string) =>
+        Promise.reject(
+          new CoreApiRequestError("Invalid, expired or missing session", {
+            status: 401,
+          }),
+        ),
+    });
+
+    await expect(client.getTask("task-id")).rejects.toThrow(
+      "REDIRECT:/signin?returnUrl=%2Ftasks%2Fexample",
+    );
+  });
+
+  it("returns resolved values from wrapped client methods", async () => {
+    const client = withUnauthorizedCoreRedirect({
+      getTask: (_taskId: string) => Promise.resolve({ id: "task-id" }),
+    });
+
+    await expect(client.getTask("task-id")).resolves.toEqual({ id: "task-id" });
+  });
+
+  it("rethrows unrelated errors from wrapped client methods", async () => {
+    const boom = new Error("boom");
+    const client = withUnauthorizedCoreRedirect({
+      getTask: (_taskId: string) => Promise.reject(boom),
+    });
+
+    await expect(client.getTask("task-id")).rejects.toBe(boom);
     expect(redirectMock).not.toHaveBeenCalled();
   });
 });

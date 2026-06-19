@@ -7,6 +7,10 @@ import {
   FALLBACK_BUCKET_SEGMENT,
 } from "@/app/chat-ui/utils/chat-route-base";
 import { ConversationStatusBadge } from "@/app/history/components/conversation-status-badge";
+import {
+  HistoryMetaTime,
+  HistoryOwnerAvatar,
+} from "@/app/history/components/history-meta";
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import {
   getHistoryRowSubtitle,
@@ -41,19 +45,24 @@ interface HistoryListItemProps {
   item: HistoryItem;
   bucketLookups: HistoryBucketLookups;
   labels: HistoryListItemLabels;
+  activeOrganizationId: string | null;
 }
 
 export function HistoryListItem({
   item,
   bucketLookups,
   labels,
+  activeOrganizationId,
 }: HistoryListItemProps) {
   const { formatTimeAgo } = useLocalizedDateTime();
   const description = getHistoryRowSubtitle(item, bucketLookups, labels);
   const credits = formatHistoryCredits(item.credits, labels);
+  const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
     "group -mx-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
-    "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
+    showOwner
+      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px_80px] sm:items-center sm:gap-4"
+      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
     isArchivedHistoryItem(item)
       ? "cursor-default"
       : "hover:bg-muted/50 active:scale-[0.995]",
@@ -66,6 +75,7 @@ export function HistoryListItem({
       item={item}
       labels={labels}
       bucketLookups={bucketLookups}
+      activeOrganizationId={activeOrganizationId}
     />
   );
 
@@ -87,6 +97,7 @@ function HistoryListItemContent({
   item,
   labels,
   bucketLookups,
+  activeOrganizationId,
 }: {
   credits: string;
   description: string;
@@ -94,7 +105,9 @@ function HistoryListItemContent({
   item: HistoryItem;
   labels: HistoryListItemLabels;
   bucketLookups: HistoryBucketLookups;
+  activeOrganizationId: string | null;
 }) {
+  const showOwner = activeOrganizationId !== null;
   return (
     <>
       <HistoryTypeColumn
@@ -113,16 +126,39 @@ function HistoryListItemContent({
       </div>
 
       <div className="text-muted-foreground/70 col-span-2 flex flex-wrap items-center gap-3 text-xs sm:contents justify-between sm:justify-start">
-        <div className="flex items-center sm:col-start-3 sm:row-start-1">
+        {showOwner && (
+          <div className="flex items-center sm:col-start-3 sm:row-start-1">
+            <HistoryOwnerAvatar owner={item.owner} />
+          </div>
+        )}
+        <div
+          className={cn(
+            "flex items-center",
+            showOwner
+              ? "sm:col-start-4 sm:row-start-1"
+              : "sm:col-start-3 sm:row-start-1",
+          )}
+        >
           <HistoryStatus item={item} labels={labels} />
         </div>
         <HistoryMetaTime
           updatedAt={item.updatedAt}
           formatTimeAgo={formatTimeAgo}
           updatedLabel={labels.updated}
-          className="sm:col-start-4 sm:row-start-1"
+          className={cn(
+            showOwner
+              ? "sm:col-start-5 sm:row-start-1"
+              : "sm:col-start-4 sm:row-start-1",
+          )}
         />
-        <span className="text-muted-foreground tabular-nums sm:col-start-5 sm:row-start-1 sm:text-right">
+        <span
+          className={cn(
+            "text-muted-foreground tabular-nums sm:text-right",
+            showOwner
+              ? "sm:col-start-6 sm:row-start-1"
+              : "sm:col-start-5 sm:row-start-1",
+          )}
+        >
           {credits}
         </span>
       </div>
@@ -172,34 +208,6 @@ function HistoryTypeColumn({
         {labels.kind[item.kind]}
       </span>
     </div>
-  );
-}
-
-function HistoryMetaTime({
-  updatedAt,
-  formatTimeAgo,
-  updatedLabel,
-  className,
-}: {
-  updatedAt: string | Date;
-  formatTimeAgo: (date: string | Date) => string;
-  updatedLabel: string;
-  className?: string;
-}) {
-  const dateTime =
-    updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt;
-
-  return (
-    <time
-      dateTime={dateTime}
-      className={cn(
-        "text-muted-foreground whitespace-nowrap text-xs capitalize sm:text-right",
-        className,
-      )}
-      title={updatedLabel}
-    >
-      {formatTimeAgo(updatedAt)}
-    </time>
   );
 }
 

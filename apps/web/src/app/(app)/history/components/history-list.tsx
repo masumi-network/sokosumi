@@ -35,6 +35,7 @@ interface HistoryListProps {
   filterResetKey: string;
   filters: HistoryFilters;
   labels: HistoryListLabels;
+  activeOrganizationId: string | null;
 }
 
 export function HistoryList({
@@ -44,6 +45,7 @@ export function HistoryList({
   filterResetKey,
   filters,
   labels,
+  activeOrganizationId,
 }: HistoryListProps) {
   const [items, setItems] = useState(history);
   const [cursor, setCursor] = useState(nextCursor);
@@ -80,6 +82,7 @@ export function HistoryList({
                   item={item}
                   bucketLookups={activeBucketLookups}
                   labels={labels.row}
+                  activeOrganizationId={activeOrganizationId}
                 />
               </li>
             ))}

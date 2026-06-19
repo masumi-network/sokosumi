@@ -247,6 +247,8 @@
       "billing": "Facturation",
       "account": "Compte",
       "admin": "Administration",
+      "organizations": "Organisations",
+      "users": "Utilisateurs",
       "edit": "Modifier",
       "enterprise-contracts": "Contrats entreprise",
       "mcp": "Protocole de contexte de modèle (MCP)",
@@ -2629,6 +2631,10 @@
             "title": "Utilisateurs",
             "description": "Vue d'ensemble consultable de tous les utilisateurs avec crédits, abonnement et activité."
           },
+          "organizations": {
+            "title": "Organisations",
+            "description": "Vue d'ensemble consultable des organisations avec membres, facturation et crédits."
+          },
           "tasks": {
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
@@ -2649,6 +2655,86 @@
           "registered": "Inscrit",
           "loadMore": "Charger plus",
           "loadError": "Échec du chargement des utilisateurs."
+        }
+      },
+      "Organizations": {
+        "title": "Organisations",
+        "description": "Vue d'ensemble consultable de toutes les organisations",
+        "OrganizationList": {
+          "searchPlaceholder": "Rechercher par nom ou slug…",
+          "totalCount": "{count, plural, one {# organisation} other {# organisations}}",
+          "empty": "Aucune organisation trouvée.",
+          "organization": "Organisation",
+          "members": "Membres",
+          "billing": "Facturation",
+          "subscription": "Abonnement",
+          "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
+          "created": "Créée",
+          "loadMore": "Charger plus",
+          "loadError": "Échec du chargement des organisations."
+        },
+        "OrganizationDetail": {
+          "backToList": "Retour aux organisations",
+          "billing": {
+            "title": "Facturation",
+            "plan": "Plan : {plan}",
+            "mode": "Mode : {mode}",
+            "seats": "{purchased} achetés · {assigned} attribués · {unused} inutilisés",
+            "subscription": "Abonnement : {plan} ({status})",
+            "enterprisePool": "Pool entreprise : {credits} crédits"
+          },
+          "credits": {
+            "title": "Crédits totaux",
+            "description": "Crédits disponibles combinés pour cette organisation.",
+            "perMember": "Les crédits sont indiqués par membre ci-dessous."
+          },
+          "members": {
+            "title": "Membres",
+            "totalCount": "{count, plural, one {# membre} other {# membres}}",
+            "empty": "Aucun membre pour le moment.",
+            "loadMore": "Charger plus",
+            "loadError": "Échec du chargement des membres.",
+            "user": "Utilisateur",
+            "role": "Rôle",
+            "credits": "Crédits",
+            "subscription": "Abonnement",
+            "seat": "Seat",
+            "seatAssigned": "Attribué",
+            "seatUnassigned": "Non attribué",
+            "actions": "Actions"
+          },
+          "roles": {
+            "owner": "Propriétaire",
+            "admin": "Admin",
+            "member": "Membre"
+          },
+          "addMember": {
+            "submit": "Ajouter un membre",
+            "success": "Membre ajouté",
+            "userRequired": "Sélectionnez un utilisateur à ajouter",
+            "combobox": {
+              "placeholder": "Sélectionner un utilisateur…",
+              "search": "Rechercher des utilisateurs…",
+              "empty": "Aucun utilisateur trouvé.",
+              "loading": "Recherche…",
+              "error": "Échec de la recherche.",
+              "idle": "Saisissez pour rechercher des utilisateurs.",
+              "clear": "Effacer la sélection"
+            }
+          },
+          "actions": {
+            "makeOwner": "Passer en propriétaire",
+            "makeAdmin": "Passer en administrateur",
+            "makeMember": "Passer en membre",
+            "assignSeat": "Attribuer un Seat",
+            "unassignSeat": "Retirer le Seat",
+            "remove": "Retirer le membre"
+          },
+          "memberActionError": "L'action sur le membre a échoué.",
+          "roleUpdateSuccess": "Rôle mis à jour.",
+          "seatAssignSuccess": "Seat attribué.",
+          "seatUnassignSuccess": "Seat retiré.",
+          "removeSuccess": "Membre retiré."
         }
       },
       "Invoices": {
@@ -2924,6 +3010,9 @@
         "notConnected": "n’est pas connecté",
         "success": "Compte connecté avec succès",
         "error": "Échec de la connexion à {provider}",
+        "loadErrorTitle": "Impossible de charger les comptes connectés",
+        "loadError": "Nous n’avons pas pu charger vos comptes connectés pour le moment.",
+        "retry": "Réessayer",
         "DisconnectModal": {
           "title": "Déconnecter {provider}",
           "description": "Êtes-vous sûr de vouloir déconnecter votre compte {provider} ?",
@@ -2932,6 +3021,11 @@
           "success": "Compte déconnecté avec succès",
           "error": "Échec de la déconnexion de {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Impossible de charger les détails du compte",
+        "loadError": "Nous n’avons pas pu charger les détails de votre compte lié pour le moment.",
+        "retry": "Réessayer"
       },
       "Notifications": {
         "title": "Notifications par e-mail",
@@ -3047,6 +3141,11 @@
           "title": "Client introuvable",
           "description": "Le client OAuth est introuvable.",
           "descriptionWithId": "Le client OAuth avec l’ID {clientId} n’existe pas."
+        },
+        "loadError": {
+          "title": "Impossible de charger l’application",
+          "description": "Nous n’avons pas pu charger les détails de l’application pour le moment. Veuillez réessayer.",
+          "retry": "Réessayer"
         },
         "title": "Autoriser l’application",
         "description": "Une application souhaite accéder à votre compte",
@@ -3564,6 +3663,25 @@
         "hours": "{value, plural, =1 {h} other {h}}",
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {s} other {s}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} a terminé {jobName}",
+        "failed": "{agentName} n'a pas pu terminer {jobName}",
+        "paymentFailed": "Échec du paiement pour {jobName}",
+        "inputRequired": "{agentName} a besoin de votre saisie pour {jobName}",
+        "refundResolved": "{jobName} a été remboursé",
+        "disputeResolved": "Litige résolu pour {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} a besoin de votre saisie pour {taskName}",
+        "approvalRequired": "{coworkerName} a besoin de votre approbation pour {taskName}",
+        "authenticationRequired": "{coworkerName} a besoin d'une authentification pour {taskName}",
+        "outOfCredits": "{coworkerName} n'a plus de crédits pour {taskName}",
+        "completed": "{coworkerName} a terminé {taskName}",
+        "failed": "{coworkerName} n'a pas pu terminer {taskName}",
+        "canceled": "{taskName} a été annulé"
       }
     }
   }

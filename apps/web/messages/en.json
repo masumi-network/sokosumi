@@ -263,6 +263,8 @@
       "billing": "Billing",
       "account": "Account",
       "admin": "Admin",
+      "organizations": "Organizations",
+      "users": "Users",
       "edit": "Edit",
       "enterprise-contracts": "Enterprise contracts",
       "invoices": "Invoices",
@@ -2748,6 +2750,10 @@
             "title": "Users",
             "description": "Searchable overview of all users with credits, subscription, and activity."
           },
+          "organizations": {
+            "title": "Organizations",
+            "description": "Searchable overview of organizations with members, billing, and credits."
+          },
           "tasks": {
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
@@ -2768,6 +2774,86 @@
           "registered": "Registered",
           "loadMore": "Load more",
           "loadError": "Failed to load users."
+        }
+      },
+      "Organizations": {
+        "title": "Organizations",
+        "description": "Searchable overview of all organizations",
+        "OrganizationList": {
+          "searchPlaceholder": "Search by name or slug…",
+          "totalCount": "{count, plural, one {# organization} other {# organizations}}",
+          "empty": "No organizations found.",
+          "organization": "Organization",
+          "members": "Members",
+          "billing": "Billing",
+          "subscription": "Subscription",
+          "seats": "{count, plural, =1 {# seat} other {# seats}}",
+          "created": "Created",
+          "loadMore": "Load more",
+          "loadError": "Failed to load organizations."
+        },
+        "OrganizationDetail": {
+          "backToList": "Back to organizations",
+          "billing": {
+            "title": "Billing",
+            "plan": "Plan: {plan}",
+            "mode": "Mode: {mode}",
+            "seats": "{purchased} purchased · {assigned} assigned · {unused} unused",
+            "subscription": "Subscription: {plan} ({status})",
+            "enterprisePool": "Enterprise pool: {credits} credits"
+          },
+          "credits": {
+            "title": "Total credits",
+            "description": "Combined available credits for this organization.",
+            "perMember": "Credits are listed per member below."
+          },
+          "members": {
+            "title": "Members",
+            "totalCount": "{count, plural, one {# member} other {# members}}",
+            "empty": "No members yet.",
+            "loadMore": "Load more",
+            "loadError": "Failed to load members.",
+            "user": "User",
+            "role": "Role",
+            "credits": "Credits",
+            "subscription": "Subscription",
+            "seat": "Seat",
+            "seatAssigned": "Assigned",
+            "seatUnassigned": "Unassigned",
+            "actions": "Actions"
+          },
+          "roles": {
+            "owner": "Owner",
+            "admin": "Admin",
+            "member": "Member"
+          },
+          "addMember": {
+            "submit": "Add member",
+            "success": "Member added",
+            "userRequired": "Select a user to add",
+            "combobox": {
+              "placeholder": "Select user…",
+              "search": "Search users…",
+              "empty": "No users found.",
+              "loading": "Searching…",
+              "error": "Search failed.",
+              "idle": "Type to search users.",
+              "clear": "Clear selection"
+            }
+          },
+          "actions": {
+            "makeOwner": "Make owner",
+            "makeAdmin": "Make admin",
+            "makeMember": "Make member",
+            "assignSeat": "Assign seat",
+            "unassignSeat": "Unassign seat",
+            "remove": "Remove member"
+          },
+          "memberActionError": "Member action failed.",
+          "roleUpdateSuccess": "Role updated.",
+          "seatAssignSuccess": "Seat assigned.",
+          "seatUnassignSuccess": "Seat unassigned.",
+          "removeSuccess": "Member removed."
         }
       },
       "Tasks": {
@@ -2998,6 +3084,9 @@
         "notConnected": "is not connected",
         "success": "Account connected successfully",
         "error": "Failed to connect {provider}",
+        "loadErrorTitle": "Could not load connected accounts",
+        "loadError": "We could not load your connected accounts right now.",
+        "retry": "Retry",
         "DisconnectModal": {
           "title": "Disconnect {provider}",
           "description": "Are you sure you want to disconnect your {provider} account?",
@@ -3006,6 +3095,11 @@
           "success": "Account disconnected successfully",
           "error": "Failed to disconnect {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Could not load account details",
+        "loadError": "We could not load your linked account details right now.",
+        "retry": "Retry"
       },
       "Notifications": {
         "title": "Email notifications",
@@ -3121,6 +3215,11 @@
           "title": "Client Not Found",
           "description": "The OAuth client could not be found.",
           "descriptionWithId": "The OAuth client with ID {clientId} does not exist."
+        },
+        "loadError": {
+          "title": "Could not load application",
+          "description": "We could not load the application details right now. Please try again.",
+          "retry": "Try again"
         },
         "title": "Authorize Application",
         "description": "An application wants to access your account",
@@ -3694,6 +3793,25 @@
         "hours": "{value, plural, =1 {hr} other {hr}}",
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {sec} other {sec}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} completed {jobName}",
+        "failed": "{agentName} failed to complete {jobName}",
+        "paymentFailed": "Payment failed for {jobName}",
+        "inputRequired": "{agentName} needs your input for {jobName}",
+        "refundResolved": "{jobName} was refunded",
+        "disputeResolved": "Dispute resolved for {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} needs your input for {taskName}",
+        "approvalRequired": "{coworkerName} needs your approval for {taskName}",
+        "authenticationRequired": "{coworkerName} needs authentication for {taskName}",
+        "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
+        "completed": "{coworkerName} completed {taskName}",
+        "failed": "{coworkerName} failed to complete {taskName}",
+        "canceled": "{taskName} was canceled"
       }
     }
   }

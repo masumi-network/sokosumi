@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobType,
+  NotificationKind,
+  Prisma,
+} from "@sokosumi/database";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseSyncWhere,
@@ -22,16 +27,23 @@ import {
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import { createAgentClient } from "@sokosumi/masumi";
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  buildWebhookFailureContext,
+  postWebhook,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 import pLimit from "p-limit";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { postmarkClient } from "@/clients/postmark.client";
+import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
+import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { refundJob } from "@/services/job-refund";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -200,6 +212,18 @@ function buildFailureNotificationData(
   };
 }
 
+function dispatchJobInAppNotification(
+  job: JobWithSokosumiStatus,
+  jobStatus: SokosumiJobStatus,
+): void {
+  const eventId = job.events.at(0)?.id;
+  if (!eventId) {
+    return;
+  }
+
+  void dispatchJobNotification(job, jobStatus, eventId);
+}
+
 async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
@@ -207,6 +231,8 @@ async function dispatchFinalStatusNotification(
   if (!job.user.notificationsOptIn) {
     return;
   }
+
+  dispatchJobInAppNotification(job, jobStatus);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -229,7 +255,15 @@ async function dispatchFinalStatusNotification(
         MessageStream: "outbound",
       })
       .catch((error) => {
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: "job-final-status",
+          sentry: {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-final-status",
+            },
+          },
           extra: {
             jobId: job.id,
             userId: job.userId,
@@ -255,6 +289,8 @@ async function dispatchInputRequiredNotification(
     return;
   }
 
+  dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
+
   try {
     const agentName = getAgentName(job.agent);
     const email = await renderJobInputRequiredEmail({
@@ -275,7 +311,15 @@ async function dispatchInputRequiredNotification(
         MessageStream: "outbound",
       })
       .catch((error) => {
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: "job-input-required",
+          sentry: {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-input-required",
+            },
+          },
           extra: {
             jobId: job.id,
             userId: job.userId,
@@ -297,28 +341,34 @@ async function dispatchInputRequiredNotification(
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
+  dispatchJobInAppNotification(job, job.status);
+
   try {
     const notificationData = buildFailureNotificationData(job);
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
 
     if (webhookUrl) {
-      const request = new Request(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(notificationData),
-      });
-
-      void fetch(request).catch((error) => {
-        Sentry.captureException(error, {
-          extra: {
-            jobId: job.id,
-            userId: job.userId,
-            notificationType: "job-failure-webhook",
-          },
+      // Fire-and-forget: dispatch the webhook without blocking the email path.
+      void postWebhook(webhookUrl, notificationData, {
+        userAgent: WEBHOOK_USER_AGENT,
+        timeoutMs: WEBHOOK_TIMEOUT_MS,
+      })
+        .then((result) => {
+          if (result.status === "failed") {
+            Sentry.captureMessage("Failed to call job-failure webhook", {
+              level: "warning",
+              extra: buildWebhookFailureContext(result, {
+                jobId: job.id,
+                userId: job.userId,
+                notificationType: "job-failure-webhook",
+                webhookUrl,
+              }),
+            });
+          }
+        })
+        .catch(() => {
+          // postWebhook never rejects; guard only against the reporter throwing.
         });
-      });
     }
 
     const stakeholderEmails = getEnv().JOB_FAILURE_NOTIFICATION_EMAILS.filter(
@@ -358,7 +408,15 @@ async function dispatchJobFailureNotification(
         MessageStream: "outbound",
       })
       .catch((error) => {
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: "job-failure-email",
+          sentry: {
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              notificationType: "job-failure-email",
+            },
+          },
           extra: {
             jobId: job.id,
             userId: job.userId,
@@ -372,6 +430,68 @@ async function dispatchJobFailureNotification(
         jobId: job.id,
         userId: job.userId,
         notificationType: "job-failure",
+      },
+    });
+  }
+}
+
+async function dispatchJobNotification(
+  job: JobWithSokosumiStatus,
+  jobStatus: SokosumiJobStatus,
+  eventId: string,
+): Promise<void> {
+  if (!job.user.notificationsOptIn) {
+    return;
+  }
+
+  try {
+    const agentName = getAgentName(job.agent);
+    const jobName = job.name ?? "Untitled job";
+
+    let messageKey: string;
+    switch (jobStatus) {
+      case SokosumiJobStatus.COMPLETED:
+        messageKey = "Notifications.Job.completed";
+        break;
+      case SokosumiJobStatus.REFUND_RESOLVED:
+        messageKey = "Notifications.Job.refundResolved";
+        break;
+      case SokosumiJobStatus.DISPUTE_RESOLVED:
+        messageKey = "Notifications.Job.disputeResolved";
+        break;
+      case SokosumiJobStatus.FAILED:
+        messageKey = "Notifications.Job.failed";
+        break;
+      case SokosumiJobStatus.PAYMENT_FAILED:
+        messageKey = "Notifications.Job.paymentFailed";
+        break;
+      case SokosumiJobStatus.INPUT_REQUIRED:
+        messageKey = "Notifications.Job.inputRequired";
+        break;
+      default:
+        return;
+    }
+
+    await createNotification({
+      userId: job.userId,
+      kind: NotificationKind.JOB,
+      referenceId: job.id,
+      eventId,
+      messageKey,
+      messageParams: {
+        agentName,
+        jobName,
+      },
+      metadata: {
+        agentId: job.agentId,
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        jobId: job.id,
+        userId: job.userId,
+        notificationType: "job-notification",
       },
     });
   }
@@ -753,7 +873,13 @@ async function runSyncPhase(
         return await processor(job, options);
       } catch (error) {
         logJobSyncError(kind, job.id, error);
-        Sentry.captureException(error, {
+        captureExternalServiceError(error, {
+          label: `[sync/jobs/${kind}]`,
+          sentry: {
+            extra: {
+              jobId: job.id,
+            },
+          },
           extra: {
             jobId: job.id,
           },

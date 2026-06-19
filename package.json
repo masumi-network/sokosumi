@@ -2,9 +2,9 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "pnpm@11.8.0",
   "scripts": {
-    "dev": "pnpm -r dev",
+    "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
     "core:dev": "pnpm --filter core dev",
     "build": "pnpm -r build",

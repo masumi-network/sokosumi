@@ -34,7 +34,10 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
+import {
+  JOB_NAME_MAX_LENGTH,
+  type StartPaidJobResponseSchemaType,
+} from "@/schemas/job.schema";
 import { agentPricingInclude } from "@/types/agent";
 import { flattenJob } from "@/types/job";
 
@@ -307,7 +310,7 @@ export async function createAgentJobForUser(
       },
       agentInput.inputData,
     );
-    jobName = generatedName;
+    jobName = generatedName?.trim().slice(0, JOB_NAME_MAX_LENGTH) || null;
     return jobName;
   };
 

@@ -30,3 +30,44 @@ export async function redirectIfUnauthorizedCoreError(
 
   throw error;
 }
+
+/**
+ * Wraps the server-only Core client so any unauthorized API response redirects
+ * to sign-in instead of surfacing as a masked RSC render error (SOKOSUMI-W).
+ */
+export function withUnauthorizedCoreRedirect<T extends object>(client: T): T {
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+
+      if (typeof value !== "function") {
+        return value;
+      }
+
+      const method = value as (this: T, ...args: unknown[]) => unknown;
+
+      function guardedMethod(this: unknown, ...args: unknown[]) {
+        try {
+          const result = method.apply(target, args) as unknown;
+
+          if (
+            result !== null &&
+            typeof result === "object" &&
+            "then" in result &&
+            typeof (result as Promise<unknown>).then === "function"
+          ) {
+            return (result as Promise<unknown>).catch((error: unknown) =>
+              redirectIfUnauthorizedCoreError(error),
+            );
+          }
+
+          return result;
+        } catch (error) {
+          return redirectIfUnauthorizedCoreError(error);
+        }
+      }
+
+      return guardedMethod;
+    },
+  }) as T;
+}
