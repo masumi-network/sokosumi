@@ -24,14 +24,3 @@ export function getBrowserCoreAuthBaseUrl(): string {
     "/auth",
   );
 }
-
-/**
- * Same-origin browser proxy for Better Auth calls.
- *
- * Core previews can be protected by Vercel Deployment Protection. Browsers
- * cannot attach Vercel Trusted Source OIDC tokens, so browser auth traffic goes
- * through the web app server and the server forwards the trusted token to Core.
- */
-export function getBrowserCoreAuthProxyBaseUrl(): string {
-  return "/api/core-auth";
-}

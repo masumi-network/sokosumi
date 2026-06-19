@@ -3,7 +3,6 @@ import "server-only";
 import { createAuthClient } from "better-auth/client";
 import { headers } from "next/headers";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { buildAuthHeaders } from "@/lib/clients/core.client";
 import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
@@ -58,11 +57,6 @@ export async function fetchCoreAuth(
   new Headers(buildAuthHeaders(requestHeaders)).forEach((value, key) => {
     mergedHeaders.set(key, value);
   });
-
-  const vercelOidcToken = getEnvSecrets().VERCEL_OIDC_TOKEN;
-  if (vercelOidcToken) {
-    mergedHeaders.set("x-vercel-trusted-oidc-idp-token", vercelOidcToken);
-  }
 
   // Core's Better Auth rejects state-changing requests without a trusted
   // Origin ("Missing or null Origin"). Server-to-server fetches carry no
