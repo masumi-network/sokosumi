@@ -258,6 +258,7 @@
       "hermes": "Hermes",
       "history": "履歴",
       "new": "新規",
+      "notifications": "通知",
       "projects": "プロジェクト",
       "invoices": "請求書"
     },
@@ -653,6 +654,22 @@
         "cancel": "キャンセル",
         "error": "ログアウトに失敗しました"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "通知",
+      "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
+      "title": "通知",
+      "pageTitle": "通知",
+      "emptyState": "まだ通知はありません",
+      "seeMore": "もっと見る",
+      "loading": "読み込み中...",
+      "loadMore": "さらに読み込む",
+      "markAllRead": "すべて既読にする",
+      "markAllReadError": "すべての通知を既読にできませんでした",
+      "fetchError": "通知を読み込めませんでした",
+      "retry": "再試行",
+      "dismiss": "閉じる",
+      "dismissNotification": "通知を閉じる"
     },
     "HashValue": {
       "copy": "コピー",

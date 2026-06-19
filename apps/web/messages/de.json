@@ -258,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Verlauf",
       "new": "Neu",
+      "notifications": "Benachrichtigungen",
       "projects": "Projekte",
       "invoices": "Rechnungen"
     },
@@ -653,6 +654,22 @@
         "cancel": "Abbrechen",
         "error": "Abmelden fehlgeschlagen"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Benachrichtigungen",
+      "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
+      "title": "Benachrichtigungen",
+      "pageTitle": "Benachrichtigungen",
+      "emptyState": "Noch keine Benachrichtigungen",
+      "seeMore": "Mehr anzeigen",
+      "loading": "Lädt...",
+      "loadMore": "Mehr laden",
+      "markAllRead": "Alle als gelesen markieren",
+      "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
+      "fetchError": "Benachrichtigungen konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "dismiss": "Schließen",
+      "dismissNotification": "Benachrichtigung schließen"
     },
     "HashValue": {
       "copy": "Kopieren",
