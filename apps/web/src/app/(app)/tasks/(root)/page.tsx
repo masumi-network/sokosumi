@@ -17,7 +17,6 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
-import { redirectIfUnauthorizedCoreError } from "@/lib/auth/handle-unauthorized-core-error";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -55,15 +54,11 @@ export const metadata = {
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
 async function loadTasksPageData() {
-  try {
-    return await Promise.all([
-      coworkerService.listCoworkers("tasks"),
-      agentService.getAvailableAgentsWithCreditsPrice(),
-      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-    ]);
-  } catch (error) {
-    return await redirectIfUnauthorizedCoreError(error);
-  }
+  return await Promise.all([
+    coworkerService.listCoworkers("tasks"),
+    agentService.getAvailableAgentsWithCreditsPrice(),
+    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+  ]);
 }
 
 export default async function TasksPage({ searchParams }: TasksPageProps) {

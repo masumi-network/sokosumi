@@ -19,7 +19,6 @@ import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/auth.server";
-import { redirectUnauthorizedPromise } from "@/lib/auth/handle-unauthorized-core-error";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
@@ -71,15 +70,9 @@ export async function TaskDetailView({
   enableAutoSwitch = false,
 }: TaskDetailViewProps) {
   const taskId = task.id;
-  const coworkersPromise = redirectUnauthorizedPromise(
-    coworkerService.listCoworkers(),
-  );
-  const agentsPromise = redirectUnauthorizedPromise(
-    agentService.getAvailableAgentsWithCreditsPrice(),
-  );
-  const membersPromise = redirectUnauthorizedPromise(
-    userService.getMyMembersWithOrganizations(),
-  );
+  const coworkersPromise = coworkerService.listCoworkers();
+  const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
+  const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();
   const localePromise = getLocale();
   const currentPlanPromise = sessionPromise.then((session) =>
@@ -234,9 +227,7 @@ async function TaskOverviewSection({
   agentsPromise: Promise<AgentsResult>;
 }) {
   const projectPromise = task.projectId
-    ? redirectUnauthorizedPromise(
-        projectService.getProjectById(task.projectId).catch(() => null),
-      )
+    ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
   const [coworkers, agents, project, t, tStatus, locale] = await Promise.all([
     coworkersPromise,

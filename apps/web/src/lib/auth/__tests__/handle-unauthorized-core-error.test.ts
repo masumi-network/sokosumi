@@ -21,7 +21,7 @@ vi.mock("next/headers", () => ({
 import {
   isUnauthorizedCoreApiError,
   redirectIfUnauthorizedCoreError,
-  redirectUnauthorizedPromise,
+  withUnauthorizedCoreRedirect,
 } from "@/lib/auth/handle-unauthorized-core-error";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
@@ -86,7 +86,7 @@ describe("redirectIfUnauthorizedCoreError", () => {
   });
 });
 
-describe("redirectUnauthorizedPromise", () => {
+describe("withUnauthorizedCoreRedirect", () => {
   beforeEach(() => {
     redirectMock.mockClear();
     headersMock.mockResolvedValue(
@@ -97,21 +97,36 @@ describe("redirectUnauthorizedPromise", () => {
     );
   });
 
-  it("redirects when the wrapped promise rejects with unauthorized Core errors", async () => {
-    await expect(
-      redirectUnauthorizedPromise(
+  it("redirects when a wrapped client method rejects with unauthorized Core errors", async () => {
+    const client = withUnauthorizedCoreRedirect({
+      getTask: () =>
         Promise.reject(
           new CoreApiRequestError("Invalid, expired or missing session", {
             status: 401,
           }),
         ),
-      ),
-    ).rejects.toThrow("REDIRECT:/signin?returnUrl=%2Ftasks%2Fexample");
+    });
+
+    await expect(client.getTask("task-id")).rejects.toThrow(
+      "REDIRECT:/signin?returnUrl=%2Ftasks%2Fexample",
+    );
   });
 
-  it("returns the resolved value for successful promises", async () => {
-    await expect(
-      redirectUnauthorizedPromise(Promise.resolve("ok")),
-    ).resolves.toBe("ok");
+  it("returns resolved values from wrapped client methods", async () => {
+    const client = withUnauthorizedCoreRedirect({
+      getTask: () => Promise.resolve({ id: "task-id" }),
+    });
+
+    await expect(client.getTask("task-id")).resolves.toEqual({ id: "task-id" });
+  });
+
+  it("rethrows unrelated errors from wrapped client methods", async () => {
+    const boom = new Error("boom");
+    const client = withUnauthorizedCoreRedirect({
+      getTask: () => Promise.reject(boom),
+    });
+
+    await expect(client.getTask("task-id")).rejects.toBe(boom);
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });
