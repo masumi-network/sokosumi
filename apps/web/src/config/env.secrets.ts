@@ -35,13 +35,6 @@ const envSecretsSchema = z.object({
     .transform((val: string) => val.trim().toLowerCase() === "true")
     .default(false),
 
-  // Stripe
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
-  STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
-  STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
-  STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: z.string().min(1),
-
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
 
