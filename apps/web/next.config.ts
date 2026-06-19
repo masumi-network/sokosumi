@@ -9,14 +9,20 @@ import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   getCoreRelatedProjectName,
   normalizeCoreApiBaseUrl,
+  resolveCoreNetwork,
+  resolveCoreRelatedProjectFallbackHost,
 } from "./src/lib/clients/utils/core-api-base-url.shared";
 
+const coreNetwork = resolveCoreNetwork(process.env.NETWORK);
 const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
   withRelatedProject({
-    projectName: getCoreRelatedProjectName(
-      process.env.NETWORK as "Mainnet" | "Preprod",
-    ),
-    defaultHost: process.env.CORE_APP_BASE_URL ?? "http://localhost:8787",
+    projectName: getCoreRelatedProjectName(coreNetwork),
+    defaultHost: resolveCoreRelatedProjectFallbackHost({
+      configuredCoreAppBaseUrl: process.env.CORE_APP_BASE_URL,
+      network: coreNetwork,
+      vercelEnv: process.env.VERCEL_ENV,
+      vercelGitCommitRef: process.env.VERCEL_GIT_COMMIT_REF,
+    }),
   }),
 );
 
