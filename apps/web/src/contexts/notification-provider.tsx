@@ -81,18 +81,28 @@ export function NotificationProvider({
       };
 
       setNotifications((prev) => {
-        const exists = prev.some((n) => n.id === convertedNotification.id);
-        if (exists) {
+        const existing = prev.find((n) => n.id === convertedNotification.id);
+        if (existing) {
+          const wasUnread = !existing.isRead;
+          const isUnread = !convertedNotification.isRead;
+
+          if (wasUnread !== isUnread) {
+            setUnreadCount((count) =>
+              isUnread ? count + 1 : Math.max(0, count - 1),
+            );
+          }
+
           return prev.map((n) =>
             n.id === convertedNotification.id ? convertedNotification : n,
           );
         }
+
+        if (!convertedNotification.isRead) {
+          setUnreadCount((count) => count + 1);
+        }
+
         return [convertedNotification, ...prev].slice(0, 10);
       });
-
-      if (!convertedNotification.isRead) {
-        setUnreadCount((prev) => prev + 1);
-      }
     },
     [],
   );

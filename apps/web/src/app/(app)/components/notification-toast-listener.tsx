@@ -2,10 +2,10 @@
 
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { getNotificationHref } from "@/lib/utils/notification-href";
+import { useNotificationMessage } from "@/lib/utils/notification-message";
 
 interface NotificationToastListenerProps {
   userId: string;
@@ -14,22 +14,17 @@ interface NotificationToastListenerProps {
 export function NotificationToastListener({
   userId,
 }: NotificationToastListenerProps) {
-  const t = useTranslations("Notifications");
+  const formatMessage = useNotificationMessage();
   const router = useRouter();
 
   useNotificationRealtime({
     userId,
     onNotification: (notification) => {
       if (!notification.isRead) {
-        const messageKey = notification.messageKey;
-        const messageParams = notification.messageParams ?? {};
-
-        let message: string;
-        try {
-          message = t(messageKey as never, messageParams as never);
-        } catch {
-          message = messageKey;
-        }
+        const message = formatMessage(
+          notification.messageKey,
+          notification.messageParams ?? {},
+        );
 
         const href = getNotificationHref({
           kind: notification.kind,

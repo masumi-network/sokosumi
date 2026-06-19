@@ -1150,17 +1150,17 @@
         "failedToComplete": "Falha ao concluir o onboarding",
         "unexpectedError": "Ocorreu um erro inesperado"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notificações",
+      "unreadBadge": "{count, plural, =1 {1 notificação não lida} other {# notificações não lidas}}",
+      "title": "Notificações",
+      "pageTitle": "Notificações",
+      "emptyState": "Nenhuma notificação ainda",
+      "seeMore": "Ver mais",
+      "loading": "Carregando...",
+      "loadMore": "Carregar mais"
     }
-  },
-  "NotificationCenter": {
-    "notifications": "Notifications",
-    "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
-    "title": "Notifications",
-    "pageTitle": "Notifications",
-    "emptyState": "Aucune notification pour le moment",
-    "seeMore": "Voir plus",
-    "loading": "Chargement...",
-    "loadMore": "Charger plus"
   },
   "App": {
     "enabled": "Ativado",

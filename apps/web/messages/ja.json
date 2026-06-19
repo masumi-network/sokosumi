@@ -1150,17 +1150,17 @@
         "failedToComplete": "オンボーディングの完了に失敗しました",
         "unexpectedError": "予期しないエラーが発生しました"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "通知",
+      "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
+      "title": "通知",
+      "pageTitle": "通知",
+      "emptyState": "まだ通知はありません",
+      "seeMore": "もっと見る",
+      "loading": "読み込み中...",
+      "loadMore": "さらに読み込む"
     }
-  },
-  "NotificationCenter": {
-    "notifications": "Notifications",
-    "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
-    "title": "Notifications",
-    "pageTitle": "Notifications",
-    "emptyState": "Aucune notification pour le moment",
-    "seeMore": "Voir plus",
-    "loading": "Chargement...",
-    "loadMore": "Charger plus"
   },
   "App": {
     "enabled": "有効",

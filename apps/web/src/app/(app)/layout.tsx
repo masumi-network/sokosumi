@@ -9,6 +9,7 @@ import { HistorySearchDialogProvider } from "@/app/components/history-search-dia
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
+import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
@@ -210,25 +211,27 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     <QueryProvider>
       <AuthSessionGuard />
       <ConversationsProvider>
-        <NotificationProvider userId={session.user.id}>
-          <NotificationToastListener userId={session.user.id} />
-          <CoworkersProvider initialCoworkers={coworkers}>
-            {content}
-            {shouldShowOnboarding ? (
-              <OnboardingDialogLoader
-                activeOrganization={activeOrganization}
-                loginId={session.session.id}
-                subscriptionOnly={false}
-              />
-            ) : shouldLoadSubscriptionOnboarding ? (
-              <OnboardingDialogLoader
-                activeOrganization={activeOrganization}
-                loginId={session.session.id}
-                subscriptionOnly
-              />
-            ) : null}
-          </CoworkersProvider>
-        </NotificationProvider>
+        <DynamicAblyProvider>
+          <NotificationProvider userId={session.user.id}>
+            <NotificationToastListener userId={session.user.id} />
+            <CoworkersProvider initialCoworkers={coworkers}>
+              {content}
+              {shouldShowOnboarding ? (
+                <OnboardingDialogLoader
+                  activeOrganization={activeOrganization}
+                  loginId={session.session.id}
+                  subscriptionOnly={false}
+                />
+              ) : shouldLoadSubscriptionOnboarding ? (
+                <OnboardingDialogLoader
+                  activeOrganization={activeOrganization}
+                  loginId={session.session.id}
+                  subscriptionOnly
+                />
+              ) : null}
+            </CoworkersProvider>
+          </NotificationProvider>
+        </DynamicAblyProvider>
       </ConversationsProvider>
     </QueryProvider>
   );

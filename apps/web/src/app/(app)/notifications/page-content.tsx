@@ -4,10 +4,12 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useNotifications } from "@/contexts/notification-provider";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getNotificationHref } from "@/lib/utils/notification-href";
+import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { formatNotificationTime } from "@/lib/utils/notification-time";
 
 interface NotificationsPageContentProps {
@@ -17,8 +19,9 @@ interface NotificationsPageContentProps {
 export function NotificationsPageContent({
   userId: _userId,
 }: NotificationsPageContentProps) {
-  const t = useTranslations("Notifications");
   const tCenter = useTranslations("Components.NotificationCenter");
+  const formatMessage = useNotificationMessage();
+  const { markRead } = useNotifications();
   const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +56,7 @@ export function NotificationsPageContent({
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (!notification.isRead) {
       try {
-        await coreClient.patchNotificationRead({ id: notification.id });
+        await markRead(notification.id);
 
         setNotifications((prev) =>
           prev.map((n) =>
@@ -112,15 +115,10 @@ export function NotificationsPageContent({
       <h1 className="text-2xl font-semibold">{tCenter("pageTitle")}</h1>
       <div className="divide-border bg-card divide-y rounded-lg border">
         {notifications.map((notification) => {
-          const messageKey = notification.messageKey;
-          const messageParams = notification.messageParams ?? {};
-
-          let message: string;
-          try {
-            message = t(messageKey as never, messageParams as never);
-          } catch {
-            message = messageKey;
-          }
+          const message = formatMessage(
+            notification.messageKey,
+            notification.messageParams ?? {},
+          );
 
           return (
             <button

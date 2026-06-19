@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { useNotificationMessage } from "@/lib/utils/notification-message";
 
 interface NotificationItemProps {
   notification: NotificationItem;
@@ -16,17 +16,11 @@ export function NotificationItem({
   onClick,
   formatTime,
 }: NotificationItemProps) {
-  const t = useTranslations("Notifications");
-
-  const messageKey = notification.messageKey;
-  const messageParams = notification.messageParams ?? {};
-
-  let message: string;
-  try {
-    message = t(messageKey as never, messageParams as never);
-  } catch {
-    message = messageKey;
-  }
+  const formatMessage = useNotificationMessage();
+  const message = formatMessage(
+    notification.messageKey,
+    notification.messageParams ?? {},
+  );
 
   return (
     <DropdownMenuItem
