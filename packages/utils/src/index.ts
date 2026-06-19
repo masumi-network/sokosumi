@@ -49,6 +49,10 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export {
+  DESIGN_MD_ATTACHMENT_LABEL,
+  removeDesignMdAttachmentLinks,
+} from "./design-md-attachment.js";
 export type {
   AgentJobStatus as AgentJobStatusType,
   AgentStatus as AgentStatusType,

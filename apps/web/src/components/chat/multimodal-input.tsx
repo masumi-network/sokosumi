@@ -5,7 +5,10 @@ import {
   chatModelSupportsImageGeneration,
   chatModelSupportsImageInput,
 } from "@sokosumi/chat";
-import { resolveUserUploadContentType } from "@sokosumi/utils";
+import {
+  removeDesignMdAttachmentLinks,
+  resolveUserUploadContentType,
+} from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 import { ImagePlus, Paperclip, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -68,7 +71,6 @@ import {
   formatTaskAttachmentMarkdown,
   isDesignMdAttachmentSkipped,
   markDesignMdDismissed,
-  removeDesignMdAttachmentLinks,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
   seedTaskDescriptionWithDesignMd,

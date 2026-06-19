@@ -1,6 +1,10 @@
 "use server";
 
-import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
+import {
+  removeDesignMdAttachmentLinks,
+  TaskLinkType,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import { toCoreApiActionError } from "@/lib/clients/core.client";
@@ -13,7 +17,6 @@ import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { removeDesignMdAttachmentLinks } from "@/lib/utils/task-attachments";
 import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
