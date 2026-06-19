@@ -6,6 +6,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -57,6 +58,113 @@ function mergeUnreadCount(
   return serverCount + pendingUnread;
 }
 
+interface NotificationState {
+  notifications: NotificationItem[];
+  unreadCount: number;
+}
+
+type NotificationAction =
+  | {
+      type: "fetch_success";
+      fetched: NotificationItem[];
+      serverUnreadCount: number;
+    }
+  | { type: "realtime"; notification: NotificationItem }
+  | {
+      type: "mark_read_success";
+      id: string;
+      updated: NotificationItem;
+    }
+  | { type: "mark_all_read" };
+
+export function notificationReducer(
+  state: NotificationState,
+  action: NotificationAction,
+): NotificationState {
+  switch (action.type) {
+    case "fetch_success": {
+      return {
+        notifications: mergeNotificationList(
+          state.notifications,
+          action.fetched,
+        ),
+        unreadCount: mergeUnreadCount(
+          state.notifications,
+          action.fetched,
+          action.serverUnreadCount,
+        ),
+      };
+    }
+    case "realtime": {
+      const convertedNotification = action.notification;
+      const existing = state.notifications.find(
+        (notification) => notification.id === convertedNotification.id,
+      );
+
+      if (existing) {
+        const wasUnread = !existing.isRead;
+        const isUnread = !convertedNotification.isRead;
+        let unreadCount = state.unreadCount;
+
+        if (wasUnread && !isUnread) {
+          unreadCount = Math.max(0, unreadCount - 1);
+        } else if (!wasUnread && isUnread) {
+          unreadCount = unreadCount + 1;
+        }
+
+        return {
+          notifications: state.notifications.map((notification) =>
+            notification.id === convertedNotification.id
+              ? convertedNotification
+              : notification,
+          ),
+          unreadCount,
+        };
+      }
+
+      return {
+        notifications: [convertedNotification, ...state.notifications].slice(
+          0,
+          NOTIFICATION_LIST_LIMIT,
+        ),
+        unreadCount: convertedNotification.isRead
+          ? state.unreadCount
+          : state.unreadCount + 1,
+      };
+    }
+    case "mark_read_success": {
+      const existing = state.notifications.find(
+        (notification) => notification.id === action.id,
+      );
+      const shouldDecrementUnread = existing ? !existing.isRead : true;
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.id ? action.updated : notification,
+        ),
+        unreadCount:
+          shouldDecrementUnread && action.updated.isRead
+            ? Math.max(0, state.unreadCount - 1)
+            : state.unreadCount,
+      };
+    }
+    case "mark_all_read": {
+      const readAt = new Date();
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.isRead
+            ? notification
+            : { ...notification, isRead: true, readAt },
+        ),
+        unreadCount: 0,
+      };
+    }
+    default:
+      return state;
+  }
+}
+
 export function useNotifications() {
   const context = use(NotificationContext);
   if (!context) {
@@ -76,8 +184,10 @@ function NotificationProviderBody({
   userId,
   children,
 }: NotificationProviderProps) {
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [{ notifications, unreadCount }, dispatch] = useReducer(
+    notificationReducer,
+    { notifications: [], unreadCount: 0 },
+  );
   const [isLoading, setIsLoading] = useState(true);
   const fetchGenerationRef = useRef(0);
 
@@ -94,12 +204,10 @@ function NotificationProviderBody({
         return;
       }
 
-      setNotifications((prev) => {
-        const merged = mergeNotificationList(prev, listResponse.data);
-        setUnreadCount(
-          mergeUnreadCount(prev, listResponse.data, countResponse.data.count),
-        );
-        return merged;
+      dispatch({
+        type: "fetch_success",
+        fetched: listResponse.data,
+        serverUnreadCount: countResponse.data.count,
       });
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
@@ -113,16 +221,8 @@ function NotificationProviderBody({
   const markAllRead = useCallback(async () => {
     try {
       await coreClient.patchNotificationsReadAll();
-      const readAt = new Date();
 
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.isRead
-            ? notification
-            : { ...notification, isRead: true, readAt },
-        ),
-      );
-      setUnreadCount(0);
+      dispatch({ type: "mark_all_read" });
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
       throw error;
@@ -130,24 +230,14 @@ function NotificationProviderBody({
   }, []);
 
   const markRead = useCallback(async (id: string) => {
-    let shouldDecrementUnread = false;
-    setNotifications((prev) => {
-      const existing = prev.find((notification) => notification.id === id);
-      shouldDecrementUnread = existing ? !existing.isRead : true;
-      return prev;
-    });
-
     try {
       const response = await coreClient.patchNotificationRead({ id });
-      const updatedNotification = response.data;
 
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? updatedNotification : n)),
-      );
-
-      if (shouldDecrementUnread && updatedNotification.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
+      dispatch({
+        type: "mark_read_success",
+        id,
+        updated: response.data,
+      });
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
       throw error;
@@ -156,38 +246,14 @@ function NotificationProviderBody({
 
   const handleNotificationEvent = useCallback(
     (notification: NotificationEventData) => {
-      const convertedNotification: NotificationItem = {
-        ...notification,
-        kind: notification.kind as NotificationItem["kind"],
-        readAt: notification.readAt ? new Date(notification.readAt) : null,
-        createdAt: new Date(notification.createdAt),
-      };
-
-      setNotifications((prev) => {
-        const existing = prev.find((n) => n.id === convertedNotification.id);
-        if (existing) {
-          const wasUnread = !existing.isRead;
-          const isUnread = !convertedNotification.isRead;
-
-          if (wasUnread !== isUnread) {
-            setUnreadCount((count) =>
-              isUnread ? count + 1 : Math.max(0, count - 1),
-            );
-          }
-
-          return prev.map((n) =>
-            n.id === convertedNotification.id ? convertedNotification : n,
-          );
-        }
-
-        if (!convertedNotification.isRead) {
-          setUnreadCount((count) => count + 1);
-        }
-
-        return [convertedNotification, ...prev].slice(
-          0,
-          NOTIFICATION_LIST_LIMIT,
-        );
+      dispatch({
+        type: "realtime",
+        notification: {
+          ...notification,
+          kind: notification.kind as NotificationItem["kind"],
+          readAt: notification.readAt ? new Date(notification.readAt) : null,
+          createdAt: new Date(notification.createdAt),
+        },
       });
     },
     [],

@@ -24,7 +24,7 @@ export function getNotificationHref(
     case "JOB": {
       const agentId = notification.metadata?.agentId;
       if (!agentId || typeof agentId !== "string") {
-        return `/jobs`;
+        return "/tasks";
       }
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
