@@ -41,16 +41,10 @@ export function HeaderNotificationAvatar({
             organization={organization ?? null}
           />
           {unreadCount > 0 ? (
-            <span className="absolute right-0 top-0 flex size-2 items-center justify-center">
-              <span
-                aria-hidden
-                className="bg-primary/40 absolute inset-0 animate-ping rounded-full"
-              />
-              <span
-                className="bg-primary relative size-2 rounded-full ring-2 ring-background"
-                aria-label={t("unreadBadge", { count: unreadCount })}
-              />
-            </span>
+            <span
+              className="bg-primary absolute right-0 top-0 size-2 animate-pulse rounded-full ring-2 ring-background"
+              aria-label={t("unreadBadge", { count: unreadCount })}
+            />
           ) : null}
         </button>
       </DropdownMenuTrigger>
