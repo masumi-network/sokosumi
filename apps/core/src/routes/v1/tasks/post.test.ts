@@ -10,12 +10,14 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
 const {
+  generateTaskNameMock,
   mapTaskMock,
   projectFindFirstMock,
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
 } = vi.hoisted(() => ({
+  generateTaskNameMock: vi.fn(),
   mapTaskMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -40,6 +42,10 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
   },
+}));
+
+vi.mock("@/clients/openrouter.client", () => ({
+  openrouterClient: { generateTaskName: generateTaskNameMock },
 }));
 
 describe("createTaskRequestSchema", () => {
@@ -149,6 +155,7 @@ describe("POST /tasks", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    generateTaskNameMock.mockResolvedValue("Generated name");
     taskCreateMock.mockResolvedValue({ id: "tsk_123" });
     mapTaskMock.mockReturnValue({
       id: "tsk_123",
@@ -289,5 +296,52 @@ describe("POST /tasks", () => {
 
     expect(response.status).toBe(404);
     expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("generates a name from the description when name is omitted", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Build landing page",
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(generateTaskNameMock).toHaveBeenCalledWith("Build landing page");
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: "Generated name" }),
+      }),
+    );
+  });
+
+  it("uses a provided name verbatim without generating", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "My task",
+        description: "Build landing page",
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(generateTaskNameMock).not.toHaveBeenCalled();
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: "My task" }),
+      }),
+    );
   });
 });
