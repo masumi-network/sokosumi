@@ -21,6 +21,7 @@ interface NotificationContextValue {
   notifications: NotificationItem[];
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
   refetch: () => Promise<void>;
   isLoading: boolean;
 }
@@ -109,6 +110,25 @@ function NotificationProviderBody({
     }
   }, []);
 
+  const markAllRead = useCallback(async () => {
+    try {
+      await coreClient.patchNotificationsReadAll();
+      const readAt = new Date();
+
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.isRead
+            ? notification
+            : { ...notification, isRead: true, readAt },
+        ),
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+      throw error;
+    }
+  }, []);
+
   const markRead = useCallback(async (id: string) => {
     let shouldDecrementUnread = false;
     setNotifications((prev) => {
@@ -189,6 +209,7 @@ function NotificationProviderBody({
     notifications,
     unreadCount,
     markRead,
+    markAllRead,
     refetch: fetchNotifications,
     isLoading,
   };

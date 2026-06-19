@@ -679,7 +679,11 @@
       "emptyState": "No notifications yet",
       "seeMore": "See more",
       "loading": "Loading...",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "markAllRead": "Mark all as read",
+      "markAllReadError": "Failed to mark all notifications as read",
+      "dismiss": "Dismiss",
+      "dismissNotification": "Dismiss notification"
     },
     "HashValue": {
       "copy": "Copy",

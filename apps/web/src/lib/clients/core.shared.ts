@@ -146,6 +146,7 @@ import {
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
+  patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
@@ -592,6 +593,18 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to mark notification as read",
+    );
+  }
+
+  async function patchNotificationsReadAll() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchNotificationsReadAll({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to mark all notifications as read",
     );
   }
 
@@ -2557,6 +2570,7 @@ export function createCoreClient(getClient: GetClient) {
     getNotifications,
     getNotificationsUnreadCount,
     patchNotificationRead,
+    patchNotificationsReadAll,
     listHermesIntegrations,
     listHermesSchedules,
     patchHermesSchedule,

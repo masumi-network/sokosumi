@@ -26,11 +26,24 @@ export function NotificationToaster() {
       position="top-right"
       offset={{ top: topOffset, right: 16 }}
       mobileOffset={{ top: topOffset, right: 16 }}
-      expand
       visibleToasts={5}
-      closeButton
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--primary)",
+        } as React.CSSProperties
+      }
       toastOptions={{
         duration: Infinity,
+        classNames: {
+          toast: "items-center gap-3",
+          title: "w-full min-w-0",
+          content: "min-w-0 flex-1",
+          icon: "text-primary",
+          actionButton:
+            "bg-primary-foreground text-background hover:bg-primary-foreground/90 h-8 rounded-md px-3 text-xs font-medium",
+        },
       }}
     />
   );

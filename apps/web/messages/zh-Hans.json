@@ -663,7 +663,11 @@
       "emptyState": "暂无通知",
       "seeMore": "查看更多",
       "loading": "加载中...",
-      "loadMore": "加载更多"
+      "loadMore": "加载更多",
+      "markAllRead": "全部标为已读",
+      "markAllReadError": "无法将所有通知标为已读",
+      "dismiss": "关闭",
+      "dismissNotification": "关闭通知"
     },
     "HashValue": {
       "copy": "复制",

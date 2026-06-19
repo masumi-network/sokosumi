@@ -663,7 +663,11 @@
       "emptyState": "Aún no hay notificaciones",
       "seeMore": "Ver más",
       "loading": "Cargando...",
-      "loadMore": "Cargar más"
+      "loadMore": "Cargar más",
+      "markAllRead": "Marcar todas como leídas",
+      "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
+      "dismiss": "Descartar",
+      "dismissNotification": "Descartar notificación"
     },
     "HashValue": {
       "copy": "Copiar",
