@@ -35,9 +35,6 @@ const envSecretsSchema = z.object({
     .transform((val: string) => val.trim().toLowerCase() === "true")
     .default(false),
 
-  // OpenRouter
-  OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
-
   // Vercel
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z
