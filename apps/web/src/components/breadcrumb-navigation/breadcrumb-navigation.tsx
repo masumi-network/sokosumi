@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
 import { getAllCoreAgents } from "@/lib/agents/core-loaders";
 import type { Agent } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
+import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
@@ -12,6 +14,8 @@ interface BreadcrumbNavigationProps {
   className?: string;
   segmentLabels?: Record<string, string>;
 }
+
+const ADMIN_ORGANIZATION_DETAIL_PATH = /^\/admin\/organizations\/([^/]+)\/?$/;
 
 export default async function BreadcrumbNavigation({
   className,
@@ -34,6 +38,13 @@ async function BreadcrumbNavigationInner({
   className?: string | undefined;
   segmentLabels?: Record<string, string>;
 }) {
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const resolvedSegmentLabels = await resolveSegmentLabels(
+    pathname,
+    segmentLabels,
+  );
+
   const [messages, agents, organizations] = await Promise.all([
     getMessages(),
     getAllCoreAgents().catch((error) => {
@@ -76,7 +87,38 @@ async function BreadcrumbNavigationInner({
       breadcrumbMessages={breadcrumbMessages}
       organizations={organizations}
       className={className}
-      segmentLabels={segmentLabels}
+      segmentLabels={resolvedSegmentLabels}
     />
   );
+}
+
+async function resolveSegmentLabels(
+  pathname: string,
+  segmentLabels?: Record<string, string>,
+): Promise<Record<string, string>> {
+  const labels = { ...segmentLabels };
+  const match = pathname.match(ADMIN_ORGANIZATION_DETAIL_PATH);
+  if (!match) {
+    return labels;
+  }
+
+  const slug = decodeURIComponent(match[1]);
+  if (labels[slug]) {
+    return labels;
+  }
+
+  try {
+    const organization =
+      await adminOrganizationService.getOrganizationOptionBySlug(slug);
+    if (organization) {
+      labels[slug] = organization.name;
+    }
+  } catch (error) {
+    console.warn(
+      "[breadcrumb] admin organization lookup failed, using slug fallback",
+      { message: (error as Error)?.message, slug },
+    );
+  }
+
+  return labels;
 }

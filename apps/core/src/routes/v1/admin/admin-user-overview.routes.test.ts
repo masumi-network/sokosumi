@@ -33,9 +33,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 vi.mock("@/helpers/user", () => ({ getCredits: getCreditsMock }));
 
-const { default: mountListAdminUserOverview } = await import(
-  "./users/overview/get.js"
-);
+const { default: mountListAdminUsers } = await import("./users/get.js");
 
 interface AppOptions {
   role?: string;
@@ -85,7 +83,7 @@ function createApp(
   return app;
 }
 
-describe("GET /v1/admin/users/overview", () => {
+describe("GET /v1/admin/users", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listUsersForAdminOverviewMock.mockResolvedValue({
@@ -110,8 +108,8 @@ describe("GET /v1/admin/users/overview", () => {
   });
 
   it("returns enriched users with pagination meta", async () => {
-    const app = createApp(mountListAdminUserOverview);
-    const res = await app.request("/overview?query=ada");
+    const app = createApp(mountListAdminUsers);
+    const res = await app.request("/?query=ada");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -159,8 +157,8 @@ describe("GET /v1/admin/users/overview", () => {
     resolveActiveSubscriptionMock.mockResolvedValue(null);
     taskGroupByMock.mockResolvedValue([]);
 
-    const app = createApp(mountListAdminUserOverview);
-    const res = await app.request("/overview");
+    const app = createApp(mountListAdminUsers);
+    const res = await app.request("/");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -185,8 +183,8 @@ describe("GET /v1/admin/users/overview", () => {
     resolveActiveSubscriptionMock.mockResolvedValue(null);
     taskGroupByMock.mockResolvedValue([]);
 
-    const app = createApp(mountListAdminUserOverview);
-    const res = await app.request("/overview?limit=2");
+    const app = createApp(mountListAdminUsers);
+    const res = await app.request("/?limit=2");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -201,8 +199,8 @@ describe("GET /v1/admin/users/overview", () => {
   it("skips task aggregation for an empty page", async () => {
     listUsersForAdminOverviewMock.mockResolvedValue({ users: [], total: 0 });
 
-    const app = createApp(mountListAdminUserOverview);
-    const res = await app.request("/overview?query=nobody");
+    const app = createApp(mountListAdminUsers);
+    const res = await app.request("/?query=nobody");
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -211,24 +209,24 @@ describe("GET /v1/admin/users/overview", () => {
   });
 
   it("rejects limits above the overview cap", async () => {
-    const app = createApp(mountListAdminUserOverview);
-    const res = await app.request("/overview?limit=51");
+    const app = createApp(mountListAdminUsers);
+    const res = await app.request("/?limit=51");
 
     expect(res.status).toBe(422);
     expect(listUsersForAdminOverviewMock).not.toHaveBeenCalled();
   });
 
   it("rejects non-admin users", async () => {
-    const app = createApp(mountListAdminUserOverview, { role: "user" });
-    const res = await app.request("/overview");
+    const app = createApp(mountListAdminUsers, { role: "user" });
+    const res = await app.request("/");
 
     expect(res.status).toBe(403);
     expect(listUsersForAdminOverviewMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker actors", async () => {
-    const app = createApp(mountListAdminUserOverview, { actor: "coworker" });
-    const res = await app.request("/overview");
+    const app = createApp(mountListAdminUsers, { actor: "coworker" });
+    const res = await app.request("/");
 
     expect(res.status).toBe(403);
   });

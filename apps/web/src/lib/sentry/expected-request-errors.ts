@@ -56,12 +56,25 @@ export function isExpectedAuthRequestError(error: unknown): boolean {
   );
 }
 
+/**
+ * Chrome/Edge extension messaging bridges reject with this string when the
+ * injected script is not present (password managers, grammar checkers, etc.).
+ * Sentry's defaults only cover `simulateEvent`; production also reports
+ * `update` (see SOKOSUMI-PM on `/oauth/consent`).
+ */
+export const browserExtensionIgnoreErrors: RegExp[] = [
+  /Object Not Found Matching Id:\d+, MethodName:update/,
+];
+
 export const expectedClientNoiseIgnoreErrors: RegExp[] = [
   NEXT_ROUTER_HOOKS_MISMATCH,
+  ...browserExtensionIgnoreErrors,
 ];
 
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
-  return NEXT_ROUTER_HOOKS_MISMATCH.test(message);
+  return expectedClientNoiseIgnoreErrors.some((pattern) =>
+    pattern.test(message),
+  );
 }
 
 export function isExpectedAuthSentryEvent(event: ErrorEvent): boolean {

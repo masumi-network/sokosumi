@@ -54,6 +54,8 @@ import type {
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  addAdminOrganizationMember as coreAddAdminOrganizationMember,
+  assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   claimCoupon as coreClaimCoupon,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
@@ -127,8 +129,10 @@ import {
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminOrganizationMembers as coreListAdminOrganizationMembers,
+  listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
-  listAdminUserOverview as coreListAdminUserOverview,
+  listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
@@ -176,8 +180,11 @@ import {
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
+  removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
+  updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -739,7 +746,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function listAdminUserOverview(query: {
+  async function listAdminUsers(query: {
     query?: string;
     cursor?: string;
     limit?: number;
@@ -747,7 +754,7 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreListAdminUserOverview({
+        coreListAdminUsers({
           client,
           query,
           cache: "no-store",
@@ -821,7 +828,121 @@ export function createCoreClient(getClient: GetClient) {
           path: { slug },
           cache: "no-store",
         }),
-      "Failed to fetch organization",
+      "Failed to fetch organization overview",
+    );
+  }
+
+  async function listAdminOrganizations(query: {
+    query?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminOrganizations({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list organizations",
+    );
+  }
+
+  async function listAdminOrganizationMembers(
+    slug: string,
+    query: { cursor?: string; limit?: number },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminOrganizationMembers({
+          client,
+          path: { slug },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list organization members",
+    );
+  }
+
+  async function addAdminOrganizationMember(
+    slug: string,
+    body: { userId: string; role: "owner" | "admin" | "member" },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreAddAdminOrganizationMember({
+          client,
+          path: { slug },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add organization member",
+    );
+  }
+
+  async function removeAdminOrganizationMember(slug: string, memberId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreRemoveAdminOrganizationMember({
+          client,
+          path: { slug, memberId },
+          cache: "no-store",
+        }),
+      "Failed to remove organization member",
+    );
+  }
+
+  async function updateAdminOrganizationMemberRole(
+    slug: string,
+    memberId: string,
+    body: { role: "owner" | "admin" | "member" },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreUpdateAdminOrganizationMemberRole({
+          client,
+          path: { slug, memberId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update organization member role",
+    );
+  }
+
+  async function assignAdminOrganizationMemberSeat(
+    slug: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreAssignAdminOrganizationMemberSeat({
+          client,
+          path: { slug, memberId },
+          cache: "no-store",
+        }),
+      "Failed to assign organization seat",
+    );
+  }
+
+  async function unassignAdminOrganizationMemberSeat(
+    slug: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreUnassignAdminOrganizationMemberSeat({
+          client,
+          path: { slug, memberId },
+          cache: "no-store",
+        }),
+      "Failed to unassign organization seat",
     );
   }
 
@@ -2408,11 +2529,18 @@ export function createCoreClient(getClient: GetClient) {
     getCategories,
     getCoworkers,
     searchAdminUsers,
-    listAdminUserOverview,
+    listAdminUsers,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
+    listAdminOrganizations,
+    listAdminOrganizationMembers,
+    addAdminOrganizationMember,
+    removeAdminOrganizationMember,
+    updateAdminOrganizationMemberRole,
+    assignAdminOrganizationMemberSeat,
+    unassignAdminOrganizationMemberSeat,
     listAdminInvoices,
     createAdminInvoice,
     getAdminInvoice,
