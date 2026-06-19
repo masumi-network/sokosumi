@@ -94,6 +94,12 @@ const envSchema = z.object({
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
 
+  // skills.sh marketplace (browse/search/audit for Hermes skills). The OIDC
+  // token is injected by the Vercel runtime; optional so local/non-Vercel
+  // envs degrade to an empty catalog instead of failing to boot.
+  SKILLS_SH_BASE_URL: z.url().default("https://skills.sh/api/v1"),
+  VERCEL_OIDC_TOKEN: z.string().min(1).optional(),
+
   // Composio (managed OAuth + MCP broker for Hermes integrations)
   COMPOSIO_API_KEY: z.string().startsWith("ak_").optional(),
   COMPOSIO_API_BASE_URL: z.url().default("https://backend.composio.dev"),
