@@ -2,6 +2,7 @@ import { MemberRole } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const createAuthClientMock = vi.fn();
+const getEnvSecretsMock = vi.fn();
 const getAuthClientPluginsMock = vi.fn(() => ["plugin-1"]);
 const buildAuthHeadersMock = vi.fn();
 const getServerCoreAppBaseUrlMock = vi.fn();
@@ -16,6 +17,10 @@ vi.mock("better-auth/client", () => ({
 
 vi.mock("next/headers", () => ({
   headers: (...args: unknown[]) => headersMock(...args),
+}));
+
+vi.mock("@/config/env.secrets", () => ({
+  getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -40,6 +45,7 @@ describe("authServerClient", () => {
       updateUser: vi.fn(),
     });
     getServerCoreAppBaseUrlMock.mockReturnValue("https://core.example.com");
+    getEnvSecretsMock.mockReturnValue({});
     headersMock.mockResolvedValue(new Headers({ cookie: "session=test" }));
     buildAuthHeadersMock.mockReturnValue({ cookie: "session=test" });
     fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
@@ -175,6 +181,39 @@ describe("authServerClient", () => {
     expect((fetchInit.headers as Headers).get("origin")).toBe(
       "https://tenant.preview.sokosumi.com",
     );
+  });
+
+  it("forwards Vercel Trusted Source OIDC token when available", async () => {
+    getEnvSecretsMock.mockReturnValue({
+      VERCEL_OIDC_TOKEN: "oidc-token",
+    });
+
+    const { getAuthServerClient } = await import("../auth.server.client");
+
+    getAuthServerClient();
+
+    const [[config]] = createAuthClientMock.mock.calls as Array<
+      [
+        {
+          fetchOptions: {
+            customFetchImpl: (
+              input: string,
+              init?: RequestInit,
+            ) => Promise<Response>;
+          };
+        },
+      ]
+    >;
+
+    await config.fetchOptions.customFetchImpl(
+      "https://core.example.com/auth/sign-in/email",
+      { method: "POST" },
+    );
+
+    const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(
+      (fetchInit.headers as Headers).get("x-vercel-trusted-oidc-idp-token"),
+    ).toBe("oidc-token");
   });
 });
 

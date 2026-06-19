@@ -65,7 +65,7 @@ describe("auth client", () => {
     });
   });
 
-  it("points authClient at Core /auth", async () => {
+  it("points browser authClient at the same-origin Core auth proxy", async () => {
     getEnvPublicConfigMock.mockReturnValue({
       NEXT_PUBLIC_NETWORK: "Preprod",
       NEXT_PUBLIC_VERCEL_ENV: undefined,
@@ -84,7 +84,7 @@ describe("auth client", () => {
       ]
     >;
 
-    expect(config.baseURL).toBe("https://api.preprod.sokosumi.com/auth");
+    expect(config.baseURL).toBe("/api/core-auth");
     expect(config.fetchOptions).toEqual({ credentials: "include" });
   });
 

@@ -1,11 +1,11 @@
 import { createAuthClient } from "better-auth/react";
 
-import { getBrowserCoreAuthBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
+import { getBrowserCoreAuthProxyBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 
 import { getAuthClientPlugins } from "./auth-client.plugins";
 
 export const authClient = createAuthClient({
-  baseURL: getBrowserCoreAuthBaseUrl(),
+  baseURL: getBrowserCoreAuthProxyBaseUrl(),
   fetchOptions: {
     credentials: "include",
   },

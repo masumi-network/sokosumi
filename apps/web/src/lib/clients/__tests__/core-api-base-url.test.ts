@@ -145,4 +145,12 @@ describe("getCoreApiBaseUrl", () => {
 
     expect(getBrowserCoreAuthBaseUrl()).toBe("https://api.sokosumi.com/auth");
   });
+
+  it("resolves the browser Core auth proxy to a same-origin path", async () => {
+    const { getBrowserCoreAuthProxyBaseUrl } = await import(
+      "../utils/core-api-base-url.browser"
+    );
+
+    expect(getBrowserCoreAuthProxyBaseUrl()).toBe("/api/core-auth");
+  });
 });
