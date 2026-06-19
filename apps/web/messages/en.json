@@ -275,6 +275,7 @@
       "hermes": "Hermes",
       "history": "History",
       "new": "New",
+      "notifications": "Notifications",
       "projects": "Projects"
     },
     "Jobs": {
@@ -669,6 +670,22 @@
         "cancel": "Cancel",
         "error": "Failed to log out"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notifications",
+      "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
+      "title": "Notifications",
+      "pageTitle": "Notifications",
+      "emptyState": "No notifications yet",
+      "seeMore": "See more",
+      "loading": "Loading...",
+      "loadMore": "Load more",
+      "markAllRead": "Mark all as read",
+      "markAllReadError": "Failed to mark all notifications as read",
+      "fetchError": "Could not load notifications",
+      "retry": "Try again",
+      "dismiss": "Dismiss",
+      "dismissNotification": "Dismiss notification"
     },
     "HashValue": {
       "copy": "Copy",

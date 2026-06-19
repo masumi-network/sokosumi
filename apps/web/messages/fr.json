@@ -258,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Historique",
       "new": "Nouveau",
+      "notifications": "Notifications",
       "projects": "Projets",
       "invoices": "Factures"
     },
@@ -653,6 +654,22 @@
         "cancel": "Annuler",
         "error": "Échec de la déconnexion"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notifications",
+      "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
+      "title": "Notifications",
+      "pageTitle": "Notifications",
+      "emptyState": "Aucune notification pour le moment",
+      "seeMore": "Voir plus",
+      "loading": "Chargement...",
+      "loadMore": "Charger plus",
+      "markAllRead": "Tout marquer comme lu",
+      "markAllReadError": "Impossible de marquer toutes les notifications comme lues",
+      "fetchError": "Impossible de charger les notifications",
+      "retry": "Réessayer",
+      "dismiss": "Ignorer",
+      "dismissNotification": "Ignorer la notification"
     },
     "HashValue": {
       "copy": "Copier",

@@ -258,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Histórico",
       "new": "Novo",
+      "notifications": "Notificações",
       "projects": "Projetos",
       "invoices": "Faturas"
     },
@@ -653,6 +654,22 @@
         "cancel": "Cancel",
         "error": "Failed to log out"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notificações",
+      "unreadBadge": "{count, plural, =1 {1 notificação não lida} other {# notificações não lidas}}",
+      "title": "Notificações",
+      "pageTitle": "Notificações",
+      "emptyState": "Ainda sem notificações",
+      "seeMore": "Ver mais",
+      "loading": "A carregar...",
+      "loadMore": "Carregar mais",
+      "markAllRead": "Marcar todas como lidas",
+      "markAllReadError": "Não foi possível marcar todas as notificações como lidas",
+      "fetchError": "Não foi possível carregar as notificações",
+      "retry": "Tentar novamente",
+      "dismiss": "Dispensar",
+      "dismissNotification": "Dispensar notificação"
     },
     "HashValue": {
       "copy": "Copy",

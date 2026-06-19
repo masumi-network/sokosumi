@@ -20,11 +20,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, useState } from "react";
+import { type ComponentType } from "react";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -32,18 +30,8 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-
-import HeaderWorkspaceAvatar from "./header-workspace-avatar";
-
-interface HeaderUserMenuProps {
-  sessionUser: SessionUser;
-  members: MemberWithOrganization[];
-  activeOrganizationId: string | null;
-  secondaryLabel?: string;
-}
 
 interface HelpLinkItem {
   url: string;
@@ -159,17 +147,28 @@ function LegalLinks({
   );
 }
 
-export default function HeaderUserMenu({
+interface UserAccountMenuItemsProps {
+  sessionUser: SessionUser;
+  members: MemberWithOrganization[];
+  activeOrganizationId: string | null;
+  secondaryLabel?: string;
+  onClose: () => void;
+}
+
+export function UserAccountMenuItems({
   sessionUser,
   members,
   activeOrganizationId,
   secondaryLabel,
-}: HeaderUserMenuProps) {
+  onClose,
+}: UserAccountMenuItemsProps) {
   const tUserAvatar = useTranslations("Components.UserAvatar");
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
   const { showLogoutModal } = useGlobalModalsContext();
+  const router = useRouter();
+
   const activeOrganizationMember = activeOrganizationId
     ? members.find((member) => member.organizationId === activeOrganizationId)
     : null;
@@ -180,20 +179,14 @@ export default function HeaderUserMenu({
   const activeOrganizationPath = activeOrganizationMember
     ? `/organizations/${activeOrganizationMember.organization.slug}`
     : null;
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const router = useRouter();
-
-  const closeMenu = () => {
-    setIsDropdownOpen(false);
-  };
 
   const handleRouteNavigation = (path: string) => {
     router.push(path);
-    closeMenu();
+    onClose();
   };
 
   const handleOpenExternalLink = (url: string) => {
-    closeMenu();
+    onClose();
     if (url.startsWith("mailto:")) {
       window.location.href = url;
       return;
@@ -203,101 +196,87 @@ export default function HeaderUserMenu({
   };
 
   return (
-    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="hover:opacity-80 flex shrink-0 items-center transition-opacity"
-          aria-label={tUserAvatar("settings")}
-        >
-          <HeaderWorkspaceAvatar
-            sessionUser={sessionUser}
-            organization={activeOrganizationMember?.organization ?? null}
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-72" align="end">
-        <DropdownMenuLabel className="truncate">
-          <span className="block truncate text-sm font-medium">
-            {getStoredUserName(sessionUser.name, sessionUser.email)}
+    <>
+      <DropdownMenuLabel className="truncate">
+        <span className="block truncate text-sm font-medium">
+          {getStoredUserName(sessionUser.name, sessionUser.email)}
+        </span>
+        {secondaryLabel ? (
+          <span className="text-muted-foreground mt-0.5 block truncate text-xs font-normal">
+            {secondaryLabel}
           </span>
-          {secondaryLabel ? (
-            <span className="text-muted-foreground mt-0.5 block truncate text-xs font-normal">
-              {secondaryLabel}
-            </span>
-          ) : null}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => handleRouteNavigation("/account")}
-          >
-            <UserIcon className="text-muted-foreground size-4" />
-            <span>{tUserAvatar("account")}</span>
-          </DropdownMenuItem>
-          {activeOrganizationPath ? (
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() => handleRouteNavigation(activeOrganizationPath)}
-            >
-              <Building2 className="text-muted-foreground size-4" />
-              <span>{tOrganizationSwitcher("organizationsHeading")}</span>
-            </DropdownMenuItem>
-          ) : null}
-          {canViewBilling ? (
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() => handleRouteNavigation("/billing")}
-            >
-              <ReceiptText className="text-muted-foreground size-4" />
-              <span>{tUserAvatar("billing")}</span>
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => handleRouteNavigation("/connections")}
-          >
-            <Cable className="text-muted-foreground size-4" />
-            <span>{tUserAvatar("connections")}</span>
-          </DropdownMenuItem>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="gap-2">
-              <LifeBuoy className="text-muted-foreground size-4" />
-              <span>{tUserAvatar("help")}</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-64">
-              <HelpLinks
-                handleOpenExternalLink={handleOpenExternalLink}
-                tUserAvatar={tUserAvatar}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="gap-2">
-              <Scale className="text-muted-foreground size-4" />
-              <span>{tUserAvatar("legal")}</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-64">
-              <LegalLinks
-                handleOpenExternalLink={handleOpenExternalLink}
-                tUserAvatar={tUserAvatar}
-              />
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
+        ) : null}
+      </DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
         <DropdownMenuItem
           className="cursor-pointer"
-          onClick={() => {
-            closeMenu();
-            showLogoutModal(sessionUser.email);
-          }}
+          onClick={() => handleRouteNavigation("/account")}
         >
-          <LogOut className="text-muted-foreground size-4" />
-          <span>{tUserAvatar("logout")}</span>
+          <UserIcon className="text-muted-foreground size-4" />
+          <span>{tUserAvatar("account")}</span>
         </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        {activeOrganizationPath ? (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => handleRouteNavigation(activeOrganizationPath)}
+          >
+            <Building2 className="text-muted-foreground size-4" />
+            <span>{tOrganizationSwitcher("organizationsHeading")}</span>
+          </DropdownMenuItem>
+        ) : null}
+        {canViewBilling ? (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => handleRouteNavigation("/billing")}
+          >
+            <ReceiptText className="text-muted-foreground size-4" />
+            <span>{tUserAvatar("billing")}</span>
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => handleRouteNavigation("/connections")}
+        >
+          <Cable className="text-muted-foreground size-4" />
+          <span>{tUserAvatar("connections")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2">
+            <LifeBuoy className="text-muted-foreground size-4" />
+            <span>{tUserAvatar("help")}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-64">
+            <HelpLinks
+              handleOpenExternalLink={handleOpenExternalLink}
+              tUserAvatar={tUserAvatar}
+            />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-2">
+            <Scale className="text-muted-foreground size-4" />
+            <span>{tUserAvatar("legal")}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-64">
+            <LegalLinks
+              handleOpenExternalLink={handleOpenExternalLink}
+              tUserAvatar={tUserAvatar}
+            />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="cursor-pointer"
+        onClick={() => {
+          onClose();
+          showLogoutModal(sessionUser.email);
+        }}
+      >
+        <LogOut className="text-muted-foreground size-4" />
+        <span>{tUserAvatar("logout")}</span>
+      </DropdownMenuItem>
+    </>
   );
 }
