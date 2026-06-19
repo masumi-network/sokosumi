@@ -22,6 +22,7 @@ export const createTaskRequestSchema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(1)
       .max(120)
       .optional()

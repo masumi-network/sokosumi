@@ -96,6 +96,26 @@ describe("createTaskRequestSchema", () => {
     expect(result.status).toBe(TaskStatus.READY);
   });
 
+  it("trims a provided name", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "  Hello  ",
+      description: null,
+      coworkerId: null,
+    });
+
+    expect(result.name).toBe("Hello");
+  });
+
+  it("rejects a whitespace-only name", () => {
+    expect(() => {
+      createTaskRequestSchema.parse({
+        name: "   ",
+        description: null,
+        coworkerId: null,
+      });
+    }).toThrow();
+  });
+
   it("accepts a projectId", () => {
     const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 
