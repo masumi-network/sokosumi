@@ -1,10 +1,6 @@
 "use server";
 
-import {
-  removeDesignMdAttachmentLinks,
-  TaskLinkType,
-  TaskStatus,
-} from "@sokosumi/utils";
+import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
 import { toCoreApiActionError } from "@/lib/clients/core.client";
@@ -13,7 +9,6 @@ import type {
   TaskLink,
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
-import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
@@ -87,12 +82,6 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   replaceExistingParent?: boolean;
 }
 
-function buildFallbackName(description: string): string {
-  const firstLine = description.split("\n").find((line) => line.trim());
-
-  return (firstLine ?? "").trim().slice(0, 60);
-}
-
 function normalizeLinkNote(note?: string | null): string | null | undefined {
   if (typeof note === "undefined") {
     return undefined;
@@ -143,24 +132,12 @@ async function createTaskFromDescription(input: {
     throw new Error("Description required");
   }
 
-  const descriptionForNaming =
-    removeDesignMdAttachmentLinks(trimmedDescription).trim();
-  const generatedName = descriptionForNaming
-    ? await openrouterClient.generateTaskName(descriptionForNaming)
-    : null;
-  const candidate =
-    generatedName ??
-    (descriptionForNaming
-      ? buildFallbackName(descriptionForNaming)
-      : "Untitled Task");
-  const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
   const descriptionWithDesignMd = input.skipDesignMdAttachment
     ? trimmedDescription
     : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
   return taskService.createTask({
-    name,
     description: descriptionWithDesignMd,
     coworkerId: input.coworkerId ? input.coworkerId : null,
     projectId: normalizedProjectId ?? null,
