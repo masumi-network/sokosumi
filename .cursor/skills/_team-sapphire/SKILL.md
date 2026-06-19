@@ -114,10 +114,10 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 ### Phase 3 — Coder(s)
 
 1. Read **session spec** (plus session investigation for context). Requirement from Linear when needed.
-2. If Tech Lead defined multiple coders, launch **parallel** **`sapphire-coder`** Task subagents (`model: composer-2.5`) — one per coder block — with non-overlapping file ownership.
-3. If single coder, delegate to **`sapphire-coder`** (`model: composer-2.5`).
-4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**).
-5. Open PR; PR body must reference the Linear issue id.
+2. If Tech Lead defined multiple coders with parallel ownership, launch **parallel** **`sapphire-coder`** Task subagents (`model: composer-2.5`) — one per coder block. Each subagent implements and returns branch/commits; **subagents do not open PRs**. After all return, merge onto one integration branch on the orchestrator side.
+3. If single coder, delegate to **`sapphire-coder`** (`model: composer-2.5`) — subagent opens the PR (or returns handoff for you to post gates).
+4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**). For multiple coders, run combined verification on the merged branch.
+5. Open **one PR** (orchestrator always owns the PR when multiple coders ran); PR body must reference the Linear issue id.
 6. **Gate (blocking):** `save_comment` → `**PR handoff**`. Then `save_comment` → `**Sapphire · Coder complete**`. Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until all three succeed.
 7. **Continue in this run** — proceed to Phase 4 without stopping.
 

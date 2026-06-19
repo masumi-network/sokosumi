@@ -22,21 +22,35 @@ When Tech Lead defined one coder block (or no breakdown section):
 
 ## Subagent mode (`sapphire-coder`)
 
-When the orchestrator delegates to `sapphire-coder` (single or parallel):
+When the orchestrator delegates to `sapphire-coder`:
+
+### Sole coder (one block / no breakdown)
 
 1. Implement, verify, and open PR per **Single coder** steps 1–4.
 2. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
 3. Return PR URL, branch, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
 
-The orchestrator runs **Phase gate (blocking)** after all coders finish.
+The orchestrator runs **Phase gate (blocking)** after you finish.
 
-## Multiple coders
+### Parallel coders (Multiple coders flow)
+
+When Tech Lead defined `### Coder A`, `### Coder B`, … and the orchestrator launched you as one of several parallel **`sapphire-coder`** Task subagents:
+
+1. Implement your coder block only — respect **Execution order** if told to wait on dependencies.
+2. Run allowlisted verification for your deliverables.
+3. Commit on a named branch — **do not** push or open a PR.
+4. Return to the orchestrator: branch name, changed files, commit message(s), verification results, and a one-line scope summary.
+5. **Do not** call Linear MCP. **Do not** edit files owned by other coders.
+
+The orchestrator merges all parallel coder branches onto one integration branch, runs combined verification if needed, opens **one PR** for the issue, then runs **Phase gate (blocking)**.
+
+## Multiple coders (orchestrator)
 
 When Tech Lead defined `### Coder A`, `### Coder B`, …:
 
 1. Respect **Execution order** — sequential coders wait for dependencies.
-2. Launch parallel **`sapphire-coder`** Task subagents (`model: composer-2.5`) for independent coders with disjoint file ownership.
-3. Orchestrator merges work on one branch / one PR when all coders finish.
+2. Launch parallel **`sapphire-coder`** Task subagents (`model: composer-2.5`) for independent coders with disjoint file ownership — each subagent commits on a branch but **does not** open a PR.
+3. After all parallel coders return, merge work on one integration branch and open **one PR** for the issue.
 4. One PR per issue — do not open multiple PRs for the same SOK unless human asked.
 
 Each subagent prompt must include:
@@ -44,6 +58,7 @@ Each subagent prompt must include:
 - Its coder block from the **session spec** (inline — not a Linear link)
 - File ownership table
 - "Do not edit files owned by other coders"
+- "Parallel coders flow — do not open a PR; return branch name and patch summary; orchestrator opens the single PR"
 - Link to Linear issue id
 
 ## Do
