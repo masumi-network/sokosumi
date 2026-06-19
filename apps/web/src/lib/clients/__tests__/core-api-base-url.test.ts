@@ -72,6 +72,43 @@ describe("getCoreApiBaseUrl", () => {
     );
   });
 
+  it("resolves preview related-project fallbacks from the git commit ref", async () => {
+    const { resolveCoreRelatedProjectFallbackHost } = await import(
+      "../utils/core-api-base-url.shared"
+    );
+
+    expect(
+      resolveCoreRelatedProjectFallbackHost({
+        network: "Preprod",
+        vercelEnv: "preview",
+        vercelGitCommitRef: "feature/123",
+      }),
+    ).toBe(
+      "https://sokosumi-core-preprod-git-feature-123.preview.sokosumi.com",
+    );
+    expect(
+      resolveCoreRelatedProjectFallbackHost({
+        network: "Mainnet",
+        vercelEnv: "preview",
+        vercelGitCommitRef: "---feature___branch---123---",
+      }),
+    ).toBe(
+      "https://sokosumi-core-mainnet-git-feature-branch-123.preview.sokosumi.com",
+    );
+  });
+
+  it("keeps local related-project fallbacks on localhost", async () => {
+    const { resolveCoreNetwork, resolveCoreRelatedProjectFallbackHost } =
+      await import("../utils/core-api-base-url.shared");
+
+    expect(resolveCoreNetwork(undefined)).toBe("Preprod");
+    expect(
+      resolveCoreRelatedProjectFallbackHost({
+        network: "Preprod",
+      }),
+    ).toBe("http://localhost:8787");
+  });
+
   it("resolves the server core API url from related projects", async () => {
     const { getServerCoreApiBaseUrl } = await import(
       "../utils/core-api-base-url"
