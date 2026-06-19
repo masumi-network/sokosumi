@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { writeCreateTaskModalLastCoworkerId } from "@/app/tasks/utils/create-task-modal-preferences";
 import { createTask, updateTask } from "@/lib/actions/task/action";
-import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
 const {
   markdownEditorPropsSpy,
@@ -277,7 +276,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("limits the edit name field to the Core API max length", () => {
+  it("does not limit the edit name field length", () => {
     render(
       <TaskForm
         variant="modal"
@@ -296,10 +295,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Task name")).toHaveAttribute(
-      "maxlength",
-      String(DEFAULT_TASK_NAME_MAX_LENGTH),
-    );
+    expect(screen.getByLabelText("Task name")).not.toHaveAttribute("maxlength");
   });
 
   it("selects initialValues.coworkerId when provided", () => {

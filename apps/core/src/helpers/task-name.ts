@@ -2,7 +2,6 @@ import { removeDesignMdAttachmentLinks } from "@sokosumi/utils";
 
 import { openrouterClient } from "@/clients/openrouter.client";
 
-const TASK_NAME_MAX_LENGTH = 120;
 const TASK_FALLBACK_NAME_MAX_LENGTH = 60;
 const UNTITLED_TASK_NAME = "Untitled Task";
 
@@ -17,7 +16,7 @@ export async function resolveTaskName(input: {
 }): Promise<string> {
   const provided = input.name?.trim();
   if (provided) {
-    return provided.slice(0, TASK_NAME_MAX_LENGTH);
+    return provided;
   }
 
   const namingSource = removeDesignMdAttachmentLinks(
@@ -31,5 +30,5 @@ export async function resolveTaskName(input: {
     await openrouterClient.generateTaskName(namingSource)
   )?.trim();
   const candidate = generated || fallbackTaskName(namingSource);
-  return candidate.slice(0, TASK_NAME_MAX_LENGTH) || UNTITLED_TASK_NAME;
+  return candidate || UNTITLED_TASK_NAME;
 }

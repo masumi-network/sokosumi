@@ -7,6 +7,7 @@ import type {
 import { inputGroupsSchema, inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -15,8 +16,6 @@ import { fileSchema } from "./file.schema.js";
 import { linkSchema } from "./link.schema.js";
 import { jobShareSchema } from "./share.schema.js";
 import { workspaceSummarySchema } from "./workspace.schema.js";
-
-export const JOB_NAME_MAX_LENGTH = 120;
 
 export const jobInputSchema = z
   .object({
@@ -232,7 +231,7 @@ export const jobSchema = z
 export const patchJobRequestSchema = z
   .object({
     name: z.union([
-      z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH),
+      z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH),
       z.null(),
     ]),
   })
@@ -257,11 +256,17 @@ export const createJobRequestSchema = z.object({
     .nullable()
     .optional()
     .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
-  name: z.string().trim().min(1).max(JOB_NAME_MAX_LENGTH).optional().openapi({
-    example: "My Job",
-    description:
-      "If not provided, an AI-generated name will be created based on the agent details and input data.",
-  }),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(LIMITS.NAME_MAX_LENGTH)
+    .optional()
+    .openapi({
+      example: "My Job",
+      description:
+        "If not provided, an AI-generated name will be created based on the agent details and input data.",
+    }),
 });
 
 // Preprocess function to handle backward compatibility (job_id -> id)

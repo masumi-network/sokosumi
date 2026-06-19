@@ -309,8 +309,7 @@
             "Schema": {
               "Name": {
                 "invalid": "O nome tem de ser uma string válida",
-                "min": "O nome tem de ter pelo menos 2 caracteres",
-                "max": "O nome tem de ter no máximo 120 caracteres"
+                "min": "O nome tem de ter pelo menos 2 caracteres"
               }
             },
             "Form": {

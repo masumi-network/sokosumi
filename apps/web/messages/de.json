@@ -309,8 +309,7 @@
             "Schema": {
               "Name": {
                 "invalid": "Name muss eine gültige Zeichenkette sein",
-                "min": "Name muss mindestens 2 Zeichen lang sein",
-                "max": "Name darf maximal 120 Zeichen lang sein"
+                "min": "Name muss mindestens 2 Zeichen lang sein"
               }
             },
             "Form": {
