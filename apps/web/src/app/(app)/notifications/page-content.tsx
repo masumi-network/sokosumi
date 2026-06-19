@@ -4,20 +4,18 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { coreClient } from "@/lib/clients/core.client.browser";
-import type { components } from "@/lib/clients/generated/core/types";
+import { coreClient } from "@/lib/clients/core.browser.client";
+import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { formatNotificationTime } from "@/lib/utils/notification-time";
-
-type NotificationItem = components["schemas"]["NotificationItem"];
 
 interface NotificationsPageContentProps {
   userId: string;
 }
 
 export function NotificationsPageContent({
-  userId,
+  userId: _userId,
 }: NotificationsPageContentProps) {
   const t = useTranslations("Notifications");
   const tCenter = useTranslations("Components.NotificationCenter");
@@ -30,22 +28,17 @@ export function NotificationsPageContent({
   const fetchNotifications = useCallback(async (nextCursor?: string | null) => {
     try {
       setIsLoading(true);
-      const response = await coreClient.GET("/v1/notifications", {
-        params: {
-          query: {
-            limit: 20,
-            cursor: nextCursor ?? undefined,
-          },
-        },
+      const response = await coreClient.getNotifications({
+        limit: 20,
+        cursor: nextCursor ?? undefined,
       });
 
-      if (response.data) {
-        setNotifications((prev) =>
-          nextCursor ? [...prev, ...response.data.data] : response.data.data,
-        );
-        setHasMore(response.data.meta.hasMore);
-        setCursor(response.data.meta.cursor ?? null);
-      }
+      setNotifications((prev) =>
+        nextCursor ? [...prev, ...response.data] : response.data,
+      );
+      const paginationMeta = response.meta.pagination;
+      setHasMore(paginationMeta.nextCursor !== null);
+      setCursor(paginationMeta.nextCursor);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     } finally {
@@ -60,9 +53,7 @@ export function NotificationsPageContent({
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (!notification.isRead) {
       try {
-        await coreClient.PATCH("/v1/notifications/{id}/read", {
-          params: { path: { id: notification.id } },
-        });
+        await coreClient.patchNotificationRead({ id: notification.id });
 
         setNotifications((prev) =>
           prev.map((n) =>

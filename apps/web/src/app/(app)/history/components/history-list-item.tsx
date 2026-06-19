@@ -178,7 +178,9 @@ export function getHistoryItemHref(item: HistoryItem): string {
     metadata:
       item.kind === "job"
         ? { agentId: item.agentId }
-        : { bucketSlug: item.bucketSlug },
+        : item.kind === "conversation"
+          ? { bucketSlug: item.bucketSlug }
+          : null,
   });
 }
 

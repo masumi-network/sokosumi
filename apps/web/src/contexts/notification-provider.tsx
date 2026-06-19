@@ -3,10 +3,8 @@
 import { createContext, use, useCallback, useEffect, useState } from "react";
 import type { NotificationEventData } from "@/lib/ably";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
-import { coreClient } from "@/lib/clients/core.client.browser";
-import type { components } from "@/lib/clients/generated/core/types";
-
-type NotificationItem = components["schemas"]["NotificationItem"];
+import { coreClient } from "@/lib/clients/core.browser.client";
+import type { NotificationItem } from "@/lib/clients/generated/core";
 
 interface NotificationContextValue {
   notifications: NotificationItem[];
@@ -46,18 +44,12 @@ export function NotificationProvider({
   const fetchNotifications = useCallback(async () => {
     try {
       const [listResponse, countResponse] = await Promise.all([
-        coreClient.GET("/v1/notifications", {
-          params: { query: { limit: 10 } },
-        }),
-        coreClient.GET("/v1/notifications/unread-count"),
+        coreClient.getNotifications({ limit: 10 }),
+        coreClient.getNotificationsUnreadCount(),
       ]);
 
-      if (listResponse.data) {
-        setNotifications(listResponse.data.data);
-      }
-      if (countResponse.data) {
-        setUnreadCount(countResponse.data.data.count);
-      }
+      setNotifications(listResponse.data);
+      setUnreadCount(countResponse.data.count);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     } finally {
@@ -67,17 +59,13 @@ export function NotificationProvider({
 
   const markRead = useCallback(async (id: string) => {
     try {
-      const response = await coreClient.PATCH("/v1/notifications/{id}/read", {
-        params: { path: { id } },
-      });
+      const response = await coreClient.patchNotificationRead({ id });
 
-      if (response.data) {
-        const updatedNotification = response.data.data;
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? updatedNotification : n)),
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
+      const updatedNotification = response.data;
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? updatedNotification : n)),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Failed to mark notification as read:", error);
     }
@@ -85,15 +73,24 @@ export function NotificationProvider({
 
   const handleNotificationEvent = useCallback(
     (notification: NotificationEventData) => {
+      const convertedNotification: NotificationItem = {
+        ...notification,
+        kind: notification.kind as NotificationItem["kind"],
+        readAt: notification.readAt ? new Date(notification.readAt) : null,
+        createdAt: new Date(notification.createdAt),
+      };
+
       setNotifications((prev) => {
-        const exists = prev.some((n) => n.id === notification.id);
+        const exists = prev.some((n) => n.id === convertedNotification.id);
         if (exists) {
-          return prev.map((n) => (n.id === notification.id ? notification : n));
+          return prev.map((n) =>
+            n.id === convertedNotification.id ? convertedNotification : n,
+          );
         }
-        return [notification, ...prev].slice(0, 10);
+        return [convertedNotification, ...prev].slice(0, 10);
       });
 
-      if (!notification.isRead) {
+      if (!convertedNotification.isRead) {
         setUnreadCount((prev) => prev + 1);
       }
     },

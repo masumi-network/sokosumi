@@ -19,6 +19,7 @@ import type {
   GetHermesMeMessagesData,
   GetHistoryData,
   GetJobsData,
+  GetNotificationsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -36,6 +37,7 @@ import type {
   PaginationMetadata,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
+  PatchNotificationsByIdReadData,
   PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
@@ -101,6 +103,8 @@ import {
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getNotifications as coreGetNotifications,
+  getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
@@ -141,6 +145,7 @@ import {
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
+  patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
@@ -547,6 +552,46 @@ export function createCoreClient(getClient: GetClient) {
             transformHistoryResponseEnvelope(data),
         }),
       "Failed to fetch history",
+    );
+  }
+
+  async function getNotifications(query?: GetNotificationsData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetNotifications({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch notifications",
+    );
+  }
+
+  async function getNotificationsUnreadCount() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetNotificationsUnreadCount({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch notification unread count",
+    );
+  }
+
+  async function patchNotificationRead(
+    path: PatchNotificationsByIdReadData["path"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchNotificationsByIdRead({
+          client,
+          path,
+          cache: "no-store",
+        }),
+      "Failed to mark notification as read",
     );
   }
 
@@ -2509,6 +2554,9 @@ export function createCoreClient(getClient: GetClient) {
     getHermesOnboardingProgress,
     getHermesUnreadCount,
     getHistory,
+    getNotifications,
+    getNotificationsUnreadCount,
+    patchNotificationRead,
     listHermesIntegrations,
     listHermesSchedules,
     patchHermesSchedule,

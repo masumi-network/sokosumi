@@ -2,15 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import type { components } from "@/lib/clients/generated/core/types";
+import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-
-type NotificationItem = components["schemas"]["NotificationItem"];
 
 interface NotificationItemProps {
   notification: NotificationItem;
   onClick: () => void;
-  formatTime: (timestamp: string) => string;
+  formatTime: (timestamp: string | Date) => string;
 }
 
 export function NotificationItem({
