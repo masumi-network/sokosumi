@@ -310,8 +310,7 @@
             "Schema": {
               "Name": {
                 "invalid": "El nombre debe ser una cadena válida",
-                "min": "El nombre debe tener al menos 2 caracteres",
-                "max": "El nombre no puede superar los 120 caracteres"
+                "min": "El nombre debe tener al menos 2 caracteres"
               }
             },
             "Form": {

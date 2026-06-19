@@ -18778,7 +18778,7 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
-        name: string;
+        name?: string;
         description?: string | null;
         projectId?: string | null;
         coworkerId?: string | null;

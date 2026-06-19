@@ -307,7 +307,7 @@ export async function createAgentJobForUser(
       },
       agentInput.inputData,
     );
-    jobName = generatedName;
+    jobName = generatedName?.trim() || null;
     return jobName;
   };
 

@@ -326,8 +326,7 @@
             "Schema": {
               "Name": {
                 "invalid": "Name must be a valid string",
-                "min": "Name must be at least 2 characters",
-                "max": "Name must be at most 120 characters"
+                "min": "Name must be at least 2 characters"
               }
             },
             "Form": {

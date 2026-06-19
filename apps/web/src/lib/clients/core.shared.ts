@@ -1615,7 +1615,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createTask(body: {
-    name: string;
+    name?: string;
     description?: string | null;
     projectId?: string | null;
     coworkerId?: string | null;

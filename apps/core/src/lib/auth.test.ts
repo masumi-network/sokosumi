@@ -288,7 +288,7 @@ describe("core auth config", () => {
     i18nPluginMock.mockReturnValue("i18n-plugin");
     getEnvMock.mockReturnValue(getDefaultEnv());
     getBetterAuthPublicBaseUrlMock.mockReturnValue("https://example.com/auth");
-    getWebAppBaseUrlMock.mockReturnValue("https://example.com");
+    getWebAppBaseUrlMock.mockReturnValue("https://preprod.sokosumi.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
     magicLinkPluginMock.mockReturnValue("magic-link-plugin");
@@ -870,6 +870,31 @@ describe("core auth config", () => {
       "https://preprod.sokosumi.com",
       "https://*.preview.sokosumi.com",
       "http://localhost:*",
+    ]);
+  });
+
+  it("trusts the exact related web preview origin for Better Auth", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "fix/web-preview-core-url",
+    });
+    getWebAppBaseUrlMock.mockReturnValue(
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com",
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ trustedOrigins: string[] }]
+    >;
+
+    expect(config.trustedOrigins).toEqual([
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com",
+      "https://*.preview.sokosumi.com",
     ]);
   });
 
