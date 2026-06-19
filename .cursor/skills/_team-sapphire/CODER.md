@@ -16,9 +16,19 @@ When Tech Lead defined one coder block (or no breakdown section):
 2. Follow repo conventions (`AGENTS.md`, scoped app guides).
 3. Run allowlisted verification before PR.
 4. Open PR — body references Linear issue id (e.g. `SOK-549`).
-5. Post `**PR handoff**` on the issue (see below).
-6. Post `**Sapphire · Coder complete**`.
-7. `save_issue` — Coder row → `done` (issue stays **In Progress**). See **Phase gate (blocking)**.
+5. **Standalone Coder only:** Post `**PR handoff**` on the issue (see below).
+6. **Standalone Coder only:** Post `**Sapphire · Coder complete**`.
+7. **Standalone Coder only:** `save_issue` — Coder row → `done` (issue stays **In Progress**). See **Phase gate (blocking)**.
+
+## Subagent mode (`sapphire-coder`)
+
+When the orchestrator delegates to `sapphire-coder` (single or parallel):
+
+1. Implement, verify, and open PR per **Single coder** steps 1–4.
+2. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
+3. Return PR URL, branch, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
+
+The orchestrator runs **Phase gate (blocking)** after all coders finish.
 
 ## Multiple coders
 

@@ -12,4 +12,4 @@ Read and follow `.cursor/skills/_team-sapphire/TECH-LEAD.md`, `SPEC-TEMPLATE.md`
 
 **Output:** Full **session spec** markdown (not posted to Linear). Return the complete spec text to the orchestrator plus a draft `**Sapphire · Tech Lead complete**` comment (coder count, execution order, 3–5 bullets).
 
-Do not implement code. Do not write investigation or spec sections to Linear.
+Do not implement code. Do not write investigation or spec sections to Linear. Do not call Linear MCP — the orchestrator posts Phase 2 gates.

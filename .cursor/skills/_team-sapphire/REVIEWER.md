@@ -105,6 +105,16 @@ Follow `VISUAL-CAPTURE.md` — **Cloud Agent:** computer use + PR artifacts; **I
 
 Run **Exit gate** in `PHASE-GATE.md` before the orchestrator returns to the user.
 
+## Subagent mode (`sapphire-reviewer`)
+
+When the orchestrator delegates to `sapphire-reviewer`:
+
+1. Follow **`/goal` loop** above — including fix on PR branch, push, and rerun until pass or blocker.
+2. **Do not** call Linear MCP — no `save_comment` or `save_issue`, and do not set **In Review**.
+3. Return pass/fail, evidence checklist, and draft `**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**` text to the orchestrator.
+
+The orchestrator runs **Completion** and **Exit gate** after you pass.
+
 ## Failure comment
 
 ```markdown
