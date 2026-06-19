@@ -61,9 +61,9 @@ const envSecretsSchema = z.object({
   // Max pending invitations per organization (optional; default 100).
   ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
 
-  // ably keys
+  // Ably subscribe key — token auth for browser realtime (/api/ably/auth).
+  // Publishing lives in Core (ABLY_PUBLISH_ONLY_KEY).
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
-  ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
 
   // analytics webhooks
   AGENT_HIRED_WEBHOOK: z.url().optional(),

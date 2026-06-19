@@ -884,6 +884,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
     });
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: "user_1",
       kind: NotificationKind.JOB,
@@ -957,6 +958,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user_1",
@@ -1097,6 +1099,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: "event_1",
@@ -1155,6 +1158,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: "event_2",
@@ -1677,6 +1681,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         Tag: "job-input-required",
       }),
     );
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: "user_1",
       kind: NotificationKind.JOB,

@@ -1,4 +1,4 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import { NotificationKind, SokosumiJobStatus } from "@sokosumi/utils";
 import * as z from "zod";
 
 export const jobStatusDataSchema = z.object({
@@ -15,3 +15,19 @@ export const taskEventDataSchema = z.object({
 });
 
 export type TaskEventData = z.infer<typeof taskEventDataSchema>;
+
+export const notificationEventDataSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  kind: z.nativeEnum(NotificationKind),
+  referenceId: z.string(),
+  eventId: z.string(),
+  messageKey: z.string(),
+  messageParams: z.record(z.string(), z.unknown()),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  isRead: z.boolean(),
+  readAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;
