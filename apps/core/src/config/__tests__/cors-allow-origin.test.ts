@@ -25,6 +25,13 @@ describe("resolveCorsAllowOrigin", () => {
     );
   });
 
+  it("allows branch preview origins on preview.sokosumi.com", () => {
+    const origin =
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com";
+
+    expect(resolveCorsAllowOrigin(origin)).toBe(origin);
+  });
+
   it("rejects http for sokosumi.com hosts", () => {
     expect(resolveCorsAllowOrigin("http://app.sokosumi.com")).toBeNull();
   });

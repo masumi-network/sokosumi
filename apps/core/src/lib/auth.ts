@@ -369,14 +369,17 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  trustedOrigins: [
-    "https://app.sokosumi.com",
-    "https://preprod.sokosumi.com",
-    "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
-    ...(env.NODE_ENV === "development"
-      ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
-      : []),
-  ],
+  trustedOrigins: Array.from(
+    new Set([
+      "https://app.sokosumi.com",
+      "https://preprod.sokosumi.com",
+      webAppBaseUrl,
+      "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
+      ...(env.NODE_ENV === "development"
+        ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
+        : []),
+    ]),
+  ),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
