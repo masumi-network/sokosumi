@@ -221,6 +221,18 @@ function buildFailureNotificationData(
   };
 }
 
+function dispatchJobInAppNotification(
+  job: JobWithSokosumiStatus,
+  jobStatus: SokosumiJobStatus,
+): void {
+  const eventId = job.events.at(0)?.id;
+  if (!eventId) {
+    return;
+  }
+
+  void dispatchJobNotification(job, jobStatus, eventId);
+}
+
 async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
@@ -228,6 +240,8 @@ async function dispatchFinalStatusNotification(
   if (!job.user.notificationsOptIn) {
     return;
   }
+
+  dispatchJobInAppNotification(job, jobStatus);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -284,6 +298,8 @@ async function dispatchInputRequiredNotification(
     return;
   }
 
+  dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
+
   try {
     const agentName = getAgentName(job.agent);
     const email = await renderJobInputRequiredEmail({
@@ -334,6 +350,8 @@ async function dispatchInputRequiredNotification(
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
+  dispatchJobInAppNotification(job, job.status);
+
   try {
     const notificationData = buildFailureNotificationData(job);
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;

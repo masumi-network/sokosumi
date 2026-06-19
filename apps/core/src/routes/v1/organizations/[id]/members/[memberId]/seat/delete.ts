@@ -1,15 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import {
-  FREE_SUBSCRIPTION_PLAN,
-  grantFreeOrganizationMemberSubscriptionCredits,
-  isActiveSubscriptionStatus,
-  resolveOrganizationBillingPlan,
-} from "@sokosumi/database/helpers";
-import {
-  memberRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -20,7 +10,7 @@ import { requireUserContext } from "@/middleware/auth";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
 import {
   mapSeatRepositoryError,
-  syncLocalFreeOrganizationCreditsIfNeeded,
+  unassignOrganizationMemberSeatWithCreditSync,
 } from "@/services/organization-seat.service";
 
 const params = z.object({
@@ -82,63 +72,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
         });
 
-        const billingPlan = await resolveOrganizationBillingPlan(
+        return unassignOrganizationMemberSeatWithCreditSync(
           organization.id,
-          tx,
-        );
-        const member = await memberRepository.unassignSeat(
           memberId,
-          organization.id,
           tx,
         );
-
-        if (
-          billingPlan.mode === "enterprise_contract" &&
-          billingPlan.isConsumable
-        ) {
-          return {
-            memberId: member.id,
-          };
-        }
-
-        const subscription =
-          await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-            organization.id,
-            tx,
-          );
-
-        if (
-          subscription?.stripeSubscriptionId &&
-          subscription.periodEnd &&
-          subscription.plan !== FREE_SUBSCRIPTION_PLAN &&
-          isActiveSubscriptionStatus(subscription.status)
-        ) {
-          await grantFreeOrganizationMemberSubscriptionCredits(
-            {
-              memberUserIds: [member.userId],
-              organizationId: organization.id,
-              periodEnd: subscription.periodEnd,
-            },
-            tx,
-          );
-        } else if (subscription?.periodStart && subscription.periodEnd) {
-          await syncLocalFreeOrganizationCreditsIfNeeded(
-            organization.id,
-            {
-              createdAt: subscription.createdAt,
-              periodEnd: subscription.periodEnd,
-              periodStart: subscription.periodStart,
-              seats: subscription.seats,
-              status: subscription.status,
-              stripeSubscriptionId: subscription.stripeSubscriptionId,
-            },
-            tx,
-          );
-        }
-
-        return {
-          memberId: member.id,
-        };
       });
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));

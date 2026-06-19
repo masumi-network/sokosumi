@@ -191,4 +191,60 @@ export const organizationRepository = {
       where: { stripeCustomerId },
     });
   },
+
+  /**
+   * Paginated organization listing for the admin organization overview. An
+   * empty or missing query lists all organizations (unlike `searchOrganizations`,
+   * which is a picker and returns nothing for blank queries). Ordered newest-first.
+   */
+  async listOrganizationsForAdminOverview(
+    params: {
+      query?: string;
+      cursor?: string;
+      take: number;
+      skip?: number;
+    },
+    tx: Prisma.TransactionClient,
+  ): Promise<{
+    organizations: Array<
+      Pick<Organization, "id" | "name" | "slug" | "createdAt"> & {
+        _count: { members: number };
+      }
+    >;
+    total: number;
+  }> {
+    const trimmed = params.query?.trim();
+    const where: Prisma.OrganizationWhereInput = trimmed
+      ? {
+          OR: [
+            { name: { contains: trimmed, mode: "insensitive" } },
+            { slug: { contains: trimmed, mode: "insensitive" } },
+          ],
+        }
+      : {};
+
+    const [organizations, total] = await Promise.all([
+      tx.organization.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          createdAt: true,
+          _count: {
+            select: {
+              members: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: params.take,
+        skip: params.skip,
+        cursor: params.cursor ? { id: params.cursor } : undefined,
+      }),
+      tx.organization.count({ where }),
+    ]);
+
+    return { organizations, total };
+  },
 };

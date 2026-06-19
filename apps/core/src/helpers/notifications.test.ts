@@ -123,7 +123,6 @@ describe("createNotification", () => {
   it("returns the existing row unchanged on duplicate emits", async () => {
     publishNotificationEventMock.mockClear();
     const existing = createNotificationRecord({
-      messageKey: "Notifications.Job.started",
       messageParams: JSON.stringify({ jobName: "Original job name" }),
       metadata: JSON.stringify({ agentId: "original_agent" }),
       createdAt: new Date("2026-06-18T08:00:00.000Z"),
@@ -135,7 +134,6 @@ describe("createNotification", () => {
     const result = await createNotification(
       {
         ...notificationInput,
-        messageKey: "Notifications.Job.completed",
         messageParams: { jobName: "Changed job name" },
         metadata: { agentId: "changed_agent" },
       },
@@ -146,16 +144,54 @@ describe("createNotification", () => {
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
     expect(prismaMock.notification.findUnique).toHaveBeenCalledWith({
       where: {
-        userId_kind_referenceId_eventId: {
+        userId_kind_referenceId_eventId_messageKey: {
           userId: notificationInput.userId,
           kind: notificationInput.kind,
           referenceId: notificationInput.referenceId,
           eventId: notificationInput.eventId,
+          messageKey: notificationInput.messageKey,
         },
       },
     });
     expect(prismaMock.notification.update).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
+  });
+
+  it("creates a separate row when the message key differs for the same event", async () => {
+    publishNotificationEventMock.mockClear();
+    const existing = createNotificationRecord({
+      messageKey: "Notifications.Job.completed",
+    });
+    const created = createNotificationRecord({
+      id: "notification_456",
+      messageKey: "Notifications.Job.paymentFailed",
+    });
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(created);
+
+    const result = await createNotification(
+      {
+        ...notificationInput,
+        messageKey: "Notifications.Job.paymentFailed",
+      },
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(result).toEqual({ notification: created, created: true });
+    expect(prismaMock.notification.create).toHaveBeenCalledWith({
+      data: {
+        userId: notificationInput.userId,
+        kind: notificationInput.kind,
+        referenceId: notificationInput.referenceId,
+        eventId: notificationInput.eventId,
+        messageKey: "Notifications.Job.paymentFailed",
+        messageParams: JSON.stringify(notificationInput.messageParams),
+        metadata: JSON.stringify(notificationInput.metadata),
+      },
+    });
+    expect(publishNotificationEventMock).toHaveBeenCalled();
+    expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
+    expect(existing.messageKey).toBe("Notifications.Job.completed");
   });
 
   it("preserves read state when a duplicate emit arrives after mark-read", async () => {

@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { NotificationKind } from "@sokosumi/utils";
+import { NotificationKind } from "@sokosumi/database";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 

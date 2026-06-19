@@ -1,11 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { Prisma } from "@sokosumi/database";
-import {
-  convertCentsToCredits,
-  convertCreditsToCents,
-  NotificationKind,
-} from "@sokosumi/utils";
+import { NotificationKind, Prisma } from "@sokosumi/database";
+import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+
 import { waitUntil } from "@vercel/functions";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -351,37 +348,56 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     if (event.status) {
-      const taskWithRelations = await prisma.task.findUnique({
-        where: { id: taskId },
-        select: {
-          id: true,
-          userId: true,
-          name: true,
-          projectId: true,
-          workspaceId: true,
-          coworker: {
-            select: {
-              name: true,
-            },
-          },
-          project: {
-            select: {
-              name: true,
-            },
-          },
-          user: {
-            select: {
-              notificationsOptIn: true,
-            },
-          },
-        },
-      });
+      const taskEventId = event.id;
+      const taskEventStatus = event.status;
 
-      if (taskWithRelations) {
-        waitUntil(
-          dispatchTaskNotification(taskWithRelations, event.id, event.status),
-        );
-      }
+      waitUntil(
+        (async () => {
+          try {
+            const taskWithRelations = await prisma.task.findUnique({
+              where: { id: taskId },
+              select: {
+                id: true,
+                userId: true,
+                name: true,
+                projectId: true,
+                workspaceId: true,
+                coworker: {
+                  select: {
+                    name: true,
+                  },
+                },
+                project: {
+                  select: {
+                    name: true,
+                  },
+                },
+                user: {
+                  select: {
+                    notificationsOptIn: true,
+                  },
+                },
+              },
+            });
+
+            if (taskWithRelations) {
+              await dispatchTaskNotification(
+                taskWithRelations,
+                taskEventId,
+                taskEventStatus,
+              );
+            }
+          } catch (error) {
+            Sentry.captureException(error, {
+              extra: {
+                taskId,
+                eventId: taskEventId,
+                notificationType: "task-notification",
+              },
+            });
+          }
+        })(),
+      );
     }
 
     if (masumiPayment != null) {
