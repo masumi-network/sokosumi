@@ -1,5 +1,6 @@
 "use client";
 
+import { ChannelProvider } from "ably/react";
 import {
   createContext,
   use,
@@ -8,7 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
-import type { NotificationEventData } from "@/lib/ably";
+import {
+  makeUserNotificationsChannelName,
+  type NotificationEventData,
+} from "@/lib/ably";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
@@ -67,7 +71,7 @@ interface NotificationProviderProps {
   children: React.ReactNode;
 }
 
-export function NotificationProvider({
+function NotificationProviderBody({
   userId,
   children,
 }: NotificationProviderProps) {
@@ -190,4 +194,17 @@ export function NotificationProvider({
   };
 
   return <NotificationContext value={value}>{children}</NotificationContext>;
+}
+
+export function NotificationProvider({
+  userId,
+  children,
+}: NotificationProviderProps) {
+  return (
+    <ChannelProvider channelName={makeUserNotificationsChannelName(userId)}>
+      <NotificationProviderBody userId={userId}>
+        {children}
+      </NotificationProviderBody>
+    </ChannelProvider>
+  );
 }
