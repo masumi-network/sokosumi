@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { TaskEventOrigin } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
+import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -24,6 +25,7 @@ export const createTaskRequestSchema = z
       .string()
       .trim()
       .min(1)
+      .max(LIMITS.NAME_MAX_LENGTH)
       .optional()
       .openapi({ example: "Review onboarding" }),
     description: z.string().nullish().openapi({ example: "Notes go here" }),

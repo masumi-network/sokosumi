@@ -7,6 +7,7 @@ import type {
 import { inputGroupsSchema, inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -229,7 +230,10 @@ export const jobSchema = z
 /** Body for `PATCH /jobs/{id}`. Add optional fields here as more attributes become editable. */
 export const patchJobRequestSchema = z
   .object({
-    name: z.union([z.string().trim().min(1), z.null()]),
+    name: z.union([
+      z.string().trim().min(1).max(LIMITS.NAME_MAX_LENGTH),
+      z.null(),
+    ]),
   })
   .strict();
 
@@ -252,11 +256,17 @@ export const createJobRequestSchema = z.object({
     .nullable()
     .optional()
     .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
-  name: z.string().trim().min(1).optional().openapi({
-    example: "My Job",
-    description:
-      "If not provided, an AI-generated name will be created based on the agent details and input data.",
-  }),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(LIMITS.NAME_MAX_LENGTH)
+    .optional()
+    .openapi({
+      example: "My Job",
+      description:
+        "If not provided, an AI-generated name will be created based on the agent details and input data.",
+    }),
 });
 
 // Preprocess function to handle backward compatibility (job_id -> id)

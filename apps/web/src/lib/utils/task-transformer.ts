@@ -10,7 +10,7 @@ import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import { getColumnId } from "@/lib/utils/task-column";
 
-export function clampTaskNameForCoreApi(name: string): string {
+export function normalizeTaskNameForCoreApi(name: string): string {
   return name.trim();
 }
 

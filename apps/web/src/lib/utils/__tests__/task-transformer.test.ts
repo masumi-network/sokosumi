@@ -6,8 +6,8 @@ import type {
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
 import {
-  clampTaskNameForCoreApi,
   mapTaskToTaskWithCoworker,
+  normalizeTaskNameForCoreApi,
 } from "@/lib/utils/task-transformer";
 
 function buildTask(
@@ -139,15 +139,15 @@ describe("mapTaskToTaskWithCoworker", () => {
   });
 });
 
-describe("clampTaskNameForCoreApi", () => {
-  it("returns names under the limit unchanged", () => {
-    expect(clampTaskNameForCoreApi("Review onboarding flow")).toBe(
+describe("normalizeTaskNameForCoreApi", () => {
+  it("returns names without surrounding whitespace unchanged", () => {
+    expect(normalizeTaskNameForCoreApi("Review onboarding flow")).toBe(
       "Review onboarding flow",
     );
   });
 
   it("trims surrounding whitespace before returning the name", () => {
-    expect(clampTaskNameForCoreApi("  Review onboarding flow  ")).toBe(
+    expect(normalizeTaskNameForCoreApi("  Review onboarding flow  ")).toBe(
       "Review onboarding flow",
     );
   });
@@ -155,6 +155,6 @@ describe("clampTaskNameForCoreApi", () => {
   it("preserves long names after trimming whitespace", () => {
     const longName = "a".repeat(200);
 
-    expect(clampTaskNameForCoreApi(`  ${longName}  `)).toBe(longName);
+    expect(normalizeTaskNameForCoreApi(`  ${longName}  `)).toBe(longName);
   });
 });
