@@ -3,7 +3,7 @@
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
@@ -36,8 +36,19 @@ export function NotificationsPageContent({
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [hasFetchError, setHasFetchError] = useState(false);
+  const fetchInFlightRef = useRef(false);
+  const fetchGenerationRef = useRef(0);
 
   const fetchNotifications = useCallback(async (nextCursor?: string | null) => {
+    if (fetchInFlightRef.current) {
+      return;
+    }
+
+    fetchInFlightRef.current = true;
+    const generation = ++fetchGenerationRef.current;
+    const isInitialLoad = nextCursor == null;
+
     try {
       setIsLoading(true);
       const response = await coreClient.getNotifications({
@@ -45,16 +56,38 @@ export function NotificationsPageContent({
         cursor: nextCursor ?? undefined,
       });
 
-      setNotifications((prev) =>
-        nextCursor ? [...prev, ...response.data] : response.data,
-      );
+      if (generation !== fetchGenerationRef.current) {
+        return;
+      }
+
+      setNotifications((prev) => {
+        if (!nextCursor) {
+          return response.data;
+        }
+
+        const existingIds = new Set(
+          prev.map((notification) => notification.id),
+        );
+        const newItems = response.data.filter(
+          (notification) => !existingIds.has(notification.id),
+        );
+
+        return [...prev, ...newItems];
+      });
       const paginationMeta = response.meta.pagination;
       setHasMore(paginationMeta.nextCursor !== null);
       setCursor(paginationMeta.nextCursor);
+      setHasFetchError(false);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      if (generation === fetchGenerationRef.current && isInitialLoad) {
+        setHasFetchError(true);
+      }
     } finally {
-      setIsLoading(false);
+      if (generation === fetchGenerationRef.current) {
+        setIsLoading(false);
+        fetchInFlightRef.current = false;
+      }
     }
   }, []);
 
@@ -172,6 +205,20 @@ export function NotificationsPageContent({
               </div>
             ))}
           </div>
+        </div>
+      ) : hasFetchError && notifications.length === 0 ? (
+        <div className="bg-muted/30 border-border/50 flex flex-col items-center justify-center gap-3 rounded-xl border p-8">
+          <p className="text-muted-foreground text-center">
+            {tCenter("fetchError")}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchNotifications()}
+          >
+            {tCenter("retry")}
+          </Button>
         </div>
       ) : notifications.length === 0 ? (
         <div className="bg-muted/30 border-border/50 flex flex-col items-center justify-center rounded-xl border p-8">

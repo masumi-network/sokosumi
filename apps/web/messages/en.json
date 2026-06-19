@@ -683,6 +683,8 @@
       "loadMore": "Load more",
       "markAllRead": "Mark all as read",
       "markAllReadError": "Failed to mark all notifications as read",
+      "fetchError": "Could not load notifications",
+      "retry": "Try again",
       "dismiss": "Dismiss",
       "dismissNotification": "Dismiss notification"
     },

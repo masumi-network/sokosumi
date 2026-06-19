@@ -25,6 +25,7 @@ interface NotificationContextValue {
   markAllRead: () => Promise<void>;
   refetch: () => Promise<void>;
   isLoading: boolean;
+  hasFetchError: boolean;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(
@@ -189,10 +190,12 @@ function NotificationProviderBody({
     { notifications: [], unreadCount: 0 },
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [hasFetchError, setHasFetchError] = useState(false);
   const fetchGenerationRef = useRef(0);
 
   const fetchNotifications = useCallback(async () => {
     const generation = ++fetchGenerationRef.current;
+    setIsLoading(true);
 
     try {
       const [listResponse, countResponse] = await Promise.all([
@@ -209,8 +212,12 @@ function NotificationProviderBody({
         fetched: listResponse.data,
         serverUnreadCount: countResponse.data.count,
       });
+      setHasFetchError(false);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      if (generation === fetchGenerationRef.current) {
+        setHasFetchError(true);
+      }
     } finally {
       if (generation === fetchGenerationRef.current) {
         setIsLoading(false);
@@ -278,6 +285,7 @@ function NotificationProviderBody({
     markAllRead,
     refetch: fetchNotifications,
     isLoading,
+    hasFetchError,
   };
 
   return <NotificationContext value={value}>{children}</NotificationContext>;

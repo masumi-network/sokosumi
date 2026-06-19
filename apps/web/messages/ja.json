@@ -667,6 +667,8 @@
       "loadMore": "さらに読み込む",
       "markAllRead": "すべて既読にする",
       "markAllReadError": "すべての通知を既読にできませんでした",
+      "fetchError": "通知を読み込めませんでした",
+      "retry": "再試行",
       "dismiss": "閉じる",
       "dismissNotification": "通知を閉じる"
     },

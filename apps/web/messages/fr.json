@@ -667,6 +667,8 @@
       "loadMore": "Charger plus",
       "markAllRead": "Tout marquer comme lu",
       "markAllReadError": "Impossible de marquer toutes les notifications comme lues",
+      "fetchError": "Impossible de charger les notifications",
+      "retry": "Réessayer",
       "dismiss": "Ignorer",
       "dismissNotification": "Ignorer la notification"
     },

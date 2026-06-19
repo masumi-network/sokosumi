@@ -667,6 +667,8 @@
       "loadMore": "Carica altro",
       "markAllRead": "Segna tutte come lette",
       "markAllReadError": "Impossibile segnare tutte le notifiche come lette",
+      "fetchError": "Impossibile caricare le notifiche",
+      "retry": "Riprova",
       "dismiss": "Ignora",
       "dismissNotification": "Ignora notifica"
     },

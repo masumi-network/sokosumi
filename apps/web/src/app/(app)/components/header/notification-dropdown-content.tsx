@@ -23,7 +23,8 @@ export function NotificationDropdownContent({
   const t = useTranslations("Components.NotificationCenter");
   const router = useRouter();
   const formatTime = useNotificationTimeFormatter();
-  const { notifications, markRead, isLoading } = useNotifications();
+  const { notifications, markRead, isLoading, hasFetchError, refetch } =
+    useNotifications();
 
   const handleNotificationClick = async (notificationId: string) => {
     const notification = notifications.find((n) => n.id === notificationId);
@@ -57,6 +58,24 @@ export function NotificationDropdownContent({
       <div className="flex flex-col items-center justify-center py-8">
         <div className="bg-muted size-12 animate-pulse rounded-full" />
         <div className="bg-muted mt-4 h-4 w-32 animate-pulse rounded" />
+      </div>
+    );
+  }
+
+  if (hasFetchError && notifications.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 px-4 py-8">
+        <p className="text-muted-foreground text-center text-sm">
+          {t("fetchError")}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void refetch()}
+        >
+          {t("retry")}
+        </Button>
       </div>
     );
   }
