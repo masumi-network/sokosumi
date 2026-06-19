@@ -1032,6 +1032,8 @@ describe("TaskDetailActions", () => {
         ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
       });
     });
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-created");
   });
 
   it("shows remove parent when the task has a parent link", async () => {
@@ -1321,6 +1323,8 @@ describe("TaskDetailActions", () => {
         ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
       });
     });
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-created");
   });
 
   it("expands remove related inline on mobile and removes the selected task", async () => {
