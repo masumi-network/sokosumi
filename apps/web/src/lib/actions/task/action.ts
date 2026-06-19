@@ -502,7 +502,7 @@ export const deleteTaskLink = withSession<
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
-  { taskId: string; createdTaskId: string; linkId: string }
+  { taskId: string; createdTaskId: string; linkId: string; name: string }
 >(
   async ({
     taskId,
@@ -564,6 +564,7 @@ export const createTaskAndLink = withSession<
         taskId: normalizedTaskId,
         createdTaskId: createdTask.id,
         linkId: link.id,
+        name: createdTask.name,
       };
     } catch (error) {
       if (createdTask) {

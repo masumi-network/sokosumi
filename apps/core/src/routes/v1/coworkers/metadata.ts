@@ -25,7 +25,22 @@ export function normalizeCoworkerMetadata(
     return accumulator;
   }, {});
 
-  return Object.keys(normalizedChannels).length > 0
-    ? { channels: normalizedChannels }
-    : null;
+  const normalized: CoworkerMetadata = {
+    channels: normalizedChannels,
+  };
+
+  if (metadata.profile !== undefined) {
+    normalized.profile = metadata.profile;
+  }
+
+  if (metadata.offers !== undefined) {
+    normalized.offers = metadata.offers;
+  }
+
+  const hasContent =
+    Object.keys(normalizedChannels).length > 0 ||
+    metadata.profile !== undefined ||
+    metadata.offers !== undefined;
+
+  return hasContent ? normalized : null;
 }

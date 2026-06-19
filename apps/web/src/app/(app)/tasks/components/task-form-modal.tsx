@@ -31,9 +31,7 @@ export function TaskFormModal({
   };
 
   const handleDismissAttempt = (event: Event) => {
-    if (isDismissDisabled) {
-      event.preventDefault();
-    }
+    event.preventDefault();
   };
 
   return (

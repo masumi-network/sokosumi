@@ -132,6 +132,8 @@ interface TaskFormProps {
   variant?: "page" | "modal";
   onCancel?: () => void;
   onSuccess?: (taskId: string) => void;
+  /** Runs right after a modal create succeeds (before the celebration step). */
+  onCreated?: (taskId: string) => void;
   onCreateAnother?: () => void;
   onCreateTask?: (input: {
     description: string;
@@ -158,6 +160,7 @@ export function TaskForm({
   variant = "page",
   onCancel,
   onSuccess,
+  onCreated,
   onCreateAnother,
   onCreateTask,
   showCancel = true,
@@ -273,6 +276,7 @@ export function TaskForm({
     onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const isSaveDisabled =
+    createdTask !== null ||
     !description.trim() ||
     (isNameRequired && !name.trim()) ||
     isSubmittingAny ||
@@ -316,6 +320,7 @@ export function TaskForm({
               status: isDraft ? "DRAFT" : "READY",
               statusLabel: isDraft ? labels.statusDraft : labels.statusReady,
             });
+            onCreated?.(result.taskId);
             return;
           }
           if (onSuccess) {
@@ -367,6 +372,7 @@ export function TaskForm({
       status,
       taskId,
       onSuccess,
+      onCreated,
       onCreateTask,
       labels.statusDraft,
       labels.statusReady,
