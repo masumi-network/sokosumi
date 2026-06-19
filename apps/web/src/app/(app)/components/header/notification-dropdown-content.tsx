@@ -34,7 +34,7 @@ export function NotificationDropdownContent({
       try {
         await markRead(notificationId);
       } catch {
-        return;
+        // Still navigate when mark-read fails transiently.
       }
     }
 
@@ -53,7 +53,7 @@ export function NotificationDropdownContent({
     onClose();
   };
 
-  if (isLoading) {
+  if (isLoading && notifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
         <div className="bg-muted size-12 animate-pulse rounded-full" />

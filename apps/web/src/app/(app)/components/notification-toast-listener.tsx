@@ -70,7 +70,7 @@ export function NotificationToastListener({
                     try {
                       await markRead(notification.id);
                     } catch {
-                      return;
+                      // Still open the link when mark-read fails.
                     }
                   }
 
@@ -88,7 +88,9 @@ export function NotificationToastListener({
             icon: <Bell className="text-primary size-5 shrink-0" />,
             action: {
               label: t("dismiss"),
-              onClick: () => {},
+              onClick: () => {
+                toast.dismiss(notification.id);
+              },
             },
           },
         );
