@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   beforeSendClientEvent,
   isThirdPartyAnalyticsFetchFailure,
+  isTransientFirstPartyApiFetchFailure,
   thirdPartyAnalyticsIgnoreErrors,
 } from "@/lib/sentry/third-party-fetch-errors";
 
@@ -40,6 +41,32 @@ describe("isThirdPartyAnalyticsFetchFailure", () => {
     expect(
       isThirdPartyAnalyticsFetchFailure(
         "TypeError: Failed to fetch (app.sokosumi.com)",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isTransientFirstPartyApiFetchFailure", () => {
+  it("returns true for WebKit Load failed against Core API", () => {
+    expect(
+      isTransientFirstPartyApiFetchFailure(
+        "TypeError: Load failed (api.sokosumi.com)",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true for Chromium Failed to fetch against Core API", () => {
+    expect(
+      isTransientFirstPartyApiFetchFailure(
+        "Failed to fetch (api.preprod.sokosumi.com)",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false for unrelated hosts", () => {
+    expect(
+      isTransientFirstPartyApiFetchFailure(
+        "TypeError: Load failed (example.com)",
       ),
     ).toBe(false);
   });
@@ -120,5 +147,23 @@ describe("beforeSendClientEvent", () => {
     };
 
     expect(beforeSendClientEvent(event, {})).toBe(event);
+  });
+
+  it("drops transient Core API network failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                value: "TypeError: Load failed (api.sokosumi.com)",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
   });
 });

@@ -30,3 +30,9 @@ export async function redirectIfUnauthorizedCoreError(
 
   throw error;
 }
+
+export function redirectUnauthorizedPromise<T>(
+  promise: Promise<T>,
+): Promise<T> {
+  return promise.catch((error) => redirectIfUnauthorizedCoreError(error));
+}
