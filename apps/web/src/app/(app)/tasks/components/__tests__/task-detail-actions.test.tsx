@@ -1010,6 +1010,7 @@ describe("TaskDetailActions", () => {
       taskId: "task-1",
       createdTaskId: "task-created",
       linkId: "link-created",
+      name: "Created related task",
     });
 
     renderActions();
@@ -1301,6 +1302,7 @@ describe("TaskDetailActions", () => {
       taskId: "task-1",
       createdTaskId: "task-created",
       linkId: "link-created",
+      name: "Created related task",
     });
 
     renderActions();
