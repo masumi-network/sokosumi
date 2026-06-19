@@ -1,5 +1,10 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, JobType, Prisma } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  JobType,
+  NotificationKind,
+  Prisma,
+} from "@sokosumi/database";
 import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseSyncWhere,
@@ -34,6 +39,7 @@ import { postmarkClient } from "@/clients/postmark.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
+import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -206,6 +212,18 @@ function buildFailureNotificationData(
   };
 }
 
+function dispatchJobInAppNotification(
+  job: JobWithSokosumiStatus,
+  jobStatus: SokosumiJobStatus,
+): void {
+  const eventId = job.events.at(0)?.id;
+  if (!eventId) {
+    return;
+  }
+
+  void dispatchJobNotification(job, jobStatus, eventId);
+}
+
 async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
@@ -213,6 +231,8 @@ async function dispatchFinalStatusNotification(
   if (!job.user.notificationsOptIn) {
     return;
   }
+
+  dispatchJobInAppNotification(job, jobStatus);
 
   try {
     const agentName = getAgentName(job.agent);
@@ -269,6 +289,8 @@ async function dispatchInputRequiredNotification(
     return;
   }
 
+  dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
+
   try {
     const agentName = getAgentName(job.agent);
     const email = await renderJobInputRequiredEmail({
@@ -319,6 +341,8 @@ async function dispatchInputRequiredNotification(
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
 ): Promise<void> {
+  dispatchJobInAppNotification(job, job.status);
+
   try {
     const notificationData = buildFailureNotificationData(job);
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
@@ -406,6 +430,68 @@ async function dispatchJobFailureNotification(
         jobId: job.id,
         userId: job.userId,
         notificationType: "job-failure",
+      },
+    });
+  }
+}
+
+async function dispatchJobNotification(
+  job: JobWithSokosumiStatus,
+  jobStatus: SokosumiJobStatus,
+  eventId: string,
+): Promise<void> {
+  if (!job.user.notificationsOptIn) {
+    return;
+  }
+
+  try {
+    const agentName = getAgentName(job.agent);
+    const jobName = job.name ?? "Untitled job";
+
+    let messageKey: string;
+    switch (jobStatus) {
+      case SokosumiJobStatus.COMPLETED:
+        messageKey = "Notifications.Job.completed";
+        break;
+      case SokosumiJobStatus.REFUND_RESOLVED:
+        messageKey = "Notifications.Job.refundResolved";
+        break;
+      case SokosumiJobStatus.DISPUTE_RESOLVED:
+        messageKey = "Notifications.Job.disputeResolved";
+        break;
+      case SokosumiJobStatus.FAILED:
+        messageKey = "Notifications.Job.failed";
+        break;
+      case SokosumiJobStatus.PAYMENT_FAILED:
+        messageKey = "Notifications.Job.paymentFailed";
+        break;
+      case SokosumiJobStatus.INPUT_REQUIRED:
+        messageKey = "Notifications.Job.inputRequired";
+        break;
+      default:
+        return;
+    }
+
+    await createNotification({
+      userId: job.userId,
+      kind: NotificationKind.JOB,
+      referenceId: job.id,
+      eventId,
+      messageKey,
+      messageParams: {
+        agentName,
+        jobName,
+      },
+      metadata: {
+        agentId: job.agentId,
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        jobId: job.id,
+        userId: job.userId,
+        notificationType: "job-notification",
       },
     });
   }

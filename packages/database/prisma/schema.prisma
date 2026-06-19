@@ -282,7 +282,7 @@ model Notification {
   readAt        DateTime?
   createdAt     DateTime         @default(now())
 
-  @@unique([userId, kind, referenceId, eventId])
+  @@unique([userId, kind, referenceId, eventId, messageKey])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, isRead])
   @@index([eventId])

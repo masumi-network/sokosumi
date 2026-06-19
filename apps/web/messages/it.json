@@ -3664,6 +3664,25 @@
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {s} other {s}}"
       }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} ha completato {jobName}",
+        "failed": "{agentName} non è riuscito a completare {jobName}",
+        "paymentFailed": "Pagamento non riuscito per {jobName}",
+        "inputRequired": "{agentName} richiede il tuo input per {jobName}",
+        "refundResolved": "{jobName} è stato rimborsato",
+        "disputeResolved": "Contestazione risolta per {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} richiede il tuo input per {taskName}",
+        "approvalRequired": "{coworkerName} richiede la tua approvazione per {taskName}",
+        "authenticationRequired": "{coworkerName} richiede l'autenticazione per {taskName}",
+        "outOfCredits": "{coworkerName} ha esaurito i crediti per {taskName}",
+        "completed": "{coworkerName} ha completato {taskName}",
+        "failed": "{coworkerName} non è riuscito a completare {taskName}",
+        "canceled": "{taskName} è stato annullato"
+      }
     }
   }
 }
