@@ -104,4 +104,12 @@ describe("isExpectedClientNoiseErrorMessage", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches browser extension bridge rejections", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+      ),
+    ).toBe(true);
+  });
 });

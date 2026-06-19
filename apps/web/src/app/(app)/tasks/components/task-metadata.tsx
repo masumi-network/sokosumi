@@ -1,12 +1,10 @@
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
-import { useFormatter } from "next-intl";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
-import { HYDRATION_STABLE_TIME_ZONE } from "@/lib/utils/datetime";
 
 import { TaskStatusBadge } from "./task-status-badge";
 
@@ -28,29 +26,27 @@ interface TaskMetadataTask {
   user: Task["user"];
   organization: Task["organization"];
   coworker: Task["coworker"];
-  createdAt: Task["createdAt"];
-  updatedAt: Task["updatedAt"];
 }
 
 interface TaskMetadataProps {
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
   labels: TaskMetadataLabels;
+  createdAtLabel: string;
+  updatedAtLabel: string;
 }
 
-export function TaskMetadata({ task, project, labels }: TaskMetadataProps) {
+export function TaskMetadata({
+  task,
+  project,
+  labels,
+  createdAtLabel,
+  updatedAtLabel,
+}: TaskMetadataProps) {
   const ownerImage = task.user.image
     ? resolveIpfsOrHttpUrl(task.user.image)
     : null;
   const coworkerImage = getCoworkerImage(task.coworker);
-  const formatter = useFormatter();
-  const dateTimeOptions = {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: HYDRATION_STABLE_TIME_ZONE,
-  } as const;
 
   return (
     <div className="space-y-4">
@@ -130,17 +126,16 @@ export function TaskMetadata({ task, project, labels }: TaskMetadataProps) {
             {labels.created}
           </span>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatter.dateTime(new Date(task.createdAt), dateTimeOptions)}
+            {createdAtLabel}
           </span>
         </div>
 
-        {/* Updated */}
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">
             {labels.updated}
           </span>
           <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-            {formatter.dateTime(new Date(task.updatedAt), dateTimeOptions)}
+            {updatedAtLabel}
           </span>
         </div>
       </div>

@@ -35,6 +35,16 @@ export const thirdPartyAnalyticsIgnoreErrors: RegExp[] = [
 const thirdPartyFetchFailurePattern =
   /^(?:TypeError: )?Failed to fetch \(([^)]+)\)$/;
 
+/** WebKit reports blocked or offline network calls as `Load failed (hostname)`. */
+const transientFetchFailurePattern =
+  /^(?:TypeError: )?(?:Failed to fetch|Load failed) \(([^)]+)\)$/;
+
+/** Core API hosts where client-side connectivity blips are user/network noise. */
+const FIRST_PARTY_API_HOSTS = [
+  "api.sokosumi.com",
+  "api.preprod.sokosumi.com",
+] as const;
+
 function getEventErrorMessage(event: ErrorEvent): string {
   const exceptionValue = event.exception?.values?.[0]?.value;
   if (typeof exceptionValue === "string" && exceptionValue.length > 0) {
@@ -68,11 +78,40 @@ export function isThirdPartyAnalyticsFetchFailure(message: string): boolean {
   return isKnownThirdPartyHost(match[1]);
 }
 
+function isKnownFirstPartyApiHost(host: string): boolean {
+  const normalizedHost = host.toLowerCase();
+
+  return FIRST_PARTY_API_HOSTS.some((knownHost) => {
+    return (
+      normalizedHost === knownHost || normalizedHost.endsWith(`.${knownHost}`)
+    );
+  });
+}
+
+/**
+ * Mobile Safari and other WebKit engines surface offline/tab-background fetch
+ * failures as `Load failed (api.sokosumi.com)` instead of Chromium's
+ * `Failed to fetch (...)` (see SOKOSUMI-6H on `/signin`).
+ */
+export function isTransientFirstPartyApiFetchFailure(message: string): boolean {
+  const match = message.match(transientFetchFailurePattern);
+  if (!match) {
+    return false;
+  }
+
+  return isKnownFirstPartyApiHost(match[1]);
+}
+
 export function beforeSendClientEvent(
   event: ErrorEvent,
   _hint: EventHint,
 ): ErrorEvent | null {
-  if (isThirdPartyAnalyticsFetchFailure(getEventErrorMessage(event))) {
+  const message = getEventErrorMessage(event);
+
+  if (
+    isThirdPartyAnalyticsFetchFailure(message) ||
+    isTransientFirstPartyApiFetchFailure(message)
+  ) {
     return null;
   }
 
