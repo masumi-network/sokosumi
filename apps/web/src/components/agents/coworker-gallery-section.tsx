@@ -757,7 +757,7 @@ function CoworkerGallerySection({
   const socialProofLabel =
     agentCount && agentCount >= 1
       ? t("socialProof", {
-          count: `${groupThousands(agentCount >= 100 ? Math.floor(agentCount / 100) * 100 : agentCount)}+`,
+          count: `${groupThousands(agentCount)}+`,
         })
       : t("socialProofFallback");
 

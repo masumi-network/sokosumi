@@ -13,6 +13,7 @@ import {
   organizationInvoiceEmailSchema,
   organizationInvoiceEmailWriteSchema,
 } from "@/schemas/organization.schema";
+import { stripeBillingService } from "@/services/stripe-billing.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -81,6 +82,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         invoiceEmail,
         prisma,
       );
+
+    await stripeBillingService.syncOrganizationInvoiceEmailWithStripe(
+      organization.id,
+      invoiceEmail,
+    );
 
     return ok(
       c,

@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { writeCreateTaskModalLastCoworkerId } from "@/app/tasks/utils/create-task-modal-preferences";
 import { createTask, updateTask } from "@/lib/actions/task/action";
-import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 
 const {
   markdownEditorPropsSpy,
@@ -275,6 +274,7 @@ describe("TaskForm", () => {
 
   it("shows a success state with a go-to-task action after creating in the modal", async () => {
     const user = userEvent.setup();
+    const onCreated = vi.fn();
     const onSuccess = vi.fn();
     const onCreateAnother = vi.fn();
     const createTaskMock = vi.mocked(createTask);
@@ -288,6 +288,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         initialValues={{ coworkerId: "coworker-2" }}
+        onCreated={onCreated}
         onSuccess={onSuccess}
         onCreateAnother={onCreateAnother}
       />,
@@ -300,6 +301,7 @@ describe("TaskForm", () => {
     const goToTask = await screen.findByRole("button", {
       name: baseLabels.goToTask,
     });
+    expect(onCreated).toHaveBeenCalledWith("task-1");
     expect(onSuccess).not.toHaveBeenCalled();
 
     await user.click(goToTask);
@@ -344,7 +346,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("limits the edit name field to the Core API max length", () => {
+  it("does not limit the edit name field length", () => {
     render(
       <TaskForm
         variant="modal"
@@ -363,10 +365,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Task name")).toHaveAttribute(
-      "maxlength",
-      String(DEFAULT_TASK_NAME_MAX_LENGTH),
-    );
+    expect(screen.getByLabelText("Task name")).not.toHaveAttribute("maxlength");
   });
 
   it("selects initialValues.coworkerId when provided", () => {
@@ -947,7 +946,10 @@ describe("TaskForm", () => {
   it("uses a custom create handler when provided", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    const onCreateTask = vi.fn().mockResolvedValue({ taskId: "linked-task-1" });
+    const onCreateTask = vi.fn().mockResolvedValue({
+      taskId: "linked-task-1",
+      name: "Linked task",
+    });
 
     render(
       <TaskForm
@@ -973,5 +975,45 @@ describe("TaskForm", () => {
       skipDesignMdAttachment: false,
     });
     expect(createTaskMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Linked task")).toBeInTheDocument();
+  });
+
+  it("does not create a duplicate task when Ctrl+Enter is pressed on the success step", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await startFromScratch(user);
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Bring me to the task" }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          ctrlKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
   });
 });

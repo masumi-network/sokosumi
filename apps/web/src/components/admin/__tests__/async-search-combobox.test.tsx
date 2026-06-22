@@ -151,4 +151,17 @@ describe("AsyncSearchCombobox", () => {
     expect(screen.queryByText("Item A")).toBeNull();
     expect(screen.getByText("Type to search.")).toBeInTheDocument();
   });
+
+  it("clears the selection from the inline control without opening the menu", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const { onChange } = renderCombobox({
+      allowClear: true,
+      value: { id: "1", label: "Chosen" },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(onChange).toHaveBeenCalledWith(null);
+    expect(screen.queryByPlaceholderText("Search items…")).toBeNull();
+  });
 });

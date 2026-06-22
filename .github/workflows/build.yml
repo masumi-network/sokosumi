@@ -16,7 +16,6 @@ env:
   SOKOSUMI_API_URL: "https://api.sokosumi.com"
   PAYMENT_API_KEY: "ci-payment-api-key"
   REGISTRY_API_KEY: "ci-registry-api-key"
-  STRIPE_PUBLISHABLE_KEY: "pk_test_ci_build_placeholder"
   STRIPE_SECRET_KEY: "sk_test_ci_build_placeholder"
   STRIPE_WEBHOOK_SECRET: "whsec_ci_build_placeholder"
   STRIPE_WELCOME_COUPON: "ci-stripe-welcome-coupon"
@@ -34,8 +33,7 @@ env:
   GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
   MICROSOFT_CLIENT_ID: "ci-microsoft-client-id"
   MICROSOFT_CLIENT_SECRET: "ci-microsoft-client-secret"
-  AFTER_AGENT_HIRED_WEB_HOOK: https://after-agent-hired-web-hook.com
-  MARKETING_OPT_IN_WEB_HOOK: https://marketing-opt-in-web-hook.com
+  AGENT_HIRED_WEBHOOK: https://example.test/agent-hired
 
 jobs:
   build:

@@ -1,4 +1,5 @@
 import type { Account } from "@sokosumi/utils";
+import type { ReactNode } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md";
 import { AccountProvider } from "@/lib/auth/types";
 
@@ -15,6 +16,7 @@ import { PreferencesSection } from "./preferences-section";
 interface AccountSettingsProps {
   accounts: Account[];
   designMdValue?: DesignMdProfileValue;
+  credentialAccountsLoadError?: ReactNode;
   notificationsOptIn: boolean;
   userLogo?: null | string;
   userMetadata?: null | string;
@@ -24,6 +26,7 @@ interface AccountSettingsProps {
 export function AccountSettings({
   accounts,
   designMdValue,
+  credentialAccountsLoadError,
   notificationsOptIn,
   userLogo,
   userMetadata,
@@ -39,7 +42,13 @@ export function AccountSettings({
         <NameForm />
         <EmailForm />
         <div className="md:col-span-2">
-          {hasCredentialAccount ? <PasswordForm /> : <NewPasswordForm />}
+          {credentialAccountsLoadError ? (
+            credentialAccountsLoadError
+          ) : hasCredentialAccount ? (
+            <PasswordForm />
+          ) : (
+            <NewPasswordForm />
+          )}
         </div>
         <div className="md:col-span-2">
           <PasskeySettings />

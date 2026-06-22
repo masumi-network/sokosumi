@@ -31,7 +31,9 @@ const organizations: OrganizationWithLimitedInfo[] = [
 ];
 
 const breadcrumbMessages = {
+  admin: "Admin",
   organizations: "Organizations",
+  users: "Users",
   agents: "Agents",
 };
 
@@ -74,5 +76,53 @@ describe("BreadcrumbNavigationClient", () => {
     );
 
     expect(screen.getByText("Research Copilot")).toBeInTheDocument();
+  });
+
+  it("shows admin organizations list breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/admin/organizations");
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Organizations")).toBeInTheDocument();
+  });
+
+  it("shows admin organization detail breadcrumbs with resolved name", () => {
+    usePathnameMock.mockReturnValue("/admin/organizations/acme-corp");
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+        segmentLabels={{ "acme-corp": "Acme Corp" }}
+      />,
+    );
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Organizations")).toBeInTheDocument();
+    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+  });
+
+  it("shows admin users list breadcrumbs", () => {
+    usePathnameMock.mockReturnValue("/admin/users");
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Users")).toBeInTheDocument();
+    expect(screen.queryByText("users")).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,23 @@ import { SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 
+const historyOwnerObjectSchema = z
+  .object({
+    userId: z.string().openapi({
+      description: "User ID of the history item owner",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    name: z.string().openapi({
+      description: "Display name of the owner",
+      example: "Alice Johnson",
+    }),
+    image: z.string().nullable().openapi({
+      description: "Profile image URL of the owner. Null when no image is set.",
+      example: "https://example.com/avatar.jpg",
+    }),
+  })
+  .openapi("HistoryOwner");
+
 const historyBaseItemSchema = z.object({
   id: z.string().openapi({
     description: "Source entity ID for this history row",
@@ -27,6 +44,16 @@ const historyBaseItemSchema = z.object({
     description:
       "User-facing credits. Null means credits do not apply to this item.",
     example: 2.5,
+  }),
+  // Union-with-null instead of `historyOwnerObjectSchema.nullable()`:
+  // `.nullable()` on a named `.openapi(...)` schema leaks `| null` into the
+  // generated `HistoryOwner` component and makes the client transformer call
+  // the owner converter unconditionally (crashing on null). Mirrors
+  // `jobSchema.share` / `taskSchema.share`.
+  owner: z.union([historyOwnerObjectSchema, z.null()]).openapi({
+    description:
+      "Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).",
+    example: null,
   }),
 });
 
@@ -112,6 +139,11 @@ export const historyListResponseExample = {
       credits: 2.5,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       coworkerId: "cow_123",
+      owner: {
+        userId: "550e8400-e29b-41d4-a716-446655440001",
+        name: "Alice Johnson",
+        image: "https://example.com/avatar.jpg",
+      },
     },
     {
       kind: "job",
@@ -126,6 +158,11 @@ export const historyListResponseExample = {
       agentId: "agent_123",
       agentName: "Research Agent",
       agentIcon: "https://example.com/research.svg",
+      owner: {
+        userId: "550e8400-e29b-41d4-a716-446655440002",
+        name: "Bob Smith",
+        image: null,
+      },
     },
     {
       kind: "conversation",
@@ -137,6 +174,7 @@ export const historyListResponseExample = {
       archivedAt: null,
       credits: null,
       bucketSlug: "hannah",
+      owner: null,
     },
   ],
   meta: {

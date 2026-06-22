@@ -51,7 +51,6 @@ import {
   type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
-import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
@@ -59,11 +58,6 @@ import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskProjectSelect } from "./task-project-select";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
-
-function deriveTaskName(description: string): string {
-  const firstLine = description.split("\n").find((line) => line.trim());
-  return firstLine?.trim().slice(0, 60) || "Untitled task";
-}
 
 export interface TaskFormLabels {
   details: string;
@@ -141,6 +135,8 @@ interface TaskFormProps {
   variant?: "page" | "modal";
   onCancel?: () => void;
   onSuccess?: (taskId: string) => void;
+  /** Runs right after a modal create succeeds (before the celebration step). */
+  onCreated?: (taskId: string) => void;
   onCreateAnother?: () => void;
   onCreateTask?: (input: {
     description: string;
@@ -167,6 +163,7 @@ export function TaskForm({
   variant = "page",
   onCancel,
   onSuccess,
+  onCreated,
   onCreateAnother,
   onCreateTask,
   showCancel = true,
@@ -254,9 +251,6 @@ export function TaskForm({
   );
   const isSubmittingAny = isSubmitting || isSubmittingDraft;
   useEffect(() => {
-    onSubmittingChange?.(isSubmittingAny);
-  }, [isSubmittingAny, onSubmittingChange]);
-  useEffect(() => {
     onCreatedChange?.(createdTask !== null);
   }, [createdTask, onCreatedChange]);
 
@@ -284,7 +278,11 @@ export function TaskForm({
 
   const isNameRequired = mode === "edit";
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
+  useEffect(() => {
+    onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
+  }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const isSaveDisabled =
+    createdTask !== null ||
     !description.trim() ||
     (isNameRequired && !name.trim()) ||
     isSubmittingAny ||
@@ -324,10 +322,11 @@ export function TaskForm({
             router.prefetch(`/tasks/${result.taskId}`);
             setCreatedTask({
               id: result.taskId,
-              name: result.name?.trim() || deriveTaskName(trimmedDescription),
+              name: result.name?.trim() || "Untitled task",
               status: isDraft ? "DRAFT" : "READY",
               statusLabel: isDraft ? labels.statusDraft : labels.statusReady,
             });
+            onCreated?.(result.taskId);
             return;
           }
           if (onSuccess) {
@@ -379,6 +378,7 @@ export function TaskForm({
       status,
       taskId,
       onSuccess,
+      onCreated,
       onCreateTask,
       labels.statusDraft,
       labels.statusReady,
@@ -485,9 +485,6 @@ export function TaskForm({
   const chooseAgentLabel = labels.chooseAgent ?? labels.coworker;
   const examplesTitle = labels.examplesTitle ?? "What {name} can do";
 
-  // Two-step flow for the create modal: step 1 picks the agent (spotlight),
-  // step 2 writes the task. Edit/page variants keep the grid layout. When a
-  // coworker is preselected (e.g. opened from the agents page) we skip step 1.
   // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
   // or start from scratch), 2 = compose. Open straight on compose when a prompt
   // is prefilled (e.g. from an agents-page offer). Edit/page variants keep the
@@ -685,7 +682,6 @@ export function TaskForm({
                   <Label htmlFor="task-name">{labels.name}</Label>
                   <Input
                     id="task-name"
-                    maxLength={DEFAULT_TASK_NAME_MAX_LENGTH}
                     placeholder={labels.namePlaceholder}
                     value={name}
                     onChange={(event) => setName(event.target.value)}

@@ -247,6 +247,8 @@
       "billing": "计费",
       "account": "账户",
       "admin": "管理",
+      "organizations": "组织",
+      "users": "用户",
       "edit": "编辑",
       "enterprise-contracts": "企业合同",
       "mcp": "模型上下文协议（MCP）",
@@ -256,6 +258,7 @@
       "hermes": "Hermes",
       "history": "历史记录",
       "new": "新建",
+      "notifications": "通知",
       "projects": "项目",
       "invoices": "发票"
     },
@@ -307,8 +310,7 @@
             "Schema": {
               "Name": {
                 "invalid": "名称必须为有效字符串",
-                "min": "名称至少需要 2 个字符",
-                "max": "名称最多为 120 个字符"
+                "min": "名称至少需要 2 个字符"
               }
             },
             "Form": {
@@ -652,6 +654,22 @@
         "cancel": "取消",
         "error": "退出登录失败"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "通知",
+      "unreadBadge": "{count, plural, =1 {1 条未读通知} other {# 条未读通知}}",
+      "title": "通知",
+      "pageTitle": "通知",
+      "emptyState": "暂无通知",
+      "seeMore": "查看更多",
+      "loading": "加载中...",
+      "loadMore": "加载更多",
+      "markAllRead": "全部标为已读",
+      "markAllReadError": "无法将所有通知标为已读",
+      "fetchError": "无法加载通知",
+      "retry": "重试",
+      "dismiss": "关闭",
+      "dismissNotification": "关闭通知"
     },
     "HashValue": {
       "copy": "复制",
@@ -2629,6 +2647,10 @@
             "title": "用户",
             "description": "可搜索的全部用户概览，包含积分、订阅和活动。"
           },
+          "organizations": {
+            "title": "组织",
+            "description": "可搜索的组织概览，包含成员、计费和积分。"
+          },
           "tasks": {
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
@@ -2649,6 +2671,86 @@
           "registered": "注册日期",
           "loadMore": "加载更多",
           "loadError": "加载用户失败。"
+        }
+      },
+      "Organizations": {
+        "title": "组织",
+        "description": "可搜索的全部组织概览",
+        "OrganizationList": {
+          "searchPlaceholder": "按名称或 slug 搜索…",
+          "totalCount": "{count, plural, other {# 个组织}}",
+          "empty": "未找到组织。",
+          "organization": "组织",
+          "members": "成员",
+          "billing": "计费",
+          "subscription": "订阅",
+          "seats": "{count, plural, other {# 个席位}}",
+          "created": "创建时间",
+          "loadMore": "加载更多",
+          "loadError": "加载组织失败。"
+        },
+        "OrganizationDetail": {
+          "backToList": "返回组织列表",
+          "billing": {
+            "title": "计费",
+            "plan": "方案：{plan}",
+            "mode": "模式：{mode}",
+            "seats": "{purchased} 已购买 · {assigned} 已分配 · {unused} 未使用",
+            "subscription": "订阅：{plan}（{status}）",
+            "enterprisePool": "企业池：{credits} 积分"
+          },
+          "credits": {
+            "title": "积分总计",
+            "description": "该组织可用的积分合计。",
+            "perMember": "积分按成员列在下方。"
+          },
+          "members": {
+            "title": "成员",
+            "totalCount": "{count, plural, other {# 名成员}}",
+            "empty": "尚无成员。",
+            "loadMore": "加载更多",
+            "loadError": "加载成员失败。",
+            "user": "用户",
+            "role": "角色",
+            "credits": "积分",
+            "subscription": "订阅",
+            "seat": "Seat",
+            "seatAssigned": "已分配",
+            "seatUnassigned": "未分配",
+            "actions": "操作"
+          },
+          "roles": {
+            "owner": "所有者",
+            "admin": "管理员",
+            "member": "成员"
+          },
+          "addMember": {
+            "submit": "添加成员",
+            "success": "成员已添加",
+            "userRequired": "请选择要添加的用户",
+            "combobox": {
+              "placeholder": "选择用户…",
+              "search": "搜索用户…",
+              "empty": "未找到用户。",
+              "loading": "搜索中…",
+              "error": "搜索失败。",
+              "idle": "输入以搜索用户。",
+              "clear": "清除选择"
+            }
+          },
+          "actions": {
+            "makeOwner": "设为所有者",
+            "makeAdmin": "设为管理员",
+            "makeMember": "设为成员",
+            "assignSeat": "分配 Seat",
+            "unassignSeat": "移除 Seat",
+            "remove": "移除成员"
+          },
+          "memberActionError": "成员操作失败。",
+          "roleUpdateSuccess": "角色已更新。",
+          "seatAssignSuccess": "Seat 已分配。",
+          "seatUnassignSuccess": "Seat 已移除。",
+          "removeSuccess": "成员已移除。"
         }
       },
       "Invoices": {
@@ -2924,6 +3026,9 @@
         "notConnected": "未连接",
         "success": "账号连接成功",
         "error": "连接 {provider} 失败",
+        "loadErrorTitle": "无法加载已连接账号",
+        "loadError": "目前无法加载您的已连接账号。",
+        "retry": "重试",
         "DisconnectModal": {
           "title": "断开 {provider}",
           "description": "确定要断开您的 {provider} 账号吗？",
@@ -2932,6 +3037,11 @@
           "success": "账号已断开连接",
           "error": "断开 {provider} 失败"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "无法加载账号详情",
+        "loadError": "目前无法加载您的关联账号详情。",
+        "retry": "重试"
       },
       "Notifications": {
         "title": "电子邮件通知",
@@ -3047,6 +3157,11 @@
           "title": "未找到客户端",
           "description": "未找到该 OAuth 客户端。",
           "descriptionWithId": "ID 为 {clientId} 的 OAuth 客户端不存在。"
+        },
+        "loadError": {
+          "title": "无法加载应用",
+          "description": "目前无法加载应用详情，请重试。",
+          "retry": "重试"
         },
         "title": "授权应用",
         "description": "某个应用希望访问您的账户",
@@ -3564,6 +3679,25 @@
         "hours": "{value, plural, =1 {小时} other {小时}}",
         "minutes": "{value, plural, =1 {分} other {分}}",
         "seconds": "{value, plural, =1 {秒} other {秒}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} 已完成 {jobName}",
+        "failed": "{agentName} 未能完成 {jobName}",
+        "paymentFailed": "{jobName} 付款失败",
+        "inputRequired": "{agentName} 需要你为 {jobName} 提供输入",
+        "refundResolved": "{jobName} 已退款",
+        "disputeResolved": "{jobName} 的争议已解决"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} 需要你为 {taskName} 提供输入",
+        "approvalRequired": "{coworkerName} 需要你批准 {taskName}",
+        "authenticationRequired": "{coworkerName} 需要为 {taskName} 进行身份验证",
+        "outOfCredits": "{coworkerName} 的 {taskName} 积分已用完",
+        "completed": "{coworkerName} 已完成 {taskName}",
+        "failed": "{coworkerName} 未能完成 {taskName}",
+        "canceled": "{taskName} 已取消"
       }
     }
   }

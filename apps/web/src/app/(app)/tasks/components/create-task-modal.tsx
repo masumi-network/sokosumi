@@ -24,6 +24,7 @@ interface CreateTaskModalContextType {
    *  prompt), so the picker step is skipped. */
   handleOpenWith: (coworkerId: string, prompt?: string) => void;
   handleClose: () => void;
+  clearPromptOverride: () => void;
 }
 
 const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
@@ -35,6 +36,7 @@ const CreateTaskModalContext = createContext<CreateTaskModalContextType>({
   handleOpen: () => {},
   handleOpenWith: () => {},
   handleClose: () => {},
+  clearPromptOverride: () => {},
 });
 
 export function useCreateTaskModal() {
@@ -97,6 +99,10 @@ export function CreateTaskModalProvider({
     setOpen(false);
   }, []);
 
+  const clearPromptOverride = useCallback(() => {
+    setPromptOverride(null);
+  }, []);
+
   return (
     <CreateTaskModalContext.Provider
       value={{
@@ -108,6 +114,7 @@ export function CreateTaskModalProvider({
         handleOpen,
         handleOpenWith,
         handleClose,
+        clearPromptOverride,
       }}
     >
       {children}
@@ -140,6 +147,7 @@ export function CreateTaskModal({
     projectOverrideId,
     promptOverride,
     formInstanceKey,
+    clearPromptOverride,
   } = useCreateTaskModal();
   const router = useRouter();
   const pathname = usePathname();
@@ -265,11 +273,17 @@ export function CreateTaskModal({
         onCancel={handleDismiss}
         onSubmittingChange={setIsDismissDisabled}
         onCreatedChange={setIsCreated}
+        onCreated={() => {
+          router.refresh();
+        }}
         onSuccess={(taskId) => {
           handleClose();
           router.push(`/tasks/${taskId}`);
         }}
-        onCreateAnother={() => setResetKey((key) => key + 1)}
+        onCreateAnother={() => {
+          clearPromptOverride();
+          setResetKey((key) => key + 1);
+        }}
       />
     </TaskFormModal>
   );

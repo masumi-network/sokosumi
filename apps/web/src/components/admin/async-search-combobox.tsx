@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import {
+  type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   useEffect,
   useEffectEvent,
@@ -38,7 +40,7 @@ export interface AsyncSearchComboboxLabels {
   error: string;
   /** Shown before the admin has typed anything (we never pre-load options). */
   idle: string;
-  /** Label for the option that clears the current selection. */
+  /** Accessible label for the inline clear control on the trigger. */
   clear?: string;
 }
 
@@ -82,7 +84,7 @@ interface AsyncSearchComboboxProps<T> {
   renderOption: (option: T) => ReactNode;
   getTriggerLabel: (option: T) => string;
   labels: AsyncSearchComboboxLabels;
-  /** When true, renders an option that clears the current selection. */
+  /** When true, shows an inline clear control on the trigger when a value is set. */
   allowClear?: boolean;
   disabled?: boolean;
   id?: string;
@@ -177,6 +179,13 @@ export function AsyncSearchCombobox<T>({
   const showIdle = query.trim().length === 0;
   const showEmpty =
     !showLoading && !hasError && !showIdle && results.length === 0;
+  const showInlineClear = Boolean(allowClear && value);
+
+  function handleClearSelection(event: MouseEvent | KeyboardEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    onChange(null);
+  }
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -188,12 +197,39 @@ export function AsyncSearchCombobox<T>({
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className="w-full justify-between font-normal"
+          className="w-full min-w-0 justify-between gap-2 overflow-hidden font-normal"
         >
-          <span className={cn(!value && "text-muted-foreground")}>
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              !value && "text-muted-foreground",
+            )}
+            title={value ? getTriggerLabel(value) : undefined}
+          >
             {value ? getTriggerLabel(value) : labels.placeholder}
           </span>
-          <ChevronsUpDown className="size-4 opacity-50" />
+          {showInlineClear ? (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={labels.clear ?? "Clear selection"}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring shrink-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={handleClearSelection}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  handleClearSelection(event);
+                }
+              }}
+            >
+              <X className="size-4" />
+            </span>
+          ) : (
+            <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -207,27 +243,6 @@ export function AsyncSearchCombobox<T>({
             onValueChange={setQuery}
           />
           <CommandList>
-            {allowClear ? (
-              <CommandGroup>
-                <CommandItem
-                  value="__clear__"
-                  onSelect={() => {
-                    onChange(null);
-                    handleOpenChange(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "size-4",
-                      value === null ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  <span className="text-muted-foreground">
-                    {labels.clear ?? labels.placeholder}
-                  </span>
-                </CommandItem>
-              </CommandGroup>
-            ) : null}
             {showLoading ? (
               <div className="text-muted-foreground py-6 text-center text-sm">
                 {labels.loading}

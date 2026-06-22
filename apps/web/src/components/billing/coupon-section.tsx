@@ -2,7 +2,7 @@ import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
 import CreditsSuccessModal from "@/app/credits/components/success-modal";
 import CouponForm from "@/components/credits/coupon-form";
-import { stripeClient } from "@/lib/clients";
+import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
@@ -27,7 +27,10 @@ export default async function CouponSection({
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
   const projectOptionsPromise = getProjectFilterOptions();
   const checkoutSession = sessionId
-    ? await stripeClient.getCheckoutSession(sessionId).catch(() => null)
+    ? await coreClient
+        .getCheckoutSessionAnalytics(sessionId)
+        .then((response) => response.data)
+        .catch(() => null)
     : null;
 
   return (

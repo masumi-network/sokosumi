@@ -247,6 +247,8 @@
       "billing": "Billing",
       "account": "Cuenta",
       "admin": "Administración",
+      "organizations": "Organizaciones",
+      "users": "Usuarios",
       "edit": "Editar",
       "enterprise-contracts": "Contratos empresariales",
       "mcp": "Model Context Protocol (MCP)",
@@ -256,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Historial",
       "new": "Nuevo",
+      "notifications": "Notificaciones",
       "projects": "Proyectos",
       "invoices": "Facturas"
     },
@@ -307,8 +310,7 @@
             "Schema": {
               "Name": {
                 "invalid": "El nombre debe ser una cadena válida",
-                "min": "El nombre debe tener al menos 2 caracteres",
-                "max": "El nombre no puede superar los 120 caracteres"
+                "min": "El nombre debe tener al menos 2 caracteres"
               }
             },
             "Form": {
@@ -652,6 +654,22 @@
         "cancel": "Cancelar",
         "error": "Error al cerrar sesión"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notificaciones",
+      "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
+      "title": "Notificaciones",
+      "pageTitle": "Notificaciones",
+      "emptyState": "Aún no hay notificaciones",
+      "seeMore": "Ver más",
+      "loading": "Cargando...",
+      "loadMore": "Cargar más",
+      "markAllRead": "Marcar todas como leídas",
+      "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
+      "fetchError": "No se pudieron cargar las notificaciones",
+      "retry": "Intentar de nuevo",
+      "dismiss": "Descartar",
+      "dismissNotification": "Descartar notificación"
     },
     "HashValue": {
       "copy": "Copiar",
@@ -2598,6 +2616,10 @@
             "title": "Usuarios",
             "description": "Resumen con búsqueda de todos los usuarios con créditos, suscripción y actividad."
           },
+          "organizations": {
+            "title": "Organizaciones",
+            "description": "Resumen con búsqueda de organizaciones con miembros, facturación y créditos."
+          },
           "tasks": {
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
@@ -2618,6 +2640,86 @@
           "registered": "Registrado",
           "loadMore": "Cargar más",
           "loadError": "No se pudieron cargar los usuarios."
+        }
+      },
+      "Organizations": {
+        "title": "Organizaciones",
+        "description": "Resumen con búsqueda de todas las organizaciones",
+        "OrganizationList": {
+          "searchPlaceholder": "Buscar por nombre o slug…",
+          "totalCount": "{count, plural, one {# organización} other {# organizaciones}}",
+          "empty": "No se encontraron organizaciones.",
+          "organization": "Organización",
+          "members": "Miembros",
+          "billing": "Facturación",
+          "subscription": "Suscripción",
+          "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
+          "created": "Creada",
+          "loadMore": "Cargar más",
+          "loadError": "No se pudieron cargar las organizaciones."
+        },
+        "OrganizationDetail": {
+          "backToList": "Volver a organizaciones",
+          "billing": {
+            "title": "Facturación",
+            "plan": "Plan: {plan}",
+            "mode": "Modo: {mode}",
+            "seats": "{purchased} comprados · {assigned} asignados · {unused} sin usar",
+            "subscription": "Suscripción: {plan} ({status})",
+            "enterprisePool": "Pool enterprise: {credits} créditos"
+          },
+          "credits": {
+            "title": "Créditos totales",
+            "description": "Créditos disponibles combinados para esta organización.",
+            "perMember": "Los créditos se muestran por miembro a continuación."
+          },
+          "members": {
+            "title": "Miembros",
+            "totalCount": "{count, plural, one {# miembro} other {# miembros}}",
+            "empty": "Aún no hay miembros.",
+            "loadMore": "Cargar más",
+            "loadError": "No se pudieron cargar los miembros.",
+            "user": "Usuario",
+            "role": "Rol",
+            "credits": "Créditos",
+            "subscription": "Suscripción",
+            "seat": "Seat",
+            "seatAssigned": "Asignado",
+            "seatUnassigned": "Sin asignar",
+            "actions": "Acciones"
+          },
+          "roles": {
+            "owner": "Propietario",
+            "admin": "Admin",
+            "member": "Miembro"
+          },
+          "addMember": {
+            "submit": "Añadir miembro",
+            "success": "Miembro añadido",
+            "userRequired": "Selecciona un usuario para añadir",
+            "combobox": {
+              "placeholder": "Seleccionar usuario…",
+              "search": "Buscar usuarios…",
+              "empty": "No se encontraron usuarios.",
+              "loading": "Buscando…",
+              "error": "La búsqueda falló.",
+              "idle": "Escribe para buscar usuarios.",
+              "clear": "Borrar selección"
+            }
+          },
+          "actions": {
+            "makeOwner": "Hacer propietario",
+            "makeAdmin": "Hacer admin",
+            "makeMember": "Hacer miembro",
+            "assignSeat": "Asignar Seat",
+            "unassignSeat": "Quitar Seat",
+            "remove": "Eliminar miembro"
+          },
+          "memberActionError": "La acción del miembro falló.",
+          "roleUpdateSuccess": "Rol actualizado.",
+          "seatAssignSuccess": "Seat asignado.",
+          "seatUnassignSuccess": "Seat eliminado.",
+          "removeSuccess": "Miembro eliminado."
         }
       },
       "Invoices": {
@@ -2893,6 +2995,9 @@
         "notConnected": "no está conectado",
         "success": "Cuenta conectada correctamente",
         "error": "No se pudo conectar {provider}",
+        "loadErrorTitle": "No se pudieron cargar las cuentas conectadas",
+        "loadError": "No pudimos cargar tus cuentas conectadas en este momento.",
+        "retry": "Reintentar",
         "DisconnectModal": {
           "title": "Desconectar {provider}",
           "description": "¿Seguro que quieres desconectar tu cuenta de {provider}?",
@@ -2901,6 +3006,11 @@
           "success": "Cuenta desconectada correctamente",
           "error": "No se pudo desconectar {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
+        "loadError": "No pudimos cargar los detalles de tu cuenta vinculada en este momento.",
+        "retry": "Reintentar"
       },
       "Notifications": {
         "title": "Notificaciones por email",
@@ -3016,6 +3126,11 @@
           "title": "Cliente no encontrado",
           "description": "No se encontró el cliente OAuth.",
           "descriptionWithId": "El cliente OAuth con ID {clientId} no existe."
+        },
+        "loadError": {
+          "title": "No se pudo cargar la aplicación",
+          "description": "No pudimos cargar los detalles de la aplicación en este momento. Inténtalo de nuevo.",
+          "retry": "Reintentar"
         },
         "title": "Autorizar aplicación",
         "description": "Una aplicación quiere acceder a tu cuenta",
@@ -3564,6 +3679,25 @@
         "hours": "{value, plural, =1 {h} other {h}}",
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {seg} other {seg}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} completó {jobName}",
+        "failed": "{agentName} no pudo completar {jobName}",
+        "paymentFailed": "Error de pago para {jobName}",
+        "inputRequired": "{agentName} necesita tu input para {jobName}",
+        "refundResolved": "{jobName} fue reembolsado",
+        "disputeResolved": "Disputa resuelta para {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} necesita tu input para {taskName}",
+        "approvalRequired": "{coworkerName} necesita tu aprobación para {taskName}",
+        "authenticationRequired": "{coworkerName} necesita autenticación para {taskName}",
+        "outOfCredits": "{coworkerName} se quedó sin créditos para {taskName}",
+        "completed": "{coworkerName} completó {taskName}",
+        "failed": "{coworkerName} no pudo completar {taskName}",
+        "canceled": "{taskName} fue cancelado"
       }
     }
   }

@@ -9,12 +9,10 @@ import type {
   TaskLink,
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
-import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { removeDesignMdAttachmentLinks } from "@/lib/utils/task-attachments";
-import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
+import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -84,12 +82,6 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   replaceExistingParent?: boolean;
 }
 
-function buildFallbackName(description: string): string {
-  const firstLine = description.split("\n").find((line) => line.trim());
-
-  return (firstLine ?? "").trim().slice(0, 60);
-}
-
 function normalizeLinkNote(note?: string | null): string | null | undefined {
   if (typeof note === "undefined") {
     return undefined;
@@ -140,28 +132,12 @@ async function createTaskFromDescription(input: {
     throw new Error("Description required");
   }
 
-  const descriptionForNaming =
-    removeDesignMdAttachmentLinks(trimmedDescription).trim();
-  // Name generation (LLM) and the design.md lookup are independent network
-  // round-trips — run them in parallel so the create feels snappier.
-  const [generatedName, descriptionWithDesignMd] = await Promise.all([
-    descriptionForNaming
-      ? openrouterClient.generateTaskName(descriptionForNaming)
-      : Promise.resolve(null),
-    input.skipDesignMdAttachment
-      ? Promise.resolve(trimmedDescription)
-      : designMdService.appendDesignMdToDescription(trimmedDescription),
-  ]);
-  const candidate =
-    generatedName ??
-    (descriptionForNaming
-      ? buildFallbackName(descriptionForNaming)
-      : "Untitled Task");
-  const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
+  const descriptionWithDesignMd = input.skipDesignMdAttachment
+    ? trimmedDescription
+    : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
   return taskService.createTask({
-    name,
     description: descriptionWithDesignMd,
     coworkerId: input.coworkerId ? input.coworkerId : null,
     projectId: normalizedProjectId ?? null,
@@ -328,7 +304,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     desiredStatus,
   }) => {
     const trimmedDescription = description.trim();
-    const trimmedName = clampTaskNameForCoreApi(name);
+    const trimmedName = normalizeTaskNameForCoreApi(name);
     if (!trimmedDescription) {
       throw new Error("Description required");
     }
@@ -526,7 +502,7 @@ export const deleteTaskLink = withSession<
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
-  { taskId: string; createdTaskId: string; linkId: string }
+  { taskId: string; createdTaskId: string; linkId: string; name: string }
 >(
   async ({
     taskId,
@@ -588,6 +564,7 @@ export const createTaskAndLink = withSession<
         taskId: normalizedTaskId,
         createdTaskId: createdTask.id,
         linkId: link.id,
+        name: createdTask.name,
       };
     } catch (error) {
       if (createdTask) {

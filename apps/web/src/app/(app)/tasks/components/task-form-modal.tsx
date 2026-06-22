@@ -30,9 +30,17 @@ export function TaskFormModal({
     onOpenChange(nextOpen);
   };
 
+  const handleDismissAttempt = (event: Event) => {
+    event.preventDefault();
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden">
+      <DialogContent
+        className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden"
+        onInteractOutside={handleDismissAttempt}
+        onEscapeKeyDown={handleDismissAttempt}
+      >
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">

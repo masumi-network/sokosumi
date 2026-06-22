@@ -43,3 +43,6 @@ lint-report.json
 
 # playwright mcp session artifacts
 /.playwright-mcp/
+
+# Subagent-driven-development scratch artifacts (should live under .git/, never tracked)
+/sdd/

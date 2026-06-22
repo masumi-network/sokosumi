@@ -9,7 +9,6 @@ const inviteOrganizationMemberViaCoreMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const headersMock = vi.fn();
-const syncOrganizationInvoiceEmailWithStripeMock = vi.fn();
 const updateOrganizationInvoiceEmailMock = vi.fn();
 const setMyPreferredOrganizationMock = vi.fn();
 
@@ -60,13 +59,6 @@ vi.mock("@/lib/services/user.service", () => ({
 
 vi.mock("next/headers", () => ({
   headers: () => headersMock(),
-}));
-
-vi.mock("@/lib/services/stripe.service", () => ({
-  stripeService: {
-    syncOrganizationInvoiceEmailWithStripe: (...args: unknown[]) =>
-      syncOrganizationInvoiceEmailWithStripeMock(...args),
-  },
 }));
 
 const session = {
@@ -267,7 +259,6 @@ describe("organization actions", () => {
 describe("updateOrganizationInvoiceEmail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    syncOrganizationInvoiceEmailWithStripeMock.mockResolvedValue(true);
   });
 
   it("updates the invoice email via Core and syncs with Stripe", async () => {
@@ -289,10 +280,6 @@ describe("updateOrganizationInvoiceEmail", () => {
     expect(updateOrganizationInvoiceEmailMock).toHaveBeenCalledWith("org-1", {
       invoiceEmail: "billing@acme.example",
     });
-    expect(syncOrganizationInvoiceEmailWithStripeMock).toHaveBeenCalledWith(
-      "org-1",
-      "billing@acme.example",
-    );
   });
 
   it("clears the invoice email when null is provided", async () => {
@@ -314,10 +301,6 @@ describe("updateOrganizationInvoiceEmail", () => {
     expect(updateOrganizationInvoiceEmailMock).toHaveBeenCalledWith("org-1", {
       invoiceEmail: null,
     });
-    expect(syncOrganizationInvoiceEmailWithStripeMock).toHaveBeenCalledWith(
-      "org-1",
-      null,
-    );
   });
 
   it("rejects an invalid email without calling Core", async () => {
@@ -334,7 +317,6 @@ describe("updateOrganizationInvoiceEmail", () => {
       expect(result.error.code).toBe("BAD_INPUT");
     }
     expect(updateOrganizationInvoiceEmailMock).not.toHaveBeenCalled();
-    expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
   });
 
   it("maps Core 403 responses to UNAUTHORIZED", async () => {
@@ -358,7 +340,6 @@ describe("updateOrganizationInvoiceEmail", () => {
         message: "You are not a member of this organization",
       },
     });
-    expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
   });
 
   it("maps Core 404 responses to UNAUTHORIZED", async () => {
@@ -380,7 +361,6 @@ describe("updateOrganizationInvoiceEmail", () => {
         message: "Organization not found",
       },
     });
-    expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
   });
 
   it("maps the organization_role_forbidden kind to UNAUTHORIZED even when the message is reworded", async () => {
@@ -405,7 +385,6 @@ describe("updateOrganizationInvoiceEmail", () => {
         message: "Owners and admins only",
       },
     });
-    expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
   });
 
   it("rethrows unexpected Core errors", async () => {
@@ -421,7 +400,6 @@ describe("updateOrganizationInvoiceEmail", () => {
         session,
       }),
     ).rejects.toThrow("Internal Server Error");
-    expect(syncOrganizationInvoiceEmailWithStripeMock).not.toHaveBeenCalled();
   });
 });
 

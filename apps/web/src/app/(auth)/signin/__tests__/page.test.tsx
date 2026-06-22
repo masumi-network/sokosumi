@@ -55,10 +55,7 @@ describe("SignIn page", () => {
     getEnvSecretsMock.mockReturnValue({
       NETWORK: "Preprod",
       VERCEL_GIT_COMMIT_REF: "",
-      VERCEL_BRANCH_URL: "",
       VERCEL_ENV: undefined,
-      VERCEL_PROJECT_PRODUCTION_URL: undefined,
-      VERCEL_URL: undefined,
     });
   });
 

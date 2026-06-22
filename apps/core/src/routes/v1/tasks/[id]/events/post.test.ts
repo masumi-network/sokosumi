@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import { NotificationKind, TaskEventOrigin } from "@sokosumi/database";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
@@ -13,24 +13,43 @@ import mountPostTaskEvents from "./post";
 
 const {
   calculateCentsFromMasumiAmountStringsMock,
+  createNotificationMock,
   createPurchaseFromMasumiTaskPaymentMock,
   createTaskEventTransactionMock,
   getCreditCostsOrThrowMock,
+  prismaTaskFindUniqueMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
   requireTaskCollaborationMock,
+  waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
+  createNotificationMock: vi.fn(),
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
+  prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
+    id: "tsk_123",
+    userId: "user_123",
+    name: "Test task",
+    coworker: { name: "Test coworker" },
+    project: { name: "Test project" },
+    projectId: "proj_123",
+    workspaceId: "ws_123",
+    user: { notificationsOptIn: true },
+  }),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
+  waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
+}));
+
+vi.mock("@/helpers/notifications", () => ({
+  createNotification: createNotificationMock,
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -41,9 +60,18 @@ vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventDataMock,
 }));
 
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilCapturedPromises.push(promise);
+  },
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    task: {
+      findUnique: prismaTaskFindUniqueMock,
+    },
   },
 }));
 
@@ -209,6 +237,11 @@ function mockTransaction(tx: TransactionMock) {
 describe("POST /{id}/events", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waitUntilCapturedPromises.length = 0;
+    createNotificationMock.mockResolvedValue({
+      notification: { id: "notif_1" },
+      created: true,
+    });
     publishTaskEventDataMock.mockResolvedValue(undefined);
     getCreditCostsOrThrowMock.mockResolvedValue([
       {
@@ -225,6 +258,16 @@ describe("POST /{id}/events", () => {
     createPurchaseFromMasumiTaskPaymentMock.mockResolvedValue(
       ok({ id: "pur_task_1" } as { id: string }),
     );
+    prismaTaskFindUniqueMock.mockResolvedValue({
+      id: "tsk_123",
+      userId: "user_123",
+      name: "Test task",
+      coworker: { name: "Test coworker" },
+      project: { name: "Test project" },
+      projectId: "proj_123",
+      workspaceId: "ws_123",
+      user: { notificationsOptIn: true },
+    });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
   });
 
@@ -278,6 +321,60 @@ describe("POST /{id}/events", () => {
         data: { status: TaskStatus.OUT_OF_CREDITS },
       }),
     );
+  });
+
+  it("creates an in-app notification for user-meaningful status transitions", async () => {
+    const createdEvent = createTaskEvent({
+      id: "event_input_required",
+      status: TaskStatus.INPUT_REQUIRED,
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(createdEvent),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.INPUT_REQUIRED,
+        comment: "Need input",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(waitUntilCapturedPromises).toHaveLength(1);
+    await waitUntilCapturedPromises[0];
+
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      kind: NotificationKind.TASK,
+      referenceId: TASK_ID,
+      eventId: "event_input_required",
+      messageKey: "Notifications.Task.inputRequired",
+      messageParams: {
+        coworkerName: "Test coworker",
+        taskName: "Test task",
+        projectName: "Test project",
+      },
+      metadata: {
+        projectId: "proj_123",
+        workspaceId: "ws_123",
+      },
+    });
   });
 
   it("returns 409 when the serializable transaction hits a write conflict", async () => {
@@ -532,6 +629,52 @@ describe("POST /{id}/events", () => {
     };
     expect(createPayload?.data).not.toHaveProperty("id");
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still schedules Masumi purchase when notification lookup fails", async () => {
+    prismaTaskFindUniqueMock.mockRejectedValueOnce(
+      new Error("notification lookup failed"),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_masumi_notify_fail",
+            status: TaskStatus.COMPLETED,
+            cents: null,
+            transactionId: "txn_masumi",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_masumi");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: TaskStatus.COMPLETED,
+        masumiPayment: validMasumiPaymentBody,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createPurchaseFromMasumiTaskPaymentMock).toHaveBeenCalledTimes(1);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("returns 201 and publishes when async Masumi purchase fails (fire-and-forget)", async () => {

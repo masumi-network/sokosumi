@@ -1,7 +1,12 @@
-import { SokosumiJobStatus } from "@sokosumi/utils";
+import {
+  makeAgentJobsChannelName,
+  makeUserNotificationsChannelName,
+  makeUserTasksChannelName,
+  NotificationKind,
+  SokosumiJobStatus,
+} from "@sokosumi/utils";
 
 import { getRestClient } from "./client";
-import { makeAgentJobsChannelName, makeUserTasksChannelName } from "./utils";
 
 interface JobStatusData {
   jobId: string;
@@ -21,6 +26,25 @@ interface TaskEventData {
 
 interface PublishTaskEventDataInput extends TaskEventData {
   userId: string;
+}
+
+interface NotificationEventData {
+  id: string;
+  userId: string;
+  kind: NotificationKind;
+  referenceId: string;
+  eventId: string;
+  messageKey: string;
+  messageParams: Record<string, unknown>;
+  metadata: Record<string, unknown> | null;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+interface PublishNotificationEventInput {
+  userId: string;
+  notification: NotificationEventData;
 }
 
 export async function publishTaskEventData({
@@ -51,4 +75,13 @@ export async function publishJobStatusData({
     jobStatus,
     jobStatusSettled,
   });
+}
+
+export async function publishNotificationEvent({
+  userId,
+  notification,
+}: PublishNotificationEventInput) {
+  const client = getRestClient();
+  const channel = client.channels.get(makeUserNotificationsChannelName(userId));
+  await channel.publish("notification_created", notification);
 }

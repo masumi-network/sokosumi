@@ -11,6 +11,7 @@ export default async function createAuthTokenRequest(userId: string) {
     capability: {
       [`agent_jobs:*:user_${userId}`]: ["subscribe"],
       [`tasks:*:user_${userId}`]: ["subscribe"],
+      [`notifications:*:user_${userId}`]: ["subscribe"],
     },
   });
   return tokenRequest;

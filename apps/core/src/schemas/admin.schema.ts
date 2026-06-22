@@ -3,6 +3,7 @@ import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { stripeSubscriptionStatusNullableSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskSchema } from "@/schemas/task.schema";
 
@@ -88,7 +89,7 @@ export const adminUserOverviewItemSchema = z
       description: "Active subscription plan, if any",
       example: "pro",
     }),
-    subscriptionStatus: z.string().nullable().openapi({ example: "active" }),
+    subscriptionStatus: stripeSubscriptionStatusNullableSchema,
     startedTaskCount: z.number().int().min(0).openapi({
       description: "Number of tasks the user has started (status beyond DRAFT)",
       example: 7,
@@ -102,6 +103,193 @@ export const adminOrganizationSlugParamSchema = z.object({
   slug: z.string().openapi({
     param: { name: "slug", in: "path" },
     example: "acme-corp",
+  }),
+});
+
+export const ADMIN_ORGANIZATION_OVERVIEW_MAX_LIMIT = 50;
+
+export const adminOrganizationOverviewQuerySchema = z
+  .object({
+    query: z
+      .string()
+      .optional()
+      .openapi({
+        param: { name: "query", in: "query" },
+        description:
+          "Optional search term matched case-insensitively against organization name and slug. Empty or missing lists all organizations.",
+        example: "acme",
+      }),
+  })
+  .extend(cursorPaginationQuerySchema.shape)
+  .extend({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(ADMIN_ORGANIZATION_OVERVIEW_MAX_LIMIT)
+      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Number of items to return (max ${ADMIN_ORGANIZATION_OVERVIEW_MAX_LIMIT})`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+      }),
+  });
+
+export const adminOrganizationOverviewItemSchema = z
+  .object({
+    id: z.string().openapi({ example: "org_123" }),
+    name: z.string().openapi({ example: "Acme Corp" }),
+    slug: z.string().openapi({ example: "acme-corp" }),
+    createdAt: dateTimeSchema,
+    memberCount: z.number().int().min(0).openapi({ example: 12 }),
+    billingMode: z.enum(["enterprise_contract", "self_serve"]).openapi({
+      example: "self_serve",
+    }),
+    billingPlan: z
+      .enum(["free", "starter", "standard", "pro", "enterprise"])
+      .openapi({ example: "starter" }),
+    purchasedSeats: z.number().int().openapi({ example: 5 }),
+    subscriptionPlan: z.string().nullable().openapi({
+      description: "Active organization subscription plan, if any",
+      example: "starter",
+    }),
+    subscriptionStatus: stripeSubscriptionStatusNullableSchema,
+  })
+  .openapi("AdminOrganizationOverviewItem");
+
+export const adminOrganizationOverviewListSchema = z.array(
+  adminOrganizationOverviewItemSchema,
+);
+
+export const adminOrganizationMemberOverviewItemSchema = z
+  .object({
+    id: z.string().openapi({ example: "member_123" }),
+    organizationId: z.string().openapi({ example: "org_123" }),
+    role: z.enum(["owner", "admin", "member"]).openapi({ example: "member" }),
+    seatAssignedAt: dateTimeSchema.nullable(),
+    createdAt: dateTimeSchema,
+    user: z.object({
+      id: z.string().openapi({ example: "user_123" }),
+      name: z.string().openapi({ example: "Jane Doe" }),
+      email: z.string().openapi({ example: "jane@example.com" }),
+    }),
+    lastSeenAt: dateTimeSchema.nullable(),
+    credits: z.number().openapi({
+      description: "Available credits for this member in the organization",
+      example: 42.5,
+    }),
+    subscriptionPlan: z.string().nullable().openapi({
+      description: "Member subscription plan in organization context",
+      example: "starter",
+    }),
+    subscriptionStatus: stripeSubscriptionStatusNullableSchema,
+  })
+  .openapi("AdminOrganizationMemberOverviewItem");
+
+export const ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT = 50;
+
+export const adminOrganizationMemberOverviewQuerySchema = z
+  .object({})
+  .extend(cursorPaginationQuerySchema.shape)
+  .extend({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT)
+      .default(LIMITS.DEFAULT_PAGINATION_LIMIT)
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Number of members to return (max ${ADMIN_ORGANIZATION_MEMBER_OVERVIEW_MAX_LIMIT})`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+      }),
+  });
+
+export const adminOrganizationMemberOverviewListSchema = z.array(
+  adminOrganizationMemberOverviewItemSchema,
+);
+
+export const adminOrganizationOverviewDetailSchema = z
+  .object({
+    organization: z.object({
+      id: z.string().openapi({ example: "org_123" }),
+      name: z.string().openapi({ example: "Acme Corp" }),
+      slug: z.string().openapi({ example: "acme-corp" }),
+      createdAt: dateTimeSchema,
+      stripeCustomerId: z.string().nullable().openapi({
+        example: "cus_123",
+      }),
+    }),
+    billingPlan: z.object({
+      mode: z.enum(["enterprise_contract", "self_serve"]),
+      plan: z.enum(["free", "starter", "standard", "pro", "enterprise"]),
+      isConsumable: z.boolean(),
+      purchasedSeats: z.number().int(),
+      cancelAtPeriodEnd: z.boolean(),
+      periodEnd: dateTimeSchema.nullable(),
+    }),
+    subscription: z
+      .object({
+        plan: z.string(),
+        status: z.string(),
+        cancelAtPeriodEnd: z.boolean(),
+        periodStart: dateTimeSchema.nullable(),
+        periodEnd: dateTimeSchema.nullable(),
+        seats: z.number().int(),
+      })
+      .nullable(),
+    enterpriseContract: z
+      .object({
+        poolRemainingCredits: z.number(),
+        monthlyCredits: z.number().nullable(),
+        purchasedSeats: z.number().int(),
+        isConsumable: z.boolean(),
+      })
+      .nullable(),
+    seatSummary: z.object({
+      assignedCount: z.number().int(),
+      memberCount: z.number().int(),
+      purchasedSeats: z.number().int(),
+      unusedSeats: z.number().int(),
+      paidPlan: z.string().nullable(),
+      isEnterpriseContract: z.boolean(),
+    }),
+    totalCredits: z.number().nullable().openapi({
+      description:
+        "Enterprise pool remaining credits; null for self-serve organizations where credits are per member",
+      example: 1200,
+    }),
+  })
+  .openapi("AdminOrganizationOverviewDetail");
+
+export const adminAddOrganizationMemberBodySchema = z
+  .object({
+    userId: z.string().min(1).openapi({
+      description: "User ID to add as a member",
+      example: "user_123",
+    }),
+    role: z.enum(["owner", "admin", "member"]).default("member").openapi({
+      example: "member",
+    }),
+  })
+  .openapi("AdminAddOrganizationMemberBody");
+
+export const adminUpdateOrganizationMemberRoleBodySchema = z
+  .object({
+    role: z.enum(["owner", "admin", "member"]).openapi({
+      example: "admin",
+    }),
+  })
+  .openapi("AdminUpdateOrganizationMemberRoleBody");
+
+export const adminOrganizationMemberIdParamSchema = z.object({
+  slug: z.string().openapi({
+    param: { name: "slug", in: "path" },
+    example: "acme-corp",
+  }),
+  memberId: z.string().openapi({
+    param: { name: "memberId", in: "path" },
+    example: "member_123",
   }),
 });
 
