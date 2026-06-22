@@ -1719,6 +1719,7 @@
           "total": "{count, plural, =0 {0 totali} =1 {1 totale} other {# totali}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Bozza",
+            "QUEUED": "Programmato",
             "READY": "Pronto",
             "INPUT_REQUIRED": "Input",
             "APPROVAL_REQUIRED": "Approvazione",

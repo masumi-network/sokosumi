@@ -1719,6 +1719,7 @@
           "total": "{count, plural, =0 {共 0 个} =1 {共 1 个} other {共 # 个}}",
           "taskStatusAbbreviations": {
             "DRAFT": "草稿",
+            "QUEUED": "已排期",
             "READY": "就绪",
             "INPUT_REQUIRED": "需输入",
             "APPROVAL_REQUIRED": "需批准",

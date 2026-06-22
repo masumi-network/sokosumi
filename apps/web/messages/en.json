@@ -1730,6 +1730,7 @@
           "total": "{count, plural, =0 {0 total} =1 {1 total} other {# total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Draft",
+            "QUEUED": "Scheduled",
             "READY": "Ready",
             "INPUT_REQUIRED": "Input",
             "APPROVAL_REQUIRED": "Approval",

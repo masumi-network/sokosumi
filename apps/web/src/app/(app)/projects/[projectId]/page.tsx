@@ -7,33 +7,14 @@ import { ProjectDetailHeader } from "@/app/projects/components/project-detail-he
 import { ProjectJobsSection } from "@/app/projects/components/project-jobs-section";
 import { ProjectStatsSummary } from "@/app/projects/components/project-stats-summary";
 import { ProjectTasksSection } from "@/app/projects/components/project-tasks-section";
-import type {
-  ProjectJobStatusCount,
-  ProjectTaskStatusCount,
-} from "@/lib/clients/generated/core/types.gen";
+import { buildTaskStatusAbbreviationLabels } from "@/app/tasks/utils/task-status-labels";
+import type { ProjectJobStatusCount } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import { formatShortDateTime } from "@/lib/utils/datetime";
 
 const PROJECT_DETAIL_RESOURCE_LIMIT = 100;
 
-type ProjectTaskStatus = ProjectTaskStatusCount["status"];
 type ProjectJobStatus = ProjectJobStatusCount["status"];
-
-const TASK_STATUSES: ProjectTaskStatus[] = [
-  "DRAFT",
-  "READY",
-  "INPUT_REQUIRED",
-  "APPROVAL_REQUIRED",
-  "AUTHENTICATION_REQUIRED",
-  "OUT_OF_CREDITS",
-  "CREDITS_TOPPED_UP",
-  "RUNNING",
-  "AWAITING_EXTERNAL",
-  "COMPLETED",
-  "FAILED",
-  "CANCEL_REQUESTED",
-  "CANCELED",
-];
 
 const JOB_STATUSES: ProjectJobStatus[] = [
   "started",
@@ -127,12 +108,9 @@ export default async function ProjectDetailPage({
             labels={{
               tasks: statsT("tasks"),
               jobs: statsT("jobs"),
-              taskStatusLabels: Object.fromEntries(
-                TASK_STATUSES.map((status) => [
-                  status,
-                  statsT(`taskStatusAbbreviations.${status}`),
-                ]),
-              ) as Record<ProjectTaskStatus, string>,
+              taskStatusLabels: buildTaskStatusAbbreviationLabels((key) =>
+                statsT(`taskStatusAbbreviations.${key}`),
+              ),
               jobStatusLabels: Object.fromEntries(
                 JOB_STATUSES.map((status) => [
                   status,

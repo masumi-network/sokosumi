@@ -1719,6 +1719,7 @@
           "total": "{count, plural, =0 {合計0件} =1 {合計1件} other {合計#件}}",
           "taskStatusAbbreviations": {
             "DRAFT": "下書き",
+            "QUEUED": "予定済み",
             "READY": "準備完了",
             "INPUT_REQUIRED": "入力",
             "APPROVAL_REQUIRED": "承認",
