@@ -259,6 +259,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
             projectLabel: t("Filters.projectLabel"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
+              [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
               [TaskStatus.READY]: t("Filters.statusOptions.READY"),
               [TaskStatus.INPUT_REQUIRED]: t(
                 "Filters.statusOptions.INPUT_REQUIRED",

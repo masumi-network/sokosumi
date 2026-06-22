@@ -872,6 +872,7 @@ export const AdminTaskListItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -1078,6 +1079,7 @@ export const TaskSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -1390,6 +1392,7 @@ export const TaskEventSchema = {
             ],
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -1786,6 +1789,7 @@ export const TaskLinkPeerTaskSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -5044,6 +5048,7 @@ export const HistoryTaskItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -6775,6 +6780,7 @@ export const ProjectTaskStatusCountSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -7976,6 +7982,7 @@ export const PublicSharedTaskSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -8161,6 +8168,7 @@ export const PublicSharedTaskMilestoneSchema = {
             ],
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',
@@ -8712,6 +8720,7 @@ export const TaskListItemSchema = {
             type: 'string',
             enum: [
                 'DRAFT',
+                'QUEUED',
                 'READY',
                 'INPUT_REQUIRED',
                 'APPROVAL_REQUIRED',

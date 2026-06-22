@@ -1203,6 +1203,7 @@
           "active": "アクティブ",
           "archived": "アーカイブ済み",
           "DRAFT": "下書き",
+          "QUEUED": "キュー中",
           "READY": "準備完了",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
@@ -1469,6 +1470,7 @@
         "projectLabel": "プロジェクト",
         "statusOptions": {
           "DRAFT": "下書き",
+          "QUEUED": "キュー中",
           "READY": "準備完了",
           "INPUT_REQUIRED": "入力が必要",
           "APPROVAL_REQUIRED": "承認が必要",
