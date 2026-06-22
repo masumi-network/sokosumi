@@ -36,6 +36,7 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import {
   createDesignMdDismissedState,
+  ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
   isDesignMdAttachmentSkipped,
@@ -281,8 +282,7 @@ export function TaskForm({
   // skip step 1 — otherwise a bad coworker slug would land on compose with the
   // default assignee.
   const hasPrefilledCoworker = Boolean(initialValues?.coworkerId);
-  const useWizard =
-    isModal && mode === "create" && !hasPrefilledCoworker;
+  const useWizard = isModal && mode === "create" && !hasPrefilledCoworker;
   const [step, setStep] = useState<1 | 2>(hasPrefilledCoworker ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
   const showCoworkerGrid = mode === "create" && !isModal;
@@ -592,7 +592,12 @@ export function TaskForm({
                 selectedId={coworkerId}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
-                  setDescription(offer.prompt);
+                  setDescription(
+                    ensureDesignMdInDescription(
+                      offer.prompt,
+                      initialDesignMdAttachment,
+                    ),
+                  );
                   setStep(2);
                 }}
                 onStartFromScratch={() => {
