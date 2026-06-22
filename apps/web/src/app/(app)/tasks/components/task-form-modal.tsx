@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -7,6 +14,26 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+const TaskFormModalHeaderContext = createContext<{
+  setHeaderStart: (content: React.ReactNode) => void;
+} | null>(null);
+
+export function TaskFormModalHeaderStart({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const context = useContext(TaskFormModalHeaderContext);
+
+  useLayoutEffect(() => {
+    if (!context) return;
+    context.setHeaderStart(children);
+    return () => context.setHeaderStart(null);
+  }, [children, context]);
+
+  return null;
+}
 
 interface TaskFormModalProps {
   open: boolean;
@@ -25,6 +52,8 @@ export function TaskFormModal({
   children,
   isDismissDisabled = false,
 }: TaskFormModalProps) {
+  const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
+
   // Clicking outside / pressing Escape closes the modal, except while a submit
   // or upload is in flight (guarded by isDismissDisabled).
   const handleOpenChange = (nextOpen: boolean) => {
@@ -37,22 +66,26 @@ export function TaskFormModal({
       <DialogContent className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
-        <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
-          <div className="flex shrink-0 items-center justify-between px-6 py-3 md:px-8">
-            <div className="w-16" />
-            <h3 className="text-base font-semibold">{title}</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleOpenChange(false)}
-              disabled={isDismissDisabled}
-            >
-              <span className="text-primary text-sm">{cancelLabel}</span>
-            </Button>
+        <TaskFormModalHeaderContext value={{ setHeaderStart }}>
+          <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
+            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-3 md:px-8">
+              <div className="justify-self-start">{headerStart}</div>
+              <h3 className="text-base font-semibold">{title}</h3>
+              <div className="justify-self-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={isDismissDisabled}
+                >
+                  <span className="text-primary text-sm">{cancelLabel}</span>
+                </Button>
+              </div>
+            </div>
+            <div className="shrink-0 border-t" />
+            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           </div>
-          <div className="shrink-0 border-t" />
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-        </div>
+        </TaskFormModalHeaderContext>
       </DialogContent>
     </Dialog>
   );

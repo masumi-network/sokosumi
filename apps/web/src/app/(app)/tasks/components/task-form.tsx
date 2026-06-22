@@ -51,6 +51,7 @@ import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.clie
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
 import { TaskCreatedCelebration } from "./task-created-celebration";
+import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
@@ -607,6 +608,21 @@ export function TaskForm({
             </div>
           ) : null}
 
+          {useWizard && step === 2 ? (
+            <TaskFormModalHeaderStart>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-primary -ml-2"
+                onClick={() => setStep(1)}
+              >
+                <ArrowLeft className="mr-1 size-3.5" />
+                {labels.back}
+              </Button>
+            </TaskFormModalHeaderStart>
+          ) : null}
+
           {useWizard && step === 2 && selectedOption ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
               <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
@@ -636,16 +652,6 @@ export function TaskForm({
                   textClassName="text-muted-foreground shrink-0 text-xs font-medium"
                 />
               ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-primary shrink-0"
-                onClick={() => setStep(1)}
-              >
-                <ArrowLeft className="mr-1 size-3.5" />
-                {labels.back}
-              </Button>
             </div>
           ) : null}
 
