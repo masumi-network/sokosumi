@@ -274,6 +274,24 @@ export function TaskForm({
     (isNameRequired && !name.trim()) ||
     isSubmittingAny ||
     isUploadingAttachments;
+
+  // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
+  // or start from scratch), 2 = compose. Open straight on compose when a prompt
+  // or coworker is prefilled (e.g. from an agents-page offer or create related).
+  // Edit/page variants keep the single grid layout.
+  const hasInitialPrompt = Boolean(initialValues?.description?.trim());
+  const hasPrefilledCoworker = Boolean(initialValues?.coworkerId);
+  const useWizard =
+    isModal && mode === "create" && !hasInitialPrompt && !hasPrefilledCoworker;
+  const [step, setStep] = useState<1 | 2>(
+    hasInitialPrompt || hasPrefilledCoworker ? 2 : 1,
+  );
+  const showTaskStep = !useWizard || step === 2;
+  const showCoworkerGrid = mode === "create" && !isModal;
+  const useComposeLayout = isModal && mode === "create" && showTaskStep;
+  const canUseSubmitShortcut = showTaskStep && !isSaveDisabled;
+  const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
+  const taskFieldsBorder = useComposeLayout ? "border-t" : !isModal ? "border-t" : "";
   const shouldShowEditToggle = mode === "edit";
   const statusToggleLabel =
     status === TaskStatus.DRAFT
@@ -282,7 +300,7 @@ export function TaskForm({
 
   const handleSave = useCallback(
     async (overrideStatus?: TaskStatus) => {
-      if (isSaveDisabled) return;
+      if (isSaveDisabled || (useWizard && step === 1)) return;
       if (overrideStatus && overrideStatus === TaskStatus.DRAFT) {
         setIsSubmittingDraft(true);
       } else {
@@ -356,6 +374,8 @@ export function TaskForm({
       isModal,
       isSaveDisabled,
       mode,
+      step,
+      useWizard,
       name,
       coworkerId,
       projectId,
@@ -378,7 +398,7 @@ export function TaskForm({
       if (
         (event.metaKey || event.ctrlKey) &&
         event.key === "Enter" &&
-        !isSaveDisabled
+        canUseSubmitShortcut
       ) {
         event.preventDefault();
         const shortcutStatus = mode === "create" ? TaskStatus.READY : undefined;
@@ -388,7 +408,7 @@ export function TaskForm({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave, isSaveDisabled, mode]);
+  }, [canUseSubmitShortcut, handleSave, mode]);
 
   const handleAttachFiles = useCallback(
     async (files: File[]) => {
@@ -472,17 +492,6 @@ export function TaskForm({
   const chooseAgentLabel = labels.chooseAgent ?? labels.coworker;
   const examplesTitle = labels.examplesTitle ?? "What {name} can do";
 
-  // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
-  // or start from scratch), 2 = compose. Open straight on compose when a prompt
-  // is prefilled (e.g. from an agents-page offer). Edit/page variants keep the
-  // single grid layout.
-  const useWizard = isModal && mode === "create";
-  const hasInitialPrompt = Boolean(initialValues?.description);
-  const [step, setStep] = useState<1 | 2>(hasInitialPrompt ? 2 : 1);
-  const showTaskStep = !useWizard || step === 2;
-  const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
-  const taskFieldsBorder = useWizard ? "border-t" : !isModal ? "border-t" : "";
-
   const handleCancel = () => {
     abortActiveUploads();
     if (onCancel) {
@@ -526,7 +535,7 @@ export function TaskForm({
   return (
     <div
       className={
-        useWizard
+        isModal && mode === "create"
           ? "flex min-h-0 flex-1 flex-col"
           : isModal
             ? "space-y-6"
@@ -551,7 +560,7 @@ export function TaskForm({
 
       <section
         className={
-          useWizard
+          isModal && mode === "create"
             ? "flex min-h-0 flex-1 flex-col"
             : isModal
               ? "space-y-0"
@@ -569,7 +578,7 @@ export function TaskForm({
 
         <div
           className={
-            useWizard
+            isModal && mode === "create"
               ? "[&::-webkit-scrollbar-thumb]:bg-border/80 flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
               : "contents"
           }
@@ -623,7 +632,7 @@ export function TaskForm({
             </TaskFormModalHeaderStart>
           ) : null}
 
-          {useWizard && step === 2 && selectedOption ? (
+          {useComposeLayout && selectedOption ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
               <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
                 <AvatarImage
@@ -660,10 +669,10 @@ export function TaskForm({
               className={cn(
                 "space-y-4 px-6 py-5 md:px-8",
                 taskFieldsBorder,
-                useWizard && "flex min-h-0 flex-1 flex-col",
+                useComposeLayout && "flex min-h-0 flex-1 flex-col",
               )}
             >
-              {useWizard && selectedOption ? (
+              {useComposeLayout && selectedOption ? (
                 <div className="space-y-1">
                   <h3 className="text-lg font-semibold">
                     {taskStepTitle.replace("{name}", selectedOption.name)}
@@ -703,12 +712,12 @@ export function TaskForm({
               <div
                 className={cn(
                   "space-y-2",
-                  useWizard && "flex min-h-0 flex-1 flex-col",
+                  useComposeLayout && "flex min-h-0 flex-1 flex-col",
                 )}
               >
                 <Label htmlFor="task-description">{labels.details}</Label>
                 <FileUpload
-                  className={cn(useWizard && "min-h-0 flex-1")}
+                  className={cn(useComposeLayout && "min-h-0 flex-1")}
                   value={pendingUploadFiles}
                   onValueChange={setPendingUploadFiles}
                   onAccept={(files) => {
@@ -719,7 +728,7 @@ export function TaskForm({
                   <FileUploadDropzone
                     className={cn(
                       "data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent",
-                      useWizard && "min-h-0 flex-1",
+                      useComposeLayout && "min-h-0 flex-1",
                     )}
                     onClick={(event) => event.preventDefault()}
                   >
@@ -729,10 +738,10 @@ export function TaskForm({
                       placeholder={labels.descriptionPlaceholder}
                       className={cn(
                         "w-full",
-                        useWizard && "flex min-h-0 flex-1 flex-col",
+                        useComposeLayout && "flex min-h-0 flex-1 flex-col",
                       )}
                       editorClassName={
-                        useWizard ? "max-h-none flex-1" : undefined
+                        useComposeLayout ? "max-h-none flex-1" : undefined
                       }
                       value={description}
                       onChange={setDescription}
@@ -776,7 +785,7 @@ export function TaskForm({
             </div>
           ) : null}
 
-          {!useWizard ? (
+          {showCoworkerGrid ? (
             <div className="space-y-4 border-t px-6 py-6 md:px-8">
               <div className="space-y-1">
                 <Label className="text-sm font-medium">

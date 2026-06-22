@@ -207,13 +207,59 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
-  // The create modal opens on the spotlight step; advance to the compose step
-  // by choosing "Start from scratch".
-  async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(
-      screen.getByRole("button", { name: /Start from scratch/i }),
+
+  it("opens directly on compose when a coworker is prefilled", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
     );
-  }
+
+    expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Start from scratch/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not create a task from Ctrl+Enter on wizard step 1", async () => {
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+
+    expect(createTaskMock).not.toHaveBeenCalled();
+  });
 
   it("submits as draft from create modal actions", async () => {
     const user = userEvent.setup();
@@ -232,7 +278,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
 
     await user.click(screen.getByRole("button", { name: "Save as Draft" }));
@@ -260,7 +305,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
 
     await user.click(screen.getByRole("button", { name: "Create Task" }));
@@ -293,7 +337,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -401,7 +444,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(
       "Beta Project",
     );
@@ -425,7 +467,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     expect(screen.getByTestId("markdown-editor")).toHaveValue(
       "[DESIGN.md](https://blob.example/design.md)\n",
     );
@@ -475,7 +516,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.clear(screen.getByTestId("markdown-editor"));
     await user.type(
       screen.getByTestId("markdown-editor"),
@@ -509,7 +549,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -629,7 +668,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     expect(markdownEditorPropsSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         mentions: {
@@ -688,7 +726,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
@@ -796,7 +833,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), [firstFile, secondFile]);
 
     await waitFor(() => {
@@ -858,7 +894,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
@@ -920,7 +955,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
@@ -960,7 +994,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -991,7 +1024,6 @@ describe("TaskForm", () => {
       />,
     );
 
-    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
