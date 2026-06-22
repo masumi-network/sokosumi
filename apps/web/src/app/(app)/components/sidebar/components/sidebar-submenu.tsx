@@ -149,7 +149,7 @@ export function SidebarSubmenu({
           }}
         >
           <div
-            className="min-w-full shrink-0"
+            className="w-full shrink-0"
             aria-hidden={!isMainActive}
             {...(!isMainActive ? { inert: true } : {})}
           >
@@ -168,7 +168,7 @@ export function SidebarSubmenu({
                 key={panel.id}
                 ref={isActive ? activePanelRef : undefined}
                 tabIndex={isActive ? -1 : undefined}
-                className="min-w-full shrink-0 outline-hidden"
+                className="w-full shrink-0 outline-hidden"
                 aria-hidden={!isActive}
                 {...(!isActive ? { inert: true } : {})}
               >

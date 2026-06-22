@@ -2,7 +2,7 @@
 
 import type { SessionUser } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -38,20 +38,9 @@ interface SidebarNavProps {
   children: ReactNode;
 }
 
-function getSubmenuResetKey(
-  state: "expanded" | "collapsed",
-  isMobile: boolean,
-  openMobile: boolean,
-): string {
-  if (state === "collapsed") {
-    return "collapsed";
-  }
-
-  if (isMobile && !openMobile) {
-    return "mobile-closed";
-  }
-
-  return "active";
+interface SidebarNavInnerProps extends SidebarNavProps {
+  activeId: string | null;
+  onActiveIdChange: (id: string | null) => void;
 }
 
 function ExternalLinkPanelContent({
@@ -108,11 +97,12 @@ function SidebarNavInner({
   activeOrganizationId,
   planLabel,
   activeOrganization,
+  activeId,
+  onActiveIdChange,
   children,
-}: SidebarNavProps) {
+}: SidebarNavInnerProps) {
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tUserAvatar = useTranslations("Components.UserAvatar");
-  const [activeId, setActiveId] = useState<string | null>(null);
 
   const panels = useMemo<SidebarSubmenuPanel[]>(
     () => [
@@ -182,7 +172,7 @@ function SidebarNavInner({
   return (
     <SidebarSubmenu
       activeId={activeId}
-      onActiveIdChange={setActiveId}
+      onActiveIdChange={onActiveIdChange}
       panels={panels}
       backLabel={tMenu("back")}
     >
@@ -200,16 +190,25 @@ export default function SidebarNav({
   children,
 }: SidebarNavProps) {
   const { state, isMobile, openMobile } = useSidebar();
-  const resetKey = getSubmenuResetKey(state, isMobile, openMobile);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const shouldResetActiveId =
+    (!isMobile && state === "collapsed") || (isMobile && !openMobile);
+
+  useEffect(() => {
+    if (shouldResetActiveId) {
+      setActiveId(null);
+    }
+  }, [shouldResetActiveId]);
 
   return (
     <SidebarNavInner
-      key={resetKey}
       sessionUser={sessionUser}
       members={members}
       activeOrganizationId={activeOrganizationId}
       planLabel={planLabel}
       activeOrganization={activeOrganization}
+      activeId={activeId}
+      onActiveIdChange={setActiveId}
     >
       {children}
     </SidebarNavInner>
