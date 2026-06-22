@@ -39,12 +39,6 @@ export function HeaderNotificationAvatar({
       return;
     }
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        return;
-      }
-    };
-
     const checkPrefersReducedMotion = () => {
       return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     };
@@ -65,11 +59,8 @@ export function HeaderNotificationAvatar({
 
     const intervalId = setInterval(triggerBellAnimation, REMINDER_INTERVAL);
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => {
       clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [unreadCount, isOpen]);
 
