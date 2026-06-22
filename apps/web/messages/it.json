@@ -1203,6 +1203,7 @@
           "active": "Attivo",
           "archived": "Archiviato",
           "DRAFT": "Bozza",
+          "QUEUED": "In coda",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Input richiesto",
           "APPROVAL_REQUIRED": "Approvazione richiesta",
@@ -1469,6 +1470,7 @@
         "projectLabel": "Progetto",
         "statusOptions": {
           "DRAFT": "Bozza",
+          "QUEUED": "In coda",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Input richiesto",
           "APPROVAL_REQUIRED": "Approvazione richiesta",

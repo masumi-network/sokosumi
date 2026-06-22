@@ -4,6 +4,7 @@ type TaskStatusLabelKey = keyof typeof TASK_STATUS_LABEL_KEYS;
 
 const TASK_STATUS_LABEL_KEYS = {
   DRAFT: true,
+  QUEUED: true,
   READY: true,
   INPUT_REQUIRED: true,
   APPROVAL_REQUIRED: true,
@@ -23,6 +24,7 @@ export function buildTaskStatusLabels(
 ): Record<TaskStatus, string> {
   return {
     [TaskStatus.DRAFT]: translate("DRAFT"),
+    [TaskStatus.QUEUED]: translate("QUEUED"),
     [TaskStatus.READY]: translate("READY"),
     [TaskStatus.INPUT_REQUIRED]: translate("INPUT_REQUIRED"),
     [TaskStatus.APPROVAL_REQUIRED]: translate("APPROVAL_REQUIRED"),

@@ -1203,6 +1203,7 @@
           "active": "Actif",
           "archived": "Archivé",
           "DRAFT": "Brouillon",
+          "QUEUED": "En file d'attente",
           "READY": "Prêt",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",
@@ -1469,6 +1470,7 @@
         "projectLabel": "Projet",
         "statusOptions": {
           "DRAFT": "Brouillon",
+          "QUEUED": "En file d'attente",
           "READY": "Prêt",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",

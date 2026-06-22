@@ -1203,6 +1203,7 @@
           "active": "活跃",
           "archived": "已归档",
           "DRAFT": "草稿",
+          "QUEUED": "已排队",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
@@ -1469,6 +1470,7 @@
         "projectLabel": "项目",
         "statusOptions": {
           "DRAFT": "草稿",
+          "QUEUED": "已排队",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",

@@ -1214,6 +1214,7 @@
           "active": "Active",
           "archived": "Archived",
           "DRAFT": "Draft",
+          "QUEUED": "Queued",
           "READY": "Ready",
           "INPUT_REQUIRED": "Input required",
           "APPROVAL_REQUIRED": "Approval required",
@@ -1480,6 +1481,7 @@
         "projectLabel": "Project",
         "statusOptions": {
           "DRAFT": "Draft",
+          "QUEUED": "Queued",
           "READY": "Ready",
           "INPUT_REQUIRED": "Input required",
           "APPROVAL_REQUIRED": "Approval required",

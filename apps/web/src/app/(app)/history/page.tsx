@@ -71,6 +71,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   ) as Record<(typeof HISTORY_JOB_ONLY_STATUS_VALUES)[number], string>;
   const taskStatusOptions: Record<TaskStatus, string> = {
     [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
+    [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
     [TaskStatus.READY]: t("Filters.statusOptions.READY"),
     [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
     [TaskStatus.APPROVAL_REQUIRED]: t(
