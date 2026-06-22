@@ -12,10 +12,7 @@ import {
 } from "@/schemas/coworker.schema";
 
 import { requireCoworkerManagementAccess } from "../coworker-management-access";
-import {
-  mergeCoworkerMetadata,
-  normalizeCoworkerMetadata,
-} from "../metadata";
+import { mergeCoworkerMetadata, normalizeCoworkerMetadata } from "../metadata";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";
 
