@@ -63,6 +63,7 @@ const labels: HistoryListItemLabels = {
   },
   taskStatus: {
     [TaskStatus.DRAFT]: "Entwurf",
+    [TaskStatus.QUEUED]: "In Warteschlange",
     [TaskStatus.READY]: "Bereit",
     [TaskStatus.INPUT_REQUIRED]: "Eingabe erforderlich",
     [TaskStatus.APPROVAL_REQUIRED]: "Genehmigung erforderlich",
