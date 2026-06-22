@@ -50,6 +50,7 @@ const labels = {
 
 const columnLabels: Record<KanbanColumnId, string> = {
   backlog: "Backlog",
+  scheduled: "Scheduled",
   todo: "Todo",
   "in-progress": "In Progress",
   "input-required": "Input Required",

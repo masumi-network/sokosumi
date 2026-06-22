@@ -1411,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Backlog",
+        "scheduled": "Geplant",
         "todo": "Offen",
         "inProgress": "In Bearbeitung",
         "inputRequired": "Input erforderlich",

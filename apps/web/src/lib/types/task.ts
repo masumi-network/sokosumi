@@ -10,6 +10,7 @@ export type { TaskEvent };
 
 export type KanbanColumnId =
   | "backlog"
+  | "scheduled"
   | "todo"
   | "in-progress"
   | "input-required"
@@ -41,6 +42,7 @@ export interface KanbanColumnDefinition {
 
 export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
   { id: "backlog", translationKey: "App.Tasks.Columns.backlog" },
+  { id: "scheduled", translationKey: "App.Tasks.Columns.scheduled" },
   { id: "todo", translationKey: "App.Tasks.Columns.todo" },
   { id: "in-progress", translationKey: "App.Tasks.Columns.inProgress" },
   { id: "input-required", translationKey: "App.Tasks.Columns.inputRequired" },
@@ -49,6 +51,7 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
 
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   backlog: "bg-muted-foreground",
+  scheduled: "bg-indigo-500",
   todo: "bg-blue-500",
   "in-progress": "bg-amber-500",
   "input-required": "bg-orange-500",

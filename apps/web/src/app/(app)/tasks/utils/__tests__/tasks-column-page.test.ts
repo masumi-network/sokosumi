@@ -112,7 +112,7 @@ describe("getTasksColumnPage", () => {
     expect(page.tasks.map((task) => task.id)).toEqual(["task-2"]);
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
-      status: [TaskStatus.DRAFT, TaskStatus.QUEUED],
+      status: [TaskStatus.DRAFT],
       scope: "owned",
       coworkerId: undefined,
       projectId: undefined,

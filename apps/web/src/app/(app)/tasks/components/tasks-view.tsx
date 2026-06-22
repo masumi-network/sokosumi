@@ -610,7 +610,7 @@ export function TasksView({
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
 
-    // Backlog holds DRAFT and QUEUED — preserve the task's status on rollback.
+    // Preserve the task's prior status on rollback when a drag update fails.
     const previousStatus = draggedTask.status;
 
     const moveVersion = (moveVersionRef.current += 1);

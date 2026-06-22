@@ -5,8 +5,9 @@ import { isDnDColumn, statusForColumn } from "../task-dnd";
 
 describe("task-dnd", () => {
   describe("isDnDColumn", () => {
-    it("allows backlog and todo", () => {
+    it("allows backlog, scheduled, and todo", () => {
       expect(isDnDColumn("backlog")).toBe(true);
+      expect(isDnDColumn("scheduled")).toBe(true);
       expect(isDnDColumn("todo")).toBe(true);
     });
 
@@ -17,7 +18,11 @@ describe("task-dnd", () => {
   });
 
   describe("statusForColumn", () => {
-    it("maps todo to READY so backlog QUEUED tasks can move to ready", () => {
+    it("maps scheduled to QUEUED", () => {
+      expect(statusForColumn("scheduled")).toBe(TaskStatus.QUEUED);
+    });
+
+    it("maps todo to READY so scheduled QUEUED tasks can move to ready", () => {
       expect(statusForColumn("todo")).toBe(TaskStatus.READY);
     });
 

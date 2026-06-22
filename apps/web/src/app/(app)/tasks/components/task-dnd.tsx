@@ -13,7 +13,7 @@ import { type CSSProperties, type ReactNode, useRef } from "react";
 import type { KanbanColumnId } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
-const DND_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo"]);
+const DND_COLUMNS = new Set<KanbanColumnId>(["backlog", "scheduled", "todo"]);
 
 export interface DragHandleProps {
   attributes: DraggableAttributes;
@@ -41,6 +41,8 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
   switch (columnId) {
     case "backlog":
       return TaskStatus.DRAFT;
+    case "scheduled":
+      return TaskStatus.QUEUED;
     case "todo":
       return TaskStatus.READY;
     default:
