@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import {
   Agents,
   AgentsNotAvailable,
@@ -34,16 +34,26 @@ function FilteredAgentsInner({
   ratingStatsMap,
   categories,
 }: FilteredAgentsProps) {
-  const { query, categories: selectedCategories } = useGalleryFilter();
+  const {
+    query,
+    categories: selectedCategories,
+    setCategories,
+  } = useGalleryFilter();
+
+  useEffect(() => {
+    if (selectedCategories.length > 0) {
+      void setCategories([]);
+    }
+  }, [selectedCategories, setCategories]);
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
       query,
-      categories: selectedCategories,
+      categories: [],
     };
 
     return filterAgents(agents, criteria);
-  }, [agents, query, selectedCategories]);
+  }, [agents, query]);
 
   const groupedAgents = useMemo(() => {
     return groupAgentsByCategory(filteredAgents, categories);

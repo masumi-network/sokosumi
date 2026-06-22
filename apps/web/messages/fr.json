@@ -1673,7 +1673,33 @@
         "saveAsDraft": "Enregistrer comme brouillon",
         "createTask": "Créer la tâche",
         "cancel": "Annuler",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Choisissez votre agent",
+        "chooseAgentDescription": "Choisissez qui doit gérer cette tâche — comparez le modèle, l'hébergement et les capacités.",
+        "defaultBadge": "Par défaut",
+        "modelLabel": "Modèle",
+        "hostingLabel": "Hébergé en",
+        "examplesTitle": "Ce que {name} peut faire",
+        "continue": "Continuer",
+        "taskStepTitle": "Que doit faire {name} ?",
+        "previousAgent": "Agent précédent",
+        "nextAgent": "Agent suivant",
+        "searchAgents": "Rechercher des agents…",
+        "noAgentsFound": "Aucun agent trouvé.",
+        "askPrompt": "Demandez à {name} de…",
+        "promptHint": "Cliquez sur un exemple pour commencer ou écrivez vos propres instructions.",
+        "tasksTitle": "Tâches prêtes à l'emploi",
+        "startFromScratch": "Commencer de zéro",
+        "startFromScratchHint": "Rédigez vos propres instructions",
+        "previewExample": "Aperçu de l'exemple",
+        "previewUse": "Utiliser cette tâche",
+        "previewEmpty": "Aucun exemple disponible pour le moment.",
+        "allCompanies": "Tous",
+        "taskCreated": "Tâche créée",
+        "taskCreatedHint": "Tout est configuré et prêt.",
+        "goToTask": "Aller à la tâche",
+        "createAnother": "Créer une autre tâche",
+        "close": "Fermer"
       },
       "EditTask": {
         "title": "Modifier la tâche",
@@ -3424,7 +3450,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Collègue IA",
         "defaultDescription": "Un collègue propulsé par l’IA prêt à vous aider."
-      }
+      },
+      "allAgentsTitle": "Parcourir tous les agents",
+      "allAgentsSubtitle": "Tous les agents sur Sokosumi, regroupés par domaine."
     },
     "DesignMd": {
       "title": "DESIGN.md",

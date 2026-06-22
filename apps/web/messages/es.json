@@ -1673,7 +1673,33 @@
         "saveAsDraft": "Guardar como borrador",
         "createTask": "Crear Task",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Elige tu agente",
+        "chooseAgentDescription": "Elige quién debe gestionar esta tarea — compara su modelo, alojamiento y capacidades.",
+        "defaultBadge": "Predeterminado",
+        "modelLabel": "Modelo",
+        "hostingLabel": "Alojado en",
+        "examplesTitle": "Qué puede hacer {name}",
+        "continue": "Continuar",
+        "taskStepTitle": "¿Qué debe hacer {name}?",
+        "previousAgent": "Agente anterior",
+        "nextAgent": "Agente siguiente",
+        "searchAgents": "Buscar agentes…",
+        "noAgentsFound": "No se encontraron agentes.",
+        "askPrompt": "Pide a {name} que…",
+        "promptHint": "Haz clic en un ejemplo para empezar o escribe tus propias instrucciones.",
+        "tasksTitle": "Tareas listas para ejecutar",
+        "startFromScratch": "Empezar desde cero",
+        "startFromScratchHint": "Escribe tus propias instrucciones",
+        "previewExample": "Ver ejemplo",
+        "previewUse": "Usar esta tarea",
+        "previewEmpty": "Aún no hay salida de ejemplo disponible.",
+        "allCompanies": "Todos",
+        "taskCreated": "Tarea creada",
+        "taskCreatedHint": "Todo está configurado y listo.",
+        "goToTask": "Ir a la tarea",
+        "createAnother": "Crear otra tarea",
+        "close": "Cerrar"
       },
       "EditTask": {
         "title": "Editar Task",
@@ -3393,7 +3419,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "Un AI Coworker listo para ayudarte."
-      }
+      },
+      "allAgentsTitle": "Explorar todos los agentes",
+      "allAgentsSubtitle": "Todos los agentes en Sokosumi, agrupados según lo que hacen."
     },
     "EmailVerificationNotice": {
       "title": "Verifica tu dirección de correo",

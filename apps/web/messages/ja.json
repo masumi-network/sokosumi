@@ -1673,7 +1673,33 @@
         "saveAsDraft": "下書きとして保存",
         "createTask": "タスクを作成",
         "cancel": "キャンセル",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "エージェントを選択",
+        "chooseAgentDescription": "このタスクを担当するエージェントを選び、モデル、ホスティング、機能を比較してください。",
+        "defaultBadge": "デフォルト",
+        "modelLabel": "モデル",
+        "hostingLabel": "ホスティング",
+        "examplesTitle": "{name}ができること",
+        "continue": "続ける",
+        "taskStepTitle": "{name}に何をさせますか？",
+        "previousAgent": "前のエージェント",
+        "nextAgent": "次のエージェント",
+        "searchAgents": "エージェントを検索…",
+        "noAgentsFound": "エージェントが見つかりません。",
+        "askPrompt": "{name}に依頼…",
+        "promptHint": "例をクリックして開始するか、独自の指示を入力してください。",
+        "tasksTitle": "すぐ実行できるタスク",
+        "startFromScratch": "ゼロから始める",
+        "startFromScratchHint": "独自の指示を書く",
+        "previewExample": "例をプレビュー",
+        "previewUse": "このタスクを使う",
+        "previewEmpty": "サンプル出力はまだありません。",
+        "allCompanies": "すべて",
+        "taskCreated": "タスクを作成しました",
+        "taskCreatedHint": "すべて設定済みで、すぐに開始できます。",
+        "goToTask": "タスクへ移動",
+        "createAnother": "別のタスクを作成",
+        "close": "閉じる"
       },
       "EditTask": {
         "title": "タスクを編集",
@@ -3424,7 +3450,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI同僚",
         "defaultDescription": "あなたを支援する準備ができたAI搭載の同僚です。"
-      }
+      },
+      "allAgentsTitle": "すべてのエージェントを見る",
+      "allAgentsSubtitle": "Sokosumiのすべてのエージェントを、できること別に表示しています。"
     },
     "DesignMd": {
       "title": "DESIGN.md",

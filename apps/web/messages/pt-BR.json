@@ -1673,7 +1673,33 @@
         "saveAsDraft": "Salvar como rascunho",
         "createTask": "Criar tarefa",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Escolha seu agente",
+        "chooseAgentDescription": "Escolha quem deve gerenciar esta tarefa — compare o modelo, hospedagem e capacidades.",
+        "defaultBadge": "Padrão",
+        "modelLabel": "Modelo",
+        "hostingLabel": "Hospedado em",
+        "examplesTitle": "O que {name} pode fazer",
+        "continue": "Continuar",
+        "taskStepTitle": "O que {name} deve fazer?",
+        "previousAgent": "Agente anterior",
+        "nextAgent": "Próximo agente",
+        "searchAgents": "Buscar agentes…",
+        "noAgentsFound": "Nenhum agente encontrado.",
+        "askPrompt": "Peça para {name}…",
+        "promptHint": "Clique em um exemplo para começar ou escreva suas próprias instruções.",
+        "tasksTitle": "Tarefas prontas para executar",
+        "startFromScratch": "Começar do zero",
+        "startFromScratchHint": "Escreva suas próprias instruções",
+        "previewExample": "Visualizar exemplo",
+        "previewUse": "Usar esta tarefa",
+        "previewEmpty": "Nenhuma saída de exemplo disponível ainda.",
+        "allCompanies": "Todos",
+        "taskCreated": "Tarefa criada",
+        "taskCreatedHint": "Tudo está configurado e pronto.",
+        "goToTask": "Ir para a tarefa",
+        "createAnother": "Criar outra tarefa",
+        "close": "Fechar"
       },
       "EditTask": {
         "title": "Editar tarefa",
@@ -3424,7 +3450,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Coworker de IA",
         "defaultDescription": "Um coworker com IA pronto para ajudar você."
-      }
+      },
+      "allAgentsTitle": "Explorar todos os agentes",
+      "allAgentsSubtitle": "Todos os agentes no Sokosumi, agrupados pelo que fazem."
     },
     "DesignMd": {
       "title": "DESIGN.md",
