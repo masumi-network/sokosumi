@@ -5,7 +5,6 @@ import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
-import { writeCreateTaskModalLastCoworkerId } from "@/app/tasks/utils/create-task-modal-preferences";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 
 const {
@@ -593,8 +592,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("applies stored create-modal coworker from localStorage after mount", () => {
-    writeCreateTaskModalLastCoworkerId("coworker-1");
+  it("selects the Elena coworker by default on first open", () => {
     render(
       <TaskForm
         variant="modal"
@@ -606,16 +604,14 @@ describe("TaskForm", () => {
       />,
     );
 
-    // The create modal opens on the coworker-picker grid; the stored coworker
-    // (Soko) should be the selected card, not Elena (the default).
-    expect(screen.getByRole("button", { name: /Soko/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: /Elena/ })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    // The create modal defaults to Elena (matched by slug/name), not the first
+    // option. The rail renders twice (mobile + desktop), so assert all matches.
+    for (const button of screen.getAllByRole("button", { name: /Elena/ })) {
+      expect(button).toHaveAttribute("aria-pressed", "true");
+    }
+    for (const button of screen.getAllByRole("button", { name: /Soko/ })) {
+      expect(button).toHaveAttribute("aria-pressed", "false");
+    }
   });
 
   it("passes agent mention options to MarkdownEditor", async () => {

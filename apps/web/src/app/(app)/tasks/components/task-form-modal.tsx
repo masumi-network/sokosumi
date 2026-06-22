@@ -25,22 +25,16 @@ export function TaskFormModal({
   children,
   isDismissDisabled = false,
 }: TaskFormModalProps) {
+  // Clicking outside / pressing Escape closes the modal, except while a submit
+  // or upload is in flight (guarded by isDismissDisabled).
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && isDismissDisabled) return;
     onOpenChange(nextOpen);
   };
 
-  const handleDismissAttempt = (event: Event) => {
-    event.preventDefault();
-  };
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden"
-        onInteractOutside={handleDismissAttempt}
-        onEscapeKeyDown={handleDismissAttempt}
-      >
+      <DialogContent className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">

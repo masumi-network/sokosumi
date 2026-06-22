@@ -1,10 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { CompanyMark } from "@/components/agents/company-mark";
+import { OfferEmbed, offerOutputs } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { CoworkerOffer, CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
@@ -18,6 +26,9 @@ export interface AgentSpotlightLabels {
   tasksTitle: string;
   startFromScratch: string;
   startFromScratchHint: string;
+  previewExample: string;
+  previewUse: string;
+  previewEmpty: string;
   noResults: string;
 }
 
@@ -42,9 +53,53 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-/** Combined first step: a spotlight master-detail — pick a coworker on the left,
- *  see their details + large ready-to-run task cards on the right. Picking a task
- *  (or "start from scratch") advances to the editor. */
+function RailItem({
+  option,
+  active,
+  onSelect,
+  className,
+}: {
+  option: CoworkerOption;
+  active: boolean;
+  onSelect: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onSelect}
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
+        FOCUS_RING,
+        active ? "bg-muted" : "hover:bg-muted/50",
+        className,
+      )}
+    >
+      <Avatar className="ring-border size-8 shrink-0 rounded-full ring-1">
+        <AvatarImage src={option.image} alt="" className="object-cover" />
+        <AvatarFallback className="rounded-full text-xs font-medium">
+          {initials(option.name)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="text-foreground truncate text-sm font-medium">
+          {option.name}
+        </p>
+        {option.caption ? (
+          <p className="text-muted-foreground truncate text-xs">
+            {option.caption}
+          </p>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+/** Combined first step: a spotlight master-detail — pick a coworker (left rail on
+ *  desktop, horizontal strip on mobile), see their details + large ready-to-run
+ *  task cards on the right. Picking a task advances to the editor; a preview
+ *  button shows the task's example output. */
 export function AgentSpotlight({
   options,
   selectedId,
@@ -54,6 +109,8 @@ export function AgentSpotlight({
   defaultSlug = "elena",
   labels,
 }: AgentSpotlightProps) {
+  const [previewOffer, setPreviewOffer] = useState<CoworkerOffer | null>(null);
+
   const groups = useMemo(() => {
     const map = new Map<string, CoworkerOption[]>();
     for (const option of options) {
@@ -81,6 +138,7 @@ export function AgentSpotlight({
     options.find((option) => option.id === selectedId) ?? options[0];
   const llm = current?.profile?.llm ?? [];
   const hosting = current?.profile?.hosting;
+  const previewOutput = previewOffer ? offerOutputs(previewOffer)[0] : null;
 
   if (!current) {
     return (
@@ -91,11 +149,29 @@ export function AgentSpotlight({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      {/* Rail — coworker selector, grouped by company */}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+      {/* Rail (mobile) — horizontal strip of coworkers */}
       <div
         className={cn(
-          "w-52 shrink-0 space-y-4 overflow-y-auto py-1 pr-3",
+          "flex shrink-0 gap-2 overflow-x-auto border-b pb-3 md:hidden",
+          SCROLLBAR,
+        )}
+      >
+        {options.map((option) => (
+          <RailItem
+            key={option.id}
+            option={option}
+            active={option.id === current.id}
+            onSelect={() => onSelect(option.id)}
+            className="w-44 shrink-0"
+          />
+        ))}
+      </div>
+
+      {/* Rail (desktop) — coworker selector grouped by company */}
+      <div
+        className={cn(
+          "hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:overflow-y-auto md:py-1 md:pr-3",
           SCROLLBAR,
         )}
       >
@@ -104,43 +180,15 @@ export function AgentSpotlight({
             <p className="text-muted-foreground px-2 text-xs font-medium">
               {group.company || "Other"}
             </p>
-            {group.members.map((member) => {
-              const active = member.id === current.id;
-              return (
-                <button
-                  key={member.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onSelect(member.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors",
-                    FOCUS_RING,
-                    active ? "bg-muted" : "hover:bg-muted/50",
-                  )}
-                >
-                  <Avatar className="ring-border size-8 shrink-0 rounded-full ring-1">
-                    <AvatarImage
-                      src={member.image}
-                      alt=""
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="rounded-full text-xs font-medium">
-                      {initials(member.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="text-foreground truncate text-sm font-medium">
-                      {member.name}
-                    </p>
-                    {member.caption ? (
-                      <p className="text-muted-foreground truncate text-xs">
-                        {member.caption}
-                      </p>
-                    ) : null}
-                  </div>
-                </button>
-              );
-            })}
+            {group.members.map((member) => (
+              <RailItem
+                key={member.id}
+                option={member}
+                active={member.id === current.id}
+                onSelect={() => onSelect(member.id)}
+                className="w-full"
+              />
+            ))}
           </div>
         ))}
       </div>
@@ -149,7 +197,7 @@ export function AgentSpotlight({
       <div
         key={current.id}
         className={cn(
-          "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto border-l py-1 pl-6",
+          "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:pt-1 md:pl-6",
           SCROLLBAR,
         )}
       >
@@ -219,11 +267,50 @@ export function AgentSpotlight({
             title: labels.tasksTitle,
             startFromScratch: labels.startFromScratch,
             startFromScratchHint: labels.startFromScratchHint,
+            previewExample: labels.previewExample,
           }}
           onPickOffer={onPickOffer}
+          onPreviewOffer={setPreviewOffer}
           onStartFromScratch={onStartFromScratch}
         />
       </div>
+
+      {/* Example-output preview */}
+      <Dialog
+        open={previewOffer !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewOffer(null);
+        }}
+      >
+        <DialogContent className="flex h-[min(80svh,640px)] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+          <DialogTitle className="border-b px-5 py-3 text-base font-semibold">
+            {previewOffer?.title}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {previewOffer?.description ?? previewOffer?.title}
+          </DialogDescription>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {previewOutput ? (
+              <OfferEmbed
+                output={previewOutput}
+                title={previewOffer?.title ?? ""}
+                pendingLabel={labels.previewEmpty}
+              />
+            ) : null}
+          </div>
+          <div className="flex shrink-0 justify-end border-t px-5 py-3">
+            <Button
+              type="button"
+              onClick={() => {
+                if (previewOffer) onPickOffer(previewOffer);
+                setPreviewOffer(null);
+              }}
+            >
+              {labels.previewUse}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

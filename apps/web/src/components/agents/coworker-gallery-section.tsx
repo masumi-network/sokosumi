@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  AlignLeft,
   ArrowRight,
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  FileText,
   Search,
 } from "lucide-react";
 import Image from "next/image";
@@ -17,16 +15,13 @@ import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import { CompanyMark } from "@/components/agents/company-mark";
 import {
-  isOfficeFile,
   OfferCard,
-  type OfferOutput,
+  OfferEmbed,
   type OutputKind,
   OutputTypeIcon,
   offerOutputs,
-  officeViewerUrl,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
-import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -181,86 +176,6 @@ function MetaTags({
           {hosting}
         </span>
       ) : null}
-    </div>
-  );
-}
-
-/** Detail preview — one output embedded for real (PDF/Office/image), or a text placeholder.
- * Fills its container so the dialog can give it a large viewport. */
-function OfferEmbed({
-  output,
-  title,
-  pendingLabel,
-}: {
-  output: OfferOutput;
-  title: string;
-  pendingLabel: string;
-}) {
-  const { type, url, text } = output;
-  if (url && type === "image") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote example host
-      <img
-        src={url}
-        alt={title}
-        className="bg-muted/40 h-full w-full object-contain"
-        loading="lazy"
-      />
-    );
-  }
-  if (url) {
-    // Hide the browser's native PDF chrome (toolbar / thumbnail rail) for a clean preview.
-    const src = isOfficeFile(url)
-      ? officeViewerUrl(url)
-      : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
-    return (
-      <iframe src={src} title={title} className="bg-muted/40 h-full w-full" />
-    );
-  }
-  // Text outputs render their inline example as a real document "page" — a
-  // titled sheet with document-grade typography (not a cramped markdown blob).
-  if (text) {
-    const docTitle = output.label ?? title;
-    return (
-      <div className="bg-muted/40 h-full w-full overflow-y-auto p-4 md:p-6">
-        <article className="bg-background border-border/70 mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
-          {/* Document letterhead */}
-          <div className="border-border/60 flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
-            <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
-              <FileText className="size-4" aria-hidden />
-            </span>
-            <p className="text-foreground truncate text-sm font-medium">
-              {docTitle}
-            </p>
-          </div>
-          {/* Document body */}
-          <div className="px-7 py-7 md:px-10 md:py-9">
-            <Markdown
-              className={cn(
-                "prose-h2:text-xl prose-h2:mb-3 prose-h2:tracking-tight",
-                "prose-h3:text-foreground prose-h3:mt-7 prose-h3:mb-2 prose-h3:text-base",
-                "prose-p:text-foreground/90 prose-p:text-[15px] prose-p:leading-7",
-                "prose-li:text-foreground/90 prose-li:my-1.5 prose-li:text-[15px] prose-li:leading-7",
-                "prose-ul:my-3 prose-ol:my-3 prose-strong:text-foreground",
-              )}
-            >
-              {text}
-            </Markdown>
-          </div>
-        </article>
-      </div>
-    );
-  }
-  return (
-    <div className="bg-muted/40 flex h-full flex-col items-center justify-center gap-3 px-10">
-      <AlignLeft aria-hidden className="text-muted-foreground/50 size-9" />
-      <div className="w-full max-w-md space-y-2">
-        <div className="bg-muted-foreground/20 h-1.5 w-full rounded" />
-        <div className="bg-muted-foreground/20 h-1.5 w-11/12 rounded" />
-        <div className="bg-muted-foreground/20 h-1.5 w-4/5 rounded" />
-        <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
-      </div>
-      <span className="text-muted-foreground text-xs">{pendingLabel}</span>
     </div>
   );
 }

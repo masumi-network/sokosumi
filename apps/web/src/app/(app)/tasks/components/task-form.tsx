@@ -18,10 +18,6 @@ import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
 import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
-import {
-  readCreateTaskModalLastCoworkerId,
-  writeCreateTaskModalLastCoworkerId,
-} from "@/app/tasks/utils/create-task-modal-preferences";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { CompanyMark } from "@/components/agents/company-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -88,6 +84,9 @@ export interface TaskFormLabels {
   tasksTitle?: string;
   startFromScratch?: string;
   startFromScratchHint?: string;
+  previewExample?: string;
+  previewUse?: string;
+  previewEmpty?: string;
   allCompanies?: string;
   status: string;
   statusDescription: string;
@@ -188,11 +187,14 @@ export function TaskForm({
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
   );
-  const hasExplicitInitialCoworker =
-    initialValues?.coworkerId != null && initialValues.coworkerId !== "";
   const defaultCoworkerId = useMemo(() => {
+    // Default to Elena on first open. Match by slug or name (case-insensitive)
+    // so it works across environments (dev seed + mainnet) where the slug may
+    // differ; fall back to the highest-priority coworker.
     const elenaCoworker = coworkerOptions.find(
-      (option) => option.slug === "elena",
+      (option) =>
+        option.slug.trim().toLowerCase() === "elena" ||
+        option.name.trim().toLowerCase() === "elena",
     );
 
     return (
@@ -210,16 +212,6 @@ export function TaskForm({
     if (coworkerTouchedRef.current) return;
     setCoworkerId(defaultCoworkerId);
   }, [defaultCoworkerId]);
-
-  useEffect(() => {
-    if (!isModal || mode !== "create" || hasExplicitInitialCoworker) return;
-    if (coworkerTouchedRef.current) return;
-
-    const stored = readCreateTaskModalLastCoworkerId();
-    if (stored && coworkerOptions.some((option) => option.id === stored)) {
-      setCoworkerId(stored);
-    }
-  }, [coworkerOptions, hasExplicitInitialCoworker, isModal, mode]);
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -254,16 +246,10 @@ export function TaskForm({
     onCreatedChange?.(createdTask !== null);
   }, [createdTask, onCreatedChange]);
 
-  const handleCoworkerSelect = useCallback(
-    (id: string) => {
-      coworkerTouchedRef.current = true;
-      setCoworkerId(id);
-      if (isModal && mode === "create") {
-        writeCreateTaskModalLastCoworkerId(id);
-      }
-    },
-    [isModal, mode],
-  );
+  const handleCoworkerSelect = useCallback((id: string) => {
+    coworkerTouchedRef.current = true;
+    setCoworkerId(id);
+  }, []);
 
   const abortActiveUploads = useCallback(() => {
     for (const controller of activeUploadControllersRef.current) {
@@ -605,12 +591,16 @@ export function TaskForm({
                   defaultBadge: cardLabels.defaultBadge,
                   modelLabel: cardLabels.modelLabel,
                   hostingLabel: cardLabels.hostingLabel,
-                  tasksTitle: labels.tasksTitle ?? "Ready-to-run tasks",
+                  tasksTitle: labels.tasksTitle ?? "Ready-To-Run Tasks",
                   startFromScratch:
                     labels.startFromScratch ?? "Start from scratch",
                   startFromScratchHint:
                     labels.startFromScratchHint ??
                     "Write your own instructions",
+                  previewExample: labels.previewExample ?? "Preview example",
+                  previewUse: labels.previewUse ?? "Use this task",
+                  previewEmpty:
+                    labels.previewEmpty ?? "No example output available yet.",
                   noResults: labels.noResults ?? "No agents found.",
                 }}
               />

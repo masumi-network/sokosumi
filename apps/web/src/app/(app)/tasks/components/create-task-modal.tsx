@@ -227,13 +227,20 @@ export function CreateTaskModal({
           promptHint: t("promptHint"),
           tasksTitle: t.has("tasksTitle")
             ? t("tasksTitle")
-            : "Ready-to-run tasks",
+            : "Ready-To-Run Tasks",
           startFromScratch: t.has("startFromScratch")
             ? t("startFromScratch")
             : "Start from scratch",
           startFromScratchHint: t.has("startFromScratchHint")
             ? t("startFromScratchHint")
             : "Write your own instructions",
+          previewExample: t.has("previewExample")
+            ? t("previewExample")
+            : "Preview example",
+          previewUse: t.has("previewUse") ? t("previewUse") : "Use this task",
+          previewEmpty: t.has("previewEmpty")
+            ? t("previewEmpty")
+            : "No example output available yet.",
           allCompanies: t("allCompanies"),
           status: t("status"),
           statusDescription: t("statusDescription"),
