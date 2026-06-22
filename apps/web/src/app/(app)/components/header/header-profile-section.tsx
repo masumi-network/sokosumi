@@ -1,12 +1,6 @@
 import { Session } from "@sokosumi/utils";
-import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { coreClient } from "@/lib/clients/core.client";
-import type {
-  GetUsersByIdCreditsResponse,
-  GetUsersByIdOrganizationsResponse,
-  MemberWithOrganization,
-} from "@/lib/clients/generated/core";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 
 import HeaderProfileSectionClient from "./header-profile-section.client";
@@ -40,68 +34,14 @@ export default function HeaderProfileSection({
 async function HeaderProfileSectionInner({
   session,
 }: HeaderProfileSectionProps) {
-  const tCredit = await getTranslations("App.Header.Credit");
-  const tPlan = await getTranslations("App.Header.Plan");
-  const tSubscriptions = await getTranslations("App.Subscriptions");
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const hasActiveOrganization = activeOrganizationId !== null;
 
   let members: MemberWithOrganization[] = [];
-  let currentPlan: string | null = null;
-  let activeOrganizationName: string | null = null;
 
   try {
-    const [membersResult, creditsResult, organizationsResult] =
-      await Promise.allSettled([
-        userService.getMyMembersWithOrganizations(),
-        coreClient.getMyCredits(),
-        activeOrganizationId
-          ? coreClient.getMyOrganizations()
-          : Promise.resolve(null),
-      ]);
-
-    if (membersResult.status === "fulfilled") {
-      members = membersResult.value;
-    }
-
-    if (creditsResult.status === "fulfilled") {
-      const credits = creditsResult.value as GetUsersByIdCreditsResponse;
-      currentPlan = credits.data.subscription?.plan ?? "free";
-    }
-
-    if (
-      activeOrganizationId &&
-      organizationsResult.status === "fulfilled" &&
-      organizationsResult.value
-    ) {
-      const organizations =
-        organizationsResult.value as GetUsersByIdOrganizationsResponse;
-      const foundOrganization = organizations.data.find(
-        (organization) => organization.id === activeOrganizationId,
-      );
-
-      if (foundOrganization) {
-        activeOrganizationName = foundOrganization.name;
-      }
-    }
+    members = await userService.getMyMembersWithOrganizations();
   } catch (_error) {
     members = [];
-    currentPlan = null;
-  }
-
-  let secondaryLabel = tPlan("unavailable");
-  if (currentPlan !== null) {
-    try {
-      const planName = tSubscriptions(`Plans.${currentPlan}.name`);
-      secondaryLabel = hasActiveOrganization
-        ? tPlan("organizationPlan", {
-            plan: planName,
-            organization: activeOrganizationName ?? tCredit("unavailable"),
-          })
-        : tPlan("userPlan", { plan: planName });
-    } catch (_error) {
-      secondaryLabel = tPlan("unavailable");
-    }
   }
 
   return (
@@ -109,7 +49,6 @@ async function HeaderProfileSectionInner({
       sessionUser={session.user}
       members={members}
       activeOrganizationId={activeOrganizationId}
-      secondaryLabel={secondaryLabel}
     />
   );
 }

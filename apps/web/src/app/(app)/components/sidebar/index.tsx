@@ -11,6 +11,9 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import type { OrganizationRecord } from "@/lib/clients/generated/core";
+import { userService } from "@/lib/services";
+import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
 import AdminMenu from "./components/admin-menu";
 import AnnouncementCards from "./components/announcement-cards";
@@ -18,8 +21,10 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
+import SettingsMenuButton from "./components/settings-menu-button.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
+import SidebarNav from "./components/sidebar-nav.client";
 
 interface SidebarProps {
   adminMenuEnabled: boolean;
@@ -40,9 +45,33 @@ export default async function Sidebar({
   session,
   lowCreditsThreshold,
 }: SidebarProps) {
+  const tCredit = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const currentPlan = creditsData?.subscription?.plan ?? "free";
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+
+  let members: Awaited<
+    ReturnType<typeof userService.getMyMembersWithOrganizations>
+  > = [];
+  try {
+    members = await userService.getMyMembersWithOrganizations();
+  } catch (_error) {
+    members = [];
+  }
+
+  const activeOrganizationMember = activeOrganizationId
+    ? members.find((member) => member.organizationId === activeOrganizationId)
+    : null;
+  const activeOrganization: OrganizationRecord | null =
+    activeOrganizationMember?.organization ?? null;
+
+  const planLabel = await resolvePlanSecondaryLabel({
+    plan: currentPlan,
+    organizationName: activeOrganizationId
+      ? (organizationName ?? tCredit("unavailable"))
+      : null,
+  });
 
   return (
     <ShadcnSidebar collapsible="icon">
@@ -54,17 +83,22 @@ export default async function Sidebar({
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex min-h-0 flex-col gap-0">
-          <NewChatTaskActions />
-          <SidebarSeparator className="mx-0 mt-2" />
-          <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
-          {adminMenuEnabled ? (
-            <>
-              <SidebarSeparator className="mx-0" />
-              <AdminMenu />
-            </>
-          ) : null}
-          <SidebarSeparator className="mx-0" />
-          <ChatListsClient />
+          <SidebarNav
+            sessionUser={session.user}
+            members={members}
+            activeOrganizationId={activeOrganizationId}
+            planLabel={planLabel}
+            activeOrganization={activeOrganization}
+          >
+            <NewChatTaskActions />
+            <SidebarSeparator className="mx-0 mt-2" />
+            <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
+            <SidebarSeparator className="mx-0" />
+            {adminMenuEnabled ? <AdminMenu /> : null}
+            <SettingsMenuButton />
+            <SidebarSeparator className="mx-0" />
+            <ChatListsClient />
+          </SidebarNav>
         </div>
       </SidebarContent>
       <SidebarFooter className="mt-auto shrink-0 px-0">
