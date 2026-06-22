@@ -2380,7 +2380,9 @@
           "projects": "Projekte",
           "hermes": "Hermes",
           "history": "Verlauf",
-          "admin": "Administration"
+          "admin": "Administration",
+          "settings": "Einstellungen",
+          "back": "Zurück"
         }
       }
     },
