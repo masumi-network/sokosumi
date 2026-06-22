@@ -833,3 +833,25 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
 .animate-thinking-dot {
   animation: thinking-dot 1.2s ease-in-out infinite;
 }
+
+/* Shake animation for notification bell reminder.
+ * Quick side-to-side shake to draw attention to unread notifications. */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
