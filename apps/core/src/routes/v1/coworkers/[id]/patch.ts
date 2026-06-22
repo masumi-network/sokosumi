@@ -6,10 +6,16 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
-import { coworkerSchema } from "@/schemas/coworker.schema";
+import {
+  type CoworkerMetadata,
+  coworkerSchema,
+} from "@/schemas/coworker.schema";
 
 import { requireCoworkerManagementAccess } from "../coworker-management-access";
-import { normalizeCoworkerMetadata } from "../metadata";
+import {
+  mergeCoworkerMetadata,
+  normalizeCoworkerMetadata,
+} from "../metadata";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";
 
@@ -46,9 +52,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       requireAdminAuthContext(c.var.authContext);
     }
 
-    const metadata = normalizeCoworkerMetadata(body.metadata);
-
     const coworker = await prisma.$transaction(async (tx) => {
+      const existingCoworker = await tx.coworker.findFirst({
+        where: {
+          id,
+          archivedAt: null,
+        },
+        select: {
+          metadata: true,
+        },
+      });
+
+      if (!existingCoworker) {
+        throw notFound("Coworker not found");
+      }
+
+      const metadata =
+        body.metadata === undefined
+          ? undefined
+          : normalizeCoworkerMetadata(
+              body.metadata === null
+                ? null
+                : mergeCoworkerMetadata(
+                    existingCoworker.metadata as CoworkerMetadata | null,
+                    body.metadata,
+                  ),
+            );
+
       const updatedCount = await tx.coworker.updateMany({
         where: {
           id,

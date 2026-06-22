@@ -79,8 +79,8 @@ export function OfferPicker({
           </div>
         </button>
 
-        {offers.map((offer) => (
-          <div key={offer.title} className="relative">
+        {offers.map((offer, index) => (
+          <div key={`${offer.title}-${index}`} className="relative">
             <OfferCard offer={offer} onClick={() => onPickOffer(offer)} />
             <button
               type="button"

@@ -1,6 +1,86 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeCoworkerMetadata } from "./metadata";
+import { mergeCoworkerMetadata, normalizeCoworkerMetadata } from "./metadata";
+
+describe("mergeCoworkerMetadata", () => {
+  it("preserves profile and offers when PATCH only updates channels", () => {
+    const result = mergeCoworkerMetadata(
+      {
+        channels: {
+          email: "old@example.com",
+        },
+        profile: {
+          llm: ["GPT-4o"],
+        },
+        offers: [
+          {
+            title: "Competitive analysis",
+            prompt: "Analyze competitors.",
+          },
+        ],
+      },
+      {
+        channels: {
+          whatsapp: "+49151xxxx",
+        },
+      },
+    );
+
+    expect(result).toEqual({
+      channels: {
+        email: "old@example.com",
+        whatsapp: "+49151xxxx",
+      },
+      profile: {
+        llm: ["GPT-4o"],
+      },
+      offers: [
+        {
+          title: "Competitive analysis",
+          prompt: "Analyze competitors.",
+        },
+      ],
+    });
+  });
+
+  it("replaces profile and offers when PATCH includes them", () => {
+    const result = mergeCoworkerMetadata(
+      {
+        channels: {
+          email: "old@example.com",
+        },
+        profile: {
+          llm: ["GPT-4o"],
+        },
+        offers: [
+          {
+            title: "Old offer",
+            prompt: "Old prompt.",
+          },
+        ],
+      },
+      {
+        channels: {
+          email: "new@example.com",
+        },
+        profile: {
+          hosting: "EU · Frankfurt",
+        },
+        offers: [],
+      },
+    );
+
+    expect(result).toEqual({
+      channels: {
+        email: "new@example.com",
+      },
+      profile: {
+        hosting: "EU · Frankfurt",
+      },
+      offers: [],
+    });
+  });
+});
 
 describe("normalizeCoworkerMetadata", () => {
   it("preserves profile and offers alongside normalized channels", () => {

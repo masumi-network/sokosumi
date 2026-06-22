@@ -207,6 +207,25 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
+  it("shows the wizard when only a prompt is prefilled without a coworker", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ description: "Analyze competitors" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Start from scratch/i }),
+    ).toBeInTheDocument();
+  });
+
   it("opens directly on compose when a coworker is prefilled", () => {
     render(
       <TaskForm

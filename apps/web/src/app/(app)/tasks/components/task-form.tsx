@@ -276,16 +276,14 @@ export function TaskForm({
     isUploadingAttachments;
 
   // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
-  // or start from scratch), 2 = compose. Skip the wizard when a prompt or
-  // coworker is prefilled (gallery offer, create related, agents-page deep link).
-  // Prefilled coworker locks the assignee — no in-modal picker on step 1.
-  const hasInitialPrompt = Boolean(initialValues?.description?.trim());
+  // or start from scratch), 2 = compose. Skip the wizard only when a coworker
+  // is prefilled (gallery offer, agents-page deep link). A prompt alone does not
+  // skip step 1 — otherwise a bad coworker slug would land on compose with the
+  // default assignee.
   const hasPrefilledCoworker = Boolean(initialValues?.coworkerId);
   const useWizard =
-    isModal && mode === "create" && !hasInitialPrompt && !hasPrefilledCoworker;
-  const [step, setStep] = useState<1 | 2>(
-    hasInitialPrompt || hasPrefilledCoworker ? 2 : 1,
-  );
+    isModal && mode === "create" && !hasPrefilledCoworker;
+  const [step, setStep] = useState<1 | 2>(hasPrefilledCoworker ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
   const showCoworkerGrid = mode === "create" && !isModal;
   const useComposeLayout = isModal && mode === "create" && showTaskStep;
