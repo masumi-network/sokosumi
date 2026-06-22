@@ -52,6 +52,11 @@ function getAllowedTransitions(
   if (isCoworkerAgentContext(authContext)) {
     return {
       [TaskStatus.DRAFT]: [],
+      [TaskStatus.QUEUED]: [
+        TaskStatus.RUNNING,
+        TaskStatus.DRAFT,
+        TaskStatus.READY,
+      ],
       [TaskStatus.READY]: [
         TaskStatus.RUNNING,
         TaskStatus.AWAITING_EXTERNAL,
@@ -62,6 +67,7 @@ function getAllowedTransitions(
         TaskStatus.INPUT_REQUIRED,
         TaskStatus.APPROVAL_REQUIRED,
         TaskStatus.CANCELED,
+        TaskStatus.QUEUED,
       ],
       [TaskStatus.INPUT_REQUIRED]: [
         TaskStatus.RUNNING,
@@ -140,8 +146,17 @@ function getAllowedTransitions(
   }
 
   return {
-    [TaskStatus.DRAFT]: [TaskStatus.READY, TaskStatus.CANCELED],
-    [TaskStatus.READY]: [TaskStatus.DRAFT, TaskStatus.CANCELED],
+    [TaskStatus.DRAFT]: [
+      TaskStatus.READY,
+      TaskStatus.CANCELED,
+      TaskStatus.QUEUED,
+    ],
+    [TaskStatus.QUEUED]: [TaskStatus.DRAFT, TaskStatus.READY],
+    [TaskStatus.READY]: [
+      TaskStatus.DRAFT,
+      TaskStatus.CANCELED,
+      TaskStatus.QUEUED,
+    ],
     [TaskStatus.INPUT_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.APPROVAL_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],
     [TaskStatus.AUTHENTICATION_REQUIRED]: [TaskStatus.CANCEL_REQUESTED],

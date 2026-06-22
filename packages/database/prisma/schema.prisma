@@ -1255,6 +1255,7 @@ model TaskLink {
 
 enum TaskStatus {
   DRAFT
+  QUEUED
   READY
   INPUT_REQUIRED
   APPROVAL_REQUIRED
