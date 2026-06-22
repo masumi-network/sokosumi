@@ -43,7 +43,7 @@ Documented for teams that **stop using `_task` MCP delegate entirely** and accep
 | Trigger | Linear — Delegate assigned → `Cursor` |
 | Filter | Team SOK; description contains `## Sapphire status` |
 | Tools | Linear MCP, GitHub MCP — computer use is built into Cloud Agents |
-| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. **Mandatory:** `PHASE-GATE.md` — post phase comment + update status table after each phase; run exit gate before finishing. Reviewer: PR artifacts per `VISUAL-CAPTURE.md`. |
+| Instructions | Read repo `.cursor/skills/_team-sapphire/SKILL.md`. Run full squad on this issue. Single issue only. **Role models:** Tech Lead `claude-opus-4-8`, Coder `composer-2.5`, Reviewer `gpt-5.5-medium` (see `.cursor/agents/sapphire-*.md`). **Mandatory:** `PHASE-GATE.md` — post phase comment + update status table after each phase; run exit gate before finishing. Reviewer: PR artifacts per `VISUAL-CAPTURE.md`. |
 
 Filter on `## Sapphire status`, **not** `[repo=…]` alone.
 
