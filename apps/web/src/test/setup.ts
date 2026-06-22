@@ -46,3 +46,12 @@ vi.mock("uuid", () => ({
   v5: () => "mock-uuid-v5",
   validate: () => true,
 }));
+
+// `@lobehub/icons` (ModelIcon) does ESM directory-imports of `@lobehub/fluent-emoji`
+// that Node's native ESM loader can't resolve under vitest, breaking collection of
+// any test whose graph reaches it (e.g. via AgentSpotlight). It's a purely
+// presentational icon, so stub it globally.
+vi.mock("@lobehub/icons", () => ({
+  __esModule: true,
+  ModelIcon: () => null,
+}));

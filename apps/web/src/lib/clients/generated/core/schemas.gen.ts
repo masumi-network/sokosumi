@@ -8360,10 +8360,126 @@ export const CoworkerMetadataSchema = {
                 email: 'foo@bar.com',
                 whatsapp: '+49151xxxx'
             }
+        },
+        profile: {
+            $ref: '#/components/schemas/CoworkerProfile'
+        },
+        offers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CoworkerOffer'
+            },
+            description: 'Curated, pre-filled task offers shown in the agents marketplace.'
         }
     },
     required: [
         'channels'
+    ]
+} as const;
+
+export const CoworkerProfileSchema = {
+    type: 'object',
+    properties: {
+        llm: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            example: [
+                'GPT-4o',
+                'Claude 3.5 Sonnet'
+            ]
+        },
+        hosting: {
+            type: 'string',
+            example: 'EU · Frankfurt'
+        },
+        capabilities: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            example: [
+                'Market Research',
+                'Copywriting'
+            ]
+        },
+        examples: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            example: [
+                'Plan a multi-channel campaign'
+            ]
+        }
+    },
+    description: 'Public agent profile shown in selection UIs (model, hosting, capabilities, examples).'
+} as const;
+
+export const CoworkerOfferSchema = {
+    type: 'object',
+    properties: {
+        title: {
+            type: 'string',
+            example: 'Competitive analysis'
+        },
+        prompt: {
+            type: 'string',
+            example: 'Run a competitive analysis of my top 3 competitors and summarize their positioning.'
+        },
+        category: {
+            type: 'string',
+            example: 'Research'
+        },
+        description: {
+            type: 'string',
+            example: 'A sourced, side-by-side breakdown of your top competitors — positioning, pricing, strengths, and the gaps you can exploit.'
+        },
+        deliverable: {
+            type: 'string',
+            example: 'A 2–3 page PDF brief with a comparison table and key takeaways.'
+        },
+        outputs: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    type: {
+                        type: 'string',
+                        enum: [
+                            'pdf',
+                            'image',
+                            'slides',
+                            'doc',
+                            'text'
+                        ],
+                        example: 'pdf'
+                    },
+                    url: {
+                        type: 'string',
+                        example: 'https://example.com/samples/competitive-analysis.pdf'
+                    },
+                    label: {
+                        type: 'string',
+                        example: 'Competitive brief'
+                    },
+                    text: {
+                        type: 'string',
+                        description: 'Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.',
+                        example: '## Project plan\n\n- Milestone 1 — …'
+                    }
+                },
+                required: [
+                    'type'
+                ]
+            },
+            description: 'Example outputs the offer produces — text and/or files (PDF, slides, image).'
+        }
+    },
+    required: [
+        'title',
+        'prompt'
     ]
 } as const;
 

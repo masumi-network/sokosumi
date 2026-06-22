@@ -1670,7 +1670,33 @@
         "saveAsDraft": "Als Entwurf speichern",
         "createTask": "Task erstellen",
         "cancel": "Abbrechen",
-        "ctrl": "Strg"
+        "ctrl": "Strg",
+        "chooseAgent": "Wähle deinen Agenten",
+        "chooseAgentDescription": "Wähle, wer diese Aufgabe übernehmen soll — vergleiche Modell, Hosting und Fähigkeiten.",
+        "defaultBadge": "Standard",
+        "modelLabel": "Modell",
+        "hostingLabel": "Gehostet in",
+        "examplesTitle": "Was {name} kann",
+        "continue": "Weiter",
+        "taskStepTitle": "Was soll {name} tun?",
+        "previousAgent": "Vorheriger Agent",
+        "nextAgent": "Nächster Agent",
+        "searchAgents": "Agenten suchen…",
+        "noAgentsFound": "Keine Agenten gefunden.",
+        "askPrompt": "Bitte {name}, …",
+        "promptHint": "Klicke auf ein Beispiel oder schreibe deine eigenen Anweisungen.",
+        "tasksTitle": "Sofort startbare Tasks",
+        "startFromScratch": "Von Grund auf starten",
+        "startFromScratchHint": "Eigene Anweisungen schreiben",
+        "previewExample": "Beispiel ansehen",
+        "previewUse": "Diesen Task verwenden",
+        "previewEmpty": "Noch kein Beispiel verfügbar.",
+        "allCompanies": "Alle",
+        "taskCreated": "Task erstellt",
+        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "goToTask": "Zum Task",
+        "createAnother": "Weiteren Task erstellen",
+        "close": "Schließen"
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -3389,7 +3415,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "KI-Coworker",
         "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
-      }
+      },
+      "allAgentsTitle": "Alle Agenten durchsuchen",
+      "allAgentsSubtitle": "Alle Agenten auf Sokosumi – gruppiert nach Aufgabe."
     },
     "EmailVerificationNotice": {
       "title": "Bestätige deine E-Mail-Adresse",

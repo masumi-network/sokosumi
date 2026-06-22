@@ -38,6 +38,7 @@ interface TasksPageProps {
   searchParams: Promise<{
     create?: string;
     coworker?: string;
+    prompt?: string;
     scope?: string | string[];
     coworkerId?: string | string[];
     status?: string | string[];
@@ -65,6 +66,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const {
     create,
     coworker: coworkerSlugParam,
+    prompt: promptParam,
     scope,
     coworkerId,
     status,
@@ -234,8 +236,11 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         defaultDensity={defaultDensity}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
+        initialCreateTaskPrompt={
+          initialCreateTaskOpen ? (promptParam ?? null) : null
+        }
         initialDesignMdAttachment={initialDesignMdAttachment}
-        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}`}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),
