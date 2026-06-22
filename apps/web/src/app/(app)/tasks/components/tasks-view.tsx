@@ -603,13 +603,15 @@ export function TasksView({
     const fromColumn = event.active.data.current?.columnId as
       | KanbanColumnId
       | undefined;
-    if (!fromColumn || fromColumn === toColumn) return;
+    if (!fromColumn || !isDnDColumn(fromColumn) || fromColumn === toColumn) {
+      return;
+    }
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
 
-    const previousStatus = statusForColumn(fromColumn);
-    if (!previousStatus) return;
+    // Backlog holds DRAFT and QUEUED — preserve the task's status on rollback.
+    const previousStatus = draggedTask.status;
 
     const moveVersion = (moveVersionRef.current += 1);
     pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
