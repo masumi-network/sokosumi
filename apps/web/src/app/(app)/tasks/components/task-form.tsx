@@ -276,9 +276,9 @@ export function TaskForm({
     isUploadingAttachments;
 
   // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
-  // or start from scratch), 2 = compose. Open straight on compose when a prompt
-  // or coworker is prefilled (e.g. from an agents-page offer or create related).
-  // Edit/page variants keep the single grid layout.
+  // or start from scratch), 2 = compose. Skip the wizard when a prompt or
+  // coworker is prefilled (gallery offer, create related, agents-page deep link).
+  // Prefilled coworker locks the assignee — no in-modal picker on step 1.
   const hasInitialPrompt = Boolean(initialValues?.description?.trim());
   const hasPrefilledCoworker = Boolean(initialValues?.coworkerId);
   const useWizard =
@@ -291,7 +291,11 @@ export function TaskForm({
   const useComposeLayout = isModal && mode === "create" && showTaskStep;
   const canUseSubmitShortcut = showTaskStep && !isSaveDisabled;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
-  const taskFieldsBorder = useComposeLayout ? "border-t" : !isModal ? "border-t" : "";
+  const taskFieldsBorder = useComposeLayout
+    ? "border-t"
+    : !isModal
+      ? "border-t"
+      : "";
   const shouldShowEditToggle = mode === "edit";
   const statusToggleLabel =
     status === TaskStatus.DRAFT

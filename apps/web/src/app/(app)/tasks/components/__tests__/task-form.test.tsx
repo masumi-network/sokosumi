@@ -207,7 +207,6 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
-
   it("opens directly on compose when a coworker is prefilled", () => {
     render(
       <TaskForm
@@ -429,8 +428,7 @@ describe("TaskForm", () => {
     expect(sokoButton).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("selects initialValues.projectId when project options are provided", async () => {
-    const user = userEvent.setup();
+  it("selects initialValues.projectId when project options are provided", () => {
     render(
       <TaskForm
         variant="modal"
@@ -449,8 +447,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("seeds empty create descriptions with the initial design.md attachment", async () => {
-    const user = userEvent.setup();
+  it("seeds empty create descriptions with the initial design.md attachment", () => {
     render(
       <TaskForm
         variant="modal"
@@ -653,8 +650,7 @@ describe("TaskForm", () => {
     }
   });
 
-  it("passes agent mention options to MarkdownEditor", async () => {
-    const user = userEvent.setup();
+  it("passes agent mention options to MarkdownEditor", () => {
     render(
       <TaskForm
         variant="modal"
