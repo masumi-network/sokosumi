@@ -73,9 +73,14 @@ export default async function GalleryPage() {
 
         {/* Tier 2 — browse the full catalog, grouped by what agents do */}
         <section className="space-y-8">
-          <h2 className="text-foreground text-xl font-light md:text-2xl">
-            {t("allAgentsTitle")}
-          </h2>
+          <div className="space-y-2">
+            <h2 className="text-foreground text-xl font-light md:text-2xl">
+              {t("allAgentsTitle")}
+            </h2>
+            <p className="text-muted-foreground text-sm md:text-base">
+              {t("allAgentsSubtitle")}
+            </p>
+          </div>
           <FilteredAgents
             agents={coreAgents}
             ratingStatsMap={ratingStatsMap}

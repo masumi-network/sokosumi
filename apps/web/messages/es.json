@@ -3389,7 +3389,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "Un AI Coworker listo para ayudarte."
-      }
+      },
+      "allAgentsTitle": "Explorar todos los agentes",
+      "allAgentsSubtitle": "Todos los agentes en Sokosumi, agrupados según lo que hacen."
     },
     "EmailVerificationNotice": {
       "title": "Verifica tu dirección de correo",

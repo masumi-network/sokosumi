@@ -3389,7 +3389,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "KI-Coworker",
         "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
-      }
+      },
+      "allAgentsTitle": "Alle Agenten durchsuchen",
+      "allAgentsSubtitle": "Alle Agenten auf Sokosumi – gruppiert nach Aufgabe."
     },
     "EmailVerificationNotice": {
       "title": "Bestätige deine E-Mail-Adresse",

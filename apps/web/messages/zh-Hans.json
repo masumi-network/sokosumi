@@ -3420,7 +3420,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI 协作伙伴",
         "defaultDescription": "一位由 AI 驱动、随时准备协助您的协作伙伴。"
-      }
+      },
+      "allAgentsTitle": "浏览全部智能体",
+      "allAgentsSubtitle": "Sokosumi 上的全部智能体，按它们擅长的工作分类。"
     },
     "DesignMd": {
       "title": "DESIGN.md",

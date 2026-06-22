@@ -3420,7 +3420,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Coworker de IA",
         "defaultDescription": "Um coworker com IA pronto para ajudar você."
-      }
+      },
+      "allAgentsTitle": "Explorar todos os agentes",
+      "allAgentsSubtitle": "Todos os agentes no Sokosumi, agrupados pelo que fazem."
     },
     "DesignMd": {
       "title": "DESIGN.md",

@@ -3420,7 +3420,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI同僚",
         "defaultDescription": "あなたを支援する準備ができたAI搭載の同僚です。"
-      }
+      },
+      "allAgentsTitle": "すべてのエージェントを見る",
+      "allAgentsSubtitle": "Sokosumiのすべてのエージェントを、できること別に表示しています。"
     },
     "DesignMd": {
       "title": "DESIGN.md",
