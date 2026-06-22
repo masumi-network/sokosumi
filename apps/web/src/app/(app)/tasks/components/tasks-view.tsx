@@ -9,7 +9,12 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { AgentJobStatus, SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import {
+  AgentJobStatus,
+  canUserTransitionTaskStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -609,6 +614,9 @@ export function TasksView({
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
+    if (!canUserTransitionTaskStatus(draggedTask.status, desiredStatus)) {
+      return;
+    }
 
     // Preserve the task's prior status on rollback when a drag update fails.
     const previousStatus = draggedTask.status;
