@@ -209,6 +209,14 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
+  // The create modal opens on the spotlight step; advance to the compose step
+  // by choosing "Start from scratch".
+  async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      screen.getByRole("button", { name: /Start from scratch/i }),
+    );
+  }
+
   it("submits as draft from create modal actions", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
@@ -226,6 +234,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
 
     await user.click(screen.getByRole("button", { name: "Save as Draft" }));
@@ -253,6 +262,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
 
     await user.click(screen.getByRole("button", { name: "Create Task" }));
@@ -283,6 +293,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -377,7 +388,8 @@ describe("TaskForm", () => {
     expect(sokoButton).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("selects initialValues.projectId when project options are provided", () => {
+  it("selects initialValues.projectId when project options are provided", async () => {
+    const user = userEvent.setup();
     render(
       <TaskForm
         variant="modal"
@@ -391,12 +403,14 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent(
       "Beta Project",
     );
   });
 
-  it("seeds empty create descriptions with the initial design.md attachment", () => {
+  it("seeds empty create descriptions with the initial design.md attachment", async () => {
+    const user = userEvent.setup();
     render(
       <TaskForm
         variant="modal"
@@ -413,6 +427,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     expect(screen.getByTestId("markdown-editor")).toHaveValue(
       "[DESIGN.md](https://blob.example/design.md)\n",
     );
@@ -462,6 +477,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.clear(screen.getByTestId("markdown-editor"));
     await user.type(
       screen.getByTestId("markdown-editor"),
@@ -495,6 +511,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -590,15 +607,20 @@ describe("TaskForm", () => {
       />,
     );
 
-    // The create modal opens on the agent-spotlight step; the stored coworker
-    // (Soko) should be the spotlighted selection, not Elena (the default).
-    expect(screen.getByRole("heading", { name: "Soko" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Elena" }),
-    ).not.toBeInTheDocument();
+    // The create modal opens on the coworker-picker grid; the stored coworker
+    // (Soko) should be the selected card, not Elena (the default).
+    expect(screen.getByRole("button", { name: /Soko/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /Elena/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
-  it("passes agent mention options to MarkdownEditor", () => {
+  it("passes agent mention options to MarkdownEditor", async () => {
+    const user = userEvent.setup();
     render(
       <TaskForm
         variant="modal"
@@ -612,6 +634,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     expect(markdownEditorPropsSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         mentions: {
@@ -670,6 +693,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
@@ -777,6 +801,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), [firstFile, secondFile]);
 
     await waitFor(() => {
@@ -838,6 +863,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
@@ -899,6 +925,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.upload(getHiddenFileInput(container), file);
 
     await waitFor(() => {
@@ -935,6 +962,7 @@ describe("TaskForm", () => {
       />,
     );
 
+    await startFromScratch(user);
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 

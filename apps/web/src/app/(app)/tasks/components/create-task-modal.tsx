@@ -217,6 +217,15 @@ export function CreateTaskModal({
           noResults: t("noAgentsFound"),
           askPrompt: t.raw("askPrompt") as string,
           promptHint: t("promptHint"),
+          tasksTitle: t.has("tasksTitle")
+            ? t("tasksTitle")
+            : "Ready-to-run tasks",
+          startFromScratch: t.has("startFromScratch")
+            ? t("startFromScratch")
+            : "Start from scratch",
+          startFromScratchHint: t.has("startFromScratchHint")
+            ? t("startFromScratchHint")
+            : "Write your own instructions",
           allCompanies: t("allCompanies"),
           status: t("status"),
           statusDescription: t("statusDescription"),

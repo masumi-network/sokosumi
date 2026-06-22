@@ -20,6 +20,8 @@ interface CoworkerCardProps {
   isDefault?: boolean;
   onSelect: () => void;
   labels: CoworkerCardLabels;
+  /** Hides the capability + model footer for a shorter card (e.g. a picker grid). */
+  compact?: boolean;
 }
 
 export function CoworkerCard({
@@ -28,6 +30,7 @@ export function CoworkerCard({
   isDefault = false,
   onSelect,
   labels,
+  compact = false,
 }: CoworkerCardProps) {
   const capabilities = option.profile?.capabilities ?? [];
   const visibleCapabilities = capabilities.slice(0, 3);
@@ -95,7 +98,7 @@ export function CoworkerCard({
         </p>
       ) : null}
 
-      {visibleCapabilities.length > 0 ? (
+      {!compact && visibleCapabilities.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {visibleCapabilities.map((capability) => (
             <span
@@ -113,7 +116,7 @@ export function CoworkerCard({
         </div>
       ) : null}
 
-      {hasMeta ? (
+      {!compact && hasMeta ? (
         <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t pt-3">
           {llm.map((model) => (
             <span

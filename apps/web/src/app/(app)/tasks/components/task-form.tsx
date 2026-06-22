@@ -91,6 +91,9 @@ export interface TaskFormLabels {
   noResults?: string;
   askPrompt?: string;
   promptHint?: string;
+  tasksTitle?: string;
+  startFromScratch?: string;
+  startFromScratchHint?: string;
   allCompanies?: string;
   status: string;
   statusDescription: string;
@@ -175,13 +178,16 @@ export function TaskForm({
   const shouldShowProjectSelect = isModal && projectOptions !== undefined;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const [description, setDescription] = useState(() =>
-    getInitialDescription({
-      attachment: initialDesignMdAttachment,
-      description: initialValues?.description,
-      mode,
-    }),
+  const initialDescription = useMemo(
+    () =>
+      getInitialDescription({
+        attachment: initialDesignMdAttachment,
+        description: initialValues?.description,
+        mode,
+      }),
+    [initialDesignMdAttachment, initialValues?.description, mode],
   );
+  const [description, setDescription] = useState(initialDescription);
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
   );
@@ -482,10 +488,14 @@ export function TaskForm({
   // Two-step flow for the create modal: step 1 picks the agent (spotlight),
   // step 2 writes the task. Edit/page variants keep the grid layout. When a
   // coworker is preselected (e.g. opened from the agents page) we skip step 1.
+  // Two-step create flow: 1 = spotlight (pick a coworker + a ready-to-run task,
+  // or start from scratch), 2 = compose. Open straight on compose when a prompt
+  // is prefilled (e.g. from an agents-page offer). Edit/page variants keep the
+  // single grid layout.
   const useWizard = isModal && mode === "create";
-  const [step, setStep] = useState<1 | 2>(hasExplicitInitialCoworker ? 2 : 1);
+  const hasInitialPrompt = Boolean(initialValues?.description);
+  const [step, setStep] = useState<1 | 2>(hasInitialPrompt ? 2 : 1);
   const showTaskStep = !useWizard || step === 2;
-  const continueLabel = labels.continueLabel ?? "Continue";
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
   const taskFieldsBorder = useWizard ? "border-t" : !isModal ? "border-t" : "";
 
@@ -581,28 +591,29 @@ export function TaskForm({
           }
         >
           {useWizard && step === 1 ? (
-            <div className="px-6 py-3 md:px-8">
+            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
               <AgentSpotlight
                 options={coworkerOptions}
                 selectedId={coworkerId}
                 onSelect={handleCoworkerSelect}
-                onUsePrompt={(prompt) => {
-                  setDescription(prompt);
+                onPickOffer={(offer) => {
+                  setDescription(offer.prompt);
+                  setStep(2);
+                }}
+                onStartFromScratch={() => {
+                  setDescription(initialDescription);
                   setStep(2);
                 }}
                 labels={{
                   defaultBadge: cardLabels.defaultBadge,
                   modelLabel: cardLabels.modelLabel,
                   hostingLabel: cardLabels.hostingLabel,
-                  askPrompt: labels.askPrompt ?? "Ask {name} to…",
-                  promptHint:
-                    labels.promptHint ??
-                    "Click an example to start, or continue to write your own.",
-                  previous: labels.previousLabel ?? "Previous agent",
-                  next: labels.nextLabel ?? "Next agent",
-                  searchPlaceholder:
-                    labels.searchPlaceholder ?? "Search agents…",
-                  allCompanies: labels.allCompanies ?? "All",
+                  tasksTitle: labels.tasksTitle ?? "Ready-to-run tasks",
+                  startFromScratch:
+                    labels.startFromScratch ?? "Start from scratch",
+                  startFromScratchHint:
+                    labels.startFromScratchHint ??
+                    "Write your own instructions",
                   noResults: labels.noResults ?? "No agents found.",
                 }}
               />
@@ -611,13 +622,13 @@ export function TaskForm({
 
           {useWizard && step === 2 && selectedOption ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
-              <Avatar className="ring-border size-9 shrink-0 rounded-lg ring-1">
+              <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
                 <AvatarImage
                   src={selectedOption.image}
                   alt={selectedOption.name}
                   className="object-cover"
                 />
-                <AvatarFallback className="rounded-lg text-xs font-medium">
+                <AvatarFallback className="rounded-full text-xs font-medium">
                   {selectedOption.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -806,19 +817,6 @@ export function TaskForm({
             </div>
           ) : null}
         </div>
-
-        {useWizard && step === 1 ? (
-          <div className="flex shrink-0 items-center justify-end border-t px-6 py-3 md:px-8">
-            <Button
-              type="button"
-              className="min-w-28"
-              disabled={!coworkerId}
-              onClick={() => setStep(2)}
-            >
-              {continueLabel}
-            </Button>
-          </div>
-        ) : null}
 
         {showTaskStep ? (
           <div

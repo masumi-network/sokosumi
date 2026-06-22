@@ -29,6 +29,9 @@ export function getCoworkerOptions(coworkers: Coworker[]): CoworkerOption[] {
               examples: profile.examples?.length ? profile.examples : undefined,
             }
           : undefined,
+        offers: coworker.metadata?.offers?.length
+          ? coworker.metadata.offers
+          : undefined,
       };
     })
     .sort(
