@@ -2,8 +2,12 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
+  useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -25,12 +29,14 @@ export function TaskFormModalHeaderStart({
   children: React.ReactNode;
 }) {
   const context = useContext(TaskFormModalHeaderContext);
+  const childrenRef = useRef(children);
+  childrenRef.current = children;
 
   useLayoutEffect(() => {
     if (!context) return;
-    context.setHeaderStart(children);
+    context.setHeaderStart(childrenRef.current);
     return () => context.setHeaderStart(null);
-  }, [children, context]);
+  }, [context]);
 
   return null;
 }
@@ -53,6 +59,17 @@ export function TaskFormModal({
   isDismissDisabled = false,
 }: TaskFormModalProps) {
   const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
+  const registerHeaderStart = useCallback((content: React.ReactNode) => {
+    setHeaderStart(content);
+  }, []);
+  const headerContextValue = useMemo(
+    () => ({ setHeaderStart: registerHeaderStart }),
+    [registerHeaderStart],
+  );
+
+  useEffect(() => {
+    if (!open) setHeaderStart(null);
+  }, [open]);
 
   // Clicking outside / pressing Escape closes the modal, except while a submit
   // or upload is in flight (guarded by isDismissDisabled).
@@ -66,7 +83,7 @@ export function TaskFormModal({
       <DialogContent className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
-        <TaskFormModalHeaderContext value={{ setHeaderStart }}>
+        <TaskFormModalHeaderContext value={headerContextValue}>
           <div className="bg-background flex h-svh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90svh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
             <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-3 md:px-8">
               <div className="justify-self-start">{headerStart}</div>

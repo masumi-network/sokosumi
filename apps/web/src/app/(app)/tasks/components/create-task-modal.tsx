@@ -289,6 +289,7 @@ export function CreateTaskModal({
         }}
         onCreateAnother={() => {
           clearPromptOverride();
+          setIsCreated(false);
           setResetKey((key) => key + 1);
         }}
       />
