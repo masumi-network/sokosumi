@@ -30,7 +30,9 @@ describe("task status label builders", () => {
 
   it("returns distinct namespaces for full and abbreviated labels", () => {
     const full = buildTaskStatusLabels((key) => `full:${key}`);
-    const abbreviated = buildTaskStatusAbbreviationLabels((key) => `abbr:${key}`);
+    const abbreviated = buildTaskStatusAbbreviationLabels(
+      (key) => `abbr:${key}`,
+    );
 
     expect(full[TaskStatus.QUEUED]).toBe("full:QUEUED");
     expect(abbreviated[TaskStatus.QUEUED]).toBe("abbr:QUEUED");
