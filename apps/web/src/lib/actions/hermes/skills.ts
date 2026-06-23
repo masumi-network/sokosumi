@@ -51,27 +51,34 @@ export const getSkillsMarketplaceAction = withSession<
   Result<SkillsMarketplaceData, ActionError>
 >(async () => {
   try {
-    const [marketingResults, installedRes, preinstalledRes] = await Promise.all(
-      [
-        Promise.all(
-          MARKETING_QUERIES.map((q) =>
-            coreClientNoRedirect.searchSkillsCatalog({ q, limit: 20 }),
-          ),
+    // Each call degrades to [] on its own (timeout / upstream error) so one
+    // slow dependency can't blank the whole marketplace — show what resolved.
+    const [marketingPool, installed, preinstalled] = await Promise.all([
+      Promise.all(
+        MARKETING_QUERIES.map((q) =>
+          coreClientNoRedirect
+            .searchSkillsCatalog({ q, limit: 20 })
+            .then((r) => r.data.skills)
+            .catch(() => [] as SkillCatalogItem[]),
         ),
-        coreClientNoRedirect.getInstalledSkills(),
-        coreClientNoRedirect.getPreinstalledSkills(),
-      ],
-    );
-    const installed = installedRes.data.skills;
-    const preinstalled = preinstalledRes.data.skills;
+      ),
+      coreClientNoRedirect
+        .getInstalledSkills()
+        .then((r) => r.data.skills)
+        .catch(() => [] as InstalledSkill[]),
+      coreClientNoRedirect
+        .getPreinstalledSkills()
+        .then((r) => r.data.skills)
+        .catch(() => [] as PreinstalledSkill[]),
+    ]);
     // Don't offer skills the agent already has (installed or image-baked).
     const have = new Set<string>([
       ...installed.map((s) => s.slug),
       ...preinstalled.map((s) => s.slug),
     ]);
     const seen = new Set<string>();
-    const marketing = marketingResults
-      .flatMap((r) => r.data.skills)
+    const marketing = marketingPool
+      .flat()
       .filter((s) => {
         if (have.has(s.slug) || seen.has(s.skillId)) return false;
         seen.add(s.skillId);

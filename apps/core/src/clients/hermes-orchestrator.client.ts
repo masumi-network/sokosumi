@@ -697,6 +697,11 @@ export async function destroyInstance(userId: string): Promise<void> {
 
 // ── Skills (skills.sh marketplace install onto the agent) ────────────────────
 
+// Bound the read-only skills list calls — a suspended/cold orchestrator must
+// not stall the marketplace load. Mutations (install/remove) are not capped
+// here; only the two list reads on the load path use this.
+const SKILLS_READ_TIMEOUT_MS = 5000;
+
 export type HermesSkillRisk = "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 /** `installing` = the agent wasn't ready; it auto-applies on next start. */
@@ -766,6 +771,7 @@ export async function listInstalledSkills(
 ): Promise<HermesInstalledSkill[]> {
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/skills`,
+    { signal: AbortSignal.timeout(SKILLS_READ_TIMEOUT_MS) },
   );
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
@@ -814,6 +820,7 @@ export async function listPreinstalledSkills(
 ): Promise<HermesPreinstalledSkill[]> {
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/skills/preinstalled`,
+    { signal: AbortSignal.timeout(SKILLS_READ_TIMEOUT_MS) },
   );
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));

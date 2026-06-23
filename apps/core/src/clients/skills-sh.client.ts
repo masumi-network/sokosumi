@@ -98,6 +98,10 @@ export function worstAuditRisk(audit: SkillsShAudit): SkillsRiskLevel | null {
 
 // ── In-process TTL cache for GETs ────────────────────────────────────────────
 const CACHE_TTL_MS = 60_000;
+// Bound the tail — a slow/hung skills.sh call must not stall the marketplace
+// load indefinitely (undici has no default timeout). Generous enough for the
+// semantic search path; callers degrade to empty on abort.
+const REQUEST_TIMEOUT_MS = 6000;
 const cache = new Map<string, { expiresAt: number; value: unknown }>();
 
 // The Vercel runtime exposes the OIDC token via `getVercelOidcToken()`, which
@@ -128,6 +132,7 @@ async function skillsGet<T>(
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     cache: "no-store",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new SkillsShError(res.status, `skills.sh ${path} -> ${res.status}`);
