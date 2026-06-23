@@ -206,6 +206,8 @@ describe("EditTaskPage", () => {
           coworkerId: "cow_123",
           projectId: null,
           status: "READY",
+          metadata: undefined,
+          nextRunAt: null,
         },
       }),
     );
