@@ -39,6 +39,7 @@ import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 import AutonomySelector from "./autonomy-selector";
+import SkillsMarketplace from "./skills-marketplace";
 import { useComposioOAuth } from "./use-composio-oauth";
 
 interface OnboardingScreenProps {
@@ -124,15 +125,15 @@ export default function OnboardingScreen({
   const [company, setCompany] = useState<string>("");
   const [autonomyLevel, setAutonomyLevel] =
     useState<HermesAutonomyLevel>("medium");
-  /** 1 = details, 2 = autonomy, 3 = integrations + final CTA. */
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const TOTAL_STEPS = 3;
+  /** 1 = details, 2 = autonomy, 3 = integrations, 4 = recommended skills + final CTA. */
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const TOTAL_STEPS = 4;
   const goNext = useCallback(
-    () => setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as 1 | 2 | 3) : s)),
+    () => setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as 1 | 2 | 3 | 4) : s)),
     [],
   );
   const goBack = useCallback(
-    () => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s)),
+    () => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3 | 4) : s)),
     [],
   );
 
@@ -418,6 +419,12 @@ export default function OnboardingScreen({
                   ))}
                 </ul>
               </div>
+            </Section>
+          )}
+
+          {step === 4 && (
+            <Section heading={t("skillsHeading")} description={t("skillsHelp")}>
+              <SkillsMarketplace variant="onboarding" />
             </Section>
           )}
         </div>

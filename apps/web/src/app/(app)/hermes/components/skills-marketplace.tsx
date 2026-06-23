@@ -202,22 +202,30 @@ export default function SkillsMarketplace({
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h3 className="text-foreground text-sm font-semibold">{t("title")}</h3>
-        <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-          {t("subtitle")}
-        </p>
-      </div>
+      {/* Onboarding embeds this under its own step heading + shows only the
+          curated shelf, so the header + search are settings-only. */}
+      {variant === "settings" ? (
+        <>
+          <div>
+            <h3 className="text-foreground text-sm font-semibold">
+              {t("title")}
+            </h3>
+            <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+              {t("subtitle")}
+            </p>
+          </div>
 
-      <div className="relative">
-        <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t("searchPlaceholder")}
-          className="pl-9"
-        />
-      </div>
+          <div className="relative">
+            <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("searchPlaceholder")}
+              className="pl-9"
+            />
+          </div>
+        </>
+      ) : null}
 
       {loading ? (
         <div className="text-muted-foreground flex items-center gap-2 py-6 text-sm">

@@ -2265,7 +2265,9 @@
         "fullAccessBodyPrefix": "Hermes will be able to",
         "fullAccessBodyBold": "draft replies and act in your account on your behalf",
         "fullAccessBodySuffix": "Only enable if you want it sending mail / creating events for you.",
-        "fullAccessCta": "Connect (full access — read + send)"
+        "fullAccessCta": "Connect (full access — read + send)",
+        "skillsHeading": "Add skills (optional)",
+        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
       },
       "OnboardingProgress": {
         "eyebrow": "Preparing your agent",
