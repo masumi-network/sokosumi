@@ -19,13 +19,8 @@ type NotificationNavigationTranslator = (
   values?: { account: string },
 ) => string;
 
-let membersPromise: ReturnType<
-  typeof coreClient.getMyMembersWithOrganizations
-> | null = null;
-
 async function getMembersForAccountName() {
-  membersPromise ??= coreClient.getMyMembersWithOrganizations();
-  return membersPromise;
+  return await coreClient.getMyMembersWithOrganizations();
 }
 
 function getWorkspaceIdFromMetadata(
@@ -80,6 +75,7 @@ export async function handleNotificationNavigation(
     return;
   }
 
+  let successMessage: string | undefined;
   try {
     const membersResponse = await getMembersForAccountName();
     const accountName = resolveAccountName(
@@ -87,16 +83,22 @@ export async function handleNotificationNavigation(
       membersResponse.data,
       t("personalWorkspace"),
     );
-
-    await handleSelectWorkspace(organizationId, {
-      shouldRedirectAgentJobsBasePath: false,
-      successMessage: t("switchedWorkspace", { account: accountName }),
-    });
+    successMessage = t("switchedWorkspace", { account: accountName });
   } catch (error) {
     console.warn(
-      "Failed to switch workspace for notification, navigating without switch",
+      "Failed to resolve workspace account name for notification switch",
       error,
     );
+  }
+
+  try {
+    await handleSelectWorkspace(organizationId, {
+      shouldRedirectAgentJobsBasePath: false,
+      successMessage,
+    });
+  } catch (error) {
+    console.warn("Failed to switch workspace for notification", error);
+    return;
   }
 
   router.push(href);

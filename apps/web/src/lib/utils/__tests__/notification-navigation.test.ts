@@ -26,8 +26,10 @@ function createNotification(
 ): NotificationItem {
   return {
     id: "notification_1",
+    userId: "user_1",
     kind: "TASK",
     referenceId: "task_1",
+    eventId: "event_1",
     messageKey: "Notifications.Task.completed",
     messageParams: {},
     metadata: {
@@ -132,5 +134,45 @@ describe("handleNotificationNavigation", () => {
 
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
     expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+  });
+
+  it("still switches and navigates when account name lookup fails", async () => {
+    getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
+    getMyMembersWithOrganizationsMock.mockRejectedValueOnce(
+      new Error("members unavailable"),
+    );
+
+    await handleNotificationNavigation(
+      createNotification(),
+      null,
+      router,
+      handleSelectWorkspace,
+      t,
+    );
+
+    expect(handleSelectWorkspace).toHaveBeenCalledWith("org_1", {
+      shouldRedirectAgentJobsBasePath: false,
+      successMessage: undefined,
+    });
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+  });
+
+  it("does not navigate when workspace switch fails", async () => {
+    getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
+    handleSelectWorkspace.mockRejectedValueOnce(new Error("switch failed"));
+
+    await handleNotificationNavigation(
+      createNotification(),
+      null,
+      router,
+      handleSelectWorkspace,
+      t,
+    );
+
+    expect(handleSelectWorkspace).toHaveBeenCalledWith("org_1", {
+      shouldRedirectAgentJobsBasePath: false,
+      successMessage: "switched:Org One",
+    });
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });
