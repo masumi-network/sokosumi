@@ -169,7 +169,7 @@ export function SidebarSubmenu({
   );
 
   useEffect(() => {
-    if (!activeId) {
+    if (!activeId || trackDepth !== depth) {
       return;
     }
 
@@ -180,7 +180,7 @@ export function SidebarSubmenu({
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [activeId]);
+  }, [activeId, depth, trackDepth]);
 
   useEffect(() => {
     if (depth > trackDepth) {
