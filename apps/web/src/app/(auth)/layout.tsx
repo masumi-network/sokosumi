@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { getSession } from "@/lib/auth/auth.server";
+import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { getDefaultAuthenticatedLandingPath } from "@/lib/utils/landing-path";
 
 import AuthBackground from "./components/auth-background";
@@ -67,7 +68,7 @@ function AuthLayoutFooter() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-4">
       <Link
-        href="https://www.sokosumi.com/terms-of-service"
+        href={LEGAL_URLS.TERMS_OF_SERVICE}
         target="_blank"
         rel="noopener noreferrer"
         className="text-sm hover:text-gray-300"
@@ -75,7 +76,7 @@ function AuthLayoutFooter() {
         {t("termsOfServices")}
       </Link>
       <Link
-        href="https://www.sokosumi.com/privacy-policy"
+        href={LEGAL_URLS.PRIVACY_POLICY}
         target="_blank"
         rel="noopener noreferrer"
         className="text-sm hover:text-gray-300"
@@ -83,7 +84,7 @@ function AuthLayoutFooter() {
         {t("privacyPolicy")}
       </Link>
       <Link
-        href="https://www.sokosumi.com/imprint"
+        href={LEGAL_URLS.IMPRINT}
         target="_blank"
         rel="noopener noreferrer"
         className="text-sm hover:text-gray-300"
@@ -91,7 +92,7 @@ function AuthLayoutFooter() {
         {t("imprint")}
       </Link>
       <Link
-        href="https://www.sokosumi.com/acceptable-use"
+        href={LEGAL_URLS.ACCEPTABLE_USE}
         target="_blank"
         rel="noopener noreferrer"
         className="text-sm hover:text-gray-300"
