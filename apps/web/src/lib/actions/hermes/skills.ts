@@ -11,6 +11,7 @@ import {
 import type {
   InstalledSkill,
   InstallSkillResponse,
+  PreinstalledSkill,
   SkillCatalogDetail,
   SkillCatalogItem,
 } from "@/lib/clients/generated/core";
@@ -109,6 +110,18 @@ export const getInstalledSkillsAction = withSession<
 >(async () => {
   try {
     const response = await coreClientNoRedirect.getInstalledSkills();
+    return Ok(response.data.skills);
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
+export const getPreinstalledSkillsAction = withSession<
+  AuthenticatedRequest,
+  Result<PreinstalledSkill[], ActionError>
+>(async () => {
+  try {
+    const response = await coreClientNoRedirect.getPreinstalledSkills();
     return Ok(response.data.skills);
   } catch (error) {
     return Err(toActionError(error));

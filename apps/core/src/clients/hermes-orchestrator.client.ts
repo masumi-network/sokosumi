@@ -799,6 +799,44 @@ export async function listInstalledSkills(
   });
 }
 
+export interface HermesPreinstalledSkill {
+  slug: string;
+  name: string;
+  description: string | null;
+}
+
+/**
+ * GET /v1/instances/:userId/skills/preinstalled — skills baked into the Hermes
+ * image (NOT skills.sh installs). The orchestrator is the source of truth.
+ * Until the orchestrator ships this route it 404/501s, which we treat as "none"
+ * so the UI simply omits the shelf rather than erroring.
+ */
+export async function listPreinstalledSkills(
+  userId: string,
+): Promise<HermesPreinstalledSkill[]> {
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/skills/preinstalled`,
+  );
+  if (res.status === 404 || res.status === 501) return [];
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+  const data = (await res.json().catch(() => ({}))) as { skills?: unknown };
+  const arr = Array.isArray(data.skills) ? data.skills : [];
+  return arr.flatMap((raw): HermesPreinstalledSkill[] => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const slug = typeof r.slug === "string" ? r.slug : null;
+    if (!slug) return [];
+    return [
+      {
+        slug,
+        name: typeof r.name === "string" ? r.name : slug,
+        description: typeof r.description === "string" ? r.description : null,
+      },
+    ];
+  });
+}
+
 /** DELETE /v1/instances/:userId/skills/:slug — 204 (or 404, treated as gone). */
 export async function removeInstalledSkill(
   userId: string,

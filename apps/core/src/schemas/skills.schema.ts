@@ -73,6 +73,20 @@ export const installedSkillsListSchema = z
   .object({ skills: z.array(installedSkillSchema) })
   .openapi("InstalledSkillsList");
 
+// Skills baked into the Hermes image (the orchestrator's source of truth, not
+// skills.sh). Shown read-only so users see what their agent already ships with.
+export const preinstalledSkillSchema = z
+  .object({
+    slug: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+  })
+  .openapi("PreinstalledSkill");
+
+export const preinstalledSkillsListSchema = z
+  .object({ skills: z.array(preinstalledSkillSchema) })
+  .openapi("PreinstalledSkillsList");
+
 export const installSkillRequestSchema = z
   .object({
     source: z.string().min(1),

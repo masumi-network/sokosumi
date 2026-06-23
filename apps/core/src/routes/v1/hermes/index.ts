@@ -41,6 +41,7 @@ import {
   listInstalledSkills,
   listInstanceIntegrations,
   listInstanceSchedules,
+  listPreinstalledSkills,
   patchInstance,
   patchSchedule,
   provisionInstance,
@@ -121,6 +122,7 @@ import {
   installedSkillsListSchema,
   installSkillRequestSchema,
   installSkillResponseSchema,
+  preinstalledSkillsListSchema,
   skillCatalogDetailSchema,
   skillCatalogListSchema,
   skillsBrowseQuerySchema,
@@ -2323,6 +2325,24 @@ const listInstalledSkillsRoute = withGlobalHeaderParameters(
   }),
 );
 
+const preinstalledSkillsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills/preinstalled",
+    description:
+      "Skills baked into the user's Hermes image (read-only; not from skills.sh). Empty until the orchestrator exposes them.",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(
+        preinstalledSkillsListSchema,
+        "Pre-installed skills",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
 const installSkillRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
@@ -2441,6 +2461,18 @@ app.openapi(listInstalledSkillsRoute, async (c) => {
     return ok(c, installedSkillsListSchema.parse({ skills }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to list installed skills");
+  }
+});
+
+app.openapi(preinstalledSkillsRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  try {
+    const skills = await listPreinstalledSkills(userContext.userId);
+    return ok(c, preinstalledSkillsListSchema.parse({ skills }));
+  } catch (_error) {
+    // Read-only display shelf — if the orchestrator can't list them, omit the
+    // shelf rather than failing the marketplace.
+    return ok(c, preinstalledSkillsListSchema.parse({ skills: [] }));
   }
 });
 

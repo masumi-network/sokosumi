@@ -5152,6 +5152,44 @@ export const InstalledSkillStatusSchema = {
     ]
 } as const;
 
+export const PreinstalledSkillsListSchema = {
+    type: 'object',
+    properties: {
+        skills: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PreinstalledSkill'
+            }
+        }
+    },
+    required: [
+        'skills'
+    ]
+} as const;
+
+export const PreinstalledSkillSchema = {
+    type: 'object',
+    properties: {
+        slug: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'slug',
+        'name',
+        'description'
+    ]
+} as const;
+
 export const InstallSkillResponseSchema = {
     type: 'object',
     properties: {

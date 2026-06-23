@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import {
   getCuratedSkillsAction,
   getInstalledSkillsAction,
+  getPreinstalledSkillsAction,
   getSkillDetailAction,
   installSkillAction,
   removeSkillAction,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/actions/hermes";
 import type {
   InstalledSkill,
+  PreinstalledSkill,
   SkillCatalogItem,
 } from "@/lib/clients/generated/core";
 
@@ -86,6 +88,7 @@ export default function SkillsMarketplace({
   const [curated, setCurated] = useState<SkillCatalogItem[]>([]);
   const [marketing, setMarketing] = useState<SkillCatalogItem[]>([]);
   const [installed, setInstalled] = useState<InstalledSkill[]>([]);
+  const [preinstalled, setPreinstalled] = useState<PreinstalledSkill[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillCatalogItem[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -93,6 +96,18 @@ export default function SkillsMarketplace({
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(
     null,
+  );
+
+  const preinstalledSlugs = useMemo(
+    () => new Set(preinstalled.map((s) => s.slug)),
+    [preinstalled],
+  );
+
+  // Image-baked skills can also surface in the orchestrator's installed list;
+  // show them once, under the read-only "Included" shelf.
+  const visibleInstalled = useMemo(
+    () => installed.filter((s) => !preinstalledSlugs.has(s.slug)),
+    [installed, preinstalledSlugs],
   );
 
   const installedBySlug = useMemo(() => {
@@ -107,13 +122,15 @@ export default function SkillsMarketplace({
     void (async () => {
       // Lead with the most popular marketing skills (this is a marketing
       // platform); curated is the fallback shelf when that search is empty.
-      const [marketingResults, installedRes, curatedRes] = await Promise.all([
-        Promise.all(
-          MARKETING_QUERIES.map((q) => searchSkillsAction({ q, limit: 20 })),
-        ),
-        getInstalledSkillsAction({}),
-        getCuratedSkillsAction({}),
-      ]);
+      const [marketingResults, installedRes, curatedRes, preinstalledRes] =
+        await Promise.all([
+          Promise.all(
+            MARKETING_QUERIES.map((q) => searchSkillsAction({ q, limit: 20 })),
+          ),
+          getInstalledSkillsAction({}),
+          getCuratedSkillsAction({}),
+          getPreinstalledSkillsAction({}),
+        ]);
       if (cancelled) return;
       const marketingPool = dedupeBySkillId(
         marketingResults.flatMap((r) => (r.ok ? r.data : [])),
@@ -121,6 +138,7 @@ export default function SkillsMarketplace({
       setMarketing(topByInstalls(marketingPool, max));
       if (installedRes.ok) setInstalled(installedRes.data);
       if (curatedRes.ok) setCurated(topByInstalls(curatedRes.data, max));
+      if (preinstalledRes.ok) setPreinstalled(preinstalledRes.data);
       setLoading(false);
     })();
     return () => {
@@ -280,15 +298,19 @@ export default function SkillsMarketplace({
           loading={searching}
           emptyLabel={t("noResults")}
           installedBySlug={installedBySlug}
+          preinstalledSlugs={preinstalledSlugs}
           busy={busy}
           onAdd={handleAdd}
           onRemove={handleRemove}
         />
       ) : (
         <>
-          {installed.length > 0 ? (
+          {preinstalled.length > 0 ? (
+            <PreinstalledShelf items={preinstalled} />
+          ) : null}
+          {visibleInstalled.length > 0 ? (
             <InstalledShelf
-              items={installed}
+              items={visibleInstalled}
               busy={busy}
               onRemove={handleRemove}
             />
@@ -302,6 +324,7 @@ export default function SkillsMarketplace({
             items={marketing.length > 0 ? marketing : curated}
             emptyLabel={t("emptyCatalog")}
             installedBySlug={installedBySlug}
+            preinstalledSlugs={preinstalledSlugs}
             busy={busy}
             onAdd={handleAdd}
             onRemove={handleRemove}
@@ -346,6 +369,7 @@ function SkillShelf({
   loading,
   emptyLabel,
   installedBySlug,
+  preinstalledSlugs,
   busy,
   onAdd,
   onRemove,
@@ -355,6 +379,7 @@ function SkillShelf({
   loading?: boolean;
   emptyLabel: string;
   installedBySlug: Map<string, InstalledSkill>;
+  preinstalledSlugs: Set<string>;
   busy: string | null;
   onAdd: (item: SkillCatalogItem) => void;
   onRemove: (skill: InstalledSkill) => void;
@@ -377,6 +402,7 @@ function SkillShelf({
               key={item.skillId}
               item={item}
               installed={installedBySlug.get(item.slug) ?? null}
+              preinstalled={preinstalledSlugs.has(item.slug)}
               busy={busy === item.skillId}
               onAdd={() => onAdd(item)}
               onRemove={onRemove}
@@ -442,12 +468,14 @@ function InstalledShelf({
 function SkillCard({
   item,
   installed,
+  preinstalled,
   busy,
   onAdd,
   onRemove,
 }: {
   item: SkillCatalogItem;
   installed: InstalledSkill | null;
+  preinstalled: boolean;
   busy: boolean;
   onAdd: () => void;
   onRemove: (skill: InstalledSkill) => void;
@@ -469,7 +497,12 @@ function SkillCard({
             {t("bySource", { source: item.source })}
           </p>
         </div>
-        {installed ? (
+        {preinstalled ? (
+          <Badge variant="secondary" className="shrink-0 gap-1">
+            <Check className="size-3" />
+            {t("includedBadge")}
+          </Badge>
+        ) : installed ? (
           <Badge variant="secondary" className="shrink-0 gap-1">
             <Check className="size-3" />
             {installed.status === "installing"
@@ -504,7 +537,7 @@ function SkillCard({
           {item.installs.toLocaleString()}
         </div>
       ) : null}
-      {installed ? (
+      {installed && !preinstalled ? (
         <Button
           variant="ghost"
           size="sm"
@@ -517,5 +550,39 @@ function SkillCard({
         </Button>
       ) : null}
     </div>
+  );
+}
+
+function PreinstalledShelf({ items }: { items: PreinstalledSkill[] }) {
+  const t = useTranslations("App.Hermes.Skills");
+  return (
+    <section className="flex flex-col gap-2">
+      <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+        {t("includedHeading")}
+      </h4>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {items.map((skill) => (
+          <div
+            key={skill.slug}
+            className="border-border bg-card/40 flex flex-col gap-1 rounded-lg border p-3"
+          >
+            <div className="flex items-start gap-2">
+              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                {skill.name}
+              </span>
+              <Badge variant="secondary" className="shrink-0 gap-1">
+                <Check className="size-3" />
+                {t("includedBadge")}
+              </Badge>
+            </div>
+            {skill.description ? (
+              <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
+                {skill.description}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

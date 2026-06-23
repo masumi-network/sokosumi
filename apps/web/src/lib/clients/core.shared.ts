@@ -103,6 +103,7 @@ import {
   getHermesMeInstanceSkillsCatalogCurated as coreGetHermesMeInstanceSkillsCatalogCurated,
   getHermesMeInstanceSkillsCatalogDetail as coreGetHermesMeInstanceSkillsCatalogDetail,
   getHermesMeInstanceSkillsCatalogSearch as coreGetHermesMeInstanceSkillsCatalogSearch,
+  getHermesMeInstanceSkillsPreinstalled as coreGetHermesMeInstanceSkillsPreinstalled,
   getHermesMeMessages as coreGetHermesMeMessages,
   getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getHistory as coreGetHistory,
@@ -2266,6 +2267,14 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getPreinstalledSkills() {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkillsPreinstalled({ client }),
+      "Failed to list pre-installed skills",
+    );
+  }
+
   async function installSkill(body: { source: string; slug: string }) {
     return executeOperation(
       getClient,
@@ -2653,6 +2662,7 @@ export function createCoreClient(getClient: GetClient) {
     getCuratedSkills,
     getSkillDetail,
     getInstalledSkills,
+    getPreinstalledSkills,
     installSkill,
     removeSkill,
     getAgentById,

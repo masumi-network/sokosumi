@@ -1390,6 +1390,16 @@ export const InstalledSkillStatus = { INSTALLED: 'installed', INSTALLING: 'insta
 
 export type InstalledSkillStatus = typeof InstalledSkillStatus[keyof typeof InstalledSkillStatus];
 
+export type PreinstalledSkillsList = {
+    skills: Array<PreinstalledSkill>;
+};
+
+export type PreinstalledSkill = {
+    slug: string;
+    name: string;
+    description: string | null;
+};
+
 export type InstallSkillResponse = {
     slug: string;
     status: InstalledSkillStatus;
@@ -11434,6 +11444,76 @@ export type PostHermesMeInstanceSkillsResponses = {
 };
 
 export type PostHermesMeInstanceSkillsResponse = PostHermesMeInstanceSkillsResponses[keyof PostHermesMeInstanceSkillsResponses];
+
+export type GetHermesMeInstanceSkillsPreinstalledData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/skills/preinstalled';
+};
+
+export type GetHermesMeInstanceSkillsPreinstalledErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsPreinstalledError = GetHermesMeInstanceSkillsPreinstalledErrors[keyof GetHermesMeInstanceSkillsPreinstalledErrors];
+
+export type GetHermesMeInstanceSkillsPreinstalledResponses = {
+    /**
+     * Pre-installed skills
+     */
+    200: {
+        data: PreinstalledSkillsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsPreinstalledResponse = GetHermesMeInstanceSkillsPreinstalledResponses[keyof GetHermesMeInstanceSkillsPreinstalledResponses];
 
 export type DeleteHermesMeInstanceSkillsBySlugData = {
     body?: never;
