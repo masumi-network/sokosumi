@@ -2469,10 +2469,8 @@ app.openapi(preinstalledSkillsRoute, async (c) => {
   try {
     const skills = await listPreinstalledSkills(userContext.userId);
     return ok(c, preinstalledSkillsListSchema.parse({ skills }));
-  } catch (_error) {
-    // Read-only display shelf — if the orchestrator can't list them, omit the
-    // shelf rather than failing the marketplace.
-    return ok(c, preinstalledSkillsListSchema.parse({ skills: [] }));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to list pre-installed skills");
   }
 });
 

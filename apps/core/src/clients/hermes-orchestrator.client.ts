@@ -808,8 +808,6 @@ export interface HermesPreinstalledSkill {
 /**
  * GET /v1/instances/:userId/skills/preinstalled — skills baked into the Hermes
  * image (NOT skills.sh installs). The orchestrator is the source of truth.
- * Until the orchestrator ships this route it 404/501s, which we treat as "none"
- * so the UI simply omits the shelf rather than erroring.
  */
 export async function listPreinstalledSkills(
   userId: string,
@@ -817,7 +815,6 @@ export async function listPreinstalledSkills(
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/skills/preinstalled`,
   );
-  if (res.status === 404 || res.status === 501) return [];
   if (!res.ok) {
     throw new HermesOrchestratorError(res.status, await readErrorBody(res));
   }
