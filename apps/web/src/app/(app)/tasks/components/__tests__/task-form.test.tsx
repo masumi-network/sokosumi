@@ -544,6 +544,10 @@ describe("TaskForm", () => {
       coworkerId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: true,
+      schedule: {
+        mode: "none",
+        timezone: "UTC",
+      },
     });
   });
 
@@ -1017,6 +1021,10 @@ describe("TaskForm", () => {
       coworkerId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: false,
+      schedule: {
+        mode: "none",
+        timezone: "UTC",
+      },
     });
     expect(createTaskMock).not.toHaveBeenCalled();
     expect(screen.getByText("Linked task")).toBeInTheDocument();
