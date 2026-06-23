@@ -213,6 +213,7 @@ interface TasksViewProps {
   defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
+  initialCreateTaskPrompt?: string | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   createTaskModalResetKey?: string;
   labels: {
@@ -300,6 +301,7 @@ export function TasksView({
   defaultDensity,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
+  initialCreateTaskPrompt = null,
   initialDesignMdAttachment = null,
   createTaskModalResetKey = "default",
   labels,
@@ -603,13 +605,15 @@ export function TasksView({
     const fromColumn = event.active.data.current?.columnId as
       | KanbanColumnId
       | undefined;
-    if (!fromColumn || fromColumn === toColumn) return;
+    if (!fromColumn || !isDnDColumn(fromColumn) || fromColumn === toColumn) {
+      return;
+    }
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
 
-    const previousStatus = statusForColumn(fromColumn);
-    if (!previousStatus) return;
+    // Backlog holds DRAFT and QUEUED — preserve the task's status on rollback.
+    const previousStatus = draggedTask.status;
 
     const moveVersion = (moveVersionRef.current += 1);
     pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
@@ -1122,6 +1126,7 @@ export function TasksView({
       key={createTaskModalResetKey}
       initialOpen={initialCreateTaskOpen}
       initialCoworkerId={initialCoworkerId}
+      initialPrompt={initialCreateTaskPrompt}
       initialProjectId={defaultProjectId}
     >
       {userId ? (
