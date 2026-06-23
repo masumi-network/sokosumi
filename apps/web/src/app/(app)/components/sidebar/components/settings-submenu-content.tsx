@@ -4,7 +4,6 @@ import type { SessionUser } from "@sokosumi/utils";
 import { ChevronRight, LifeBuoy, LogOut, Scale } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   SidebarGroup,
@@ -14,10 +13,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import type {
-  MemberWithOrganization,
-  OrganizationRecord,
-} from "@/lib/clients/generated/core";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { getAccountNavItems } from "./account-menu-config";
@@ -159,26 +155,8 @@ export function SettingsSubmenuContent({
 
 interface SettingsPanelHeaderProps {
   planLabel: string;
-  sessionUser: SessionUser;
-  activeOrganization: OrganizationRecord | null;
 }
 
-export function SettingsPanelHeader({
-  planLabel,
-  sessionUser,
-  activeOrganization,
-}: SettingsPanelHeaderProps) {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <HeaderWorkspaceAvatar
-        sessionUser={sessionUser}
-        organization={activeOrganization}
-        className="size-8 shrink-0"
-        logoSize={16}
-      />
-      <span className="text-muted-foreground min-w-0 truncate text-xs font-normal">
-        {planLabel}
-      </span>
-    </div>
-  );
+export function SettingsPanelHeader({ planLabel }: SettingsPanelHeaderProps) {
+  return <span className="truncate text-sm font-medium">{planLabel}</span>;
 }

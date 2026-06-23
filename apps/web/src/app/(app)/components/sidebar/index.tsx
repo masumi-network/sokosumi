@@ -11,7 +11,6 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
@@ -59,12 +58,6 @@ export default async function Sidebar({
     members = [];
   }
 
-  const activeOrganizationMember = activeOrganizationId
-    ? members.find((member) => member.organizationId === activeOrganizationId)
-    : null;
-  const activeOrganization: OrganizationRecord | null =
-    activeOrganizationMember?.organization ?? null;
-
   const planLabel = await resolvePlanSecondaryLabel({
     plan: currentPlan,
     organizationName: activeOrganizationId
@@ -87,7 +80,6 @@ export default async function Sidebar({
             members={members}
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
-            activeOrganization={activeOrganization}
           >
             <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />

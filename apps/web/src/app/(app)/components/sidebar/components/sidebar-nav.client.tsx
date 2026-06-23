@@ -11,10 +11,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import type {
-  MemberWithOrganization,
-  OrganizationRecord,
-} from "@/lib/clients/generated/core";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import {
@@ -34,7 +31,6 @@ interface SidebarNavProps {
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
   planLabel: string;
-  activeOrganization: OrganizationRecord | null;
   children: ReactNode;
 }
 
@@ -96,7 +92,6 @@ function SidebarNavInner({
   members,
   activeOrganizationId,
   planLabel,
-  activeOrganization,
   activeId,
   onActiveIdChange,
   children,
@@ -109,13 +104,7 @@ function SidebarNavInner({
       {
         id: "settings",
         parentId: null,
-        header: (
-          <SettingsPanelHeader
-            planLabel={planLabel}
-            sessionUser={sessionUser}
-            activeOrganization={activeOrganization}
-          />
-        ),
+        header: <SettingsPanelHeader planLabel={planLabel} />,
         content: (
           <SettingsSubmenuContent
             sessionUser={sessionUser}
@@ -159,14 +148,7 @@ function SidebarNavInner({
         ),
       },
     ],
-    [
-      activeOrganization,
-      activeOrganizationId,
-      members,
-      planLabel,
-      sessionUser,
-      tUserAvatar,
-    ],
+    [activeOrganizationId, members, planLabel, sessionUser, tUserAvatar],
   );
 
   return (
@@ -186,7 +168,6 @@ export default function SidebarNav({
   members,
   activeOrganizationId,
   planLabel,
-  activeOrganization,
   children,
 }: SidebarNavProps) {
   const { state, isMobile, openMobile } = useSidebar();
@@ -206,7 +187,6 @@ export default function SidebarNav({
       members={members}
       activeOrganizationId={activeOrganizationId}
       planLabel={planLabel}
-      activeOrganization={activeOrganization}
       activeId={activeId}
       onActiveIdChange={setActiveId}
     >
