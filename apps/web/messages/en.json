@@ -2421,7 +2421,9 @@
           "projects": "Projects",
           "hermes": "Hermes",
           "history": "History",
-          "admin": "Admin"
+          "admin": "Admin",
+          "settings": "Settings",
+          "back": "Back"
         }
       }
     },

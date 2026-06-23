@@ -2410,7 +2410,9 @@
           "projects": "Projets",
           "hermes": "Hermes",
           "history": "Historique",
-          "admin": "Administration"
+          "admin": "Administration",
+          "settings": "Paramètres",
+          "back": "Retour"
         }
       }
     },
