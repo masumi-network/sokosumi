@@ -44,20 +44,20 @@ export function SettingsSubmenuContent({
     members,
   });
 
-  function closeSubmenuAndSheet() {
-    goBack();
+  function closeMobileSheet() {
     if (isMobile) {
       setOpenMobile(false);
     }
   }
 
   function handleNavigate(path: string) {
-    closeSubmenuAndSheet();
+    closeMobileSheet();
     router.push(path);
   }
 
   function handleLogout() {
-    closeSubmenuAndSheet();
+    goBack();
+    closeMobileSheet();
     showLogoutModal(sessionUser.email);
   }
 
