@@ -1,5 +1,19 @@
+import type { SessionUser } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const sessionUser: SessionUser = {
+  id: "user-1",
+  email: "user@example.com",
+  name: "User",
+  image: null,
+  emailVerified: true,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  termsAccepted: true,
+  marketingOptIn: false,
+  onboardingCompleted: true,
+};
 
 const goBackMock = vi.fn();
 const openSubmenuMock = vi.fn();
@@ -70,12 +84,7 @@ describe("SettingsSubmenuContent", () => {
   it("navigates without closing the submenu", () => {
     render(
       <SettingsSubmenuContent
-        sessionUser={{
-          id: "user-1",
-          email: "user@example.com",
-          name: "User",
-          image: null,
-        }}
+        sessionUser={sessionUser}
         members={[]}
         activeOrganizationId={null}
       />,
@@ -91,12 +100,7 @@ describe("SettingsSubmenuContent", () => {
   it("closes the submenu when logging out", () => {
     render(
       <SettingsSubmenuContent
-        sessionUser={{
-          id: "user-1",
-          email: "user@example.com",
-          name: "User",
-          image: null,
-        }}
+        sessionUser={sessionUser}
         members={[]}
         activeOrganizationId={null}
       />,
