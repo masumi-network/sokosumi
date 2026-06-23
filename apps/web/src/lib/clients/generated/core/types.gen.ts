@@ -1218,7 +1218,7 @@ export type HermesStartOnboardingRequest = {
     email?: string;
     role?: string;
     company?: string;
-    researchDepth?: 'deep' | 'shallow';
+    researchDepth?: 'deep' | 'light';
     autonomyLevel?: HermesAutonomyLevel;
 };
 

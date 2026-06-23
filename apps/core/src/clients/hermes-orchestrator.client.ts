@@ -1013,8 +1013,9 @@ export interface StartOnboardingInput {
   role?: string | null;
   /** Company name the user provided. Context for research + tone. */
   company?: string | null;
-  /** "deep" runs the full context-aware research; default if omitted. */
-  researchDepth?: "deep" | "shallow" | null;
+  /** "deep" runs the full context-aware research (default if omitted);
+   * "light" is the web-only quick path used by skip-for-now. */
+  researchDepth?: "deep" | "light" | null;
 }
 
 /**

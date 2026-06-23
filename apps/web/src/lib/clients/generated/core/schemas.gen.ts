@@ -4624,7 +4624,7 @@ export const HermesStartOnboardingRequestSchema = {
             type: 'string',
             enum: [
                 'deep',
-                'shallow'
+                'light'
             ]
         },
         autonomyLevel: {

@@ -242,7 +242,7 @@ export const hermesStartOnboardingRequestSchema = z
      * not an org/tenant identifier.
      */
     company: z.string().min(1).max(120).optional(),
-    researchDepth: z.enum(["deep", "shallow"]).optional(),
+    researchDepth: z.enum(["deep", "light"]).optional(),
     /**
      * Optional. When provided, the autonomy is PATCHed onto the instance
      * before the onboarding flow starts, so the orchestrator's research
