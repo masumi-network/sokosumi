@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   BadgeCheck,
   Check,
   Download,
@@ -30,7 +31,6 @@ import {
   getCuratedSkillsAction,
   getInstalledSkillsAction,
   getSkillDetailAction,
-  getSkillsCatalogAction,
   installSkillAction,
   removeSkillAction,
   searchSkillsAction,
@@ -48,6 +48,20 @@ interface SkillsMarketplaceProps {
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
 
 const DEBOUNCE_MS = 300;
+// Keep the default shelves scannable — the catalog has hundreds of skills, so
+// we show only the most-installed and let search reach the rest.
+const MAX_SETTINGS = 24;
+const MAX_ONBOARDING = 8;
+
+/** Most popular first, capped — the catalog is too large to show in full. */
+function topByInstalls(
+  items: SkillCatalogItem[],
+  max: number,
+): SkillCatalogItem[] {
+  return [...items]
+    .sort((a, b) => (b.installs ?? 0) - (a.installs ?? 0))
+    .slice(0, max);
+}
 
 export default function SkillsMarketplace({
   variant = "settings",
@@ -55,7 +69,7 @@ export default function SkillsMarketplace({
   const t = useTranslations("App.Hermes.Skills");
 
   const [curated, setCurated] = useState<SkillCatalogItem[]>([]);
-  const [popular, setPopular] = useState<SkillCatalogItem[]>([]);
+  const [marketing, setMarketing] = useState<SkillCatalogItem[]>([]);
   const [installed, setInstalled] = useState<InstalledSkill[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillCatalogItem[] | null>(null);
@@ -74,18 +88,19 @@ export default function SkillsMarketplace({
 
   useEffect(() => {
     let cancelled = false;
+    const max = variant === "onboarding" ? MAX_ONBOARDING : MAX_SETTINGS;
     void (async () => {
-      const [curatedRes, installedRes, popularRes] = await Promise.all([
-        getCuratedSkillsAction({}),
+      // Lead with the most popular marketing skills (this is a marketing
+      // platform); curated is the fallback shelf when that search is empty.
+      const [marketingRes, installedRes, curatedRes] = await Promise.all([
+        searchSkillsAction({ q: "marketing", limit: 30 }),
         getInstalledSkillsAction({}),
-        variant === "settings"
-          ? getSkillsCatalogAction({ view: "trending", perPage: 24 })
-          : Promise.resolve(null),
+        getCuratedSkillsAction({}),
       ]);
       if (cancelled) return;
-      if (curatedRes.ok) setCurated(curatedRes.data);
+      if (marketingRes.ok) setMarketing(topByInstalls(marketingRes.data, max));
       if (installedRes.ok) setInstalled(installedRes.data);
-      if (popularRes?.ok) setPopular(popularRes.data);
+      if (curatedRes.ok) setCurated(topByInstalls(curatedRes.data, max));
       setLoading(false);
     })();
     return () => {
@@ -202,8 +217,15 @@ export default function SkillsMarketplace({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Onboarding embeds this under its own step heading + shows only the
-          curated shelf, so the header + search are settings-only. */}
+      <div className="border-border bg-muted/40 flex gap-2 rounded-lg border px-3 py-2.5">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          {t("disclaimer")}
+        </p>
+      </div>
+
+      {/* Onboarding embeds this under its own step heading; the header + search
+          are settings-only. */}
       {variant === "settings" ? (
         <>
           <div>
@@ -252,25 +274,18 @@ export default function SkillsMarketplace({
             />
           ) : null}
           <SkillShelf
-            heading={t("recommendedHeading")}
-            items={curated}
+            heading={
+              marketing.length > 0
+                ? t("marketingHeading")
+                : t("recommendedHeading")
+            }
+            items={marketing.length > 0 ? marketing : curated}
             emptyLabel={t("emptyCatalog")}
             installedBySlug={installedBySlug}
             busy={busy}
             onAdd={handleAdd}
             onRemove={handleRemove}
           />
-          {variant === "settings" && popular.length > 0 ? (
-            <SkillShelf
-              heading={t("popularHeading")}
-              items={popular}
-              emptyLabel={t("emptyCatalog")}
-              installedBySlug={installedBySlug}
-              busy={busy}
-              onAdd={handleAdd}
-              onRemove={handleRemove}
-            />
-          ) : null}
         </>
       )}
 

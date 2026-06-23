@@ -2366,6 +2366,8 @@
         "searchPlaceholder": "Search skills…",
         "recommendedHeading": "Recommended",
         "popularHeading": "Popular",
+        "marketingHeading": "Popular marketing skills",
+        "disclaimer": "These are the most popular skills on skills.sh, an open community catalog. We don't verify who created them — review a skill before adding it to your agent.",
         "installedHeading": "Installed",
         "resultsHeading": "Results",
         "addAction": "Add",
