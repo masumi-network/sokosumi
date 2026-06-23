@@ -139,7 +139,7 @@ export function HeaderNotificationAvatar({
               />
             </div>
           </div>
-          {unreadCount > 0 ? (
+          {unreadCount > 0 && !showBell ? (
             <span
               className="bg-primary absolute right-0 top-0 size-2 animate-pulse rounded-full ring-2 ring-background"
               aria-hidden
