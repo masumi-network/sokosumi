@@ -197,6 +197,30 @@ function parseList(
     .filter((item): item is SkillsShCatalogItem => item !== null);
 }
 
+// `/skills/curated` is grouped by owner: `{ data: [{ owner, skills: [...] }] }`,
+// not a flat list. Flatten each owner's nested `skills` array (and tolerate a
+// flat list defensively, in case the shape changes).
+function parseCuratedList(raw: unknown): SkillsShCatalogItem[] {
+  const r = asRecord(raw);
+  const groups = Array.isArray(raw)
+    ? raw
+    : Array.isArray(r.data)
+      ? r.data
+      : Array.isArray(r.skills)
+        ? r.skills
+        : [];
+  const items: SkillsShCatalogItem[] = [];
+  for (const group of groups) {
+    const g = asRecord(group);
+    const skills = Array.isArray(g.skills) ? g.skills : [group];
+    for (const skill of skills) {
+      const item = parseCatalogItem(skill, { curated: true });
+      if (item) items.push(item);
+    }
+  }
+  return items;
+}
+
 function parseFiles(raw: unknown): SkillsShFile[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -209,6 +233,15 @@ function parseFiles(raw: unknown): SkillsShFile[] {
     .filter((f): f is SkillsShFile => f !== null);
 }
 
+// The detail endpoint omits `installUrl`; reconstruct it from `source`.
+// GitHub sources are `owner/repo` (→ a github.com repo URL); well-known
+// sources are bare domains (→ used directly with `npx skills add`).
+function deriveInstallUrl(source: string): string {
+  return source.includes("/")
+    ? `https://github.com/${source}`
+    : `https://${source}`;
+}
+
 function parseDetail(raw: unknown): SkillsShDetail | null {
   const r = asRecord(raw);
   const base = parseCatalogItem(r.skill ?? raw);
@@ -217,7 +250,11 @@ function parseDetail(raw: unknown): SkillsShDetail | null {
     ...base,
     hash: str(r.hash),
     files: parseFiles(r.files),
-    installUrl: str(r.installUrl) ?? str(r.repoUrl) ?? str(r.url),
+    installUrl:
+      str(r.installUrl) ??
+      str(r.repoUrl) ??
+      str(r.url) ??
+      deriveInstallUrl(base.source),
   };
 }
 
@@ -282,9 +319,7 @@ export async function searchSkills(args: {
 }
 
 export async function getCuratedSkills(): Promise<SkillsShCatalogItem[]> {
-  return skillsGet(`/skills/curated`, (raw) =>
-    parseList(raw, { curated: true }),
-  );
+  return skillsGet(`/skills/curated`, (raw) => parseCuratedList(raw));
 }
 
 export async function getSkillDetail(
@@ -300,7 +335,17 @@ export async function getSkillAudit(
   source: string,
   slug: string,
 ): Promise<SkillsShAudit> {
-  return skillsGet(skillPath("/skills/audit", source, slug), (raw) =>
-    parseAudit(raw),
-  );
+  try {
+    return await skillsGet(skillPath("/skills/audit", source, slug), (raw) =>
+      parseAudit(raw),
+    );
+  } catch (error) {
+    // skills.sh returns 404 until a partner has audited the skill (audits are
+    // generated minutes after the first install). Treat "not yet audited" as
+    // no audits — the install gate then prompts the user to confirm.
+    if (error instanceof SkillsShError && error.httpStatus === 404) {
+      return { audits: [] };
+    }
+    throw error;
+  }
 }
