@@ -24,7 +24,7 @@ import { handleNotificationNavigation } from "@/lib/utils/notification-navigatio
 function createNotification(
   overrides: Partial<NotificationItem> = {},
 ): NotificationItem {
-  return {
+  const base: NotificationItem = {
     id: "notification_1",
     userId: "user_1",
     kind: "TASK",
@@ -38,8 +38,9 @@ function createNotification(
     isRead: false,
     readAt: null,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
-    ...overrides,
   };
+
+  return { ...base, ...overrides };
 }
 
 describe("handleNotificationNavigation", () => {
