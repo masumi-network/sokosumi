@@ -21,8 +21,16 @@ interface HeaderNotificationAvatarProps {
   organization?: OrganizationRecord | null;
 }
 
-const REMINDER_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const ANIMATION_DURATION = 3000; // 3 seconds for morph + shake + morph back
+const REMINDER_INTERVAL = 3 * 60 * 1000; // 3 minutes
+const SLIDE_DURATION_MS = 550;
+const BELL_RING_DELAY_MS = 600;
+const BELL_RING_CYCLE_MS = 1100;
+const BELL_RING_REPEATS = 2;
+const ANIMATION_DURATION =
+  SLIDE_DURATION_MS +
+  BELL_RING_DELAY_MS +
+  BELL_RING_CYCLE_MS * BELL_RING_REPEATS +
+  SLIDE_DURATION_MS;
 
 export function HeaderNotificationAvatar({
   sessionUser,
@@ -59,8 +67,16 @@ export function HeaderNotificationAvatar({
 
     const intervalId = setInterval(triggerBellAnimation, REMINDER_INTERVAL);
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        triggerBellAnimation();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     return () => {
       clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [unreadCount, isOpen]);
 
@@ -72,24 +88,34 @@ export function HeaderNotificationAvatar({
           className="hover:opacity-80 relative flex shrink-0 items-center transition-opacity"
           aria-label={t("notifications")}
         >
-          <div className="relative size-8">
-            {showBell ? (
-              <div
-                className={cn(
-                  "bg-primary text-primary-foreground flex size-full items-center justify-center rounded-full transition-all",
-                  isAnimating && "animate-[shake_0.5s_ease-in-out_0.5s]",
-                )}
-              >
-                <Bell className="size-4" />
-              </div>
-            ) : (
+          <div
+            className={cn(
+              "relative size-8 overflow-hidden rounded-full",
+              showBell && "notification-reminder-bell-active",
+            )}
+          >
+            <div
+              className="notification-reminder-avatar-panel absolute inset-0"
+              aria-hidden={showBell}
+            >
               <HeaderWorkspaceAvatar
                 sessionUser={sessionUser}
                 organization={organization ?? null}
               />
-            )}
+            </div>
+            <div
+              className="notification-reminder-bell-panel bg-primary text-primary-foreground absolute inset-0 flex items-center justify-center"
+              aria-hidden={!showBell}
+            >
+              <Bell
+                className={cn(
+                  "size-4",
+                  isAnimating && "animate-notification-bell-ring",
+                )}
+              />
+            </div>
           </div>
-          {unreadCount > 0 ? (
+          {unreadCount > 0 && !showBell ? (
             <span
               className="bg-primary absolute right-0 top-0 size-2 animate-pulse rounded-full ring-2 ring-background"
               aria-label={t("unreadBadge", { count: unreadCount })}
