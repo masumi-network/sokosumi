@@ -50,8 +50,11 @@ type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
 const DEBOUNCE_MS = 300;
 // Keep the default shelves scannable — the catalog has hundreds of skills, so
 // we show only the most-installed and let search reach the rest.
-const MAX_SETTINGS = 24;
-const MAX_ONBOARDING = 8;
+const MAX_SETTINGS = 30;
+const MAX_ONBOARDING = 16;
+// A single "marketing" search returns only a handful of hits, so widen the pool
+// across marketing-adjacent queries and rank the merged set by popularity.
+const MARKETING_QUERIES = ["marketing", "seo", "advertising", "social media"];
 
 /** Most popular first, capped — the catalog is too large to show in full. */
 function topByInstalls(
@@ -61,6 +64,18 @@ function topByInstalls(
   return [...items]
     .sort((a, b) => (b.installs ?? 0) - (a.installs ?? 0))
     .slice(0, max);
+}
+
+/** Dedupe by stable skill id — the marketing queries overlap. */
+function dedupeBySkillId(items: SkillCatalogItem[]): SkillCatalogItem[] {
+  const seen = new Set<string>();
+  const out: SkillCatalogItem[] = [];
+  for (const item of items) {
+    if (seen.has(item.skillId)) continue;
+    seen.add(item.skillId);
+    out.push(item);
+  }
+  return out;
 }
 
 export default function SkillsMarketplace({
@@ -92,13 +107,18 @@ export default function SkillsMarketplace({
     void (async () => {
       // Lead with the most popular marketing skills (this is a marketing
       // platform); curated is the fallback shelf when that search is empty.
-      const [marketingRes, installedRes, curatedRes] = await Promise.all([
-        searchSkillsAction({ q: "marketing", limit: 30 }),
+      const [marketingResults, installedRes, curatedRes] = await Promise.all([
+        Promise.all(
+          MARKETING_QUERIES.map((q) => searchSkillsAction({ q, limit: 20 })),
+        ),
         getInstalledSkillsAction({}),
         getCuratedSkillsAction({}),
       ]);
       if (cancelled) return;
-      if (marketingRes.ok) setMarketing(topByInstalls(marketingRes.data, max));
+      const marketingPool = dedupeBySkillId(
+        marketingResults.flatMap((r) => (r.ok ? r.data : [])),
+      );
+      setMarketing(topByInstalls(marketingPool, max));
       if (installedRes.ok) setInstalled(installedRes.data);
       if (curatedRes.ok) setCurated(topByInstalls(curatedRes.data, max));
       setLoading(false);
