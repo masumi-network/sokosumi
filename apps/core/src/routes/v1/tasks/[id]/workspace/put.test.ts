@@ -66,6 +66,8 @@ interface TaskRecord {
   name: string;
   description: string | null;
   status: TaskStatus;
+  metadata: string | null;
+  nextRunAt: Date | null;
 }
 
 interface TransactionMock {
