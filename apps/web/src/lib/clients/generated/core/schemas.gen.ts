@@ -8460,7 +8460,8 @@ export const CoworkerOfferSchema = {
                             'image',
                             'slides',
                             'doc',
-                            'text'
+                            'text',
+                            'html'
                         ],
                         example: 'pdf'
                     },
@@ -8474,7 +8475,7 @@ export const CoworkerOfferSchema = {
                     },
                     text: {
                         type: 'string',
-                        description: 'Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.',
+                        description: 'Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.',
                         example: '## Project plan\n\n- Milestone 1 — …'
                     }
                 },

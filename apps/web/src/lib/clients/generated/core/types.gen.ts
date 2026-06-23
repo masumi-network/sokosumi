@@ -2348,11 +2348,11 @@ export type CoworkerOffer = {
      * Example outputs the offer produces — text and/or files (PDF, slides, image).
      */
     outputs?: Array<{
-        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text';
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text' | 'html';
         url?: string;
         label?: string;
         /**
-         * Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.
+         * Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.
          */
         text?: string;
     }>;
