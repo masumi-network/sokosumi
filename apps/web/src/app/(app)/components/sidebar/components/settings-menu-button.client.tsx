@@ -4,9 +4,6 @@ import { Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
@@ -41,28 +38,22 @@ export default function SettingsMenuButton() {
   }
 
   return (
-    <SidebarGroup className="w-full">
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-0">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              type="button"
-              isActive={isActive}
-              tooltip={label}
-              onClick={handleClick}
-              className={cn(
-                "flex min-h-auto w-full items-center gap-2 px-3",
-                isActive
-                  ? "text-primary-foreground"
-                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <Settings className="size-4" aria-hidden />
-              <span className="flex-1 truncate">{label}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        type="button"
+        isActive={isActive}
+        tooltip={label}
+        onClick={handleClick}
+        className={cn(
+          "flex min-h-auto w-full items-center gap-2 px-3",
+          isActive
+            ? "text-primary-foreground"
+            : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        )}
+      >
+        <Settings className="size-4" aria-hidden />
+        <span className="flex-1 truncate">{label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

@@ -15,13 +15,12 @@ import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { resolvePlanSecondaryLabel } from "@/lib/utils/plan-label";
 
-import AdminMenu from "./components/admin-menu";
+import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
 import AnnouncementCards from "./components/announcement-cards";
 import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
-import SettingsMenuButton from "./components/settings-menu-button.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 import SidebarNav from "./components/sidebar-nav.client";
@@ -94,8 +93,7 @@ export default async function Sidebar({
             <SidebarSeparator className="mx-0 mt-2" />
             <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
             <SidebarSeparator className="mx-0" />
-            {adminMenuEnabled ? <AdminMenu /> : null}
-            <SettingsMenuButton />
+            <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
             <SidebarSeparator className="mx-0" />
             <ChatListsClient />
           </SidebarNav>
