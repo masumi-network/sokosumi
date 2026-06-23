@@ -53,6 +53,17 @@ describe("validateStatusTransition", () => {
   });
 
   describe("coworker allowed transitions", () => {
+    it.each([
+      [TaskStatus.READY, TaskStatus.QUEUED],
+      [TaskStatus.QUEUED, TaskStatus.RUNNING],
+      [TaskStatus.QUEUED, TaskStatus.DRAFT],
+      [TaskStatus.QUEUED, TaskStatus.READY],
+    ])("accepts %s → %s", (from, to) => {
+      expect(() =>
+        validateStatusTransition(coworkerContext, from, to),
+      ).not.toThrow();
+    });
+
     it("READY → RUNNING", () => {
       expect(() =>
         validateStatusTransition(
@@ -424,9 +435,30 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+
+    it("QUEUED → COMPLETED is invalid for coworkers", () => {
+      expect(() =>
+        validateStatusTransition(
+          coworkerContext,
+          TaskStatus.QUEUED,
+          TaskStatus.COMPLETED,
+        ),
+      ).toThrow();
+    });
   });
 
   describe("user allowed transitions", () => {
+    it.each([
+      [TaskStatus.DRAFT, TaskStatus.QUEUED],
+      [TaskStatus.READY, TaskStatus.QUEUED],
+      [TaskStatus.QUEUED, TaskStatus.DRAFT],
+      [TaskStatus.QUEUED, TaskStatus.READY],
+    ])("accepts %s → %s", (from, to) => {
+      expect(() =>
+        validateStatusTransition(userContext, from, to),
+      ).not.toThrow();
+    });
+
     it("DRAFT → READY", () => {
       expect(() =>
         validateStatusTransition(
@@ -618,6 +650,16 @@ describe("validateStatusTransition", () => {
         ),
       ).toThrow();
     });
+
+    it("rejects QUEUED → RUNNING", () => {
+      expect(() =>
+        validateStatusTransition(
+          userContext,
+          TaskStatus.QUEUED,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow();
+    });
   });
 
   describe("delegated coworker acts as the user", () => {
@@ -640,6 +682,16 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
+    it("allows a user-side queued transition (DRAFT → QUEUED)", () => {
+      expect(() =>
+        validateStatusTransition(
+          delegatedCoworkerContext,
+          TaskStatus.DRAFT,
+          TaskStatus.QUEUED,
+        ),
+      ).not.toThrow();
+    });
+
     it("rejects an agent-only transition (READY → RUNNING)", () => {
       expect(() =>
         validateStatusTransition(
@@ -648,6 +700,16 @@ describe("validateStatusTransition", () => {
           TaskStatus.RUNNING,
         ),
       ).toThrow("Invalid status transition from READY to RUNNING");
+    });
+
+    it("rejects an agent-only queued transition (QUEUED → RUNNING)", () => {
+      expect(() =>
+        validateStatusTransition(
+          delegatedCoworkerContext,
+          TaskStatus.QUEUED,
+          TaskStatus.RUNNING,
+        ),
+      ).toThrow("Invalid status transition from QUEUED to RUNNING");
     });
   });
 });
@@ -680,10 +742,28 @@ describe("validateTaskCoworkerAssignment", () => {
     ).not.toThrow();
   });
 
+  it("allows QUEUED tasks with a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.QUEUED,
+        coworkerId: "cow_123",
+      }),
+    ).not.toThrow();
+  });
+
   it("rejects non-DRAFT tasks without a coworker", () => {
     expect(() =>
       validateTaskCoworkerAssignment({
         status: TaskStatus.READY,
+        coworkerId: null,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects QUEUED tasks without a coworker", () => {
+    expect(() =>
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.QUEUED,
         coworkerId: null,
       }),
     ).toThrow();

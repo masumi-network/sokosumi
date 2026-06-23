@@ -833,18 +833,24 @@ export function TaskDetailActions({
                 ...linkInput,
               });
 
-              return { taskId: result.createdTaskId };
+              return {
+                taskId: result.createdTaskId,
+                name: result.name,
+              };
             }}
             onSubmittingChange={setIsCreateRelatedDismissDisabled}
             onCancel={() => {
               setIsCreateRelatedOpen(false);
               setSelectedCreateRelatedOption(null);
             }}
-            onSuccess={() => {
-              setIsCreateRelatedOpen(false);
-              setSelectedCreateRelatedOption(null);
+            onCreated={() => {
               router.refresh();
               toast.success(tDetailActions("createRelatedSuccess"));
+            }}
+            onSuccess={(createdTaskId) => {
+              setIsCreateRelatedOpen(false);
+              setSelectedCreateRelatedOption(null);
+              router.push(`/tasks/${createdTaskId}`);
             }}
           />
         </TaskFormModal>

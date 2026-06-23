@@ -1203,6 +1203,7 @@
           "active": "活跃",
           "archived": "已归档",
           "DRAFT": "草稿",
+          "QUEUED": "已排队",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
@@ -1469,6 +1470,7 @@
         "projectLabel": "项目",
         "statusOptions": {
           "DRAFT": "草稿",
+          "QUEUED": "已排队",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
@@ -1670,7 +1672,33 @@
         "saveAsDraft": "保存为草稿",
         "createTask": "创建任务",
         "cancel": "取消",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "选择智能体",
+        "chooseAgentDescription": "选择由谁处理此任务——比较其模型、托管位置和功能。",
+        "defaultBadge": "默认",
+        "modelLabel": "模型",
+        "hostingLabel": "托管于",
+        "examplesTitle": "{name} 能做什么",
+        "continue": "继续",
+        "taskStepTitle": "希望 {name} 做什么？",
+        "previousAgent": "上一个智能体",
+        "nextAgent": "下一个智能体",
+        "searchAgents": "搜索智能体…",
+        "noAgentsFound": "未找到智能体。",
+        "askPrompt": "请 {name}…",
+        "promptHint": "点击示例开始，或继续编写您自己的说明。",
+        "tasksTitle": "即开即用的任务",
+        "startFromScratch": "从头开始",
+        "startFromScratchHint": "编写您自己的说明",
+        "previewExample": "预览示例",
+        "previewUse": "使用此任务",
+        "previewEmpty": "暂无示例输出。",
+        "allCompanies": "全部",
+        "taskCreated": "任务已创建",
+        "taskCreatedHint": "一切已就绪，可以开始了。",
+        "goToTask": "前往任务",
+        "createAnother": "创建另一个任务",
+        "close": "关闭"
       },
       "EditTask": {
         "title": "编辑任务",
@@ -3422,7 +3450,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI 协作伙伴",
         "defaultDescription": "一位由 AI 驱动、随时准备协助您的协作伙伴。"
-      }
+      },
+      "allAgentsTitle": "浏览全部智能体",
+      "allAgentsSubtitle": "Sokosumi 上的全部智能体，按它们擅长的工作分类。"
     },
     "DesignMd": {
       "title": "DESIGN.md",

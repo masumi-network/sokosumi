@@ -83,7 +83,7 @@ export function NotificationToastListener({
           {
             id: notification.id,
             toasterId: NOTIFICATION_TOASTER_ID,
-            duration: Infinity,
+            duration: 10_000,
             dismissible: true,
             icon: <Bell className="text-primary size-5 shrink-0" />,
             action: {

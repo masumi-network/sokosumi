@@ -1639,6 +1639,7 @@ export function createCoreClient(getClient: GetClient) {
     body: {
       status?:
         | "DRAFT"
+        | "QUEUED"
         | "READY"
         | "INPUT_REQUIRED"
         | "APPROVAL_REQUIRED"

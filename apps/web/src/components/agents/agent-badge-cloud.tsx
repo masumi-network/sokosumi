@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 
+import { TagIcon } from "@/components/agents/tag-icon";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,8 +17,9 @@ function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
             <Badge
               key={tag}
               variant="secondary"
-              className="h-[22px] max-w-full"
+              className="h-[22px] max-w-full gap-1"
             >
+              <TagIcon name={tag} size={12} />
               <p className="truncate uppercase">{tag}</p>
             </Badge>
           ))}

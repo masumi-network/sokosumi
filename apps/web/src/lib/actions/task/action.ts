@@ -262,7 +262,10 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
   }
 }
 
-export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
+export const createTask = withSession<
+  CreateTaskParameters,
+  { taskId: string; name: string }
+>(
   async ({
     description,
     coworkerId,
@@ -282,7 +285,7 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
 
       revalidatePath("/tasks");
       revalidatePath("/projects");
-      return { taskId: task.id };
+      return { taskId: task.id, name: task.name };
     } catch (error) {
       console.error("Failed to create task", error);
       throw new Error("Failed to create task");
@@ -499,7 +502,7 @@ export const deleteTaskLink = withSession<
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
-  { taskId: string; createdTaskId: string; linkId: string }
+  { taskId: string; createdTaskId: string; linkId: string; name: string }
 >(
   async ({
     taskId,
@@ -561,6 +564,7 @@ export const createTaskAndLink = withSession<
         taskId: normalizedTaskId,
         createdTaskId: createdTask.id,
         linkId: link.id,
+        name: createdTask.name,
       };
     } catch (error) {
       if (createdTask) {

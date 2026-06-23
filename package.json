@@ -18,7 +18,7 @@
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "net:build": "pnpm --filter @sokosumi/net build",
     "packages:build": "pnpm --filter \"./packages/*\" run build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm database:build && pnpm -r typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
     "database:typecheck": "pnpm --filter @sokosumi/database typecheck",

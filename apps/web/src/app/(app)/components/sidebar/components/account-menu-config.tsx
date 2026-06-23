@@ -15,6 +15,7 @@ import {
 import type { ComponentType } from "react";
 
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 export interface HelpLinkItem {
   url: string;
@@ -55,27 +56,27 @@ export const HELP_LINKS: HelpLinkItem[] = [
 
 export const LEGAL_LINKS: LegalLinkItem[] = [
   {
-    url: "https://www.house-of-communication.com/de/en/brands/plan-net/landingpages/agentic-services/legal-ai-coworkers.html",
+    url: LEGAL_URLS.SERVICEPLAN_AI_COWORKER,
     translationKey: "serviceplanAiCoworker",
     icon: Bot,
   },
   {
-    url: "https://www.sokosumi.com/terms-of-service",
+    url: LEGAL_URLS.TERMS_OF_SERVICE,
     translationKey: "termsOfService",
     icon: ScrollText,
   },
   {
-    url: "https://www.sokosumi.com/privacy-policy",
+    url: LEGAL_URLS.PRIVACY_POLICY,
     translationKey: "privacyPolicy",
     icon: Shield,
   },
   {
-    url: "https://www.sokosumi.com/imprint",
+    url: LEGAL_URLS.IMPRINT,
     translationKey: "imprint",
     icon: Landmark,
   },
   {
-    url: "https://www.sokosumi.com/acceptable-use",
+    url: LEGAL_URLS.ACCEPTABLE_USE,
     translationKey: "acceptableUse",
     icon: ListChecks,
   },

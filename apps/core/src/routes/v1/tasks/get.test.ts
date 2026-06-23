@@ -267,6 +267,25 @@ describe("GET /tasks", () => {
     expect(taskCountMock).not.toHaveBeenCalled();
   });
 
+  it("allows coworker requests that filter by QUEUED", async () => {
+    const app = createApp(COWORKER_AUTH_CONTEXT, null);
+    const response = await app.request("http://localhost/?status=QUEUED");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          coworkerId: "cow_123",
+          archivedAt: null,
+          status: {
+            in: [TaskStatus.QUEUED],
+          },
+          NOT: { status: { in: [TaskStatus.DRAFT] } },
+        },
+      }),
+    );
+  });
+
   it("rejects coworker requests when tasks capability is unavailable", async () => {
     requireCoworkerCapabilityMock.mockRejectedValue(
       new HTTPException(403, {
