@@ -9104,3 +9104,20 @@ export const EffectiveDesignMdSchema = {
         'designMd'
     ]
 } as const;
+
+export const WorkspaceOrganizationSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization id for the workspace, or null for a personal workspace',
+            example: 'org_123'
+        }
+    },
+    required: [
+        'organizationId'
+    ]
+} as const;

@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
+import { useSession } from "@/lib/auth/auth.client";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
+import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 
 interface NotificationToastListenerProps {
   userId: string;
@@ -41,9 +43,13 @@ export function NotificationToastListener({
   userId,
 }: NotificationToastListenerProps) {
   const t = useTranslations("Components.NotificationCenter");
+  const tDetail = useTranslations("App.Tasks.Detail");
   const formatMessage = useNotificationMessage();
   const { markRead } = useNotifications();
   const router = useRouter();
+  const { data: session } = useSession();
+  const { handleSelectWorkspace } = useWorkspaceSwitcher();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   useNotificationRealtime({
     userId,
@@ -53,12 +59,6 @@ export function NotificationToastListener({
           notification.messageKey,
           notification.messageParams ?? {},
         );
-
-        const href = getNotificationHref({
-          kind: notification.kind,
-          referenceId: notification.referenceId,
-          metadata: notification.metadata,
-        });
 
         toast(
           () => (
@@ -74,7 +74,13 @@ export function NotificationToastListener({
                     }
                   }
 
-                  router.push(href);
+                  await handleNotificationNavigation(
+                    notification,
+                    activeOrganizationId,
+                    router,
+                    handleSelectWorkspace,
+                    tDetail,
+                  );
                   toast.dismiss(notification.id);
                 })();
               }}
