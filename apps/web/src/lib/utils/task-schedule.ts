@@ -1,0 +1,243 @@
+import { CronExpressionParser as cronParser } from "cron-parser";
+import type { PutTaskScheduleRequest } from "@/lib/clients/generated/core/types.gen";
+import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
+import {
+  TaskScheduleEndsMode,
+  type TaskScheduleSelection,
+} from "@/lib/types/task-schedule";
+
+interface TaskScheduleMetadataOnce {
+  version: 1;
+  mode: "once";
+  scheduledAt: string;
+  runAt: string;
+}
+
+interface TaskScheduleMetadataRecurring {
+  version: 1;
+  mode: "recurring";
+  scheduledAt: string;
+  expr: string;
+  timezone: string;
+  endsMode: "never" | "on" | "after";
+  endsOn?: string;
+  occurrences?: number;
+}
+
+type TaskScheduleMetadata =
+  | TaskScheduleMetadataOnce
+  | TaskScheduleMetadataRecurring;
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+export function formatDateTimeLocalInput(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+export function parseDateTimeLocalInput(
+  value: string | undefined,
+): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function derivePresetFromCron(cron: string): {
+  option: "daily" | "weekly" | "monthly";
+  iso: string;
+} | null {
+  const parsed = parseCron(cron);
+  const now = new Date();
+
+  switch (parsed.kind) {
+    case "dailyAtTime": {
+      const next = new Date(now);
+      next.setHours(parsed.hour, parsed.minute, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      return { option: "daily", iso: formatDateTimeLocalInput(next) };
+    }
+    case "weeklyAtTime": {
+      if (parsed.dows.length !== 1) return null;
+      const next = new Date(now);
+      next.setHours(parsed.hour, parsed.minute, 0, 0);
+      return { option: "weekly", iso: formatDateTimeLocalInput(next) };
+    }
+    case "monthlyOnDay": {
+      const next = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        parsed.dayOfMonth,
+        parsed.hour,
+        parsed.minute,
+        0,
+        0,
+      );
+      if (next <= now) {
+        next.setMonth(next.getMonth() + 1);
+      }
+      return { option: "monthly", iso: formatDateTimeLocalInput(next) };
+    }
+    default:
+      return null;
+  }
+}
+
+function deriveBuilderStateFromCron(cron: string): {
+  unit: "day" | "week" | "month";
+  count: number;
+  weekdays: Dow[];
+  hour: number;
+  minute: number;
+} | null {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return null;
+  const [minuteStr, hourStr, dom, mon, dow] = parts;
+  const minute = Number(minuteStr);
+  const hour = Number(hourStr);
+  if (!Number.isFinite(minute) || !Number.isFinite(hour)) return null;
+
+  if (dom === "*" && mon === "*" && /[A-Z,]+/.test(dow)) {
+    const weekdays = dow.split(",").filter(Boolean) as Dow[];
+    return { unit: "week", count: 1, weekdays, hour, minute };
+  }
+
+  const dailyEvery = dom.startsWith("*/") ? Number(dom.slice(2)) : Number.NaN;
+  if (mon === "*" && dow === "*" && Number.isFinite(dailyEvery)) {
+    return {
+      unit: "day",
+      count: Math.max(1, Number(dailyEvery)),
+      weekdays: ["MON"],
+      hour,
+      minute,
+    };
+  }
+
+  const monthlyEvery = mon.startsWith("*/") ? Number(mon.slice(2)) : Number.NaN;
+  const domNum = Number(dom);
+  if (Number.isFinite(monthlyEvery) && Number.isFinite(domNum) && dow === "*") {
+    return {
+      unit: "month",
+      count: Math.max(1, Number(monthlyEvery)),
+      weekdays: ["MON"],
+      hour,
+      minute,
+    };
+  }
+
+  return null;
+}
+
+function endOnLocalDateToIso(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map((part) => Number(part));
+  return new Date(year, month - 1, day, 23, 59, 59, 999);
+}
+
+export function parseTaskScheduleMetadata(
+  metadata: string | null | undefined,
+): TaskScheduleMetadata | null {
+  if (!metadata) return null;
+
+  try {
+    const parsed = JSON.parse(metadata) as TaskScheduleMetadata;
+    if (parsed.version !== 1) return null;
+    if (parsed.mode !== "once" && parsed.mode !== "recurring") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function metadataToSelection(
+  metadata: string | null | undefined,
+  defaultTimezone: string,
+): TaskScheduleSelection {
+  const parsed = parseTaskScheduleMetadata(metadata);
+  if (!parsed) {
+    return { mode: "none", timezone: defaultTimezone };
+  }
+
+  if (parsed.mode === "once") {
+    return {
+      mode: "once",
+      timezone: defaultTimezone,
+      oneTimeLocalIso: formatDateTimeLocalInput(new Date(parsed.runAt)),
+    };
+  }
+
+  const derivedPreset = derivePresetFromCron(parsed.expr);
+  const selection: TaskScheduleSelection = {
+    mode: "recurring",
+    timezone: parsed.timezone,
+    cron: parsed.expr,
+    endsMode: parsed.endsMode,
+    endAfterOccurrences: parsed.occurrences,
+    endOnLocalDate: parsed.endsOn
+      ? formatDateTimeLocalInput(new Date(parsed.endsOn)).slice(0, 10)
+      : undefined,
+  };
+
+  if (derivedPreset) {
+    selection.oneTimeLocalIso = derivedPreset.iso;
+  } else {
+    selection.customCronExpr = parsed.expr;
+    const derived = deriveBuilderStateFromCron(parsed.expr);
+    if (derived) {
+      selection.cron = parsed.expr;
+    }
+  }
+
+  return selection;
+}
+
+export function selectionToApiBody(
+  selection: TaskScheduleSelection,
+): PutTaskScheduleRequest | null {
+  if (selection.mode === "once") {
+    const runAt = parseDateTimeLocalInput(selection.oneTimeLocalIso);
+    if (!runAt) return null;
+    return { mode: "once", runAt };
+  }
+
+  if (selection.mode === "recurring") {
+    const expr = selection.customCronExpr?.trim() || selection.cron?.trim();
+    if (!expr) return null;
+
+    const endsMode = selection.endsMode ?? TaskScheduleEndsMode.NEVER;
+
+    return {
+      mode: "recurring",
+      expr,
+      timezone: selection.timezone,
+      endsMode,
+      ...(endsMode === TaskScheduleEndsMode.ON && selection.endOnLocalDate
+        ? { endsOn: endOnLocalDateToIso(selection.endOnLocalDate) }
+        : {}),
+      ...(endsMode === TaskScheduleEndsMode.AFTER &&
+      selection.endAfterOccurrences
+        ? { occurrences: selection.endAfterOccurrences }
+        : {}),
+    };
+  }
+
+  return null;
+}
+
+export function isValidCronExpression(expr: string, timezone: string): boolean {
+  try {
+    cronParser.parse(expr, { tz: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hasActiveSchedule(
+  metadata: string | null | undefined,
+  nextRunAt: Date | null | undefined,
+): boolean {
+  return Boolean(parseTaskScheduleMetadata(metadata) || nextRunAt);
+}
+
+export { DOW };

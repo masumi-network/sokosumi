@@ -1,5 +1,5 @@
+import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import type { TaskStatus } from "@/lib/types/core-dto";
-
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
@@ -66,6 +66,13 @@ export function TaskCard({
                   {task.descriptionPlain ?? task.description}
                 </p>
               </div>
+            ) : null}
+
+            {task.columnId === "scheduled" ? (
+              <TaskScheduleDisplay
+                metadata={task.metadata}
+                nextRunAt={task.nextRunAt ? new Date(task.nextRunAt) : null}
+              />
             ) : null}
 
             <TaskMetaDetails

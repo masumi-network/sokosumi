@@ -1644,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "已切换到 {account} 账户"
+        "switchedWorkspace": "已切换到 {account} 账户",
+        "clonedFrom": "克隆自 {name}",
+        "schedule": "计划"
       },
       "NewTask": {
         "title": "新建任务",
@@ -1727,6 +1729,75 @@
         "save": "保存",
         "cancel": "取消",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "计划",
+        "description": "选择此任务的运行时间。",
+        "modeCards": {
+          "none": {
+            "title": "无计划",
+            "description": "任务保留在当前列。"
+          },
+          "now": {
+            "title": "立即运行",
+            "description": "立即将任务移至待办。"
+          },
+          "recurring": {
+            "title": "计划",
+            "description": "安排一次性或重复运行。"
+          }
+        },
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "时区",
+        "customCron": "自定义 cron 表达式",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "card": {
+          "overdue": "已逾期",
+          "dueInMinutes": "{minutes} 分钟后运行",
+          "dueInHours": "{hours} 小时后运行",
+          "tomorrowAt": "明天 {time}",
+          "nextRunAt": "下次运行：{datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {

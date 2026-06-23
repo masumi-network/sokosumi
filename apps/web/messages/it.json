@@ -1644,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Passato all’account {account}"
+        "switchedWorkspace": "Passato all’account {account}",
+        "clonedFrom": "Clonata da {name}",
+        "schedule": "Pianificazione"
       },
       "NewTask": {
         "title": "Nuovo task",
@@ -1727,6 +1729,75 @@
         "save": "Salva",
         "cancel": "Annulla",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Pianificazione",
+        "description": "Scegli quando eseguire questa attività.",
+        "modeCards": {
+          "none": {
+            "title": "Nessuna pianificazione",
+            "description": "Mantieni l'attività nella colonna attuale."
+          },
+          "now": {
+            "title": "Esegui ora",
+            "description": "Sposta subito l'attività in Da fare."
+          },
+          "recurring": {
+            "title": "Pianifica",
+            "description": "Pianifica un'esecuzione singola o ricorrente."
+          }
+        },
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Fuso orario",
+        "customCron": "Espressione cron personalizzata",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "card": {
+          "overdue": "In ritardo",
+          "dueInMinutes": "Scade tra {minutes, plural, one {# minuto} other {# minuti}}",
+          "dueInHours": "Scade tra {hours, plural, one {# ora} other {# ore}}",
+          "tomorrowAt": "Domani alle {time}",
+          "nextRunAt": "Prossima esecuzione: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {

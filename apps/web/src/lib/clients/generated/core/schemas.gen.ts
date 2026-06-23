@@ -1095,6 +1095,23 @@ export const TaskSchema = {
             ],
             example: 'READY'
         },
+        metadata: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Serialized task schedule metadata JSON',
+            example: null
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-06-24T09:00:00.000Z',
+            description: 'Next scheduled run time for queued tasks'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -1149,6 +1166,8 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
+        'metadata',
+        'nextRunAt',
         'credits',
         'events',
         'jobs',
@@ -8736,6 +8755,23 @@ export const TaskListItemSchema = {
             ],
             example: 'READY'
         },
+        metadata: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Serialized task schedule metadata JSON',
+            example: null
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-06-24T09:00:00.000Z',
+            description: 'Next scheduled run time for queued tasks'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -8772,6 +8808,8 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
+        'metadata',
+        'nextRunAt',
         'credits',
         'events',
         'jobs',
@@ -8791,6 +8829,81 @@ export const TaskLinkDeletedSchema = {
     },
     required: [
         'deleted'
+    ]
+} as const;
+
+export const PutTaskScheduleRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'When the one-time schedule should run'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1,
+                    description: 'Cron expression for recurring runs',
+                    example: '0 9 * * *'
+                },
+                timezone: {
+                    type: 'string',
+                    default: 'UTC',
+                    description: 'IANA timezone for the cron expression',
+                    example: 'America/New_York'
+                },
+                endsMode: {
+                    type: 'string',
+                    enum: [
+                        'never',
+                        'on',
+                        'after'
+                    ],
+                    default: 'never',
+                    example: 'never'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59.000Z',
+                    description: 'End date when endsMode is on'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Remaining occurrences when endsMode is after',
+                    example: 10
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
     ]
 } as const;
 

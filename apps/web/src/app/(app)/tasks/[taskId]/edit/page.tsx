@@ -134,6 +134,8 @@ export default async function EditTaskPage({
         coworkerId: taskResult.coworkerId ?? "",
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
+        metadata: taskResult.metadata,
+        nextRunAt: taskResult.nextRunAt?.toISOString() ?? null,
       }}
     />
   );

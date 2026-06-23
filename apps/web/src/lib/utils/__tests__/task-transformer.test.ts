@@ -28,6 +28,8 @@ function buildTask(
     name: "Test task",
     description: null,
     status,
+    metadata: null,
+    nextRunAt: null,
     credits: 0,
     events: [],
     jobs: [],

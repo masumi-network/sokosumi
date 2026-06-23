@@ -2,6 +2,7 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
+import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
@@ -19,6 +20,7 @@ interface TaskMetadataLabels {
   coworker: string;
   created: string;
   updated: string;
+  schedule: string;
 }
 
 interface TaskMetadataTask {
@@ -26,6 +28,8 @@ interface TaskMetadataTask {
   user: Task["user"];
   organization: Task["organization"];
   coworker: Task["coworker"];
+  metadata?: string | null;
+  nextRunAt?: Date | null;
 }
 
 interface TaskMetadataProps {
@@ -118,6 +122,19 @@ export function TaskMetadata({
             </span>
           </div>
         </div>
+
+        {task.metadata || task.nextRunAt ? (
+          <div className="flex items-start justify-between gap-4">
+            <span className="text-muted-foreground text-sm">
+              {labels.schedule}
+            </span>
+            <TaskScheduleDisplay
+              className="text-right"
+              metadata={task.metadata}
+              nextRunAt={task.nextRunAt ?? null}
+            />
+          </div>
+        ) : null}
 
         <div className="border-border/50 my-3 border-t" />
 

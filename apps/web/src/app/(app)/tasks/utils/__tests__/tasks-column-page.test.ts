@@ -153,6 +153,7 @@ describe("getTasksColumnPage", () => {
       projectId: undefined,
       cursor: null,
       limit: 10,
+      sort: "nextRunAt",
     });
   });
 

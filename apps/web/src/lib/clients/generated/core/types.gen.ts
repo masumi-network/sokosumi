@@ -260,6 +260,14 @@ export type Task = {
     name: string;
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Serialized task schedule metadata JSON
+     */
+    metadata: string | null;
+    /**
+     * Next scheduled run time for queued tasks
+     */
+    nextRunAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2403,6 +2411,14 @@ export type TaskListItem = {
     name: string;
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Serialized task schedule metadata JSON
+     */
+    metadata: string | null;
+    /**
+     * Next scheduled run time for queued tasks
+     */
+    nextRunAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2411,6 +2427,33 @@ export type TaskListItem = {
 
 export type TaskLinkDeleted = {
     deleted: true;
+};
+
+export type PutTaskScheduleRequest = {
+    mode: 'once';
+    /**
+     * When the one-time schedule should run
+     */
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    /**
+     * Cron expression for recurring runs
+     */
+    expr: string;
+    /**
+     * IANA timezone for the cron expression
+     */
+    timezone?: string;
+    endsMode?: 'never' | 'on' | 'after';
+    /**
+     * End date when endsMode is on
+     */
+    endsOn?: Date;
+    /**
+     * Remaining occurrences when endsMode is after
+     */
+    occurrences?: number;
 };
 
 /**
@@ -18733,6 +18776,10 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
+         * Sort tasks by nextRunAt ascending (nulls last)
+         */
+        sort?: 'nextRunAt';
+        /**
          * Filter tasks by coworker ID
          */
         coworkerId?: string;
@@ -19492,6 +19539,178 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
+
+export type DeleteTasksByIdScheduleData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule';
+};
+
+export type DeleteTasksByIdScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdScheduleError = DeleteTasksByIdScheduleErrors[keyof DeleteTasksByIdScheduleErrors];
+
+export type DeleteTasksByIdScheduleResponses = {
+    /**
+     * Task schedule removed
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdScheduleResponse = DeleteTasksByIdScheduleResponses[keyof DeleteTasksByIdScheduleResponses];
+
+export type PutTasksByIdScheduleData = {
+    body?: PutTaskScheduleRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule';
+};
+
+export type PutTasksByIdScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutTasksByIdScheduleError = PutTasksByIdScheduleErrors[keyof PutTasksByIdScheduleErrors];
+
+export type PutTasksByIdScheduleResponses = {
+    /**
+     * Task schedule saved
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

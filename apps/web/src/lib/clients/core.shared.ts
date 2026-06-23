@@ -51,6 +51,7 @@ import type {
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
@@ -70,6 +71,7 @@ import {
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
+  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   getAdminInvoice as coreGetAdminInvoice,
@@ -182,6 +184,7 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -1745,6 +1748,35 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdSchedule({
+          client,
+          path: { id },
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to save task schedule",
+    );
+  }
+
+  async function deleteTaskSchedule(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdSchedule({
+          client,
+          path: { id },
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to clear task schedule",
+    );
+  }
+
   async function getCoworkers(query?: GetCoworkersData["query"]) {
     return executeOperation(
       getClient,
@@ -2560,6 +2592,7 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskShare,
     deleteTaskLink,
     deleteTask,
+    deleteTaskSchedule,
     getConversation,
     getConversationMessages,
     getConversations,
@@ -2665,6 +2698,7 @@ export function createCoreClient(getClient: GetClient) {
     getUserTasksCount,
     patchTask,
     putJobShare,
+    putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,
     updateConversation,

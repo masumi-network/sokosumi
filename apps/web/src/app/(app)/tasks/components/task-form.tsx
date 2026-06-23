@@ -21,6 +21,7 @@ import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { CompanyMark } from "@/components/agents/company-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { TaskScheduleSection } from "@/components/task-schedule-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +33,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
 import {
   createDesignMdDismissedState,
@@ -48,6 +51,7 @@ import {
   type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
+import { metadataToSelection } from "@/lib/utils/task-schedule";
 import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast";
@@ -119,6 +123,8 @@ interface TaskFormInitialValues {
   coworkerId?: string | null;
   projectId?: string | null;
   status?: TaskStatus;
+  metadata?: string | null;
+  nextRunAt?: string | null;
 }
 
 export type TaskFormInitialDesignMdAttachment = TaskDesignMdAttachmentSeed;
@@ -216,6 +222,18 @@ export function TaskForm({
   }, [defaultCoworkerId]);
 
   const [status, setStatus] = useState<TaskStatus>(originalStatus);
+  const [scheduleSelection, setScheduleSelection] =
+    useState<TaskScheduleSelection>(() =>
+      metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
+    );
+  const hadSchedule = useMemo(
+    () =>
+      Boolean(
+        initialValues?.metadata ||
+          (initialValues?.nextRunAt && initialValues.nextRunAt.length > 0),
+      ),
+    [initialValues?.metadata, initialValues?.nextRunAt],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmittingDraft, setIsSubmittingDraft] = useState(false);
   const [createdTask, setCreatedTask] = useState<{
@@ -321,6 +339,7 @@ export function TaskForm({
             ),
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
+            schedule: scheduleSelection,
           });
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
@@ -357,6 +376,8 @@ export function TaskForm({
           ...(shouldShowProjectSelect ? { projectId } : {}),
           currentStatus: originalStatus,
           desiredStatus,
+          schedule: scheduleSelection,
+          hadSchedule,
         });
         if (onSuccess) {
           onSuccess(taskId);
@@ -389,6 +410,8 @@ export function TaskForm({
       onSuccess,
       onCreated,
       onCreateTask,
+      scheduleSelection,
+      hadSchedule,
       labels.statusDraft,
       labels.statusReady,
     ],
@@ -788,6 +811,14 @@ export function TaskForm({
                     ))}
                   </div>
                 ) : null}
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <TaskScheduleSection
+                  embedded
+                  initialSelection={scheduleSelection}
+                  onChange={setScheduleSelection}
+                />
               </div>
             </div>
           ) : null}
