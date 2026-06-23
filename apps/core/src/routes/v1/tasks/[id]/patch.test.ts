@@ -71,6 +71,8 @@ function createTaskApi(projectId: string | null = null) {
     name: "Updated Task",
     description: null,
     status: TaskStatus.DRAFT,
+    metadata: null,
+    nextRunAt: null,
     credits: 0,
     events: [],
     jobs: [],

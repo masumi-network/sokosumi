@@ -97,6 +97,8 @@ function createTaskRecord(overrides: Partial<TaskRecord> = {}): TaskRecord {
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
+    metadata: null,
+    nextRunAt: null,
     ...overrides,
   };
 }
@@ -134,6 +136,8 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     name: "Current task",
     description: "Current description",
     status: TaskStatus.READY,
+    metadata: null,
+    nextRunAt: null,
     credits: 0,
     events: [],
     jobs: [],
