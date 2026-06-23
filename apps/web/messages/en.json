@@ -2369,6 +2369,7 @@
         "marketingHeading": "Popular marketing skills",
         "disclaimer": "These are the most popular skills on skills.sh, an open community catalog. We don't verify who created them — review a skill before adding it to your agent.",
         "includedHeading": "Included with Hermes",
+        "includedHelp": "These ship with every Hermes agent and can't be removed.",
         "includedBadge": "Included",
         "installedHeading": "Installed",
         "resultsHeading": "Results",

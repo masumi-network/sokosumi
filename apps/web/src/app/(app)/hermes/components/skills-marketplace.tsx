@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   BadgeCheck,
   Check,
+  ChevronRight,
   Download,
   Loader2,
   Plus,
@@ -26,12 +27,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import {
-  getCuratedSkillsAction,
-  getInstalledSkillsAction,
-  getPreinstalledSkillsAction,
   getSkillDetailAction,
+  getSkillsMarketplaceAction,
   installSkillAction,
   removeSkillAction,
   searchSkillsAction,
@@ -43,49 +47,23 @@ import type {
 } from "@/lib/clients/generated/core";
 
 interface SkillsMarketplaceProps {
-  /** Onboarding shows only the curated shelf; settings shows the full browser. */
+  /** Onboarding hides the header + search; settings shows the full browser. */
   variant?: "settings" | "onboarding";
 }
 
 type ConfirmTarget = { item: SkillCatalogItem; risk: string | null };
 
 const DEBOUNCE_MS = 300;
-// Keep the default shelves scannable — the catalog has hundreds of skills, so
-// we show only the most-installed and let search reach the rest.
+// Keep the default shelf scannable — the catalog has hundreds of skills, so we
+// show only the most-installed marketing skills and let search reach the rest.
 const MAX_SETTINGS = 30;
 const MAX_ONBOARDING = 16;
-// A single "marketing" search returns only a handful of hits, so widen the pool
-// across marketing-adjacent queries and rank the merged set by popularity.
-const MARKETING_QUERIES = ["marketing", "seo", "advertising", "social media"];
-
-/** Most popular first, capped — the catalog is too large to show in full. */
-function topByInstalls(
-  items: SkillCatalogItem[],
-  max: number,
-): SkillCatalogItem[] {
-  return [...items]
-    .sort((a, b) => (b.installs ?? 0) - (a.installs ?? 0))
-    .slice(0, max);
-}
-
-/** Dedupe by stable skill id — the marketing queries overlap. */
-function dedupeBySkillId(items: SkillCatalogItem[]): SkillCatalogItem[] {
-  const seen = new Set<string>();
-  const out: SkillCatalogItem[] = [];
-  for (const item of items) {
-    if (seen.has(item.skillId)) continue;
-    seen.add(item.skillId);
-    out.push(item);
-  }
-  return out;
-}
 
 export default function SkillsMarketplace({
   variant = "settings",
 }: SkillsMarketplaceProps) {
   const t = useTranslations("App.Hermes.Skills");
 
-  const [curated, setCurated] = useState<SkillCatalogItem[]>([]);
   const [marketing, setMarketing] = useState<SkillCatalogItem[]>([]);
   const [installed, setInstalled] = useState<InstalledSkill[]>([]);
   const [preinstalled, setPreinstalled] = useState<PreinstalledSkill[]>([]);
@@ -120,25 +98,15 @@ export default function SkillsMarketplace({
     let cancelled = false;
     const max = variant === "onboarding" ? MAX_ONBOARDING : MAX_SETTINGS;
     void (async () => {
-      // Lead with the most popular marketing skills (this is a marketing
-      // platform); curated is the fallback shelf when that search is empty.
-      const [marketingResults, installedRes, curatedRes, preinstalledRes] =
-        await Promise.all([
-          Promise.all(
-            MARKETING_QUERIES.map((q) => searchSkillsAction({ q, limit: 20 })),
-          ),
-          getInstalledSkillsAction({}),
-          getCuratedSkillsAction({}),
-          getPreinstalledSkillsAction({}),
-        ]);
+      // Single server action — Next serializes concurrent actions, so the
+      // fetches are bundled into one (they run in parallel inside it).
+      const res = await getSkillsMarketplaceAction({});
       if (cancelled) return;
-      const marketingPool = dedupeBySkillId(
-        marketingResults.flatMap((r) => (r.ok ? r.data : [])),
-      );
-      setMarketing(topByInstalls(marketingPool, max));
-      if (installedRes.ok) setInstalled(installedRes.data);
-      if (curatedRes.ok) setCurated(topByInstalls(curatedRes.data, max));
-      if (preinstalledRes.ok) setPreinstalled(preinstalledRes.data);
+      if (res.ok) {
+        setMarketing(res.data.marketing.slice(0, max));
+        setInstalled(res.data.installed);
+        setPreinstalled(res.data.preinstalled);
+      }
       setLoading(false);
     })();
     return () => {
@@ -305,23 +273,9 @@ export default function SkillsMarketplace({
         />
       ) : (
         <>
-          {preinstalled.length > 0 ? (
-            <PreinstalledShelf items={preinstalled} />
-          ) : null}
-          {visibleInstalled.length > 0 ? (
-            <InstalledShelf
-              items={visibleInstalled}
-              busy={busy}
-              onRemove={handleRemove}
-            />
-          ) : null}
           <SkillShelf
-            heading={
-              marketing.length > 0
-                ? t("marketingHeading")
-                : t("recommendedHeading")
-            }
-            items={marketing.length > 0 ? marketing : curated}
+            heading={t("marketingHeading")}
+            items={marketing}
             emptyLabel={t("emptyCatalog")}
             installedBySlug={installedBySlug}
             preinstalledSlugs={preinstalledSlugs}
@@ -329,6 +283,16 @@ export default function SkillsMarketplace({
             onAdd={handleAdd}
             onRemove={handleRemove}
           />
+          {visibleInstalled.length > 0 ? (
+            <InstalledShelf
+              items={visibleInstalled}
+              busy={busy}
+              onRemove={handleRemove}
+            />
+          ) : null}
+          {preinstalled.length > 0 ? (
+            <PreinstalledShelf items={preinstalled} />
+          ) : null}
         </>
       )}
 
@@ -556,33 +520,39 @@ function SkillCard({
 function PreinstalledShelf({ items }: { items: PreinstalledSkill[] }) {
   const t = useTranslations("App.Hermes.Skills");
   return (
-    <section className="flex flex-col gap-2">
-      <h4 className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
-        {t("includedHeading")}
-      </h4>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {items.map((skill) => (
-          <div
-            key={skill.slug}
-            className="border-border bg-card/40 flex flex-col gap-1 rounded-lg border p-3"
-          >
-            <div className="flex items-start gap-2">
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                {skill.name}
-              </span>
-              <Badge variant="secondary" className="shrink-0 gap-1">
-                <Check className="size-3" />
-                {t("includedBadge")}
-              </Badge>
+    <Collapsible className="flex flex-col gap-2">
+      <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex w-fit items-center gap-1.5 text-xs font-medium uppercase tracking-wider">
+        <ChevronRight className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
+        {t("includedHeading")} ({items.length})
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <p className="text-muted-foreground mb-2 text-xs leading-relaxed">
+          {t("includedHelp")}
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {items.map((skill) => (
+            <div
+              key={skill.slug}
+              className="border-border bg-card/40 flex flex-col gap-1 rounded-lg border p-3"
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                  {skill.name}
+                </span>
+                <Badge variant="secondary" className="shrink-0 gap-1">
+                  <Check className="size-3" />
+                  {t("includedBadge")}
+                </Badge>
+              </div>
+              {skill.description ? (
+                <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
+                  {skill.description}
+                </p>
+              ) : null}
             </div>
-            {skill.description ? (
-              <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
-                {skill.description}
-              </p>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

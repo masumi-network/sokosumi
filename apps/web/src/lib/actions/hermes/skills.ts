@@ -30,6 +30,61 @@ function toActionError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
+// A single "marketing" search returns few hits; widen across adjacent queries.
+const MARKETING_QUERIES = ["marketing", "seo", "advertising", "social media"];
+const MARKETING_POOL_LIMIT = 40;
+
+export interface SkillsMarketplaceData {
+  marketing: SkillCatalogItem[];
+  installed: InstalledSkill[];
+  preinstalled: PreinstalledSkill[];
+}
+
+/**
+ * One round-trip for the whole marketplace. Next serializes concurrent server
+ * actions, so issuing the catalog/installed/preinstalled fetches as separate
+ * actions made the page load them one after another. Bundling them here keeps
+ * it to a single action while the underlying Core calls still run in parallel.
+ */
+export const getSkillsMarketplaceAction = withSession<
+  AuthenticatedRequest,
+  Result<SkillsMarketplaceData, ActionError>
+>(async () => {
+  try {
+    const [marketingResults, installedRes, preinstalledRes] = await Promise.all(
+      [
+        Promise.all(
+          MARKETING_QUERIES.map((q) =>
+            coreClientNoRedirect.searchSkillsCatalog({ q, limit: 20 }),
+          ),
+        ),
+        coreClientNoRedirect.getInstalledSkills(),
+        coreClientNoRedirect.getPreinstalledSkills(),
+      ],
+    );
+    const installed = installedRes.data.skills;
+    const preinstalled = preinstalledRes.data.skills;
+    // Don't offer skills the agent already has (installed or image-baked).
+    const have = new Set<string>([
+      ...installed.map((s) => s.slug),
+      ...preinstalled.map((s) => s.slug),
+    ]);
+    const seen = new Set<string>();
+    const marketing = marketingResults
+      .flatMap((r) => r.data.skills)
+      .filter((s) => {
+        if (have.has(s.slug) || seen.has(s.skillId)) return false;
+        seen.add(s.skillId);
+        return true;
+      })
+      .sort((a, b) => (b.installs ?? 0) - (a.installs ?? 0))
+      .slice(0, MARKETING_POOL_LIMIT);
+    return Ok({ marketing, installed, preinstalled });
+  } catch (error) {
+    return Err(toActionError(error));
+  }
+});
+
 interface BrowseSkillsArgs extends AuthenticatedRequest {
   view?: "trending" | "hot" | "all-time";
   page?: number;
