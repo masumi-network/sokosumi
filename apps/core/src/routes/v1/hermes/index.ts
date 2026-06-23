@@ -2211,6 +2211,11 @@ function mapSkillsCatalogError(error: unknown, fallback: string): never {
       "The skills marketplace is currently unavailable.",
     );
   }
+  // A real skills.sh failure (e.g. the OIDC token was rejected) — capture it so
+  // we can distinguish an auth/config problem from an empty catalog.
+  Sentry.captureException(error, {
+    tags: { context: "hermes_skills_catalog" },
+  });
   throw serviceUnavailable(`${fallback}.`);
 }
 

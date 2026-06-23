@@ -1,3 +1,5 @@
+import { getVercelOidcToken } from "@vercel/oidc";
+
 import { getEnv } from "@/config/env";
 
 /**
@@ -98,15 +100,28 @@ export function worstAuditRisk(audit: SkillsShAudit): SkillsRiskLevel | null {
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, { expiresAt: number; value: unknown }>();
 
+// The Vercel runtime exposes the OIDC token via `getVercelOidcToken()`, which
+// resolves it from the request context and refreshes in dev — the bare
+// `VERCEL_OIDC_TOKEN` env var is frequently absent in the function runtime even
+// when OIDC is enabled, so prefer the helper and fall back to the env var.
+async function resolveOidcToken(): Promise<string | null> {
+  try {
+    const token = await getVercelOidcToken();
+    if (token) return token;
+  } catch {
+    // No runtime token (local/non-Vercel, or OIDC disabled) — try the env var.
+  }
+  return getEnv().VERCEL_OIDC_TOKEN ?? null;
+}
+
 async function skillsGet<T>(
   path: string,
   parse: (raw: unknown) => T,
 ): Promise<T> {
-  const env = getEnv();
-  const token = env.VERCEL_OIDC_TOKEN;
+  const token = await resolveOidcToken();
   if (!token) throw new SkillsShUnavailableError();
 
-  const url = `${env.SKILLS_SH_BASE_URL}${path}`;
+  const url = `${getEnv().SKILLS_SH_BASE_URL}${path}`;
   const cached = cache.get(url);
   if (cached && cached.expiresAt > nowMs()) return cached.value as T;
 
