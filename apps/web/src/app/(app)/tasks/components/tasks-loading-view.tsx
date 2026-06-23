@@ -95,7 +95,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
         return (
           <section
             key={column.id}
-            className="bg-muted/30 flex h-full min-h-0 min-w-[260px] flex-1 flex-col rounded-xl border border-transparent transition-colors sm:min-w-[280px]"
+            className="bg-muted/30 flex h-full min-h-0 min-w-[260px] flex-1 flex-col rounded-xl border border-transparent transition-colors sm:min-w-[280px] lg:min-w-[350px]"
           >
             <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
               <ColumnHeader
