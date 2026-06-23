@@ -46,6 +46,7 @@ export default async function Sidebar({
   const tCredit = await getTranslations("App.Header.Credit");
   const tPlan = await getTranslations("App.Header.Plan");
   const currentPlan = creditsData?.subscription?.plan ?? "free";
+  const planForLabel = creditsData?.subscription?.plan ?? null;
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
@@ -59,7 +60,7 @@ export default async function Sidebar({
   }
 
   const planLabel = await resolvePlanSecondaryLabel({
-    plan: currentPlan,
+    plan: planForLabel,
     organizationName: activeOrganizationId
       ? (organizationName ?? tCredit("unavailable"))
       : null,
