@@ -4,10 +4,12 @@ import { ChevronLeft } from "lucide-react";
 import {
   createContext,
   type ReactNode,
+  type RefObject,
   use,
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,11 @@ interface SidebarSubmenuProps {
   backLabel: string;
   children: ReactNode;
 }
+
+const SLIDE_TRANSITION_CLASS =
+  "transition-transform duration-200 ease-out motion-reduce:transition-none";
+const TRACK_PANEL_CLASS = "min-w-0 shrink-0 grow-0 basis-full";
+const SLIDE_DURATION_MS = 200;
 
 function computePanelPath(
   panels: SidebarSubmenuPanel[],
@@ -93,6 +100,39 @@ export function SidebarSubmenuBackButton({
   );
 }
 
+function SubmenuPanelView({
+  panel,
+  isActive,
+  panelRef,
+}: {
+  panel: SidebarSubmenuPanel;
+  isActive: boolean;
+  panelRef?: RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      ref={panelRef}
+      tabIndex={isActive ? -1 : undefined}
+      className={cn(TRACK_PANEL_CLASS, "outline-hidden")}
+      aria-hidden={!isActive}
+      {...(!isActive ? { inert: true } : {})}
+    >
+      <div
+        className={cn(
+          "bg-sidebar sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2",
+          !isActive && "pointer-events-none",
+        )}
+      >
+        <SidebarSubmenuBackButton />
+        <div className="min-w-0 flex-1">{panel.header}</div>
+      </div>
+      <div className={cn(!isActive && "pointer-events-none")}>
+        {panel.content}
+      </div>
+    </div>
+  );
+}
+
 export function SidebarSubmenu({
   activeId,
   onActiveIdChange,
@@ -105,7 +145,10 @@ export function SidebarSubmenu({
     () => computePanelPath(panels, activeId),
     [panels, activeId],
   );
-  const isMainActive = pathPanels.length === 0;
+  const depth = pathPanels.length;
+  const [trackPanels, setTrackPanels] = useState(pathPanels);
+  const [trackDepth, setTrackDepth] = useState(depth);
+  const isMainActive = trackDepth === 0;
 
   const contextValue = useMemo<SidebarSubmenuContextValue>(
     () => ({
@@ -139,52 +182,60 @@ export function SidebarSubmenu({
     };
   }, [activeId]);
 
+  useEffect(() => {
+    if (depth > trackDepth) {
+      setTrackPanels(pathPanels);
+
+      const frame = requestAnimationFrame(() => {
+        setTrackDepth(depth);
+      });
+
+      return () => {
+        cancelAnimationFrame(frame);
+      };
+    }
+
+    setTrackDepth(depth);
+
+    const timeout = window.setTimeout(() => {
+      setTrackPanels(pathPanels);
+    }, SLIDE_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [depth, pathPanels, trackDepth]);
+
   return (
     <SidebarSubmenuContext value={contextValue}>
-      <div className="relative overflow-hidden">
+      <div className="relative w-full overflow-hidden">
         <div
-          className="flex transition-transform duration-200 ease-linear"
+          className={cn("flex w-full", SLIDE_TRANSITION_CLASS)}
           style={{
-            transform: `translateX(-${pathPanels.length * 100}%)`,
+            transform: `translateX(-${trackDepth * 100}%)`,
           }}
         >
           <div
-            className="w-full shrink-0"
+            className={cn(
+              TRACK_PANEL_CLASS,
+              !isMainActive && "pointer-events-none",
+            )}
             aria-hidden={!isMainActive}
             {...(!isMainActive ? { inert: true } : {})}
           >
-            <div
-              className={cn(!isMainActive && "pointer-events-none")}
-              aria-hidden={!isMainActive}
-            >
-              {children}
-            </div>
+            {children}
           </div>
-          {pathPanels.map((panel, index) => {
-            const isActive = index === pathPanels.length - 1;
+
+          {trackPanels.map((panel, index) => {
+            const isActive = index === trackDepth - 1;
 
             return (
-              <div
+              <SubmenuPanelView
                 key={panel.id}
-                ref={isActive ? activePanelRef : undefined}
-                tabIndex={isActive ? -1 : undefined}
-                className="w-full shrink-0 outline-hidden"
-                aria-hidden={!isActive}
-                {...(!isActive ? { inert: true } : {})}
-              >
-                <div
-                  className={cn(
-                    "bg-sidebar sticky top-0 z-10 flex items-center gap-2 border-b px-2 py-2",
-                    !isActive && "pointer-events-none",
-                  )}
-                >
-                  <SidebarSubmenuBackButton />
-                  <div className="min-w-0 flex-1">{panel.header}</div>
-                </div>
-                <div className={cn(!isActive && "pointer-events-none")}>
-                  {panel.content}
-                </div>
-              </div>
+                panel={panel}
+                isActive={isActive}
+                panelRef={isActive ? activePanelRef : undefined}
+              />
             );
           })}
         </div>
