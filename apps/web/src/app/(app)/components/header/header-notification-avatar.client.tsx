@@ -3,7 +3,7 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { Bell } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,9 +41,22 @@ export function HeaderNotificationAvatar({
   const [isOpen, setIsOpen] = useState(false);
   const [showBell, setShowBell] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const bellAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
+    const stopBellAnimation = () => {
+      if (bellAnimationTimeoutRef.current !== null) {
+        clearTimeout(bellAnimationTimeoutRef.current);
+        bellAnimationTimeoutRef.current = null;
+      }
+      setShowBell(false);
+      setIsAnimating(false);
+    };
+
     if (unreadCount === 0 || isOpen) {
+      stopBellAnimation();
       return;
     }
 
@@ -56,10 +69,16 @@ export function HeaderNotificationAvatar({
         return;
       }
 
+      if (bellAnimationTimeoutRef.current !== null) {
+        clearTimeout(bellAnimationTimeoutRef.current);
+        bellAnimationTimeoutRef.current = null;
+      }
+
       setIsAnimating(true);
       setShowBell(true);
 
-      setTimeout(() => {
+      bellAnimationTimeoutRef.current = setTimeout(() => {
+        bellAnimationTimeoutRef.current = null;
         setShowBell(false);
         setIsAnimating(false);
       }, ANIMATION_DURATION);
@@ -77,6 +96,7 @@ export function HeaderNotificationAvatar({
     return () => {
       clearInterval(intervalId);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      stopBellAnimation();
     };
   }, [unreadCount, isOpen]);
 
@@ -86,7 +106,11 @@ export function HeaderNotificationAvatar({
         <button
           type="button"
           className="hover:opacity-80 relative flex shrink-0 items-center transition-opacity"
-          aria-label={t("notifications")}
+          aria-label={
+            unreadCount > 0
+              ? t("unreadBadge", { count: unreadCount })
+              : t("notifications")
+          }
         >
           <div
             className={cn(
@@ -115,10 +139,10 @@ export function HeaderNotificationAvatar({
               />
             </div>
           </div>
-          {unreadCount > 0 && !showBell ? (
+          {unreadCount > 0 ? (
             <span
               className="bg-primary absolute right-0 top-0 size-2 animate-pulse rounded-full ring-2 ring-background"
-              aria-label={t("unreadBadge", { count: unreadCount })}
+              aria-hidden
             />
           ) : null}
         </button>
