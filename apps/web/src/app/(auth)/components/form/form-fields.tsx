@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import type { FormData } from "@/lib/form";
 
 import { PasswordInput } from "./password-input";
@@ -104,11 +105,19 @@ function FormInput<T extends FieldValues>({
         className="flex flex-wrap items-center gap-1"
       >
         <span>{iAgreeToText}</span>
-        <Link target="_blank" href="/terms-of-service" className="underline">
+        <Link
+          target="_blank"
+          href={LEGAL_URLS.TERMS_OF_SERVICE}
+          className="underline"
+        >
           {termsOfServiceText}
         </Link>
         <span>{andText}</span>
-        <Link target="_blank" href="/privacy-policy" className="underline">
+        <Link
+          target="_blank"
+          href={LEGAL_URLS.PRIVACY_POLICY}
+          className="underline"
+        >
           {privacyPolicyText}
         </Link>
       </Label>
