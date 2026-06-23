@@ -1,0 +1,100 @@
+import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/utils";
+
+import { requireTaskOwnership } from "@/helpers/access-control";
+import { badRequest, forbidden } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import { mapTask } from "@/helpers/task";
+import {
+  buildTaskScheduleMetadata,
+  computeScheduleNextRun,
+  validateScheduleInput,
+} from "@/helpers/task-schedule";
+import prisma from "@/lib/db/prisma";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserContext } from "@/middleware/auth";
+import { taskSchema } from "@/schemas/task.schema";
+import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
+import { buildTaskIncludeForViewer } from "@/types/task";
+
+const paramsSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "tsk_123",
+  }),
+});
+
+const SCHEDULABLE_STATUSES: TaskStatus[] = [
+  TaskStatus.DRAFT,
+  TaskStatus.READY,
+  TaskStatus.QUEUED,
+];
+
+const route = createRoute({
+  method: "put",
+  path: "/{id}/schedule",
+  description: "Create or update a task schedule",
+  tags: ["Tasks"],
+  request: {
+    params: paramsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: putTaskScheduleRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: jsonSuccessResponse(taskSchema, "Task schedule saved"),
+    400: jsonErrorResponse("Bad Request"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const { authContext } = c.var;
+    const userContext = requireUserContext(authContext);
+    const { id } = c.req.valid("param");
+    const body = c.req.valid("json");
+
+    validateScheduleInput(body);
+
+    const scheduledAt = new Date();
+    const metadata = buildTaskScheduleMetadata(body, scheduledAt);
+    const nextRunAt = computeScheduleNextRun(metadata);
+    if (!nextRunAt) {
+      throw badRequest("Unable to compute the next scheduled run");
+    }
+
+    const task = await prisma.$transaction(async (tx) => {
+      const existingTask = await requireTaskOwnership(userContext, id, tx);
+
+      if (!SCHEDULABLE_STATUSES.includes(existingTask.status)) {
+        throw forbidden("You can only schedule draft, ready, or queued tasks");
+      }
+
+      return tx.task.update({
+        where: { id },
+        data: {
+          metadata: JSON.stringify(metadata),
+          nextRunAt,
+          ...(existingTask.status !== TaskStatus.QUEUED
+            ? { status: TaskStatus.QUEUED }
+            : {}),
+        },
+        include: buildTaskIncludeForViewer(
+          authContext,
+          existingTask.workspaceId,
+        ),
+      });
+    });
+
+    return ok(c, taskSchema.parse(mapTask(task)));
+  });
+}
