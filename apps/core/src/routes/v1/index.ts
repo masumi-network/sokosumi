@@ -6,6 +6,7 @@ import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin.js";
 
 import adminRouter from "./admin/index.js";
 import agentsRouter from "./agents/index.js";
+import catalogRouter from "./catalog/index.js";
 import categoriesRouter from "./categories/index.js";
 import chatRouter from "./chat/index.js";
 import checkoutRouter from "./checkout/index.js";
@@ -112,6 +113,7 @@ app.doc31("/openapi.json", {
 // Mount Routes
 app.route("/admin", adminRouter);
 app.route("/agents", agentsRouter);
+app.route("/catalog", catalogRouter);
 app.route("/categories", categoriesRouter);
 app.route("/chat", chatRouter);
 app.route("/checkout", checkoutRouter);
