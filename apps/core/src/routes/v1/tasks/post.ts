@@ -134,6 +134,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,
           status: body.status,
+          metadata: null,
+          nextRunAt: null,
           events: {
             create: {
               status: body.status,

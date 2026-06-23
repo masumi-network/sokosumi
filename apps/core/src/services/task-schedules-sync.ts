@@ -45,6 +45,8 @@ function getCloneTaskData(
     name: template.name,
     description: template.description,
     status: TaskStatus.READY,
+    metadata: null,
+    nextRunAt: null,
     events: {
       create: {
         status: TaskStatus.READY,
