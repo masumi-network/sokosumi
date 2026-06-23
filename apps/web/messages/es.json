@@ -2481,7 +2481,9 @@
           "projects": "Proyectos",
           "hermes": "Hermes",
           "history": "Historial",
-          "admin": "Administración"
+          "admin": "Administración",
+          "settings": "Configuración",
+          "back": "Atrás"
         }
       }
     },

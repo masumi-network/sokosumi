@@ -83,7 +83,7 @@ import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
-import { isDnDColumn, statusForColumn } from "./task-dnd";
+import { isDnDDragColumn, isDnDDropColumn, statusForColumn } from "./task-dnd";
 import type { TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
@@ -605,12 +605,16 @@ export function TasksView({
     }
 
     const toColumn = overId as KanbanColumnId;
-    if (!isDnDColumn(toColumn)) return;
+    if (!isDnDDropColumn(toColumn)) return;
 
     const fromColumn = event.active.data.current?.columnId as
       | KanbanColumnId
       | undefined;
-    if (!fromColumn || !isDnDColumn(fromColumn) || fromColumn === toColumn) {
+    if (
+      !fromColumn ||
+      !isDnDDragColumn(fromColumn) ||
+      fromColumn === toColumn
+    ) {
       return;
     }
 

@@ -10,7 +10,12 @@ import {
 import { AddTaskButton } from "./add-task-button";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
-import { DraggableTask, DroppableColumn, isDnDColumn } from "./task-dnd";
+import {
+  DraggableTask,
+  DroppableColumn,
+  isDnDDragColumn,
+  isDnDDropColumn,
+} from "./task-dnd";
 
 interface KanbanBoardProps {
   tasks: TaskWithCoworker[];
@@ -44,7 +49,8 @@ export function KanbanBoard({
           .filter((task) => task.columnId === column.id)
           .sort(compareTasksDesc);
         const isFirstColumn = index === 0;
-        const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
+        const isDraggableColumn = isDragEnabled && isDnDDragColumn(column.id);
+        const isDropTargetColumn = isDragEnabled && isDnDDropColumn(column.id);
         const columnFooter = columnFooterById?.[column.id];
         const footer = isFirstColumn ? (
           columnFooter ? (
@@ -95,7 +101,7 @@ export function KanbanBoard({
           />
         );
 
-        return isDraggableColumn ? (
+        return isDropTargetColumn ? (
           <DroppableColumn
             key={column.id}
             id={column.id}

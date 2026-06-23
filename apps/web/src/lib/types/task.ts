@@ -53,7 +53,7 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
 
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   backlog: "bg-muted-foreground",
-  scheduled: "bg-indigo-500",
+  scheduled: "bg-primary",
   todo: "bg-blue-500",
   "in-progress": "bg-amber-500",
   "input-required": "bg-orange-500",
