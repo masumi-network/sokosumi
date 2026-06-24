@@ -1189,6 +1189,18 @@ export type HermesPersistedMessage = {
     role: HermesChatMessageRole;
     content: string;
     kind: string | null;
+    /**
+     * Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.
+     */
+    steps?: Array<{
+        kind?: 'tool' | 'reasoning';
+        label: string;
+        detail?: string;
+    }> | null;
+    /**
+     * Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.
+     */
+    durationMs?: number | null;
     createdAt: Date;
 };
 
@@ -2348,11 +2360,11 @@ export type CoworkerOffer = {
      * Example outputs the offer produces — text and/or files (PDF, slides, image).
      */
     outputs?: Array<{
-        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text';
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text' | 'html';
         url?: string;
         label?: string;
         /**
-         * Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.
+         * Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.
          */
         text?: string;
     }>;

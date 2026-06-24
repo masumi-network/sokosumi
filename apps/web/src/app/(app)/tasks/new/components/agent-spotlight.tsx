@@ -1,18 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { CompanyMark } from "@/components/agents/company-mark";
-import { OfferEmbed, offerOutputs } from "@/components/agents/offer-card";
+import {
+  OfferDetailDialog,
+  type OfferDetailItem,
+  type OutputKind,
+} from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import type { CoworkerOffer, CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
@@ -51,6 +49,44 @@ const SCROLLBAR =
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
+}
+
+/** Model + hosting chips shown both in the spotlight header and the task preview. */
+function MetaTagChips({
+  llm,
+  hosting,
+  modelLabel,
+  hostingLabel,
+}: {
+  llm: string[];
+  hosting?: string;
+  modelLabel: string;
+  hostingLabel: string;
+}) {
+  if (llm.length === 0 && !hosting) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {llm.map((model) => (
+        <span
+          key={model}
+          title={`${modelLabel}: ${model}`}
+          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+        >
+          <TagIcon name={model} size={12} />
+          {model}
+        </span>
+      ))}
+      {hosting ? (
+        <span
+          title={`${hostingLabel}: ${hosting}`}
+          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+        >
+          <span aria-hidden>{regionFlag(hosting)}</span>
+          {hosting}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function RailItem({
@@ -109,6 +145,8 @@ export function AgentSpotlight({
   defaultSlug = "elena",
   labels,
 }: AgentSpotlightProps) {
+  const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
   const [previewOffer, setPreviewOffer] = useState<CoworkerOffer | null>(null);
 
   const groups = useMemo(() => {
@@ -138,7 +176,6 @@ export function AgentSpotlight({
     options.find((option) => option.id === selectedId) ?? options[0];
   const llm = current?.profile?.llm ?? [];
   const hosting = current?.profile?.hosting;
-  const previewOutput = previewOffer ? offerOutputs(previewOffer)[0] : null;
 
   if (!current) {
     return (
@@ -236,29 +273,12 @@ export function AgentSpotlight({
           </p>
         ) : null}
 
-        {llm.length > 0 || hosting ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {llm.map((model) => (
-              <span
-                key={model}
-                title={`${labels.modelLabel}: ${model}`}
-                className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
-              >
-                <TagIcon name={model} size={12} />
-                {model}
-              </span>
-            ))}
-            {hosting ? (
-              <span
-                title={`${labels.hostingLabel}: ${hosting}`}
-                className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
-              >
-                <span aria-hidden>{regionFlag(hosting)}</span>
-                {hosting}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+        <MetaTagChips
+          llm={llm}
+          hosting={hosting}
+          modelLabel={labels.modelLabel}
+          hostingLabel={labels.hostingLabel}
+        />
 
         <OfferPicker
           name={current.name}
@@ -275,42 +295,54 @@ export function AgentSpotlight({
         />
       </div>
 
-      {/* Example-output preview */}
-      <Dialog
-        open={previewOffer !== null}
-        onOpenChange={(open) => {
-          if (!open) setPreviewOffer(null);
+      {/* Example-output preview — same rich dialog as the agents marketplace */}
+      <OfferDetailDialog
+        item={
+          previewOffer
+            ? ({
+                offer: previewOffer,
+                coworkerName: current.name,
+                coworkerCaption: current.caption ?? undefined,
+                company: current.company ?? undefined,
+                coworkerAvatar: (
+                  <Avatar className="ring-border size-11 rounded-full ring-1">
+                    <AvatarImage
+                      src={current.image}
+                      alt=""
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="rounded-full text-sm font-medium">
+                      {initials(current.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                ),
+                metaTags:
+                  llm.length > 0 || hosting ? (
+                    <MetaTagChips
+                      llm={llm}
+                      hosting={hosting}
+                      modelLabel={labels.modelLabel}
+                      hostingLabel={labels.hostingLabel}
+                    />
+                  ) : undefined,
+              } satisfies OfferDetailItem)
+            : null
+        }
+        onClose={() => setPreviewOffer(null)}
+        onStart={() => {
+          if (previewOffer) onPickOffer(previewOffer);
+          setPreviewOffer(null);
         }}
-      >
-        <DialogContent className="flex h-[min(80svh,640px)] max-w-3xl flex-col gap-0 overflow-hidden p-0">
-          <DialogTitle className="border-b px-5 py-3 text-base font-semibold">
-            {previewOffer?.title}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            {previewOffer?.description ?? previewOffer?.title}
-          </DialogDescription>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {previewOutput ? (
-              <OfferEmbed
-                output={previewOutput}
-                title={previewOffer?.title ?? ""}
-                pendingLabel={labels.previewEmpty}
-              />
-            ) : null}
-          </div>
-          <div className="flex shrink-0 justify-end border-t px-5 py-3">
-            <Button
-              type="button"
-              onClick={() => {
-                if (previewOffer) onPickOffer(previewOffer);
-                setPreviewOffer(null);
-              }}
-            >
-              {labels.previewUse}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        labels={{
+          deliveredBy: t("deliveredByLabel"),
+          deliverable: t("deliverableLabel"),
+          start: labels.previewUse,
+          pending: labels.previewEmpty,
+          openInNewTab: t("openInNewTab"),
+          fallbackTitle: t("offerDetails"),
+        }}
+        typeLabel={getTypeLabel}
+      />
     </div>
   );
 }
