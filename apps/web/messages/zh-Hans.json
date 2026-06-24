@@ -1674,6 +1674,8 @@
         "saveDraft": "保存",
         "saveAsDraft": "保存为草稿",
         "createTask": "创建任务",
+        "scheduleTask": "安排任务",
+        "openSchedule": "设置计划",
         "cancel": "取消",
         "ctrl": "Ctrl",
         "chooseAgent": "选择智能体",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "移除附件",
         "save": "保存",
+        "openSchedule": "设置计划",
         "cancel": "取消",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "计划",
-        "description": "选择此任务的运行时间。",
-        "modeCards": {
-          "none": {
-            "title": "无计划",
-            "description": "任务保留在当前列。"
-          },
-          "now": {
-            "title": "立即运行",
-            "description": "立即将任务移至待办。"
-          },
-          "recurring": {
-            "title": "计划",
-            "description": "安排一次性或重复运行。"
-          }
-        },
+        "description": "安排一次性或重复运行。",
+        "clearSchedule": "移除计划",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

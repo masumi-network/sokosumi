@@ -101,14 +101,6 @@ async function applyTaskSchedule(
     return;
   }
 
-  if (schedule.mode === "now") {
-    if (hadSchedule) {
-      await taskScheduleService.clearSchedule(taskId);
-    }
-    await taskService.createTaskEvent(taskId, { status: TaskStatus.READY });
-    return;
-  }
-
   const body = selectionToApiBody(schedule);
   if (!body) {
     throw new Error("Invalid schedule");
@@ -123,10 +115,6 @@ function resolveCreateStatus(
 ): Extract<TaskStatus, "DRAFT" | "READY"> {
   if (!schedule || schedule.mode === "none") {
     return requestedStatus;
-  }
-
-  if (schedule.mode === "now") {
-    return TaskStatus.READY;
   }
 
   return TaskStatus.DRAFT;

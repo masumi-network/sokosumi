@@ -1674,6 +1674,8 @@
         "saveDraft": "保存",
         "saveAsDraft": "下書きとして保存",
         "createTask": "タスクを作成",
+        "scheduleTask": "タスクをスケジュール",
+        "openSchedule": "スケジュールを設定",
         "cancel": "キャンセル",
         "ctrl": "Ctrl",
         "chooseAgent": "エージェントを選択",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "添付ファイルを削除",
         "save": "保存",
+        "openSchedule": "スケジュールを設定",
         "cancel": "キャンセル",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "スケジュール",
-        "description": "このタスクをいつ実行するか選択します。",
-        "modeCards": {
-          "none": {
-            "title": "スケジュールなし",
-            "description": "現在の列に保持します。"
-          },
-          "now": {
-            "title": "今すぐ実行",
-            "description": "すぐにToDoに移動します。"
-          },
-          "recurring": {
-            "title": "スケジュール",
-            "description": "1回または繰り返し実行を計画します。"
-          }
-        },
+        "description": "1回または繰り返し実行を計画します。",
+        "clearSchedule": "スケジュールを削除",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

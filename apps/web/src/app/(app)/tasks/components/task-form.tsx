@@ -1,7 +1,13 @@
 "use client";
 
 import { TaskStatus } from "@sokosumi/utils";
-import { ArrowLeft, Command, CornerDownLeft, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  Command,
+  CornerDownLeft,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,7 +27,6 @@ import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { CompanyMark } from "@/components/agents/company-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
-import { TaskScheduleSection } from "@/components/task-schedule-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +63,7 @@ import { createTaskAttachmentUploadToast } from "./task-attachment-upload-toast"
 import { TaskCreatedCelebration } from "./task-created-celebration";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
+import { TaskScheduleModal } from "./task-schedule-modal";
 
 const EMPTY_AGENT_NAME_MAP = new Map<string, string>();
 
@@ -109,6 +115,8 @@ export interface TaskFormLabels {
   submit: string;
   saveAsDraft?: string;
   createTask?: string;
+  scheduleTask?: string;
+  openSchedule: string;
   cancel: string;
   ctrl: string;
   taskCreated?: string;
@@ -151,6 +159,7 @@ interface TaskFormProps {
     projectId?: string | null;
     skipDesignMdAttachment?: boolean;
     status: Extract<TaskStatus, "DRAFT" | "READY">;
+    schedule?: TaskScheduleSelection;
   }) => Promise<{ taskId: string; name?: string }>;
   showCancel?: boolean;
   onSubmittingChange?: (isSubmitting: boolean) => void;
@@ -226,6 +235,7 @@ export function TaskForm({
     useState<TaskScheduleSelection>(() =>
       metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
     );
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const hadSchedule = useMemo(
     () =>
       Boolean(
@@ -284,6 +294,7 @@ export function TaskForm({
 
   const isNameRequired = mode === "edit";
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
+  const hasSchedule = scheduleSelection.mode !== "none";
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
@@ -344,7 +355,9 @@ export function TaskForm({
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
-            const isDraft = desiredStatus === TaskStatus.DRAFT;
+            const isDraft =
+              desiredStatus === TaskStatus.DRAFT ||
+              scheduleSelection.mode !== "none";
             router.prefetch(`/tasks/${result.taskId}`);
             setCreatedTask({
               id: result.taskId,
@@ -529,6 +542,13 @@ export function TaskForm({
     }
     router.push("/tasks");
   };
+
+  function handleClearSchedule() {
+    setScheduleSelection({
+      mode: "none",
+      timezone: scheduleSelection.timezone,
+    });
+  }
 
   const handleGoToTask = () => {
     if (!createdTask) return;
@@ -812,14 +832,6 @@ export function TaskForm({
                   </div>
                 ) : null}
               </div>
-
-              <div className="space-y-2 border-t pt-4">
-                <TaskScheduleSection
-                  embedded
-                  initialSelection={scheduleSelection}
-                  onChange={setScheduleSelection}
-                />
-              </div>
             </div>
           ) : null}
 
@@ -858,16 +870,37 @@ export function TaskForm({
         </div>
 
         {showTaskStep ? (
+          <TaskScheduleModal
+            open={isScheduleModalOpen}
+            onOpenChange={setIsScheduleModalOpen}
+            initialSelection={scheduleSelection}
+            onApply={setScheduleSelection}
+            onClearSchedule={handleClearSchedule}
+          />
+        ) : null}
+
+        {showTaskStep ? (
           <div
             className={
               isModal
-                ? "flex shrink-0 flex-col items-stretch justify-end gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8"
-                : "flex flex-col items-stretch justify-end gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
+                ? "flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8"
+                : "flex flex-col items-stretch justify-between gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
             }
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 sm:ml-auto">
               {mode === "create" ? (
                 <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null}
+                    aria-label={labels.openSchedule}
+                    aria-pressed={hasSchedule}
+                    onClick={() => setIsScheduleModalOpen(true)}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -894,7 +927,11 @@ export function TaskForm({
                           aria-hidden
                         />
                       ) : null}
-                      {labels.createTask ?? labels.submit}
+                      {hasSchedule
+                        ? (labels.scheduleTask ??
+                          labels.createTask ??
+                          labels.submit)
+                        : (labels.createTask ?? labels.submit)}
                       {!isMobile ? (
                         <div className="flex items-center gap-0.5 opacity-60">
                           {os === "MacOS" ? (
@@ -929,6 +966,17 @@ export function TaskForm({
                   ) : (
                     <span />
                   )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null}
+                    aria-label={labels.openSchedule}
+                    aria-pressed={hasSchedule}
+                    onClick={() => setIsScheduleModalOpen(true)}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
                   <Button
                     type="button"
                     className="min-w-28 items-center justify-between gap-1"

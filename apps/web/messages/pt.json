@@ -1674,6 +1674,8 @@
         "saveDraft": "Guardar",
         "saveAsDraft": "Guardar como rascunho",
         "createTask": "Criar tarefa",
+        "scheduleTask": "Agendar tarefa",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "chooseAgent": "Escolha o seu agente",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "save": "Guardar",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "Agendamento",
-        "description": "Escolha quando esta tarefa deve ser executada.",
-        "modeCards": {
-          "none": {
-            "title": "Sem agendamento",
-            "description": "Manter a tarefa na coluna atual."
-          },
-          "now": {
-            "title": "Executar agora",
-            "description": "Mover a tarefa para A fazer imediatamente."
-          },
-          "recurring": {
-            "title": "Agendar",
-            "description": "Planear uma execução única ou recorrente."
-          }
-        },
+        "description": "Planear uma execução única ou recorrente.",
+        "clearSchedule": "Remover agendamento",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

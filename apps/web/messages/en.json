@@ -1706,6 +1706,8 @@
         "saveDraft": "Save",
         "saveAsDraft": "Save as Draft",
         "createTask": "Create Task",
+        "scheduleTask": "Schedule Task",
+        "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
@@ -1738,26 +1740,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "save": "Save",
+        "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "Schedule",
-        "description": "Choose when this task should run.",
-        "modeCards": {
-          "none": {
-            "title": "No schedule",
-            "description": "Keep the task in its current column."
-          },
-          "now": {
-            "title": "Run now",
-            "description": "Move the task to Todo immediately."
-          },
-          "recurring": {
-            "title": "Schedule",
-            "description": "Plan a one-time or recurring run."
-          }
-        },
+        "description": "Plan a one-time or recurring run.",
+        "clearSchedule": "Remove schedule",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

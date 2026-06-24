@@ -117,6 +117,7 @@ export default async function TaskEditModalPage({
         ),
         removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
+        openSchedule: tEdit("openSchedule"),
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),
       }}

@@ -140,6 +140,8 @@ const baseLabels = {
   submit: "Save",
   saveAsDraft: "Save as Draft",
   createTask: "Create Task",
+  scheduleTask: "Schedule Task",
+  openSchedule: "Set schedule",
   cancel: "Cancel",
   ctrl: "Ctrl",
   taskCreated: "Task created",
@@ -329,6 +331,111 @@ describe("TaskForm", () => {
     expect(createTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         status: TaskStatus.READY,
+      }),
+    );
+  });
+
+  it("opens schedule setup from the footer calendar button", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("timezone")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+
+    expect(screen.getByText("timezone")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "save" })).toBeInTheDocument();
+  });
+
+  it("changes the primary action to schedule task when a schedule is set", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: TaskStatus.READY,
+        schedule: expect.objectContaining({
+          mode: "once",
+          timezone: expect.any(String),
+          oneTimeLocalIso: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it("clears a configured schedule from the schedule modal", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+
+    expect(
+      screen.getByRole("button", { name: "Create Task" }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schedule: {
+          mode: "none",
+          timezone: expect.any(String),
+        },
       }),
     );
   });
@@ -546,7 +653,7 @@ describe("TaskForm", () => {
       skipDesignMdAttachment: true,
       schedule: {
         mode: "none",
-        timezone: "UTC",
+        timezone: expect.any(String),
       },
     });
   });
@@ -1023,7 +1130,7 @@ describe("TaskForm", () => {
       skipDesignMdAttachment: false,
       schedule: {
         mode: "none",
-        timezone: "UTC",
+        timezone: expect.any(String),
       },
     });
     expect(createTaskMock).not.toHaveBeenCalled();

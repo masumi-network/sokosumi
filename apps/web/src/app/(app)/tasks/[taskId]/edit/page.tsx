@@ -122,6 +122,7 @@ export default async function EditTaskPage({
         ),
         removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
+        openSchedule: tEdit("openSchedule"),
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),
       }}

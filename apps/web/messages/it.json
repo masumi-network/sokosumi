@@ -1674,6 +1674,8 @@
         "saveDraft": "Salva",
         "saveAsDraft": "Salva come bozza",
         "createTask": "Crea task",
+        "scheduleTask": "Programma attività",
+        "openSchedule": "Imposta pianificazione",
         "cancel": "Annulla",
         "ctrl": "Ctrl",
         "chooseAgent": "Scegli il tuo agente",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Rimuovi allegato",
         "save": "Salva",
+        "openSchedule": "Imposta pianificazione",
         "cancel": "Annulla",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "Pianificazione",
-        "description": "Scegli quando eseguire questa attività.",
-        "modeCards": {
-          "none": {
-            "title": "Nessuna pianificazione",
-            "description": "Mantieni l'attività nella colonna attuale."
-          },
-          "now": {
-            "title": "Esegui ora",
-            "description": "Sposta subito l'attività in Da fare."
-          },
-          "recurring": {
-            "title": "Pianifica",
-            "description": "Pianifica un'esecuzione singola o ricorrente."
-          }
-        },
+        "description": "Pianifica un'esecuzione singola o ricorrente.",
+        "clearSchedule": "Rimuovi pianificazione",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

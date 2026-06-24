@@ -1674,6 +1674,8 @@
         "saveDraft": "Guardar",
         "saveAsDraft": "Guardar como borrador",
         "createTask": "Crear Task",
+        "scheduleTask": "Programar tarea",
+        "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "chooseAgent": "Elige tu agente",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Eliminar adjunto",
         "save": "Guardar",
+        "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "Programación",
-        "description": "Elige cuándo debe ejecutarse esta tarea.",
-        "modeCards": {
-          "none": {
-            "title": "Sin programación",
-            "description": "Mantener la tarea en su columna actual."
-          },
-          "now": {
-            "title": "Ejecutar ahora",
-            "description": "Mover la tarea a Por hacer de inmediato."
-          },
-          "recurring": {
-            "title": "Programar",
-            "description": "Planificar una ejecución única o recurrente."
-          }
-        },
+        "description": "Planificar una ejecución única o recurrente.",
+        "clearSchedule": "Eliminar programación",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

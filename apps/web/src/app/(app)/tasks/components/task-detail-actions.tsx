@@ -241,6 +241,8 @@ export function TaskDetailActions({
     submit: tNewTask("saveDraft"),
     saveAsDraft: tNewTask("saveAsDraft"),
     createTask: tNewTask("createTask"),
+    scheduleTask: tNewTask("scheduleTask"),
+    openSchedule: tNewTask("openSchedule"),
     cancel: tNewTask("cancel"),
     ctrl: tNewTask("ctrl"),
   };
@@ -820,6 +822,7 @@ export function TaskDetailActions({
               coworkerId,
               projectId,
               status,
+              schedule,
             }) => {
               const linkInput = getTaskLinkActionInput(
                 selectedCreateRelatedOption.relation,
@@ -830,6 +833,7 @@ export function TaskDetailActions({
                 coworkerId,
                 projectId,
                 status,
+                schedule,
                 ...linkInput,
               });
 

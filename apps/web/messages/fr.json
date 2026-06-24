@@ -1674,6 +1674,8 @@
         "saveDraft": "Enregistrer",
         "saveAsDraft": "Enregistrer comme brouillon",
         "createTask": "Créer la tâche",
+        "scheduleTask": "Planifier la tâche",
+        "openSchedule": "Définir la planification",
         "cancel": "Annuler",
         "ctrl": "Ctrl",
         "chooseAgent": "Choisissez votre agent",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Supprimer la pièce jointe",
         "save": "Enregistrer",
+        "openSchedule": "Définir la planification",
         "cancel": "Annuler",
         "ctrl": "Ctrl"
       },
       "Schedule": {
         "title": "Planification",
-        "description": "Choisissez quand cette tâche doit s'exécuter.",
-        "modeCards": {
-          "none": {
-            "title": "Aucune planification",
-            "description": "La tâche reste dans sa colonne actuelle."
-          },
-          "now": {
-            "title": "Exécuter maintenant",
-            "description": "Déplacer la tâche vers À faire immédiatement."
-          },
-          "recurring": {
-            "title": "Planifier",
-            "description": "Planifier une exécution unique ou récurrente."
-          }
-        },
+        "description": "Planifier une exécution unique ou récurrente.",
+        "clearSchedule": "Supprimer la planification",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

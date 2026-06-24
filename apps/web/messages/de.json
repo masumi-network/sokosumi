@@ -1674,6 +1674,8 @@
         "saveDraft": "Speichern",
         "saveAsDraft": "Als Entwurf speichern",
         "createTask": "Task erstellen",
+        "scheduleTask": "Task planen",
+        "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "chooseAgent": "Wähle deinen Agenten",
@@ -1727,26 +1729,14 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Anhang entfernen",
         "save": "Speichern",
+        "openSchedule": "Zeitplan festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg"
       },
       "Schedule": {
         "title": "Zeitplan",
-        "description": "Wählen Sie, wann diese Aufgabe ausgeführt werden soll.",
-        "modeCards": {
-          "none": {
-            "title": "Kein Zeitplan",
-            "description": "Aufgabe bleibt in der aktuellen Spalte."
-          },
-          "now": {
-            "title": "Jetzt ausführen",
-            "description": "Aufgabe sofort nach Todo verschieben."
-          },
-          "recurring": {
-            "title": "Zeitplan",
-            "description": "Einmalige oder wiederkehrende Ausführung planen."
-          }
-        },
+        "description": "Einmalige oder wiederkehrende Ausführung planen.",
+        "clearSchedule": "Zeitplan entfernen",
         "option": {
           "oneTime": "One-time",
           "daily": "Daily",

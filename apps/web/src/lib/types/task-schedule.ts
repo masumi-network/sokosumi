@@ -7,7 +7,7 @@ export const TaskScheduleEndsMode = {
 export type TaskScheduleEndsMode =
   (typeof TaskScheduleEndsMode)[keyof typeof TaskScheduleEndsMode];
 
-export type TaskScheduleMode = "none" | "now" | "once" | "recurring";
+export type TaskScheduleMode = "none" | "once" | "recurring";
 
 export interface TaskScheduleSelection {
   mode: TaskScheduleMode;

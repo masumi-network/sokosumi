@@ -261,6 +261,8 @@ export function CreateTaskModal({
           submit: t("saveDraft"),
           saveAsDraft: t("saveAsDraft"),
           createTask: t("createTask"),
+          scheduleTask: t("scheduleTask"),
+          openSchedule: t("openSchedule"),
           cancel: t("cancel"),
           ctrl: t("ctrl"),
           taskCreated: t("taskCreated"),

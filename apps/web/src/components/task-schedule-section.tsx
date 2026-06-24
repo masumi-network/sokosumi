@@ -1,7 +1,6 @@
 "use client";
 
 import { CronExpressionParser as cronParser } from "cron-parser";
-import { CalendarClock, PlayCircle, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
@@ -43,14 +42,11 @@ import { cn } from "@/lib/utils";
 import { isValidCronExpression } from "@/lib/utils/task-schedule";
 
 enum TaskScheduleUiMode {
-  NOW = "NOW",
   ONE_TIME = "ONE_TIME",
   CRON = "CRON",
 }
 
 type ScheduleOption = "one-time" | "daily" | "weekly" | "monthly" | "custom";
-
-type ModeSelection = "none" | "now" | "recurring";
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -107,7 +103,6 @@ type ValidationErrors = {
 
 const scheduleFormSchema = z
   .object({
-    modeSelection: z.enum(["none", "now", "recurring"]),
     scheduleOption: z.enum([
       "one-time",
       "daily",
@@ -125,10 +120,6 @@ const scheduleFormSchema = z
     endAfterOccurrences: z.number().int().min(1).optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.modeSelection === "none" || data.modeSelection === "now") {
-      return;
-    }
-
     const now = new Date();
 
     function parseLocalIso(v?: string) {
@@ -138,10 +129,7 @@ const scheduleFormSchema = z
     }
 
     // One-time & presets must be future
-    if (
-      data.modeSelection === "recurring" &&
-      data.scheduleOption !== "custom"
-    ) {
+    if (data.scheduleOption !== "custom") {
       const dt = parseLocalIso(data.oneTimeLocalIso);
       if (!dt)
         ctx.addIssue({
@@ -158,10 +146,7 @@ const scheduleFormSchema = z
     }
 
     // Custom builder rules
-    if (
-      data.modeSelection === "recurring" &&
-      data.scheduleOption === "custom"
-    ) {
+    if (data.scheduleOption === "custom") {
       if (
         !data.timeOfDay ||
         !/^([01]?\d|2[0-3]):([0-5]\d)$/.test(data.timeOfDay)
@@ -239,18 +224,11 @@ function parseTimeOrNow(
 
 interface TaskScheduleSectionProps {
   initialSelection?: TaskScheduleSelection | null;
-  embedded?: boolean;
-  onChange?: (selection: TaskScheduleSelection) => void;
   onSave?: (selection: TaskScheduleSelection) => void;
   onCancel?: () => void;
-}
-
-function getInitialModeSelection(
-  selection?: TaskScheduleSelection | null,
-): ModeSelection {
-  if (!selection || selection.mode === "none") return "none";
-  if (selection.mode === "now") return "now";
-  return "recurring";
+  onClearSchedule?: () => void;
+  canClearSchedule?: boolean;
+  hideHeader?: boolean;
 }
 
 export function TaskScheduleSection(props: TaskScheduleSectionProps) {
@@ -259,9 +237,8 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     () => getTimezoneOptions(props.initialSelection?.timezone),
     [props.initialSelection?.timezone],
   );
-  const [mode, setMode] = useState<TaskScheduleUiMode>(TaskScheduleUiMode.NOW);
-  const [modeSelection, setModeSelection] = useState<ModeSelection>(() =>
-    getInitialModeSelection(props.initialSelection),
+  const [mode, setMode] = useState<TaskScheduleUiMode>(
+    TaskScheduleUiMode.ONE_TIME,
   );
   const [scheduleOption, setScheduleOption] =
     useState<ScheduleOption>("one-time");
@@ -299,14 +276,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   }, []);
 
   useEffect(() => {
-    if (modeSelection === "none" || modeSelection === "now") {
-      setErrors({});
-      setIsValid(true);
-      return;
-    }
-
     const formData = {
-      modeSelection,
       scheduleOption,
       oneTimeLocalIso,
       timeOfDay,
@@ -342,7 +312,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       setIsValid(false);
     }
   }, [
-    modeSelection,
     scheduleOption,
     oneTimeLocalIso,
     timeOfDay,
@@ -458,28 +427,19 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     setTimezone(sel.timezone);
 
     if (sel.mode === "none") {
-      setMode(TaskScheduleUiMode.NOW);
-      setModeSelection("none");
-      return;
-    }
-
-    if (sel.mode === "now") {
-      setMode(TaskScheduleUiMode.NOW);
-      setModeSelection("now");
+      setMode(TaskScheduleUiMode.ONE_TIME);
       setScheduleOption("one-time");
       return;
     }
 
     if (sel.mode === "once") {
       setMode(TaskScheduleUiMode.ONE_TIME);
-      setModeSelection("recurring");
       setScheduleOption("one-time");
       if (sel.oneTimeLocalIso) setOneTimeLocalIso(sel.oneTimeLocalIso);
       return;
     }
 
     setMode(TaskScheduleUiMode.CRON);
-    setModeSelection("recurring");
     const cron = sel.customCronExpr?.trim() || sel.cron || "";
     if (sel.customCronExpr) {
       setCustomCronExpr(sel.customCronExpr);
@@ -572,12 +532,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   ]);
 
   const emitSelection = useCallback((): TaskScheduleSelection => {
-    if (modeSelection === "none") {
-      return { mode: "none", timezone };
-    }
-    if (modeSelection === "now") {
-      return { mode: "now", timezone };
-    }
     if (scheduleOption === "one-time") {
       return { mode: "once", timezone, oneTimeLocalIso };
     }
@@ -607,7 +561,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           : undefined,
     };
   }, [
-    modeSelection,
     timezone,
     scheduleOption,
     oneTimeLocalIso,
@@ -619,11 +572,6 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     repeatEveryUnit,
     repeatEveryCount,
   ]);
-
-  useEffect(() => {
-    if (!props.embedded || !props.onChange) return;
-    props.onChange(emitSelection());
-  }, [props.embedded, props.onChange, emitSelection]);
 
   const nextPreview = useMemo(() => {
     if (mode !== TaskScheduleUiMode.CRON) return [] as string[];
@@ -679,176 +627,70 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     setMode(TaskScheduleUiMode.CRON);
   }
 
-  function handleModeSelectionChange(next: ModeSelection) {
-    setModeSelection(next);
-    if (next === "none") {
-      setMode(TaskScheduleUiMode.NOW);
-      return;
-    }
-    if (next === "now") {
-      setMode(TaskScheduleUiMode.NOW);
-      return;
-    }
-    handleScheduleOptionChange(scheduleOption);
-  }
-
   return (
     <div className="space-y-4">
-      {/* Mode selector */}
+      {!props.hideHeader ? (
+        <div className="mb-4 flex flex-col gap-2">
+          <h1 className="text-xl font-light">{t("title")}</h1>
+          <p className="text-muted-foreground text-xs">{t("description")}</p>
+        </div>
+      ) : null}
       <div className="space-y-2">
-        {!props.embedded ? (
-          <div className="mb-4 flex flex-col gap-2">
-            <h1 className="text-xl font-light">{t("title")}</h1>
-            <p className="text-muted-foreground text-xs">{t("description")}</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <h3 className="text-sm font-medium">{t("title")}</h3>
-            <p className="text-muted-foreground text-xs">{t("description")}</p>
-          </div>
-        )}
-        <RadioGroup
-          value={modeSelection}
-          onValueChange={(value) =>
-            handleModeSelectionChange(value as ModeSelection)
-          }
-          className="grid gap-2 md:grid-cols-3"
-        >
-          <Label
-            htmlFor="schedule-mode-none"
-            className={cn(
-              "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-all",
-              {
-                "border-primary ring-primary ring-1": modeSelection === "none",
-              },
-            )}
-          >
-            <div className="flex w-full items-start gap-3">
-              <CalendarClock className="size-6" />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm">{t("modeCards.none.title")}</p>
-                <p className="text-muted-foreground text-xs">
-                  {t("modeCards.none.description")}
-                </p>
-              </div>
-              <RadioGroupItem
-                id="schedule-mode-none"
-                value="none"
-                className="mt-1"
-              />
-            </div>
-          </Label>
-          <Label
-            htmlFor="schedule-mode-now"
-            className={cn(
-              "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-all",
-              {
-                "border-primary ring-primary ring-1": modeSelection === "now",
-              },
-            )}
-          >
-            <div className="flex w-full items-start gap-3">
-              <PlayCircle className="size-6" />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm">{t("modeCards.now.title")}</p>
-                <p className="text-muted-foreground text-xs">
-                  {t("modeCards.now.description")}
-                </p>
-              </div>
-              <RadioGroupItem
-                id="schedule-mode-now"
-                value="now"
-                className="mt-1"
-              />
-            </div>
-          </Label>
-          <Label
-            htmlFor="schedule-mode-recurring"
-            className={cn(
-              "hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-all",
-              {
-                "border-primary ring-primary ring-1":
-                  modeSelection === "recurring",
-              },
-            )}
-          >
-            <div className="flex w-full items-start gap-3">
-              <RefreshCw className="size-6" />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm">{t("modeCards.recurring.title")}</p>
-                <p className="text-muted-foreground text-xs">
-                  {t("modeCards.recurring.description")}
-                </p>
-              </div>
-              <RadioGroupItem
-                id="schedule-mode-recurring"
-                value="recurring"
-                className="mt-1"
-              />
-            </div>
-          </Label>
-        </RadioGroup>
-      </div>
-      {modeSelection === "recurring" && (
         <div className="space-y-2">
-          <div className="space-y-2">
-            <Label>{t("timezone")}</Label>
-            <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("timezone")} />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {timezoneOptions.map((zone) => (
-                  <SelectItem key={zone} value={zone}>
-                    {zone}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {scheduleOption !== "custom" && (
-            <div className="mb-4 space-y-3">
-              <div className="flex flex-col gap-2">
-                <Label>{t("pickDateTime")}</Label>
-                <Input
-                  type="datetime-local"
-                  value={oneTimeLocalIso}
-                  onChange={(e) => setOneTimeLocalIso(e.target.value)}
-                  aria-invalid={!!errors.oneTimeLocalIso}
-                  min={formatDateTimeLocalInput(new Date())}
-                />
-                {errors.oneTimeLocalIso ? (
-                  <p className="text-destructive mt-1 text-xs">
-                    {t(errors.oneTimeLocalIso)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          )}
-          <Select
-            value={scheduleOption}
-            onValueChange={(v) => {
-              const next = v as ScheduleOption;
-              handleScheduleOptionChange(next);
-            }}
-          >
+          <Label>{t("timezone")}</Label>
+          <Select value={timezone} onValueChange={setTimezone}>
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue placeholder={t("timezone")} />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
-              <SelectItem value="daily">{presetDisplayLabels.daily}</SelectItem>
-              <SelectItem value="weekly">
-                {presetDisplayLabels.weekly}
-              </SelectItem>
-              <SelectItem value="monthly">
-                {presetDisplayLabels.monthly}
-              </SelectItem>
-              <SelectItem value="custom">{t("option.custom")}</SelectItem>
+            <SelectContent className="max-h-72">
+              {timezoneOptions.map((zone) => (
+                <SelectItem key={zone} value={zone}>
+                  {zone}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-      )}
+        {scheduleOption !== "custom" && (
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-col gap-2">
+              <Label>{t("pickDateTime")}</Label>
+              <Input
+                type="datetime-local"
+                value={oneTimeLocalIso}
+                onChange={(e) => setOneTimeLocalIso(e.target.value)}
+                aria-invalid={!!errors.oneTimeLocalIso}
+                min={formatDateTimeLocalInput(new Date())}
+              />
+              {errors.oneTimeLocalIso ? (
+                <p className="text-destructive mt-1 text-xs">
+                  {t(errors.oneTimeLocalIso)}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+        <Select
+          value={scheduleOption}
+          onValueChange={(v) => {
+            const next = v as ScheduleOption;
+            handleScheduleOptionChange(next);
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
+            <SelectItem value="daily">{presetDisplayLabels.daily}</SelectItem>
+            <SelectItem value="weekly">{presetDisplayLabels.weekly}</SelectItem>
+            <SelectItem value="monthly">
+              {presetDisplayLabels.monthly}
+            </SelectItem>
+            <SelectItem value="custom">{t("option.custom")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       {mode === TaskScheduleUiMode.CRON && scheduleOption === "custom" && (
         <div className="space-y-6">
           <div className="space-y-2">
@@ -1104,8 +946,21 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           </div>
         </div>
       )}
-      {!props.embedded ? (
-        <div className="flex items-center justify-end gap-2 pt-2">
+      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {props.canClearSchedule ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                props.onClearSchedule?.();
+              }}
+            >
+              {t("clearSchedule")}
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex items-center justify-end gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -1124,7 +979,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
             {t("save")}
           </Button>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
