@@ -1664,6 +1664,7 @@
         "status": "状态",
         "statusDescription": "选择此任务的初始状态",
         "statusDraft": "草稿",
+        "statusQueued": "已排队",
         "statusReady": "就绪",
         "back": "返回",
         "uploadFile": "上传文件",

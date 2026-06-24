@@ -1664,6 +1664,7 @@
         "status": "ステータス",
         "statusDescription": "このタスクの初期ステータスを選択してください",
         "statusDraft": "下書き",
+        "statusQueued": "キュー中",
         "statusReady": "準備完了",
         "back": "戻る",
         "uploadFile": "ファイルをアップロード",

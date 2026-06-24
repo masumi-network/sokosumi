@@ -1696,6 +1696,7 @@
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
+        "statusQueued": "Queued",
         "statusReady": "Ready",
         "back": "Back",
         "uploadFile": "Upload File",

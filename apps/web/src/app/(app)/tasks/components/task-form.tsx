@@ -106,6 +106,7 @@ export interface TaskFormLabels {
   status: string;
   statusDescription: string;
   statusDraft: string;
+  statusQueued?: string;
   statusReady: string;
   markAsReady?: string;
   revertToDraft?: string;
@@ -254,8 +255,9 @@ export function TaskForm({
   const [createdTask, setCreatedTask] = useState<{
     id: string;
     name: string;
-    status: "DRAFT" | "READY";
+    status: "DRAFT" | "QUEUED" | "READY";
     statusLabel: string;
+    scheduleLabel?: string;
   } | null>(null);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
@@ -343,13 +345,11 @@ export function TaskForm({
   const showTaskStep = !useWizard || step === 2;
   const showCoworkerGrid = mode === "create" && !isModal;
   const useComposeLayout = isModal && mode === "create" && showTaskStep;
+  const useModalShellLayout = isModal;
+  const useModalScrollFill = isModal;
+  const useModalFieldFill = isModal && showTaskStep;
   const canUseSubmitShortcut = showTaskStep && !isSaveDisabled;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
-  const taskFieldsBorder = useComposeLayout
-    ? "border-t"
-    : !isModal
-      ? "border-t"
-      : "";
   const shouldShowEditToggle = mode === "edit";
   const statusToggleLabel =
     status === TaskStatus.DRAFT
@@ -382,15 +382,27 @@ export function TaskForm({
           // In the modal, confirm success in place and let the user choose when
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
-            const isDraft =
-              desiredStatus === TaskStatus.DRAFT ||
-              scheduleSelection.mode !== "none";
+            const createdStatus =
+              scheduleSelection.mode !== "none"
+                ? "QUEUED"
+                : desiredStatus === TaskStatus.DRAFT
+                  ? "DRAFT"
+                  : "READY";
             router.prefetch(`/tasks/${result.taskId}`);
             setCreatedTask({
               id: result.taskId,
               name: result.name?.trim() || "Untitled task",
-              status: isDraft ? "DRAFT" : "READY",
-              statusLabel: isDraft ? labels.statusDraft : labels.statusReady,
+              status: createdStatus,
+              statusLabel:
+                createdStatus === "QUEUED"
+                  ? (labels.statusQueued ?? "Queued")
+                  : createdStatus === "DRAFT"
+                    ? labels.statusDraft
+                    : labels.statusReady,
+              scheduleLabel:
+                createdStatus === "QUEUED"
+                  ? (scheduleLabel ?? undefined)
+                  : undefined,
             });
             onCreated?.(result.taskId);
             return;
@@ -451,8 +463,10 @@ export function TaskForm({
       onCreated,
       onCreateTask,
       scheduleSelection,
+      scheduleLabel,
       hadSchedule,
       labels.statusDraft,
+      labels.statusQueued,
       labels.statusReady,
     ],
   );
@@ -546,6 +560,11 @@ export function TaskForm({
     () => coworkerOptions.find((option) => option.id === coworkerId),
     [coworkerOptions, coworkerId],
   );
+  const showModalCoworkerHeader =
+    selectedOption !== undefined &&
+    (useComposeLayout || (isModal && mode === "edit"));
+  const taskFieldsBorder =
+    showModalCoworkerHeader || !isModal ? "border-t" : "";
   const cardLabels = useMemo(
     () => ({
       defaultBadge: labels.defaultBadge ?? "Default",
@@ -592,6 +611,7 @@ export function TaskForm({
         name={createdTask.name}
         status={createdTask.status}
         statusLabel={createdTask.statusLabel}
+        scheduleLabel={createdTask.scheduleLabel}
         labels={{
           taskCreated: labels.taskCreated ?? "Task created",
           taskCreatedHint: labels.taskCreatedHint,
@@ -607,11 +627,9 @@ export function TaskForm({
   return (
     <div
       className={
-        isModal && mode === "create"
+        useModalShellLayout
           ? "flex min-h-0 flex-1 flex-col"
-          : isModal
-            ? "space-y-6"
-            : "max-w-3xl space-y-6"
+          : "max-w-3xl space-y-6"
       }
     >
       {!isModal ? (
@@ -632,11 +650,9 @@ export function TaskForm({
 
       <section
         className={
-          isModal && mode === "create"
+          useModalShellLayout
             ? "flex min-h-0 flex-1 flex-col"
-            : isModal
-              ? "space-y-0"
-              : "rounded-xl border"
+            : "rounded-xl border"
         }
       >
         {!isModal ? (
@@ -650,8 +666,11 @@ export function TaskForm({
 
         <div
           className={
-            isModal && mode === "create"
-              ? "[&::-webkit-scrollbar-thumb]:bg-border/80 flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+            useModalShellLayout
+              ? cn(
+                  "[&::-webkit-scrollbar-thumb]:bg-border/80 min-h-0 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent",
+                  useModalScrollFill && "flex flex-1 flex-col",
+                )
               : "contents"
           }
         >
@@ -709,7 +728,7 @@ export function TaskForm({
             </TaskFormModalHeaderStart>
           ) : null}
 
-          {useComposeLayout && selectedOption ? (
+          {showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
               <Avatar className="ring-border size-9 shrink-0 rounded-full ring-1">
                 <AvatarImage
@@ -746,7 +765,7 @@ export function TaskForm({
               className={cn(
                 "space-y-4 px-6 py-5 md:px-8",
                 taskFieldsBorder,
-                useComposeLayout && "flex min-h-0 flex-1 flex-col",
+                useModalFieldFill && "flex min-h-0 flex-1 flex-col",
               )}
             >
               {useComposeLayout && selectedOption ? (
@@ -789,12 +808,12 @@ export function TaskForm({
               <div
                 className={cn(
                   "space-y-2",
-                  useComposeLayout && "flex min-h-0 flex-1 flex-col",
+                  useModalFieldFill && "flex min-h-0 flex-1 flex-col",
                 )}
               >
                 <Label htmlFor="task-description">{labels.details}</Label>
                 <FileUpload
-                  className={cn(useComposeLayout && "min-h-0 flex-1")}
+                  className={cn(useModalFieldFill && "min-h-0 flex-1")}
                   value={pendingUploadFiles}
                   onValueChange={setPendingUploadFiles}
                   onAccept={(files) => {
@@ -805,7 +824,7 @@ export function TaskForm({
                   <FileUploadDropzone
                     className={cn(
                       "data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent",
-                      useComposeLayout && "min-h-0 flex-1",
+                      useModalFieldFill && "min-h-0 flex-1",
                     )}
                     onClick={(event) => event.preventDefault()}
                   >
@@ -815,10 +834,10 @@ export function TaskForm({
                       placeholder={labels.descriptionPlaceholder}
                       className={cn(
                         "w-full",
-                        useComposeLayout && "flex min-h-0 flex-1 flex-col",
+                        useModalFieldFill && "flex min-h-0 flex-1 flex-col",
                       )}
                       editorClassName={
-                        useComposeLayout ? "max-h-none flex-1" : undefined
+                        useModalFieldFill ? "max-h-none flex-1" : undefined
                       }
                       value={description}
                       onChange={setDescription}
@@ -980,6 +999,17 @@ export function TaskForm({
                 </>
               ) : (
                 <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={createdTask !== null}
+                    aria-label={labels.openSchedule}
+                    aria-pressed={hasSchedule}
+                    onClick={() => setIsScheduleModalOpen(true)}
+                  >
+                    <CalendarClock className="size-4" aria-hidden />
+                  </Button>
                   {shouldShowEditToggle ? (
                     <Button
                       type="button"
@@ -999,17 +1029,6 @@ export function TaskForm({
                   ) : (
                     <span />
                   )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    disabled={createdTask !== null}
-                    aria-label={labels.openSchedule}
-                    aria-pressed={hasSchedule}
-                    onClick={() => setIsScheduleModalOpen(true)}
-                  >
-                    <CalendarClock className="size-4" aria-hidden />
-                  </Button>
                   <Button
                     type="button"
                     className="min-w-28 items-center justify-between gap-1"

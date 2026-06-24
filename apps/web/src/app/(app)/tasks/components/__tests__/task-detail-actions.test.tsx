@@ -587,6 +587,17 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
+  it("shows edit for queued tasks", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TASK_STATUS.QUEUED,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
+  });
+
   it("hides archive while the coworker is running", async () => {
     const user = userEvent.setup();
     renderActions({

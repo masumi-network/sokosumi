@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/utils";
+import { isTaskEditableStatus } from "@sokosumi/utils";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -30,10 +30,7 @@ export default async function TaskEditModalPage({
     return notFound();
   }
 
-  if (
-    taskResult.status !== TaskStatus.DRAFT &&
-    taskResult.status !== TaskStatus.READY
-  ) {
+  if (!isTaskEditableStatus(taskResult.status)) {
     redirect(`/tasks/${taskId}`);
   }
 

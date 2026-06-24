@@ -261,4 +261,44 @@ describe("PATCH /tasks/{id}", () => {
       }),
     );
   });
+
+  it("updates metadata for a queued task", async () => {
+    const app = createApp();
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.QUEUED,
+      coworkerId: "cow_123",
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+    });
+    taskUpdateMock.mockResolvedValue({
+      ...createTaskApi(null),
+      status: TaskStatus.QUEUED,
+      name: "Updated queued task",
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Updated queued task",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
+          },
+        }),
+        data: expect.objectContaining({
+          name: "Updated queued task",
+        }),
+      }),
+    );
+  });
 });

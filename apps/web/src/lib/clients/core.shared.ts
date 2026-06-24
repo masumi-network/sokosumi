@@ -265,6 +265,9 @@ function transformTaskResponseEnvelope(data: any) {
 
   task.createdAt = toDate(task.createdAt);
   task.updatedAt = toDate(task.updatedAt);
+  if (task.nextRunAt) {
+    task.nextRunAt = toDate(task.nextRunAt);
+  }
   task.events = task.events.map((event: any) => ({
     ...event,
     createdAt: toDate(event.createdAt),

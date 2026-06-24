@@ -135,6 +135,7 @@ const baseLabels = {
   status: "Status",
   statusDescription: "Pick status",
   statusDraft: "Draft",
+  statusQueued: "Queued",
   statusReady: "Ready",
   markAsReady: "Mark as Ready",
   revertToDraft: "Revert to Draft",
@@ -402,6 +403,36 @@ describe("TaskForm", () => {
     );
   });
 
+  it("shows a queued celebration after creating a scheduled task", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({
+      taskId: "task-scheduled",
+      name: "Scheduled docs",
+    });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+
+    expect(await screen.findByText("Queued")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled docs")).toBeInTheDocument();
+    expect(screen.queryByText("Draft")).not.toBeInTheDocument();
+  });
+
   it("clears a configured schedule from the schedule modal", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
@@ -504,6 +535,11 @@ describe("TaskForm", () => {
         onSuccess={vi.fn()}
       />,
     );
+
+    expect(screen.getByText("Soko")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Soko/i }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Mark as Ready" }));
     expect(

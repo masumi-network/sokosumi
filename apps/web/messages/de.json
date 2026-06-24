@@ -1664,6 +1664,7 @@
         "status": "Status",
         "statusDescription": "Wähle den Anfangsstatus für diesen Task",
         "statusDraft": "Entwurf",
+        "statusQueued": "In Warteschlange",
         "statusReady": "Bereit",
         "back": "Zurück",
         "uploadFile": "Datei hochladen",

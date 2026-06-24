@@ -1664,6 +1664,7 @@
         "status": "Estado",
         "statusDescription": "Escolha o estado inicial desta tarefa",
         "statusDraft": "Rascunho",
+        "statusQueued": "Na fila",
         "statusReady": "Pronta",
         "back": "Voltar",
         "uploadFile": "Carregar ficheiro",

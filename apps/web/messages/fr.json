@@ -1664,6 +1664,7 @@
         "status": "Statut",
         "statusDescription": "Choisissez le statut initial de cette tâche",
         "statusDraft": "Brouillon",
+        "statusQueued": "En file d'attente",
         "statusReady": "Prêt",
         "back": "Retour",
         "uploadFile": "Téléverser un fichier",

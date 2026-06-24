@@ -1,15 +1,19 @@
 "use client";
 
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Clock } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
+import { COLUMN_STATUS_COLORS, type KanbanColumnId } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
+
+type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";
 
 interface TaskCreatedCelebrationProps {
   name: string;
-  status: "DRAFT" | "READY";
+  status: CelebrationTaskStatus;
   statusLabel: string;
+  scheduleLabel?: string;
   labels: {
     taskCreated: string;
     taskCreatedHint?: string;
@@ -21,12 +25,36 @@ interface TaskCreatedCelebrationProps {
 }
 
 // A 3-column slice of the real kanban board (matching its column dot colors).
-// A new READY task lands in "To Do", a DRAFT in "Backlog".
-const COLUMNS = [
-  { id: "backlog", dot: "bg-muted-foreground" },
-  { id: "todo", dot: "bg-blue-500" },
-  { id: "in-progress", dot: "bg-amber-500" },
+// A DRAFT task lands in "Backlog", READY in "To Do", QUEUED in "Scheduled".
+const COLUMNS: Array<{ id: KanbanColumnId; dot: string }> = [
+  { id: "backlog", dot: COLUMN_STATUS_COLORS.backlog },
+  { id: "todo", dot: COLUMN_STATUS_COLORS.todo },
+  { id: "scheduled", dot: COLUMN_STATUS_COLORS.scheduled },
 ];
+
+const STATUS_COLUMN_INDEX: Record<CelebrationTaskStatus, number> = {
+  DRAFT: 0,
+  READY: 1,
+  QUEUED: 2,
+};
+
+const STATUS_CARD_STYLES: Record<
+  CelebrationTaskStatus,
+  { badge: string; dot: string }
+> = {
+  DRAFT: {
+    badge: "bg-muted text-muted-foreground",
+    dot: "bg-gray-400",
+  },
+  READY: {
+    badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    dot: COLUMN_STATUS_COLORS.todo,
+  },
+  QUEUED: {
+    badge: "bg-primary/10 text-primary",
+    dot: COLUMN_STATUS_COLORS.scheduled,
+  },
+};
 
 // Small confetti burst over the landing column — deterministic (no hydration jitter).
 const CONFETTI = [
@@ -45,17 +73,15 @@ export function TaskCreatedCelebration({
   name,
   status,
   statusLabel,
+  scheduleLabel,
   labels,
   onGoToTask,
   onCreateAnother,
 }: TaskCreatedCelebrationProps) {
   const reduceMotion = useReducedMotion();
-  const targetIndex = status === "DRAFT" ? 0 : 1;
-  const cardDot = status === "DRAFT" ? "bg-gray-400" : "bg-blue-500";
-  const cardBadge =
-    status === "DRAFT"
-      ? "bg-muted text-muted-foreground"
-      : "bg-blue-500/10 text-blue-600 dark:text-blue-400";
+  const targetIndex = STATUS_COLUMN_INDEX[status];
+  const cardStyles = STATUS_CARD_STYLES[status];
+  const isQueued = status === "QUEUED";
   const confettiLeft = `${((targetIndex + 0.5) / COLUMNS.length) * 100}%`;
 
   return (
@@ -122,15 +148,27 @@ export function TaskCreatedCelebration({
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[9px] font-medium",
-                        cardBadge,
+                        cardStyles.badge,
                       )}
                     >
-                      <span className={cn("size-1 rounded-full", cardDot)} />
+                      <span
+                        className={cn(
+                          "size-1 rounded-full",
+                          cardStyles.dot,
+                          isQueued && !reduceMotion && "animate-pulse",
+                        )}
+                      />
                       {statusLabel}
                     </span>
                     <p className="text-foreground line-clamp-2 text-[11px] leading-snug font-medium">
                       {name}
                     </p>
+                    {isQueued && scheduleLabel ? (
+                      <div className="text-muted-foreground flex min-w-0 items-center gap-1 text-[9px] leading-none">
+                        <Clock className="size-2.5 shrink-0" aria-hidden />
+                        <span className="truncate">{scheduleLabel}</span>
+                      </div>
+                    ) : null}
                     {/* Settle highlight */}
                     {reduceMotion ? null : (
                       <motion.span
@@ -141,7 +179,7 @@ export function TaskCreatedCelebration({
                         transition={{ duration: 0.9, delay: 0.3 }}
                       />
                     )}
-                    {/* Check pop */}
+                    {/* Status pop */}
                     <motion.span
                       aria-hidden
                       className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full shadow-sm"
@@ -158,7 +196,11 @@ export function TaskCreatedCelebration({
                             }
                       }
                     >
-                      <Check className="size-2.5" strokeWidth={3} />
+                      {isQueued ? (
+                        <Clock className="size-2.5" strokeWidth={2.5} />
+                      ) : (
+                        <Check className="size-2.5" strokeWidth={3} />
+                      )}
                     </motion.span>
                   </motion.div>
                 ) : (

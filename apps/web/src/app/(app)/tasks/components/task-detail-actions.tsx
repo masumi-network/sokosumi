@@ -1,6 +1,6 @@
 "use client";
 
-import { isTaskArchivableStatus } from "@sokosumi/utils";
+import { isTaskArchivableStatus, isTaskEditableStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
@@ -167,9 +167,7 @@ export function TaskDetailActions({
 
   const statusActions = isReadOnly ? [] : getTaskStatusActions(status, labels);
 
-  const canEdit =
-    !isReadOnly &&
-    (status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY);
+  const canEdit = !isReadOnly && isTaskEditableStatus(status);
   const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
@@ -225,6 +223,7 @@ export function TaskDetailActions({
     status: tNewTask("status"),
     statusDescription: tNewTask("statusDescription"),
     statusDraft: tNewTask("statusDraft"),
+    statusQueued: tNewTask("statusQueued"),
     statusReady: tNewTask("statusReady"),
     back: tNewTask("back"),
     uploadFile: tNewTask("uploadFile"),

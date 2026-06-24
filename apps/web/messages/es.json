@@ -1664,6 +1664,7 @@
         "status": "Estado",
         "statusDescription": "Elige el estado inicial de este Task",
         "statusDraft": "Borrador",
+        "statusQueued": "En cola",
         "statusReady": "Listo",
         "back": "Atrás",
         "uploadFile": "Subir archivo",
