@@ -206,6 +206,8 @@ const scheduleFormSchema = z
     }
   });
 
+const ENDS_OPTION_LABEL_CLASS = "min-w-16 shrink-0 whitespace-nowrap";
+
 function getDefaultTime(): string {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
@@ -832,11 +834,13 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
                   id="ends-never"
                   value={TaskScheduleEndsMode.NEVER}
                 />
-                <Label htmlFor="ends-never">{t("never")}</Label>
+                <Label htmlFor="ends-never" className={ENDS_OPTION_LABEL_CLASS}>
+                  {t("never")}
+                </Label>
               </div>
               <div className="flex items-center gap-3">
                 <RadioGroupItem id="ends-on" value={TaskScheduleEndsMode.ON} />
-                <Label htmlFor="ends-on" className="mr-2 min-w-10">
+                <Label htmlFor="ends-on" className={ENDS_OPTION_LABEL_CLASS}>
                   {t("on")}
                 </Label>
                 <div className="relative w-full">
@@ -873,7 +877,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
                   id="ends-after"
                   value={TaskScheduleEndsMode.AFTER}
                 />
-                <Label htmlFor="ends-after" className="mr-2 min-w-10">
+                <Label htmlFor="ends-after" className={ENDS_OPTION_LABEL_CLASS}>
                   {t("after")}
                 </Label>
                 <Input
