@@ -15,6 +15,7 @@ export interface TaskScheduleSelection {
   oneTimeLocalIso?: string;
   cron?: string;
   customCronExpr?: string;
+  intervalDays?: number;
   endsMode?: TaskScheduleEndsMode;
   endOnLocalDate?: string;
   endAfterOccurrences?: number;

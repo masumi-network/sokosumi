@@ -153,3 +153,24 @@ export function endOfLocalDateInTimezone(
 
   return new Date(startOfNextDay.getTime() - 1);
 }
+
+/** Gregorian calendar weekday: 0 = Sunday, 6 = Saturday. */
+export function gregorianDayOfWeek(
+  year: number,
+  month: number,
+  day: number,
+): number {
+  const monthIndex = month - 1;
+  const monthOffsets = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+  const adjustedYear = month < 3 ? year - 1 : year;
+
+  return (
+    (adjustedYear +
+      Math.floor(adjustedYear / 4) -
+      Math.floor(adjustedYear / 100) +
+      Math.floor(adjustedYear / 400) +
+      monthOffsets[monthIndex] +
+      day) %
+    7
+  );
+}

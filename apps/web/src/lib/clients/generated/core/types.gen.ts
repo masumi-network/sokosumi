@@ -2454,6 +2454,14 @@ export type PutTaskScheduleRequest = {
      * Remaining occurrences when endsMode is after
      */
     occurrences?: number;
+    /**
+     * When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps
+     */
+    intervalDays?: number;
+    /**
+     * First run instant for intervalDays schedules (required when intervalDays > 1)
+     */
+    anchorAt?: Date;
 };
 
 /**

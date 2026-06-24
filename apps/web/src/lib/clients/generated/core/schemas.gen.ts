@@ -8897,6 +8897,18 @@ export const PutTaskScheduleRequestSchema = {
                     exclusiveMinimum: 0,
                     description: 'Remaining occurrences when endsMode is after',
                     example: 10
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
+                    example: 2
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
                 }
             },
             required: [

@@ -8,6 +8,54 @@ import { badRequest, unprocessableEntity } from "@/helpers/error";
 
 import type { PutTaskScheduleRequest } from "@/schemas/task-schedule.schema";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const LEGACY_INTERVAL_DAYS_CRON_PATTERN = /^(\d+) (\d+) \*\/(\d+) \* \*$/;
+
+export function inferLegacyIntervalDaysFromCron(expr: string): number | null {
+  const match = LEGACY_INTERVAL_DAYS_CRON_PATTERN.exec(expr.trim());
+  if (!match) {
+    return null;
+  }
+
+  const intervalDays = Number(match[3]);
+  return intervalDays > 1 ? intervalDays : null;
+}
+
+export function computeIntervalNextRun(
+  anchorAt: Date,
+  intervalDays: number,
+  from: Date,
+): Date {
+  if (from <= anchorAt) {
+    return anchorAt;
+  }
+
+  const elapsedMs = from.getTime() - anchorAt.getTime();
+  const periods = Math.floor(elapsedMs / (intervalDays * MS_PER_DAY)) + 1;
+  return new Date(anchorAt.getTime() + periods * intervalDays * MS_PER_DAY);
+}
+
+function resolveRecurringIntervalDays(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+): number | null {
+  if (metadata.intervalDays != null && metadata.intervalDays > 1) {
+    return metadata.intervalDays;
+  }
+
+  return inferLegacyIntervalDaysFromCron(metadata.expr);
+}
+
+function resolveRecurringAnchorAt(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+): Date | null {
+  if (metadata.anchorAt) {
+    return new Date(metadata.anchorAt);
+  }
+
+  return new Date(metadata.scheduledAt);
+}
+
 export function isValidTimezone(timezone: string): boolean {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: timezone });
@@ -56,6 +104,8 @@ export function buildTaskScheduleMetadata(
     endsMode: input.endsMode ?? "never",
     ...(input.endsOn ? { endsOn: input.endsOn } : {}),
     ...(input.occurrences != null ? { occurrences: input.occurrences } : {}),
+    ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
+    ...(input.anchorAt ? { anchorAt: input.anchorAt } : {}),
   };
 }
 
@@ -65,6 +115,16 @@ export function computeScheduleNextRun(
 ): Date | null {
   if (metadata.mode === "once") {
     return new Date(metadata.runAt);
+  }
+
+  const intervalDays = resolveRecurringIntervalDays(metadata);
+  if (intervalDays != null) {
+    const anchorAt = resolveRecurringAnchorAt(metadata);
+    if (!anchorAt || Number.isNaN(anchorAt.getTime())) {
+      return null;
+    }
+
+    return computeIntervalNextRun(anchorAt, intervalDays, from ?? new Date());
   }
 
   return computeNextRun({
@@ -93,10 +153,27 @@ export function validateScheduleInput(input: PutTaskScheduleRequest): void {
     throw badRequest("timezone is invalid");
   }
 
-  const nextRun = computeNextRun({
-    cron: input.expr,
-    timezone,
-  });
+  let nextRun: Date | null;
+  if (input.intervalDays != null && input.intervalDays > 1) {
+    if (!input.anchorAt) {
+      throw badRequest(
+        "anchorAt is required when intervalDays is greater than 1",
+      );
+    }
+
+    const anchorAt = new Date(input.anchorAt);
+    if (Number.isNaN(anchorAt.getTime())) {
+      throw badRequest("anchorAt must be a valid datetime");
+    }
+
+    nextRun = computeIntervalNextRun(anchorAt, input.intervalDays, new Date());
+  } else {
+    nextRun = computeNextRun({
+      cron: input.expr,
+      timezone,
+    });
+  }
+
   if (!nextRun) {
     throw badRequest("expr is not a valid cron expression for the timezone");
   }
@@ -121,6 +198,21 @@ export function isRecurringScheduleEnded(
 ): boolean {
   if (metadata.endsMode === "on" && metadata.endsOn) {
     return now >= new Date(metadata.endsOn);
+  }
+
+  if (metadata.endsMode === "after") {
+    return metadata.occurrences != null && metadata.occurrences <= 0;
+  }
+
+  return false;
+}
+
+export function isDueRunPastScheduleEnd(
+  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
+  dueAt: Date,
+): boolean {
+  if (metadata.endsMode === "on" && metadata.endsOn) {
+    return dueAt > new Date(metadata.endsOn);
   }
 
   if (metadata.endsMode === "after") {

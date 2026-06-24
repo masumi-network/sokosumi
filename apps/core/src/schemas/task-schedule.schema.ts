@@ -33,6 +33,16 @@ const taskScheduleRecurringInputSchema = z
       description: "Remaining occurrences when endsMode is after",
       example: 10,
     }),
+    intervalDays: z.number().int().positive().optional().openapi({
+      description:
+        "When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps",
+      example: 2,
+    }),
+    anchorAt: dateTimeSchema.optional().openapi({
+      description:
+        "First run instant for intervalDays schedules (required when intervalDays > 1)",
+      example: "2026-06-24T09:00:00.000Z",
+    }),
   })
   .superRefine((data, ctx) => {
     if (data.endsMode === "on" && !data.endsOn) {
@@ -48,6 +58,14 @@ const taskScheduleRecurringInputSchema = z
         code: "custom",
         message: "occurrences is required when endsMode is after",
         path: ["occurrences"],
+      });
+    }
+
+    if (data.intervalDays != null && data.intervalDays > 1 && !data.anchorAt) {
+      ctx.addIssue({
+        code: "custom",
+        message: "anchorAt is required when intervalDays is greater than 1",
+        path: ["anchorAt"],
       });
     }
   });

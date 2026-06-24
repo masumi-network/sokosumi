@@ -22,6 +22,8 @@ export const taskScheduleRecurringMetadataSchema =
     endsMode: z.enum(["never", "on", "after"]).default("never"),
     endsOn: isoDateTimeSchema.optional(),
     occurrences: z.number().int().positive().optional(),
+    intervalDays: z.number().int().positive().optional(),
+    anchorAt: isoDateTimeSchema.optional(),
   });
 
 export const taskScheduleMetadataSchema = z

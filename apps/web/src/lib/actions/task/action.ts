@@ -195,14 +195,15 @@ async function createTaskFromDescription(input: {
     status: resolveCreateStatus(input.status, input.schedule),
   });
 
-  if (
-    input.schedule &&
-    (input.schedule.mode === "once" || input.schedule.mode === "recurring")
-  ) {
-    await applyTaskSchedule(task.id, input.schedule, false);
+  try {
+    if (input.schedule) {
+      await applyTaskSchedule(task.id, input.schedule, false);
+    }
+    return task;
+  } catch (error) {
+    await archiveCreatedTaskAfterFailure(task.id);
+    throw error;
   }
-
-  return task;
 }
 
 async function collectParentLinksToReplace(input: {
@@ -378,6 +379,11 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
 
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
+
+      if (schedule) {
+        await applyTaskSchedule(taskId, schedule, hadSchedule);
+      }
+
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
@@ -391,10 +397,6 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
         await taskService.createTaskEvent(taskId, {
           status: desiredStatus,
         });
-      }
-
-      if (schedule) {
-        await applyTaskSchedule(taskId, schedule, hadSchedule);
       }
 
       revalidatePath("/tasks");

@@ -2,9 +2,9 @@ import { type Prisma, TaskEventOrigin, TaskLinkType } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/database/types/task-schedule-metadata";
 import { TaskStatus } from "@sokosumi/utils";
 
-import { computeNextRun } from "@/helpers/cron";
 import {
-  isRecurringScheduleEnded,
+  computeScheduleNextRun,
+  isDueRunPastScheduleEnd,
   parseTaskScheduleMetadata,
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
@@ -132,6 +132,35 @@ function shouldEndRecurringAfterRun(
   return nextRunAt == null;
 }
 
+async function cloneRecurringOccurrence(
+  tx: Prisma.TransactionClient,
+  template: Prisma.TaskGetPayload<{
+    select: {
+      id: true;
+      userId: true;
+      organizationId: true;
+      workspaceId: true;
+      projectId: true;
+      coworkerId: true;
+      name: true;
+      description: true;
+    };
+  }>,
+): Promise<void> {
+  const clone = await tx.task.create({
+    data: getCloneTaskData(template),
+    select: { id: true },
+  });
+
+  await tx.taskLink.create({
+    data: {
+      fromTaskId: template.id,
+      toTaskId: clone.id,
+      type: TaskLinkType.PARENT,
+    },
+  });
+}
+
 async function processDueTask(
   templateId: string,
 ): Promise<"promoted" | "cloned" | "skipped"> {
@@ -153,10 +182,11 @@ async function processDueTask(
         name: true,
         description: true,
         metadata: true,
+        nextRunAt: true,
       },
     });
 
-    if (!template) {
+    if (!template || !template.nextRunAt) {
       return "skipped";
     }
 
@@ -172,40 +202,45 @@ async function processDueTask(
     }
 
     const now = new Date();
-    if (isRecurringScheduleEnded(scheduleMetadata, now)) {
-      await clearTemplateSchedule(tx, template.id);
-      return "skipped";
+    let metadata = scheduleMetadata;
+    let nextRunAt = template.nextRunAt;
+    let clonesCreated = 0;
+
+    while (nextRunAt && nextRunAt <= now) {
+      if (isDueRunPastScheduleEnd(metadata, nextRunAt)) {
+        break;
+      }
+
+      await cloneRecurringOccurrence(tx, template);
+      clonesCreated += 1;
+
+      metadata = getUpdatedRecurringMetadata(metadata, nextRunAt);
+      const computedNextRun = computeScheduleNextRun(metadata, nextRunAt);
+
+      if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
+        await clearTemplateSchedule(tx, template.id);
+        return clonesCreated > 0 ? "cloned" : "skipped";
+      }
+
+      if (!computedNextRun) {
+        await clearTemplateSchedule(tx, template.id);
+        return clonesCreated > 0 ? "cloned" : "skipped";
+      }
+
+      nextRunAt = computedNextRun;
     }
 
-    const clone = await tx.task.create({
-      data: getCloneTaskData(template),
-      select: { id: true },
-    });
-
-    await tx.taskLink.create({
-      data: {
-        fromTaskId: template.id,
-        toTaskId: clone.id,
-        type: TaskLinkType.PARENT,
-      },
-    });
-
-    const updatedMetadata = getUpdatedRecurringMetadata(scheduleMetadata, now);
-    const nextRunAt = computeNextRun({
-      cron: scheduleMetadata.expr,
-      timezone: scheduleMetadata.timezone,
-      from: now,
-    });
-
-    if (shouldEndRecurringAfterRun(updatedMetadata, nextRunAt)) {
-      await clearTemplateSchedule(tx, template.id);
-      return "cloned";
+    if (clonesCreated === 0) {
+      if (isDueRunPastScheduleEnd(metadata, template.nextRunAt)) {
+        await clearTemplateSchedule(tx, template.id);
+      }
+      return "skipped";
     }
 
     await tx.task.update({
       where: { id: template.id },
       data: {
-        metadata: JSON.stringify(updatedMetadata),
+        metadata: JSON.stringify(metadata),
         nextRunAt,
       },
     });

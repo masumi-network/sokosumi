@@ -31,7 +31,10 @@ import {
   parseCron,
 } from "@/lib/schedules/cron";
 import { getTimezoneOptions } from "@/lib/schedules/timezones";
-import { parseDateTimeLocalParts } from "@/lib/schedules/zoned-datetime";
+import {
+  gregorianDayOfWeek,
+  parseDateTimeLocalParts,
+} from "@/lib/schedules/zoned-datetime";
 import {
   TaskScheduleEndsMode,
   type TaskScheduleSelection,
@@ -515,7 +518,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     const now = new Date();
     const [hour, minute] = parseTimeOrNow(timeOfDay, now);
     if (repeatEveryUnit === "day") {
-      return `${minute} ${hour} */${Math.max(1, repeatEveryCount)} * *`;
+      return `${minute} ${hour} * * *`;
     }
     if (repeatEveryUnit === "week") {
       const fallbackDay: Dow = DOW[now.getDay() as number];
@@ -543,7 +546,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     if (scheduleOption === "daily") return `${minute} ${hour} * * *`;
 
     if (scheduleOption === "weekly") {
-      const weekday = DOW[new Date(year, month - 1, day).getDay() as number];
+      const weekday = DOW[gregorianDayOfWeek(year, month, day) as number];
       return `${minute} ${hour} * * ${weekday}`;
     }
 
@@ -579,12 +582,20 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
       return { mode: "once", timezone, oneTimeLocalIso };
     }
     const cron = getSelectedCron() ?? undefined;
+    const intervalDays =
+      scheduleOption === "custom" &&
+      repeatEveryUnit === "day" &&
+      repeatEveryCount > 1
+        ? repeatEveryCount
+        : undefined;
+
     return {
       mode: "recurring",
       timezone,
       oneTimeLocalIso,
       cron,
       customCronExpr: scheduleOption === "custom" ? customCronExpr : undefined,
+      ...(intervalDays != null ? { intervalDays } : {}),
       endsMode,
       endOnLocalDate:
         endsMode === TaskScheduleEndsMode.ON && endOnDate
@@ -605,6 +616,8 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     endsMode,
     endOnDate,
     endAfterOccurrences,
+    repeatEveryUnit,
+    repeatEveryCount,
   ]);
 
   useEffect(() => {

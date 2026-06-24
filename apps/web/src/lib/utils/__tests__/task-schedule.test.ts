@@ -34,4 +34,23 @@ describe("selectionToApiBody", () => {
       endsOn: new Date("2026-06-25T03:59:59.999Z"),
     });
   });
+
+  it("sends interval metadata for every-N-days schedules", () => {
+    const body = selectionToApiBody({
+      mode: "recurring",
+      timezone: "America/New_York",
+      oneTimeLocalIso: "2026-06-24T09:00",
+      cron: "0 9 * * *",
+      intervalDays: 2,
+    });
+
+    expect(body).toEqual({
+      mode: "recurring",
+      expr: "0 9 * * *",
+      timezone: "America/New_York",
+      endsMode: TaskScheduleEndsMode.NEVER,
+      intervalDays: 2,
+      anchorAt: new Date("2026-06-24T13:00:00.000Z"),
+    });
+  });
 });

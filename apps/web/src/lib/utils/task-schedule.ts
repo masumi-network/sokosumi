@@ -27,6 +27,8 @@ interface TaskScheduleMetadataRecurring {
   endsMode: "never" | "on" | "after";
   endsOn?: string;
   occurrences?: number;
+  intervalDays?: number;
+  anchorAt?: string;
 }
 
 type TaskScheduleMetadata =
@@ -176,6 +178,9 @@ export function metadataToSelection(
     cron: parsed.expr,
     endsMode: parsed.endsMode,
     endAfterOccurrences: parsed.occurrences,
+    ...(parsed.intervalDays != null && parsed.intervalDays > 1
+      ? { intervalDays: parsed.intervalDays }
+      : {}),
     endOnLocalDate: parsed.endsOn
       ? utcToDateTimeLocalInTimezone(
           new Date(parsed.endsOn),
@@ -186,6 +191,16 @@ export function metadataToSelection(
 
   if (derivedPreset) {
     selection.oneTimeLocalIso = derivedPreset.iso;
+  } else if (
+    parsed.intervalDays != null &&
+    parsed.intervalDays > 1 &&
+    parsed.anchorAt
+  ) {
+    selection.oneTimeLocalIso = utcToDateTimeLocalInTimezone(
+      new Date(parsed.anchorAt),
+      parsed.timezone,
+    );
+    selection.customCronExpr = parsed.expr;
   } else {
     selection.customCronExpr = parsed.expr;
     const derived = deriveBuilderStateFromCron(parsed.expr);
@@ -214,12 +229,24 @@ export function selectionToApiBody(
     if (!expr) return null;
 
     const endsMode = selection.endsMode ?? TaskScheduleEndsMode.NEVER;
+    const intervalDays = selection.intervalDays;
+    const anchorAt =
+      intervalDays != null && intervalDays > 1
+        ? zonedDateTimeLocalToUtc(selection.oneTimeLocalIso, selection.timezone)
+        : null;
+
+    if (intervalDays != null && intervalDays > 1 && !anchorAt) {
+      return null;
+    }
 
     return {
       mode: "recurring",
       expr,
       timezone: selection.timezone,
       endsMode,
+      ...(intervalDays != null && intervalDays > 1
+        ? { intervalDays, anchorAt }
+        : {}),
       ...(endsMode === TaskScheduleEndsMode.ON && selection.endOnLocalDate
         ? (() => {
             const endsOn = endOfLocalDateInTimezone(
