@@ -233,7 +233,7 @@ export function selectionToApiBody(
     const anchorAt =
       intervalDays != null && intervalDays > 1
         ? zonedDateTimeLocalToUtc(selection.oneTimeLocalIso, selection.timezone)
-        : null;
+        : undefined;
 
     if (intervalDays != null && intervalDays > 1 && !anchorAt) {
       return null;
@@ -244,7 +244,7 @@ export function selectionToApiBody(
       expr,
       timezone: selection.timezone,
       endsMode,
-      ...(intervalDays != null && intervalDays > 1
+      ...(intervalDays != null && intervalDays > 1 && anchorAt
         ? { intervalDays, anchorAt }
         : {}),
       ...(endsMode === TaskScheduleEndsMode.ON && selection.endOnLocalDate

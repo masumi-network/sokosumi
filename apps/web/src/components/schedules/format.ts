@@ -79,8 +79,19 @@ export type TranslateFn = (
   values?: Record<string, unknown>,
 ) => string;
 
+type TaskScheduleDateTimeFormatOptions = {
+  month?: "short";
+  day?: "numeric";
+  hour?: "numeric";
+  minute?: "2-digit";
+  timeZone?: string;
+};
+
 export type DateTimeFormatter = {
-  dateTime: (value: Date, options?: Intl.DateTimeFormatOptions) => string;
+  dateTime: (
+    value: Date,
+    options?: TaskScheduleDateTimeFormatOptions,
+  ) => string;
 };
 
 export function formatTaskScheduleSelectionLabel(
