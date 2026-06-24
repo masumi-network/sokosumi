@@ -384,7 +384,8 @@ export function TaskForm({
           // to navigate — the redirect target is prefetched so it lands fast.
           if (isModal) {
             const createdStatus =
-              scheduleSelection.mode !== "none"
+              scheduleSelection.mode !== "none" &&
+              desiredStatus !== TaskStatus.DRAFT
                 ? "QUEUED"
                 : desiredStatus === TaskStatus.DRAFT
                   ? "DRAFT"

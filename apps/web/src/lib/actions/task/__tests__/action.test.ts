@@ -562,3 +562,61 @@ describe("updateTask schedule status", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 });
+
+describe("createTask schedule", () => {
+  const recurringSchedule = {
+    mode: "recurring" as const,
+    timezone: "UTC",
+    cron: "0 9 * * *",
+    oneTimeLocalIso: "2026-06-25T09:00",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.createTask.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+    appendDesignMdToDescriptionMock.mockImplementation(
+      async (description: string) => description,
+    );
+  });
+
+  it("does not apply a schedule when saving as draft", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Draft task",
+      coworkerId: null,
+      status: TaskStatus.DRAFT,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.clearSchedule).not.toHaveBeenCalled();
+  });
+
+  it("applies a schedule when creating a ready task with a schedule", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+    taskScheduleServiceMock.setSchedule.mockResolvedValue({
+      id: "task-created",
+      status: TaskStatus.QUEUED,
+    });
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Scheduled task",
+      coworkerId: null,
+      status: TaskStatus.READY,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+  });
+});

@@ -105,4 +105,129 @@ describe("taskSchedulesSyncService", () => {
       }),
     );
   });
+
+  it("stops recurring catch-up when the sync deadline is reached", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-1" }])
+      .mockResolvedValueOnce([]);
+
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+        },
+        taskLink: {
+          create: mockTaskLinkCreate,
+        },
+        taskEvent: {
+          create: mockTaskEventCreate,
+        },
+      }),
+    );
+
+    mockFindFirst.mockResolvedValue({
+      id: "template-1",
+      userId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      coworkerId: null,
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T09:00:00.000Z",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+      nextRunAt: new Date("2026-06-08T09:00:00.000Z"),
+    });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() - 1,
+      shouldContinue: () => true,
+    });
+
+    expect(result.cloned).toBe(0);
+    expect(mockTaskCreate).not.toHaveBeenCalled();
+  });
+
+  it("limits recurring catch-up when the sync is aborted", async () => {
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    let metadata = JSON.stringify({
+      version: 1,
+      mode: "recurring",
+      scheduledAt: "2026-06-01T09:00:00.000Z",
+      expr: "0 9 * * *",
+      timezone: "UTC",
+      endsMode: "never",
+    });
+
+    const abortController = new AbortController();
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-1" }])
+      .mockResolvedValueOnce([]);
+
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+        },
+        taskLink: {
+          create: mockTaskLinkCreate,
+        },
+        taskEvent: {
+          create: mockTaskEventCreate,
+        },
+      }),
+    );
+
+    mockFindFirst.mockResolvedValue({
+      id: "template-1",
+      userId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      coworkerId: null,
+      name: "Template",
+      description: "Run me",
+      metadata,
+      nextRunAt: new Date("2026-06-08T09:00:00.000Z"),
+    });
+
+    mockTaskCreate.mockImplementation(async () => {
+      abortController.abort();
+      return { id: "clone-1" };
+    });
+    mockTaskUpdate.mockImplementation(async ({ data }) => {
+      if (typeof data.metadata === "string") {
+        metadata = data.metadata;
+      }
+      return { id: "template-1" };
+    });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: abortController.signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result.cloned).toBe(1);
+    expect(mockTaskCreate).toHaveBeenCalledTimes(1);
+  });
 });

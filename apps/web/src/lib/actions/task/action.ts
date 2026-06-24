@@ -215,7 +215,11 @@ async function createTaskFromDescription(input: {
   });
 
   try {
-    if (input.schedule) {
+    if (
+      input.status !== TaskStatus.DRAFT &&
+      input.schedule &&
+      input.schedule.mode !== "none"
+    ) {
       await applyTaskSchedule(task.id, input.schedule, false);
     }
     return task;

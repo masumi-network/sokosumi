@@ -163,6 +163,7 @@ async function cloneRecurringOccurrence(
 
 async function processDueTask(
   templateId: string,
+  options: TaskScheduleSyncExecutionOptions,
 ): Promise<"promoted" | "cloned" | "skipped"> {
   return prisma.$transaction(async (tx) => {
     const template = await tx.task.findFirst({
@@ -207,6 +208,14 @@ async function processDueTask(
     let clonesCreated = 0;
 
     while (nextRunAt && nextRunAt <= now) {
+      if (
+        !options.shouldContinue() ||
+        options.abortSignal.aborted ||
+        Date.now() >= options.deadlineMs
+      ) {
+        break;
+      }
+
       if (isDueRunPastScheduleEnd(metadata, nextRunAt)) {
         break;
       }
@@ -276,7 +285,7 @@ async function syncDueTaskSchedules(
         break;
       }
 
-      const result = await processDueTask(dueTask.id);
+      const result = await processDueTask(dueTask.id, options);
       if (result === "promoted") {
         promoted += 1;
       } else if (result === "cloned") {
