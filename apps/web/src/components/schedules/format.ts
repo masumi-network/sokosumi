@@ -1,4 +1,4 @@
-import { formatTime, parseCron } from "@/lib/schedules/cron";
+import { formatTime, formatWeekday, parseCron } from "@/lib/schedules/cron";
 import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
@@ -36,13 +36,7 @@ export function computeScheduleTitleInfo(
     case "weeklyAtTime": {
       const time = formatTime(parsed.hour, parsed.minute, s.timezone);
       if (parsed.dows.length === 1) {
-        // Keep parity: compute weekday label from a base date at that time
-        const base = new Date();
-        base.setHours(parsed.hour, parsed.minute, 0, 0);
-        const weekday = new Intl.DateTimeFormat(undefined, {
-          weekday: "long",
-          timeZone: s.timezone,
-        }).format(base);
+        const weekday = formatWeekday(parsed.dows[0], s.timezone);
         return { key: "weeklyWithWeekdayTime", values: { weekday, time } };
       }
       const weekdays = parsed.dows.join(",");

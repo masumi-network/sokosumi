@@ -1,6 +1,11 @@
 // Centralized cron parsing and helpers for schedules
 import { CronExpressionParser as cronParser } from "cron-parser";
 
+import {
+  utcToDateTimeLocalInTimezone,
+  zonedDateTimeLocalToUtc,
+} from "@/lib/schedules/zoned-datetime";
+
 export const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
 export type Dow = (typeof DOW)[number];
@@ -121,18 +126,61 @@ export function parseCron(cron: string): ParsedCron {
   }
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
 export function formatTime(
   hour: number,
   minute: number,
   timezone?: string,
 ): string {
-  const base = new Date();
-  base.setHours(hour, minute, 0, 0);
+  if (!timezone) {
+    const base = new Date();
+    base.setHours(hour, minute, 0, 0);
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(base);
+  }
+
+  const todayInTimezone = utcToDateTimeLocalInTimezone(
+    new Date(),
+    timezone,
+  ).slice(0, 10);
+  const instant = zonedDateTimeLocalToUtc(
+    `${todayInTimezone}T${pad2(hour)}:${pad2(minute)}`,
+    timezone,
+  );
+  if (!instant) {
+    return `${hour}:${pad2(minute)}`;
+  }
+
   return new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     minute: "2-digit",
     timeZone: timezone,
-  }).format(base);
+  }).format(instant);
+}
+
+export function formatWeekday(dow: Dow, timezone?: string): string {
+  const dowIndex = DOW.indexOf(dow);
+  const calendarDay = 4 + dowIndex;
+  const dateIso = `2026-01-${pad2(calendarDay)}`;
+
+  let date: Date;
+  if (timezone) {
+    const instant = zonedDateTimeLocalToUtc(`${dateIso}T12:00`, timezone);
+    if (!instant) return dow;
+    date = instant;
+  } else {
+    date = new Date(2026, 0, calendarDay, 12, 0, 0);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    ...(timezone ? { timeZone: timezone } : {}),
+  }).format(date);
 }
 
 export function getDaysInMonth(year: number, monthIndex: number): number {
