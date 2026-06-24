@@ -78,4 +78,20 @@ describe("captureFromStream", () => {
     );
     expect(result.content).toBe(emoji);
   });
+
+  it("returns partial content when the capture signal aborts mid-stream", async () => {
+    const abort = new AbortController();
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'),
+        );
+        setTimeout(() => abort.abort(), 0);
+      },
+    });
+
+    const result = await captureFromStream(stream, { signal: abort.signal });
+    expect(result.content).toBe("partial");
+  });
 });

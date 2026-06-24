@@ -738,6 +738,32 @@ function scheduleHermesChatTranscriptRecovery(
   );
 }
 
+/** In-flight streamed-turn persistence per user. The next /chat or /chat/stream
+ * awaits this so conversation history includes the prior turn before Hermes runs. */
+const hermesStreamTurnPersistByUser = new Map<string, Promise<void>>();
+
+async function awaitPriorHermesStreamPersistence(
+  userId: string,
+): Promise<void> {
+  const pending = hermesStreamTurnPersistByUser.get(userId);
+  if (!pending) return;
+  await pending.catch(() => {
+    // Prior capture may have failed; proceed with whatever was persisted.
+  });
+}
+
+function trackHermesStreamTurnPersistence(
+  userId: string,
+  promise: Promise<void>,
+): void {
+  hermesStreamTurnPersistByUser.set(userId, promise);
+  void promise.finally(() => {
+    if (hermesStreamTurnPersistByUser.get(userId) === promise) {
+      hermesStreamTurnPersistByUser.delete(userId);
+    }
+  });
+}
+
 async function recoverHermesInboxAfterChatFailure(
   userId: string,
   options: { signal?: AbortSignal } = {},
@@ -1253,6 +1279,8 @@ app.openapi(postChatRoute, async (c) => {
     throw payloadTooLarge("Message content is too large.");
   }
 
+  await awaitPriorHermesStreamPersistence(userContext.userId);
+
   const historyNewestFirst = await prisma.hermesMessage.findMany({
     where: { userId: userContext.userId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -1384,7 +1412,9 @@ interface CapturedTurn {
  */
 export async function captureFromStream(
   stream: ReadableStream<Uint8Array>,
+  options: { signal?: AbortSignal } = {},
 ): Promise<CapturedTurn> {
+  const { signal } = options;
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -1394,6 +1424,8 @@ export async function captureFromStream(
     label: string;
     detail?: string;
   }[] = [];
+
+  const snapshot = (): CapturedTurn => ({ content, steps });
 
   const consumeFrame = (rawFrame: string): void => {
     let event: string | null = null;
@@ -1441,11 +1473,24 @@ export async function captureFromStream(
     if (typeof piece === "string") content += piece;
   };
 
+  const abortCapture = (): void => {
+    void reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener("abort", abortCapture, { once: true });
+
   try {
+    if (signal?.aborted) return snapshot();
+
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await reader.read();
+      } catch (error) {
+        if (signal?.aborted) break;
+        throw error;
+      }
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
       buffer = buffer.replace(/\r\n/g, "\n");
       let sep = buffer.indexOf("\n\n");
       while (sep !== -1) {
@@ -1453,14 +1498,16 @@ export async function captureFromStream(
         buffer = buffer.slice(sep + 2);
         sep = buffer.indexOf("\n\n");
       }
+      if (signal?.aborted) break;
     }
     buffer += decoder.decode();
     if (buffer.trim() !== "") consumeFrame(buffer);
   } finally {
+    signal?.removeEventListener("abort", abortCapture);
     reader.releaseLock();
   }
 
-  return { content, steps };
+  return snapshot();
 }
 
 /**
@@ -1494,6 +1541,8 @@ app.post("/chat/stream", async (c) => {
     throw payloadTooLarge("Message content is too large.");
   }
 
+  await awaitPriorHermesStreamPersistence(userContext.userId);
+
   const historyNewestFirst = await prisma.hermesMessage.findMany({
     where: { userId: userContext.userId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -1526,9 +1575,11 @@ app.post("/chat/stream", async (c) => {
   // Server-owned abort with a generous cap so a wedged orchestrator stream
   // can't leak forever. We deliberately do NOT forward the client's request
   // signal: a closed tab must not abort generation, so the turn is still
-  // captured + persisted (see the tee below).
-  const serverAbort = new AbortController();
-  const captureTimeout = setTimeout(() => serverAbort.abort(), 5 * 60_000);
+  // captured + persisted (see the tee below). This abort only stops the
+  // upstream fetch/read — transcript persistence runs without it so partial
+  // turns captured before the cap still land in history.
+  const fetchAbort = new AbortController();
+  const captureTimeout = setTimeout(() => fetchAbort.abort(), 5 * 60_000);
 
   let upstream: Response;
   try {
@@ -1537,7 +1588,7 @@ app.post("/chat/stream", async (c) => {
       { model: "hermes-agent", messages: conversation, stream: true },
       {
         headers: { "X-Hermes-Progress": "1", Accept: "text/event-stream" },
-        signal: serverAbort.signal,
+        signal: fetchAbort.signal,
       },
     );
   } catch (error) {
@@ -1578,7 +1629,7 @@ app.post("/chat/stream", async (c) => {
     if (!content) {
       await recoverHermesInboxAfterFailedChatRequest(
         userContext.userId,
-        serverAbort.signal,
+        c.req.raw.signal,
       );
       return;
     }
@@ -1594,7 +1645,6 @@ app.post("/chat/stream", async (c) => {
     const persisted = await persistHermesChatTranscriptWithRetries(
       transcriptTurn,
       CHAT_TRANSCRIPT_INLINE_RETRY_DELAYS_MS,
-      { signal: serverAbort.signal },
     );
     if (!persisted) {
       scheduleHermesChatTranscriptRecovery(transcriptTurn);
@@ -1606,17 +1656,25 @@ app.post("/chat/stream", async (c) => {
   // client stays connected. The capture branch drives the orchestrator stream
   // to completion even if the user closes the tab mid-answer.
   const [toClient, toCapture] = upstream.body.tee();
-  waitUntil(
-    captureFromStream(toCapture)
-      .then(persistTurn)
-      .catch((error) => {
-        Sentry.captureException(error, {
-          tags: { context: "hermes_stream_capture" },
-          extra: { userId: userContext.userId },
-        });
-      })
-      .finally(() => clearTimeout(captureTimeout)),
-  );
+  const captureAndPersist = (async () => {
+    try {
+      const captured = await captureFromStream(toCapture, {
+        signal: fetchAbort.signal,
+      });
+      await persistTurn(captured);
+    } catch (error) {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_stream_capture" },
+        extra: { userId: userContext.userId },
+      });
+      await recoverHermesInboxAfterFailedChatRequest(
+        userContext.userId,
+        c.req.raw.signal,
+      );
+    }
+  })();
+  trackHermesStreamTurnPersistence(userContext.userId, captureAndPersist);
+  waitUntil(captureAndPersist.finally(() => clearTimeout(captureTimeout)));
 
   return new Response(toClient, {
     status: 200,
