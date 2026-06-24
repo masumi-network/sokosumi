@@ -2,15 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/contexts/notification-provider";
-import { getNotificationHref } from "@/lib/utils/notification-href";
+import { useSession } from "@/lib/auth/auth.client";
+import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
-
 import { NotificationItem } from "./notification-item";
 
 interface NotificationDropdownContentProps {
@@ -21,8 +22,12 @@ export function NotificationDropdownContent({
   onClose,
 }: NotificationDropdownContentProps) {
   const t = useTranslations("Components.NotificationCenter");
+  const tDetail = useTranslations("App.Tasks.Detail");
   const router = useRouter();
   const formatTime = useNotificationTimeFormatter();
+  const { data: session } = useSession();
+  const { handleSelectWorkspace } = useWorkspaceSwitcher();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const { notifications, markRead, isLoading, hasFetchError, refetch } =
     useNotifications();
 
@@ -38,13 +43,13 @@ export function NotificationDropdownContent({
       }
     }
 
-    const href = getNotificationHref({
-      kind: notification.kind,
-      referenceId: notification.referenceId,
-      metadata: notification.metadata,
-    });
-
-    router.push(href);
+    await handleNotificationNavigation(
+      notification,
+      activeOrganizationId,
+      router,
+      handleSelectWorkspace,
+      tDetail,
+    );
     onClose();
   };
 
@@ -97,7 +102,7 @@ export function NotificationDropdownContent({
           <NotificationItem
             key={notification.id}
             notification={notification}
-            onClick={() => handleNotificationClick(notification.id)}
+            onClick={() => void handleNotificationClick(notification.id)}
             formatTime={formatTime}
           />
         ))}
