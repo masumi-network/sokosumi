@@ -2,11 +2,14 @@
 
 import {
   AlignLeft,
+  AppWindow,
+  ArrowRight,
   ArrowUpRight,
   BarChart3,
   Boxes,
   Clapperboard,
   Code,
+  ExternalLink,
   FileText,
   ImageIcon,
   ListChecks,
@@ -15,9 +18,17 @@ import {
   Presentation,
   Users,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
+import { CompanyMark } from "@/components/agents/company-mark";
 import Markdown from "@/components/markdown";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +40,7 @@ const OUTPUT_ICON: Record<OutputKind, typeof FileText> = {
   slides: Presentation,
   image: ImageIcon,
   text: AlignLeft,
+  html: AppWindow,
 };
 // English fallback labels for the output chip when no translated typeLabel is
 // supplied (e.g. the New Task picker, which has no output-type translations).
@@ -38,6 +50,7 @@ const DEFAULT_OUTPUT_LABEL: Record<OutputKind, string> = {
   slides: "Slides",
   image: "Image",
   text: "Text",
+  html: "Web",
 };
 function defaultTypeLabel(type: OutputKind): string {
   return DEFAULT_OUTPUT_LABEL[type];
@@ -77,7 +90,8 @@ type MockKind =
   | "checklist"
   | "code"
   | "wireframe"
-  | "video";
+  | "video"
+  | "web";
 
 // Category → icon + a content-flavored mock, so offers read distinct from one another.
 const CATEGORY_ICON: Record<string, typeof FileText> = {
@@ -153,6 +167,7 @@ function mockKind(offer: CoworkerOffer): MockKind {
   const primary = offerOutputs(offer)[0];
   if (primary.type === "image" && primary.url) return "image";
   if (primary.type === "slides") return "slides";
+  if (primary.type === "html") return "web";
   if ((primary.type === "pdf" || primary.type === "doc") && primary.url) {
     return "page";
   }
@@ -271,6 +286,24 @@ function OfferMock({
                 className="text-foreground ml-0.5 size-3 fill-current"
               />
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "web") {
+    return (
+      <div className="flex h-full items-center justify-center p-5">
+        <div className="ring-border w-full max-w-[82%] overflow-hidden rounded-md bg-card shadow-sm ring-1">
+          <div className="bg-muted/60 flex items-center gap-1 border-b px-2 py-1.5">
+            <span className="bg-muted-foreground/30 size-1.5 rounded-full" />
+            <span className="bg-muted-foreground/30 size-1.5 rounded-full" />
+            <span className="bg-muted-foreground/30 size-1.5 rounded-full" />
+          </div>
+          <div className="space-y-2 p-3">
+            <div className={cn("h-6 w-full rounded", accent)} />
+            <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
+            <div className="bg-muted-foreground/20 h-1.5 w-1/2 rounded" />
           </div>
         </div>
       </div>
@@ -421,6 +454,19 @@ export function OfferEmbed({
       />
     );
   }
+  // HTML outputs run in a sandboxed iframe so their scripts execute (e.g. a
+  // Three.js hero) but stay isolated from the app — no same-origin access.
+  if (type === "html" && (text || url)) {
+    return (
+      <iframe
+        title={title}
+        sandbox="allow-scripts"
+        className="bg-background h-full w-full"
+        loading="lazy"
+        {...(text ? { srcDoc: text } : { src: url })}
+      />
+    );
+  }
   if (url) {
     // Hide the browser's native PDF chrome (toolbar / thumbnail rail) for a clean preview.
     const src = isOfficeFile(url)
@@ -474,6 +520,193 @@ export function OfferEmbed({
         <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
       </div>
       <span className="text-muted-foreground text-xs">{pendingLabel}</span>
+    </div>
+  );
+}
+
+export interface OfferDetailItem {
+  offer: CoworkerOffer;
+  coworkerName: string;
+  coworkerCaption?: string;
+  company?: string;
+  /** Rendered coworker avatar (so callers keep their own avatar component). */
+  coworkerAvatar: ReactNode;
+  /** Rendered model/region tags. */
+  metaTags?: ReactNode;
+}
+
+export interface OfferDetailLabels {
+  start: string;
+  deliveredBy?: string;
+  deliverable?: string;
+  pending?: string;
+  openInNewTab?: string;
+  fallbackTitle?: string;
+}
+
+/** Shared rich preview of a ready-to-run task — output tabs + live preview on the
+ *  left, details + start action on the right. Used by both the agents marketplace
+ *  and the New Task spotlight so the two previews are identical. */
+export function OfferDetailDialog({
+  item,
+  onClose,
+  onStart,
+  typeLabel,
+  labels,
+}: {
+  item: OfferDetailItem | null;
+  onClose: () => void;
+  onStart: () => void;
+  typeLabel?: (type: OutputKind) => string;
+  labels: OfferDetailLabels;
+}) {
+  return (
+    <Dialog
+      open={item != null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl">
+        {item ? (
+          <OfferDetailBody
+            key={`${item.coworkerName}-${item.offer.title}`}
+            item={item}
+            labels={labels}
+            typeLabel={typeLabel ?? defaultTypeLabel}
+            onStart={onStart}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OfferDetailBody({
+  item,
+  labels,
+  typeLabel,
+  onStart,
+}: {
+  item: OfferDetailItem;
+  labels: OfferDetailLabels;
+  typeLabel: (type: OutputKind) => string;
+  onStart: () => void;
+}) {
+  const { offer } = item;
+  const outputs = offerOutputs(offer);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const active = outputs[Math.min(activeIdx, outputs.length - 1)];
+
+  return (
+    <div className="flex max-h-[92dvh] flex-col overflow-y-auto md:grid md:h-[86dvh] md:max-h-none md:grid-cols-[1.7fr_1fr] md:overflow-hidden">
+      {/* Preview */}
+      <div className="bg-muted/30 md:border-border flex flex-col md:min-h-0 md:border-r">
+        {outputs.length > 1 ? (
+          <div className="border-border bg-background/70 flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
+            {outputs.map((output, index) => (
+              <button
+                key={output.url ?? output.label ?? output.type}
+                type="button"
+                onClick={() => setActiveIdx(index)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  FOCUS_RING,
+                  index === activeIdx
+                    ? "bg-foreground text-background"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <OutputTypeIcon type={output.type} className="size-3.5" />
+                {output.label ?? typeLabel(output.type)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="h-[46vh] md:h-auto md:min-h-0 md:flex-1">
+          <OfferEmbed
+            output={active}
+            title={offer.title}
+            pendingLabel={labels.pending ?? "Sample output"}
+          />
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="md:min-h-0 md:overflow-y-auto">
+        <div className="space-y-5 p-6">
+          <div className="space-y-2 pr-10">
+            <div className="flex flex-wrap items-center gap-2">
+              {offer.category ? (
+                <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  {offer.category}
+                </span>
+              ) : null}
+              <span className="border-border/60 text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
+                <OutputTypeIcon type={active.type} className="size-3" />
+                {active.label ?? typeLabel(active.type)}
+              </span>
+            </div>
+            <DialogTitle className="text-foreground text-xl font-semibold text-balance">
+              {offer.title}
+            </DialogTitle>
+            <DialogDescription className="text-foreground/80 text-sm leading-relaxed text-pretty">
+              {offer.description ?? labels.fallbackTitle ?? offer.title}
+            </DialogDescription>
+          </div>
+
+          {offer.deliverable ? (
+            <div className="border-border/60 rounded-xl border p-4">
+              <p className="text-muted-foreground mb-1 text-xs font-medium">
+                {labels.deliverable ?? "Deliverable"}
+              </p>
+              <p className="text-foreground text-sm">{offer.deliverable}</p>
+            </div>
+          ) : null}
+
+          <div>
+            <p className="text-muted-foreground mb-2 text-xs font-medium">
+              {labels.deliveredBy ?? "Delivered by"}
+            </p>
+            <div className="flex items-center gap-3">
+              {item.coworkerAvatar}
+              <div className="min-w-0 flex-1">
+                <p className="text-foreground truncate text-sm font-medium">
+                  {item.coworkerName}
+                </p>
+                {item.coworkerCaption ? (
+                  <p className="text-muted-foreground truncate text-xs">
+                    {item.coworkerCaption}
+                  </p>
+                ) : null}
+              </div>
+              {item.company ? (
+                <CompanyMark
+                  company={item.company}
+                  className="h-3.5 shrink-0"
+                  textClassName="text-muted-foreground text-xs font-medium"
+                />
+              ) : null}
+            </div>
+            {item.metaTags ? <div className="mt-3">{item.metaTags}</div> : null}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Button type="button" onClick={onStart}>
+              {labels.start}
+              <ArrowRight aria-hidden className="size-4" />
+            </Button>
+            {active.url ? (
+              <Button asChild variant="outline">
+                <a href={active.url} target="_blank" rel="noreferrer">
+                  {labels.openInNewTab ?? "Open in new tab"}
+                  <ExternalLink aria-hidden className="size-4" />
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

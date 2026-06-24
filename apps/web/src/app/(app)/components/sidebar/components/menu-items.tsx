@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  Bot,
   Feather,
   FolderKanban,
   History,
   ListTodo,
   Search,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -134,7 +134,7 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       key: "explore-agents",
       href: "/agents",
       label: t("exploreAgents"),
-      Icon: Sparkles,
+      Icon: Bot,
     },
     ...(hermesMenuEnabled
       ? ([

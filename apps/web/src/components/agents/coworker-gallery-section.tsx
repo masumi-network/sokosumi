@@ -16,19 +16,12 @@ import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-im
 import { CompanyMark } from "@/components/agents/company-mark";
 import {
   OfferCard,
-  OfferEmbed,
+  OfferDetailDialog,
+  type OfferDetailItem,
   type OutputKind,
-  OutputTypeIcon,
-  offerOutputs,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { canUseNextImageSrc } from "@/config/next-image";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { Coworker } from "@/lib/clients/generated/core";
@@ -428,188 +421,6 @@ function CompanyDashboard({
   );
 }
 
-function OfferDetailDialog({
-  item,
-  onClose,
-  onStartTask,
-  labels,
-  typeLabel,
-}: {
-  item: OfferItem | null;
-  onClose: () => void;
-  onStartTask: (coworkerId: string, prompt?: string) => void;
-  labels: OfferDetailLabels;
-  typeLabel: (type: OutputKind) => string;
-}) {
-  return (
-    <Dialog
-      open={item != null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl">
-        {item ? (
-          <OfferDetailBody
-            key={`${item.coworker.id}-${item.offer.title}`}
-            item={item}
-            labels={labels}
-            typeLabel={typeLabel}
-            onStart={() => {
-              onClose();
-              onStartTask(item.coworker.id, item.offer.prompt);
-            }}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface OfferDetailLabels {
-  deliveredBy: string;
-  deliverable: string;
-  start: string;
-  pending: string;
-  openInNewTab: string;
-  fallbackTitle: string;
-}
-
-function OfferDetailBody({
-  item,
-  labels,
-  typeLabel,
-  onStart,
-}: {
-  item: OfferItem;
-  labels: OfferDetailLabels;
-  typeLabel: (type: OutputKind) => string;
-  onStart: () => void;
-}) {
-  const { offer, coworker } = item;
-  const outputs = offerOutputs(offer);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const active = outputs[Math.min(activeIdx, outputs.length - 1)];
-
-  return (
-    <div className="flex max-h-[92dvh] flex-col overflow-y-auto md:grid md:h-[86dvh] md:max-h-none md:grid-cols-[1.7fr_1fr] md:overflow-hidden">
-      {/* Preview */}
-      <div className="bg-muted/30 flex flex-col md:min-h-0 md:border-border md:border-r">
-        {outputs.length > 1 ? (
-          <div className="border-border bg-background/70 flex gap-1.5 overflow-x-auto border-b p-2.5 backdrop-blur">
-            {outputs.map((output, index) => (
-              <button
-                key={output.url ?? output.label ?? output.type}
-                type="button"
-                onClick={() => setActiveIdx(index)}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                  FOCUS_RING,
-                  index === activeIdx
-                    ? "bg-foreground text-background"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <OutputTypeIcon type={output.type} className="size-3.5" />
-                {output.label ?? typeLabel(output.type)}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="h-[46vh] md:h-auto md:min-h-0 md:flex-1">
-          <OfferEmbed
-            output={active}
-            title={offer.title}
-            pendingLabel={labels.pending}
-          />
-        </div>
-      </div>
-
-      {/* Details */}
-      <div className="md:min-h-0 md:overflow-y-auto">
-        <div className="space-y-5 p-6">
-          <div className="space-y-2 pr-10">
-            <div className="flex flex-wrap items-center gap-2">
-              {offer.category ? (
-                <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                  {offer.category}
-                </span>
-              ) : null}
-              <span className="border-border/60 text-muted-foreground inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium">
-                <OutputTypeIcon type={active.type} className="size-3" />
-                {active.label ?? typeLabel(active.type)}
-              </span>
-            </div>
-            <DialogTitle className="text-foreground text-xl font-semibold text-balance">
-              {offer.title}
-            </DialogTitle>
-            <DialogDescription className="text-foreground/80 text-sm leading-relaxed text-pretty">
-              {offer.description ?? labels.fallbackTitle}
-            </DialogDescription>
-          </div>
-
-          {offer.deliverable ? (
-            <div className="border-border/60 rounded-xl border p-4">
-              <p className="text-muted-foreground mb-1 text-xs font-medium">
-                {labels.deliverable}
-              </p>
-              <p className="text-foreground text-sm">{offer.deliverable}</p>
-            </div>
-          ) : null}
-
-          <div>
-            <p className="text-muted-foreground mb-2 text-xs font-medium">
-              {labels.deliveredBy}
-            </p>
-            <div className="flex items-center gap-3">
-              <CoworkerAvatar
-                coworker={coworker}
-                className="size-11 rounded-full"
-                sizes="44px"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-foreground truncate text-sm font-medium">
-                  {coworker.name}
-                </p>
-                {coworker.caption ? (
-                  <p className="text-muted-foreground truncate text-xs">
-                    {coworker.caption}
-                  </p>
-                ) : null}
-              </div>
-              {coworker.company ? (
-                <CompanyMark
-                  company={coworker.company}
-                  className="h-3.5 shrink-0"
-                  textClassName="text-muted-foreground text-xs font-medium"
-                />
-              ) : null}
-            </div>
-            <div className="mt-3">
-              <MetaTags coworker={coworker} />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Button type="button" onClick={onStart}>
-              {labels.start}
-              <ArrowRight aria-hidden className="size-4" />
-            </Button>
-            {active.url ? (
-              <Button asChild variant="outline">
-                <a href={active.url} target="_blank" rel="noreferrer">
-                  {labels.openInNewTab}
-                  <ExternalLink aria-hidden className="size-4" />
-                </a>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function CoworkerGallerySection({
   coworkers,
   agentCount,
@@ -880,9 +691,31 @@ function CoworkerGallerySection({
       ) : null}
 
       <OfferDetailDialog
-        item={selected}
+        item={
+          selected
+            ? ({
+                offer: selected.offer,
+                coworkerName: selected.coworker.name,
+                coworkerCaption: selected.coworker.caption ?? undefined,
+                company: selected.coworker.company ?? undefined,
+                coworkerAvatar: (
+                  <CoworkerAvatar
+                    coworker={selected.coworker}
+                    className="size-11 rounded-full"
+                    sizes="44px"
+                  />
+                ),
+                metaTags: <MetaTags coworker={selected.coworker} />,
+              } satisfies OfferDetailItem)
+            : null
+        }
         onClose={() => setSelected(null)}
-        onStartTask={handleOpenWith}
+        onStart={() => {
+          if (selected) {
+            handleOpenWith(selected.coworker.id, selected.offer.prompt);
+          }
+          setSelected(null);
+        }}
         labels={{
           deliveredBy: t("deliveredByLabel"),
           deliverable: t("deliverableLabel"),
