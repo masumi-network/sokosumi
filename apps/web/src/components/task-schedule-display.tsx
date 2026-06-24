@@ -7,8 +7,8 @@ import {
   computeScheduleTitleInfo,
   formatScheduleTitle,
 } from "@/components/schedules/format";
-import { parseTaskScheduleMetadata } from "@/lib/utils/task-schedule";
 import { cn } from "@/lib/utils";
+import { parseTaskScheduleMetadata } from "@/lib/utils/task-schedule";
 
 interface TaskScheduleDisplayProps {
   metadata: string | null | undefined;
@@ -73,12 +73,7 @@ export function TaskScheduleDisplay({
 
   if (variant === "card") {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2",
-          className,
-        )}
-      >
+      <div className={cn("flex items-center justify-between gap-2", className)}>
         {scheduleLabel ? (
           <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
             <Clock className="size-3.5 shrink-0" aria-hidden />
