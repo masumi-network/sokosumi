@@ -131,6 +131,7 @@ import {
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
+  getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
@@ -1870,6 +1871,19 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getWorkspaceOrganizationId(workspaceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesById({
+          client,
+          path: { id: workspaceId },
+          cache: "no-store",
+        }),
+      "Failed to resolve workspace organization",
+    );
+  }
+
   /**
    * Sets (or clears, when `content` is null) the current user's own DESIGN.md.
    */
@@ -2637,6 +2651,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
+    getWorkspaceOrganizationId,
     setMyDesignMd,
     setMyPreferredOrganization,
     setOrganizationDesignMd,

@@ -2503,6 +2503,13 @@ export type EffectiveDesignMd = {
     } | null;
 };
 
+export type WorkspaceOrganization = {
+    /**
+     * Organization id for the workspace, or null for a personal workspace
+     */
+    organizationId: string | null;
+};
+
 /**
  * Optional organization slug to set the organization context.
  */
@@ -21324,3 +21331,75 @@ export type GetWorkspacesDesignMdResponses = {
 };
 
 export type GetWorkspacesDesignMdResponse = GetWorkspacesDesignMdResponses[keyof GetWorkspacesDesignMdResponses];
+
+export type GetWorkspacesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}';
+};
+
+export type GetWorkspacesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdError = GetWorkspacesByIdErrors[keyof GetWorkspacesByIdErrors];
+
+export type GetWorkspacesByIdResponses = {
+    /**
+     * Workspace organization mapping
+     */
+    200: {
+        data: WorkspaceOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdResponse = GetWorkspacesByIdResponses[keyof GetWorkspacesByIdResponses];

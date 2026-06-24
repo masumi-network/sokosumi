@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
+import { useSession } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
+import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 
 interface NotificationsPageContentProps {
@@ -22,8 +24,12 @@ export function NotificationsPageContent({
   userId: _userId,
 }: NotificationsPageContentProps) {
   const tCenter = useTranslations("Components.NotificationCenter");
+  const tDetail = useTranslations("App.Tasks.Detail");
   const formatMessage = useNotificationMessage();
   const formatTime = useNotificationTimeFormatter();
+  const { data: session } = useSession();
+  const { handleSelectWorkspace } = useWorkspaceSwitcher();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const {
     markRead,
     markAllRead,
@@ -145,13 +151,13 @@ export function NotificationsPageContent({
       }
     }
 
-    const href = getNotificationHref({
-      kind: notification.kind,
-      referenceId: notification.referenceId,
-      metadata: notification.metadata,
-    });
-
-    router.push(href);
+    await handleNotificationNavigation(
+      notification,
+      activeOrganizationId,
+      router,
+      handleSelectWorkspace,
+      tDetail,
+    );
   };
 
   const handleMarkAllRead = async () => {
