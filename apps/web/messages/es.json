@@ -1411,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Pendiente",
+        "scheduled": "Programado",
         "todo": "Por hacer",
         "inProgress": "En proceso",
         "inputRequired": "Input requerido",
@@ -1744,6 +1745,7 @@
           "total": "{count, plural, =0 {0 en total} =1 {1 en total} other {# en total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Borrador",
+            "QUEUED": "Programado",
             "READY": "Lista",
             "INPUT_REQUIRED": "Entrada",
             "APPROVAL_REQUIRED": "Aprobación",

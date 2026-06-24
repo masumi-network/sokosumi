@@ -9,7 +9,12 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { AgentJobStatus, SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import {
+  AgentJobStatus,
+  canUserTransitionTaskStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -78,7 +83,7 @@ import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
-import { isDnDColumn, statusForColumn } from "./task-dnd";
+import { isDnDDragColumn, isDnDDropColumn, statusForColumn } from "./task-dnd";
 import type { TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
@@ -600,19 +605,26 @@ export function TasksView({
     }
 
     const toColumn = overId as KanbanColumnId;
-    if (!isDnDColumn(toColumn)) return;
+    if (!isDnDDropColumn(toColumn)) return;
 
     const fromColumn = event.active.data.current?.columnId as
       | KanbanColumnId
       | undefined;
-    if (!fromColumn || !isDnDColumn(fromColumn) || fromColumn === toColumn) {
+    if (
+      !fromColumn ||
+      !isDnDDragColumn(fromColumn) ||
+      fromColumn === toColumn
+    ) {
       return;
     }
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
+    if (!canUserTransitionTaskStatus(draggedTask.status, desiredStatus)) {
+      return;
+    }
 
-    // Backlog holds DRAFT and QUEUED — preserve the task's status on rollback.
+    // Preserve the task's prior status on rollback when a drag update fails.
     const previousStatus = draggedTask.status;
 
     const moveVersion = (moveVersionRef.current += 1);

@@ -172,6 +172,7 @@ export {
   type TaskArchivableStatus,
 } from "./task-archive.js";
 export { TaskStatus } from "./task-status.js";
+export { canUserTransitionTaskStatus } from "./task-status-transitions.js";
 export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,

@@ -41,6 +41,14 @@ function buildTask(
 }
 
 describe("mapTaskToTaskWithCoworker", () => {
+  it("maps queued tasks to scheduled column", () => {
+    const task = buildTask(TaskStatus.QUEUED);
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.columnId).toBe("scheduled");
+  });
+
   it("maps canceled tasks to done column", () => {
     const task = buildTask(TaskStatus.CANCELED);
 
