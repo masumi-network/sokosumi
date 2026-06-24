@@ -1,4 +1,6 @@
 import { formatTime, parseCron } from "@/lib/schedules/cron";
+import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
+import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
 export type ScheduleTitleInfo =
   | { key: "oneTime" }
@@ -76,6 +78,49 @@ export type TranslateFn = (
   key: string,
   values?: Record<string, unknown>,
 ) => string;
+
+export type DateTimeFormatter = {
+  dateTime: (value: Date, options?: Intl.DateTimeFormatOptions) => string;
+};
+
+export function formatTaskScheduleSelectionLabel(
+  selection: TaskScheduleSelection,
+  t: TranslateFn,
+  formatter: DateTimeFormatter,
+): string | null {
+  if (selection.mode === "none") return null;
+
+  if (selection.mode === "once") {
+    const runAt = zonedDateTimeLocalToUtc(
+      selection.oneTimeLocalIso,
+      selection.timezone,
+    );
+    if (!runAt) return t("option.oneTime");
+
+    return t("footer.oneTimeAt", {
+      datetime: formatter.dateTime(runAt, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: selection.timezone,
+      }),
+    });
+  }
+
+  const cron =
+    selection.customCronExpr?.trim() || selection.cron?.trim() || null;
+  if (!cron) return t("option.custom");
+
+  return formatScheduleTitle(
+    computeScheduleTitleInfo({
+      scheduleType: "CRON",
+      cron,
+      timezone: selection.timezone,
+    }),
+    t,
+  );
+}
 
 export function formatScheduleTitle(
   info: ScheduleTitleInfo,

@@ -1772,6 +1772,9 @@
         },
         "save": "Save",
         "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Una volta il {datetime}"
+        },
         "card": {
           "overdue": "In ritardo",
           "dueInMinutes": "Scade tra {minutes, plural, one {# minuto} other {# minuti}}",

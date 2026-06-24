@@ -1772,6 +1772,9 @@
         },
         "save": "Save",
         "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "{datetime} に1回"
+        },
         "card": {
           "overdue": "期限超過",
           "dueInMinutes": "あと{minutes}分で実行",

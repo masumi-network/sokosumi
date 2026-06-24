@@ -1772,6 +1772,9 @@
         },
         "save": "Save",
         "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "于 {datetime} 运行一次"
+        },
         "card": {
           "overdue": "已逾期",
           "dueInMinutes": "{minutes} 分钟后运行",

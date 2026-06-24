@@ -62,6 +62,9 @@ vi.mock("sonner", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: (value: Date) => value.toISOString(),
+  }),
 }));
 
 vi.mock("../markdown-editor", () => ({
@@ -378,6 +381,8 @@ describe("TaskForm", () => {
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "save" }));
 
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
+
     expect(
       screen.getByRole("button", { name: /Schedule Task/ }),
     ).toBeInTheDocument();
@@ -422,6 +427,8 @@ describe("TaskForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
     await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+
+    expect(screen.queryByText("footer.oneTimeAt")).not.toBeInTheDocument();
 
     expect(
       screen.getByRole("button", { name: "Create Task" }),

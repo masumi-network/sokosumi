@@ -4,12 +4,14 @@ import { TaskStatus } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
+  Clock,
   Command,
   CornerDownLeft,
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -27,6 +29,7 @@ import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { CompanyMark } from "@/components/agents/company-mark";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -187,6 +190,8 @@ export function TaskForm({
   onCreatedChange,
 }: TaskFormProps) {
   const router = useRouter();
+  const tSchedule = useTranslations("App.Tasks.Schedule");
+  const formatter = useFormatter();
   const isModal = variant === "modal";
   const shouldShowProjectSelect = isModal && projectOptions !== undefined;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
@@ -295,6 +300,28 @@ export function TaskForm({
   const isNameRequired = mode === "edit";
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const hasSchedule = scheduleSelection.mode !== "none";
+  const scheduleLabel = useMemo(
+    () =>
+      formatTaskScheduleSelectionLabel(
+        scheduleSelection,
+        (key, values) =>
+          tSchedule(
+            key as
+              | "option.oneTime"
+              | "option.custom"
+              | "option.dailyWithTime"
+              | "option.weeklyWithWeekdayTime"
+              | "option.monthlyWithDayTime"
+              | "option.dailyEveryNWithTime"
+              | "option.weeklyListWithTime"
+              | "option.monthlyEveryNWithDayTime"
+              | "footer.oneTimeAt",
+            values as Record<string, string | number | Date>,
+          ),
+        formatter,
+      ),
+    [formatter, scheduleSelection, tSchedule],
+  );
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
@@ -887,6 +914,12 @@ export function TaskForm({
                 : "flex flex-col items-stretch justify-between gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
             }
           >
+            {hasSchedule && scheduleLabel ? (
+              <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+                <Clock className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{scheduleLabel}</span>
+              </div>
+            ) : null}
             <div className="flex items-center gap-3 sm:ml-auto">
               {mode === "create" ? (
                 <>

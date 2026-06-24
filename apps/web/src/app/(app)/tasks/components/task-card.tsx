@@ -1,17 +1,20 @@
+import { TaskStatus } from "@sokosumi/utils";
+
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
-import type { TaskStatus } from "@/lib/types/core-dto";
+import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskScheduleClock } from "./task-schedule-clock";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskCardProps {
   task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
   compact?: boolean;
-  statusLabels?: Record<TaskStatus, string>;
+  statusLabels?: Record<TaskStatusType, string>;
 }
 
 export function TaskCard({
@@ -48,13 +51,18 @@ export function TaskCard({
           )}
         >
           <div className="space-y-2.5">
-            <div className="flex flex-col gap-2">
-              <TaskStatusBadge
-                status={task.status}
-                label={statusLabels?.[task.status]}
-                showDot={task.columnId === "in-progress"}
-                className="w-fit self-start rounded-sm"
-              />
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <TaskStatusBadge
+                  status={task.status}
+                  label={statusLabels?.[task.status]}
+                  showDot={task.columnId === "in-progress"}
+                  className="w-fit rounded-sm"
+                />
+                {task.status === TaskStatus.QUEUED ? (
+                  <TaskScheduleClock metadata={task.metadata} />
+                ) : null}
+              </div>
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>
