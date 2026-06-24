@@ -23,6 +23,14 @@ describe("task-schedule helpers", () => {
     );
   });
 
+  it("advances interval next run after a due anchor occurrence", () => {
+    const anchorAt = new Date("2026-06-01T09:00:00.000Z");
+
+    expect(computeIntervalNextRun(anchorAt, 2, anchorAt)).toEqual(
+      new Date("2026-06-03T09:00:00.000Z"),
+    );
+  });
+
   it("uses interval metadata when computing schedule next run", () => {
     const nextRun = computeScheduleNextRun(
       {

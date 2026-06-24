@@ -27,7 +27,7 @@ export function computeIntervalNextRun(
   intervalDays: number,
   from: Date,
 ): Date {
-  if (from <= anchorAt) {
+  if (from < anchorAt) {
     return anchorAt;
   }
 

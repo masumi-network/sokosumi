@@ -93,12 +93,13 @@ async function applyTaskSchedule(
   taskId: string,
   schedule: TaskScheduleSelection,
   hadSchedule: boolean,
-): Promise<void> {
+): Promise<TaskStatus | null> {
   if (schedule.mode === "none") {
     if (hadSchedule) {
-      await taskScheduleService.clearSchedule(taskId);
+      const task = await taskScheduleService.clearSchedule(taskId);
+      return task.status;
     }
-    return;
+    return null;
   }
 
   const body = selectionToApiBody(schedule);
@@ -106,7 +107,8 @@ async function applyTaskSchedule(
     throw new Error("Invalid schedule");
   }
 
-  await taskScheduleService.setSchedule(taskId, body);
+  const task = await taskScheduleService.setSchedule(taskId, body);
+  return task.status;
 }
 
 function resolveCreateStatus(
@@ -368,10 +370,6 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
 
-      if (schedule) {
-        await applyTaskSchedule(taskId, schedule, hadSchedule);
-      }
-
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
@@ -381,9 +379,26 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
           : {}),
       });
 
-      if (desiredStatus !== currentStatus) {
+      let statusAfterSchedule = currentStatus;
+      if (schedule) {
+        const scheduleStatus = await applyTaskSchedule(
+          taskId,
+          schedule,
+          hadSchedule,
+        );
+        if (scheduleStatus !== null) {
+          statusAfterSchedule = scheduleStatus;
+        }
+      }
+
+      const hasActiveSchedule = schedule?.mode !== "none";
+      const targetStatus = hasActiveSchedule
+        ? TaskStatus.QUEUED
+        : desiredStatus;
+
+      if (targetStatus !== statusAfterSchedule) {
         await taskService.createTaskEvent(taskId, {
-          status: desiredStatus,
+          status: targetStatus,
         });
       }
 

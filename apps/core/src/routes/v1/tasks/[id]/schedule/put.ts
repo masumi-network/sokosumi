@@ -5,7 +5,7 @@ import { requireTaskOwnership } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapTask } from "@/helpers/task";
+import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import {
   buildTaskScheduleMetadata,
   computeScheduleNextRun,
@@ -79,14 +79,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only schedule draft, ready, or queued tasks");
       }
 
+      const nextStatus =
+        existingTask.status !== TaskStatus.QUEUED
+          ? TaskStatus.QUEUED
+          : existingTask.status;
+
+      if (nextStatus === TaskStatus.QUEUED) {
+        validateTaskCoworkerAssignment({
+          status: TaskStatus.QUEUED,
+          coworkerId: existingTask.coworkerId,
+        });
+      }
+
       return tx.task.update({
         where: { id },
         data: {
           metadata: JSON.stringify(metadata),
           nextRunAt,
-          ...(existingTask.status !== TaskStatus.QUEUED
-            ? { status: TaskStatus.QUEUED }
-            : {}),
+          ...(nextStatus !== existingTask.status ? { status: nextStatus } : {}),
         },
         include: buildTaskIncludeForViewer(
           authContext,
