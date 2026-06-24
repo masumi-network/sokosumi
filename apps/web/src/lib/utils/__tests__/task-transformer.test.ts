@@ -6,9 +6,8 @@ import type {
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
 import {
-  clampTaskNameForCoreApi,
-  DEFAULT_TASK_NAME_MAX_LENGTH,
   mapTaskToTaskWithCoworker,
+  normalizeTaskNameForCoreApi,
 } from "@/lib/utils/task-transformer";
 
 function buildTask(
@@ -140,24 +139,22 @@ describe("mapTaskToTaskWithCoworker", () => {
   });
 });
 
-describe("clampTaskNameForCoreApi", () => {
-  it("returns names under the limit unchanged", () => {
-    expect(clampTaskNameForCoreApi("Review onboarding flow")).toBe(
+describe("normalizeTaskNameForCoreApi", () => {
+  it("returns names without surrounding whitespace unchanged", () => {
+    expect(normalizeTaskNameForCoreApi("Review onboarding flow")).toBe(
       "Review onboarding flow",
     );
   });
 
   it("trims surrounding whitespace before returning the name", () => {
-    expect(clampTaskNameForCoreApi("  Review onboarding flow  ")).toBe(
+    expect(normalizeTaskNameForCoreApi("  Review onboarding flow  ")).toBe(
       "Review onboarding flow",
     );
   });
 
-  it("truncates names that exceed the Core API limit", () => {
-    const longName = "a".repeat(DEFAULT_TASK_NAME_MAX_LENGTH + 10);
+  it("preserves long names after trimming whitespace", () => {
+    const longName = "a".repeat(200);
 
-    expect(clampTaskNameForCoreApi(longName)).toBe(
-      "a".repeat(DEFAULT_TASK_NAME_MAX_LENGTH),
-    );
+    expect(normalizeTaskNameForCoreApi(`  ${longName}  `)).toBe(longName);
   });
 });

@@ -32,7 +32,7 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
-  name: string;
+  name?: string;
   description: string | null;
   coworkerId: string | null;
   projectId?: string | null;

@@ -1,7 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { Prisma } from "@sokosumi/database";
+import { NotificationKind, Prisma } from "@sokosumi/database";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+
 import { waitUntil } from "@vercel/functions";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
@@ -13,6 +14,7 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
@@ -24,6 +26,7 @@ import {
 } from "@/helpers/task";
 import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { publishTaskEventData } from "@/lib/ably/publish";
+import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -80,6 +83,93 @@ async function mapCreatedTaskEventForResponse(
     throw new Error(`Task event not found after create: ${eventId}`);
   }
   return mapTaskEvent(row);
+}
+
+async function dispatchTaskNotification(
+  task: {
+    id: string;
+    userId: string;
+    name: string | null;
+    coworker: { name: string } | null;
+    project: { name: string } | null;
+    projectId: string | null;
+    workspaceId: string | null;
+    user: { notificationsOptIn: boolean };
+  },
+  eventId: string,
+  status: string,
+): Promise<void> {
+  if (!task.user.notificationsOptIn) {
+    return;
+  }
+
+  try {
+    let messageKey: string;
+    switch (status) {
+      case "INPUT_REQUIRED":
+        messageKey = "Notifications.Task.inputRequired";
+        break;
+      case "APPROVAL_REQUIRED":
+        messageKey = "Notifications.Task.approvalRequired";
+        break;
+      case "AUTHENTICATION_REQUIRED":
+        messageKey = "Notifications.Task.authenticationRequired";
+        break;
+      case "OUT_OF_CREDITS":
+        messageKey = "Notifications.Task.outOfCredits";
+        break;
+      case "COMPLETED":
+        messageKey = "Notifications.Task.completed";
+        break;
+      case "FAILED":
+        messageKey = "Notifications.Task.failed";
+        break;
+      case "CANCELED":
+        messageKey = "Notifications.Task.canceled";
+        break;
+      default:
+        return;
+    }
+
+    const taskName = task.name ?? "Untitled task";
+    const coworkerName = task.coworker?.name ?? "Assistant";
+    const projectName = task.project?.name;
+
+    const messageParams: Record<string, unknown> = {
+      coworkerName,
+      taskName,
+    };
+
+    if (projectName) {
+      messageParams.projectName = projectName;
+    }
+
+    const metadata: Record<string, unknown> = {};
+    if (task.projectId) {
+      metadata.projectId = task.projectId;
+    }
+    if (task.workspaceId) {
+      metadata.workspaceId = task.workspaceId;
+    }
+
+    await createNotification({
+      userId: task.userId,
+      kind: NotificationKind.TASK,
+      referenceId: task.id,
+      eventId,
+      messageKey,
+      messageParams,
+      metadata: Object.keys(metadata).length > 0 ? metadata : null,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        taskId: task.id,
+        userId: task.userId,
+        notificationType: "task-notification",
+      },
+    });
+  }
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -256,6 +346,59 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       "Task changed by a concurrent request. Please retry.",
     );
+
+    if (event.status) {
+      const taskEventId = event.id;
+      const taskEventStatus = event.status;
+
+      waitUntil(
+        (async () => {
+          try {
+            const taskWithRelations = await prisma.task.findUnique({
+              where: { id: taskId },
+              select: {
+                id: true,
+                userId: true,
+                name: true,
+                projectId: true,
+                workspaceId: true,
+                coworker: {
+                  select: {
+                    name: true,
+                  },
+                },
+                project: {
+                  select: {
+                    name: true,
+                  },
+                },
+                user: {
+                  select: {
+                    notificationsOptIn: true,
+                  },
+                },
+              },
+            });
+
+            if (taskWithRelations) {
+              await dispatchTaskNotification(
+                taskWithRelations,
+                taskEventId,
+                taskEventStatus,
+              );
+            }
+          } catch (error) {
+            Sentry.captureException(error, {
+              extra: {
+                taskId,
+                eventId: taskEventId,
+                notificationType: "task-notification",
+              },
+            });
+          }
+        })(),
+      );
+    }
 
     if (masumiPayment != null) {
       const taskEventId = event.id;

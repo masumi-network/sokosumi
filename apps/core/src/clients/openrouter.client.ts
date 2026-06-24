@@ -13,6 +13,11 @@ interface OpenRouterRequestOptions {
   abortSignal?: AbortSignal;
 }
 
+// Best-effort name generation must not stall task/job creation: bound each
+// request so a slow or hung OpenRouter call aborts and falls back to a
+// non-LLM name instead of blocking the create request indefinitely.
+const NAME_GENERATION_TIMEOUT_MS = 10_000;
+
 const RESPONSES_API_EVENTS = {
   OUTPUT_TEXT_DELTA: "response.output_text.delta",
   COMPLETED: "response.completed",
@@ -60,6 +65,7 @@ export const openrouterClient = (() => {
 
       try {
         const { text } = await generateText({
+          abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
           system: systemPrompt,
           prompt: userPrompt,
@@ -70,6 +76,37 @@ export const openrouterClient = (() => {
         return text || null;
       } catch (error) {
         console.error("OpenRouter job name generation failed:", error);
+        return null;
+      }
+    },
+
+    async generateTaskName(description: string): Promise<string | null> {
+      if (!defaultOpenrouter) {
+        return null;
+      }
+
+      const systemPrompt = `Generate a concise task name following these rules:
+        - Length: 30-60 characters (including spaces and punctuation)
+        - Language: Match the input
+        - Format: Single sentence
+        - Output: Name only, no other text
+        - Do NOT: include end of sentence punctuation
+      `;
+      const userPrompt = `Task Description: ${description}`;
+
+      try {
+        const { text } = await generateText({
+          abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
+          model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.9,
+          maxOutputTokens: 40,
+        });
+
+        return text || null;
+      } catch (error) {
+        console.error("OpenRouter task name generation failed:", error);
         return null;
       }
     },

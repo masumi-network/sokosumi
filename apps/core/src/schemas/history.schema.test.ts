@@ -19,6 +19,7 @@ const taskItem = {
   credits: 2.5,
   projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   coworkerId: "cow_123",
+  owner: null,
 };
 
 const jobItem = {
@@ -34,6 +35,7 @@ const jobItem = {
   agentId: "agent_123",
   agentName: "Research Agent",
   agentIcon: "https://example.com/research.svg",
+  owner: null,
 };
 
 const conversationItem = {
@@ -46,6 +48,7 @@ const conversationItem = {
   archivedAt: null,
   credits: null,
   bucketSlug: "hannah",
+  owner: null,
 };
 
 describe("history schemas", () => {

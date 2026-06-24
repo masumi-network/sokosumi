@@ -1,10 +1,9 @@
 import "server-only";
 
 import { headers } from "next/headers";
-
+import { withUnauthorizedCoreRedirect } from "@/lib/auth/handle-unauthorized-core-error";
 import { createClient } from "@/lib/clients/generated/core/client";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
-
 import { createCoreClient } from "./core.shared";
 
 export {
@@ -34,4 +33,6 @@ async function createCoreGeneratedClient() {
   });
 }
 
-export const coreClient = createCoreClient(createCoreGeneratedClient);
+export const coreClient = withUnauthorizedCoreRedirect(
+  createCoreClient(createCoreGeneratedClient),
+);

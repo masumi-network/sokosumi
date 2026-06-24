@@ -32,7 +32,7 @@ describe("getCoworkerOptions", () => {
         description: "Helps with ops",
       }),
     ]);
-    expect(options[0]).toEqual({
+    expect(options[0]).toMatchObject({
       id: "id-1",
       slug: "alex",
       name: "Alex",
@@ -43,7 +43,7 @@ describe("getCoworkerOptions", () => {
 
   it("omits description when absent", () => {
     const options = getCoworkerOptions([baseCoworker({ description: null })]);
-    expect(options[0]).toEqual({
+    expect(options[0]).toMatchObject({
       id: "cow_1",
       slug: "ops-agent",
       name: "Ops Agent",

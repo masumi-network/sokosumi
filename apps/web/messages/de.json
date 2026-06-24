@@ -247,6 +247,8 @@
       "billing": "Abrechnung",
       "account": "Konto",
       "admin": "Administration",
+      "organizations": "Organisationen",
+      "users": "Benutzer",
       "edit": "Bearbeiten",
       "enterprise-contracts": "Enterprise-Verträge",
       "mcp": "Model Context Protocol (MCP)",
@@ -256,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Verlauf",
       "new": "Neu",
+      "notifications": "Benachrichtigungen",
       "projects": "Projekte",
       "invoices": "Rechnungen"
     },
@@ -307,8 +310,7 @@
             "Schema": {
               "Name": {
                 "invalid": "Name muss eine gültige Zeichenkette sein",
-                "min": "Name muss mindestens 2 Zeichen lang sein",
-                "max": "Name darf maximal 120 Zeichen lang sein"
+                "min": "Name muss mindestens 2 Zeichen lang sein"
               }
             },
             "Form": {
@@ -652,6 +654,22 @@
         "cancel": "Abbrechen",
         "error": "Abmelden fehlgeschlagen"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Benachrichtigungen",
+      "unreadBadge": "{count, plural, =1 {1 ungelesene Benachrichtigung} other {# ungelesene Benachrichtigungen}}",
+      "title": "Benachrichtigungen",
+      "pageTitle": "Benachrichtigungen",
+      "emptyState": "Noch keine Benachrichtigungen",
+      "seeMore": "Mehr anzeigen",
+      "loading": "Lädt...",
+      "loadMore": "Mehr laden",
+      "markAllRead": "Alle als gelesen markieren",
+      "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
+      "fetchError": "Benachrichtigungen konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "dismiss": "Schließen",
+      "dismissNotification": "Benachrichtigung schließen"
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -1185,6 +1203,7 @@
           "active": "Aktiv",
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
+          "QUEUED": "In Warteschlange",
           "READY": "Bereit",
           "INPUT_REQUIRED": "Eingabe erforderlich",
           "APPROVAL_REQUIRED": "Genehmigung erforderlich",
@@ -1451,6 +1470,7 @@
         "projectLabel": "Projekt",
         "statusOptions": {
           "DRAFT": "Entwurf",
+          "QUEUED": "In Warteschlange",
           "READY": "Bereit",
           "INPUT_REQUIRED": "Eingabe erforderlich",
           "APPROVAL_REQUIRED": "Genehmigung erforderlich",
@@ -1652,7 +1672,33 @@
         "saveAsDraft": "Als Entwurf speichern",
         "createTask": "Task erstellen",
         "cancel": "Abbrechen",
-        "ctrl": "Strg"
+        "ctrl": "Strg",
+        "chooseAgent": "Wähle deinen Agenten",
+        "chooseAgentDescription": "Wähle, wer diese Aufgabe übernehmen soll — vergleiche Modell, Hosting und Fähigkeiten.",
+        "defaultBadge": "Standard",
+        "modelLabel": "Modell",
+        "hostingLabel": "Gehostet in",
+        "examplesTitle": "Was {name} kann",
+        "continue": "Weiter",
+        "taskStepTitle": "Was soll {name} tun?",
+        "previousAgent": "Vorheriger Agent",
+        "nextAgent": "Nächster Agent",
+        "searchAgents": "Agenten suchen…",
+        "noAgentsFound": "Keine Agenten gefunden.",
+        "askPrompt": "Bitte {name}, …",
+        "promptHint": "Klicke auf ein Beispiel oder schreibe deine eigenen Anweisungen.",
+        "tasksTitle": "Sofort startbare Tasks",
+        "startFromScratch": "Von Grund auf starten",
+        "startFromScratchHint": "Eigene Anweisungen schreiben",
+        "previewExample": "Beispiel ansehen",
+        "previewUse": "Diesen Task verwenden",
+        "previewEmpty": "Noch kein Beispiel verfügbar.",
+        "allCompanies": "Alle",
+        "taskCreated": "Task erstellt",
+        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "goToTask": "Zum Task",
+        "createAnother": "Weiteren Task erstellen",
+        "close": "Schließen"
       },
       "EditTask": {
         "title": "Task bearbeiten",
@@ -2362,7 +2408,9 @@
           "projects": "Projekte",
           "hermes": "Hermes",
           "history": "Verlauf",
-          "admin": "Administration"
+          "admin": "Administration",
+          "settings": "Einstellungen",
+          "back": "Zurück"
         }
       }
     },
@@ -2598,6 +2646,10 @@
             "title": "Benutzer",
             "description": "Durchsuchbare Übersicht aller Benutzer mit Guthaben, Abonnement und Aktivität."
           },
+          "organizations": {
+            "title": "Organisationen",
+            "description": "Durchsuchbare Übersicht der Organisationen mit Mitgliedern, Abrechnung und Guthaben."
+          },
           "tasks": {
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
@@ -2618,6 +2670,86 @@
           "registered": "Registriert",
           "loadMore": "Mehr laden",
           "loadError": "Benutzer konnten nicht geladen werden."
+        }
+      },
+      "Organizations": {
+        "title": "Organisationen",
+        "description": "Durchsuchbare Übersicht aller Organisationen",
+        "OrganizationList": {
+          "searchPlaceholder": "Nach Name oder Slug suchen…",
+          "totalCount": "{count, plural, one {# Organisation} other {# Organisationen}}",
+          "empty": "Keine Organisationen gefunden.",
+          "organization": "Organisation",
+          "members": "Mitglieder",
+          "billing": "Abrechnung",
+          "subscription": "Abonnement",
+          "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
+          "created": "Erstellt",
+          "loadMore": "Mehr laden",
+          "loadError": "Organisationen konnten nicht geladen werden."
+        },
+        "OrganizationDetail": {
+          "backToList": "Zurück zu Organisationen",
+          "billing": {
+            "title": "Abrechnung",
+            "plan": "Plan: {plan}",
+            "mode": "Modus: {mode}",
+            "seats": "{purchased} gekauft · {assigned} zugewiesen · {unused} ungenutzt",
+            "subscription": "Abonnement: {plan} ({status})",
+            "enterprisePool": "Enterprise-Pool: {credits} Credits"
+          },
+          "credits": {
+            "title": "Guthaben gesamt",
+            "description": "Kombiniertes verfügbares Guthaben für diese Organisation.",
+            "perMember": "Guthaben sind unten pro Mitglied aufgeführt."
+          },
+          "members": {
+            "title": "Mitglieder",
+            "totalCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+            "empty": "Noch keine Mitglieder.",
+            "loadMore": "Mehr laden",
+            "loadError": "Mitglieder konnten nicht geladen werden.",
+            "user": "Benutzer",
+            "role": "Rolle",
+            "credits": "Guthaben",
+            "subscription": "Abonnement",
+            "seat": "Seat",
+            "seatAssigned": "Zugewiesen",
+            "seatUnassigned": "Nicht zugewiesen",
+            "actions": "Aktionen"
+          },
+          "roles": {
+            "owner": "Eigentümer",
+            "admin": "Admin",
+            "member": "Mitglied"
+          },
+          "addMember": {
+            "submit": "Mitglied hinzufügen",
+            "success": "Mitglied hinzugefügt",
+            "userRequired": "Wähle einen Benutzer zum Hinzufügen aus",
+            "combobox": {
+              "placeholder": "Benutzer auswählen…",
+              "search": "Benutzer suchen…",
+              "empty": "Keine Benutzer gefunden.",
+              "loading": "Suche läuft…",
+              "error": "Suche fehlgeschlagen.",
+              "idle": "Tippe, um Benutzer zu suchen.",
+              "clear": "Auswahl löschen"
+            }
+          },
+          "actions": {
+            "makeOwner": "Zum Eigentümer machen",
+            "makeAdmin": "Zum Admin machen",
+            "makeMember": "Zum Mitglied machen",
+            "assignSeat": "Seat zuweisen",
+            "unassignSeat": "Seat entfernen",
+            "remove": "Mitglied entfernen"
+          },
+          "memberActionError": "Mitgliedsaktion fehlgeschlagen.",
+          "roleUpdateSuccess": "Rolle aktualisiert.",
+          "seatAssignSuccess": "Seat zugewiesen.",
+          "seatUnassignSuccess": "Seat entfernt.",
+          "removeSuccess": "Mitglied entfernt."
         }
       },
       "Invoices": {
@@ -2893,6 +3025,9 @@
         "notConnected": "ist nicht verbunden",
         "success": "Account erfolgreich verbunden",
         "error": "{provider} konnte nicht verbunden werden",
+        "loadErrorTitle": "Verbundene Konten konnten nicht geladen werden",
+        "loadError": "Deine verbundenen Konten konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen",
         "DisconnectModal": {
           "title": "{provider} trennen",
           "description": "Möchtest du deinen {provider}-Account wirklich trennen?",
@@ -2901,6 +3036,11 @@
           "success": "Account erfolgreich getrennt",
           "error": "{provider} konnte nicht getrennt werden"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
+        "loadError": "Deine verknüpften Kontodetails konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen"
       },
       "Notifications": {
         "title": "E-Mail-Benachrichtigungen",
@@ -3016,6 +3156,11 @@
           "title": "Client nicht gefunden",
           "description": "Der OAuth-Client konnte nicht gefunden werden.",
           "descriptionWithId": "Der OAuth-Client mit der ID {clientId} existiert nicht."
+        },
+        "loadError": {
+          "title": "Anwendung konnte nicht geladen werden",
+          "description": "Die Anwendungsdetails konnten gerade nicht geladen werden. Bitte versuche es erneut.",
+          "retry": "Erneut versuchen"
         },
         "title": "Anwendung autorisieren",
         "description": "Eine Anwendung möchte auf deinen Account zugreifen",
@@ -3274,7 +3419,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "KI-Coworker",
         "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
-      }
+      },
+      "allAgentsTitle": "Alle Agenten durchsuchen",
+      "allAgentsSubtitle": "Alle Agenten auf Sokosumi – gruppiert nach Aufgabe."
     },
     "EmailVerificationNotice": {
       "title": "Bestätige deine E-Mail-Adresse",
@@ -3564,6 +3711,25 @@
         "hours": "{value, plural, =1 {Std.} other {Std.}}",
         "minutes": "{value, plural, =1 {Min.} other {Min.}}",
         "seconds": "{value, plural, =1 {Sek.} other {Sek.}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} hat {jobName} abgeschlossen",
+        "failed": "{agentName} konnte {jobName} nicht abschließen",
+        "paymentFailed": "Zahlung für {jobName} fehlgeschlagen",
+        "inputRequired": "{agentName} benötigt deinen Input für {jobName}",
+        "refundResolved": "{jobName} wurde erstattet",
+        "disputeResolved": "Einspruch für {jobName} gelöst"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} benötigt deinen Input für {taskName}",
+        "approvalRequired": "{coworkerName} benötigt deine Freigabe für {taskName}",
+        "authenticationRequired": "{coworkerName} benötigt eine Authentifizierung für {taskName}",
+        "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
+        "completed": "{coworkerName} hat {taskName} abgeschlossen",
+        "failed": "{coworkerName} konnte {taskName} nicht abschließen",
+        "canceled": "{taskName} wurde abgebrochen"
       }
     }
   }

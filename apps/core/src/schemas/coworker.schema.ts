@@ -15,6 +15,68 @@ export const coworkerCapabilitiesSchema = z
       "Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.",
   });
 
+export const coworkerProfileSchema = z
+  .object({
+    llm: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ["GPT-4o", "Claude 3.5 Sonnet"] }),
+    hosting: z.string().optional().openapi({ example: "EU · Frankfurt" }),
+    capabilities: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ["Market Research", "Copywriting"] }),
+    examples: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ["Plan a multi-channel campaign"] }),
+  })
+  .openapi("CoworkerProfile");
+
+export const coworkerOfferSchema = z
+  .object({
+    title: z.string().openapi({ example: "Competitive analysis" }),
+    prompt: z.string().openapi({
+      example:
+        "Run a competitive analysis of my top 3 competitors and summarize their positioning.",
+    }),
+    category: z.string().optional().openapi({ example: "Research" }),
+    description: z.string().optional().openapi({
+      example:
+        "A sourced, side-by-side breakdown of your top competitors — positioning, pricing, strengths, and the gaps you can exploit.",
+    }),
+    deliverable: z.string().optional().openapi({
+      example:
+        "A 2–3 page PDF brief with a comparison table and key takeaways.",
+    }),
+    outputs: z
+      .array(
+        z.object({
+          type: z.enum(["pdf", "image", "slides", "doc", "text"]).openapi({
+            example: "pdf",
+          }),
+          url: z.string().optional().openapi({
+            example: "https://example.com/samples/competitive-analysis.pdf",
+          }),
+          label: z
+            .string()
+            .optional()
+            .openapi({ example: "Competitive brief" }),
+          text: z.string().optional().openapi({
+            description:
+              "Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.",
+            example: "## Project plan\n\n- Milestone 1 — …",
+          }),
+        }),
+      )
+      .optional()
+      .openapi({
+        description:
+          "Example outputs the offer produces — text and/or files (PDF, slides, image).",
+      }),
+  })
+  .openapi("CoworkerOffer");
+
 export const coworkerMetadataSchema = z
   .object({
     channels: z.record(z.string(), z.string()).openapi({
@@ -24,6 +86,14 @@ export const coworkerMetadataSchema = z
         email: "foo@bar.com",
         whatsapp: "+49151xxxx",
       },
+    }),
+    profile: coworkerProfileSchema.optional().openapi({
+      description:
+        "Public agent profile shown in selection UIs (model, hosting, capabilities, examples).",
+    }),
+    offers: z.array(coworkerOfferSchema).optional().openapi({
+      description:
+        "Curated, pre-filled task offers shown in the agents marketplace.",
     }),
   })
   .openapi("CoworkerMetadata");

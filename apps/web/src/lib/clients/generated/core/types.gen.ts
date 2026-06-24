@@ -29,6 +29,12 @@ export type PaginationMetadata = {
     nextCursor: string | null;
 };
 
+export type AdminOrganizationOption = {
+    id: string;
+    name: string;
+    slug: string;
+};
+
 export type AdminUserOverviewItem = {
     id: string;
     name: string;
@@ -42,17 +48,133 @@ export type AdminUserOverviewItem = {
      * Active subscription plan, if any
      */
     subscriptionPlan: string | null;
-    subscriptionStatus: string | null;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
     /**
      * Number of tasks the user has started (status beyond DRAFT)
      */
     startedTaskCount: number;
 };
 
-export type AdminOrganizationOption = {
+export type AdminOrganizationOverviewItem = {
     id: string;
     name: string;
     slug: string;
+    createdAt: Date;
+    memberCount: number;
+    billingMode: 'enterprise_contract' | 'self_serve';
+    billingPlan: 'free' | 'starter' | 'standard' | 'pro' | 'enterprise';
+    purchasedSeats: number;
+    /**
+     * Active organization subscription plan, if any
+     */
+    subscriptionPlan: string | null;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+};
+
+export type AdminOrganizationOverviewDetail = {
+    organization: {
+        id: string;
+        name: string;
+        slug: string;
+        createdAt: Date;
+        stripeCustomerId: string | null;
+    };
+    billingPlan: {
+        mode: 'enterprise_contract' | 'self_serve';
+        plan: 'free' | 'starter' | 'standard' | 'pro' | 'enterprise';
+        isConsumable: boolean;
+        purchasedSeats: number;
+        cancelAtPeriodEnd: boolean;
+        periodEnd: Date | null;
+    };
+    subscription: {
+        plan: string;
+        status: string;
+        cancelAtPeriodEnd: boolean;
+        periodStart: Date | null;
+        periodEnd: Date | null;
+        seats: number;
+    } | null;
+    enterpriseContract: {
+        poolRemainingCredits: number;
+        monthlyCredits: number | null;
+        purchasedSeats: number;
+        isConsumable: boolean;
+    } | null;
+    seatSummary: {
+        assignedCount: number;
+        memberCount: number;
+        purchasedSeats: number;
+        unusedSeats: number;
+        paidPlan: string | null;
+        isEnterpriseContract: boolean;
+    };
+    /**
+     * Enterprise pool remaining credits; null for self-serve organizations where credits are per member
+     */
+    totalCredits: number | null;
+};
+
+export type AdminOrganizationMemberOverviewItem = {
+    id: string;
+    organizationId: string;
+    role: 'owner' | 'admin' | 'member';
+    seatAssignedAt: Date | null;
+    createdAt: Date;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+    lastSeenAt: Date | null;
+    /**
+     * Available credits for this member in the organization
+     */
+    credits: number;
+    /**
+     * Member subscription plan in organization context
+     */
+    subscriptionPlan: string | null;
+    /**
+     * Stripe subscription lifecycle status, or null when absent
+     */
+    subscriptionStatus: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid' | null;
+};
+
+export type AdminAddOrganizationMemberBody = {
+    /**
+     * User ID to add as a member
+     */
+    userId: string;
+    role?: 'owner' | 'admin' | 'member';
+};
+
+export type AdminUpdateOrganizationMemberRoleBody = {
+    role: 'owner' | 'admin' | 'member';
+};
+
+export type OrganizationSeatAssignment = {
+    /**
+     * ID of the member the seat was assigned to
+     */
+    memberId: string;
+    /**
+     * When the seat was assigned
+     */
+    seatAssignedAt: Date;
+};
+
+export type OrganizationSeatUnassignment = {
+    /**
+     * ID of the member the seat was unassigned from
+     */
+    memberId: string;
 };
 
 export type InvoiceListItem = {
@@ -96,7 +218,7 @@ export type CreateInvoice = {
 export type AdminTaskListItem = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     createdAt: Date;
     user: {
         id: string;
@@ -137,7 +259,7 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -194,7 +316,7 @@ export type TaskEvent = {
     comment?: string | null;
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
 
 export type JobSummary = {
@@ -268,7 +390,7 @@ export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRela
 export type TaskLinkPeerTask = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     archivedAt: Date | null;
 };
 
@@ -560,6 +682,28 @@ export type ChatUiMessage = {
     };
 };
 
+export type CreditCheckoutSession = {
+    url: string;
+};
+
+export type CreateCreditCheckoutSession = {
+    organizationId?: string | null;
+    credits: number;
+    returnPath?: string;
+    promotionCodeId?: string;
+};
+
+export type CheckoutSessionAnalytics = {
+    sessionId: string;
+    currency: string | null;
+    value: number | null;
+    items: Array<{
+        itemId: string;
+        itemName: string;
+        quantity: number | null;
+    }>;
+};
+
 export type ConversationList = Array<Conversation>;
 
 export type Conversation = {
@@ -705,6 +849,22 @@ export type CreateConversationMessageRequest = {
         type: string;
         text: string;
     }>;
+};
+
+export type CouponDetails = {
+    id: string;
+    percentOff: number;
+    credits: number;
+    ttlDays: string | null;
+};
+
+export type ClaimedPromotionCode = {
+    promotionCodeId: string;
+    active: boolean;
+};
+
+export type ClaimCoupon = {
+    organizationId?: string | null;
 };
 
 export type CreditCost = {
@@ -1213,8 +1373,12 @@ export type HistoryTaskItem = {
      * User-facing credits. Null means credits do not apply to this item.
      */
     credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     */
+    owner: HistoryOwner | null;
     kind: 'task';
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
      * Project ID for the task, when assigned
      */
@@ -1223,6 +1387,21 @@ export type HistoryTaskItem = {
      * Coworker ID associated with the task, when assigned
      */
     coworkerId: string | null;
+};
+
+export type HistoryOwner = {
+    /**
+     * User ID of the history item owner
+     */
+    userId: string;
+    /**
+     * Display name of the owner
+     */
+    name: string;
+    /**
+     * Profile image URL of the owner. Null when no image is set.
+     */
+    image: string | null;
 };
 
 export type HistoryJobItem = {
@@ -1250,6 +1429,10 @@ export type HistoryJobItem = {
      * User-facing credits. Null means credits do not apply to this item.
      */
     credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     */
+    owner: HistoryOwner | null;
     kind: 'job';
     status: 'started' | 'completed' | 'processing' | 'input_required' | 'result_pending' | 'failed' | 'payment_pending' | 'payment_failed' | 'refund_pending' | 'refund_resolved' | 'dispute_pending' | 'dispute_resolved';
     /**
@@ -1295,6 +1478,10 @@ export type HistoryConversationItem = {
      * Conversations do not currently have credits
      */
     credits: null;
+    /**
+     * Owner of the history item. Null when the user is deleted or the item has no clear owner (e.g., conversations).
+     */
+    owner: HistoryOwner | null;
     kind: 'conversation';
     status: 'active' | 'archived';
     /**
@@ -1388,7 +1575,10 @@ export type MemberWithOrganization = {
     id: string;
     userId: string;
     organizationId: string;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
     seatAssignedAt: Date | null;
     createdAt: Date;
     organization: OrganizationRecord;
@@ -1415,14 +1605,20 @@ export type Organization = {
         invoiceEmail?: string | null;
         [key: string]: unknown;
     } | null;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
 };
 
 export type MemberRecord = {
     id: string;
     userId: string;
     organizationId: string;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
     seatAssignedAt: Date | null;
     createdAt: Date;
 };
@@ -1581,7 +1777,10 @@ export type ProvisionedStripeCustomer = {
 export type ActiveSubscriptionResponse = {
     subscription: {
         plan: string;
-        status: string;
+        /**
+         * Stripe subscription lifecycle status
+         */
+        status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
         cancelAtPeriodEnd?: boolean | null;
         periodStart?: Date | null;
         periodEnd?: Date | null;
@@ -1607,7 +1806,10 @@ export type User = {
 export type Member = {
     id: string;
     organizationId: string;
-    role: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member';
     seatAssignedAt: Date | null;
     createdAt: Date;
     user: {
@@ -1622,30 +1824,18 @@ export type Member = {
     lastSeenAt: Date | null;
 };
 
-export type OrganizationSeatAssignment = {
-    /**
-     * ID of the member the seat was assigned to
-     */
-    memberId: string;
-    /**
-     * When the seat was assigned
-     */
-    seatAssignedAt: Date;
-};
-
-export type OrganizationSeatUnassignment = {
-    /**
-     * ID of the member the seat was unassigned from
-     */
-    memberId: string;
-};
-
 export type PendingInvitation = {
     id: string;
     organizationId: string;
     email: string;
-    role: string | null;
-    status: string;
+    /**
+     * Organization member role
+     */
+    role: 'owner' | 'admin' | 'member' | null;
+    /**
+     * Invitation lifecycle status stored in the database
+     */
+    status: 'pending' | 'accepted' | 'rejected' | 'canceled';
     expiresAt: Date;
     inviterId: string;
     createdAt: Date;
@@ -1781,7 +1971,7 @@ export type ProjectStatsEntry = {
 
 export type ProjectTaskStatusCount = {
     count: number;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
 };
 
 export type ProjectJobStatusCount = {
@@ -1947,6 +2137,86 @@ export type JobEvent = {
     links: Array<Link>;
 };
 
+export type NotificationList = Array<NotificationItem>;
+
+export type NotificationItem = {
+    /**
+     * Unique identifier for the notification
+     */
+    id: string;
+    /**
+     * User ID of the notification owner
+     */
+    userId: string;
+    kind: NotificationKind;
+    /**
+     * ID of the related entity (job id, task id, etc.)
+     */
+    referenceId: string;
+    /**
+     * ID of the source event (jobEvent or taskEvent, depending on kind)
+     */
+    eventId: string;
+    /**
+     * i18n message key for translation (e.g. Notifications.Job.completed)
+     */
+    messageKey: string;
+    /**
+     * ICU interpolation parameters for the message
+     */
+    messageParams: {
+        [key: string]: unknown;
+    };
+    /**
+     * Optional metadata for deep-linking or context
+     */
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Whether the notification has been read
+     */
+    isRead: boolean;
+    /**
+     * When the notification was marked as read
+     */
+    readAt: Date | null;
+    /**
+     * When the notification was created
+     */
+    createdAt: Date;
+};
+
+/**
+ * Notification source domain
+ */
+export const NotificationKind = {
+    JOB: 'JOB',
+    TASK: 'TASK',
+    CONVERSATION: 'CONVERSATION',
+    BILLING: 'BILLING',
+    SYSTEM: 'SYSTEM'
+} as const;
+
+/**
+ * Notification source domain
+ */
+export type NotificationKind = typeof NotificationKind[keyof typeof NotificationKind];
+
+export type UnreadCount = {
+    /**
+     * Number of unread notifications
+     */
+    count: number;
+};
+
+export type MarkAllReadResponse = {
+    /**
+     * Number of notifications marked as read
+     */
+    count: number;
+};
+
 export type GetInvitationResult = {
     kind: 'ok';
     invitation: PendingInvitation & {
@@ -1992,7 +2262,7 @@ export type PublicSharedTask = {
     updatedAt: Date;
     name: string;
     description?: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     coworker?: PublicSharedTaskCoworker;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
@@ -2020,7 +2290,7 @@ export type PublicSharedTaskMilestone = {
     createdAt: Date;
     updatedAt: Date;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -2063,7 +2333,42 @@ export type CoworkerMetadata = {
     channels: {
         [key: string]: string;
     };
+    profile?: CoworkerProfile;
+    /**
+     * Curated, pre-filled task offers shown in the agents marketplace.
+     */
+    offers?: Array<CoworkerOffer>;
 } | null;
+
+/**
+ * Public agent profile shown in selection UIs (model, hosting, capabilities, examples).
+ */
+export type CoworkerProfile = {
+    llm?: Array<string>;
+    hosting?: string;
+    capabilities?: Array<string>;
+    examples?: Array<string>;
+};
+
+export type CoworkerOffer = {
+    title: string;
+    prompt: string;
+    category?: string;
+    description?: string;
+    deliverable?: string;
+    /**
+     * Example outputs the offer produces — text and/or files (PDF, slides, image).
+     */
+    outputs?: Array<{
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text';
+        url?: string;
+        label?: string;
+        /**
+         * Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.
+         */
+        text?: string;
+    }>;
+};
 
 export type CoworkerUsage = {
     id: string;
@@ -2109,7 +2414,7 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2153,6 +2458,35 @@ export type CreditPriceOption = {
     nickname: string | null;
 };
 
+export type CreditTopUpPricing = {
+    currency: string;
+    tiers: Array<CreditTopUpTier>;
+    referenceAmountPerCredit: number;
+    canPurchaseOnFreePlan: boolean;
+};
+
+export type CreditTopUpTier = {
+    minCredits: number;
+    amountPerCredit: number;
+};
+
+export type SubscriptionCatalog = {
+    free: SubscriptionCatalogPlan;
+    starter: SubscriptionCatalogPlan;
+    standard: SubscriptionCatalogPlan;
+    pro: SubscriptionCatalogPlan;
+};
+
+export type SubscriptionCatalogPlan = {
+    credits: number;
+    currency: string;
+    monthlyAmount: number;
+    name: 'free' | 'starter' | 'standard' | 'pro';
+    priceId: string;
+    productId: string;
+    slug: string;
+};
+
 export type EffectiveDesignMd = {
     /**
      * The effective DESIGN.md, or null when none
@@ -2193,7 +2527,7 @@ export type SearchAdminUsersData = {
          */
         query?: string;
     };
-    url: '/admin/users';
+    url: '/admin/search/users';
 };
 
 export type SearchAdminUsersErrors = {
@@ -2245,75 +2579,6 @@ export type SearchAdminUsersResponses = {
 
 export type SearchAdminUsersResponse = SearchAdminUsersResponses[keyof SearchAdminUsersResponses];
 
-export type ListAdminUserOverviewData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Optional search term matched case-insensitively against user name and email. Empty or missing lists all users.
-         */
-        query?: string;
-        /**
-         * Cursor for pagination (ID of the last item from previous page)
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 50)
-         */
-        limit?: number;
-    };
-    url: '/admin/users/overview';
-};
-
-export type ListAdminUserOverviewErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ListAdminUserOverviewError = ListAdminUserOverviewErrors[keyof ListAdminUserOverviewErrors];
-
-export type ListAdminUserOverviewResponses = {
-    /**
-     * Paginated list of users for the admin overview
-     */
-    200: {
-        data: Array<AdminUserOverviewItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type ListAdminUserOverviewResponse = ListAdminUserOverviewResponses[keyof ListAdminUserOverviewResponses];
-
 export type SearchAdminOrganizationsData = {
     body?: never;
     path?: never;
@@ -2323,7 +2588,7 @@ export type SearchAdminOrganizationsData = {
          */
         query?: string;
     };
-    url: '/admin/organizations';
+    url: '/admin/search/organizations';
 };
 
 export type SearchAdminOrganizationsErrors = {
@@ -2374,6 +2639,144 @@ export type SearchAdminOrganizationsResponses = {
 };
 
 export type SearchAdminOrganizationsResponse = SearchAdminOrganizationsResponses[keyof SearchAdminOrganizationsResponses];
+
+export type ListAdminUsersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched case-insensitively against user name and email. Empty or missing lists all users.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/users';
+};
+
+export type ListAdminUsersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminUsersError = ListAdminUsersErrors[keyof ListAdminUsersErrors];
+
+export type ListAdminUsersResponses = {
+    /**
+     * Paginated list of users for the admin overview
+     */
+    200: {
+        data: Array<AdminUserOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
+
+export type ListAdminOrganizationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Optional search term matched case-insensitively against organization name and slug. Empty or missing lists all organizations.
+         */
+        query?: string;
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/organizations';
+};
+
+export type ListAdminOrganizationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminOrganizationsError = ListAdminOrganizationsErrors[keyof ListAdminOrganizationsErrors];
+
+export type ListAdminOrganizationsResponses = {
+    /**
+     * Paginated list of organizations for the admin overview
+     */
+    200: {
+        data: Array<AdminOrganizationOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminOrganizationsResponse = ListAdminOrganizationsResponses[keyof ListAdminOrganizationsResponses];
 
 export type GetAdminOrganizationBySlugData = {
     body?: never;
@@ -2433,10 +2836,10 @@ export type GetAdminOrganizationBySlugError = GetAdminOrganizationBySlugErrors[k
 
 export type GetAdminOrganizationBySlugResponses = {
     /**
-     * Organization matching the slug
+     * Organization overview for the admin console
      */
     200: {
-        data: AdminOrganizationOption;
+        data: AdminOrganizationOverviewDetail;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -2446,6 +2849,528 @@ export type GetAdminOrganizationBySlugResponses = {
 };
 
 export type GetAdminOrganizationBySlugResponse = GetAdminOrganizationBySlugResponses[keyof GetAdminOrganizationBySlugResponses];
+
+export type ListAdminOrganizationMembersData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of members to return (max 50)
+         */
+        limit?: number;
+    };
+    url: '/admin/organizations/{slug}/members';
+};
+
+export type ListAdminOrganizationMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminOrganizationMembersError = ListAdminOrganizationMembersErrors[keyof ListAdminOrganizationMembersErrors];
+
+export type ListAdminOrganizationMembersResponses = {
+    /**
+     * Paginated list of organization members for the admin overview
+     */
+    200: {
+        data: Array<AdminOrganizationMemberOverviewItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminOrganizationMembersResponse = ListAdminOrganizationMembersResponses[keyof ListAdminOrganizationMembersResponses];
+
+export type AddAdminOrganizationMemberData = {
+    body?: AdminAddOrganizationMemberBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members';
+};
+
+export type AddAdminOrganizationMemberErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddAdminOrganizationMemberError = AddAdminOrganizationMemberErrors[keyof AddAdminOrganizationMemberErrors];
+
+export type AddAdminOrganizationMemberResponses = {
+    /**
+     * The newly added organization member
+     */
+    201: {
+        data: AdminOrganizationMemberOverviewItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddAdminOrganizationMemberResponse = AddAdminOrganizationMemberResponses[keyof AddAdminOrganizationMemberResponses];
+
+export type RemoveAdminOrganizationMemberData = {
+    body?: never;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}';
+};
+
+export type RemoveAdminOrganizationMemberErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveAdminOrganizationMemberError = RemoveAdminOrganizationMemberErrors[keyof RemoveAdminOrganizationMemberErrors];
+
+export type RemoveAdminOrganizationMemberResponses = {
+    /**
+     * Member removed
+     */
+    204: void;
+};
+
+export type RemoveAdminOrganizationMemberResponse = RemoveAdminOrganizationMemberResponses[keyof RemoveAdminOrganizationMemberResponses];
+
+export type UpdateAdminOrganizationMemberRoleData = {
+    body?: AdminUpdateOrganizationMemberRoleBody;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}/role';
+};
+
+export type UpdateAdminOrganizationMemberRoleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateAdminOrganizationMemberRoleError = UpdateAdminOrganizationMemberRoleErrors[keyof UpdateAdminOrganizationMemberRoleErrors];
+
+export type UpdateAdminOrganizationMemberRoleResponses = {
+    /**
+     * The updated organization member
+     */
+    200: {
+        data: AdminOrganizationMemberOverviewItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateAdminOrganizationMemberRoleResponse = UpdateAdminOrganizationMemberRoleResponses[keyof UpdateAdminOrganizationMemberRoleResponses];
+
+export type UnassignAdminOrganizationMemberSeatData = {
+    body?: never;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}/seat';
+};
+
+export type UnassignAdminOrganizationMemberSeatErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UnassignAdminOrganizationMemberSeatError = UnassignAdminOrganizationMemberSeatErrors[keyof UnassignAdminOrganizationMemberSeatErrors];
+
+export type UnassignAdminOrganizationMemberSeatResponses = {
+    /**
+     * The unassigned seat
+     */
+    200: {
+        data: OrganizationSeatUnassignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UnassignAdminOrganizationMemberSeatResponse = UnassignAdminOrganizationMemberSeatResponses[keyof UnassignAdminOrganizationMemberSeatResponses];
+
+export type AssignAdminOrganizationMemberSeatData = {
+    body?: never;
+    path: {
+        slug: string;
+        memberId: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/members/{memberId}/seat';
+};
+
+export type AssignAdminOrganizationMemberSeatErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AssignAdminOrganizationMemberSeatError = AssignAdminOrganizationMemberSeatErrors[keyof AssignAdminOrganizationMemberSeatErrors];
+
+export type AssignAdminOrganizationMemberSeatResponses = {
+    /**
+     * The assigned seat
+     */
+    200: {
+        data: OrganizationSeatAssignment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
 
 export type ListAdminInvoicesData = {
     body?: never;
@@ -6168,6 +7093,179 @@ export type GetChatStreamByConversationIdResponses = {
 
 export type GetChatStreamByConversationIdResponse = GetChatStreamByConversationIdResponses[keyof GetChatStreamByConversationIdResponses];
 
+export type CreateCreditCheckoutSessionData = {
+    body?: CreateCreditCheckoutSession;
+    path?: never;
+    query?: never;
+    url: '/checkout/credits';
+};
+
+export type CreateCreditCheckoutSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateCreditCheckoutSessionError = CreateCreditCheckoutSessionErrors[keyof CreateCreditCheckoutSessionErrors];
+
+export type CreateCreditCheckoutSessionResponses = {
+    /**
+     * Checkout session URL
+     */
+    201: {
+        data: CreditCheckoutSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateCreditCheckoutSessionResponse = CreateCreditCheckoutSessionResponses[keyof CreateCreditCheckoutSessionResponses];
+
+export type GetCheckoutSessionAnalyticsData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe Checkout session id
+         */
+        sessionId: string;
+    };
+    query?: never;
+    url: '/checkout/sessions/{sessionId}';
+};
+
+export type GetCheckoutSessionAnalyticsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCheckoutSessionAnalyticsError = GetCheckoutSessionAnalyticsErrors[keyof GetCheckoutSessionAnalyticsErrors];
+
+export type GetCheckoutSessionAnalyticsResponses = {
+    /**
+     * Checkout session analytics payload
+     */
+    200: {
+        data: CheckoutSessionAnalytics;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCheckoutSessionAnalyticsResponse = GetCheckoutSessionAnalyticsResponses[keyof GetCheckoutSessionAnalyticsResponses];
+
 export type GetConversationsData = {
     body?: never;
     headers?: {
@@ -6873,6 +7971,198 @@ export type PostConversationsByIdMessagesResponses = {
 };
 
 export type PostConversationsByIdMessagesResponse = PostConversationsByIdMessagesResponses[keyof PostConversationsByIdMessagesResponses];
+
+export type GetCouponDetailsData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe coupon id
+         */
+        couponId: string;
+    };
+    query?: never;
+    url: '/coupons/{couponId}';
+};
+
+export type GetCouponDetailsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCouponDetailsError = GetCouponDetailsErrors[keyof GetCouponDetailsErrors];
+
+export type GetCouponDetailsResponses = {
+    /**
+     * Coupon details
+     */
+    200: {
+        data: CouponDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCouponDetailsResponse = GetCouponDetailsResponses[keyof GetCouponDetailsResponses];
+
+export type ClaimCouponData = {
+    body?: ClaimCoupon;
+    path: {
+        /**
+         * Stripe coupon id
+         */
+        couponId: string;
+    };
+    query?: never;
+    url: '/coupons/{couponId}/claim';
+};
+
+export type ClaimCouponErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ClaimCouponError = ClaimCouponErrors[keyof ClaimCouponErrors];
+
+export type ClaimCouponResponses = {
+    /**
+     * Claimed promotion code
+     */
+    201: {
+        data: ClaimedPromotionCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ClaimCouponResponse = ClaimCouponResponses[keyof ClaimCouponResponses];
 
 export type GetCreditCostsData = {
     body?: never;
@@ -9927,7 +11217,10 @@ export type GetUsersByIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                status: string;
+                /**
+                 * Stripe subscription lifecycle status
+                 */
+                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -9955,7 +11248,10 @@ export type GetUsersByIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    status: string;
+                    /**
+                     * Stripe subscription lifecycle status
+                     */
+                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -10466,7 +11762,10 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
              */
             subscription: {
                 plan: string;
-                status: string;
+                /**
+                 * Stripe subscription lifecycle status
+                 */
+                status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                 periodStart?: Date | null;
                 periodEnd?: Date | null;
                 cancelAtPeriodEnd?: boolean | null;
@@ -10494,7 +11793,10 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
             credits: {
                 subscription: {
                     plan: string;
-                    status: string;
+                    /**
+                     * Stripe subscription lifecycle status
+                     */
+                    status: 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'paused' | 'trialing' | 'unpaid';
                     periodStart?: Date | null;
                     periodEnd?: Date | null;
                     cancelAtPeriodEnd?: boolean | null;
@@ -15960,6 +17262,350 @@ export type PutJobsByIdWorkspaceResponses = {
 
 export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
 
+export type GetNotificationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Comma-separated notification kinds to filter (e.g. JOB,TASK,CONVERSATION)
+         */
+        kind?: Array<NotificationKind>;
+        /**
+         * Filter by read status (true or false)
+         */
+        isRead?: 'true' | 'false';
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/notifications';
+};
+
+export type GetNotificationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsError = GetNotificationsErrors[keyof GetNotificationsErrors];
+
+export type GetNotificationsResponses = {
+    /**
+     * Retrieve notification feed items
+     */
+    200: {
+        data: NotificationList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsResponse = GetNotificationsResponses[keyof GetNotificationsResponses];
+
+export type GetNotificationsUnreadCountData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/unread-count';
+};
+
+export type GetNotificationsUnreadCountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsUnreadCountError = GetNotificationsUnreadCountErrors[keyof GetNotificationsUnreadCountErrors];
+
+export type GetNotificationsUnreadCountResponses = {
+    /**
+     * Unread count retrieved
+     */
+    200: {
+        data: UnreadCount;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsUnreadCountResponse = GetNotificationsUnreadCountResponses[keyof GetNotificationsUnreadCountResponses];
+
+export type PatchNotificationsByIdReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Notification ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/{id}/read';
+};
+
+export type PatchNotificationsByIdReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsByIdReadError = PatchNotificationsByIdReadErrors[keyof PatchNotificationsByIdReadErrors];
+
+export type PatchNotificationsByIdReadResponses = {
+    /**
+     * Notification marked as read
+     */
+    200: {
+        data: NotificationItem;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsByIdReadResponse = PatchNotificationsByIdReadResponses[keyof PatchNotificationsByIdReadResponses];
+
+export type PatchNotificationsReadAllData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/read-all';
+};
+
+export type PatchNotificationsReadAllErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsReadAllError = PatchNotificationsReadAllErrors[keyof PatchNotificationsReadAllErrors];
+
+export type PatchNotificationsReadAllResponses = {
+    /**
+     * All notifications marked as read
+     */
+    200: {
+        data: MarkAllReadResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsReadAllResponse = PatchNotificationsReadAllResponses[keyof PatchNotificationsReadAllResponses];
+
 export type GetInvitationsByIdData = {
     body?: never;
     path: {
@@ -17089,7 +18735,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
+        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -17179,7 +18825,7 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
-        name: string;
+        name?: string;
         description?: string | null;
         projectId?: string | null;
         coworkerId?: string | null;
@@ -18169,7 +19815,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
         /**
@@ -19496,6 +21142,118 @@ export type ListCreditPricesResponses = {
 };
 
 export type ListCreditPricesResponse = ListCreditPricesResponses[keyof ListCreditPricesResponses];
+
+export type GetCreditTopUpPriceCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/products/credits/catalog';
+};
+
+export type GetCreditTopUpPriceCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCreditTopUpPriceCatalogError = GetCreditTopUpPriceCatalogErrors[keyof GetCreditTopUpPriceCatalogErrors];
+
+export type GetCreditTopUpPriceCatalogResponses = {
+    /**
+     * Account-resolved credit top-up pricing
+     */
+    200: {
+        data: CreditTopUpPricing;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCreditTopUpPriceCatalogResponse = GetCreditTopUpPriceCatalogResponses[keyof GetCreditTopUpPriceCatalogResponses];
+
+export type GetSubscriptionCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/products/subscription';
+};
+
+export type GetSubscriptionCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSubscriptionCatalogError = GetSubscriptionCatalogErrors[keyof GetSubscriptionCatalogErrors];
+
+export type GetSubscriptionCatalogResponses = {
+    /**
+     * Subscription catalog for billing and onboarding UI
+     */
+    200: {
+        data: SubscriptionCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSubscriptionCatalogResponse = GetSubscriptionCatalogResponses[keyof GetSubscriptionCatalogResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;

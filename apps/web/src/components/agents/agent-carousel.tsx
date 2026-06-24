@@ -141,12 +141,12 @@ function AgentCarousel({
       {/* Desktop Header with Title and Arrows */}
       {title && (
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-light md:text-2xl">
+          <h2 className="text-foreground flex items-center gap-2 text-base font-semibold">
             {icon && (
               <ResolverSVGIcon
                 svgUrl={icon}
                 alt={`${title} icon`}
-                className="size-5 md:size-6"
+                className="size-4 md:size-5"
               />
             )}
             {title}

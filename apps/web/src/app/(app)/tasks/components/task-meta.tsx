@@ -1,7 +1,6 @@
 "use client";
 
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-import { Calendar, MessageSquare, User, UserCog } from "lucide-react";
+import { Calendar, MessageSquare, UserCog } from "lucide-react";
 
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,6 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -46,38 +46,6 @@ function CoworkerAvatar({
       <AvatarFallback className="bg-muted text-[10px] font-medium">
         {coworker?.name?.slice(0, 1).toUpperCase() ?? (
           <UserCog className="size-3" aria-hidden />
-        )}
-      </AvatarFallback>
-    </Avatar>
-  );
-}
-
-function OwnerAvatar({
-  owner,
-  size = "sm",
-}: {
-  owner: TaskWithCoworker["user"];
-  size?: "sm" | "md";
-}) {
-  const image = owner.image ? resolveIpfsOrHttpUrl(owner.image) : null;
-  const sizeClass = size === "sm" ? "size-5" : "size-6";
-  const ownerName = owner.name.trim();
-
-  return (
-    <Avatar className={`${sizeClass} ring-background shrink-0 ring-2`}>
-      {image ? (
-        <AvatarImage
-          src={image}
-          alt={ownerName || "User"}
-          className="object-cover"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
-        />
-      ) : null}
-      <AvatarFallback className="bg-muted text-[10px] font-medium">
-        {ownerName.slice(0, 1).toUpperCase() || (
-          <User className="size-3" aria-hidden />
         )}
       </AvatarFallback>
     </Avatar>
@@ -141,7 +109,7 @@ export function TaskMetaDetails({
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="z-20 inline-flex">
-              <OwnerAvatar owner={owner} />
+              <UserProfileAvatar name={owner.name} image={owner.image} />
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={6}>

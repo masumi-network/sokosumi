@@ -5,23 +5,25 @@ import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-swi
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-import HeaderUserMenu from "./header-user-menu.client";
+import { HeaderNotificationAvatar } from "./header-notification-avatar.client";
 import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
 
 interface HeaderProfileSectionClientProps {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
-  secondaryLabel?: string;
 }
 
 export default function HeaderProfileSectionClient({
   sessionUser,
   members,
   activeOrganizationId,
-  secondaryLabel,
 }: HeaderProfileSectionClientProps) {
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+
+  const activeOrganizationMember = activeOrganizationId
+    ? members.find((member) => member.organizationId === activeOrganizationId)
+    : null;
 
   return (
     <div
@@ -37,11 +39,9 @@ export default function HeaderProfileSectionClient({
         isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}
       />
-      <HeaderUserMenu
+      <HeaderNotificationAvatar
         sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId={activeOrganizationId}
-        secondaryLabel={secondaryLabel}
+        organization={activeOrganizationMember?.organization ?? null}
       />
     </div>
   );

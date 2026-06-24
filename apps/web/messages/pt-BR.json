@@ -247,6 +247,8 @@
       "billing": "Cobrança",
       "account": "Conta",
       "admin": "Administração",
+      "organizations": "Organizações",
+      "users": "Usuários",
       "edit": "Editar",
       "enterprise-contracts": "Contratos empresariais",
       "mcp": "Model Context Protocol (MCP)",
@@ -256,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Histórico",
       "new": "Novo",
+      "notifications": "Notificações",
       "projects": "Projetos",
       "invoices": "Faturas"
     },
@@ -307,8 +310,7 @@
             "Schema": {
               "Name": {
                 "invalid": "O nome deve ser uma string válida",
-                "min": "O nome deve ter pelo menos 2 caracteres",
-                "max": "O nome deve ter no máximo 120 caracteres"
+                "min": "O nome deve ter pelo menos 2 caracteres"
               }
             },
             "Form": {
@@ -652,6 +654,22 @@
         "cancel": "Cancelar",
         "error": "Falha ao sair"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notificações",
+      "unreadBadge": "{count, plural, =1 {1 notificação não lida} other {# notificações não lidas}}",
+      "title": "Notificações",
+      "pageTitle": "Notificações",
+      "emptyState": "Nenhuma notificação ainda",
+      "seeMore": "Ver mais",
+      "loading": "Carregando...",
+      "loadMore": "Carregar mais",
+      "markAllRead": "Marcar todas como lidas",
+      "markAllReadError": "Não foi possível marcar todas as notificações como lidas",
+      "fetchError": "Não foi possível carregar as notificações",
+      "retry": "Tentar novamente",
+      "dismiss": "Dispensar",
+      "dismissNotification": "Dispensar notificação"
     },
     "HashValue": {
       "copy": "Copiar",
@@ -1185,6 +1203,7 @@
           "active": "Ativo",
           "archived": "Arquivado",
           "DRAFT": "Rascunho",
+          "QUEUED": "Na fila",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
@@ -1451,6 +1470,7 @@
         "projectLabel": "Projeto",
         "statusOptions": {
           "DRAFT": "Rascunho",
+          "QUEUED": "Na fila",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
@@ -1652,7 +1672,33 @@
         "saveAsDraft": "Salvar como rascunho",
         "createTask": "Criar tarefa",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Escolha seu agente",
+        "chooseAgentDescription": "Escolha quem deve gerenciar esta tarefa — compare o modelo, hospedagem e capacidades.",
+        "defaultBadge": "Padrão",
+        "modelLabel": "Modelo",
+        "hostingLabel": "Hospedado em",
+        "examplesTitle": "O que {name} pode fazer",
+        "continue": "Continuar",
+        "taskStepTitle": "O que {name} deve fazer?",
+        "previousAgent": "Agente anterior",
+        "nextAgent": "Próximo agente",
+        "searchAgents": "Buscar agentes…",
+        "noAgentsFound": "Nenhum agente encontrado.",
+        "askPrompt": "Peça para {name}…",
+        "promptHint": "Clique em um exemplo para começar ou escreva suas próprias instruções.",
+        "tasksTitle": "Tarefas prontas para executar",
+        "startFromScratch": "Começar do zero",
+        "startFromScratchHint": "Escreva suas próprias instruções",
+        "previewExample": "Visualizar exemplo",
+        "previewUse": "Usar esta tarefa",
+        "previewEmpty": "Nenhuma saída de exemplo disponível ainda.",
+        "allCompanies": "Todos",
+        "taskCreated": "Tarefa criada",
+        "taskCreatedHint": "Tudo está configurado e pronto.",
+        "goToTask": "Ir para a tarefa",
+        "createAnother": "Criar outra tarefa",
+        "close": "Fechar"
       },
       "EditTask": {
         "title": "Editar tarefa",
@@ -2362,7 +2408,9 @@
           "projects": "Projetos",
           "hermes": "Hermes",
           "history": "Histórico",
-          "admin": "Administração"
+          "admin": "Administração",
+          "settings": "Configurações",
+          "back": "Voltar"
         }
       }
     },
@@ -2629,6 +2677,10 @@
             "title": "Usuários",
             "description": "Visão geral pesquisável de todos os usuários com créditos, assinatura e atividade."
           },
+          "organizations": {
+            "title": "Organizações",
+            "description": "Visão geral pesquisável das organizações com membros, cobrança e créditos."
+          },
           "tasks": {
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre usuários e organizações."
@@ -2649,6 +2701,86 @@
           "registered": "Registrado",
           "loadMore": "Carregar mais",
           "loadError": "Falha ao carregar os usuários."
+        }
+      },
+      "Organizations": {
+        "title": "Organizações",
+        "description": "Visão geral pesquisável de todas as organizações",
+        "OrganizationList": {
+          "searchPlaceholder": "Pesquisar por nome ou slug…",
+          "totalCount": "{count, plural, one {# organização} other {# organizações}}",
+          "empty": "Nenhuma organização encontrada.",
+          "organization": "Organização",
+          "members": "Membros",
+          "billing": "Cobrança",
+          "subscription": "Assinatura",
+          "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
+          "created": "Criada",
+          "loadMore": "Carregar mais",
+          "loadError": "Falha ao carregar as organizações."
+        },
+        "OrganizationDetail": {
+          "backToList": "Voltar às organizações",
+          "billing": {
+            "title": "Cobrança",
+            "plan": "Plano: {plan}",
+            "mode": "Modo: {mode}",
+            "seats": "{purchased} comprados · {assigned} atribuídos · {unused} não utilizados",
+            "subscription": "Assinatura: {plan} ({status})",
+            "enterprisePool": "Pool enterprise: {credits} créditos"
+          },
+          "credits": {
+            "title": "Créditos totais",
+            "description": "Créditos disponíveis combinados para esta organização.",
+            "perMember": "Os créditos são listados por membro abaixo."
+          },
+          "members": {
+            "title": "Membros",
+            "totalCount": "{count, plural, one {# membro} other {# membros}}",
+            "empty": "Ainda não há membros.",
+            "loadMore": "Carregar mais",
+            "loadError": "Falha ao carregar membros.",
+            "user": "Usuário",
+            "role": "Função",
+            "credits": "Créditos",
+            "subscription": "Assinatura",
+            "seat": "Seat",
+            "seatAssigned": "Atribuído",
+            "seatUnassigned": "Não atribuído",
+            "actions": "Ações"
+          },
+          "roles": {
+            "owner": "Proprietário",
+            "admin": "Admin",
+            "member": "Membro"
+          },
+          "addMember": {
+            "submit": "Adicionar membro",
+            "success": "Membro adicionado",
+            "userRequired": "Selecione um usuário para adicionar",
+            "combobox": {
+              "placeholder": "Selecionar usuário…",
+              "search": "Pesquisar usuários…",
+              "empty": "Nenhum usuário encontrado.",
+              "loading": "Pesquisando…",
+              "error": "A pesquisa falhou.",
+              "idle": "Digite para pesquisar usuários.",
+              "clear": "Limpar seleção"
+            }
+          },
+          "actions": {
+            "makeOwner": "Tornar proprietário",
+            "makeAdmin": "Tornar admin",
+            "makeMember": "Tornar membro",
+            "assignSeat": "Atribuir Seat",
+            "unassignSeat": "Remover Seat",
+            "remove": "Remover membro"
+          },
+          "memberActionError": "A ação no membro falhou.",
+          "roleUpdateSuccess": "Função atualizada.",
+          "seatAssignSuccess": "Seat atribuído.",
+          "seatUnassignSuccess": "Seat removido.",
+          "removeSuccess": "Membro removido."
         }
       },
       "Invoices": {
@@ -2924,6 +3056,9 @@
         "notConnected": "não está conectado",
         "success": "Conta conectada com sucesso",
         "error": "Falha ao conectar {provider}",
+        "loadErrorTitle": "Não foi possível carregar as contas conectadas",
+        "loadError": "Não foi possível carregar suas contas conectadas no momento.",
+        "retry": "Tentar novamente",
         "DisconnectModal": {
           "title": "Desconectar {provider}",
           "description": "Tem certeza de que quer desconectar sua conta {provider}?",
@@ -2932,6 +3067,11 @@
           "success": "Conta desconectada com sucesso",
           "error": "Falha ao desconectar {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Não foi possível carregar os detalhes da conta",
+        "loadError": "Não foi possível carregar os detalhes da sua conta vinculada no momento.",
+        "retry": "Tentar novamente"
       },
       "Notifications": {
         "title": "Notificações por e-mail",
@@ -3047,6 +3187,11 @@
           "title": "Cliente não encontrado",
           "description": "Não foi possível encontrar o cliente OAuth.",
           "descriptionWithId": "O cliente OAuth com ID {clientId} não existe."
+        },
+        "loadError": {
+          "title": "Não foi possível carregar o aplicativo",
+          "description": "Não foi possível carregar os detalhes do aplicativo no momento. Tente novamente.",
+          "retry": "Tentar novamente"
         },
         "title": "Autorizar aplicativo",
         "description": "Um aplicativo quer acessar sua conta",
@@ -3305,7 +3450,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Coworker de IA",
         "defaultDescription": "Um coworker com IA pronto para ajudar você."
-      }
+      },
+      "allAgentsTitle": "Explorar todos os agentes",
+      "allAgentsSubtitle": "Todos os agentes no Sokosumi, agrupados pelo que fazem."
     },
     "DesignMd": {
       "title": "DESIGN.md",
@@ -3564,6 +3711,25 @@
         "hours": "{value, plural, =1 {h} other {h}}",
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {s} other {s}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} concluiu {jobName}",
+        "failed": "{agentName} não conseguiu concluir {jobName}",
+        "paymentFailed": "Falha no pagamento para {jobName}",
+        "inputRequired": "{agentName} precisa da sua entrada para {jobName}",
+        "refundResolved": "{jobName} foi reembolsado",
+        "disputeResolved": "Disputa resolvida para {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} precisa da sua entrada para {taskName}",
+        "approvalRequired": "{coworkerName} precisa da sua aprovação para {taskName}",
+        "authenticationRequired": "{coworkerName} precisa de autenticação para {taskName}",
+        "outOfCredits": "{coworkerName} ficou sem créditos para {taskName}",
+        "completed": "{coworkerName} concluiu {taskName}",
+        "failed": "{coworkerName} não conseguiu concluir {taskName}",
+        "canceled": "{taskName} foi cancelado"
       }
     }
   }

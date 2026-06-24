@@ -238,11 +238,11 @@
   --card-background-hover: hsla(0, 0%, 98%, 0.5);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
-  --primary: hsla(264, 100%, 50%, 1);
-  --primary-variant: hsla(264, 100%, 50%, 1);
-  --primary-tertiary: hsla(264, 100%, 50%, 0.2);
-  --primary-quaternary: hsla(264, 100%, 50%, 0.1);
-  --primary-quinary: hsla(264, 100%, 50%, 0.05);
+  --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
+  --primary-variant: hsla(263.5, 100%, 50%, 1);
+  --primary-tertiary: hsla(263.5, 100%, 50%, 0.2);
+  --primary-quaternary: hsla(263.5, 100%, 50%, 0.1);
+  --primary-quinary: hsla(263.5, 100%, 50%, 0.05);
   --primary-foreground: hsla(0, 0%, 98%, 1);
   --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
   --primary-iris: hsla(300, 100%, 50%, 1);
@@ -262,11 +262,12 @@
   --input: hsla(330, 0%, 90%, 1);
   --ring: hsla(300, 100%, 91%, 1);
   --ring-semantic: hsla(0, 96%, 89%, 1);
-  --chart-1: hsla(173, 58%, 39%, 1);
-  --chart-2: hsla(12, 76%, 61%, 1);
-  --chart-3: hsla(197, 37%, 24%, 1);
-  --chart-4: hsla(43, 74%, 66%, 1);
-  --chart-5: hsla(27, 87%, 67%, 1);
+  /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
+  --chart-1: #00a4fa; /* kodosumi · Sky Blue */
+  --chart-2: #fa008c; /* masumi · Electric Pink */
+  --chart-3: #0afa14; /* kodosumi · Neon Grass */
+  --chart-4: #ffd300; /* masumi · Golden Yellow */
+  --chart-5: #ff6400; /* masumi · Persimmon */
   --sidebar: hsla(300, 0%, 98%, 1);
   --sidebar-foreground: hsla(300, 0%, 4%, 1);
   --sidebar-primary: hsla(330, 0%, 9%, 1);
@@ -378,11 +379,12 @@
   --input: hsla(300, 50%, 100%, 0.15);
   --ring: hsla(304, 63%, 32%, 1);
   --ring-semantic: hsla(0, 75%, 15%, 1);
-  --chart-1: hsla(220, 70%, 50%, 1);
-  --chart-2: hsla(340, 75%, 55%, 1);
-  --chart-3: hsla(30, 80%, 55%, 1);
-  --chart-4: hsla(280, 65%, 60%, 1);
-  --chart-5: hsla(160, 60%, 45%, 1);
+  /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
+  --chart-1: #00a4fa; /* kodosumi · Sky Blue */
+  --chart-2: #fa008c; /* masumi · Electric Pink */
+  --chart-3: #0afa14; /* kodosumi · Neon Grass */
+  --chart-4: #ffd300; /* masumi · Golden Yellow */
+  --chart-5: #ff6400; /* masumi · Persimmon */
   --sidebar: hsla(330, 0%, 9%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-primary: hsla(225, 84%, 49%, 1);
@@ -832,4 +834,63 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
 
 .animate-thinking-dot {
   animation: thinking-dot 1.2s ease-in-out infinite;
+}
+
+/* Notification reminder: avatar ↔ bell slide swap */
+.notification-reminder-avatar-panel {
+  transform: translateX(0);
+}
+
+.notification-reminder-bell-panel {
+  transform: translateX(100%);
+}
+
+.notification-reminder-bell-active .notification-reminder-avatar-panel {
+  transform: translateX(-100%);
+}
+
+.notification-reminder-bell-active .notification-reminder-bell-panel {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .notification-reminder-avatar-panel,
+  .notification-reminder-bell-panel {
+    transition: transform 0.55s cubic-bezier(0.33, 1, 0.68, 1);
+  }
+}
+
+/* Bell ring for notification reminder — pendulum swing from the top. */
+@keyframes notification-bell-ring {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  12% {
+    transform: rotate(18deg);
+  }
+  24% {
+    transform: rotate(-15deg);
+  }
+  36% {
+    transform: rotate(12deg);
+  }
+  48% {
+    transform: rotate(-9deg);
+  }
+  60% {
+    transform: rotate(6deg);
+  }
+  72% {
+    transform: rotate(-4deg);
+  }
+  84% {
+    transform: rotate(2deg);
+  }
+}
+
+.animate-notification-bell-ring {
+  display: block;
+  transform-origin: 50% 12%;
+  animation: notification-bell-ring 1.1s ease-in-out 0.6s 2;
 }
