@@ -49,6 +49,21 @@ describe("readSseStream", () => {
     expect(deltaContentFrom(events[0]!.data)).toBe("hi");
   });
 
+  it("flushes trailing UTF-8 bytes held in the decoder", async () => {
+    const emoji = "🙂";
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(
+      `data: {"choices":[{"delta":{"content":"${emoji}"}}]}\n\n`,
+    );
+    const splitAt = bytes.length - 1;
+    const events = await collect([
+      new TextDecoder().decode(bytes.slice(0, splitAt)),
+      new TextDecoder().decode(bytes.slice(splitAt)),
+    ]);
+    expect(events).toHaveLength(1);
+    expect(deltaContentFrom(events[0]!.data)).toBe(emoji);
+  });
+
   it("handles CRLF line endings", async () => {
     const events = await collect([
       "event: hermes.status\r\n" +

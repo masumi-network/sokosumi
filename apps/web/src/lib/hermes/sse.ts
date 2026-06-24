@@ -67,6 +67,7 @@ export async function* readSseStream(
         sep = buffer.indexOf("\n\n");
       }
     }
+    buffer += decoder.decode();
     if (buffer.trim() !== "") {
       const tail = parseFrame(buffer);
       if (tail) yield tail;

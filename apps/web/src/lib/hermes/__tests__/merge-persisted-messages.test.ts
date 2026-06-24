@@ -118,6 +118,28 @@ describe("mergeHermesMessageLists", () => {
     ]);
   });
 
+  it("keeps a repeat user message when an earlier turn already persisted the same text", () => {
+    const priorServerUser = message({
+      id: "server-yes-1",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:01.000Z",
+    });
+    const localRepeat = message({
+      id: "u-1760000001000",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:08.000Z",
+    });
+
+    expect(
+      mergeHermesMessageLists(
+        [priorServerUser, localRepeat],
+        [priorServerUser],
+      ),
+    ).toEqual([priorServerUser, localRepeat]);
+  });
+
   it("keeps the second of two identical back-to-back user messages until both persist", () => {
     // Regression: matching by "any server row with this content" collapses
     // duplicate sends ("yes", "yes") into one — the second optimistic message

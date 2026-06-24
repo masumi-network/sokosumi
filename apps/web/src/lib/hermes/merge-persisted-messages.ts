@@ -90,6 +90,15 @@ export function mergeHermesMessageLists(
     serverRemaining.set(key, (serverRemaining.get(key) ?? 0) + 1);
   }
 
+  // Rows already shown as persisted server messages in the UI consumed their
+  // slot — a new optimistic message with the same text still needs its own row.
+  for (const message of previous) {
+    if (isLocalMessage(message) || !seenIds.has(message.id)) continue;
+    const key = messageMatchKey(message);
+    const remaining = serverRemaining.get(key) ?? 0;
+    if (remaining > 0) serverRemaining.set(key, remaining - 1);
+  }
+
   for (const message of previous) {
     if (!isLocalMessage(message) || seenIds.has(message.id)) continue;
 
