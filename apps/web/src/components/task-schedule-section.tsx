@@ -31,6 +31,7 @@ import {
   parseCron,
 } from "@/lib/schedules/cron";
 import { getTimezoneOptions } from "@/lib/schedules/timezones";
+import { parseDateTimeLocalParts } from "@/lib/schedules/zoned-datetime";
 import {
   TaskScheduleEndsMode,
   type TaskScheduleSelection,
@@ -534,20 +535,20 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   }, [mode, scheduleOption, buildCronFromSelections]);
 
   const getPresetCron = useCallback((): string | null => {
-    const parsedDate = parseDateTimeLocalInput(oneTimeLocalIso) ?? new Date();
-    const minute = parsedDate.getMinutes();
-    const hour = parsedDate.getHours();
+    const parts = parseDateTimeLocalParts(oneTimeLocalIso);
+    if (!parts) return null;
+
+    const { hour, minute, day, month, year } = parts;
 
     if (scheduleOption === "daily") return `${minute} ${hour} * * *`;
 
     if (scheduleOption === "weekly") {
-      const weekday = DOW[parsedDate.getDay() as number];
+      const weekday = DOW[new Date(year, month - 1, day).getDay() as number];
       return `${minute} ${hour} * * ${weekday}`;
     }
 
     if (scheduleOption === "monthly") {
-      const dayOfMonth = parsedDate.getDate();
-      return `${minute} ${hour} ${dayOfMonth} * *`;
+      return `${minute} ${hour} ${day} * *`;
     }
     return null;
   }, [scheduleOption, oneTimeLocalIso]);

@@ -2,6 +2,11 @@ import { CronExpressionParser as cronParser } from "cron-parser";
 import type { PutTaskScheduleRequest } from "@/lib/clients/generated/core/types.gen";
 import { DOW, type Dow, parseCron } from "@/lib/schedules/cron";
 import {
+  endOfLocalDateInTimezone,
+  utcToDateTimeLocalInTimezone,
+  zonedDateTimeLocalToUtc,
+} from "@/lib/schedules/zoned-datetime";
+import {
   TaskScheduleEndsMode,
   type TaskScheduleSelection,
 } from "@/lib/types/task-schedule";
@@ -129,11 +134,6 @@ function deriveBuilderStateFromCron(cron: string): {
   return null;
 }
 
-function endOnLocalDateToIso(dateStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map((part) => Number(part));
-  return new Date(year, month - 1, day, 23, 59, 59, 999);
-}
-
 export function parseTaskScheduleMetadata(
   metadata: string | null | undefined,
 ): TaskScheduleMetadata | null {
@@ -162,7 +162,10 @@ export function metadataToSelection(
     return {
       mode: "once",
       timezone: defaultTimezone,
-      oneTimeLocalIso: formatDateTimeLocalInput(new Date(parsed.runAt)),
+      oneTimeLocalIso: utcToDateTimeLocalInTimezone(
+        new Date(parsed.runAt),
+        defaultTimezone,
+      ),
     };
   }
 
@@ -174,7 +177,10 @@ export function metadataToSelection(
     endsMode: parsed.endsMode,
     endAfterOccurrences: parsed.occurrences,
     endOnLocalDate: parsed.endsOn
-      ? formatDateTimeLocalInput(new Date(parsed.endsOn)).slice(0, 10)
+      ? utcToDateTimeLocalInTimezone(
+          new Date(parsed.endsOn),
+          parsed.timezone,
+        ).slice(0, 10)
       : undefined,
   };
 
@@ -195,7 +201,10 @@ export function selectionToApiBody(
   selection: TaskScheduleSelection,
 ): PutTaskScheduleRequest | null {
   if (selection.mode === "once") {
-    const runAt = parseDateTimeLocalInput(selection.oneTimeLocalIso);
+    const runAt = zonedDateTimeLocalToUtc(
+      selection.oneTimeLocalIso,
+      selection.timezone,
+    );
     if (!runAt) return null;
     return { mode: "once", runAt };
   }
@@ -212,7 +221,13 @@ export function selectionToApiBody(
       timezone: selection.timezone,
       endsMode,
       ...(endsMode === TaskScheduleEndsMode.ON && selection.endOnLocalDate
-        ? { endsOn: endOnLocalDateToIso(selection.endOnLocalDate) }
+        ? (() => {
+            const endsOn = endOfLocalDateInTimezone(
+              selection.endOnLocalDate,
+              selection.timezone,
+            );
+            return endsOn ? { endsOn } : {};
+          })()
         : {}),
       ...(endsMode === TaskScheduleEndsMode.AFTER &&
       selection.endAfterOccurrences
