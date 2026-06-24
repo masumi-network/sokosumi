@@ -7,6 +7,11 @@ const mockTaskCreate = vi.fn();
 const mockTaskUpdate = vi.fn();
 const mockTaskLinkCreate = vi.fn();
 const mockTaskEventCreate = vi.fn();
+const publishTaskEventDataMock = vi.fn();
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: publishTaskEventDataMock,
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -29,6 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
 describe("taskSchedulesSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    publishTaskEventDataMock.mockResolvedValue(undefined);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
   });
@@ -96,6 +102,12 @@ describe("taskSchedulesSyncService", () => {
 
     expect(result.cloned).toBe(1);
     expect(mockTaskCreate).toHaveBeenCalledTimes(3);
+    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(3);
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      taskId: "clone-1",
+      eventType: "task_event",
+    });
     expect(mockTaskUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "template-1" },
@@ -159,6 +171,7 @@ describe("taskSchedulesSyncService", () => {
 
     expect(result.cloned).toBe(0);
     expect(mockTaskCreate).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).not.toHaveBeenCalled();
   });
 
   it("limits recurring catch-up when the sync is aborted", async () => {
@@ -229,5 +242,11 @@ describe("taskSchedulesSyncService", () => {
 
     expect(result.cloned).toBe(1);
     expect(mockTaskCreate).toHaveBeenCalledTimes(1);
+    expect(publishTaskEventDataMock).toHaveBeenCalledTimes(1);
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      taskId: "clone-1",
+      eventType: "task_event",
+    });
   });
 });

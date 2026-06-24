@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { type Prisma, TaskEventOrigin, TaskLinkType } from "@sokosumi/database";
 import type { TaskScheduleMetadata } from "@sokosumi/database/types/task-schedule-metadata";
 import { TaskStatus } from "@sokosumi/utils";
@@ -7,6 +8,7 @@ import {
   isDueRunPastScheduleEnd,
   parseTaskScheduleMetadata,
 } from "@/helpers/task-schedule";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 const TASK_SCHEDULE_SYNC_BATCH_SIZE = 25;
@@ -21,6 +23,43 @@ export interface TaskScheduleSyncResult {
   promoted: number;
   cloned: number;
   durationMs: number;
+}
+
+interface TaskStatusPublishEvent {
+  userId: string;
+  taskId: string;
+}
+
+interface ProcessDueTaskResult {
+  outcome: "promoted" | "cloned" | "skipped";
+  publishEvents: TaskStatusPublishEvent[];
+}
+
+async function publishTaskStatusUpdates(
+  publishEvents: TaskStatusPublishEvent[],
+): Promise<void> {
+  await Promise.all(
+    publishEvents.map(async ({ userId, taskId }) => {
+      try {
+        await publishTaskEventData({
+          userId,
+          taskId,
+          eventType: "task_event",
+        });
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: {
+            error_type: "publish_task_event",
+          },
+          extra: {
+            taskId,
+            userId,
+            source: "task-schedules-sync",
+          },
+        });
+      }
+    }),
+  );
 }
 
 function getCloneTaskData(
@@ -146,7 +185,7 @@ async function cloneRecurringOccurrence(
       description: true;
     };
   }>,
-): Promise<void> {
+): Promise<string> {
   const clone = await tx.task.create({
     data: getCloneTaskData(template),
     select: { id: true },
@@ -159,12 +198,14 @@ async function cloneRecurringOccurrence(
       type: TaskLinkType.PARENT,
     },
   });
+
+  return clone.id;
 }
 
 async function processDueTask(
   templateId: string,
   options: TaskScheduleSyncExecutionOptions,
-): Promise<"promoted" | "cloned" | "skipped"> {
+): Promise<ProcessDueTaskResult> {
   return prisma.$transaction(async (tx) => {
     const template = await tx.task.findFirst({
       where: {
@@ -188,24 +229,31 @@ async function processDueTask(
     });
 
     if (!template || !template.nextRunAt) {
-      return "skipped";
+      return { outcome: "skipped", publishEvents: [] };
     }
 
     const scheduleMetadata = parseTaskScheduleMetadata(template.metadata);
     if (!scheduleMetadata) {
       await clearTemplateSchedule(tx, template.id);
-      return "skipped";
+      return {
+        outcome: "skipped",
+        publishEvents: [{ userId: template.userId, taskId: template.id }],
+      };
     }
 
     if (scheduleMetadata.mode === "once") {
       await promoteOneTimeTask(tx, template.id, template.userId);
-      return "promoted";
+      return {
+        outcome: "promoted",
+        publishEvents: [{ userId: template.userId, taskId: template.id }],
+      };
     }
 
     const now = new Date();
     let metadata = scheduleMetadata;
     let nextRunAt = template.nextRunAt;
     let clonesCreated = 0;
+    const clonedTaskIds: string[] = [];
 
     while (nextRunAt && nextRunAt <= now) {
       if (
@@ -220,7 +268,8 @@ async function processDueTask(
         break;
       }
 
-      await cloneRecurringOccurrence(tx, template);
+      const cloneId = await cloneRecurringOccurrence(tx, template);
+      clonedTaskIds.push(cloneId);
       clonesCreated += 1;
 
       metadata = getUpdatedRecurringMetadata(metadata, nextRunAt);
@@ -228,12 +277,28 @@ async function processDueTask(
 
       if (shouldEndRecurringAfterRun(metadata, computedNextRun)) {
         await clearTemplateSchedule(tx, template.id);
-        return clonesCreated > 0 ? "cloned" : "skipped";
+        return {
+          outcome: clonesCreated > 0 ? "cloned" : "skipped",
+          publishEvents: buildRecurringPublishEvents(
+            template.userId,
+            template.id,
+            clonedTaskIds,
+            true,
+          ),
+        };
       }
 
       if (!computedNextRun) {
         await clearTemplateSchedule(tx, template.id);
-        return clonesCreated > 0 ? "cloned" : "skipped";
+        return {
+          outcome: clonesCreated > 0 ? "cloned" : "skipped",
+          publishEvents: buildRecurringPublishEvents(
+            template.userId,
+            template.id,
+            clonedTaskIds,
+            true,
+          ),
+        };
       }
 
       nextRunAt = computedNextRun;
@@ -242,8 +307,12 @@ async function processDueTask(
     if (clonesCreated === 0) {
       if (isDueRunPastScheduleEnd(metadata, template.nextRunAt)) {
         await clearTemplateSchedule(tx, template.id);
+        return {
+          outcome: "skipped",
+          publishEvents: [{ userId: template.userId, taskId: template.id }],
+        };
       }
-      return "skipped";
+      return { outcome: "skipped", publishEvents: [] };
     }
 
     await tx.task.update({
@@ -254,8 +323,31 @@ async function processDueTask(
       },
     });
 
-    return "cloned";
+    return {
+      outcome: "cloned",
+      publishEvents: buildRecurringPublishEvents(
+        template.userId,
+        template.id,
+        clonedTaskIds,
+        false,
+      ),
+    };
   });
+}
+
+function buildRecurringPublishEvents(
+  userId: string,
+  templateId: string,
+  clonedTaskIds: string[],
+  includeTemplate: boolean,
+): TaskStatusPublishEvent[] {
+  const publishEvents = clonedTaskIds.map((taskId) => ({ userId, taskId }));
+
+  if (includeTemplate) {
+    publishEvents.push({ userId, taskId: templateId });
+  }
+
+  return publishEvents;
 }
 
 async function syncDueTaskSchedules(
@@ -286,9 +378,12 @@ async function syncDueTaskSchedules(
       }
 
       const result = await processDueTask(dueTask.id, options);
-      if (result === "promoted") {
+      if (result.publishEvents.length > 0) {
+        await publishTaskStatusUpdates(result.publishEvents);
+      }
+      if (result.outcome === "promoted") {
         promoted += 1;
-      } else if (result === "cloned") {
+      } else if (result.outcome === "cloned") {
         cloned += 1;
       }
     }
