@@ -1454,6 +1454,7 @@ export async function captureFromStream(
         sep = buffer.indexOf("\n\n");
       }
     }
+    buffer += decoder.decode();
     if (buffer.trim() !== "") consumeFrame(buffer);
   } finally {
     reader.releaseLock();
@@ -1605,15 +1606,17 @@ app.post("/chat/stream", async (c) => {
   // client stays connected. The capture branch drives the orchestrator stream
   // to completion even if the user closes the tab mid-answer.
   const [toClient, toCapture] = upstream.body.tee();
-  void captureFromStream(toCapture)
-    .then(persistTurn)
-    .catch((error) => {
-      Sentry.captureException(error, {
-        tags: { context: "hermes_stream_capture" },
-        extra: { userId: userContext.userId },
-      });
-    })
-    .finally(() => clearTimeout(captureTimeout));
+  waitUntil(
+    captureFromStream(toCapture)
+      .then(persistTurn)
+      .catch((error) => {
+        Sentry.captureException(error, {
+          tags: { context: "hermes_stream_capture" },
+          extra: { userId: userContext.userId },
+        });
+      })
+      .finally(() => clearTimeout(captureTimeout)),
+  );
 
   return new Response(toClient, {
     status: 200,

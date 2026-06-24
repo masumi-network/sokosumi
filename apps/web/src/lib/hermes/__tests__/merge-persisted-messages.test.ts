@@ -160,4 +160,45 @@ describe("mergeHermesMessageLists", () => {
       ),
     ).toEqual([serverFirst, serverSecond]);
   });
+
+  it("drops a partial local assistant when the server persisted the full reply", () => {
+    const partialLocal = message({
+      id: "a-1760000000000",
+      role: "assistant",
+      content: "Hello wo",
+      createdAt: "2026-01-01T10:00:05.000Z",
+    });
+    const serverAssistant = message({
+      id: "server-assistant",
+      role: "assistant",
+      content: "Hello world",
+      createdAt: "2026-01-01T10:00:12.000Z",
+    });
+
+    expect(mergeHermesMessageLists([partialLocal], [serverAssistant])).toEqual([
+      serverAssistant,
+    ]);
+  });
+
+  it("keeps a new partial assistant when only an older reply shares a prefix", () => {
+    const priorServerAssistant = message({
+      id: "server-1",
+      role: "assistant",
+      content: "Hello world",
+      createdAt: "2026-01-01T10:00:01.000Z",
+    });
+    const partialLocal = message({
+      id: "a-1760000000000",
+      role: "assistant",
+      content: "Hel",
+      createdAt: "2026-01-01T10:00:05.000Z",
+    });
+
+    expect(
+      mergeHermesMessageLists(
+        [priorServerAssistant, partialLocal],
+        [priorServerAssistant],
+      ),
+    ).toEqual([priorServerAssistant, partialLocal]);
+  });
 });

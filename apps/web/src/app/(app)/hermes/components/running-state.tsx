@@ -276,6 +276,9 @@ export default function RunningState({
 
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Optimistic assistant id for the in-flight streamed turn — used to drop a
+  // partial bubble when the user hits Stop (Core still captures the full reply).
+  const streamingAssistantIdRef = useRef<string | null>(null);
   const reasoningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reasoningClearAtRef = useRef(0);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
@@ -523,6 +526,7 @@ export default function RunningState({
             // branches on the SSE `event:` field so status frames never reach
             // the chat-chunk handler.
             const assistantId = `a-${Date.now()}`;
+            streamingAssistantIdRef.current = assistantId;
             let acc = "";
             let inserted = false;
             setProgressChips([]);
@@ -707,6 +711,11 @@ export default function RunningState({
           setStreamingId(null);
           setRequestStartedAt(null);
 
+          const abortedPartialId = controller.signal.aborted
+            ? streamingAssistantIdRef.current
+            : null;
+          streamingAssistantIdRef.current = null;
+
           // This runs inside a `void`-discarded async IIFE, so a throw here
           // (e.g. the session expired mid-stream and the server action rejects
           // with UnAuthenticatedError) would become an unhandled rejection —
@@ -718,8 +727,12 @@ export default function RunningState({
             if (result.ok) {
               const next = persistedToMessages(result.data);
               setMessages((prev) => {
-                const merged = mergeHermesMessageLists(prev, next);
-                return hasSameMessageIds(prev, merged) ? prev : merged;
+                const base =
+                  abortedPartialId !== null
+                    ? prev.filter((m) => m.id !== abortedPartialId)
+                    : prev;
+                const merged = mergeHermesMessageLists(base, next);
+                return hasSameMessageIds(base, merged) ? base : merged;
               });
             }
             // Refresh the instance so any medium-autonomy gate the model queued
@@ -740,6 +753,20 @@ export default function RunningState({
     if (replyTimerRef.current) {
       clearTimeout(replyTimerRef.current);
       replyTimerRef.current = null;
+    }
+    const abortedPartialId = streamingAssistantIdRef.current;
+    streamingAssistantIdRef.current = null;
+    if (abortedPartialId) {
+      setMessages((prev) => prev.filter((m) => m.id !== abortedPartialId));
+      setStreamingId(null);
+      setProgressChips([]);
+      if (reasoningTimerRef.current) {
+        clearTimeout(reasoningTimerRef.current);
+        reasoningTimerRef.current = null;
+      }
+      reasoningClearAtRef.current = 0;
+      setReasoning(null);
+      setRequestStartedAt(null);
     }
     abortRef.current?.abort();
     abortRef.current = null;

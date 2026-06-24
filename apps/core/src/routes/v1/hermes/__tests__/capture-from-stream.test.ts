@@ -58,4 +58,24 @@ describe("captureFromStream", () => {
     expect(result.content).toBe("");
     expect(result.steps).toEqual([]);
   });
+
+  it("flushes trailing UTF-8 bytes held in the decoder", async () => {
+    const emoji = "🙂";
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(
+      `data: {"choices":[{"delta":{"content":"${emoji}"}}]}\n\n`,
+    );
+    // Split inside the 4-byte emoji so the final decode() flush is required.
+    const splitAt = bytes.length - 1;
+    const result = await captureFromStream(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes.slice(0, splitAt));
+          controller.enqueue(bytes.slice(splitAt));
+          controller.close();
+        },
+      }),
+    );
+    expect(result.content).toBe(emoji);
+  });
 });

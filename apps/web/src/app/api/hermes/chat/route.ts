@@ -41,13 +41,14 @@ export async function POST(req: NextRequest) {
     // straight through (OpenAI chat chunks + `event: hermes.status` frames).
     if (wantsStream) {
       requestHeaders.set("X-Hermes-Progress", "1");
+      // Do not forward the browser abort: Core tees the stream and captures the
+      // full turn server-side even when the tab closes or the user hits Stop.
       const response = await fetch(
         joinCoreApiPath(getCoreApiBaseUrl(), "/hermes/chat/stream"),
         {
           method: "POST",
           headers: requestHeaders,
           body,
-          signal: req.signal,
         },
       );
 
