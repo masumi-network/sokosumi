@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { CompanyMark } from "@/components/agents/company-mark";
 import {
   OfferDetailDialog,
   type OfferDetailItem,
+  type OutputKind,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -143,6 +145,8 @@ export function AgentSpotlight({
   defaultSlug = "elena",
   labels,
 }: AgentSpotlightProps) {
+  const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
   const [previewOffer, setPreviewOffer] = useState<CoworkerOffer | null>(null);
 
   const groups = useMemo(() => {
@@ -330,9 +334,14 @@ export function AgentSpotlight({
           setPreviewOffer(null);
         }}
         labels={{
+          deliveredBy: t("deliveredByLabel"),
+          deliverable: t("deliverableLabel"),
           start: labels.previewUse,
           pending: labels.previewEmpty,
+          openInNewTab: t("openInNewTab"),
+          fallbackTitle: t("offerDetails"),
         }}
+        typeLabel={getTypeLabel}
       />
     </div>
   );
