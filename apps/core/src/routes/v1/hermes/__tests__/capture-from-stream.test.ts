@@ -85,7 +85,9 @@ describe("captureFromStream", () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(
-          encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n'),
+          encoder.encode(
+            'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',
+          ),
         );
         setTimeout(() => abort.abort(), 0);
       },
