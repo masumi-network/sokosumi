@@ -484,6 +484,7 @@ async function dispatchJobNotification(
       },
       metadata: {
         agentId: job.agentId,
+        workspaceId: job.workspaceId,
       },
     });
   } catch (error) {

@@ -4538,6 +4538,53 @@ export const HermesPersistedMessageSchema = {
                 'null'
             ]
         },
+        steps: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                type: 'object',
+                properties: {
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'tool',
+                            'reasoning'
+                        ]
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    detail: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'label'
+                ]
+            },
+            description: 'Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.',
+            example: [
+                {
+                    kind: 'reasoning',
+                    label: 'The user wants a web search…'
+                },
+                {
+                    kind: 'tool',
+                    label: 'Searching the web',
+                    detail: 'latest MoE LLMs'
+                }
+            ]
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ],
+            description: 'Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.',
+            example: 7840
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -8460,7 +8507,8 @@ export const CoworkerOfferSchema = {
                             'image',
                             'slides',
                             'doc',
-                            'text'
+                            'text',
+                            'html'
                         ],
                         example: 'pdf'
                     },
@@ -8474,7 +8522,7 @@ export const CoworkerOfferSchema = {
                     },
                     text: {
                         type: 'string',
-                        description: 'Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.',
+                        description: 'Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.',
                         example: '## Project plan\n\n- Milestone 1 — …'
                     }
                 },
@@ -9102,5 +9150,22 @@ export const EffectiveDesignMdSchema = {
     },
     required: [
         'designMd'
+    ]
+} as const;
+
+export const WorkspaceOrganizationSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization id for the workspace, or null for a personal workspace',
+            example: 'org_123'
+        }
+    },
+    required: [
+        'organizationId'
     ]
 } as const;

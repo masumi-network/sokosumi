@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Bot } from "lucide-react";
 import { memo } from "react";
 
 import { cn } from "@/lib/utils";
@@ -32,8 +32,8 @@ function AgentIconComponent({ agent, className, isMuted }: AgentIconProps) {
 
   return (
     <span className="[&>svg]:preserve-aspect-ratio-[xMidYMid_meet] inline-flex">
-      <Sparkles
-        strokeWidth={1}
+      <Bot
+        strokeWidth={1.5}
         aria-hidden
         className={cn("size-4", className, isMuted && "text-muted-foreground")}
       />

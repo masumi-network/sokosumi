@@ -2177,6 +2177,7 @@
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",
           "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "creatingInBackground": "The agent is creating your task in the background — it'll appear in the chat shortly.",
           "approvedStatus": "Approved",
           "rejectedStatus": "Rejected",
           "tools": {
@@ -2207,7 +2208,14 @@
             "defaultTask": "Task",
             "viewTask": "View task"
           }
-        }
+        },
+        "stillWorking": "Still working on it…",
+        "stillWorkingLong": "Still going — this one is taking a little longer…",
+        "answeredIn": "Answered in {seconds}s",
+        "copyAction": "Copy message",
+        "copiedAction": "Copied",
+        "jumpToLatest": "Latest",
+        "toolSteps": "{count} steps"
       },
       "Onboarding": {
         "eyebrow": "Welcome to Hermes",
@@ -3502,7 +3510,8 @@
           "slides": "Slides",
           "doc": "Document",
           "text": "Text",
-          "image": "Image"
+          "image": "Image",
+          "html": "Web"
         },
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",

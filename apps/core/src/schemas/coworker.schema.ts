@@ -52,9 +52,11 @@ export const coworkerOfferSchema = z
     outputs: z
       .array(
         z.object({
-          type: z.enum(["pdf", "image", "slides", "doc", "text"]).openapi({
-            example: "pdf",
-          }),
+          type: z
+            .enum(["pdf", "image", "slides", "doc", "text", "html"])
+            .openapi({
+              example: "pdf",
+            }),
           url: z.string().optional().openapi({
             example: "https://example.com/samples/competitive-analysis.pdf",
           }),
@@ -64,7 +66,7 @@ export const coworkerOfferSchema = z
             .openapi({ example: "Competitive brief" }),
           text: z.string().optional().openapi({
             description:
-              "Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.",
+              "Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.",
             example: "## Project plan\n\n- Milestone 1 — …",
           }),
         }),

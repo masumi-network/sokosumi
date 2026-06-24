@@ -1189,6 +1189,18 @@ export type HermesPersistedMessage = {
     role: HermesChatMessageRole;
     content: string;
     kind: string | null;
+    /**
+     * Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.
+     */
+    steps?: Array<{
+        kind?: 'tool' | 'reasoning';
+        label: string;
+        detail?: string;
+    }> | null;
+    /**
+     * Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.
+     */
+    durationMs?: number | null;
     createdAt: Date;
 };
 
@@ -2348,11 +2360,11 @@ export type CoworkerOffer = {
      * Example outputs the offer produces — text and/or files (PDF, slides, image).
      */
     outputs?: Array<{
-        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text';
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text' | 'html';
         url?: string;
         label?: string;
         /**
-         * Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.
+         * Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.
          */
         text?: string;
     }>;
@@ -2489,6 +2501,13 @@ export type EffectiveDesignMd = {
          */
         url: string;
     } | null;
+};
+
+export type WorkspaceOrganization = {
+    /**
+     * Organization id for the workspace, or null for a personal workspace
+     */
+    organizationId: string | null;
 };
 
 /**
@@ -21312,3 +21331,75 @@ export type GetWorkspacesDesignMdResponses = {
 };
 
 export type GetWorkspacesDesignMdResponse = GetWorkspacesDesignMdResponses[keyof GetWorkspacesDesignMdResponses];
+
+export type GetWorkspacesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}';
+};
+
+export type GetWorkspacesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdError = GetWorkspacesByIdErrors[keyof GetWorkspacesByIdErrors];
+
+export type GetWorkspacesByIdResponses = {
+    /**
+     * Workspace organization mapping
+     */
+    200: {
+        data: WorkspaceOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdResponse = GetWorkspacesByIdResponses[keyof GetWorkspacesByIdResponses];
