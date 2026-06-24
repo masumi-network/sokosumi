@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
-import { useSession } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth.client";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
@@ -47,9 +47,7 @@ export function NotificationToastListener({
   const formatMessage = useNotificationMessage();
   const { markRead } = useNotifications();
   const router = useRouter();
-  const { data: session } = useSession();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   useNotificationRealtime({
     userId,
@@ -73,6 +71,10 @@ export function NotificationToastListener({
                       // Still open the link when mark-read fails.
                     }
                   }
+
+                  const sessionResponse = await authClient.getSession();
+                  const activeOrganizationId =
+                    sessionResponse.data?.session.activeOrganizationId ?? null;
 
                   await handleNotificationNavigation(
                     notification,
