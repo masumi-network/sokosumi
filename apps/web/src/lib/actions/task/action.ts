@@ -115,6 +115,31 @@ async function applyTaskSchedule(
   return task.status;
 }
 
+function resolveUpdateTargetStatus(
+  desiredStatus: TaskStatus,
+  statusAfterSchedule: TaskStatus,
+  scheduleWasMutated: boolean,
+  scheduleActiveOnServer: boolean,
+): TaskStatus {
+  if (scheduleWasMutated) {
+    if (scheduleActiveOnServer) {
+      return statusAfterSchedule;
+    }
+
+    if (desiredStatus === TaskStatus.QUEUED) {
+      return statusAfterSchedule;
+    }
+
+    return desiredStatus;
+  }
+
+  if (scheduleActiveOnServer && desiredStatus !== TaskStatus.QUEUED) {
+    return statusAfterSchedule;
+  }
+
+  return desiredStatus;
+}
+
 function resolveCreateStatus(
   requestedStatus: Extract<TaskStatus, "DRAFT" | "READY">,
   schedule?: TaskScheduleSelection,
@@ -385,6 +410,8 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       });
 
       let statusAfterSchedule = currentStatus;
+      let scheduleActiveOnServer =
+        hadSchedule || (schedule?.mode !== "none");
       const scheduleChanged =
         schedule &&
         hasTaskScheduleChanged(
@@ -393,7 +420,30 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
           hadSchedule,
         );
 
+      const shouldClearScheduleForStatusChange =
+        !scheduleChanged &&
+        schedule &&
+        schedule.mode !== "none" &&
+        desiredStatus !== TaskStatus.QUEUED &&
+        desiredStatus !== currentStatus;
+
+      let scheduleWasMutated = false;
+
+      if (shouldClearScheduleForStatusChange) {
+        scheduleWasMutated = true;
+        const scheduleStatus = await applyTaskSchedule(
+          taskId,
+          { mode: "none", timezone: schedule.timezone },
+          true,
+        );
+        if (scheduleStatus !== null) {
+          statusAfterSchedule = scheduleStatus;
+        }
+        scheduleActiveOnServer = false;
+      }
+
       if (schedule && scheduleChanged) {
+        scheduleWasMutated = true;
         const scheduleStatus = await applyTaskSchedule(
           taskId,
           schedule,
@@ -402,9 +452,15 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
         if (scheduleStatus !== null) {
           statusAfterSchedule = scheduleStatus;
         }
+        scheduleActiveOnServer = schedule.mode !== "none";
       }
 
-      const targetStatus = desiredStatus;
+      const targetStatus = resolveUpdateTargetStatus(
+        desiredStatus,
+        statusAfterSchedule,
+        scheduleWasMutated,
+        scheduleActiveOnServer,
+      );
 
       if (targetStatus !== statusAfterSchedule) {
         await taskService.createTaskEvent(taskId, {
