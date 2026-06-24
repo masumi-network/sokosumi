@@ -10,8 +10,8 @@ export type { TaskEvent };
 
 export type KanbanColumnId =
   | "backlog"
-  | "scheduled"
   | "todo"
+  | "scheduled"
   | "in-progress"
   | "input-required"
   | "done";
@@ -33,6 +33,8 @@ export interface TaskWithCoworker {
   descriptionPlain?: string | null;
   events: TaskEvent[];
   agents: CoreAgentDto[];
+  metadata?: string | null;
+  nextRunAt?: string | null;
 }
 
 export interface KanbanColumnDefinition {
@@ -42,8 +44,8 @@ export interface KanbanColumnDefinition {
 
 export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
   { id: "backlog", translationKey: "App.Tasks.Columns.backlog" },
-  { id: "scheduled", translationKey: "App.Tasks.Columns.scheduled" },
   { id: "todo", translationKey: "App.Tasks.Columns.todo" },
+  { id: "scheduled", translationKey: "App.Tasks.Columns.scheduled" },
   { id: "in-progress", translationKey: "App.Tasks.Columns.inProgress" },
   { id: "input-required", translationKey: "App.Tasks.Columns.inputRequired" },
   { id: "done", translationKey: "App.Tasks.Columns.done" },

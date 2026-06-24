@@ -288,6 +288,8 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    metadata: task.metadata ?? null,
+    nextRunAt: task.nextRunAt ?? null,
     events: task.events.map(mapTaskEvent),
     jobs: task.jobs.map(flattenJob),
     credits,

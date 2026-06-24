@@ -1644,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Você mudou para a conta {account}"
+        "switchedWorkspace": "Você mudou para a conta {account}",
+        "clonedFrom": "Clonada de {name}",
+        "schedule": "Agendamento"
       },
       "NewTask": {
         "title": "Nova tarefa",
@@ -1662,6 +1664,7 @@
         "status": "Status",
         "statusDescription": "Escolha o status inicial para esta tarefa",
         "statusDraft": "Rascunho",
+        "statusQueued": "Na fila",
         "statusReady": "Pronta",
         "back": "Voltar",
         "uploadFile": "Enviar arquivo",
@@ -1672,6 +1675,8 @@
         "saveDraft": "Salvar",
         "saveAsDraft": "Salvar como rascunho",
         "createTask": "Criar tarefa",
+        "scheduleTask": "Agendar tarefa",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "chooseAgent": "Escolha seu agente",
@@ -1725,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "save": "Salvar",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Agendamento",
+        "description": "Planejar uma execução única ou recorrente.",
+        "clearSchedule": "Remover agendamento",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Fuso horário",
+        "customCron": "Expressão cron personalizada",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Uma vez em {datetime}"
+        },
+        "card": {
+          "overdue": "Atrasada",
+          "dueInMinutes": "Vence em {minutes, plural, one {# minuto} other {# minutos}}",
+          "dueInHours": "Vence em {hours, plural, one {# hora} other {# horas}}",
+          "tomorrowAt": "Amanhã às {time}",
+          "nextRunAt": "Próxima execução: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
