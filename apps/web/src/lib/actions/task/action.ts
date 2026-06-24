@@ -14,7 +14,10 @@ import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { selectionToApiBody } from "@/lib/utils/task-schedule";
+import {
+  hasTaskScheduleChanged,
+  selectionToApiBody,
+} from "@/lib/utils/task-schedule";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
@@ -40,6 +43,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   desiredStatus: TaskStatus;
   schedule?: TaskScheduleSelection;
   hadSchedule?: boolean;
+  originalSchedule?: TaskScheduleSelection;
 }
 
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
@@ -357,6 +361,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     desiredStatus,
     schedule,
     hadSchedule = false,
+    originalSchedule,
   }) => {
     const trimmedDescription = description.trim();
     const trimmedName = normalizeTaskNameForCoreApi(name);
@@ -380,7 +385,15 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       });
 
       let statusAfterSchedule = currentStatus;
-      if (schedule) {
+      const scheduleChanged =
+        schedule &&
+        hasTaskScheduleChanged(
+          originalSchedule ?? { mode: "none", timezone: "UTC" },
+          schedule,
+          hadSchedule,
+        );
+
+      if (schedule && scheduleChanged) {
         const scheduleStatus = await applyTaskSchedule(
           taskId,
           schedule,
@@ -391,10 +404,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
         }
       }
 
-      const hasActiveSchedule = schedule?.mode !== "none";
-      const targetStatus = hasActiveSchedule
-        ? TaskStatus.QUEUED
-        : desiredStatus;
+      const targetStatus = desiredStatus;
 
       if (targetStatus !== statusAfterSchedule) {
         await taskService.createTaskEvent(taskId, {

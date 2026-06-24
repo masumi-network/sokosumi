@@ -241,6 +241,7 @@ export function TaskForm({
     useState<TaskScheduleSelection>(() =>
       metadataToSelection(initialValues?.metadata, getDefaultTimezone()),
     );
+  const originalScheduleSelection = useRef(scheduleSelection);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const hadSchedule = useMemo(
     () =>
@@ -430,6 +431,7 @@ export function TaskForm({
           desiredStatus,
           schedule: scheduleSelection,
           hadSchedule,
+          originalSchedule: originalScheduleSelection.current,
         });
         if (onSuccess) {
           onSuccess(taskId);

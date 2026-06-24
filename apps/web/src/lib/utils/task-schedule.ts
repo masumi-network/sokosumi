@@ -282,4 +282,63 @@ export function hasActiveSchedule(
   return Boolean(parseTaskScheduleMetadata(metadata) || nextRunAt);
 }
 
+function normalizeScheduleApiBodyValue(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeScheduleApiBodyValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [
+        key,
+        normalizeScheduleApiBodyValue(entryValue),
+      ]),
+    );
+  }
+
+  return value;
+}
+
+function areScheduleApiBodiesEqual(
+  left: PutTaskScheduleRequest | null,
+  right: PutTaskScheduleRequest | null,
+): boolean {
+  if (left === null && right === null) {
+    return true;
+  }
+
+  if (left === null || right === null) {
+    return false;
+  }
+
+  return (
+    JSON.stringify(normalizeScheduleApiBodyValue(left)) ===
+    JSON.stringify(normalizeScheduleApiBodyValue(right))
+  );
+}
+
+export function hasTaskScheduleChanged(
+  original: TaskScheduleSelection,
+  current: TaskScheduleSelection | undefined,
+  hadSchedule: boolean,
+): boolean {
+  const currentMode = current?.mode ?? "none";
+
+  if (currentMode === "none") {
+    return hadSchedule;
+  }
+
+  if (!hadSchedule) {
+    return true;
+  }
+
+  const originalBody = selectionToApiBody(original);
+  const currentBody = selectionToApiBody(current);
+  return !areScheduleApiBodiesEqual(originalBody, currentBody);
+}
+
 export { DOW };

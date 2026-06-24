@@ -31,6 +31,15 @@ describe("task-schedule helpers", () => {
     );
   });
 
+  it("keeps local wall-clock time across DST boundaries", () => {
+    const anchorAt = new Date("2026-03-07T14:00:00.000Z");
+    const from = new Date("2026-03-07T15:00:00.000Z");
+
+    expect(
+      computeIntervalNextRun(anchorAt, 1, from, "America/New_York"),
+    ).toEqual(new Date("2026-03-08T13:00:00.000Z"));
+  });
+
   it("uses interval metadata when computing schedule next run", () => {
     const nextRun = computeScheduleNextRun(
       {

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
-import { selectionToApiBody } from "@/lib/utils/task-schedule";
+import {
+  hasTaskScheduleChanged,
+  selectionToApiBody,
+} from "@/lib/utils/task-schedule";
 
 describe("selectionToApiBody", () => {
   it("converts one-time schedules using the selected timezone", () => {
@@ -52,5 +55,47 @@ describe("selectionToApiBody", () => {
       intervalDays: 2,
       anchorAt: new Date("2026-06-24T13:00:00.000Z"),
     });
+  });
+});
+
+describe("hasTaskScheduleChanged", () => {
+  const originalOnce = {
+    mode: "once" as const,
+    timezone: "UTC",
+    oneTimeLocalIso: "2026-06-24T09:00",
+  };
+
+  it("returns false when an unchanged one-time schedule is saved again", () => {
+    expect(
+      hasTaskScheduleChanged(
+        originalOnce,
+        {
+          mode: "once",
+          timezone: "UTC",
+          oneTimeLocalIso: "2026-06-24T09:00",
+        },
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it("returns true when clearing an existing schedule", () => {
+    expect(
+      hasTaskScheduleChanged(
+        originalOnce,
+        { mode: "none", timezone: "UTC" },
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true when adding a schedule to a task that had none", () => {
+    expect(
+      hasTaskScheduleChanged(
+        { mode: "none", timezone: "UTC" },
+        originalOnce,
+        false,
+      ),
+    ).toBe(true);
   });
 });
