@@ -1189,6 +1189,18 @@ export type HermesPersistedMessage = {
     role: HermesChatMessageRole;
     content: string;
     kind: string | null;
+    /**
+     * Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.
+     */
+    steps?: Array<{
+        kind?: 'tool' | 'reasoning';
+        label: string;
+        detail?: string;
+    }> | null;
+    /**
+     * Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.
+     */
+    durationMs?: number | null;
     createdAt: Date;
 };
 
