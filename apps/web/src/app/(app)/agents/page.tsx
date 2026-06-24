@@ -57,7 +57,7 @@ export default async function GalleryPage() {
 
   return (
     <div className="w-full">
-      <div className="space-y-16 px-2 md:space-y-24">
+      <div className="space-y-16 px-2 pb-8 md:space-y-24">
         {/* Tier 1 — curated: your coworkers + their ready-to-run offers */}
         <CreateTaskModalProvider>
           <CoworkerGallerySection

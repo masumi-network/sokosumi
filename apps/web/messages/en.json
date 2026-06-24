@@ -3508,7 +3508,8 @@
           "slides": "Slides",
           "doc": "Document",
           "text": "Text",
-          "image": "Image"
+          "image": "Image",
+          "html": "Web"
         },
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
