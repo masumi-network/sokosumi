@@ -326,9 +326,7 @@ export function hasTaskScheduleChanged(
   current: TaskScheduleSelection | undefined,
   hadSchedule: boolean,
 ): boolean {
-  const currentMode = current?.mode ?? "none";
-
-  if (currentMode === "none") {
+  if (!current || current.mode === "none") {
     return hadSchedule;
   }
 

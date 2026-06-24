@@ -487,7 +487,9 @@ describe("updateTask schedule status", () => {
       schedule: { mode: "none", timezone: "UTC" },
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith("task-1");
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
@@ -554,7 +556,9 @@ describe("updateTask schedule status", () => {
       schedule: recurringSchedule,
     });
 
-    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith("task-1");
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 });

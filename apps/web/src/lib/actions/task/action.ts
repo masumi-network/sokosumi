@@ -410,8 +410,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       });
 
       let statusAfterSchedule = currentStatus;
-      let scheduleActiveOnServer =
-        hadSchedule || (schedule?.mode !== "none");
+      let scheduleActiveOnServer = hadSchedule || schedule?.mode !== "none";
       const scheduleChanged =
         schedule &&
         hasTaskScheduleChanged(
