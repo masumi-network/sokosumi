@@ -86,7 +86,9 @@ function buildTaskLink(
   };
 }
 
-function buildTask(overrides?: Partial<{ id: string; name: string }>) {
+function buildTask(
+  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
+) {
   return {
     id: "task-created",
     name: "Generated task name",
