@@ -1,5 +1,3 @@
-import { TaskStatus } from "@sokosumi/utils";
-
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import type { TaskWithCoworker } from "@/lib/types/task";
@@ -7,7 +5,6 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
-import { TaskScheduleClock } from "./task-schedule-clock";
 import { TaskStatusBadge } from "./task-status-badge";
 
 interface TaskCardProps {
@@ -52,17 +49,12 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <TaskStatusBadge
-                  status={task.status}
-                  label={statusLabels?.[task.status]}
-                  showDot={task.columnId === "in-progress"}
-                  className="w-fit rounded-sm"
-                />
-                {task.status === TaskStatus.QUEUED ? (
-                  <TaskScheduleClock metadata={task.metadata} />
-                ) : null}
-              </div>
+              <TaskStatusBadge
+                status={task.status}
+                label={statusLabels?.[task.status]}
+                showDot={task.columnId === "in-progress"}
+                className="w-fit rounded-sm"
+              />
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>
@@ -78,6 +70,7 @@ export function TaskCard({
 
             {task.columnId === "scheduled" ? (
               <TaskScheduleDisplay
+                variant="card"
                 metadata={task.metadata}
                 nextRunAt={task.nextRunAt ? new Date(task.nextRunAt) : null}
               />

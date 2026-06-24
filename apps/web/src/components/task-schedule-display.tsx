@@ -1,5 +1,6 @@
 "use client";
 
+import { Clock } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import {
@@ -7,17 +8,20 @@ import {
   formatScheduleTitle,
 } from "@/components/schedules/format";
 import { parseTaskScheduleMetadata } from "@/lib/utils/task-schedule";
+import { cn } from "@/lib/utils";
 
 interface TaskScheduleDisplayProps {
   metadata: string | null | undefined;
   nextRunAt: Date | null | undefined;
   className?: string;
+  variant?: "stacked" | "card";
 }
 
 export function TaskScheduleDisplay({
   metadata,
   nextRunAt,
   className,
+  variant = "stacked",
 }: TaskScheduleDisplayProps) {
   const t = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
@@ -66,6 +70,29 @@ export function TaskScheduleDisplay({
         ),
       )
     : null;
+
+  if (variant === "card") {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2",
+          className,
+        )}
+      >
+        {scheduleLabel ? (
+          <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+            <Clock className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{scheduleLabel}</span>
+          </p>
+        ) : null}
+        {nextRunLabel ? (
+          <p className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {nextRunLabel}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
