@@ -69,9 +69,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
         <div className="flex min-h-0 flex-1 flex-col gap-4">
           <div
             className={cn(
-              resolvedViewMode === "board"
-                ? "flex min-h-0 min-w-0 flex-1 overflow-hidden"
-                : "",
+              resolvedViewMode === "board" ? "flex min-h-0 min-w-0 flex-1" : "",
             )}
           >
             {resolvedViewMode === "board" ? (
