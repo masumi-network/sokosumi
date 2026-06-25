@@ -97,6 +97,39 @@ describe("hermes-orchestrator.client", () => {
     expect(() => hermesInstanceSchema.parse(instance)).not.toThrow();
   });
 
+  it("coerces empty pending confirmation organization fields to null so instance schema parse succeeds", async () => {
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        status: "ready",
+        endpointUrl: null,
+        pendingConfirmations: [
+          {
+            id: "conf_1",
+            toolName: "sokosumi_create_task",
+            summary: "Create task in workspace",
+            createdAt: "2024-06-01T12:00:00.000Z",
+            organizationId: "",
+            organizationName: "",
+          },
+        ],
+      }),
+    });
+
+    const { getInstance } = await import("./hermes-orchestrator.client");
+    const instance = await getInstance("user_empty_org");
+
+    expect(instance?.pendingConfirmations).toEqual([
+      expect.objectContaining({
+        id: "conf_1",
+        organizationId: null,
+        organizationName: null,
+      }),
+    ]);
+    expect(() => hermesInstanceSchema.parse(instance)).not.toThrow();
+  });
+
   it("coerces invalid schedule lastRunAt and nextRunAt to null so schedule schema parse succeeds", async () => {
     fetchMock.mockResolvedValue({
       status: 200,

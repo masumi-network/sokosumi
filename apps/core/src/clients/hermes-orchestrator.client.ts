@@ -270,6 +270,14 @@ interface RawPendingConfirmationFromOrchestrator {
   organization_name?: string | null;
 }
 
+function normalizeNullableNonEmptyString(
+  value: string | null | undefined,
+): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function normalizePendingConfirmation(
   raw: RawPendingConfirmationFromOrchestrator,
 ): HermesPendingConfirmation | null {
@@ -281,14 +289,16 @@ function normalizePendingConfirmation(
   // Proposed workspace: the orchestrator sends `organizationId` (null =
   // personal). Treat an absent field as `null` (older orchestrators). Accept a
   // snake_case alias defensively, matching the toolName/createdAt handling.
-  const organizationId =
+  const organizationId = normalizeNullableNonEmptyString(
     raw.organizationId !== undefined
       ? raw.organizationId
-      : (raw.organization_id ?? null);
-  const organizationName =
+      : (raw.organization_id ?? null),
+  );
+  const organizationName = normalizeNullableNonEmptyString(
     raw.organizationName !== undefined
       ? raw.organizationName
-      : (raw.organization_name ?? null);
+      : (raw.organization_name ?? null),
+  );
   return {
     id,
     toolName,
