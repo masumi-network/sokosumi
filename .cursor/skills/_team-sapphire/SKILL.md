@@ -116,20 +116,20 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 1. Read **session spec** (plus session investigation for context). Requirement from Linear when needed.
 2. If Tech Lead defined multiple coders with parallel ownership, launch **parallel** **`sapphire-coder`** Task subagents (`model: composer-2.5`) — one per coder block. Each subagent implements and returns branch/commits; **subagents do not open PRs**. After all return, merge onto one integration branch on the orchestrator side.
 3. If single coder, delegate to **`sapphire-coder`** (`model: composer-2.5`) — subagent opens the PR (or returns handoff for you to post gates).
-4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**). For multiple coders, run combined verification on the merged branch.
-5. **Pre-Reviewer gates (blocking):** Local verification exit 0, **CI green** on the PR, **mandatory Bugbot** with **zero High** findings (fix High on branch; medium acknowledged only). See `CODER.md` **Pre-Reviewer gates** and `BUGBOT-LEARNINGS.md`.
-6. Open **one PR** (orchestrator always owns the PR when multiple coders ran); PR body must reference the Linear issue id.
-7. **Gate (blocking):** `save_comment` → `**PR handoff**`. If Bugbot reported ≥1 Medium: `save_comment` → `**Bugbot · medium (human review)**` (table for human merge pass). Then `save_comment` → `**Sapphire · Coder complete**` (verification, CI, Bugbot summary). Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until gates succeed **and** Pre-Reviewer gates pass.
+4. Run allowlisted verification before opening the PR (`REVIEWER.md` **Verification command trust**). For multiple coders, run combined verification on the merged branch. **All commands exit 0.**
+5. Open **one PR** — sole `sapphire-coder` subagent opens it when not parallel; **orchestrator** opens it after merging parallel coder branches. PR body must reference the Linear issue id.
+6. **Pre-Reviewer gates (blocking, after PR exists):** **Orchestrator** watches **CI green** on the PR (`gh pr checks`) and runs **mandatory Bugbot** with **zero High** findings (fix High on branch; medium acknowledged only). Sole `sapphire-coder` subagents do **not** run CI or Bugbot — return draft handoff text; orchestrator runs steps 6–7. See `CODER.md` **Pre-Reviewer gates** and `BUGBOT-LEARNINGS.md`.
+7. **Gate (blocking):** After step 6 passes — `save_comment` → `**PR handoff**`. If Bugbot reported ≥1 Medium: `save_comment` → `**Bugbot · medium (human review)**` (table for human merge pass). Then `save_comment` → `**Sapphire · Coder complete**` (verification, CI, Bugbot summary). Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until step 7 succeeds.
 8. **Continue in this run** — proceed to Phase 4 without stopping.
 
 ### Phase 4 — Reviewer
 
 1. Confirm Coder complete comment documents **local verification exit 0**, **CI green**, and **Bugbot 0 High** — otherwise return to Phase 3.
 2. Delegate to **`sapphire-reviewer`** (`model: gpt-5.5-medium`) — run `/goal` per `REVIEWER.md` until all criteria pass.
-2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
-3. Fix on PR branch when needed; loop.
-4. **Gate (blocking):** On pass — `save_comment` → `**Sapphire · Reviewer complete**` with evidence; `save_issue` → Reviewer row `done` (full description merge); then `save_issue` → `state: "In Review"` only. All four status rows must be `done` before exit.
-5. Do **not** mark issue **Done** — human merges PR.
+3. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
+4. Fix on PR branch when needed; loop.
+5. **Gate (blocking):** On pass — `save_comment` → `**Sapphire · Reviewer complete**` with evidence; `save_issue` → Reviewer row `done` (full description merge); then `save_issue` → `state: "In Review"` only. All four status rows must be `done` before exit.
+6. Do **not** mark issue **Done** — human merges PR.
 
 ### Exit gate (blocking)
 

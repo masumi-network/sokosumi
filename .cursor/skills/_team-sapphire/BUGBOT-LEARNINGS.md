@@ -2,7 +2,7 @@
 
 Distilled from high/medium Bugbot findings on `masumi-network/sokosumi` and local review sessions. Use these to prevent regressions before Reviewer runs.
 
-**Mandatory gates (Coder / orchestrator — before Phase 4):** see `CODER.md` **Pre-Reviewer gates** and `PHASE-GATE.md`.
+**Mandatory gates (orchestrator after PR open — before Phase 4):** see `CODER.md` **Pre-Reviewer gates** and `PHASE-GATE.md`.
 
 ## Quality rules (R1–R12)
 
@@ -118,7 +118,23 @@ Apply when the **trigger** matches the work. Investigator flags risks; Tech Lead
 
 ## Mandatory Bugbot (before Reviewer)
 
-Orchestrator runs **one Bugbot review** per PR before Phase 4 (`review-bugbot` skill — `subagent_type: "bugbot"`, `Diff: branch changes`).
+Orchestrator runs **one Bugbot review** per PR before Phase 4 (after the PR exists). Launch a **Task** subagent — do not assume a repo-local skill file:
+
+| Field | Value |
+|-------|-------|
+| `subagent_type` | `bugbot` |
+| `readonly` | `true` |
+| `run_in_background` | `false` |
+| `description` | `Bugbot` |
+
+Prompt (exact shape):
+
+```text
+Full Repository Path: <absolute repository root>
+Diff: branch changes
+```
+
+In Cursor IDE, `/review-bugbot` runs the same flow when the editor skill is installed — either path is valid. If the subagent cannot compute the diff, retry once with `Diff: natural language` and a per-file change description (see `review-bugbot` skill retry rules).
 
 | Severity | Action |
 |----------|--------|

@@ -10,7 +10,7 @@ Follow `.cursor/skills/_team-sapphire/CODER.md` (**Subagent mode**) and `REVIEWE
 
 **Inputs:** Your coder block from the **session spec** (inline in the prompt), file ownership table, Linear issue id, and whether you are the **sole coder** or one of **parallel coders** (Multiple coders flow).
 
-**Sole coder:** Implement your scope, run allowlisted verification (exit 0), open one PR (body references the Linear issue id). Return PR URL, branch name, and draft `**PR handoff**` + `**Sapphire · Coder complete**` comment text. **Orchestrator** runs CI watch + Bugbot before Phase 4 — posts `**Bugbot · medium (human review)**` on Linear when mediums exist; note verification commands in handoff.
+**Sole coder:** Implement your scope, run allowlisted verification (exit 0), open one PR (body references the Linear issue id). Return PR URL, branch name, verification summary, and **draft** `**PR handoff**` / `**Sapphire · Coder complete**` text (orchestrator fills CI + Bugbot lines after gates pass). **Do not** run `gh pr checks` or Bugbot — **orchestrator** watches CI green, runs Bugbot (0 High), posts `**Bugbot · medium (human review)**` when needed, then posts Linear gates.
 
 **Parallel coders (Multiple coders flow):** Implement your scope only, run allowlisted verification for your deliverables (exit 0), commit on a named branch. **Do not** push or open a PR — the orchestrator merges all coder output into one branch, opens the single PR, runs **CI green + Bugbot (0 High)**, then posts Phase 3 gates.
 

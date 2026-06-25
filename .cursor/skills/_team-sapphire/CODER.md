@@ -30,7 +30,7 @@ When the orchestrator delegates to `sapphire-coder`:
 2. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
 3. Return PR URL, branch, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
 
-The orchestrator runs **Phase gate (blocking)** after you finish.
+The orchestrator runs **Phase gate (blocking)** after you finish — CI watch, Bugbot, then Linear comments.
 
 ### Parallel coders (Multiple coders flow)
 
@@ -42,7 +42,7 @@ When Tech Lead defined `### Coder A`, `### Coder B`, … and the orchestrator la
 4. Return to the orchestrator: branch name, changed files, commit message(s), verification results, and a one-line scope summary.
 5. **Do not** call Linear MCP. **Do not** edit files owned by other coders.
 
-The orchestrator merges all parallel coder branches onto one integration branch, runs combined verification if needed, opens **one PR** for the issue, then runs **Phase gate (blocking)**.
+The orchestrator merges all parallel coder branches onto one integration branch, opens **one PR**, runs **CI green + Bugbot (0 High)**, then posts Phase 3 gates.
 
 ## Multiple coders (orchestrator)
 
@@ -94,17 +94,32 @@ Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verif
 
 ## Pre-Reviewer gates (blocking)
 
-**Orchestrator** (always) and **sole `sapphire-coder`** (when not parallel) must complete these **after** implementation and **before** `**PR handoff**` / Phase 4. Parallel coders run verification on their branch; the orchestrator runs the full gate set on the merged integration branch before opening the PR.
+Complete in order **before** `**PR handoff**` / Phase 4:
+
+| Step | Gate | Who |
+|------|------|-----|
+| 1 | Local verification (exit 0) | Implementer (subagent or orchestrator) |
+| 2 | Open one PR on GitHub | Sole `sapphire-coder` when not parallel; **orchestrator** after parallel merge |
+| 3 | CI green on the PR | **Orchestrator** (always — including after sole subagent returns) |
+| 4 | Bugbot 0 High | **Orchestrator** (always) |
+
+**Standalone Coder** (user invoked Coder only): you run all four steps yourself.
+
+**Subagent mode:** parallel coders run step 1 on their branch only; sole subagent runs steps 1–2 and returns draft handoff text; **orchestrator** runs steps 3–4 and posts Linear gates.
 
 Read `BUGBOT-LEARNINGS.md` for R1–R12 quality rules and the Coder self-check.
 
 ### 1. Local verification (green)
 
-Run allowlisted `pnpm` commands for the spec scope. **Every command exit 0.** Fix failures on the PR branch; do not hand off with failing local checks.
+Run allowlisted `pnpm` commands for the spec scope. **Every command exit 0.** Fix failures on the branch; do not open the PR or hand off with failing local checks.
 
-### 2. CI green on the PR
+### 2. Open PR
 
-Push the PR branch and confirm **GitHub CI is green** before Reviewer starts:
+Push the branch and open **one PR** per issue (body references Linear issue id). Parallel coders **do not** open a PR — orchestrator merges branches and opens it.
+
+### 3. CI green on the PR
+
+After the PR exists, confirm **GitHub CI is green** before Reviewer starts:
 
 ```bash
 gh pr checks <number> --watch
@@ -116,9 +131,9 @@ gh pr view <number> --json statusCheckRollup,state
 - If CI fails, fix on the PR branch and re-push until green.
 - **Do not** post `**PR handoff**` or start Phase 4 while required checks are failing or pending without watching to completion.
 
-### 3. Mandatory Bugbot (High must be zero)
+### 4. Mandatory Bugbot (High must be zero)
 
-Run Bugbot once on branch changes per `BUGBOT-LEARNINGS.md` **Mandatory Bugbot** (orchestrator uses `review-bugbot` skill).
+**Orchestrator** runs Bugbot once on branch changes per `BUGBOT-LEARNINGS.md` **Mandatory Bugbot** (Task `subagent_type: "bugbot"`, `Diff: branch changes`).
 
 1. Launch Bugbot on the PR branch vs merge-base.
 2. **Fix every High finding** on the PR branch.

@@ -2,9 +2,9 @@
 
 **Goal:** Compare PR + code to the **session spec**. Loop with **`/goal`** until all criteria pass. Set issue **In Review** on pass.
 
-Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
+Runs after Phase 3 gates complete on the same issue — no sub-tasks. **Do not** start when only `**PR handoff**` exists; wait for `**Sapphire · Coder complete**` and Coder row `done`.
 
-**Entry requirements (blocking):** Reviewer must not start until Coder/orchestrator confirms in `**Sapphire · Coder complete**`:
+**Entry requirements (blocking):** Reviewer must not start until `**Sapphire · Coder complete**` documents:
 
 - Local allowlisted verification — all exit 0
 - **CI green** on the PR (required GitHub checks pass)
