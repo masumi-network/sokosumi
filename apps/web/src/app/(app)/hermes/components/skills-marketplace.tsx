@@ -69,6 +69,7 @@ export default function SkillsMarketplace({
   const [preinstalled, setPreinstalled] = useState<PreinstalledSkill[]>([]);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillCatalogItem[] | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -121,16 +122,26 @@ export default function SkillsMarketplace({
     const q = query.trim();
     if (q.length < 2) {
       setResults(null);
+      setSearchError(null);
       setSearching(false);
       return;
     }
     setSearching(true);
+    setSearchError(null);
     let cancelled = false;
     const id = setTimeout(() => {
       void (async () => {
         const res = await searchSkillsAction({ q, limit: 24 });
         if (cancelled) return;
-        setResults(res.ok ? res.data : []);
+        if (res.ok) {
+          setResults(res.data);
+          setSearchError(null);
+        } else {
+          const message = res.error.message ?? t("emptyCatalog");
+          toast.error(message);
+          setSearchError(message);
+          setResults([]);
+        }
         setSearching(false);
       })();
     }, DEBOUNCE_MS);
@@ -138,7 +149,7 @@ export default function SkillsMarketplace({
       cancelled = true;
       clearTimeout(id);
     };
-  }, [query]);
+  }, [query, t]);
 
   const markInstalled = useCallback(
     (item: SkillCatalogItem, status: string) => {
@@ -273,6 +284,7 @@ export default function SkillsMarketplace({
           heading={t("resultsHeading")}
           items={results}
           loading={searching}
+          errorLabel={searchError}
           emptyLabel={t("noResults")}
           installedBySlug={installedBySlug}
           preinstalledSlugs={preinstalledSlugs}
@@ -340,6 +352,7 @@ function SkillShelf({
   heading,
   items,
   loading,
+  errorLabel,
   emptyLabel,
   installedBySlug,
   preinstalledSlugs,
@@ -350,6 +363,7 @@ function SkillShelf({
   heading: string;
   items: SkillCatalogItem[];
   loading?: boolean;
+  errorLabel?: string | null;
   emptyLabel: string;
   installedBySlug: Map<string, InstalledSkill>;
   preinstalledSlugs: Set<string>;
@@ -366,6 +380,8 @@ function SkillShelf({
         <div className="text-muted-foreground flex items-center gap-2 py-3 text-sm">
           <Loader2 className="size-4 animate-spin" />
         </div>
+      ) : errorLabel ? (
+        <p className="text-muted-foreground py-2 text-sm">{errorLabel}</p>
       ) : items.length === 0 ? (
         <p className="text-muted-foreground py-2 text-sm">{emptyLabel}</p>
       ) : (
