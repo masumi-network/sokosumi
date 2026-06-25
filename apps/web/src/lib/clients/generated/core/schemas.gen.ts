@@ -4785,7 +4785,7 @@ export const HermesStartOnboardingRequestSchema = {
             type: 'string',
             enum: [
                 'deep',
-                'shallow'
+                'light'
             ]
         },
         personality: {
@@ -5110,6 +5110,281 @@ export const HermesFinalizeIntegrationRequestSchema = {
     required: [
         'provider',
         'connectionId'
+    ]
+} as const;
+
+export const SkillCatalogListSchema = {
+    type: 'object',
+    properties: {
+        skills: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SkillCatalogItem'
+            }
+        }
+    },
+    required: [
+        'skills'
+    ]
+} as const;
+
+export const SkillCatalogItemSchema = {
+    type: 'object',
+    properties: {
+        skillId: {
+            type: 'string'
+        },
+        source: {
+            type: 'string'
+        },
+        slug: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        installs: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        curated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'skillId',
+        'source',
+        'slug',
+        'name',
+        'description',
+        'installs',
+        'curated'
+    ]
+} as const;
+
+export const SkillCatalogDetailSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SkillCatalogItem'
+        },
+        {
+            type: 'object',
+            properties: {
+                hash: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                installUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                auditRisk: {
+                    $ref: '#/components/schemas/SkillsRiskLevel'
+                },
+                audits: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/SkillAuditEntry'
+                    }
+                }
+            },
+            required: [
+                'hash',
+                'installUrl',
+                'auditRisk',
+                'audits'
+            ]
+        }
+    ]
+} as const;
+
+export const SkillsRiskLevelSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'NONE',
+        'LOW',
+        'MEDIUM',
+        'HIGH',
+        'CRITICAL',
+        null
+    ]
+} as const;
+
+export const SkillAuditEntrySchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/SkillsAuditStatus'
+        },
+        riskLevel: {
+            $ref: '#/components/schemas/SkillsRiskLevel'
+        }
+    },
+    required: [
+        'provider',
+        'status',
+        'riskLevel'
+    ]
+} as const;
+
+export const SkillsAuditStatusSchema = {
+    type: 'string',
+    enum: [
+        'pass',
+        'warn',
+        'fail'
+    ]
+} as const;
+
+export const InstalledSkillsListSchema = {
+    type: 'object',
+    properties: {
+        skills: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/InstalledSkill'
+            }
+        }
+    },
+    required: [
+        'skills'
+    ]
+} as const;
+
+export const InstalledSkillSchema = {
+    type: 'object',
+    properties: {
+        skillId: {
+            type: 'string'
+        },
+        source: {
+            type: 'string'
+        },
+        slug: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        auditRisk: {
+            $ref: '#/components/schemas/SkillsRiskLevel'
+        },
+        status: {
+            $ref: '#/components/schemas/InstalledSkillStatus'
+        },
+        installedAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'skillId',
+        'source',
+        'slug',
+        'name',
+        'auditRisk',
+        'status',
+        'installedAt'
+    ]
+} as const;
+
+export const InstalledSkillStatusSchema = {
+    type: 'string',
+    enum: [
+        'installed',
+        'installing'
+    ]
+} as const;
+
+export const PreinstalledSkillsListSchema = {
+    type: 'object',
+    properties: {
+        skills: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/PreinstalledSkill'
+            }
+        }
+    },
+    required: [
+        'skills'
+    ]
+} as const;
+
+export const PreinstalledSkillSchema = {
+    type: 'object',
+    properties: {
+        slug: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'slug',
+        'name',
+        'description'
+    ]
+} as const;
+
+export const InstallSkillResponseSchema = {
+    type: 'object',
+    properties: {
+        slug: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/InstalledSkillStatus'
+        }
+    },
+    required: [
+        'slug',
+        'status'
+    ]
+} as const;
+
+export const InstallSkillRequestSchema = {
+    type: 'object',
+    properties: {
+        source: {
+            type: 'string',
+            minLength: 1
+        },
+        slug: {
+            type: 'string',
+            minLength: 1
+        }
+    },
+    required: [
+        'source',
+        'slug'
     ]
 } as const;
 

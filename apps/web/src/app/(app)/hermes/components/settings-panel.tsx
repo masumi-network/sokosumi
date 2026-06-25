@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 
 import AutonomySelector from "./autonomy-selector";
 import ConnectInterstitial from "./connect-interstitial";
+import SkillsMarketplace from "./skills-marketplace";
 import { useComposioOAuth } from "./use-composio-oauth";
 
 interface SettingsPanelProps {
@@ -415,6 +416,9 @@ export default function SettingsPanel({
                 onDisconnect={handleDisconnect}
               />
             </PanelSection>
+
+            {/* ── Skills (skills.sh marketplace) ───────────────── */}
+            {!previewMode ? <SkillsMarketplace variant="settings" /> : null}
 
             {/* ── Scheduled tasks ──────────────────────────────── */}
             <SchedulesSection

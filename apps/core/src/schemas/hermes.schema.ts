@@ -289,7 +289,7 @@ export const hermesStartOnboardingRequestSchema = z
      * not an org/tenant identifier.
      */
     company: z.string().min(1).max(120).optional(),
-    researchDepth: z.enum(["deep", "shallow"]).optional(),
+    researchDepth: z.enum(["deep", "light"]).optional(),
     /**
      * Optional. The assistant's personality (tone / detail / style as 0–100
      * spectrums) chosen on the first setup step. Forwarded to the orchestrator

@@ -344,9 +344,9 @@ export const startHermesOnboardingAction = withSession<
         email: email ?? undefined,
         role: role ?? undefined,
         company: company ?? undefined,
-        // "shallow" = web-only research (used by skip-for-now path);
+        // "light" = web-only research (used by skip-for-now path);
         // "deep" = inbox + web (default for users who connected integrations).
-        researchDepth: skipResearch ? "shallow" : "deep",
+        researchDepth: skipResearch ? "light" : "deep",
         autonomyLevel: autonomyLevel ?? undefined,
         personality: personality ?? undefined,
       });

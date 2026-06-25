@@ -64,6 +64,7 @@ import {
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
+  deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsById as coreDeleteProjectsById,
@@ -99,6 +100,12 @@ import {
   getHermesMeInstanceIntegrations as coreGetHermesMeInstanceIntegrations,
   getHermesMeInstanceOnboardingProgress as coreGetHermesMeInstanceOnboardingProgress,
   getHermesMeInstanceSchedules as coreGetHermesMeInstanceSchedules,
+  getHermesMeInstanceSkills as coreGetHermesMeInstanceSkills,
+  getHermesMeInstanceSkillsCatalog as coreGetHermesMeInstanceSkillsCatalog,
+  getHermesMeInstanceSkillsCatalogCurated as coreGetHermesMeInstanceSkillsCatalogCurated,
+  getHermesMeInstanceSkillsCatalogDetail as coreGetHermesMeInstanceSkillsCatalogDetail,
+  getHermesMeInstanceSkillsCatalogSearch as coreGetHermesMeInstanceSkillsCatalogSearch,
+  getHermesMeInstanceSkillsPreinstalled as coreGetHermesMeInstanceSkillsPreinstalled,
   getHermesMeMessages as coreGetHermesMeMessages,
   getHermesMeUnreadCount as coreGetHermesMeUnreadCount,
   getHistory as coreGetHistory,
@@ -167,6 +174,7 @@ import {
   postHermesMeInstanceIntegrationsFinalize as corePostHermesMeInstanceIntegrationsFinalize,
   postHermesMeInstanceIntegrationsInitiate as corePostHermesMeInstanceIntegrationsInitiate,
   postHermesMeInstanceOnboard as corePostHermesMeInstanceOnboard,
+  postHermesMeInstanceSkills as corePostHermesMeInstanceSkills,
   postHermesMeSecrets as corePostHermesMeSecrets,
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
@@ -2265,6 +2273,75 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getSkillsCatalog(query: {
+    view?: "trending" | "hot" | "all-time";
+    page?: number;
+    perPage?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkillsCatalog({ client, query }),
+      "Failed to load skills catalog",
+    );
+  }
+
+  async function searchSkillsCatalog(query: { q: string; limit?: number }) {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkillsCatalogSearch({ client, query }),
+      "Failed to search skills",
+    );
+  }
+
+  async function getCuratedSkills() {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkillsCatalogCurated({ client }),
+      "Failed to load curated skills",
+    );
+  }
+
+  async function getSkillDetail(query: { source: string; slug: string }) {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkillsCatalogDetail({ client, query }),
+      "Failed to load skill",
+    );
+  }
+
+  async function getInstalledSkills() {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkills({ client }),
+      "Failed to list installed skills",
+    );
+  }
+
+  async function getPreinstalledSkills() {
+    return executeOperation(
+      getClient,
+      (client) => coreGetHermesMeInstanceSkillsPreinstalled({ client }),
+      "Failed to list pre-installed skills",
+    );
+  }
+
+  async function installSkill(body: { source: string; slug: string }) {
+    return executeOperation(
+      getClient,
+      (client) => corePostHermesMeInstanceSkills({ client, body }),
+      "Failed to install skill",
+    );
+  }
+
+  async function removeSkill(slug: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteHermesMeInstanceSkillsBySlug({ client, path: { slug } }),
+      "Failed to remove skill",
+    );
+  }
+
   async function finalizeHermesIntegration(
     body: HermesFinalizeIntegrationRequest,
   ) {
@@ -2631,6 +2708,14 @@ export function createCoreClient(getClient: GetClient) {
     disconnectHermesIntegration,
     initiateHermesIntegration,
     finalizeHermesIntegration,
+    getSkillsCatalog,
+    searchSkillsCatalog,
+    getCuratedSkills,
+    getSkillDetail,
+    getInstalledSkills,
+    getPreinstalledSkills,
+    installSkill,
+    removeSkill,
     getAgentById,
     getAgentJobs,
     getAgentInputSchema,

@@ -730,6 +730,167 @@ export async function destroyInstance(userId: string): Promise<void> {
   }
 }
 
+// ── Skills (skills.sh marketplace install onto the agent) ────────────────────
+
+// Bound the read-only skills list calls — a suspended/cold orchestrator must
+// not stall the marketplace load. Mutations (install/remove) are not capped
+// here; only the two list reads on the load path use this.
+const SKILLS_READ_TIMEOUT_MS = 5000;
+
+export type HermesSkillRisk = "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+/** `installing` = the agent wasn't ready; it auto-applies on next start. */
+export type HermesSkillStatus = "installed" | "installing";
+
+export interface HermesInstalledSkill {
+  skillId: string;
+  source: string;
+  slug: string;
+  name: string;
+  auditRisk: HermesSkillRisk | null;
+  status: HermesSkillStatus;
+  installedAt: string | null;
+}
+
+export interface HermesInstallSkillInput {
+  skillId: string;
+  source: string;
+  slug: string;
+  name: string;
+  hash: string | null;
+  auditRisk: HermesSkillRisk | null;
+  installUrl: string | null;
+  files: { path: string; contents: string }[];
+}
+
+export interface HermesInstallSkillResult {
+  slug: string;
+  status: HermesSkillStatus;
+}
+
+function normalizeSkillStatus(value: unknown): HermesSkillStatus {
+  return value === "installing" ? "installing" : "installed";
+}
+
+/**
+ * POST /v1/instances/:userId/skills — the orchestrator writes the (audited)
+ * skill files onto the agent. It re-validates paths/size/audit/hash and may
+ * reject: 400 invalid_skill · 403 skill_blocked (HIGH/CRITICAL) · 409
+ * skill_slug_conflict · 404 instance_not_found. Those surface as
+ * `HermesOrchestratorError` (httpStatus + code) for the route to translate.
+ */
+export async function installSkill(
+  userId: string,
+  input: HermesInstallSkillInput,
+): Promise<HermesInstallSkillResult> {
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/skills`,
+    { method: "POST", jsonBody: input },
+  );
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    slug?: string;
+    status?: string;
+  };
+  return {
+    slug: data.slug ?? input.slug,
+    status: normalizeSkillStatus(data.status),
+  };
+}
+
+/** GET /v1/instances/:userId/skills — installed skills (for "Installed ✓"). */
+export async function listInstalledSkills(
+  userId: string,
+): Promise<HermesInstalledSkill[]> {
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/skills`,
+    { signal: AbortSignal.timeout(SKILLS_READ_TIMEOUT_MS) },
+  );
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    skills?: unknown;
+  };
+  const arr = Array.isArray(data.skills) ? data.skills : [];
+  return arr.flatMap((raw): HermesInstalledSkill[] => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const source = typeof r.source === "string" ? r.source : null;
+    const slug = typeof r.slug === "string" ? r.slug : null;
+    if (!source || !slug) return [];
+    const risk = r.auditRisk;
+    return [
+      {
+        skillId:
+          typeof r.skillId === "string" ? r.skillId : `${source}/${slug}`,
+        source,
+        slug,
+        name: typeof r.name === "string" ? r.name : slug,
+        auditRisk:
+          typeof risk === "string" &&
+          ["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(risk)
+            ? (risk as HermesSkillRisk)
+            : null,
+        status: normalizeSkillStatus(r.status),
+        installedAt: typeof r.installedAt === "string" ? r.installedAt : null,
+      },
+    ];
+  });
+}
+
+export interface HermesPreinstalledSkill {
+  slug: string;
+  name: string;
+  description: string | null;
+}
+
+/**
+ * GET /v1/instances/:userId/skills/preinstalled — skills baked into the Hermes
+ * image (NOT skills.sh installs). The orchestrator is the source of truth.
+ */
+export async function listPreinstalledSkills(
+  userId: string,
+): Promise<HermesPreinstalledSkill[]> {
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/skills/preinstalled`,
+    { signal: AbortSignal.timeout(SKILLS_READ_TIMEOUT_MS) },
+  );
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+  const data = (await res.json().catch(() => ({}))) as { skills?: unknown };
+  const arr = Array.isArray(data.skills) ? data.skills : [];
+  return arr.flatMap((raw): HermesPreinstalledSkill[] => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const slug = typeof r.slug === "string" ? r.slug : null;
+    if (!slug) return [];
+    return [
+      {
+        slug,
+        name: typeof r.name === "string" ? r.name : slug,
+        description: typeof r.description === "string" ? r.description : null,
+      },
+    ];
+  });
+}
+
+/** DELETE /v1/instances/:userId/skills/:slug — 204 (or 404, treated as gone). */
+export async function removeInstalledSkill(
+  userId: string,
+  slug: string,
+): Promise<void> {
+  const res = await orchFetch(
+    `/v1/instances/${encodeURIComponent(userId)}/skills/${encodeURIComponent(slug)}`,
+    { method: "DELETE" },
+  );
+  if (res.status === 404) return;
+  if (!res.ok) {
+    throw new HermesOrchestratorError(res.status, await readErrorBody(res));
+  }
+}
+
 const RESERVED_SECRET_KEYS = new Set(["HERMES_HOME", "OPENROUTER_API_KEY"]);
 const SECRET_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
@@ -936,8 +1097,9 @@ export interface StartOnboardingInput {
   role?: string | null;
   /** Company name the user provided. Context for research + tone. */
   company?: string | null;
-  /** "deep" runs the full context-aware research; default if omitted. */
-  researchDepth?: "deep" | "shallow" | null;
+  /** "deep" runs the full context-aware research (default if omitted);
+   * "light" is the web-only quick path used by skip-for-now. */
+  researchDepth?: "deep" | "light" | null;
   /**
    * Assistant personality — three 0–100 spectrums (50 = balanced). The
    * orchestrator folds these into the agent's system prompt so its replies
