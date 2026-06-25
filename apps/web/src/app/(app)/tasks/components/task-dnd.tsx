@@ -100,7 +100,12 @@ export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} onClickCapture={handleClickCapture}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      data-dnd-draggable=""
+      onClickCapture={handleClickCapture}
+    >
       {children({ attributes, listeners, isDragging })}
     </div>
   );
