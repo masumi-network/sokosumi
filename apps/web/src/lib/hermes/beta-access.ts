@@ -8,8 +8,6 @@ export const HERMES_BETA_ALLOWED_EMAILS = [
   "y.bollinger@house-of-communication.com",
   "s.kuepers@house-of-communication.com",
   "m.starkova@house-of-communication.com",
-  // TEMP-LOCAL-PREVIEW: remove before commit — grants local viewing access.
-  "patrick@yellowhouse.gmbh",
 ] as const;
 
 const HERMES_BETA_EMAIL_DOMAIN_SET = new Set<string>(HERMES_BETA_EMAIL_DOMAINS);
