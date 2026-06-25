@@ -997,7 +997,9 @@ export function TasksView({
         <div className="flex min-h-0 flex-1 flex-col gap-4">
           <div
             className={cn(
-              viewMode === "board" ? "flex min-h-0 min-w-0 flex-1" : "",
+              viewMode === "board"
+                ? "flex min-h-0 min-w-0 flex-1 overflow-hidden"
+                : "",
             )}
           >
             {isMounted ? (
