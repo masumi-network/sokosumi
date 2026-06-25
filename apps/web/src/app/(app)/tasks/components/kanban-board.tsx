@@ -11,6 +11,7 @@ import {
 } from "@/lib/types/task";
 
 import { AddTaskButton } from "./add-task-button";
+import { DragScrollContainer } from "./drag-scroll-container";
 import { KanbanColumn } from "./kanban-column";
 import { TaskCard } from "./task-card";
 import {
@@ -46,7 +47,7 @@ export function KanbanBoard({
   statusLabels,
 }: KanbanBoardProps) {
   return (
-    <div className="-mx-2 flex h-full min-h-[calc(100svh-8.5rem)] flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4">
+    <DragScrollContainer className="-mx-2 flex h-full min-h-0 w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/80 [&::-webkit-scrollbar-track]:bg-transparent">
       {columns.map((column, index) => {
         const columnTasks = tasks
           .filter((task) => task.columnId === column.id)
@@ -112,7 +113,7 @@ export function KanbanBoard({
           <DroppableColumn
             key={column.id}
             id={column.id}
-            className="flex h-full min-h-0 flex-1"
+            className="flex h-full min-h-0 shrink-0 flex-1"
           >
             {columnContent}
           </DroppableColumn>
@@ -120,6 +121,6 @@ export function KanbanBoard({
           columnContent
         );
       })}
-    </div>
+    </DragScrollContainer>
   );
 }
