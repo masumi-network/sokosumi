@@ -62,6 +62,7 @@ interface MarkdownEditorProps {
   onSubmitShortcut?: () => void;
   placeholder?: string;
   className?: string;
+  editorClassName?: string;
   style?: React.CSSProperties;
   onAttachClick?: () => void;
   attachLabel?: string;
@@ -99,6 +100,7 @@ export const MarkdownEditor = forwardRef<
     onSubmitShortcut,
     placeholder = "Enter details...",
     className,
+    editorClassName,
     style,
     onAttachClick,
     attachLabel,
@@ -1042,6 +1044,7 @@ export const MarkdownEditor = forwardRef<
           "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",
           "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
           "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
+          editorClassName,
         )}
       />
       {typeof window !== "undefined" &&

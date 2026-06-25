@@ -1,5 +1,6 @@
 import type { SubscriptionPlanName } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
@@ -26,6 +27,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
+import { formatShortDateTime } from "@/lib/utils/datetime";
 import { mapTaskToTaskWithCoworker } from "@/lib/utils/task-transformer";
 
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
@@ -79,6 +81,7 @@ export async function TaskDetailView({
   );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
+  const parentTask = linkedTasks.find((link) => link.relation === "child");
 
   const t = await translationsPromise;
 
@@ -99,6 +102,18 @@ export async function TaskDetailView({
         <TaskDetailHeader
           taskName={task.name}
           backLabel={t("back")}
+          parentLink={
+            parentTask ? (
+              <p className="text-muted-foreground text-sm">
+                <Link
+                  href={`/tasks/${parentTask.id}`}
+                  className="text-primary hover:underline"
+                >
+                  {t("clonedFrom", { name: parentTask.name })}
+                </Link>
+              </p>
+            ) : null
+          }
           actions={
             <Suspense fallback={<TaskDetailActionsFallback />}>
               <TaskDetailActionsSlot
@@ -228,12 +243,13 @@ async function TaskOverviewSection({
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
     : Promise.resolve(null);
-  const [coworkers, agents, project, t, tStatus] = await Promise.all([
+  const [coworkers, agents, project, t, tStatus, locale] = await Promise.all([
     coworkersPromise,
     agentsPromise,
     projectPromise,
     getTranslations("App.Tasks.Detail"),
     getTranslations("App.Tasks.Filters.statusOptions"),
+    getLocale(),
   ]);
   const { task: taskWithCoworker, agentNameById } = buildTaskDetailContext(
     task,
@@ -254,6 +270,8 @@ async function TaskOverviewSection({
       <TaskMetadata
         task={task}
         project={project ? { id: project.id, name: project.name } : null}
+        createdAtLabel={formatShortDateTime(task.createdAt, locale)}
+        updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
         labels={{
           propertiesTitle: t("properties"),
           status: t("status"),
@@ -265,6 +283,7 @@ async function TaskOverviewSection({
           coworker: t("coworker"),
           created: t("created"),
           updated: t("updated"),
+          schedule: t("schedule"),
         }}
       />
     </>

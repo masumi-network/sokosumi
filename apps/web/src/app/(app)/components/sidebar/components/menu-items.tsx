@@ -1,12 +1,12 @@
 "use client";
 
 import {
+  Bot,
   Feather,
   FolderKanban,
   History,
   ListTodo,
   Search,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -134,7 +134,7 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       key: "explore-agents",
       href: "/agents",
       label: t("exploreAgents"),
-      Icon: Sparkles,
+      Icon: Bot,
     },
     ...(hermesMenuEnabled
       ? ([
@@ -222,7 +222,7 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                               "flex min-h-auto w-full items-center gap-2 px-3",
                               isActive
                                 ? "text-primary-foreground"
-                                : "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                                : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                             )}
                           >
                             {content}
@@ -250,7 +250,8 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
                         }
                         className={cn(
                           "flex min-h-auto w-full items-center gap-2 px-3",
-                          "text-tertiary-foreground dark:text-muted-foreground hover:text-primary-foreground dark:hover:text-primary-foreground",
+                          "text-tertiary-foreground dark:text-muted-foreground",
+                          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                         )}
                       >
                         {content}

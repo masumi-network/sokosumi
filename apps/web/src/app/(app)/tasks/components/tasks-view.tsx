@@ -9,7 +9,12 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { AgentJobStatus, SokosumiJobStatus, TaskStatus } from "@sokosumi/utils";
+import {
+  AgentJobStatus,
+  canUserTransitionTaskStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -78,7 +83,7 @@ import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
-import { isDnDColumn, statusForColumn } from "./task-dnd";
+import { isDnDDragColumn, isDnDDropColumn, statusForColumn } from "./task-dnd";
 import type { TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
@@ -213,6 +218,7 @@ interface TasksViewProps {
   defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
   initialCoworkerId?: string | null;
+  initialCreateTaskPrompt?: string | null;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   createTaskModalResetKey?: string;
   labels: {
@@ -300,6 +306,7 @@ export function TasksView({
   defaultDensity,
   initialCreateTaskOpen = false,
   initialCoworkerId = null,
+  initialCreateTaskPrompt = null,
   initialDesignMdAttachment = null,
   createTaskModalResetKey = "default",
   labels,
@@ -598,18 +605,27 @@ export function TasksView({
     }
 
     const toColumn = overId as KanbanColumnId;
-    if (!isDnDColumn(toColumn)) return;
+    if (!isDnDDropColumn(toColumn)) return;
 
     const fromColumn = event.active.data.current?.columnId as
       | KanbanColumnId
       | undefined;
-    if (!fromColumn || fromColumn === toColumn) return;
+    if (
+      !fromColumn ||
+      !isDnDDragColumn(fromColumn) ||
+      fromColumn === toColumn
+    ) {
+      return;
+    }
 
     const desiredStatus = statusForColumn(toColumn);
     if (!desiredStatus) return;
+    if (!canUserTransitionTaskStatus(draggedTask.status, desiredStatus)) {
+      return;
+    }
 
-    const previousStatus = statusForColumn(fromColumn);
-    if (!previousStatus) return;
+    // Preserve the task's prior status on rollback when a drag update fails.
+    const previousStatus = draggedTask.status;
 
     const moveVersion = (moveVersionRef.current += 1);
     pendingMoveVersionByTaskIdRef.current.set(activeId, moveVersion);
@@ -981,7 +997,7 @@ export function TasksView({
         <div className="flex min-h-0 flex-1 flex-col gap-4">
           <div
             className={cn(
-              viewMode === "board" ? "flex min-h-0 flex-1 overflow-hidden" : "",
+              viewMode === "board" ? "flex min-h-0 min-w-0 flex-1" : "",
             )}
           >
             {isMounted ? (
@@ -1122,6 +1138,7 @@ export function TasksView({
       key={createTaskModalResetKey}
       initialOpen={initialCreateTaskOpen}
       initialCoworkerId={initialCoworkerId}
+      initialPrompt={initialCreateTaskPrompt}
       initialProjectId={defaultProjectId}
     >
       {userId ? (

@@ -1,5 +1,5 @@
-import type { TaskStatus } from "@/lib/types/core-dto";
-
+import { TaskScheduleDisplay } from "@/components/task-schedule-display";
+import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
@@ -11,7 +11,7 @@ interface TaskCardProps {
   task: TaskWithCoworker;
   dragHandleProps?: DragHandleProps;
   compact?: boolean;
-  statusLabels?: Record<TaskStatus, string>;
+  statusLabels?: Record<TaskStatusType, string>;
 }
 
 export function TaskCard({
@@ -48,12 +48,12 @@ export function TaskCard({
           )}
         >
           <div className="space-y-2.5">
-            <div className="flex flex-col gap-2">
+            <div className="space-y-2">
               <TaskStatusBadge
                 status={task.status}
                 label={statusLabels?.[task.status]}
                 showDot={task.columnId === "in-progress"}
-                className="w-fit self-start rounded-sm"
+                className="w-fit rounded-sm"
               />
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
@@ -66,6 +66,14 @@ export function TaskCard({
                   {task.descriptionPlain ?? task.description}
                 </p>
               </div>
+            ) : null}
+
+            {task.columnId === "scheduled" ? (
+              <TaskScheduleDisplay
+                variant="card"
+                metadata={task.metadata}
+                nextRunAt={task.nextRunAt ? new Date(task.nextRunAt) : null}
+              />
             ) : null}
 
             <TaskMetaDetails

@@ -1,8 +1,6 @@
 import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_TASK_NAME_MAX_LENGTH } from "@/lib/utils/task-transformer";
-
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -26,7 +24,6 @@ vi.mock("@/middleware/auth-middleware", () => ({
       }),
 }));
 
-const generateTaskNameMock = vi.fn();
 const appendDesignMdToDescriptionMock = vi.fn();
 const taskServiceMock = {
   listTaskLinks: vi.fn(),
@@ -34,17 +31,17 @@ const taskServiceMock = {
   createTaskLink: vi.fn(),
   createTask: vi.fn(),
   deleteTask: vi.fn(),
+  patchTask: vi.fn(),
+  createTaskEvent: vi.fn(),
+};
+const taskScheduleServiceMock = {
+  clearSchedule: vi.fn(),
+  setSchedule: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   toCoreApiActionError: toCoreApiActionErrorMock,
-}));
-
-vi.mock("@/lib/clients/openrouter.client", () => ({
-  openrouterClient: {
-    generateTaskName: generateTaskNameMock,
-  },
 }));
 
 vi.mock("@/lib/services/design-md.service", () => ({
@@ -56,6 +53,10 @@ vi.mock("@/lib/services/design-md.service", () => ({
 
 vi.mock("@/lib/services/task.service", () => ({
   taskService: taskServiceMock,
+}));
+
+vi.mock("@/lib/services/task-schedule.service", () => ({
+  taskScheduleService: taskScheduleServiceMock,
 }));
 
 function buildTaskLink(
@@ -85,7 +86,9 @@ function buildTaskLink(
   };
 }
 
-function buildTask(overrides?: Partial<{ id: string; name: string }>) {
+function buildTask(
+  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
+) {
   return {
     id: "task-created",
     name: "Generated task name",
@@ -104,7 +107,12 @@ describe("task link actions", () => {
     taskServiceMock.createTaskLink.mockReset();
     taskServiceMock.createTask.mockReset();
     taskServiceMock.deleteTask.mockReset();
-    generateTaskNameMock.mockReset();
+    taskServiceMock.patchTask.mockReset();
+    taskServiceMock.createTaskEvent.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+    taskServiceMock.patchTask.mockResolvedValue({});
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
     appendDesignMdToDescriptionMock.mockReset();
     appendDesignMdToDescriptionMock.mockImplementation(
       async (description: string) => description,
@@ -166,30 +174,7 @@ describe("task link actions", () => {
     });
   });
 
-  it("clamps generated task names before creating a task", async () => {
-    const longGeneratedName = "A".repeat(DEFAULT_TASK_NAME_MAX_LENGTH + 25);
-    generateTaskNameMock.mockResolvedValue(longGeneratedName);
-    taskServiceMock.createTask.mockResolvedValue(buildTask());
-
-    const { createTask } = await import("../action");
-
-    await createTask({
-      description: "Created related task",
-      coworkerId: null,
-      status: TaskStatus.READY,
-    });
-
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith({
-      name: "A".repeat(DEFAULT_TASK_NAME_MAX_LENGTH),
-      description: "Created related task",
-      coworkerId: null,
-      projectId: null,
-      status: TaskStatus.READY,
-    });
-  });
-
   it("prepends the effective design.md attachment before creating a task", async () => {
-    generateTaskNameMock.mockResolvedValue("Generated task name");
     appendDesignMdToDescriptionMock.mockResolvedValue(
       "[DESIGN.md](https://blob.example/design.md)\n\nCreated related task",
     );
@@ -212,11 +197,12 @@ describe("task link actions", () => {
           "[DESIGN.md](https://blob.example/design.md)\n\nCreated related task",
       }),
     );
-    expect(generateTaskNameMock).toHaveBeenCalledWith("Created related task");
+    expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
+      "name",
+    );
   });
 
   it("skips design.md attachment when the composer removed it", async () => {
-    generateTaskNameMock.mockResolvedValue("Generated task name");
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("../action");
@@ -234,31 +220,8 @@ describe("task link actions", () => {
         description: "Created related task",
       }),
     );
-  });
-
-  it("generates task names from user instructions when DESIGN.md is pre-seeded", async () => {
-    generateTaskNameMock.mockResolvedValue("Build landing page");
-    appendDesignMdToDescriptionMock.mockImplementation(
-      async (description: string) => description,
-    );
-    taskServiceMock.createTask.mockResolvedValue(buildTask());
-
-    const { createTask } = await import("../action");
-
-    await createTask({
-      description:
-        "[DESIGN.md](https://blob.example/design.md)\n\nBuild landing page",
-      coworkerId: null,
-      status: TaskStatus.READY,
-    });
-
-    expect(generateTaskNameMock).toHaveBeenCalledWith("Build landing page");
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "Build landing page",
-        description:
-          "[DESIGN.md](https://blob.example/design.md)\n\nBuild landing page",
-      }),
+    expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
+      "name",
     );
   });
 
@@ -385,7 +348,6 @@ describe("task link actions", () => {
   });
 
   it("archives the created task when creating the link fails after task creation", async () => {
-    generateTaskNameMock.mockResolvedValue("Generated task name");
     taskServiceMock.createTask.mockResolvedValue(buildTask());
     taskServiceMock.listTaskLinks.mockResolvedValue([]);
     taskServiceMock.createTaskLink.mockRejectedValue(new Error("link failed"));
@@ -403,18 +365,20 @@ describe("task link actions", () => {
       }),
     ).rejects.toThrow("link failed");
 
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith({
-      name: "Generated task name",
-      description: "Created related task",
-      coworkerId: null,
-      projectId: null,
-      status: TaskStatus.READY,
-    });
+    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Created related task",
+        coworkerId: null,
+        status: TaskStatus.READY,
+      }),
+    );
+    expect(taskServiceMock.createTask.mock.calls[0][0]).not.toHaveProperty(
+      "name",
+    );
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
   });
 
   it("archives the created task after rolling back a failed parent cleanup", async () => {
-    generateTaskNameMock.mockResolvedValue("Generated task name");
     taskServiceMock.createTask.mockResolvedValue(buildTask());
     taskServiceMock.listTaskLinks.mockResolvedValue([
       buildTaskLink({
@@ -486,5 +450,175 @@ describe("task link actions", () => {
       },
     );
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
+  });
+});
+
+describe("updateTask schedule status", () => {
+  const recurringSchedule = {
+    mode: "recurring" as const,
+    timezone: "UTC",
+    cron: "0 9 * * *",
+    oneTimeLocalIso: "2026-06-25T09:00",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockResolvedValue({});
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+  });
+
+  it("does not re-queue after clearing a schedule on a queued task", async () => {
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      originalSchedule: recurringSchedule,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not revert to draft after adding a schedule", async () => {
+    taskScheduleServiceMock.setSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.QUEUED,
+    });
+
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.DRAFT,
+      hadSchedule: false,
+      originalSchedule: { mode: "none", timezone: "UTC" },
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("applies an explicit draft/ready toggle when the schedule is unchanged", async () => {
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.READY,
+      hadSchedule: false,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("clears the schedule when reverting a queued task to draft", async () => {
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.DRAFT,
+      hadSchedule: true,
+      originalSchedule: recurringSchedule,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("createTask schedule", () => {
+  const recurringSchedule = {
+    mode: "recurring" as const,
+    timezone: "UTC",
+    cron: "0 9 * * *",
+    oneTimeLocalIso: "2026-06-25T09:00",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.createTask.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+    appendDesignMdToDescriptionMock.mockImplementation(
+      async (description: string) => description,
+    );
+  });
+
+  it("does not apply a schedule when saving as draft", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Draft task",
+      coworkerId: null,
+      status: TaskStatus.DRAFT,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.clearSchedule).not.toHaveBeenCalled();
+  });
+
+  it("applies a schedule when creating a ready task with a schedule", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+    taskScheduleServiceMock.setSchedule.mockResolvedValue({
+      id: "task-created",
+      status: TaskStatus.QUEUED,
+    });
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Scheduled task",
+      coworkerId: null,
+      status: TaskStatus.READY,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
   });
 });

@@ -1,0 +1,475 @@
+"use client";
+
+import { MemberRole } from "@sokosumi/utils";
+import { Ellipsis } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useFormatter, useTranslations } from "next-intl";
+import { useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import {
+  AsyncSearchCombobox,
+  buildComboboxLabels,
+} from "@/components/admin/async-search-combobox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { listAdminOrganizationMembersAction } from "@/lib/actions/admin-organizations/action";
+import {
+  addAdminOrganizationMemberAction,
+  assignAdminOrganizationMemberSeatAction,
+  removeAdminOrganizationMemberAction,
+  unassignAdminOrganizationMemberSeatAction,
+  updateAdminOrganizationMemberRoleAction,
+} from "@/lib/actions/admin-organizations/member-actions";
+import { searchUsersClient } from "@/lib/actions/admin-search/client";
+import type { ActionError } from "@/lib/actions/errors";
+import type {
+  AdminOrganizationMemberOverviewItem,
+  AdminOrganizationMemberOverviewPage,
+  AdminOrganizationOverviewDetail,
+} from "@/lib/services/admin-organization.service";
+import type { AdminUserOption } from "@/lib/services/admin-user.service";
+import type { Result } from "@/lib/ts-res";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
+
+interface OrganizationDetailPanelProps {
+  detail: AdminOrganizationOverviewDetail;
+  initialMembersPage: AdminOrganizationMemberOverviewPage;
+}
+
+export function OrganizationDetailPanel({
+  detail,
+  initialMembersPage,
+}: OrganizationDetailPanelProps) {
+  const t = useTranslations("App.Admin.Organizations.OrganizationDetail");
+  const formatter = useFormatter();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [members, setMembers] = useState<AdminOrganizationMemberOverviewItem[]>(
+    initialMembersPage.members,
+  );
+  const [memberTotal, setMemberTotal] = useState(initialMembersPage.total);
+  const [nextCursor, setNextCursor] = useState(initialMembersPage.nextCursor);
+  const latestMembersRequestId = useRef(0);
+  const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
+    null,
+  );
+  const [selectedRole, setSelectedRole] = useState<
+    "owner" | "admin" | "member"
+  >("member");
+
+  const showSeatManagement = detail.seatSummary.paidPlan != null;
+
+  function fetchMembersPage(cursor?: string) {
+    const requestId = ++latestMembersRequestId.current;
+    startTransition(async () => {
+      const result = await listAdminOrganizationMembersAction({
+        slug: detail.organization.slug,
+        cursor,
+      });
+      if (requestId !== latestMembersRequestId.current) {
+        return;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("members.loadError"));
+        return;
+      }
+      setMembers((current) =>
+        cursor ? [...current, ...result.data.members] : result.data.members,
+      );
+      setMemberTotal(result.data.total);
+      setNextCursor(result.data.nextCursor);
+    });
+  }
+
+  function refresh() {
+    router.refresh();
+    fetchMembersPage();
+  }
+
+  function handleLoadMore() {
+    if (!nextCursor) {
+      return;
+    }
+    fetchMembersPage(nextCursor);
+  }
+
+  function runMemberAction(
+    action: () => Promise<Result<void, ActionError>>,
+    successMessage: string,
+  ) {
+    startTransition(async () => {
+      const result = await action();
+      if (!result.ok) {
+        toast.error(result.error.message ?? t("memberActionError"));
+        return;
+      }
+      toast.success(successMessage);
+      refresh();
+    });
+  }
+
+  function handleAddMember() {
+    if (!selectedUser) {
+      toast.error(t("addMember.userRequired"));
+      return;
+    }
+
+    runMemberAction(
+      () =>
+        addAdminOrganizationMemberAction({
+          slug: detail.organization.slug,
+          userId: selectedUser.id,
+          role: selectedRole,
+        }),
+      t("addMember.success"),
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {detail.organization.name}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {detail.organization.slug}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/admin/organizations">{t("backToList")}</Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
+          <h2 className="font-medium">{t("billing.title")}</h2>
+          <p className="text-sm">
+            {t("billing.plan", { plan: detail.billingPlan.plan })}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {t("billing.mode", { mode: detail.billingPlan.mode })}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {t("billing.seats", {
+              purchased: detail.billingPlan.purchasedSeats,
+              assigned: detail.seatSummary.assignedCount,
+              unused: detail.seatSummary.unusedSeats,
+            })}
+          </p>
+          {detail.subscription ? (
+            <p className="text-sm">
+              {t("billing.subscription", {
+                plan: detail.subscription.plan,
+                status: detail.subscription.status,
+              })}
+            </p>
+          ) : null}
+          {detail.enterpriseContract ? (
+            <p className="text-sm">
+              {t("billing.enterprisePool", {
+                credits: formatter.number(
+                  formatCreditsForDisplay(
+                    detail.enterpriseContract.poolRemainingCredits,
+                  ),
+                ),
+              })}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="bg-muted/40 space-y-2 rounded-lg border p-4">
+          <h2 className="font-medium">{t("credits.title")}</h2>
+          {detail.totalCredits != null ? (
+            <>
+              <p className="text-2xl font-semibold tabular-nums">
+                {formatter.number(formatCreditsForDisplay(detail.totalCredits))}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("credits.description")}
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("credits.perMember")}
+            </p>
+          )}
+        </section>
+      </div>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-medium">{t("members.title")}</h2>
+            <p className="text-muted-foreground text-sm tabular-nums">
+              {t("members.totalCount", { count: memberTotal })}
+            </p>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-end gap-2">
+            <div className="min-w-0 w-72">
+              <AsyncSearchCombobox<AdminUserOption>
+                value={selectedUser}
+                onChange={setSelectedUser}
+                search={searchUsersClient}
+                getKey={(user) => user.id}
+                getTriggerLabel={(user) => `${user.name} (${user.email})`}
+                renderOption={(user) => (
+                  <span className="flex flex-col">
+                    <span>{user.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {user.email}
+                    </span>
+                  </span>
+                )}
+                labels={buildComboboxLabels(
+                  (key) => t(`addMember.combobox.${key}`),
+                  { clear: t("addMember.combobox.clear") },
+                )}
+                allowClear
+              />
+            </div>
+            <Select
+              value={selectedRole}
+              onValueChange={(value) =>
+                setSelectedRole(value as "owner" | "admin" | "member")
+              }
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={MemberRole.OWNER}>
+                  {t("roles.owner")}
+                </SelectItem>
+                <SelectItem value={MemberRole.ADMIN}>
+                  {t("roles.admin")}
+                </SelectItem>
+                <SelectItem value={MemberRole.MEMBER}>
+                  {t("roles.member")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleAddMember}
+              disabled={isPending || !selectedUser}
+            >
+              {t("addMember.submit")}
+            </Button>
+          </div>
+        </div>
+
+        {members.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{t("members.empty")}</p>
+        ) : (
+          <div
+            className="overflow-hidden rounded-lg border"
+            aria-busy={isPending}
+          >
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="pl-4">{t("members.user")}</TableHead>
+                  <TableHead>{t("members.role")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("members.credits")}
+                  </TableHead>
+                  <TableHead>{t("members.subscription")}</TableHead>
+                  {showSeatManagement ? (
+                    <TableHead>{t("members.seat")}</TableHead>
+                  ) : null}
+                  <TableHead className="pr-4 text-right">
+                    {t("members.actions")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="pl-4">
+                      <span className="flex flex-col">
+                        <span className="font-medium">{member.user.name}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {member.user.email}
+                        </span>
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{member.role}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatter.number(
+                        formatCreditsForDisplay(member.credits),
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {member.subscriptionPlan ? (
+                        <span className="flex items-center gap-2">
+                          <span>{member.subscriptionPlan}</span>
+                          {member.subscriptionStatus ? (
+                            <Badge variant="outline">
+                              {member.subscriptionStatus}
+                            </Badge>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    {showSeatManagement ? (
+                      <TableCell>
+                        {member.seatAssignedAt
+                          ? t("members.seatAssigned")
+                          : t("members.seatUnassigned")}
+                      </TableCell>
+                    ) : null}
+                    <TableCell className="pr-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Ellipsis className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  updateAdminOrganizationMemberRoleAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                    role: MemberRole.OWNER,
+                                  }),
+                                t("roleUpdateSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.makeOwner")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  updateAdminOrganizationMemberRoleAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                    role: MemberRole.ADMIN,
+                                  }),
+                                t("roleUpdateSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.makeAdmin")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  updateAdminOrganizationMemberRoleAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                    role: MemberRole.MEMBER,
+                                  }),
+                                t("roleUpdateSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.makeMember")}
+                          </DropdownMenuItem>
+                          {showSeatManagement ? (
+                            member.seatAssignedAt ? (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  runMemberAction(
+                                    () =>
+                                      unassignAdminOrganizationMemberSeatAction(
+                                        {
+                                          slug: detail.organization.slug,
+                                          memberId: member.id,
+                                        },
+                                      ),
+                                    t("seatUnassignSuccess"),
+                                  )
+                                }
+                              >
+                                {t("actions.unassignSeat")}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  runMemberAction(
+                                    () =>
+                                      assignAdminOrganizationMemberSeatAction({
+                                        slug: detail.organization.slug,
+                                        memberId: member.id,
+                                      }),
+                                    t("seatAssignSuccess"),
+                                  )
+                                }
+                              >
+                                {t("actions.assignSeat")}
+                              </DropdownMenuItem>
+                            )
+                          ) : null}
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() =>
+                              runMemberAction(
+                                () =>
+                                  removeAdminOrganizationMemberAction({
+                                    slug: detail.organization.slug,
+                                    memberId: member.id,
+                                  }),
+                                t("removeSuccess"),
+                              )
+                            }
+                          >
+                            {t("actions.remove")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {nextCursor ? (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={isPending}
+            >
+              {t("members.loadMore")}
+            </Button>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}

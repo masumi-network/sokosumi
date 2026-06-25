@@ -113,6 +113,8 @@ function mapHermesMessage(
     role: message.role,
     content: message.content,
     kind: message.kind,
+    steps: message.steps ?? undefined,
+    durationMs: message.durationMs ?? undefined,
     createdAt: toIsoString(message.createdAt) ?? new Date(0).toISOString(),
   };
 }

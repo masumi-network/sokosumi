@@ -20,6 +20,7 @@ interface ListTasksParams {
   scope?: "workspace" | "owned";
   cursor?: string | null;
   limit?: number;
+  sort?: "nextRunAt";
 }
 
 interface ListJobsParams {
@@ -32,7 +33,7 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
-  name: string;
+  name?: string;
   description: string | null;
   coworkerId: string | null;
   projectId?: string | null;
@@ -71,6 +72,7 @@ export const taskService = (() => {
       scope: params.scope,
       cursor: params.cursor ?? undefined,
       limit: params.limit,
+      sort: params.sort,
     });
 
     return {

@@ -1,8 +1,4 @@
-import {
-  escapeMarkdownLinkUrl,
-  extractFileLikeLinks,
-  replaceMarkdownLinks,
-} from "@sokosumi/utils";
+import { escapeMarkdownLinkUrl, extractFileLikeLinks } from "@sokosumi/utils";
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -125,16 +121,6 @@ export function ensureDesignMdInDescription(
   return trimmedDescription
     ? `${attachmentMarkdown}\n${trimmedDescription}`
     : attachmentMarkdown;
-}
-
-const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
-
-export function removeDesignMdAttachmentLinks(markdown: string): string {
-  const withoutLinks = replaceMarkdownLinks(markdown, (match) =>
-    match.text === DESIGN_MD_ATTACHMENT_LABEL ? "" : match.match,
-  );
-
-  return withoutLinks.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function removeTaskAttachmentLinks(

@@ -43,6 +43,7 @@ const labels = {
     active: "Active",
     archived: "Archived",
     [TaskStatus.DRAFT]: "Draft",
+    [TaskStatus.QUEUED]: "Queued",
     [TaskStatus.READY]: "Ready",
     [TaskStatus.INPUT_REQUIRED]: "Input required",
     [TaskStatus.APPROVAL_REQUIRED]: "Approval required",

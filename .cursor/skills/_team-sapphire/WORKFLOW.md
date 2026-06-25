@@ -13,7 +13,8 @@ flowchart LR
   inv --> lead["Tech Lead\n(session spec)"]
   lead --> code["Coder(s)"]
   code --> pr["Pull request"]
-  pr --> rev["Reviewer\n/goal loop"]
+  pr --> gates["CI green +\nBugbot 0 High"]
+  gates --> rev["Reviewer\n/goal loop"]
   rev -->|pass| review["In Review"]
   review --> human["Human merge → Done"]
 ```
@@ -30,7 +31,7 @@ Resume: use **artifact-aware resume** in `SKILL.md` — status `done` does not s
 |------|--------|----------------|
 | **Investigator** | Pitfalls, patterns, recommendations | **Session** → Tech Lead |
 | **Tech Lead** | Implementable spec, optional coder breakdown | **Session** → Coder, Reviewer |
-| **Coder** | Code + PR + `**PR handoff**` | GitHub + Linear comments |
+| **Coder** | Code + PR + verification + CI + Bugbot + `**PR handoff**` | GitHub + Linear comments |
 | **Reviewer** | Evidence + issue **In Review** | Linear state + comments |
 
 ## Issue description shape (Linear)
@@ -74,5 +75,6 @@ Manual: `Run _team-sapphire for SOK-XXX` in Cursor.
 - Do not write `## Investigation` or `## Spec` to the Linear description.
 - Do not run Coder before **session spec** exists.
 - Do not set **In Review** when the PR opens — Reviewer sets it on pass.
+- Do not start Reviewer until **local verification exit 0**, **CI green**, and **Bugbot 0 High** (`CODER.md`, `BUGBOT-LEARNINGS.md`).
 - Do not mark **Done** before human merge.
 - Do not batch phase comments or status updates at the end — each phase gate must pass before the next phase (`PHASE-GATE.md`).

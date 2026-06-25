@@ -9,12 +9,16 @@ import type {
   TaskLink,
   TaskLinkRelation,
 } from "@/lib/clients/generated/core/types.gen";
-import { openrouterClient } from "@/lib/clients/openrouter.client";
 import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
+import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { removeDesignMdAttachmentLinks } from "@/lib/utils/task-attachments";
-import { clampTaskNameForCoreApi } from "@/lib/utils/task-transformer";
+import {
+  hasTaskScheduleChanged,
+  selectionToApiBody,
+} from "@/lib/utils/task-schedule";
+import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -26,6 +30,7 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
+  schedule?: TaskScheduleSelection;
 }
 
 interface UpdateTaskParameters extends AuthenticatedRequest {
@@ -36,6 +41,9 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
+  schedule?: TaskScheduleSelection;
+  hadSchedule?: boolean;
+  originalSchedule?: TaskScheduleSelection;
 }
 
 interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
@@ -78,16 +86,69 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
+  schedule?: TaskScheduleSelection;
   type: TaskLinkType;
   direction?: "outgoing" | "incoming";
   note?: string | null;
   replaceExistingParent?: boolean;
 }
 
-function buildFallbackName(description: string): string {
-  const firstLine = description.split("\n").find((line) => line.trim());
+async function applyTaskSchedule(
+  taskId: string,
+  schedule: TaskScheduleSelection,
+  hadSchedule: boolean,
+): Promise<TaskStatus | null> {
+  if (schedule.mode === "none") {
+    if (hadSchedule) {
+      const task = await taskScheduleService.clearSchedule(taskId);
+      return task.status;
+    }
+    return null;
+  }
 
-  return (firstLine ?? "").trim().slice(0, 60);
+  const body = selectionToApiBody(schedule);
+  if (!body) {
+    throw new Error("Invalid schedule");
+  }
+
+  const task = await taskScheduleService.setSchedule(taskId, body);
+  return task.status;
+}
+
+function resolveUpdateTargetStatus(
+  desiredStatus: TaskStatus,
+  statusAfterSchedule: TaskStatus,
+  scheduleWasMutated: boolean,
+  scheduleActiveOnServer: boolean,
+): TaskStatus {
+  if (scheduleWasMutated) {
+    if (scheduleActiveOnServer) {
+      return statusAfterSchedule;
+    }
+
+    if (desiredStatus === TaskStatus.QUEUED) {
+      return statusAfterSchedule;
+    }
+
+    return desiredStatus;
+  }
+
+  if (scheduleActiveOnServer && desiredStatus !== TaskStatus.QUEUED) {
+    return statusAfterSchedule;
+  }
+
+  return desiredStatus;
+}
+
+function resolveCreateStatus(
+  requestedStatus: Extract<TaskStatus, "DRAFT" | "READY">,
+  schedule?: TaskScheduleSelection,
+): Extract<TaskStatus, "DRAFT" | "READY"> {
+  if (!schedule || schedule.mode === "none") {
+    return requestedStatus;
+  }
+
+  return TaskStatus.DRAFT;
 }
 
 function normalizeLinkNote(note?: string | null): string | null | undefined {
@@ -134,35 +195,38 @@ async function createTaskFromDescription(input: {
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
   status: Extract<TaskStatus, "DRAFT" | "READY">;
+  schedule?: TaskScheduleSelection;
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
     throw new Error("Description required");
   }
 
-  const descriptionForNaming =
-    removeDesignMdAttachmentLinks(trimmedDescription).trim();
-  const generatedName = descriptionForNaming
-    ? await openrouterClient.generateTaskName(descriptionForNaming)
-    : null;
-  const candidate =
-    generatedName ??
-    (descriptionForNaming
-      ? buildFallbackName(descriptionForNaming)
-      : "Untitled Task");
-  const name = clampTaskNameForCoreApi(candidate) || "Untitled Task";
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
   const descriptionWithDesignMd = input.skipDesignMdAttachment
     ? trimmedDescription
     : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
-  return taskService.createTask({
-    name,
+  const task = await taskService.createTask({
     description: descriptionWithDesignMd,
     coworkerId: input.coworkerId ? input.coworkerId : null,
     projectId: normalizedProjectId ?? null,
-    status: input.status,
+    status: resolveCreateStatus(input.status, input.schedule),
   });
+
+  try {
+    if (
+      input.status !== TaskStatus.DRAFT &&
+      input.schedule &&
+      input.schedule.mode !== "none"
+    ) {
+      await applyTaskSchedule(task.id, input.schedule, false);
+    }
+    return task;
+  } catch (error) {
+    await archiveCreatedTaskAfterFailure(task.id);
+    throw error;
+  }
 }
 
 async function collectParentLinksToReplace(input: {
@@ -282,7 +346,10 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
   }
 }
 
-export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
+export const createTask = withSession<
+  CreateTaskParameters,
+  { taskId: string; name: string }
+>(
   async ({
     description,
     coworkerId,
@@ -290,6 +357,7 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
     session,
     skipDesignMdAttachment,
     status,
+    schedule,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -298,11 +366,12 @@ export const createTask = withSession<CreateTaskParameters, { taskId: string }>(
         projectId,
         skipDesignMdAttachment,
         status,
+        schedule,
       });
 
       revalidatePath("/tasks");
       revalidatePath("/projects");
-      return { taskId: task.id };
+      return { taskId: task.id, name: task.name };
     } catch (error) {
       console.error("Failed to create task", error);
       throw new Error("Failed to create task");
@@ -319,9 +388,12 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
     projectId,
     currentStatus,
     desiredStatus,
+    schedule,
+    hadSchedule = false,
+    originalSchedule,
   }) => {
     const trimmedDescription = description.trim();
-    const trimmedName = clampTaskNameForCoreApi(name);
+    const trimmedName = normalizeTaskNameForCoreApi(name);
     if (!trimmedDescription) {
       throw new Error("Description required");
     }
@@ -331,6 +403,7 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
 
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
+
       await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
@@ -340,9 +413,61 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
           : {}),
       });
 
-      if (desiredStatus !== currentStatus) {
+      let statusAfterSchedule = currentStatus;
+      let scheduleActiveOnServer = hadSchedule || schedule?.mode !== "none";
+      const scheduleChanged =
+        schedule &&
+        hasTaskScheduleChanged(
+          originalSchedule ?? { mode: "none", timezone: "UTC" },
+          schedule,
+          hadSchedule,
+        );
+
+      const shouldClearScheduleForStatusChange =
+        !scheduleChanged &&
+        schedule &&
+        schedule.mode !== "none" &&
+        desiredStatus !== TaskStatus.QUEUED &&
+        desiredStatus !== currentStatus;
+
+      let scheduleWasMutated = false;
+
+      if (shouldClearScheduleForStatusChange) {
+        scheduleWasMutated = true;
+        const scheduleStatus = await applyTaskSchedule(
+          taskId,
+          { mode: "none", timezone: schedule.timezone },
+          true,
+        );
+        if (scheduleStatus !== null) {
+          statusAfterSchedule = scheduleStatus;
+        }
+        scheduleActiveOnServer = false;
+      }
+
+      if (schedule && scheduleChanged) {
+        scheduleWasMutated = true;
+        const scheduleStatus = await applyTaskSchedule(
+          taskId,
+          schedule,
+          hadSchedule,
+        );
+        if (scheduleStatus !== null) {
+          statusAfterSchedule = scheduleStatus;
+        }
+        scheduleActiveOnServer = schedule.mode !== "none";
+      }
+
+      const targetStatus = resolveUpdateTargetStatus(
+        desiredStatus,
+        statusAfterSchedule,
+        scheduleWasMutated,
+        scheduleActiveOnServer,
+      );
+
+      if (targetStatus !== statusAfterSchedule) {
         await taskService.createTaskEvent(taskId, {
-          status: desiredStatus,
+          status: targetStatus,
         });
       }
 
@@ -519,7 +644,7 @@ export const deleteTaskLink = withSession<
 
 export const createTaskAndLink = withSession<
   CreateAndLinkTaskParameters,
-  { taskId: string; createdTaskId: string; linkId: string }
+  { taskId: string; createdTaskId: string; linkId: string; name: string }
 >(
   async ({
     taskId,
@@ -529,6 +654,7 @@ export const createTaskAndLink = withSession<
     session,
     status,
     skipDesignMdAttachment,
+    schedule,
     type,
     direction,
     note,
@@ -554,6 +680,7 @@ export const createTaskAndLink = withSession<
         projectId,
         skipDesignMdAttachment,
         status,
+        schedule,
       });
 
       const parentLinksToReplace = await collectParentLinksToReplace({
@@ -581,6 +708,7 @@ export const createTaskAndLink = withSession<
         taskId: normalizedTaskId,
         createdTaskId: createdTask.id,
         linkId: link.id,
+        name: createdTask.name,
       };
     } catch (error) {
       if (createdTask) {

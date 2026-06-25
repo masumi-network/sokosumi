@@ -14,3 +14,7 @@ export function makeAgentJobsChannelName(
 export function makeUserTasksChannelName(userId: string): string {
   return `tasks:all:user_${userId}`;
 }
+
+export function makeUserNotificationsChannelName(userId: string): string {
+  return `notifications:all:user_${userId}`;
+}

@@ -4,6 +4,12 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
+const { redirectMock } = vi.hoisted(() => ({
+  redirectMock: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  }),
+}));
+
 const getConversationsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
 const getShareByTokenMock = vi.fn();
@@ -26,6 +32,10 @@ const mockClient = {
 
 vi.mock("next/headers", () => ({
   headers: () => headersMock(),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: redirectMock,
 }));
 
 vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
@@ -59,6 +69,7 @@ describe("core.client", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    redirectMock.mockClear();
 
     headersMock.mockResolvedValue(
       new Headers({
@@ -190,7 +201,7 @@ describe("core.client", () => {
     expect(response.data.id).toBe("job_123");
   });
 
-  it("raises CoreApiRequestError for agent input schema failures", async () => {
+  it("redirects to signin for unauthorized agent input schema requests", async () => {
     getAgentsByIdInputSchemaMock.mockResolvedValue({
       error: {
         error: "Unauthorized",
@@ -198,21 +209,22 @@ describe("core.client", () => {
       },
       response: new Response("{}", { status: 401 }),
     });
-
-    const { CoreApiRequestError, coreClient } = await import("../core.client");
-
-    await expect(coreClient.getAgentInputSchema("agent_1")).rejects.toEqual(
-      expect.objectContaining<
-        Partial<InstanceType<typeof CoreApiRequestError>>
-      >({
-        details: {
-          error: "Unauthorized",
-          message: "Please sign in",
-        },
-        message: "Please sign in",
-        name: "CoreApiRequestError",
-        status: 401,
+    headersMock.mockResolvedValue(
+      new Headers({
+        cookie: "session=abc",
+        "x-organization-slug": "my-org",
+        "x-pathname": "/agents/agent_1",
+        "x-search-params": "",
       }),
+    );
+
+    const { coreClient } = await import("../core.client");
+
+    await expect(coreClient.getAgentInputSchema("agent_1")).rejects.toThrow(
+      "REDIRECT:/signin?returnUrl=%2Fagents%2Fagent_1",
+    );
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/signin?returnUrl=%2Fagents%2Fagent_1",
     );
   });
 
@@ -691,6 +703,8 @@ describe("core.client", () => {
             description: null,
             status: "DRAFT",
             credits: 0,
+            metadata: null,
+            nextRunAt: "2026-06-25T09:00:00.000Z",
             events: [],
             jobs: [],
             share: null,
@@ -723,6 +737,9 @@ describe("core.client", () => {
     expect(response.data.share).toBeNull();
     expect(response.data.createdAt).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),
+    );
+    expect(response.data.nextRunAt).toEqual(
+      new Date("2026-06-25T09:00:00.000Z"),
     );
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-03-26T10:00:00.000Z"),

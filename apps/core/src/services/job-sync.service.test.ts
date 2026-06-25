@@ -1,4 +1,9 @@
-import { AgentJobStatus, AgentStatus, JobType } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  AgentStatus,
+  JobType,
+  NotificationKind,
+} from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +12,9 @@ import { jobSyncService } from "./job-sync.service";
 
 const {
   captureExceptionMock,
+  captureMessageMock,
   createJobEventForJobIdMock,
+  createNotificationMock,
   createJobPurchaseMock,
   fetchAgentJobStatusMock,
   getJobByIdMock,
@@ -28,7 +35,9 @@ const {
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
+  captureMessageMock: vi.fn(),
   createJobEventForJobIdMock: vi.fn(),
+  createNotificationMock: vi.fn(),
   createJobPurchaseMock: vi.fn(),
   fetchAgentJobStatusMock: vi.fn(),
   getJobByIdMock: vi.fn(),
@@ -55,6 +64,7 @@ vi.mock("@vercel/related-projects", () => ({
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
+  captureMessage: captureMessageMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async () => {
@@ -138,6 +148,10 @@ vi.mock("@/lib/ably/publish", () => ({
   publishJobStatusData: publishJobStatusDataMock,
 }));
 
+vi.mock("@/helpers/notifications", () => ({
+  createNotification: createNotificationMock,
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     job: {
@@ -219,6 +233,7 @@ function createJob(
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
+    workspaceId: "11111111-1111-7111-8111-111111111111",
     ...overrides,
   };
 }
@@ -259,7 +274,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   beforeEach(() => {
     for (const mock of [
       captureExceptionMock,
+      captureMessageMock,
       createJobEventForJobIdMock,
+      createNotificationMock,
       createJobPurchaseMock,
       fetchAgentJobStatusMock,
       getJobByIdMock,
@@ -315,6 +332,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     sourceImportEnqueueMock.mockResolvedValue(undefined);
     refundJobMock.mockResolvedValue(undefined);
     createJobPurchaseMock.mockResolvedValue(undefined);
+    createNotificationMock.mockResolvedValue({
+      notification: { id: "notif_1" },
+      created: true,
+    });
     updateJobPurchaseByJobIdMock.mockResolvedValue(undefined);
     global.fetch = requestFetchMock as unknown as typeof fetch;
     requestFetchMock.mockResolvedValue(new Response(null, { status: 200 }));
@@ -864,6 +885,22 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
     });
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      kind: NotificationKind.JOB,
+      referenceId: "job_1",
+      eventId: "event_2",
+      messageKey: "Notifications.Job.completed",
+      messageParams: {
+        agentName: "Display Name",
+        jobName: "Untitled job",
+      },
+      metadata: {
+        agentId: "agent_1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
   });
 
   it("emits failure notifications for terminal payment failures", async () => {
@@ -923,6 +960,72 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_1",
+        kind: NotificationKind.JOB,
+        referenceId: "job_1",
+        eventId: "event_2",
+        messageKey: "Notifications.Job.paymentFailed",
+      }),
+    );
+  });
+
+  it("reports job-failure webhook HTTP errors to Sentry with response context", async () => {
+    requestFetchMock.mockResolvedValue(
+      new Response("kaboom", { status: 500, statusText: "Server Error" }),
+    );
+
+    const updatedFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      agent: {
+        id: "agent_1",
+        name: "Planner",
+        overrideName: "Display Name",
+        blockchainIdentifier: "agent-chain-1",
+        authorContactEmail: "author@example.com",
+      },
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.FAILED,
+          result: "boom",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({
+      agent: [createJob()],
+    });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "failed",
+        result: "boom",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(updatedFailedJob);
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    await vi.waitFor(() => {
+      expect(captureMessageMock).toHaveBeenCalledWith(
+        "Failed to call job-failure webhook",
+        expect.objectContaining({
+          level: "warning",
+          extra: expect.objectContaining({
+            jobId: "job_1",
+            userId: "user_1",
+            notificationType: "job-failure-webhook",
+            responseStatus: 500,
+            responseBody: "kaboom",
+          }),
+        }),
+      );
+    });
   });
 
   it("publishes on-chain-only payment failures even when the agent status hash is unchanged", async () => {
@@ -966,7 +1069,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "old-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -977,7 +1080,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
       {},
     );
-    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
     expect(refundJobMock).not.toHaveBeenCalled();
     expect(renderJobFailureNotificationEmailMock).toHaveBeenCalledWith({
       network: "Preprod",
@@ -999,6 +1101,72 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "event_1",
+        messageKey: "Notifications.Job.paymentFailed",
+      }),
+    );
+  });
+
+  it("creates a distinct in-app notification when purchase status changes without an agent event update", async () => {
+    const sharedEvent = createJobEvent({
+      id: "event_2",
+      status: AgentJobStatus.COMPLETED,
+      result: "done",
+      statusHash: "new-hash",
+    });
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      events: [sharedEvent],
+    });
+    const paymentFailedJob = createJob({
+      status: SokosumiJobStatus.PAYMENT_FAILED,
+      purchase: {
+        externalId: "purchase_1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        resultHash: null,
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      },
+      events: [sharedEvent],
+    });
+
+    mockInitialJobQueries({
+      purchase: [completedJob],
+    });
+    getPurchaseByIdMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: "FUNDS_OR_DATUM_INVALID",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
+    createJobEventForJobIdMock.mockResolvedValueOnce({ id: "event_3" });
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "event_2",
+        messageKey: "Notifications.Job.paymentFailed",
+      }),
+    );
   });
 
   it("ignores late completed agent results when a purchase-state payment failure resolves in the same sync cycle", async () => {
@@ -1034,7 +1202,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1176,7 +1344,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(paymentFailedJob);
+    getJobByIdMock.mockResolvedValue(paymentFailedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1373,7 +1541,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(refundResolvedJob);
+    getJobByIdMock.mockResolvedValue(refundResolvedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1442,7 +1610,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(disputeResolvedJob);
+    getJobByIdMock.mockResolvedValue(disputeResolvedJob);
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1515,6 +1683,22 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         Tag: "job-input-required",
       }),
     );
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      kind: NotificationKind.JOB,
+      referenceId: "job_1",
+      eventId: "event_2",
+      messageKey: "Notifications.Job.inputRequired",
+      messageParams: {
+        agentName: "Display Name",
+        jobName: "Untitled job",
+      },
+      metadata: {
+        agentId: "agent_1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+    });
   });
 
   it("does not fail the sync when webhook, email, or ably publishing fails", async () => {
@@ -1739,7 +1923,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("captures Postmark socket hang up errors in Sentry and still counts the job as processed", async () => {
+  it("still counts the job as processed when Postmark delivery fails transiently", async () => {
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
     const completedJob = createJob({
       status: SokosumiJobStatus.COMPLETED,
@@ -1774,15 +1958,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
 
     await vi.waitFor(() => {
-      expect(captureExceptionMock).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "socket hang up" }),
-        expect.objectContaining({
-          extra: expect.objectContaining({
-            notificationType: "job-final-status",
-          }),
-        }),
-      );
+      expect(sendEmailMock).toHaveBeenCalled();
     });
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("skips purchase backfill gracefully on P2014 relation violation (concurrent job deletion)", async () => {

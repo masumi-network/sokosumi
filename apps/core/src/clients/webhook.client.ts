@@ -1,56 +1,46 @@
-import { TIME } from "@/config/constants";
-import { getEnv } from "@/config/env";
+import * as Sentry from "@sentry/node";
+import { buildWebhookFailureContext, postWebhook } from "@sokosumi/utils";
 
-const WEBHOOK_TIMEOUT_MS = TIME.WEBHOOK_TIMEOUT * 1000;
+import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
+import { getEnv } from "@/config/env";
 
 export type WebhookType = "userCreated" | "userUpdated" | "accountCreated";
 
 export const webhookClient = (() => {
   /**
-   * Calls a webhook URL with timeout protection
-   * Fire-and-forget pattern - logs errors but doesn't throw
+   * Calls a webhook URL with timeout protection.
+   * Fire-and-forget pattern - reports failures but doesn't throw. Shared
+   * transport and failure-context shaping live in `@sokosumi/utils` so web and
+   * core stay in sync; receiver backpressure (queue full) is treated as
+   * expected and skipped.
    */
   async function call(
     webhookUrl: string,
     payload: Record<string, unknown>,
     webhookType: WebhookType,
   ): Promise<void> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+    const result = await postWebhook(webhookUrl, payload, {
+      userAgent: WEBHOOK_USER_AGENT,
+      timeoutMs: WEBHOOK_TIMEOUT_MS,
+    });
 
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Sokosumi-Core-API/1.0",
+    if (result.status === "ok") return;
+
+    if (result.status === "backpressure") {
+      console.warn(
+        `Webhook ${webhookType} receiver reported queue backpressure; skipping Sentry report.`,
+        {
+          responseStatus: result.httpStatus,
+          responseStatusText: result.statusText,
         },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        console.error(
-          `Webhook ${webhookType} returned non-OK status: ${response.status} ${response.statusText}`,
-        );
-      }
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          console.error(
-            `Webhook ${webhookType} timed out after ${WEBHOOK_TIMEOUT_MS}ms`,
-          );
-        } else {
-          console.error(`Error calling ${webhookType} webhook:`, error.message);
-        }
-      } else {
-        console.error(`Unknown error calling ${webhookType} webhook`);
-      }
+      );
+      return;
     }
+
+    Sentry.captureMessage(`Failed to call ${webhookType} webhook`, {
+      level: "warning",
+      extra: buildWebhookFailureContext(result, { webhookType, webhookUrl }),
+    });
   }
 
   /**

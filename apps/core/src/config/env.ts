@@ -165,6 +165,69 @@ export type EnvConfig = z.infer<typeof envSchema>;
 
 let envConfig: EnvConfig | null = null;
 
+const PREVIEW_DOMAIN = "preview.sokosumi.com";
+
+function getWebRelatedProjectName(network: EnvConfig["NETWORK"]): string {
+  return network === "Preprod"
+    ? "sokosumi-app-preprod"
+    : "sokosumi-app-mainnet";
+}
+
+function sanitizePreviewBranchSegment(value: string): string | undefined {
+  let normalized = "";
+  let previousWasSeparator = false;
+
+  for (const character of value.toLowerCase()) {
+    const isAlphaNumeric =
+      (character >= "a" && character <= "z") ||
+      (character >= "0" && character <= "9");
+
+    if (isAlphaNumeric) {
+      normalized += character;
+      previousWasSeparator = false;
+      continue;
+    }
+
+    if (normalized === "" || previousWasSeparator) {
+      continue;
+    }
+
+    normalized += "-";
+    previousWasSeparator = true;
+  }
+
+  if (normalized.endsWith("-")) {
+    normalized = normalized.slice(0, -1);
+  }
+
+  return normalized || undefined;
+}
+
+export interface ResolveWebRelatedProjectFallbackHostParams {
+  configuredWebAppBaseUrl: string;
+  network: EnvConfig["NETWORK"];
+  vercelEnv?: string;
+  vercelGitCommitRef?: string;
+}
+
+export function resolveWebRelatedProjectFallbackHost(
+  params: ResolveWebRelatedProjectFallbackHostParams,
+): string {
+  if (params.vercelEnv === "preview") {
+    const branchSegment = sanitizePreviewBranchSegment(
+      params.vercelGitCommitRef ?? "",
+    );
+
+    if (branchSegment) {
+      return `https://${getWebRelatedProjectName(
+        params.network,
+      )}-git-${branchSegment}.${PREVIEW_DOMAIN}`;
+    }
+  }
+
+  return params.configuredWebAppBaseUrl;
+}
+
 export function validateEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
@@ -194,11 +257,13 @@ export function getEnv(): EnvConfig {
 export function getWebAppBaseUrl(): string {
   const env = getEnv();
   return withRelatedProject({
-    projectName:
-      env.NETWORK === "Preprod"
-        ? "sokosumi-app-preprod"
-        : "sokosumi-app-mainnet",
-    defaultHost: env.WEB_APP_BASE_URL,
+    projectName: getWebRelatedProjectName(env.NETWORK),
+    defaultHost: resolveWebRelatedProjectFallbackHost({
+      configuredWebAppBaseUrl: env.WEB_APP_BASE_URL,
+      network: env.NETWORK,
+      vercelEnv: env.VERCEL_ENV,
+      vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
+    }),
   });
 }
 

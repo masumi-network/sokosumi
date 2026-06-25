@@ -49,7 +49,7 @@ export const adminUserService = {
   async listUsers(
     params: ListAdminUsersParams = {},
   ): Promise<AdminUserOverviewPage> {
-    const result = await coreClient.listAdminUserOverview(params);
+    const result = await coreClient.listAdminUsers(params);
 
     return {
       users: result.data.map((user) => ({

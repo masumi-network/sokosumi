@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import {
   Card,
   CardContent,
@@ -58,7 +59,21 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   // Fetch public client info for display on consent page
-  const client = await getOAuthClientPublic(client_id);
+  const clientResult = await getOAuthClientPublic(client_id);
+
+  if (clientResult.isErr()) {
+    return (
+      <div className="container mx-auto max-w-md py-8">
+        <CoreAuthReadRetry
+          description={t("loadError.description")}
+          retryLabel={t("loadError.retry")}
+          title={t("loadError.title")}
+        />
+      </div>
+    );
+  }
+
+  const client = clientResult.value;
 
   if (!client) {
     return (
@@ -85,8 +100,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
         <CardContent className="space-y-6">
           <div>
             <p className="mb-1 font-semibold">
-              {(client.client_name as string | undefined) ||
-                (client.client_id as string)}
+              {client.client_name || client.client_id}
             </p>
             <p className="text-muted-foreground text-sm">{t("wantsAccess")}</p>
           </div>

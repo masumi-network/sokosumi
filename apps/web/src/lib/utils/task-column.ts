@@ -5,6 +5,7 @@ import type { KanbanColumnId } from "@/lib/types/task";
 /** Single source of truth for task status → kanban column. Used by getTasksColumnPage and mapTaskToTaskWithCoworker. */
 export const COLUMN_TASK_STATUSES: Record<KanbanColumnId, TaskStatus[]> = {
   backlog: [TaskStatus.DRAFT],
+  scheduled: [TaskStatus.QUEUED],
   todo: [TaskStatus.READY, TaskStatus.CREDITS_TOPPED_UP],
   "in-progress": [
     TaskStatus.RUNNING,

@@ -24,6 +24,7 @@ export interface VisibleTaskLink {
 
 export const TASK_STATUS = {
   DRAFT: "DRAFT",
+  QUEUED: "QUEUED",
   READY: "READY",
   INPUT_REQUIRED: "INPUT_REQUIRED",
   APPROVAL_REQUIRED: "APPROVAL_REQUIRED",

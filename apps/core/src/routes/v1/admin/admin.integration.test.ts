@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * auto-applied auth middleware from `OpenAPIHonoWithAuth` and the
  * `requireAdmin` guard on the parent router) and drives it through a mocked
  * Better Auth session. This proves the parent-level admin guard actually
- * protects the mounted `/users` and `/organizations` sub-routers — the place
- * where an authorization regression could silently expose admin data.
+ * protects the mounted `/search`, `/users`, and `/organizations` sub-routers —
+ * the place where an authorization regression could silently expose admin data.
  */
 
 const {
@@ -59,22 +59,22 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     getOrgBySlugMock.mockResolvedValue(null);
   });
 
-  it("rejects an authenticated non-admin with 403 on /users", async () => {
+  it("rejects an authenticated non-admin with 403 on /search/users", async () => {
     mockSession("user");
 
     const response = await adminRouter.request(
-      "http://localhost/users?query=ada",
+      "http://localhost/search/users?query=ada",
     );
 
     expect(response.status).toBe(403);
     expect(searchUsersMock).not.toHaveBeenCalled();
   });
 
-  it("rejects an authenticated non-admin with 403 on /organizations", async () => {
+  it("rejects an authenticated non-admin with 403 on /search/organizations", async () => {
     mockSession("user");
 
     const response = await adminRouter.request(
-      "http://localhost/organizations?query=acme",
+      "http://localhost/search/organizations?query=acme",
     );
 
     expect(response.status).toBe(403);
@@ -85,7 +85,7 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     getSessionMock.mockResolvedValue(null);
 
     const response = await adminRouter.request(
-      "http://localhost/users?query=ada",
+      "http://localhost/search/users?query=ada",
     );
 
     expect(response.status).toBe(401);
@@ -99,7 +99,7 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     ]);
 
     const response = await adminRouter.request(
-      "http://localhost/users?query=ada",
+      "http://localhost/search/users?query=ada",
     );
     const body = (await response.json()) as {
       data: Array<{ id: string; name: string; email: string }>;
@@ -112,14 +112,14 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     ]);
   });
 
-  it("allows an admin to reach the organizations sub-router", async () => {
+  it("allows an admin to reach the organizations search route", async () => {
     mockSession("admin");
     searchOrganizationsMock.mockResolvedValue([
       { id: "org_1", name: "Acme", slug: "acme" },
     ]);
 
     const response = await adminRouter.request(
-      "http://localhost/organizations?query=acme",
+      "http://localhost/search/organizations?query=acme",
     );
     const body = (await response.json()) as {
       data: Array<{ id: string; name: string; slug: string }>;

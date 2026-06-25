@@ -1,4 +1,4 @@
-import { TaskStatus } from "@sokosumi/utils";
+import { isTaskEditableStatus } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -35,10 +35,7 @@ export default async function EditTaskPage({
     return notFound();
   }
 
-  if (
-    taskResult.status !== TaskStatus.DRAFT &&
-    taskResult.status !== TaskStatus.READY
-  ) {
+  if (!isTaskEditableStatus(taskResult.status)) {
     redirect(`/tasks/${taskId}`);
   }
 
@@ -122,6 +119,7 @@ export default async function EditTaskPage({
         ),
         removeAttachment: tEdit("removeAttachment"),
         submit: tEdit("save"),
+        openSchedule: tEdit("openSchedule"),
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),
       }}
@@ -134,6 +132,8 @@ export default async function EditTaskPage({
         coworkerId: taskResult.coworkerId ?? "",
         projectId: taskResult.projectId ?? null,
         status: taskResult.status,
+        metadata: taskResult.metadata,
+        nextRunAt: taskResult.nextRunAt?.toISOString() ?? null,
       }}
     />
   );

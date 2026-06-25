@@ -206,7 +206,55 @@ describe("EditTaskPage", () => {
           coworkerId: "cow_123",
           projectId: null,
           status: "READY",
+          metadata: undefined,
+          nextRunAt: null,
         },
+      }),
+    );
+    expect(screen.getByTestId("task-edit-modal")).toBeInTheDocument();
+  });
+
+  it("renders the edit modal for a queued task", async () => {
+    getTaskByIdMock.mockResolvedValue({
+      id: "task_1",
+      name: "Scheduled task",
+      description: "Desc",
+      coworkerId: "cow_123",
+      status: "QUEUED",
+      metadata: { schedule: { mode: "daily", timezone: "UTC" } },
+      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+      workspace: {
+        organizationId: "org-current",
+      },
+    });
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: "org-current",
+      },
+    });
+    listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
+    listProjectsMock.mockResolvedValue({
+      projects: [],
+      pagination: { nextCursor: null },
+    });
+    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+
+    const { default: EditTaskPage } = await import("../page");
+
+    render(
+      await EditTaskPage({
+        params: Promise.resolve({
+          taskId: "task_1",
+        }),
+      }),
+    );
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(taskEditModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialValues: expect.objectContaining({
+          status: "QUEUED",
+        }),
       }),
     );
     expect(screen.getByTestId("task-edit-modal")).toBeInTheDocument();

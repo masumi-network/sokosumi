@@ -72,6 +72,14 @@ const taskBaseSchema = z.object({
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  metadata: z.string().nullable().openapi({
+    description: "Serialized task schedule metadata JSON",
+    example: null,
+  }),
+  nextRunAt: dateTimeSchema.nullable().openapi({
+    description: "Next scheduled run time for queued tasks",
+    example: "2026-06-24T09:00:00.000Z",
+  }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),

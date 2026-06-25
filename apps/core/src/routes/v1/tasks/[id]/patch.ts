@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/utils";
+import { isTaskEditableStatus, TaskStatus } from "@sokosumi/utils";
 
+import { LIMITS } from "@/config/constants";
 import {
   requireTaskAssignableCoworker,
   requireTaskOwnership,
@@ -24,7 +25,7 @@ const paramsSchema = z.object({
 
 export const patchTaskRequestSchema = z
   .object({
-    name: z.string().min(1).max(120).optional().openapi({
+    name: z.string().min(1).max(LIMITS.NAME_MAX_LENGTH).optional().openapi({
       example: "Updated task title",
     }),
     description: z.string().nullish().openapi({
@@ -86,10 +87,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const task = await prisma.$transaction(async (tx) => {
       const task = await requireTaskOwnership(userContext, id, tx);
 
-      const canUpdateTask =
-        task.status === TaskStatus.DRAFT || task.status === TaskStatus.READY;
-      if (!canUpdateTask) {
-        throw forbidden("You can only update draft or ready tasks");
+      if (!isTaskEditableStatus(task.status)) {
+        throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
       const coworkerIdWasProvided = coworkerId !== undefined;
@@ -124,7 +123,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           id,
           userId: userContext.userId,
-          status: { in: [TaskStatus.DRAFT, TaskStatus.READY] },
+          status: {
+            in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
+          },
         },
         data: {
           name,

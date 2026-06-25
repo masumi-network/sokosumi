@@ -1,5 +1,6 @@
 export {
   makeAgentJobsChannelName,
+  makeUserNotificationsChannelName,
   makeUserTasksChannelName,
 } from "./ably-channel.js";
 export {
@@ -33,6 +34,25 @@ export {
   type CoreApiErrorKind,
 } from "./core-api-error-kind.js";
 export { convertCentsToCredits, convertCreditsToCents } from "./credit.js";
+export {
+  BASE_CREDIT_TOPUP_LOOKUP_KEY,
+  CREDIT_TOPUP_LOOKUP_KEYS,
+  type CreditTopUpLookupKey,
+  type CreditTopUpTier,
+  getCreditTopUpLookupKeyByCredits,
+  getCreditTopUpTotalMinorUnits,
+  HIGH_CREDIT_TOPUP_LOOKUP_KEY,
+  isPositiveIntegerCredits,
+  MID_CREDIT_TOPUP_LOOKUP_KEY,
+  STANDARD_CREDIT_TOPUP_TIERS,
+  type StandardCreditTopUpLookupKey,
+  selectCreditTopUpTier,
+  ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
+} from "./credit-topup-pricing.js";
+export {
+  DESIGN_MD_ATTACHMENT_LABEL,
+  removeDesignMdAttachmentLinks,
+} from "./design-md-attachment.js";
 export type {
   AgentJobStatus as AgentJobStatusType,
   AgentStatus as AgentStatusType,
@@ -113,6 +133,7 @@ export {
   serializeMetadataRecord,
   stringifyMetadataRecord,
 } from "./metadata-record.js";
+export { NotificationKind } from "./notification-kind.js";
 export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
@@ -150,7 +171,13 @@ export {
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
+export {
+  isTaskEditableStatus,
+  TASK_EDITABLE_STATUSES,
+  type TaskEditableStatus,
+} from "./task-editable.js";
 export { TaskStatus } from "./task-status.js";
+export { canUserTransitionTaskStatus } from "./task-status-transitions.js";
 export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,
@@ -171,3 +198,11 @@ export {
   buildUserUploadPrefix,
   sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
+export {
+  buildWebhookFailureContext,
+  DEFAULT_WEBHOOK_TIMEOUT_MS,
+  MAX_REPORTED_WEBHOOK_BODY_LENGTH,
+  type PostWebhookOptions,
+  type PostWebhookResult,
+  postWebhook,
+} from "./webhook.js";

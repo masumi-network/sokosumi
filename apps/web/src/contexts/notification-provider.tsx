@@ -1,0 +1,332 @@
+"use client";
+
+import { ChannelProvider } from "ably/react";
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
+
+import {
+  makeUserNotificationsChannelName,
+  type NotificationEventData,
+} from "@/lib/ably";
+import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
+import { coreClient } from "@/lib/clients/core.browser.client";
+import type { NotificationItem } from "@/lib/clients/generated/core";
+import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
+
+function dismissNotificationToast(notificationId: string) {
+  toast.dismiss(notificationId);
+}
+
+function dismissAllNotificationToasts() {
+  for (const activeToast of toast.getToasts()) {
+    if ("dismiss" in activeToast) {
+      continue;
+    }
+
+    if (activeToast.toasterId === NOTIFICATION_TOASTER_ID) {
+      toast.dismiss(activeToast.id);
+    }
+  }
+}
+
+interface NotificationContextValue {
+  notifications: NotificationItem[];
+  unreadCount: number;
+  markRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
+  refetch: () => Promise<void>;
+  isLoading: boolean;
+  hasFetchError: boolean;
+}
+
+const NotificationContext = createContext<NotificationContextValue | null>(
+  null,
+);
+
+const NOTIFICATION_LIST_LIMIT = 10;
+
+function mergeNotificationList(
+  current: NotificationItem[],
+  fetched: NotificationItem[],
+): NotificationItem[] {
+  const fetchedIds = new Set(fetched.map((notification) => notification.id));
+  const pendingRealtime = current.filter(
+    (notification) => !fetchedIds.has(notification.id),
+  );
+
+  return [...pendingRealtime, ...fetched].slice(0, NOTIFICATION_LIST_LIMIT);
+}
+
+function mergeUnreadCount(
+  current: NotificationItem[],
+  fetched: NotificationItem[],
+  serverCount: number,
+): number {
+  const fetchedIds = new Set(fetched.map((notification) => notification.id));
+  const pendingUnread = current.filter(
+    (notification) => !fetchedIds.has(notification.id) && !notification.isRead,
+  ).length;
+  const fetchedUnread = fetched.filter(
+    (notification) => !notification.isRead,
+  ).length;
+  const localKnownUnread = fetchedUnread + pendingUnread;
+
+  return Math.max(serverCount, localKnownUnread);
+}
+
+interface NotificationState {
+  notifications: NotificationItem[];
+  unreadCount: number;
+}
+
+type NotificationAction =
+  | {
+      type: "fetch_success";
+      fetched: NotificationItem[];
+      serverUnreadCount: number;
+    }
+  | { type: "realtime"; notification: NotificationItem }
+  | {
+      type: "mark_read_success";
+      id: string;
+      updated: NotificationItem;
+    }
+  | { type: "mark_all_read" };
+
+export function notificationReducer(
+  state: NotificationState,
+  action: NotificationAction,
+): NotificationState {
+  switch (action.type) {
+    case "fetch_success": {
+      return {
+        notifications: mergeNotificationList(
+          state.notifications,
+          action.fetched,
+        ),
+        unreadCount: mergeUnreadCount(
+          state.notifications,
+          action.fetched,
+          action.serverUnreadCount,
+        ),
+      };
+    }
+    case "realtime": {
+      const convertedNotification = action.notification;
+      const existing = state.notifications.find(
+        (notification) => notification.id === convertedNotification.id,
+      );
+
+      if (existing) {
+        const wasUnread = !existing.isRead;
+        const isUnread = !convertedNotification.isRead;
+        let unreadCount = state.unreadCount;
+
+        if (wasUnread && !isUnread) {
+          unreadCount = Math.max(0, unreadCount - 1);
+        } else if (!wasUnread && isUnread) {
+          unreadCount = unreadCount + 1;
+        }
+
+        return {
+          notifications: state.notifications.map((notification) =>
+            notification.id === convertedNotification.id
+              ? convertedNotification
+              : notification,
+          ),
+          unreadCount,
+        };
+      }
+
+      return {
+        notifications: [convertedNotification, ...state.notifications].slice(
+          0,
+          NOTIFICATION_LIST_LIMIT,
+        ),
+        unreadCount: convertedNotification.isRead
+          ? state.unreadCount
+          : state.unreadCount + 1,
+      };
+    }
+    case "mark_read_success": {
+      const existing = state.notifications.find(
+        (notification) => notification.id === action.id,
+      );
+      const shouldDecrementUnread = existing ? !existing.isRead : true;
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.id === action.id ? action.updated : notification,
+        ),
+        unreadCount:
+          shouldDecrementUnread && action.updated.isRead
+            ? Math.max(0, state.unreadCount - 1)
+            : state.unreadCount,
+      };
+    }
+    case "mark_all_read": {
+      const readAt = new Date();
+
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.isRead
+            ? notification
+            : { ...notification, isRead: true, readAt },
+        ),
+        unreadCount: 0,
+      };
+    }
+    default:
+      return state;
+  }
+}
+
+export function useNotifications() {
+  const context = use(NotificationContext);
+  if (!context) {
+    throw new Error(
+      "useNotifications must be used within NotificationProvider",
+    );
+  }
+  return context;
+}
+
+interface NotificationProviderProps {
+  userId: string;
+  children: React.ReactNode;
+}
+
+function NotificationProviderBody({
+  userId,
+  children,
+}: NotificationProviderProps) {
+  const [{ notifications, unreadCount }, dispatch] = useReducer(
+    notificationReducer,
+    { notifications: [], unreadCount: 0 },
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasFetchError, setHasFetchError] = useState(false);
+  const fetchGenerationRef = useRef(0);
+
+  const fetchNotifications = useCallback(async () => {
+    const generation = ++fetchGenerationRef.current;
+    setIsLoading(true);
+
+    try {
+      const [listResponse, countResponse] = await Promise.all([
+        coreClient.getNotifications({ limit: NOTIFICATION_LIST_LIMIT }),
+        coreClient.getNotificationsUnreadCount(),
+      ]);
+
+      if (generation !== fetchGenerationRef.current) {
+        return;
+      }
+
+      dispatch({
+        type: "fetch_success",
+        fetched: listResponse.data,
+        serverUnreadCount: countResponse.data.count,
+      });
+      setHasFetchError(false);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      if (generation === fetchGenerationRef.current) {
+        setHasFetchError(true);
+      }
+    } finally {
+      if (generation === fetchGenerationRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    try {
+      await coreClient.patchNotificationsReadAll();
+
+      dismissAllNotificationToasts();
+
+      dispatch({ type: "mark_all_read" });
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+      throw error;
+    }
+  }, []);
+
+  const markRead = useCallback(async (id: string) => {
+    try {
+      const response = await coreClient.patchNotificationRead({ id });
+
+      dismissNotificationToast(id);
+
+      dispatch({
+        type: "mark_read_success",
+        id,
+        updated: response.data,
+      });
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+      throw error;
+    }
+  }, []);
+
+  const handleNotificationEvent = useCallback(
+    (notification: NotificationEventData) => {
+      dispatch({
+        type: "realtime",
+        notification: {
+          ...notification,
+          kind: notification.kind as NotificationItem["kind"],
+          readAt: notification.readAt ? new Date(notification.readAt) : null,
+          createdAt: new Date(notification.createdAt),
+        },
+      });
+    },
+    [],
+  );
+
+  useNotificationRealtime({
+    userId,
+    onNotification: handleNotificationEvent,
+    onError: (error) => {
+      console.error("Ably notification error:", error);
+    },
+  });
+
+  useEffect(() => {
+    void fetchNotifications();
+  }, [fetchNotifications]);
+
+  const value: NotificationContextValue = {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    refetch: fetchNotifications,
+    isLoading,
+    hasFetchError,
+  };
+
+  return <NotificationContext value={value}>{children}</NotificationContext>;
+}
+
+export function NotificationProvider({
+  userId,
+  children,
+}: NotificationProviderProps) {
+  return (
+    <ChannelProvider channelName={makeUserNotificationsChannelName(userId)}>
+      <NotificationProviderBody userId={userId}>
+        {children}
+      </NotificationProviderBody>
+    </ChannelProvider>
+  );
+}

@@ -10,13 +10,8 @@ import { parseMentions } from "@/lib/utils/mention-parser";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 import { getColumnId } from "@/lib/utils/task-column";
 
-export const DEFAULT_TASK_NAME_MAX_LENGTH = 120;
-
-export function clampTaskNameForCoreApi(
-  name: string,
-  maxLength = DEFAULT_TASK_NAME_MAX_LENGTH,
-): string {
-  return name.trim().slice(0, maxLength);
+export function normalizeTaskNameForCoreApi(name: string): string {
+  return name.trim();
 }
 
 function getCommentsCount(events: TaskEvent[]): number {
@@ -96,6 +91,7 @@ export function mapTaskToTaskWithCoworker(
   )?.slice(0, 200);
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
+  const nextRunAt = task.nextRunAt?.toISOString() ?? null;
 
   return {
     id: task.id,
@@ -105,6 +101,8 @@ export function mapTaskToTaskWithCoworker(
     user: task.user,
     createdAt,
     updatedAt,
+    nextRunAt,
+    metadata: task.metadata ?? null,
     jobsCount: task.jobs.length,
     coworker,
     share: "share" in task ? (task.share ?? null) : null,

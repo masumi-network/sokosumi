@@ -247,6 +247,8 @@
       "billing": "Billing",
       "account": "Account",
       "admin": "Administração",
+      "organizations": "Organizações",
+      "users": "Utilizadores",
       "edit": "Editar",
       "enterprise-contracts": "Contratos empresariais",
       "mcp": "Model Context Protocol (MCP)",
@@ -256,6 +258,7 @@
       "hermes": "Hermes",
       "history": "Histórico",
       "new": "Novo",
+      "notifications": "Notificações",
       "projects": "Projetos",
       "invoices": "Faturas"
     },
@@ -307,8 +310,7 @@
             "Schema": {
               "Name": {
                 "invalid": "O nome tem de ser uma string válida",
-                "min": "O nome tem de ter pelo menos 2 caracteres",
-                "max": "O nome tem de ter no máximo 120 caracteres"
+                "min": "O nome tem de ter pelo menos 2 caracteres"
               }
             },
             "Form": {
@@ -652,6 +654,22 @@
         "cancel": "Cancel",
         "error": "Failed to log out"
       }
+    },
+    "NotificationCenter": {
+      "notifications": "Notificações",
+      "unreadBadge": "{count, plural, =1 {1 notificação não lida} other {# notificações não lidas}}",
+      "title": "Notificações",
+      "pageTitle": "Notificações",
+      "emptyState": "Ainda sem notificações",
+      "seeMore": "Ver mais",
+      "loading": "A carregar...",
+      "loadMore": "Carregar mais",
+      "markAllRead": "Marcar todas como lidas",
+      "markAllReadError": "Não foi possível marcar todas as notificações como lidas",
+      "fetchError": "Não foi possível carregar as notificações",
+      "retry": "Tentar novamente",
+      "dismiss": "Dispensar",
+      "dismissNotification": "Dispensar notificação"
     },
     "HashValue": {
       "copy": "Copy",
@@ -1185,6 +1203,7 @@
           "active": "Ativo",
           "archived": "Arquivado",
           "DRAFT": "Rascunho",
+          "QUEUED": "Na fila",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
@@ -1392,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Backlog",
+        "scheduled": "Agendado",
         "todo": "A fazer",
         "inProgress": "Em progresso",
         "inputRequired": "Input necessário",
@@ -1451,6 +1471,7 @@
         "projectLabel": "Projeto",
         "statusOptions": {
           "DRAFT": "Rascunho",
+          "QUEUED": "Na fila",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
@@ -1623,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Mudou para a conta {account}"
+        "switchedWorkspace": "Mudou para a conta {account}",
+        "clonedFrom": "Clonada de {name}",
+        "schedule": "Agendamento"
       },
       "NewTask": {
         "title": "Nova tarefa",
@@ -1641,6 +1664,7 @@
         "status": "Estado",
         "statusDescription": "Escolha o estado inicial desta tarefa",
         "statusDraft": "Rascunho",
+        "statusQueued": "Na fila",
         "statusReady": "Pronta",
         "back": "Voltar",
         "uploadFile": "Carregar ficheiro",
@@ -1651,8 +1675,36 @@
         "saveDraft": "Guardar",
         "saveAsDraft": "Guardar como rascunho",
         "createTask": "Criar tarefa",
+        "scheduleTask": "Agendar tarefa",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Escolha o seu agente",
+        "chooseAgentDescription": "Escolha quem deve tratar desta tarefa — compare o modelo, alojamento e capacidades.",
+        "defaultBadge": "Predefinido",
+        "modelLabel": "Modelo",
+        "hostingLabel": "Alojado em",
+        "examplesTitle": "O que {name} pode fazer",
+        "continue": "Continuar",
+        "taskStepTitle": "O que deve {name} fazer?",
+        "previousAgent": "Agente anterior",
+        "nextAgent": "Agente seguinte",
+        "searchAgents": "Pesquisar agentes…",
+        "noAgentsFound": "Nenhum agente encontrado.",
+        "askPrompt": "Peça a {name} para…",
+        "promptHint": "Clique num exemplo para começar ou escreva as suas instruções.",
+        "tasksTitle": "Tarefas prontas a executar",
+        "startFromScratch": "Começar do zero",
+        "startFromScratchHint": "Escreva as suas instruções",
+        "previewExample": "Pré-visualizar exemplo",
+        "previewUse": "Usar esta tarefa",
+        "previewEmpty": "Ainda não há saída de exemplo disponível.",
+        "allCompanies": "Todos",
+        "taskCreated": "Tarefa criada",
+        "taskCreatedHint": "Está tudo configurado e pronto.",
+        "goToTask": "Ir para a tarefa",
+        "createAnother": "Criar outra tarefa",
+        "close": "Fechar"
       },
       "EditTask": {
         "title": "Editar tarefa",
@@ -1678,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "save": "Guardar",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Agendamento",
+        "description": "Planear uma execução única ou recorrente.",
+        "clearSchedule": "Remover agendamento",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Fuso horário",
+        "customCron": "Expressão cron personalizada",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Uma vez em {datetime}"
+        },
+        "card": {
+          "overdue": "Em atraso",
+          "dueInMinutes": "Vence em {minutes, plural, one {# minuto} other {# minutos}}",
+          "dueInHours": "Vence em {hours, plural, one {# hora} other {# horas}}",
+          "tomorrowAt": "Amanhã às {time}",
+          "nextRunAt": "Próxima execução: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1698,6 +1810,7 @@
           "total": "{count, plural, =0 {0 no total} =1 {1 no total} other {# no total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Rascunho",
+            "QUEUED": "Agendado",
             "READY": "Pronta",
             "INPUT_REQUIRED": "Entrada",
             "APPROVAL_REQUIRED": "Aprovação",
@@ -2362,7 +2475,9 @@
           "projects": "Projetos",
           "hermes": "Hermes",
           "history": "Histórico",
-          "admin": "Administração"
+          "admin": "Administração",
+          "settings": "Definições",
+          "back": "Voltar"
         }
       }
     },
@@ -2629,6 +2744,10 @@
             "title": "Utilizadores",
             "description": "Visão geral pesquisável de todos os utilizadores com créditos, subscrição e atividade."
           },
+          "organizations": {
+            "title": "Organizações",
+            "description": "Visão geral pesquisável das organizações com membros, faturação e créditos."
+          },
           "tasks": {
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre utilizadores e organizações."
@@ -2649,6 +2768,86 @@
           "registered": "Registado",
           "loadMore": "Carregar mais",
           "loadError": "Falha ao carregar os utilizadores."
+        }
+      },
+      "Organizations": {
+        "title": "Organizações",
+        "description": "Visão geral pesquisável de todas as organizações",
+        "OrganizationList": {
+          "searchPlaceholder": "Pesquisar por nome ou slug…",
+          "totalCount": "{count, plural, one {# organização} other {# organizações}}",
+          "empty": "Nenhuma organização encontrada.",
+          "organization": "Organização",
+          "members": "Membros",
+          "billing": "Faturação",
+          "subscription": "Subscrição",
+          "seats": "{count, plural, =1 {# Seat} other {# Seats}}",
+          "created": "Criada",
+          "loadMore": "Carregar mais",
+          "loadError": "Falha ao carregar as organizações."
+        },
+        "OrganizationDetail": {
+          "backToList": "Voltar às organizações",
+          "billing": {
+            "title": "Faturação",
+            "plan": "Plano: {plan}",
+            "mode": "Modo: {mode}",
+            "seats": "{purchased} comprados · {assigned} atribuídos · {unused} por atribuir",
+            "subscription": "Subscrição: {plan} ({status})",
+            "enterprisePool": "Pool enterprise: {credits} créditos"
+          },
+          "credits": {
+            "title": "Créditos totais",
+            "description": "Créditos disponíveis combinados para esta organização.",
+            "perMember": "Os créditos são listados por membro abaixo."
+          },
+          "members": {
+            "title": "Membros",
+            "totalCount": "{count, plural, one {# membro} other {# membros}}",
+            "empty": "Ainda não há membros.",
+            "loadMore": "Carregar mais",
+            "loadError": "Falha ao carregar membros.",
+            "user": "Utilizador",
+            "role": "Função",
+            "credits": "Créditos",
+            "subscription": "Subscrição",
+            "seat": "Seat",
+            "seatAssigned": "Atribuído",
+            "seatUnassigned": "Não atribuído",
+            "actions": "Ações"
+          },
+          "roles": {
+            "owner": "Proprietário",
+            "admin": "Administrador",
+            "member": "Membro"
+          },
+          "addMember": {
+            "submit": "Adicionar membro",
+            "success": "Membro adicionado",
+            "userRequired": "Selecione um utilizador para adicionar",
+            "combobox": {
+              "placeholder": "Selecionar utilizador…",
+              "search": "Pesquisar utilizadores…",
+              "empty": "Nenhum utilizador encontrado.",
+              "loading": "A pesquisar…",
+              "error": "A pesquisa falhou.",
+              "idle": "Escreva para pesquisar utilizadores.",
+              "clear": "Limpar seleção"
+            }
+          },
+          "actions": {
+            "makeOwner": "Tornar proprietário",
+            "makeAdmin": "Tornar administrador",
+            "makeMember": "Tornar membro",
+            "assignSeat": "Atribuir Seat",
+            "unassignSeat": "Remover Seat",
+            "remove": "Remover membro"
+          },
+          "memberActionError": "A ação no membro falhou.",
+          "roleUpdateSuccess": "Função atualizada.",
+          "seatAssignSuccess": "Seat atribuído.",
+          "seatUnassignSuccess": "Seat removido.",
+          "removeSuccess": "Membro removido."
         }
       },
       "Invoices": {
@@ -2924,6 +3123,9 @@
         "notConnected": "não está ligado",
         "success": "Conta ligada com sucesso",
         "error": "Falha ao ligar {provider}",
+        "loadErrorTitle": "Não foi possível carregar as contas ligadas",
+        "loadError": "Não foi possível carregar as suas contas ligadas neste momento.",
+        "retry": "Tentar novamente",
         "DisconnectModal": {
           "title": "Desligar {provider}",
           "description": "Tem a certeza de que pretende desligar a sua conta {provider}?",
@@ -2932,6 +3134,11 @@
           "success": "Conta desligada com sucesso",
           "error": "Falha ao desligar {provider}"
         }
+      },
+      "LinkedAccounts": {
+        "loadErrorTitle": "Não foi possível carregar os detalhes da conta",
+        "loadError": "Não foi possível carregar os detalhes da sua conta ligada neste momento.",
+        "retry": "Tentar novamente"
       },
       "Notifications": {
         "title": "Notificações por e-mail",
@@ -3047,6 +3254,11 @@
           "title": "Cliente não encontrado",
           "description": "Não foi possível encontrar o cliente OAuth.",
           "descriptionWithId": "O cliente OAuth com o ID {clientId} não existe."
+        },
+        "loadError": {
+          "title": "Não foi possível carregar a aplicação",
+          "description": "Não foi possível carregar os detalhes da aplicação neste momento. Tente novamente.",
+          "retry": "Tentar novamente"
         },
         "title": "Autorizar aplicação",
         "description": "Uma aplicação pretende aceder à sua conta",
@@ -3305,7 +3517,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Colega de trabalho de IA",
         "defaultDescription": "Um colega de trabalho com IA pronto para o ajudar."
-      }
+      },
+      "allAgentsTitle": "Explorar todos os agentes",
+      "allAgentsSubtitle": "Todos os agentes no Sokosumi, agrupados pelo que fazem."
     },
     "DesignMd": {
       "title": "DESIGN.md",
@@ -3564,6 +3778,25 @@
         "hours": "{value, plural, =1 {h} other {h}}",
         "minutes": "{value, plural, =1 {min} other {min}}",
         "seconds": "{value, plural, =1 {s} other {s}}"
+      }
+    },
+    "Notifications": {
+      "Job": {
+        "completed": "{agentName} concluiu {jobName}",
+        "failed": "{agentName} não conseguiu concluir {jobName}",
+        "paymentFailed": "Falha no pagamento para {jobName}",
+        "inputRequired": "{agentName} precisa do teu input para {jobName}",
+        "refundResolved": "{jobName} foi reembolsado",
+        "disputeResolved": "Disputa resolvida para {jobName}"
+      },
+      "Task": {
+        "inputRequired": "{coworkerName} precisa do teu input para {taskName}",
+        "approvalRequired": "{coworkerName} precisa da tua aprovação para {taskName}",
+        "authenticationRequired": "{coworkerName} precisa de autenticação para {taskName}",
+        "outOfCredits": "{coworkerName} ficou sem créditos para {taskName}",
+        "completed": "{coworkerName} concluiu {taskName}",
+        "failed": "{coworkerName} não conseguiu concluir {taskName}",
+        "canceled": "{taskName} foi cancelado"
       }
     }
   }

@@ -19,6 +19,7 @@ import type {
   GetHermesMeMessagesData,
   GetHistoryData,
   GetJobsData,
+  GetNotificationsData,
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
@@ -36,6 +37,7 @@ import type {
   PaginationMetadata,
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
+  PatchNotificationsByIdReadData,
   PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
@@ -49,12 +51,17 @@ import type {
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
 } from "@/lib/clients/generated/core";
 import {
+  addAdminOrganizationMember as coreAddAdminOrganizationMember,
+  assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
+  claimCoupon as coreClaimCoupon,
   createAdminInvoice as coreCreateAdminInvoice,
+  createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -64,6 +71,7 @@ import {
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
+  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   getAdminInvoice as coreGetAdminInvoice,
@@ -77,10 +85,13 @@ import {
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
+  getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
+  getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
+  getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getEnterpriseContracts as coreGetEnterpriseContracts,
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
@@ -94,6 +105,8 @@ import {
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
+  getNotifications as coreGetNotifications,
+  getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
@@ -107,6 +120,7 @@ import {
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
   getShareByToken as coreGetShareByToken,
+  getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
@@ -119,10 +133,13 @@ import {
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
+  getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
+  listAdminOrganizationMembers as coreListAdminOrganizationMembers,
+  listAdminOrganizations as coreListAdminOrganizations,
   listAdminTasks as coreListAdminTasks,
-  listAdminUserOverview as coreListAdminUserOverview,
+  listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
@@ -131,6 +148,8 @@ import {
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
   patchJobsById as corePatchJobsById,
+  patchNotificationsByIdRead as corePatchNotificationsByIdRead,
+  patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
@@ -166,12 +185,16 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
+  removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
+  updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
 
@@ -243,6 +266,9 @@ function transformTaskResponseEnvelope(data: any) {
 
   task.createdAt = toDate(task.createdAt);
   task.updatedAt = toDate(task.updatedAt);
+  if (task.nextRunAt) {
+    task.nextRunAt = toDate(task.nextRunAt);
+  }
   task.events = task.events.map((event: any) => ({
     ...event,
     createdAt: toDate(event.createdAt),
@@ -537,6 +563,58 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getNotifications(query?: GetNotificationsData["query"]) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetNotifications({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch notifications",
+    );
+  }
+
+  async function getNotificationsUnreadCount() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetNotificationsUnreadCount({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch notification unread count",
+    );
+  }
+
+  async function patchNotificationRead(
+    path: PatchNotificationsByIdReadData["path"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchNotificationsByIdRead({
+          client,
+          path,
+          cache: "no-store",
+        }),
+      "Failed to mark notification as read",
+    );
+  }
+
+  async function patchNotificationsReadAll() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchNotificationsReadAll({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to mark all notifications as read",
+    );
+  }
+
   async function getTaskById(id: string) {
     return executeOperation(
       getClient,
@@ -648,7 +726,92 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function listAdminUserOverview(query: {
+  async function getCreditTopUpPriceCatalog() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCreditTopUpPriceCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch credit top-up price catalog",
+    );
+  }
+
+  async function getSubscriptionCatalog() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetSubscriptionCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch subscription catalog",
+    );
+  }
+
+  async function createCreditCheckoutSession(body: {
+    organizationId?: string | null;
+    credits: number;
+    returnPath?: string;
+    promotionCodeId?: string;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateCreditCheckoutSession({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create credit checkout session",
+    );
+  }
+
+  async function getCheckoutSessionAnalytics(sessionId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCheckoutSessionAnalytics({
+          client,
+          path: { sessionId },
+          cache: "no-store",
+        }),
+      "Failed to fetch checkout session analytics",
+    );
+  }
+
+  async function getCouponDetails(couponId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetCouponDetails({
+          client,
+          path: { couponId },
+          cache: "no-store",
+        }),
+      "Failed to fetch coupon details",
+    );
+  }
+
+  async function claimCoupon(
+    couponId: string,
+    body: { organizationId?: string | null } = {},
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreClaimCoupon({
+          client,
+          path: { couponId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to claim coupon",
+    );
+  }
+
+  async function listAdminUsers(query: {
     query?: string;
     cursor?: string;
     limit?: number;
@@ -656,7 +819,7 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreListAdminUserOverview({
+        coreListAdminUsers({
           client,
           query,
           cache: "no-store",
@@ -730,7 +893,121 @@ export function createCoreClient(getClient: GetClient) {
           path: { slug },
           cache: "no-store",
         }),
-      "Failed to fetch organization",
+      "Failed to fetch organization overview",
+    );
+  }
+
+  async function listAdminOrganizations(query: {
+    query?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminOrganizations({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list organizations",
+    );
+  }
+
+  async function listAdminOrganizationMembers(
+    slug: string,
+    query: { cursor?: string; limit?: number },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListAdminOrganizationMembers({
+          client,
+          path: { slug },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to list organization members",
+    );
+  }
+
+  async function addAdminOrganizationMember(
+    slug: string,
+    body: { userId: string; role: "owner" | "admin" | "member" },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreAddAdminOrganizationMember({
+          client,
+          path: { slug },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to add organization member",
+    );
+  }
+
+  async function removeAdminOrganizationMember(slug: string, memberId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreRemoveAdminOrganizationMember({
+          client,
+          path: { slug, memberId },
+          cache: "no-store",
+        }),
+      "Failed to remove organization member",
+    );
+  }
+
+  async function updateAdminOrganizationMemberRole(
+    slug: string,
+    memberId: string,
+    body: { role: "owner" | "admin" | "member" },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreUpdateAdminOrganizationMemberRole({
+          client,
+          path: { slug, memberId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update organization member role",
+    );
+  }
+
+  async function assignAdminOrganizationMemberSeat(
+    slug: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreAssignAdminOrganizationMemberSeat({
+          client,
+          path: { slug, memberId },
+          cache: "no-store",
+        }),
+      "Failed to assign organization seat",
+    );
+  }
+
+  async function unassignAdminOrganizationMemberSeat(
+    slug: string,
+    memberId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreUnassignAdminOrganizationMemberSeat({
+          client,
+          path: { slug, memberId },
+          cache: "no-store",
+        }),
+      "Failed to unassign organization seat",
     );
   }
 
@@ -1345,7 +1622,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createTask(body: {
-    name: string;
+    name?: string;
     description?: string | null;
     projectId?: string | null;
     coworkerId?: string | null;
@@ -1369,6 +1646,7 @@ export function createCoreClient(getClient: GetClient) {
     body: {
       status?:
         | "DRAFT"
+        | "QUEUED"
         | "READY"
         | "INPUT_REQUIRED"
         | "APPROVAL_REQUIRED"
@@ -1471,6 +1749,35 @@ export function createCoreClient(getClient: GetClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to delete task",
+    );
+  }
+
+  async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdSchedule({
+          client,
+          path: { id },
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to save task schedule",
+    );
+  }
+
+  async function deleteTaskSchedule(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdSchedule({
+          client,
+          path: { id },
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to clear task schedule",
     );
   }
 
@@ -1596,6 +1903,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to resolve workspace DESIGN.md",
+    );
+  }
+
+  async function getWorkspaceOrganizationId(workspaceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesById({
+          client,
+          path: { id: workspaceId },
+          cache: "no-store",
+        }),
+      "Failed to resolve workspace organization",
     );
   }
 
@@ -2289,6 +2609,7 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskShare,
     deleteTaskLink,
     deleteTask,
+    deleteTaskSchedule,
     getConversation,
     getConversationMessages,
     getConversations,
@@ -2297,6 +2618,10 @@ export function createCoreClient(getClient: GetClient) {
     getHermesOnboardingProgress,
     getHermesUnreadCount,
     getHistory,
+    getNotifications,
+    getNotificationsUnreadCount,
+    patchNotificationRead,
+    patchNotificationsReadAll,
     listHermesIntegrations,
     listHermesSchedules,
     patchHermesSchedule,
@@ -2317,16 +2642,29 @@ export function createCoreClient(getClient: GetClient) {
     getCategories,
     getCoworkers,
     searchAdminUsers,
-    listAdminUserOverview,
+    listAdminUsers,
     listAdminTasks,
     getAdminTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
+    listAdminOrganizations,
+    listAdminOrganizationMembers,
+    addAdminOrganizationMember,
+    removeAdminOrganizationMember,
+    updateAdminOrganizationMemberRole,
+    assignAdminOrganizationMemberSeat,
+    unassignAdminOrganizationMemberSeat,
     listAdminInvoices,
     createAdminInvoice,
     getAdminInvoice,
     markAdminInvoicePaid,
     listCreditPrices,
+    getCreditTopUpPriceCatalog,
+    getSubscriptionCatalog,
+    createCreditCheckoutSession,
+    getCheckoutSessionAnalytics,
+    getCouponDetails,
+    claimCoupon,
     getOrganizationEnterpriseContractSummary,
     getJobById,
     getJobs,
@@ -2349,6 +2687,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
+    getWorkspaceOrganizationId,
     setMyDesignMd,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
@@ -2377,6 +2716,7 @@ export function createCoreClient(getClient: GetClient) {
     getUserTasksCount,
     patchTask,
     putJobShare,
+    putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,
     updateConversation,
