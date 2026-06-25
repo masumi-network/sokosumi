@@ -331,9 +331,16 @@ export async function getSkillDetail(
   source: string,
   slug: string,
 ): Promise<SkillsShDetail | null> {
-  return skillsGet(skillPath("/skills", source, slug), (raw) =>
-    parseDetail(raw),
-  );
+  try {
+    return await skillsGet(skillPath("/skills", source, slug), (raw) =>
+      parseDetail(raw),
+    );
+  } catch (error) {
+    if (error instanceof SkillsShError && error.httpStatus === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export async function getSkillAudit(

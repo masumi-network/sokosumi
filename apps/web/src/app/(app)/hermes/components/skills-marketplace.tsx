@@ -11,7 +11,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -123,12 +123,19 @@ export default function SkillsMarketplace({
       return;
     }
     setSearching(true);
-    const id = setTimeout(async () => {
-      const res = await searchSkillsAction({ q, limit: 24 });
-      setResults(res.ok ? res.data : []);
-      setSearching(false);
+    let cancelled = false;
+    const id = setTimeout(() => {
+      void (async () => {
+        const res = await searchSkillsAction({ q, limit: 24 });
+        if (cancelled) return;
+        setResults(res.ok ? res.data : []);
+        setSearching(false);
+      })();
     }, DEBOUNCE_MS);
-    return () => clearTimeout(id);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+    };
   }, [query]);
 
   const markInstalled = useCallback(
@@ -445,6 +452,7 @@ function SkillCard({
   onRemove: (skill: InstalledSkill) => void;
 }) {
   const t = useTranslations("App.Hermes.Skills");
+  const formatter = useFormatter();
   return (
     <div className="border-border bg-card/40 flex flex-col gap-2 rounded-lg border p-3">
       <div className="flex items-start gap-2">
@@ -498,7 +506,7 @@ function SkillCard({
       {item.installs !== null ? (
         <div className="text-tertiary-foreground flex items-center gap-1 text-[11px]">
           <Download className="size-3" />
-          {item.installs.toLocaleString()}
+          {formatter.number(item.installs)}
         </div>
       ) : null}
       {installed && !preinstalled ? (

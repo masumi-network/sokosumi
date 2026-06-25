@@ -424,7 +424,7 @@ export default function OnboardingScreen({
 
           {step === 4 && (
             <Section heading={t("skillsHeading")} description={t("skillsHelp")}>
-              <SkillsMarketplace variant="onboarding" />
+              {!previewMode ? <SkillsMarketplace variant="onboarding" /> : null}
             </Section>
           )}
         </div>
