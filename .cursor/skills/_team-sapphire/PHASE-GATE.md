@@ -77,7 +77,7 @@ Check **every** status row marked `done` on the issue — including rows from pr
 
 If work is done but gates were skipped:
 
-**Gate-only Coder repair:** When `**PR handoff**` exists but `**Sapphire · Coder complete**` is missing or lacks verification / CI / Bugbot fields, run all missing Pre-Reviewer gates 1–4 (local verification exit 0, CI green, Bugbot 0 High), then post or update Phase gate comments per `CODER.md`. Do **not** re-implement unless a gate fails.
+**Gate repair only:** When `**PR handoff**` exists but `**Sapphire · Coder complete**` is missing or lacks verification / CI / Bugbot fields, run all missing Pre-Reviewer gates 1–4 (local verification exit 0, CI green, Bugbot 0 High), then post or update Phase gate comments per `CODER.md`. Do **not** re-implement unless a gate fails.
 
 1. Reconstruct summaries from session artifacts (investigation, spec, PR URL)
 2. Post missing comments in phase order (Investigator → Tech Lead → PR handoff → Bugbot medium when ≥1 Medium → Coder complete → Reviewer)

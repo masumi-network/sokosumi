@@ -42,46 +42,6 @@ flowchart TB
 | Auth | … |
 | Errors | … |
 
-(Optional — add when `BUGBOT-LEARNINGS.md` triggers apply: **Mutation order**, **State machine**, **Time semantics**, **Auth matrix**, **Ripple checklist**.)
-
-## Mutation order
-
-| Step | On failure |
-|------|------------|
-| … | … |
-
-## State machine
-
-| User action | Target status | Notes |
-|-------------|---------------|-------|
-| … | … | derived / explicit |
-
-## Time semantics
-
-- Display TZ: …
-- Parse/persist TZ: …
-- Cron / interval meaning vs UI label: …
-
-## Auth matrix
-
-(Include when R10 triggers — new Core routes, coworker API keys, workspace-scoped lists.)
-
-| Caller type | Endpoint | Capability / scope |
-|-------------|----------|-------------------|
-| … | … | … |
-
-## Ripple checklist
-
-(Include when R11 triggers — new status, job status, notification kind.)
-
-| Area | Updated in this PR |
-|------|-------------------|
-| Validators | … |
-| UI | … |
-| Archive | … |
-| Notifications | … |
-| Columns | … |
-
 ## Key decisions
 
 | Decision | Choice |
@@ -126,3 +86,42 @@ Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`.
 - Remove empty optional sections.
 - Keep Data flow, Verification, Out of scope.
 - Spec stays in orchestrator session — not written to Linear.
+- Copy optional sections from **Appendix: optional BUGBOT sections** only when `BUGBOT-LEARNINGS.md` triggers apply (`TECH-LEAD.md`).
+
+## Appendix: optional BUGBOT sections
+
+**Do not** include these in every spec. Copy only the sections whose triggers fired; delete unused appendix blocks before handoff.
+
+### Mutation order (R6)
+
+| Step | On failure |
+|------|------------|
+| … | … |
+
+### State machine (R7)
+
+| User action | Target status | Notes |
+|-------------|---------------|-------|
+| … | … | derived / explicit |
+
+### Time semantics (R8)
+
+- Display TZ: …
+- Parse/persist TZ: …
+- Cron / interval meaning vs UI label: …
+
+### Auth matrix (R10)
+
+| Caller type | Endpoint | Capability / scope |
+|-------------|----------|-------------------|
+| … | … | … |
+
+### Ripple checklist (R11)
+
+| Area | Updated in this PR |
+|------|-------------------|
+| Validators | … |
+| UI | … |
+| Archive | … |
+| Notifications | … |
+| Columns | … |
