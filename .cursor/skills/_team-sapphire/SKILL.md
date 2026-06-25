@@ -88,7 +88,7 @@ When updating Linear, merge **only** `## Requirement`, `## Sapphire status`, and
   3. If `target` is Coder or Reviewer and there is no **session spec** in this run → set `target` to **Tech Lead** (even when Tech Lead = `done` on Linear).
   4. If `target` is Tech Lead or later and there is no **session investigation** in this run → set `target` to **Investigator** (even when Investigator = `done` on Linear).
   5. Run from `target` through all later phases in this session.
-- If `**PR handoff**` + open PR exist and Coder = `done`, `target` is normally **Reviewer** — steps 3–4 still apply when session spec or investigation is missing.
+- If `**Sapphire · Coder complete**` comment exists, open PR, and Coder = `done`, `target` is normally **Reviewer** — steps 3–4 still apply when session spec or investigation is missing.
 - If **every** status row is already `done` and issue is **not** `In Review`, run **Reviewer cleanup** — rebuild session spec via Tech Lead (and Investigator if needed) when missing, then verify PR + `/goal`; on pass run **Completion** gate per `REVIEWER.md` (comment → Reviewer row `done` if needed → `state: "In Review"` only), then **Exit gate** per `PHASE-GATE.md`.
 - If **every** status row is `done` and issue is **`In Review`**, run **Exit gate**; on pass, stop — await human merge.
 
@@ -153,7 +153,7 @@ Use `## Sapphire status` for progress on Linear; **session artifacts** decide wh
 | Same session — Tech Lead = done + **session spec** in context | Skip Tech Lead unless user asked to re-spec |
 | New session — Investigator = `done` on Linear but no **session investigation** | Re-run Investigator before Tech Lead |
 | New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
-| `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
+| `**Sapphire · Coder complete**` comment + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
 | `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
 | All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, verify PR + `/goal`; on pass run **Completion** gate then **Exit gate** |
 | Issue `In Review` + Reviewer done | **Exit gate**; on pass, stop — await human merge |

@@ -18,7 +18,7 @@ Coder uses **three or four comments** plus status: (1) `save_comment` → `**PR 
 1. Local allowlisted verification — all exit 0 (on branch before PR)
 2. **PR open** on GitHub (sole subagent or orchestrator after parallel merge)
 3. **CI green** on the PR (`gh pr checks` / required checks pass) — **orchestrator** after PR exists
-4. **Bugbot** — orchestrator runs once; **fix all High**; re-run until 0 High; post `**Bugbot · medium (human review)**` Linear comment when ≥1 Medium (human fixes on merge pass)
+4. **Bugbot** — orchestrator runs once; **fix all High**; re-run until 0 High; **record** Medium findings for Phase gate step 2 (do **not** post `**Bugbot · medium (human review)**` during the Bugbot run)
 
 See `CODER.md` and `BUGBOT-LEARNINGS.md`. Do not post `**PR handoff**` or start Reviewer until all four pass.
 
