@@ -66,6 +66,12 @@ export interface MountHandle {
   setExpression(expression: OrbExpression | null): void;
   /** Change the animation speed live, without a phase jump. */
   setSpeed(speed: number): void;
+  /**
+   * Briefly flash a transient expression (e.g. a wink on task-done, surprise on
+   * a new message) for `ms`, then ease back to the current resting expression.
+   * Overrides any spontaneous gesture in flight.
+   */
+  pulse(expression: OrbExpression, ms?: number): void;
 }
 
 function dpr(): number {
@@ -384,9 +390,14 @@ export function drawPlaceholder(
 /** The orb's emotional state, expressed through its eyes. */
 export type OrbExpression =
   | "idle"
+  | "happy"
+  | "content"
+  | "curious"
   | "listening"
   | "thinking"
-  | "happy"
+  | "focused"
+  | "surprised"
+  | "wink"
   | "sleeping";
 
 function roundRectPath(
@@ -407,14 +418,17 @@ function roundRectPath(
   ctx.closePath();
 }
 
-/** Per-expression resting eye openness (pill family). */
+/** Per-expression resting eye openness (drives the eased pill height). */
 function eyeOpen(expr: OrbExpression): number {
-  return expr === "listening" ? 1.12 : expr === "thinking" ? 0.85 : 1;
+  return expr === "listening" ? 1.14 : expr === "thinking" ? 0.85 : 1;
 }
 
 /** Per-expression upward gaze (0 = level, 1 = glancing up). */
 function eyeLift(expr: OrbExpression): number {
-  return expr === "thinking" ? 0.5 : 0;
+  if (expr === "thinking") return 0.5;
+  if (expr === "curious") return 0.16;
+  if (expr === "surprised") return 0.06;
+  return 0;
 }
 
 /** Per-frame eye drive — the mount loop computes blink / gaze / fades. */
@@ -447,8 +461,9 @@ export function drawEyes(
   expr: OrbExpression,
   f: EyeFrame,
 ): void {
-  const o = Math.max(0, Math.min(1.3, f.open));
+  const o = Math.max(0, Math.min(1.4, f.open));
   if (o <= 0.001) return;
+  const wake = Math.min(1, o); // shape branches fade in via this on appear
   const cx = S / 2;
   const cy = S / 2;
   const R = S * 0.46;
@@ -458,6 +473,7 @@ export function drawEyes(
   const baseY = cy - R * 0.05;
   const lookX = f.gazeX * R;
   const lookY = f.gazeY * R - f.lift * eyeH * 0.22;
+  const minH = eyeW * 0.16;
 
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
@@ -468,33 +484,100 @@ export function drawEyes(
   ctx.strokeStyle = ink;
   ctx.lineCap = "round";
 
+  const pill = (ex: number, ey: number, w: number, h: number): void => {
+    const hh = Math.max(minH, h);
+    roundRectPath(ctx, ex - w / 2, ey - hh / 2, w, hh, w / 2);
+    ctx.fill();
+  };
+  const round = (ex: number, ey: number, rx: number, ry: number): void => {
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, rx, Math.max(minH * 0.6, ry), 0, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  const arc = (
+    ex: number,
+    ey: number,
+    w: number,
+    curve: number,
+    lw: number,
+  ): void => {
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(ex - w, ey + eyeH * 0.04);
+    ctx.quadraticCurveTo(ex, ey - curve, ex + w, ey + eyeH * 0.04);
+    ctx.stroke();
+  };
+
   for (const side of [-1, 1]) {
     const ex = cx + side * eyeDx + lookX;
     const ey = baseY + lookY;
 
+    // ── curve family ──────────────────────────────────────────────────────
     if (expr === "happy") {
       // "^ ^" smile-eyes; the curve eases flatter mid-blink so it winks.
-      const w2 = eyeW * 0.82;
-      const curve = eyeH * (0.16 + 0.22 * f.blink);
-      ctx.lineWidth = eyeW * 0.5;
-      ctx.beginPath();
-      ctx.moveTo(ex - w2, ey + eyeH * 0.04);
-      ctx.quadraticCurveTo(ex, ey - curve, ex + w2, ey + eyeH * 0.04);
-      ctx.stroke();
+      arc(ex, ey, eyeW * 0.82, eyeH * (0.16 + 0.22 * f.blink), eyeW * 0.5);
+      continue;
+    }
+    if (expr === "content") {
+      // a gentler, lower smile — soft + satisfied.
+      arc(
+        ex,
+        ey + eyeH * 0.06,
+        eyeW * 0.72,
+        eyeH * (0.05 + 0.13 * f.blink),
+        eyeW * 0.46,
+      );
+      continue;
+    }
+    if (expr === "wink") {
+      // one closed-smile eye, one open pill — a playful aside.
+      if (side === -1) {
+        arc(ex, ey, eyeW * 0.82, eyeH * (0.16 + 0.22 * f.blink), eyeW * 0.5);
+      } else {
+        pill(ex, ey, eyeW, eyeH * wake * f.blink);
+      }
       continue;
     }
     if (expr === "sleeping") {
       ctx.lineWidth = eyeW * 0.46;
       ctx.beginPath();
-      ctx.moveTo(ex - eyeW * 0.72, ey + R * 0.04);
-      ctx.lineTo(ex + eyeW * 0.72, ey + R * 0.04);
+      ctx.moveTo(ex - eyeW * 0.72, ey + R * 0.05);
+      ctx.lineTo(ex + eyeW * 0.72, ey + R * 0.05);
       ctx.stroke();
       continue;
     }
-    // pill family — idle / listening / thinking (openness + lift already in o / lift).
-    const h = Math.max(eyeW * 0.16, eyeH * o * f.blink);
-    roundRectPath(ctx, ex - eyeW / 2, ey - h / 2, eyeW, h, eyeW / 2);
-    ctx.fill();
+
+    // ── round family ──────────────────────────────────────────────────────
+    if (expr === "surprised") {
+      // big wide-open round eyes.
+      round(ex, ey - eyeH * 0.04, eyeW * 0.66, eyeH * 0.66 * wake * f.blink);
+      continue;
+    }
+    if (expr === "curious") {
+      // asymmetric rounds (one raised) + a slight aside glance — inquisitive.
+      const raised = side === -1;
+      round(
+        ex + eyeW * 0.2,
+        ey + (raised ? -eyeH * 0.14 : eyeH * 0.08),
+        eyeW * (raised ? 0.62 : 0.48),
+        eyeH * (raised ? 0.56 : 0.42) * wake * f.blink,
+      );
+      continue;
+    }
+
+    // ── pill family ───────────────────────────────────────────────────────
+    if (expr === "focused") {
+      // wide, short, close-set level pills — determined.
+      pill(
+        cx + side * eyeDx * 0.84 + lookX,
+        ey,
+        eyeW * 1.18,
+        eyeH * 0.42 * wake * f.blink,
+      );
+      continue;
+    }
+    // idle / listening / thinking — openness + upward gaze already in o / lift.
+    pill(ex, ey, eyeW, eyeH * o * f.blink);
   }
 
   ctx.restore();
@@ -510,7 +593,14 @@ export function mount(
   const ratio = dpr();
   const p = params(seed);
   const ctx = canvas.getContext("2d");
-  if (!ctx) return { stop() {}, params: p, setExpression() {}, setSpeed() {} };
+  if (!ctx)
+    return {
+      stop() {},
+      params: p,
+      setExpression() {},
+      setSpeed() {},
+      pulse() {},
+    };
   const size = () => {
     const css = canvas.clientWidth || opts.size || 80;
     const target = Math.min(
@@ -522,6 +612,7 @@ export function mount(
   };
   size();
   const placeholder = opts.placeholder === true;
+  let speedVal = speed;
 
   // ── Face (eyes) state — evolved each frame so the behaviour reads natural ──
   let faceExpr: OrbExpression | null = opts.expression ?? null; // shape drawn now
@@ -535,6 +626,27 @@ export function mount(
   const nextBlinkInterval = () =>
     Math.random() < 0.1 ? 0.18 : 3.4 * (0.6 + Math.random() * 0.9);
 
+  // ── Spontaneous variety — so a resting orb never sits frozen ──
+  // Occasional unprompted micro-expressions while the host's expression is a
+  // resting one, plus eased gaze saccades (glances) layered on the drift.
+  const RESTING_EXPRS = new Set<OrbExpression>(["idle", "happy", "content"]);
+  let gestureExpr: OrbExpression | null = null;
+  let gestureUntil = 0; // in accumulated-time units (tt)
+  let nextGestureIn = 4 + Math.random() * 5;
+  let gzX = 0;
+  let gzY = 0;
+  let gzTargetX = 0;
+  let gzTargetY = 0;
+  let nextSaccadeIn = 1 + Math.random() * 2;
+  const pickGesture = (): OrbExpression => {
+    // Livelier orbs are a touch more expressive (and more likely to wink).
+    const pool: OrbExpression[] =
+      speedVal > 1.4
+        ? ["curious", "curious", "surprised", "listening", "wink", "happy"]
+        : ["curious", "curious", "surprised", "listening", "content"];
+    return pool[Math.floor(Math.random() * pool.length)] ?? "curious";
+  };
+
   const frame = (tt: number) => {
     const dt = Math.min(0.1, Math.max(0, tt - lastTt));
     lastTt = tt;
@@ -542,13 +654,33 @@ export function mount(
     if (placeholder) drawPlaceholder(ctx, canvas.width, tt);
     else draw(ctx, canvas.width, p, tt);
 
+    // resolve the spontaneous gesture (if any) vs the host's expression
+    if (gestureExpr && tt >= gestureUntil) {
+      gestureExpr = null;
+      if (blinkP < 0) blinkP = 0; // blink to mask the return to rest
+    }
+    const hostResting = targetExpr === null || RESTING_EXPRS.has(targetExpr);
+    if (faceExpr && targetExpr && hostResting && !gestureExpr) {
+      nextGestureIn -= dt;
+      if (nextGestureIn <= 0) {
+        gestureExpr = pickGesture();
+        gestureUntil = tt + 0.7 + Math.random() * 0.5;
+        nextGestureIn = 5 + Math.random() * 7;
+        if (blinkP < 0) blinkP = 0; // blink to mask the gesture in
+      }
+    } else if (!hostResting) {
+      gestureExpr = null; // host is in control (thinking / focused / …)
+      nextGestureIn = Math.max(nextGestureIn, 3);
+    }
+    const desired: OrbExpression | null = gestureExpr ?? targetExpr;
+
     // fade the eyes in when they appear, out when cleared
-    const wakeTarget = targetExpr ? 1 : 0;
+    const wakeTarget = desired ? 1 : 0;
     wake += (wakeTarget - wake) * Math.min(1, dt / 0.22);
 
     if (faceExpr && wake > 0.01) {
       // ease openness + upward gaze toward the target (smooth, never snaps)
-      const ref = targetExpr ?? faceExpr;
+      const ref = desired ?? faceExpr;
       curOpen += (eyeOpen(ref) - curOpen) * Math.min(1, dt * 6);
       curLift += (eyeLift(ref) - curLift) * Math.min(1, dt * 6);
 
@@ -560,8 +692,8 @@ export function mount(
         if (nextBlinkIn <= 0) blinkP = 0;
       } else {
         blinkP += dt / 0.16;
-        if (blinkP >= 0.5 && targetExpr && faceExpr !== targetExpr) {
-          faceExpr = targetExpr;
+        if (blinkP >= 0.5 && desired && faceExpr !== desired) {
+          faceExpr = desired;
         }
         if (blinkP >= 1) {
           blinkP = -1;
@@ -570,10 +702,24 @@ export function mount(
       }
       const blink = blinkP < 0 ? 1 : Math.abs(Math.cos(blinkP * Math.PI));
 
-      // subtle gaze — product of incommensurate sines: mostly centred, with an
-      // occasional small drift, so it reads as "alive", not "scanning"
-      const gazeX = Math.sin(tt * 0.45) * Math.sin(tt * 0.11 + 0.5) * 0.03;
-      const gazeY = Math.sin(tt * 0.33 + 1) * Math.sin(tt * 0.09) * 0.018;
+      // gaze — eased saccades (occasional glances, half the time back to centre)
+      // layered with a touch of sine jitter, so the eyes wander and sometimes
+      // look around rather than sit dead-centre.
+      nextSaccadeIn -= dt;
+      if (nextSaccadeIn <= 0) {
+        if (Math.random() < 0.5) {
+          gzTargetX = 0;
+          gzTargetY = 0;
+        } else {
+          gzTargetX = (Math.random() * 2 - 1) * 0.05;
+          gzTargetY = (Math.random() * 2 - 1) * 0.03;
+        }
+        nextSaccadeIn = 1 + Math.random() * 2.2;
+      }
+      gzX += (gzTargetX - gzX) * Math.min(1, dt * 4);
+      gzY += (gzTargetY - gzY) * Math.min(1, dt * 4);
+      const gazeX = gzX + Math.sin(tt * 0.9) * 0.006;
+      const gazeY = gzY + Math.sin(tt * 0.6 + 1) * 0.004;
 
       drawEyes(ctx, canvas.width, faceExpr, {
         blink,
@@ -586,7 +732,6 @@ export function mount(
   };
   let raf = 0;
   let running = true;
-  let speedVal = speed;
   // Accumulate scaled time so `setSpeed` changes the rate going forward without
   // jumping the animation's phase.
   let acc = 0;
@@ -622,6 +767,13 @@ export function mount(
     },
     setSpeed(s: number) {
       speedVal = s;
+    },
+    pulse(expression: OrbExpression, ms = 1100) {
+      gestureExpr = expression;
+      gestureUntil = acc + (ms / 1000) * Math.max(0.2, speedVal);
+      if (blinkP < 0) blinkP = 0;
+      // keep the spontaneous scheduler from firing right after the pulse ends
+      nextGestureIn = Math.max(nextGestureIn, ms / 1000 + 2);
     },
   };
 }
