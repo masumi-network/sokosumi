@@ -315,14 +315,14 @@ export default function OnboardingScreen({
 
   return (
     <FlowBackground>
-      <div className="mx-auto w-full max-w-2xl px-6 py-8 md:py-12">
+      <div className="mx-auto w-full max-w-2xl px-6 py-5 md:py-7">
         <ProgressPips current="setup" />
 
         {/* ── Hero ────────────────────────────────────────────────────
             The white placeholder orb until the user picks a colour on the Look
             step, then it "takes form" into the chosen orb (keyed crossfade).
             Its speed + expression follow the chosen personality. */}
-        <div className="mb-6 flex flex-col items-center text-center md:mb-8">
+        <div className="mb-4 flex flex-col items-center text-center md:mb-5">
           <div
             key={selectedSeed === null ? "placeholder" : "chosen"}
             className="animate-in fade-in zoom-in-95 duration-500"
@@ -332,7 +332,7 @@ export default function OnboardingScreen({
                 size={160}
                 speed={heroSpeed}
                 expression={heroExpression}
-                className="size-24 md:size-28"
+                className="size-20 md:size-24"
               />
             ) : (
               <AuroraOrb
@@ -341,11 +341,11 @@ export default function OnboardingScreen({
                 animate
                 speed={heroSpeed}
                 expression={heroExpression}
-                className="size-24 md:size-28"
+                className="size-20 md:size-24"
               />
             )}
           </div>
-          <h1 className="text-foreground mt-4 text-xl font-light tracking-tight md:text-2xl">
+          <h1 className="text-foreground mt-3 text-xl font-light tracking-tight md:text-2xl">
             {t("title")}
           </h1>
         </div>
@@ -363,7 +363,7 @@ export default function OnboardingScreen({
             doesn't chase them. */}
         <div
           key={step}
-          className="animate-in fade-in-0 slide-in-from-bottom-2 flex min-h-[29rem] flex-col justify-center duration-200"
+          className="animate-in fade-in-0 slide-in-from-bottom-2 flex min-h-[19rem] flex-col justify-center duration-200"
         >
           {step === 1 && (
             <Section
@@ -570,7 +570,7 @@ export default function OnboardingScreen({
         </div>
 
         {/* ── Wizard navigation ───────────────────────────────────── */}
-        <div className="mt-8 flex flex-col items-center gap-3 md:mt-10">
+        <div className="mt-6 flex flex-col items-center gap-3 md:mt-8">
           {step < TOTAL_STEPS ? (
             <div className="flex w-full max-w-md items-center justify-between gap-3">
               <Button
