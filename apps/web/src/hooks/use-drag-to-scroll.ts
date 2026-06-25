@@ -27,19 +27,21 @@ export function useDragToScroll<T extends HTMLElement>() {
   } | null>(null);
 
   useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
+    const maybeContainer = ref.current;
+    if (!maybeContainer) return;
 
-    function clearScrollingStyles() {
-      element.removeAttribute("data-drag-scrolling");
-    }
+    const scrollContainer: T = maybeContainer;
 
-    function resetPointerState() {
+    const clearScrollingStyles = () => {
+      scrollContainer.removeAttribute("data-drag-scrolling");
+    };
+
+    const resetPointerState = () => {
       pointerStateRef.current = null;
       clearScrollingStyles();
-    }
+    };
 
-    function handlePointerDown(event: PointerEvent) {
+    const handlePointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
       if (event.pointerType === "touch") return;
       if (isScrollDragBlocked(event.target)) return;
@@ -48,18 +50,18 @@ export function useDragToScroll<T extends HTMLElement>() {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        scrollLeft: element.scrollLeft,
+        scrollLeft: scrollContainer.scrollLeft,
         isScrolling: false,
       };
-    }
+    };
 
-    function handlePointerMove(event: PointerEvent) {
+    const handlePointerMove = (event: PointerEvent) => {
       const state = pointerStateRef.current;
       if (!state || event.pointerId !== state.pointerId) return;
 
       if (event.buttons === 0) {
         if (state.isScrolling) {
-          element.releasePointerCapture(event.pointerId);
+          scrollContainer.releasePointerCapture(event.pointerId);
         }
         resetPointerState();
         return;
@@ -82,35 +84,35 @@ export function useDragToScroll<T extends HTMLElement>() {
         }
 
         state.isScrolling = true;
-        element.setPointerCapture(event.pointerId);
-        element.setAttribute("data-drag-scrolling", "true");
+        scrollContainer.setPointerCapture(event.pointerId);
+        scrollContainer.setAttribute("data-drag-scrolling", "true");
       }
 
       event.preventDefault();
-      element.scrollLeft = state.scrollLeft - deltaX;
-    }
+      scrollContainer.scrollLeft = state.scrollLeft - deltaX;
+    };
 
-    function handlePointerEnd(event: PointerEvent) {
+    const handlePointerEnd = (event: PointerEvent) => {
       const state = pointerStateRef.current;
       if (!state || event.pointerId !== state.pointerId) return;
 
       if (state.isScrolling) {
-        element.releasePointerCapture(event.pointerId);
+        scrollContainer.releasePointerCapture(event.pointerId);
       }
 
       resetPointerState();
-    }
+    };
 
-    element.addEventListener("pointerdown", handlePointerDown);
-    element.addEventListener("pointermove", handlePointerMove);
-    element.addEventListener("pointerup", handlePointerEnd);
-    element.addEventListener("pointercancel", handlePointerEnd);
+    scrollContainer.addEventListener("pointerdown", handlePointerDown);
+    scrollContainer.addEventListener("pointermove", handlePointerMove);
+    scrollContainer.addEventListener("pointerup", handlePointerEnd);
+    scrollContainer.addEventListener("pointercancel", handlePointerEnd);
 
     return () => {
-      element.removeEventListener("pointerdown", handlePointerDown);
-      element.removeEventListener("pointermove", handlePointerMove);
-      element.removeEventListener("pointerup", handlePointerEnd);
-      element.removeEventListener("pointercancel", handlePointerEnd);
+      scrollContainer.removeEventListener("pointerdown", handlePointerDown);
+      scrollContainer.removeEventListener("pointermove", handlePointerMove);
+      scrollContainer.removeEventListener("pointerup", handlePointerEnd);
+      scrollContainer.removeEventListener("pointercancel", handlePointerEnd);
       resetPointerState();
     };
   }, []);
