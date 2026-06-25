@@ -4,6 +4,14 @@
 
 Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
 
+**Entry requirements (blocking):** Reviewer must not start until Coder/orchestrator confirms in `**Sapphire · Coder complete**`:
+
+- Local allowlisted verification — all exit 0
+- **CI green** on the PR (required GitHub checks pass)
+- **Bugbot** — zero **High** findings (medium listed in `**Bugbot · medium (human review)**` Linear comment for human merge pass — not Reviewer scope unless spec requires)
+
+If any gate is missing or failed, return to Coder/orchestrator — do not begin `/goal`.
+
 **Sapphire orchestrator:** Phase 4 runs in the **same session** as Phases 1–3 — do not exit after Coder complete. In a **new session**, do not start Reviewer without **session spec** — rebuild Tech Lead (and Investigator if needed) first per `SKILL.md`.
 
 ## `/goal` loop
@@ -75,9 +83,15 @@ Reject commands with `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`
 
 ### Quality gates
 
-- [ ] Lint/check — exit 0
+- [ ] Lint/check — exit 0 (confirmed in Coder complete; re-run if Reviewer fixes code)
 - [ ] Tests — exit 0
 - [ ] Build — exit 0
+- [ ] **CI green** on PR — required GitHub checks pass (`gh pr checks`)
+- [ ] **Bugbot** — 0 High at handoff (re-run Bugbot if Reviewer changes are substantial)
+
+### Bugbot regression (triggered rules)
+
+When the spec touches areas in `BUGBOT-LEARNINGS.md` R1–R12, verify those rules in `/goal` — do not rely on Bugbot alone for medium-risk patterns (timezone, state machine, client state races).
 
 ### Visual (UI changes)
 

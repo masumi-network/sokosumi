@@ -90,14 +90,75 @@ Each subagent prompt must include:
 
 ## Pre-PR verification
 
-Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verification command trust**. Run the narrowest set covering your deliverables.
+Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verification command trust**. Run the narrowest set covering your deliverables. **All commands must exit 0** before the PR is handed to Reviewer.
+
+## Pre-Reviewer gates (blocking)
+
+**Orchestrator** (always) and **sole `sapphire-coder`** (when not parallel) must complete these **after** implementation and **before** `**PR handoff**` / Phase 4. Parallel coders run verification on their branch; the orchestrator runs the full gate set on the merged integration branch before opening the PR.
+
+Read `BUGBOT-LEARNINGS.md` for R1–R12 quality rules and the Coder self-check.
+
+### 1. Local verification (green)
+
+Run allowlisted `pnpm` commands for the spec scope. **Every command exit 0.** Fix failures on the PR branch; do not hand off with failing local checks.
+
+### 2. CI green on the PR
+
+Push the PR branch and confirm **GitHub CI is green** before Reviewer starts:
+
+```bash
+gh pr checks <number> --watch
+# or
+gh pr view <number> --json statusCheckRollup,state
+```
+
+- All **required** checks must pass (or repo has no required checks and latest workflow runs are success).
+- If CI fails, fix on the PR branch and re-push until green.
+- **Do not** post `**PR handoff**` or start Phase 4 while required checks are failing or pending without watching to completion.
+
+### 3. Mandatory Bugbot (High must be zero)
+
+Run Bugbot once on branch changes per `BUGBOT-LEARNINGS.md` **Mandatory Bugbot** (orchestrator uses `review-bugbot` skill).
+
+1. Launch Bugbot on the PR branch vs merge-base.
+2. **Fix every High finding** on the PR branch.
+3. Re-run Bugbot until **zero High** findings.
+4. **Medium:** post dedicated Linear comment (see below) — do not block Reviewer; human fixes on merge pass.
+5. Re-run local verification and confirm CI still green after High fixes.
+
+### Medium findings — Linear comment
+
+When Bugbot reports one or more **Medium** findings, post `save_comment` **before** `**Sapphire · Coder complete**`:
+
+```markdown
+**Bugbot · medium (human review)**
+
+For human review on merge — not blocking Reviewer.
+
+| Severity | Location | Finding |
+|----------|----------|---------|
+| Medium | `path:line` | One-line summary |
+```
+
+When there are no medium findings, skip this comment.
+
+### Handoff comment additions
+
+Include in `**Sapphire · Coder complete**`:
+
+```markdown
+**Verification:** <commands run, all exit 0>
+**CI:** green on PR #<n> (required checks pass)
+**Bugbot:** 0 High. Medium: <N> — see `**Bugbot · medium (human review)**` comment (or `none`)
+```
 
 ## Phase gate (blocking)
 
 Before Reviewer starts:
 
 1. `save_comment` — `**PR handoff**` (PR URL, branch, one-line summary)
-2. `save_comment` — `**Sapphire · Coder complete**`
-3. `save_issue` — Coder row → `done` (issue stays **In Progress**)
+2. `save_comment` — `**Bugbot · medium (human review)**` — **only when** Bugbot reported ≥1 Medium (table per `BUGBOT-LEARNINGS.md`)
+3. `save_comment` — `**Sapphire · Coder complete**` (verification, CI, Bugbot summary)
+4. `save_issue` — Coder row → `done` (issue stays **In Progress**)
 
-Do **not** run `/goal` or set **In Review** until all three succeed. See `PHASE-GATE.md`.
+Do **not** run `/goal` or set **In Review** until the Phase gate steps succeed **and** **Pre-Reviewer gates** (local verification, CI green, Bugbot 0 High) pass. See `PHASE-GATE.md`.

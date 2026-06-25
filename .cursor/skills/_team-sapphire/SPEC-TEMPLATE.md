@@ -42,6 +42,26 @@ flowchart TB
 | Auth | … |
 | Errors | … |
 
+(Optional — add when `BUGBOT-LEARNINGS.md` triggers apply.)
+
+## Mutation order
+
+| Step | On failure |
+|------|------------|
+| … | … |
+
+## State machine
+
+| User action | Target status | Notes |
+|-------------|---------------|-------|
+| … | … | derived / explicit |
+
+## Time semantics
+
+- Display TZ: …
+- Parse/persist TZ: …
+- Cron / interval meaning vs UI label: …
+
 ## Key decisions
 
 | Decision | Choice |

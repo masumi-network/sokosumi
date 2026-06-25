@@ -11,7 +11,15 @@ Every Sapphire phase ends with **mandatory Linear writes**. These are not option
 | 1 | `save_comment` | Phase summary with exact header (see table below) |
 | 2 | `save_issue` | Update `## Sapphire status` row → `done` (status-only merge per `LINEAR-MCP.md`) |
 
-Coder uses **three writes** instead of two: (1) `save_comment` → `**PR handoff**`, (2) `save_comment` → `**Sapphire · Coder complete**`, (3) `save_issue` → Coder row `done`.
+Coder uses **three or four comments** plus status: (1) `save_comment` → `**PR handoff**`, (2) optional `save_comment` → `**Bugbot · medium (human review)**` when Bugbot reported ≥1 Medium, (3) `save_comment` → `**Sapphire · Coder complete**`, (4) `save_issue` → Coder row `done`.
+
+**Pre-Reviewer gates** (blocking — before step 1 above or before Phase 4):
+
+1. Local allowlisted verification — all exit 0
+2. **CI green** on the PR (`gh pr checks` / required checks pass)
+3. **Bugbot** — run once; **fix all High**; re-run until 0 High; post `**Bugbot · medium (human review)**` Linear comment when ≥1 Medium (human fixes on merge pass)
+
+See `CODER.md` and `BUGBOT-LEARNINGS.md`. Do not post `**PR handoff**` or start Reviewer until all three pass.
 
 Reviewer adds a state write **after** status table is saved: `save_issue` with `state: "In Review"` only (no `description`).
 
@@ -21,7 +29,7 @@ Reviewer adds a state write **after** status table is saved: `save_issue` with `
 |-------|---------------------------|------------------------|
 | Investigator | `**Sapphire · Investigator complete**` | Investigator → `done` |
 | Tech Lead | `**Sapphire · Tech Lead complete**` | Tech Lead → `done` |
-| Coder | `**PR handoff**` then `**Sapphire · Coder complete**` | Coder → `done` |
+| Coder | `**PR handoff**`; optional `**Bugbot · medium (human review)**`; `**Sapphire · Coder complete**` | Coder → `done` |
 | Reviewer | `**Sapphire · Reviewer complete**` (or `**Sapphire · Review failed**` while looping) | Reviewer → `done` + `state: "In Review"` on pass |
 
 Comment headers must match **exactly** (including bold markers). Summaries belong in the comment body — not only in the Cloud Agent thread.
@@ -54,7 +62,7 @@ Check **every** status row marked `done` on the issue — including rows from pr
 |----------------------|-------------------------|
 | Investigator → `done` | Comment `**Sapphire · Investigator complete**` |
 | Tech Lead → `done` | Comment `**Sapphire · Tech Lead complete**` |
-| Coder → `done` | Comments `**PR handoff**` + `**Sapphire · Coder complete**` |
+| Coder → `done` | Comments `**PR handoff**` + `**Sapphire · Coder complete**`; optional `**Bugbot · medium (human review)**` when mediums exist |
 | Reviewer → `done` | Comment `**Sapphire · Reviewer complete**` + issue state **In Review** |
 
 **Failed exit gate examples:**
@@ -90,13 +98,19 @@ After each phase, mentally confirm before continuing:
 Coder additionally:
 
 ```
+[ ] Local verification exit 0 (allowlisted pnpm)
 [ ] PR open on GitHub (validated via gh)
+[ ] CI green — required checks pass on PR
+[ ] Bugbot run — 0 High
+[ ] **Bugbot · medium (human review)** comment posted when ≥1 Medium
 [ ] **PR handoff** comment posted before Coder complete
+[ ] Coder complete lists verification + CI + Bugbot summary (points to medium comment or `none`)
 ```
 
 Reviewer additionally:
 
 ```
+[ ] Coder complete documents verification + CI green + Bugbot 0 High
 [ ] /goal criteria pass
 [ ] Reviewer row done saved before state change
 [ ] save_issue state In Review (description omitted)

@@ -117,13 +117,15 @@ See `WORKFLOW.md`. Role details: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, 
 2. If Tech Lead defined multiple coders with parallel ownership, launch **parallel** **`sapphire-coder`** Task subagents (`model: composer-2.5`) — one per coder block. Each subagent implements and returns branch/commits; **subagents do not open PRs**. After all return, merge onto one integration branch on the orchestrator side.
 3. If single coder, delegate to **`sapphire-coder`** (`model: composer-2.5`) — subagent opens the PR (or returns handoff for you to post gates).
 4. Run allowlisted verification before PR (`REVIEWER.md` **Verification command trust**). For multiple coders, run combined verification on the merged branch.
-5. Open **one PR** (orchestrator always owns the PR when multiple coders ran); PR body must reference the Linear issue id.
-6. **Gate (blocking):** `save_comment` → `**PR handoff**`. Then `save_comment` → `**Sapphire · Coder complete**`. Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until all three succeed.
-7. **Continue in this run** — proceed to Phase 4 without stopping.
+5. **Pre-Reviewer gates (blocking):** Local verification exit 0, **CI green** on the PR, **mandatory Bugbot** with **zero High** findings (fix High on branch; medium acknowledged only). See `CODER.md` **Pre-Reviewer gates** and `BUGBOT-LEARNINGS.md`.
+6. Open **one PR** (orchestrator always owns the PR when multiple coders ran); PR body must reference the Linear issue id.
+7. **Gate (blocking):** `save_comment` → `**PR handoff**`. If Bugbot reported ≥1 Medium: `save_comment` → `**Bugbot · medium (human review)**` (table for human merge pass). Then `save_comment` → `**Sapphire · Coder complete**` (verification, CI, Bugbot summary). Then `save_issue` → Coder row `done`. Stay **In Progress** — do not set In Review yet. Do **not** open Phase 4 until gates succeed **and** Pre-Reviewer gates pass.
+8. **Continue in this run** — proceed to Phase 4 without stopping.
 
 ### Phase 4 — Reviewer
 
-1. Delegate to **`sapphire-reviewer`** (`model: gpt-5.5-medium`) — run `/goal` per `REVIEWER.md` until all criteria pass.
+1. Confirm Coder complete comment documents **local verification exit 0**, **CI green**, and **Bugbot 0 High** — otherwise return to Phase 3.
+2. Delegate to **`sapphire-reviewer`** (`model: gpt-5.5-medium`) — run `/goal` per `REVIEWER.md` until all criteria pass.
 2. For UI specs, capture evidence per `VISUAL-CAPTURE.md` (Cloud: PR artifacts; IDE: screenshots; optional CLI for WebM).
 3. Fix on PR branch when needed; loop.
 4. **Gate (blocking):** On pass — `save_comment` → `**Sapphire · Reviewer complete**` with evidence; `save_issue` → Reviewer row `done` (full description merge); then `save_issue` → `state: "In Review"` only. All four status rows must be `done` before exit.
@@ -136,6 +138,7 @@ Before returning to the user, run **Exit gate** in `PHASE-GATE.md`: `get_issue` 
 ## MCP
 
 - Read `PHASE-GATE.md` before the first phase — gates are blocking.
+- Read `BUGBOT-LEARNINGS.md` before Coder Pre-Reviewer gates (CI + Bugbot).
 - Read `LINEAR-MCP.md` before any write.
 - Health check before first call — same message as `_task` if `user-linear` is missing.
 - Use `save_issue` for **status table**, **state**, and legacy section cleanup only — not investigation or spec; use `save_comment` for phase markers.
@@ -162,6 +165,7 @@ Return issue id/URL, **all phases completed in this run**, PR link (if any), and
 ## Supporting files
 
 - `PHASE-GATE.md` — blocking comment + status writes per phase; exit verification
+- `BUGBOT-LEARNINGS.md` — R1–R12 quality rules; mandatory Bugbot (fix High only)
 - `WORKFLOW.md` — pipeline diagram and status lifecycle
 - `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, `REVIEWER.md` — role contracts
 - `SPEC-TEMPLATE.md` — Tech Lead output shape
