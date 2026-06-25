@@ -112,7 +112,7 @@ describe("getTasksColumnPage", () => {
     expect(page.tasks.map((task) => task.id)).toEqual(["task-2"]);
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
-      status: [TaskStatus.DRAFT],
+      status: [TaskStatus.DRAFT, TaskStatus.QUEUED],
       scope: "owned",
       coworkerId: undefined,
       projectId: undefined,
@@ -121,7 +121,7 @@ describe("getTasksColumnPage", () => {
     });
   });
 
-  it("queries scheduled column statuses in one request", async () => {
+  it("queries backlog column statuses in one request", async () => {
     listTasksMock.mockResolvedValue({
       tasks: [
         buildTask({
@@ -129,12 +129,17 @@ describe("getTasksColumnPage", () => {
           status: TaskStatus.QUEUED,
           updatedAt: "2026-03-02T02:00:00.000Z",
         }),
+        buildTask({
+          id: "task-draft",
+          status: TaskStatus.DRAFT,
+          updatedAt: "2026-03-02T01:00:00.000Z",
+        }),
       ],
       pagination: { nextCursor: null },
     });
 
     const page = await getTasksColumnPage({
-      columnId: "scheduled",
+      columnId: "backlog",
       cursor: null,
       limit: 10,
       scope: "owned",
@@ -145,15 +150,17 @@ describe("getTasksColumnPage", () => {
       agentsById: new Map(),
     });
 
-    expect(page.tasks.map((task) => task.id)).toEqual(["task-queued"]);
+    expect(page.tasks.map((task) => task.id)).toEqual([
+      "task-queued",
+      "task-draft",
+    ]);
     expect(listTasksMock).toHaveBeenCalledWith({
-      status: [TaskStatus.QUEUED],
+      status: [TaskStatus.DRAFT, TaskStatus.QUEUED],
       scope: "owned",
       coworkerId: undefined,
       projectId: undefined,
       cursor: null,
       limit: 10,
-      sort: "nextRunAt",
     });
   });
 

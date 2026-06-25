@@ -43,12 +43,12 @@ function buildTask(
 }
 
 describe("mapTaskToTaskWithCoworker", () => {
-  it("maps queued tasks to scheduled column", () => {
+  it("maps queued tasks to backlog column", () => {
     const task = buildTask(TaskStatus.QUEUED);
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
-    expect(mapped.columnId).toBe("scheduled");
+    expect(mapped.columnId).toBe("backlog");
   });
 
   it("maps canceled tasks to done column", () => {

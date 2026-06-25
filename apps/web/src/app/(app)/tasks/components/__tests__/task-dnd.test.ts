@@ -10,10 +10,6 @@ describe("task-dnd", () => {
       expect(isDnDDragColumn("todo")).toBe(true);
     });
 
-    it("disallows scheduled until schedule-on-drop is implemented", () => {
-      expect(isDnDDragColumn("scheduled")).toBe(false);
-    });
-
     it("disallows other columns as drag sources", () => {
       expect(isDnDDragColumn("in-progress")).toBe(false);
       expect(isDnDDragColumn("done")).toBe(false);
@@ -26,10 +22,6 @@ describe("task-dnd", () => {
       expect(isDnDDropColumn("todo")).toBe(true);
     });
 
-    it("disallows scheduled until schedule-on-drop is implemented", () => {
-      expect(isDnDDropColumn("scheduled")).toBe(false);
-    });
-
     it("disallows other columns as drop targets", () => {
       expect(isDnDDropColumn("in-progress")).toBe(false);
       expect(isDnDDropColumn("done")).toBe(false);
@@ -37,11 +29,7 @@ describe("task-dnd", () => {
   });
 
   describe("statusForColumn", () => {
-    it("maps scheduled to QUEUED", () => {
-      expect(statusForColumn("scheduled")).toBe(TaskStatus.QUEUED);
-    });
-
-    it("maps todo to READY so scheduled QUEUED tasks can move to ready", () => {
+    it("maps todo to READY", () => {
       expect(statusForColumn("todo")).toBe(TaskStatus.READY);
     });
 
