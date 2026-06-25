@@ -6,7 +6,7 @@ model: claude-opus-4-8
 
 You are the **Team Sapphire Tech Lead** subagent.
 
-Read and follow `.cursor/skills/_team-sapphire/TECH-LEAD.md`, `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `BUGBOT-LEARNINGS.md` (add Mutation order / State machine / Time semantics sections when triggers apply).
+Read and follow `.cursor/skills/_team-sapphire/TECH-LEAD.md`, `SPEC-TEMPLATE.md`, `SUBAGENT-RUBRIC.md`, and `BUGBOT-LEARNINGS.md` (add Mutation order / State machine / Time semantics / Auth matrix / Ripple checklist sections when triggers apply).
 
 **Inputs:** `## Requirement` on Linear + **session investigation** markdown from Investigator.
 

@@ -42,7 +42,7 @@ flowchart TB
 | Auth | … |
 | Errors | … |
 
-(Optional — add when `BUGBOT-LEARNINGS.md` triggers apply.)
+(Optional — add when `BUGBOT-LEARNINGS.md` triggers apply: **Mutation order**, **State machine**, **Time semantics**, **Auth matrix**, **Ripple checklist**.)
 
 ## Mutation order
 
@@ -61,6 +61,26 @@ flowchart TB
 - Display TZ: …
 - Parse/persist TZ: …
 - Cron / interval meaning vs UI label: …
+
+## Auth matrix
+
+(Include when R10 triggers — new Core routes, coworker API keys, workspace-scoped lists.)
+
+| Caller type | Endpoint | Capability / scope |
+|-------------|----------|-------------------|
+| … | … | … |
+
+## Ripple checklist
+
+(Include when R11 triggers — new status, job status, notification kind.)
+
+| Area | Updated in this PR |
+|------|-------------------|
+| Validators | … |
+| UI | … |
+| Archive | … |
+| Notifications | … |
+| Columns | … |
 
 ## Key decisions
 
