@@ -1,11 +1,10 @@
 import { getOrganizationMetadata, MemberRole } from "@sokosumi/utils";
-import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import {
   DesignMdLoadError,
   fetchDesignMdMarkdown,
 } from "@/components/design-md/design-md-edit-page-shared";
-import { DesignMdEditor } from "@/components/design-md/design-md-editor";
+import { DesignMdEditor } from "@/components/design-md-editor/design-md-editor";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { userService } from "@/lib/services";
 
@@ -22,7 +21,7 @@ async function getMemberOrganizationBySlug(slug: string) {
       error instanceof CoreApiRequestError &&
       (error.status === 401 || error.status === 403)
     ) {
-      redirect("/");
+      return null;
     }
     throw error;
   }
@@ -34,32 +33,49 @@ export default async function OrganizationDesignMdEditPage({
   const t = await getTranslations("App.DesignMd");
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
+  const returnHref = `/organizations/${normalizedSlug}`;
 
   const organization = await getMemberOrganizationBySlug(normalizedSlug);
   if (!organization) {
-    notFound();
+    return (
+      <DesignMdLoadError
+        backHref="/"
+        backLabel={t("editBackToProfile")}
+        description={t("editLoadErrorDescription")}
+        title={t("editUnavailableTitle")}
+      />
+    );
   }
 
   const member = await userService.getMyMemberInOrganization(organization.id);
-  if (!member) {
-    redirect("/");
-  }
-
   const isOwnerOrAdmin =
-    member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
+    member?.role === MemberRole.OWNER || member?.role === MemberRole.ADMIN;
   if (!isOwnerOrAdmin) {
-    redirect("/");
+    return (
+      <DesignMdLoadError
+        backHref={returnHref}
+        backLabel={t("editBackToProfile")}
+        description={t("editLoadErrorDescription")}
+        title={t("editUnavailableTitle")}
+      />
+    );
   }
 
   const organizationMetadata = getOrganizationMetadata(organization.metadata);
   const designMdUrl = organizationMetadata.designMdUrl;
 
   if (!designMdUrl) {
-    notFound();
+    return (
+      <DesignMdLoadError
+        backHref={returnHref}
+        backLabel={t("editBackToProfile")}
+        description={t("editLoadErrorDescription")}
+        title={t("editUnavailableTitle")}
+      />
+    );
   }
 
   const loadResult = await fetchDesignMdMarkdown(designMdUrl);
-  const returnHref = `/organizations/${organization.slug}`;
 
   if ("error" in loadResult) {
     return (

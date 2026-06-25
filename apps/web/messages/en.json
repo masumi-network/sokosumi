@@ -3739,6 +3739,7 @@
       "editSave": "Save",
       "editSaving": "Saving...",
       "editSaveSuccess": "DESIGN.md saved",
+      "editUnavailableTitle": "DESIGN.md is not available",
       "editLoadErrorTitle": "Could not load DESIGN.md",
       "editLoadErrorDescription": "The file could not be fetched. Try again later or go back to your profile.",
       "editBackToProfile": "Back to profile",

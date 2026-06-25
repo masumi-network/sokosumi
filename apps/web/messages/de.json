@@ -3584,6 +3584,7 @@
       "editSave": "Speichern",
       "editSaving": "Wird gespeichert...",
       "editSaveSuccess": "DESIGN.md gespeichert",
+      "editUnavailableTitle": "DESIGN.md ist nicht verfügbar",
       "editLoadErrorTitle": "DESIGN.md konnte nicht geladen werden",
       "editLoadErrorDescription": "Die Datei konnte nicht abgerufen werden. Versuche es später erneut oder kehre zu deinem Profil zurück.",
       "editBackToProfile": "Zurück zum Profil",

@@ -3584,6 +3584,7 @@
       "editSave": "保存",
       "editSaving": "保存中...",
       "editSaveSuccess": "DESIGN.md を保存しました",
+      "editUnavailableTitle": "DESIGN.md は利用できません",
       "editLoadErrorTitle": "DESIGN.md を読み込めませんでした",
       "editLoadErrorDescription": "ファイルを取得できませんでした。後でもう一度お試しいただくか、プロフィールに戻ってください。",
       "editBackToProfile": "プロフィールに戻る",

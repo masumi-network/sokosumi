@@ -3584,6 +3584,7 @@
       "editSave": "Enregistrer",
       "editSaving": "Enregistrement...",
       "editSaveSuccess": "DESIGN.md enregistré",
+      "editUnavailableTitle": "DESIGN.md n’est pas disponible",
       "editLoadErrorTitle": "Impossible de charger DESIGN.md",
       "editLoadErrorDescription": "Le fichier n'a pas pu être récupéré. Réessayez plus tard ou retournez à votre profil.",
       "editBackToProfile": "Retour au profil",

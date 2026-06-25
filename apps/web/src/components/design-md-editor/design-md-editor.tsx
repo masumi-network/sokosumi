@@ -5,13 +5,14 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import type { DesignMdOwner } from "@/components/design-md/types";
+import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
+import { saveDesignMdUpload } from "@/lib/actions/design-md";
+
 import {
   FullPageMarkdownEditor,
   type FullPageMarkdownEditorLabels,
-} from "@/components/markdown-editor-page";
-import { saveDesignMdUpload } from "@/lib/actions/design-md";
-
-import { DESIGN_MD_TRANSLATION_NAMESPACE, type DesignMdOwner } from "./types";
+} from "./full-page-markdown-editor";
 
 interface DesignMdEditorProps {
   initialMarkdown: string;

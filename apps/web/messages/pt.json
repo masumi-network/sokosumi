@@ -3584,6 +3584,7 @@
       "editSave": "Guardar",
       "editSaving": "A guardar...",
       "editSaveSuccess": "DESIGN.md guardado",
+      "editUnavailableTitle": "DESIGN.md não está disponível",
       "editLoadErrorTitle": "Não foi possível carregar DESIGN.md",
       "editLoadErrorDescription": "Não foi possível obter o ficheiro. Tente novamente mais tarde ou volte ao perfil.",
       "editBackToProfile": "Voltar ao perfil",
