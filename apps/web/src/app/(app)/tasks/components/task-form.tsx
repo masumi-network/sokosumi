@@ -4,7 +4,6 @@ import { TaskStatus } from "@sokosumi/utils";
 import {
   ArrowLeft,
   CalendarClock,
-  Clock,
   Command,
   CornerDownLeft,
   Loader2,
@@ -45,6 +44,7 @@ import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
+import { getScheduleIcon } from "@/lib/utils/schedule-icon";
 import {
   createDesignMdDismissedState,
   ensureDesignMdInDescription,
@@ -303,6 +303,11 @@ export function TaskForm({
   const isNameRequired = mode === "edit";
   const isUploadingAttachments = uploadingAttachmentsCount > 0;
   const hasSchedule = scheduleSelection.mode !== "none";
+  const ScheduleFooterIcon = hasSchedule
+    ? getScheduleIcon(
+        scheduleSelection.mode === "recurring" ? "recurring" : "once",
+      )
+    : null;
   const scheduleLabel = useMemo(
     () =>
       formatTaskScheduleSelectionLabel(
@@ -936,9 +941,9 @@ export function TaskForm({
                 : "flex flex-col items-stretch justify-between gap-3 border-t px-6 py-6 sm:flex-row sm:items-center md:px-8"
             }
           >
-            {hasSchedule && scheduleLabel ? (
+            {hasSchedule && scheduleLabel && ScheduleFooterIcon ? (
               <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
-                <Clock className="size-4 shrink-0" aria-hidden />
+                <ScheduleFooterIcon className="size-4 shrink-0" aria-hidden />
                 <span className="truncate">{scheduleLabel}</span>
               </div>
             ) : null}
