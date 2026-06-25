@@ -71,9 +71,20 @@ export interface MountHandle {
 function dpr(): number {
   return Math.min(
     typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-    2,
+    3,
   );
 }
+
+/**
+ * Supersample the live canvas: render the backing store ~2× the physical pixel
+ * size so small vector features — the eyes especially — downscale with
+ * anti-aliasing instead of sitting 1:1 on the pixel grid and looking soft. The
+ * static `toDataURL` path already over-renders via its `size > display`
+ * convention, so this only applies to the animated `mount` path.
+ */
+const ORB_SUPERSAMPLE = 2;
+/** Bound the backing dimension so a large hero on a high-DPI screen stays sane. */
+const ORB_MAX_BACKING = 1024;
 
 // ── seeded PRNG ──────────────────────────────────────────────────────────────
 
@@ -502,8 +513,12 @@ export function mount(
   if (!ctx) return { stop() {}, params: p, setExpression() {}, setSpeed() {} };
   const size = () => {
     const css = canvas.clientWidth || opts.size || 80;
-    canvas.width = css * ratio;
-    canvas.height = css * ratio;
+    const target = Math.min(
+      Math.round(css * ratio * ORB_SUPERSAMPLE),
+      ORB_MAX_BACKING,
+    );
+    canvas.width = target;
+    canvas.height = target;
   };
   size();
   const placeholder = opts.placeholder === true;
