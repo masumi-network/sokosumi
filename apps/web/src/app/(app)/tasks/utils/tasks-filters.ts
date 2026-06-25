@@ -229,6 +229,25 @@ export function getTasksFiltersResetKey(
   return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.coworkerId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
 }
 
+export function hasActiveTasksFilters(
+  filters: TasksFilters,
+  activeOrganizationId: string | null,
+): boolean {
+  const hasNonScopeFilter = Boolean(
+    filters.coworkerId || filters.status || filters.projectId,
+  );
+
+  if (activeOrganizationId !== null) {
+    return (
+      filters.scope === "owned" ||
+      filters.scope === "workspace" ||
+      hasNonScopeFilter
+    );
+  }
+
+  return hasNonScopeFilter;
+}
+
 export function isTaskOwnerEditable(
   task: Pick<TaskWithCoworker, "userId">,
   userId: string | null | undefined,

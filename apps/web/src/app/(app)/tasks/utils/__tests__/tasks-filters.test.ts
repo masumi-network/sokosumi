@@ -6,6 +6,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
+  hasActiveTasksFilters,
   isTaskDraggableForViewFilters,
   isTaskOwnerEditable,
   parseTasksFilters,
@@ -284,6 +285,63 @@ describe("tasks-filters", () => {
         null,
       ),
     ).toBe(true);
+  });
+
+  describe("hasActiveTasksFilters", () => {
+    const defaultFilters = {
+      scope: "owned" as const,
+      coworkerId: null,
+      status: null,
+      projectId: null,
+    };
+
+    it("shows the indicator for org boards with owned scope (default)", () => {
+      expect(hasActiveTasksFilters(defaultFilters, "org-1")).toBe(true);
+    });
+
+    it("shows the indicator for org boards with workspace scope", () => {
+      expect(
+        hasActiveTasksFilters(
+          { ...defaultFilters, scope: "workspace" },
+          "org-1",
+        ),
+      ).toBe(true);
+    });
+
+    it("shows the indicator for org boards with all-default owned scope", () => {
+      expect(hasActiveTasksFilters(defaultFilters, "org-1")).toBe(true);
+    });
+
+    it("hides the indicator for personal boards with owned scope only", () => {
+      expect(hasActiveTasksFilters(defaultFilters, null)).toBe(false);
+    });
+
+    it("shows the indicator for personal boards with status filter", () => {
+      expect(
+        hasActiveTasksFilters(
+          { ...defaultFilters, status: TaskStatus.READY },
+          null,
+        ),
+      ).toBe(true);
+    });
+
+    it("shows the indicator for personal boards with coworker filter", () => {
+      expect(
+        hasActiveTasksFilters(
+          { ...defaultFilters, coworkerId: "coworker-1" },
+          null,
+        ),
+      ).toBe(true);
+    });
+
+    it("shows the indicator for personal boards with project filter", () => {
+      expect(
+        hasActiveTasksFilters(
+          { ...defaultFilters, projectId: PROJECT_ID },
+          null,
+        ),
+      ).toBe(true);
+    });
   });
 
   describe("isTaskDraggableForViewFilters", () => {
