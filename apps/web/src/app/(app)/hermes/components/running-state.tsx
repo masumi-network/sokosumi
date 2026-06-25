@@ -29,6 +29,8 @@ import React, {
 import { toast } from "sonner";
 
 import {
+  applyConfirmationOrgProposalUpdate,
+  buildConfirmationApproveOverrideIfChanged,
   buildCurrentConfirmationApproveOrganizationOverride,
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
   isConfirmationOrgAwareTool,
@@ -1893,6 +1895,9 @@ function buildMockPendingConfirmations(
         },
       ],
       referencedOrganizations: [],
+      // Optional preview overrides for the proposed-workspace dropdown default.
+      organizationId: params.get("organizationId"),
+      organizationName: params.get("organizationName"),
     },
   ];
 }
@@ -2046,29 +2051,74 @@ function ConfirmationCard({
           organizations,
           activeOrganizationId,
         );
-  const [selectedOrgValue, setSelectedOrgValue] =
-    useState<string>(initialOrgValue);
-  const selectedOrgRef = useRef(initialOrgValue);
+  const proposedOrgValue = resolveConfirmationOrgPickerValue(
+    confirmation,
+    organizations,
+    activeOrganizationId,
+  );
+  const [orgSelection, setOrgSelection] = useState(() => ({
+    baselineOrgValue: initialOrgValue,
+    selectedOrgValue: initialOrgValue,
+    userChangedOrg: false,
+  }));
+  const selectedOrgRef = useRef(orgSelection.selectedOrgValue);
+  selectedOrgRef.current = orgSelection.selectedOrgValue;
+
+  if (!isResolved && showOrgPicker) {
+    const syncedOrgSelection = applyConfirmationOrgProposalUpdate(
+      proposedOrgValue,
+      orgSelection,
+    );
+    if (syncedOrgSelection !== orgSelection) {
+      setOrgSelection(syncedOrgSelection);
+      selectedOrgRef.current = syncedOrgSelection.selectedOrgValue;
+    }
+  }
+
+  const selectedOrgValue = orgSelection.selectedOrgValue;
 
   const handleOrgValueChange = (value: string) => {
     selectedOrgRef.current = value;
-    setSelectedOrgValue(value);
+    setOrgSelection((current) => ({
+      ...current,
+      selectedOrgValue: value,
+      userChangedOrg: true,
+    }));
   };
 
   const handleApprove = async () => {
     if (busy || isResolved) return;
     setBusy("approving");
-    const organizationOverride = showOrgPicker
+    // The workspace dropdown shows a local default that may NOT match the
+    // workspace Hermes proposed in its tool call. Only send an organization
+    // override when the user actually changes the dropdown; if they leave it
+    // untouched, omit the field entirely so Hermes' proposed workspace stands.
+    // Sending `organizationId` (incl. `null` for Personal) on an untouched
+    // dropdown asserts a workspace choice the user never made and clobbers
+    // Hermes' selection — e.g. filing a task in Personal instead of the org
+    // Hermes chose. The dropdown default is reconciled with Hermes' actual
+    // proposal separately (pending orchestrator-provided proposed workspace).
+    // Current dropdown selection — used for the resolved-card audit display.
+    const workspaceSelection = showOrgPicker
       ? buildCurrentConfirmationApproveOrganizationOverride(
           selectedOrgRef,
           orgPickerOptions,
         )
       : undefined;
+    // Override actually sent: only when the user changed the workspace, so an
+    // untouched dropdown leaves Hermes' proposed workspace intact.
+    const workspaceOverride = showOrgPicker
+      ? buildConfirmationApproveOverrideIfChanged(
+          selectedOrgRef.current,
+          orgSelection.baselineOrgValue,
+          orgPickerOptions,
+        )
+      : undefined;
     const result = await approveHermesConfirmationAction(
-      organizationOverride
+      workspaceOverride
         ? {
             confirmationId: confirmation.id,
-            ...organizationOverride,
+            ...workspaceOverride,
           }
         : { confirmationId: confirmation.id },
     );
@@ -2078,7 +2128,7 @@ function ConfirmationCard({
       return;
     }
     const { status } = result.data;
-    const resolutionOrgId = organizationOverride?.organizationId;
+    const resolutionOrgId = workspaceSelection?.organizationId;
 
     if (status === "errored") {
       toast.error(result.data.error ?? t("erroredAfterApproval"));

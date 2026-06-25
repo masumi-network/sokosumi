@@ -80,6 +80,8 @@ function mapHermesPendingConfirmation(raw: {
     name: string;
     slug: string | null;
   }>;
+  organizationId?: string | null;
+  organizationName?: string | null;
 }): HermesPendingConfirmation {
   return {
     id: raw.id,
@@ -96,6 +98,8 @@ function mapHermesPendingConfirmation(raw: {
       name: o.name,
       slug: o.slug,
     })),
+    organizationId: raw.organizationId ?? null,
+    organizationName: raw.organizationName ?? null,
   };
 }
 

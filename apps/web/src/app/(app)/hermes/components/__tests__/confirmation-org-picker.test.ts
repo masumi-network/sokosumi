@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyConfirmationOrgProposalUpdate,
   buildConfirmationApproveOrganizationOverride,
+  buildConfirmationApproveOverrideIfChanged,
   buildCurrentConfirmationApproveOrganizationOverride,
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
   isConfirmationOrgAwareTool,
@@ -31,6 +33,8 @@ describe("mergeConfirmationOrgPickerOptions", () => {
   it("appends referenced organizations missing from the client list", () => {
     const options = mergeConfirmationOrgPickerOptions([], {
       referencedOrganizations: [{ id: "org-b", name: "Org B", slug: "org-b" }],
+      organizationId: null,
+      organizationName: null,
     });
     expect(options).toEqual([{ id: "org-b", name: "Org B", slug: "org-b" }]);
   });
@@ -40,54 +44,69 @@ describe("mergeConfirmationOrgPickerOptions", () => {
       referencedOrganizations: [
         { id: "org-a", name: "Referenced A", slug: "ref-a" },
       ],
+      organizationId: null,
+      organizationName: null,
+    });
+    expect(options).toEqual(organizations);
+  });
+
+  it("adds Hermes' proposed workspace as a selectable option when missing", () => {
+    const options = mergeConfirmationOrgPickerOptions(organizations, {
+      referencedOrganizations: [],
+      organizationId: "org-c",
+      organizationName: "Org C",
+    });
+    expect(options).toEqual([
+      ...organizations,
+      { id: "org-c", name: "Org C", slug: null },
+    ]);
+  });
+
+  it("labels the proposed workspace by id when no name was provided", () => {
+    const options = mergeConfirmationOrgPickerOptions([], {
+      referencedOrganizations: [],
+      organizationId: "org-c",
+      organizationName: null,
+    });
+    expect(options).toEqual([{ id: "org-c", name: "org-c", slug: null }]);
+  });
+
+  it("does not duplicate the proposed workspace when already present", () => {
+    const options = mergeConfirmationOrgPickerOptions(organizations, {
+      referencedOrganizations: [],
+      organizationId: "org-a",
+      organizationName: "Org A",
     });
     expect(options).toEqual(organizations);
   });
 });
 
 describe("resolveConfirmationOrgPickerValue", () => {
-  it("defaults to personal scope even when one organization is referenced", () => {
+  it("defaults to the workspace Hermes proposed", () => {
     const value = resolveConfirmationOrgPickerValue(
-      {
-        referencedOrganizations: [
-          { id: "org-b", name: "Org B", slug: "org-b" },
-        ],
-      },
+      { organizationId: "org-b" },
+      organizations,
+      "org-a",
+    );
+    expect(value).toBe("org-b");
+  });
+
+  it("defaults to personal scope when Hermes proposed personal (null)", () => {
+    const value = resolveConfirmationOrgPickerValue(
+      { organizationId: null },
       organizations,
       "org-a",
     );
     expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
   });
 
-  it("falls back to personal scope when no org is referenced", () => {
+  it("uses the proposed workspace even when it is not in the membership list", () => {
     const value = resolveConfirmationOrgPickerValue(
-      { referencedOrganizations: [] },
-      organizations,
-      "org-a",
-    );
-    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
-  });
-
-  it("falls back to personal scope when there is no active org", () => {
-    const value = resolveConfirmationOrgPickerValue(
-      { referencedOrganizations: [] },
-      organizations,
-      null,
-    );
-    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
-  });
-
-  it("defaults to personal scope when the client organizations list is empty", () => {
-    const value = resolveConfirmationOrgPickerValue(
-      {
-        referencedOrganizations: [
-          { id: "org-b", name: "Org B", slug: "org-b" },
-        ],
-      },
+      { organizationId: "org-c" },
       [],
       "org-a",
     );
-    expect(value).toBe(CONFIRMATION_PERSONAL_SCOPE_VALUE);
+    expect(value).toBe("org-c");
   });
 });
 
@@ -125,5 +144,95 @@ describe("buildConfirmationApproveOrganizationOverride", () => {
         organizations,
       ),
     ).toEqual({ organizationId: "org-a" });
+  });
+});
+
+describe("buildConfirmationApproveOverrideIfChanged", () => {
+  it("omits the override when the workspace dropdown is untouched (Personal default)", () => {
+    // Regression: an untouched dropdown previously sent organizationId:null,
+    // which the orchestrator applied as an explicit Personal override —
+    // clobbering the workspace Hermes proposed. Unchanged ⇒ send nothing.
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        organizations,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("omits the override when an org default is left unchanged", () => {
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        "org-a",
+        "org-a",
+        organizations,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("sends an org override when the user switches to an organization", () => {
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        "org-b",
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        organizations,
+      ),
+    ).toEqual({ organizationId: "org-b" });
+  });
+
+  it("sends a Personal override when the user switches away from an org", () => {
+    expect(
+      buildConfirmationApproveOverrideIfChanged(
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        "org-a",
+        organizations,
+      ),
+    ).toEqual({ organizationId: null });
+  });
+});
+
+describe("applyConfirmationOrgProposalUpdate", () => {
+  it("returns the same state when the proposal is unchanged", () => {
+    const state = {
+      baselineOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      selectedOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      userChangedOrg: false,
+    };
+
+    expect(
+      applyConfirmationOrgProposalUpdate(
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        state,
+      ),
+    ).toBe(state);
+  });
+
+  it("follows a newly populated proposal when the user has not changed the dropdown", () => {
+    const state = {
+      baselineOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      selectedOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      userChangedOrg: false,
+    };
+
+    expect(applyConfirmationOrgProposalUpdate("org-a", state)).toEqual({
+      baselineOrgValue: "org-a",
+      selectedOrgValue: "org-a",
+      userChangedOrg: false,
+    });
+  });
+
+  it("keeps an explicit user selection when the proposal updates later", () => {
+    const state = {
+      baselineOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      selectedOrgValue: "org-b",
+      userChangedOrg: true,
+    };
+
+    expect(applyConfirmationOrgProposalUpdate("org-a", state)).toEqual({
+      baselineOrgValue: "org-a",
+      selectedOrgValue: "org-b",
+      userChangedOrg: true,
+    });
   });
 });
