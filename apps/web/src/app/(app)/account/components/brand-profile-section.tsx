@@ -315,6 +315,7 @@ export function BrandProfileSection({
       </Card>
 
       <DesignMdProfileSection
+        editHref="/account/design-md/edit"
         owner={{ type: "user" }}
         value={designMdValue}
         websiteUrl={formWebsiteUrl}

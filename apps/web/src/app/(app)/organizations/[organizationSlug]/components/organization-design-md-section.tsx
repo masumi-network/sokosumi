@@ -8,6 +8,7 @@ import { useOrganizationMetadata } from "./organization-metadata-context";
 
 interface OrganizationDesignMdSectionProps {
   canManage: boolean;
+  editHref?: null | string;
   owner: DesignMdOwner;
   value?: DesignMdProfileValue;
   websiteUrl?: null | string;
@@ -15,6 +16,7 @@ interface OrganizationDesignMdSectionProps {
 
 export function OrganizationDesignMdSection({
   canManage,
+  editHref,
   owner,
   value,
   websiteUrl,
@@ -25,6 +27,7 @@ export function OrganizationDesignMdSection({
     <DesignMdProfileSection
       owner={owner}
       canManage={canManage}
+      editHref={editHref}
       value={value}
       websiteUrl={websiteUrl}
       onValueChange={updateDesignMd}

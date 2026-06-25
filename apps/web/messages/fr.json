@@ -3540,6 +3540,7 @@
       "autoDescription": "Générer depuis l’URL du site web. Désactivez pour téléverser manuellement.",
       "actionsMenuLabel": "Ouvrir les actions DESIGN.md",
       "menuDownload": "Télécharger",
+      "menuEdit": "Modifier",
       "menuPreview": "Aperçu",
       "menuRegenerate": "Régénérer",
       "menuRemove": "Supprimer",
@@ -3576,7 +3577,19 @@
       "uploadRejected": "Fichier non accepté",
       "removeSelectedUpload": "Supprimer le fichier sélectionné",
       "descriptionPersonal": "Créez et gérez le DESIGN.md utilisé pour les tâches de votre espace personnel.",
-      "descriptionOrganization": "Créez et gérez le DESIGN.md utilisé pour les tâches de cette organisation."
+      "descriptionOrganization": "Créez et gérez le DESIGN.md utilisé pour les tâches de cette organisation.",
+      "editPageTitle": "Modifier DESIGN.md",
+      "editTab": "Modifier",
+      "previewTab": "Aperçu",
+      "editSave": "Enregistrer",
+      "editSaving": "Enregistrement...",
+      "editSaveSuccess": "DESIGN.md enregistré",
+      "editLoadErrorTitle": "Impossible de charger DESIGN.md",
+      "editLoadErrorDescription": "Le fichier n'a pas pu être récupéré. Réessayez plus tard ou retournez à votre profil.",
+      "editBackToProfile": "Retour au profil",
+      "discardDialogTitle": "Abandonner les modifications ?",
+      "discardDialogDescription": "Vos modifications seront perdues si vous quittez sans enregistrer.",
+      "discardConfirm": "Abandonner les modifications"
     }
   },
   "Share": {

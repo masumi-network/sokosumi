@@ -29,6 +29,7 @@ import {
 interface DesignMdProfileSectionProps {
   canManage?: boolean;
   className?: string;
+  editHref?: null | string;
   onValueChange?: (value?: DesignMdProfileValue) => void;
   owner: DesignMdOwner;
   value?: DesignMdProfileValue;
@@ -43,6 +44,7 @@ function getPreviewUrl(value?: DesignMdProfileValue): null | string {
 export function DesignMdProfileSection({
   canManage = true,
   className,
+  editHref,
   onValueChange,
   owner,
   value,
@@ -150,12 +152,14 @@ export function DesignMdProfileSection({
               canManage={canManage}
               description={t("readyDescription")}
               designMdUrl={designMdUrl}
+              editHref={editHref}
               isRemoving={isRemoving}
               labels={{
                 actionsMenu: t("actionsMenuLabel"),
                 cancel: t("cancel"),
                 confirmRemove: t("confirmRemove"),
                 download: t("menuDownload"),
+                edit: t("menuEdit"),
                 preview: t("menuPreview"),
                 regenerate: t("menuRegenerate"),
                 remove: t("menuRemove"),
