@@ -1240,7 +1240,7 @@ export type HermesStartOnboardingRequest = {
     email?: string;
     role?: string;
     company?: string;
-    researchDepth?: 'deep' | 'shallow';
+    researchDepth?: 'deep' | 'light';
     autonomyLevel?: HermesAutonomyLevel;
 };
 
@@ -1346,6 +1346,90 @@ export type HermesFinalizeIntegrationRequest = {
     provider: HermesIntegrationProvider;
     connectionId: string;
     mode?: HermesIntegrationMode;
+};
+
+export type SkillCatalogList = {
+    skills: Array<SkillCatalogItem>;
+};
+
+export type SkillCatalogItem = {
+    skillId: string;
+    source: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    installs: number | null;
+    curated: boolean;
+};
+
+export type SkillCatalogDetail = SkillCatalogItem & {
+    hash: string | null;
+    installUrl: string | null;
+    auditRisk: SkillsRiskLevel;
+    audits: Array<SkillAuditEntry>;
+};
+
+export const SkillsRiskLevel = {
+    NONE: 'NONE',
+    LOW: 'LOW',
+    MEDIUM: 'MEDIUM',
+    HIGH: 'HIGH',
+    CRITICAL: 'CRITICAL',
+    NULL: null
+} as const;
+
+export type SkillsRiskLevel = typeof SkillsRiskLevel[keyof typeof SkillsRiskLevel];
+
+export type SkillAuditEntry = {
+    provider: string;
+    status: SkillsAuditStatus;
+    riskLevel: SkillsRiskLevel;
+};
+
+export const SkillsAuditStatus = {
+    PASS: 'pass',
+    WARN: 'warn',
+    FAIL: 'fail'
+} as const;
+
+export type SkillsAuditStatus = typeof SkillsAuditStatus[keyof typeof SkillsAuditStatus];
+
+export type InstalledSkillsList = {
+    skills: Array<InstalledSkill>;
+};
+
+export type InstalledSkill = {
+    skillId: string;
+    source: string;
+    slug: string;
+    name: string;
+    auditRisk: SkillsRiskLevel;
+    status: InstalledSkillStatus;
+    installedAt: string | null;
+};
+
+export const InstalledSkillStatus = { INSTALLED: 'installed', INSTALLING: 'installing' } as const;
+
+export type InstalledSkillStatus = typeof InstalledSkillStatus[keyof typeof InstalledSkillStatus];
+
+export type PreinstalledSkillsList = {
+    skills: Array<PreinstalledSkill>;
+};
+
+export type PreinstalledSkill = {
+    slug: string;
+    name: string;
+    description: string | null;
+};
+
+export type InstallSkillResponse = {
+    slug: string;
+    status: InstalledSkillStatus;
+};
+
+export type InstallSkillRequest = {
+    source: string;
+    slug: string;
 };
 
 export type HistoryList = Array<HistoryItem>;
@@ -10967,6 +11051,648 @@ export type PostHermesMeInstanceIntegrationsFinalizeResponses = {
 };
 
 export type PostHermesMeInstanceIntegrationsFinalizeResponse = PostHermesMeInstanceIntegrationsFinalizeResponses[keyof PostHermesMeInstanceIntegrationsFinalizeResponses];
+
+export type GetHermesMeInstanceSkillsCatalogData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        view?: 'trending' | 'hot' | 'all-time';
+        page?: number;
+        perPage?: number;
+    };
+    url: '/hermes/me/instance/skills/catalog';
+};
+
+export type GetHermesMeInstanceSkillsCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogError = GetHermesMeInstanceSkillsCatalogErrors[keyof GetHermesMeInstanceSkillsCatalogErrors];
+
+export type GetHermesMeInstanceSkillsCatalogResponses = {
+    /**
+     * Skills catalog
+     */
+    200: {
+        data: SkillCatalogList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogResponse = GetHermesMeInstanceSkillsCatalogResponses[keyof GetHermesMeInstanceSkillsCatalogResponses];
+
+export type GetHermesMeInstanceSkillsCatalogSearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        q: string;
+        limit?: number;
+    };
+    url: '/hermes/me/instance/skills/catalog/search';
+};
+
+export type GetHermesMeInstanceSkillsCatalogSearchErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogSearchError = GetHermesMeInstanceSkillsCatalogSearchErrors[keyof GetHermesMeInstanceSkillsCatalogSearchErrors];
+
+export type GetHermesMeInstanceSkillsCatalogSearchResponses = {
+    /**
+     * Search results
+     */
+    200: {
+        data: SkillCatalogList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogSearchResponse = GetHermesMeInstanceSkillsCatalogSearchResponses[keyof GetHermesMeInstanceSkillsCatalogSearchResponses];
+
+export type GetHermesMeInstanceSkillsCatalogCuratedData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/skills/catalog/curated';
+};
+
+export type GetHermesMeInstanceSkillsCatalogCuratedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogCuratedError = GetHermesMeInstanceSkillsCatalogCuratedErrors[keyof GetHermesMeInstanceSkillsCatalogCuratedErrors];
+
+export type GetHermesMeInstanceSkillsCatalogCuratedResponses = {
+    /**
+     * Curated skills
+     */
+    200: {
+        data: SkillCatalogList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogCuratedResponse = GetHermesMeInstanceSkillsCatalogCuratedResponses[keyof GetHermesMeInstanceSkillsCatalogCuratedResponses];
+
+export type GetHermesMeInstanceSkillsCatalogDetailData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query: {
+        source: string;
+        slug: string;
+    };
+    url: '/hermes/me/instance/skills/catalog/detail';
+};
+
+export type GetHermesMeInstanceSkillsCatalogDetailErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogDetailError = GetHermesMeInstanceSkillsCatalogDetailErrors[keyof GetHermesMeInstanceSkillsCatalogDetailErrors];
+
+export type GetHermesMeInstanceSkillsCatalogDetailResponses = {
+    /**
+     * Skill detail
+     */
+    200: {
+        data: SkillCatalogDetail;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsCatalogDetailResponse = GetHermesMeInstanceSkillsCatalogDetailResponses[keyof GetHermesMeInstanceSkillsCatalogDetailResponses];
+
+export type GetHermesMeInstanceSkillsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/skills';
+};
+
+export type GetHermesMeInstanceSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsError = GetHermesMeInstanceSkillsErrors[keyof GetHermesMeInstanceSkillsErrors];
+
+export type GetHermesMeInstanceSkillsResponses = {
+    /**
+     * Installed skills
+     */
+    200: {
+        data: InstalledSkillsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsResponse = GetHermesMeInstanceSkillsResponses[keyof GetHermesMeInstanceSkillsResponses];
+
+export type PostHermesMeInstanceSkillsData = {
+    body: InstallSkillRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/skills';
+};
+
+export type PostHermesMeInstanceSkillsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Skill blocked for safety
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Slug conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostHermesMeInstanceSkillsError = PostHermesMeInstanceSkillsErrors[keyof PostHermesMeInstanceSkillsErrors];
+
+export type PostHermesMeInstanceSkillsResponses = {
+    /**
+     * Install accepted
+     */
+    200: {
+        data: InstallSkillResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostHermesMeInstanceSkillsResponse = PostHermesMeInstanceSkillsResponses[keyof PostHermesMeInstanceSkillsResponses];
+
+export type GetHermesMeInstanceSkillsPreinstalledData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/hermes/me/instance/skills/preinstalled';
+};
+
+export type GetHermesMeInstanceSkillsPreinstalledErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsPreinstalledError = GetHermesMeInstanceSkillsPreinstalledErrors[keyof GetHermesMeInstanceSkillsPreinstalledErrors];
+
+export type GetHermesMeInstanceSkillsPreinstalledResponses = {
+    /**
+     * Pre-installed skills
+     */
+    200: {
+        data: PreinstalledSkillsList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetHermesMeInstanceSkillsPreinstalledResponse = GetHermesMeInstanceSkillsPreinstalledResponses[keyof GetHermesMeInstanceSkillsPreinstalledResponses];
+
+export type DeleteHermesMeInstanceSkillsBySlugData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/hermes/me/instance/skills/{slug}';
+};
+
+export type DeleteHermesMeInstanceSkillsBySlugErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteHermesMeInstanceSkillsBySlugError = DeleteHermesMeInstanceSkillsBySlugErrors[keyof DeleteHermesMeInstanceSkillsBySlugErrors];
+
+export type DeleteHermesMeInstanceSkillsBySlugResponses = {
+    /**
+     * Skill removed
+     */
+    200: {
+        data: HermesEmptyResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteHermesMeInstanceSkillsBySlugResponse = DeleteHermesMeInstanceSkillsBySlugResponses[keyof DeleteHermesMeInstanceSkillsBySlugResponses];
 
 export type GetHistoryData = {
     body?: never;

@@ -30,30 +30,47 @@ import {
   ensureInstanceReady,
   getInstance,
   getInstanceOnboardingProgress,
+  type HermesInstallSkillInput,
   HermesInstanceNotReadyError,
   type HermesIntegrationMode,
   type HermesIntegrationProvider,
   HermesOrchestratorError,
   type HermesPendingConfirmation,
+  installSkill,
   isReservedSecretKey,
   isValidSecretKey,
+  listInstalledSkills,
   listInstanceIntegrations,
   listInstanceSchedules,
+  listPreinstalledSkills,
   patchInstance,
   patchSchedule,
   provisionInstance,
   proxyChatCompletions,
   rejectConfirmation,
+  removeInstalledSkill,
   setInstanceSecret,
   startInstanceOnboarding,
 } from "@/clients/hermes-orchestrator.client";
+import {
+  browseSkills,
+  getCuratedSkills,
+  getSkillAudit,
+  getSkillDetail,
+  SkillsShUnavailableError,
+  searchSkills,
+  worstAuditRisk,
+} from "@/clients/skills-sh.client";
 import {
   getWebAppBaseUrl,
   resolveSokosumiEnvForOrchestrator,
 } from "@/config/env";
 import {
   badRequest,
+  conflict,
+  forbidden,
   internalServerError,
+  notFound,
   payloadTooLarge,
   serviceUnavailable,
   unprocessableEntity,
@@ -103,6 +120,17 @@ import {
   type CursorPaginationMeta,
   cursorPaginationQuerySchema,
 } from "@/schemas/pagination.schema";
+import {
+  installedSkillsListSchema,
+  installSkillRequestSchema,
+  installSkillResponseSchema,
+  preinstalledSkillsListSchema,
+  skillCatalogDetailSchema,
+  skillCatalogListSchema,
+  skillsBrowseQuerySchema,
+  skillsDetailQuerySchema,
+  skillsSearchQuerySchema,
+} from "@/schemas/skills.schema";
 import { syncHermesInboxForUser } from "@/services/hermes-inbox-sync.service";
 
 const TAGS = ["Hermes"];
@@ -2504,6 +2532,355 @@ app.openapi(finalizeIntegrationRoute, async (c) => {
         },
     ),
   );
+});
+
+// ── Skills marketplace (skills.sh catalog + orchestrator install) ────────────
+
+/** skills.sh failures are a Core↔marketplace integration concern (token,
+ * upstream outage), not the user's request — surface as 503. HTTPExceptions
+ * (e.g. notFound thrown by a handler) pass through untouched. */
+function mapSkillsCatalogError(error: unknown, fallback: string): never {
+  if (error instanceof HTTPException) throw error;
+  if (error instanceof SkillsShUnavailableError) {
+    throw serviceUnavailable(
+      "The skills marketplace is currently unavailable.",
+    );
+  }
+  // A real skills.sh failure (e.g. the OIDC token was rejected) — capture it so
+  // we can distinguish an auth/config problem from an empty catalog.
+  Sentry.captureException(error, {
+    tags: { context: "hermes_skills_catalog" },
+  });
+  throw serviceUnavailable(`${fallback}.`);
+}
+
+/** Maps orchestrator install errors to user-facing responses. The orchestrator
+ * re-validates everything, so we forward its verdict with clear copy. */
+function mapSkillInstallError(error: unknown): never {
+  if (error instanceof HTTPException) throw error;
+  if (error instanceof HermesOrchestratorError) {
+    if (error.httpStatus === 403) {
+      throw forbidden(
+        "This skill is blocked for safety (audit risk too high).",
+      );
+    }
+    if (error.httpStatus === 409) {
+      throw conflict(
+        "A skill with this name is already installed from a different source.",
+      );
+    }
+    if (error.httpStatus === 404) {
+      throw notFound("Hermes instance not found.");
+    }
+    if (error.httpStatus === 400) {
+      throw badRequest(error.message || "This skill can't be installed.");
+    }
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
+  }
+  throw internalServerError("Failed to install skill.");
+}
+
+/** Maps orchestrator remove errors to user-facing responses. */
+function mapSkillRemoveError(error: unknown): never {
+  if (error instanceof HTTPException) throw error;
+  if (error instanceof HermesOrchestratorError) {
+    if (error.httpStatus === 403) {
+      throw forbidden("This skill can't be removed.");
+    }
+    if (error.httpStatus === 404) {
+      throw notFound("Skill not found.");
+    }
+    if (error.httpStatus === 400) {
+      throw badRequest(error.message || "This skill can't be removed.");
+    }
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
+  }
+  throw internalServerError("Failed to remove skill.");
+}
+
+const browseSkillsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills/catalog",
+    description:
+      "Browse the skills.sh leaderboard (trending/hot/all-time), ranked by popularity.",
+    tags: TAGS,
+    request: { query: skillsBrowseQuerySchema },
+    responses: {
+      200: jsonSuccessResponse(skillCatalogListSchema, "Skills catalog"),
+      401: jsonErrorResponse("Unauthorized"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const searchSkillsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills/catalog/search",
+    description: "Search the skills.sh catalog (2+ char query).",
+    tags: TAGS,
+    request: { query: skillsSearchQuerySchema },
+    responses: {
+      200: jsonSuccessResponse(skillCatalogListSchema, "Search results"),
+      401: jsonErrorResponse("Unauthorized"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const curatedSkillsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills/catalog/curated",
+    description:
+      "Officially curated skills — the recommended shelf for onboarding.",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(skillCatalogListSchema, "Curated skills"),
+      401: jsonErrorResponse("Unauthorized"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const skillDetailRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills/catalog/detail",
+    description:
+      "Skill detail + audit summary (worst risk + per-provider findings) for the install-gating dialog. File contents are fetched server-side at install time, not returned here.",
+    tags: TAGS,
+    request: { query: skillsDetailQuerySchema },
+    responses: {
+      200: jsonSuccessResponse(skillCatalogDetailSchema, "Skill detail"),
+      401: jsonErrorResponse("Unauthorized"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const listInstalledSkillsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills",
+    description:
+      "Skills currently installed on the user's agent (with status).",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(installedSkillsListSchema, "Installed skills"),
+      401: jsonErrorResponse("Unauthorized"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const preinstalledSkillsRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "get",
+    path: "/me/instance/skills/preinstalled",
+    description:
+      "Skills baked into the user's Hermes image (read-only; not from skills.sh). Empty until the orchestrator exposes them.",
+    tags: TAGS,
+    responses: {
+      200: jsonSuccessResponse(
+        preinstalledSkillsListSchema,
+        "Pre-installed skills",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const installSkillRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/me/instance/skills",
+    description:
+      "Install a skill onto the agent. Core fetches the audited files from skills.sh, blocks HIGH/CRITICAL/failed audits, and hands the rest to the orchestrator (which re-validates). Usable on the user's next message.",
+    tags: TAGS,
+    request: {
+      body: {
+        required: true,
+        content: { "application/json": { schema: installSkillRequestSchema } },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(installSkillResponseSchema, "Install accepted"),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Skill blocked for safety"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Slug conflict"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+const removeSkillRoute = withGlobalHeaderParameters(
+  createRoute({
+    method: "delete",
+    path: "/me/instance/skills/{slug}",
+    description: "Remove an installed skill from the agent.",
+    tags: TAGS,
+    request: { params: z.object({ slug: z.string().min(1) }) },
+    responses: {
+      200: jsonSuccessResponse(hermesEmptyResponseSchema, "Skill removed"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
+
+app.openapi(browseSkillsRoute, async (c) => {
+  requireUserContext(c.var.authContext);
+  const { view, page, perPage } = c.req.valid("query");
+  try {
+    const skills = await browseSkills({ view, page, perPage });
+    return ok(c, skillCatalogListSchema.parse({ skills }));
+  } catch (error) {
+    if (error instanceof SkillsShUnavailableError) {
+      return ok(c, skillCatalogListSchema.parse({ skills: [] }));
+    }
+    return mapSkillsCatalogError(error, "Failed to load skills");
+  }
+});
+
+app.openapi(searchSkillsRoute, async (c) => {
+  requireUserContext(c.var.authContext);
+  const { q, limit } = c.req.valid("query");
+  try {
+    const skills = await searchSkills({ q, limit });
+    return ok(c, skillCatalogListSchema.parse({ skills }));
+  } catch (error) {
+    if (error instanceof SkillsShUnavailableError) {
+      return ok(c, skillCatalogListSchema.parse({ skills: [] }));
+    }
+    return mapSkillsCatalogError(error, "Failed to search skills");
+  }
+});
+
+app.openapi(curatedSkillsRoute, async (c) => {
+  requireUserContext(c.var.authContext);
+  try {
+    const skills = await getCuratedSkills();
+    return ok(c, skillCatalogListSchema.parse({ skills }));
+  } catch (error) {
+    if (error instanceof SkillsShUnavailableError) {
+      return ok(c, skillCatalogListSchema.parse({ skills: [] }));
+    }
+    return mapSkillsCatalogError(error, "Failed to load curated skills");
+  }
+});
+
+app.openapi(skillDetailRoute, async (c) => {
+  requireUserContext(c.var.authContext);
+  const { source, slug } = c.req.valid("query");
+  try {
+    const [detail, audit] = await Promise.all([
+      getSkillDetail(source, slug),
+      getSkillAudit(source, slug),
+    ]);
+    if (!detail) throw notFound("Skill not found.");
+    return ok(
+      c,
+      skillCatalogDetailSchema.parse({
+        skillId: detail.skillId,
+        source: detail.source,
+        slug: detail.slug,
+        name: detail.name,
+        description: detail.description,
+        installs: detail.installs,
+        curated: detail.curated,
+        hash: detail.hash,
+        installUrl: detail.installUrl,
+        auditRisk: worstAuditRisk(audit),
+        audits: audit.audits,
+      }),
+    );
+  } catch (error) {
+    return mapSkillsCatalogError(error, "Failed to load skill");
+  }
+});
+
+app.openapi(listInstalledSkillsRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  try {
+    const skills = await listInstalledSkills(userContext.userId);
+    return ok(c, installedSkillsListSchema.parse({ skills }));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to list installed skills");
+  }
+});
+
+app.openapi(preinstalledSkillsRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  try {
+    const skills = await listPreinstalledSkills(userContext.userId);
+    return ok(c, preinstalledSkillsListSchema.parse({ skills }));
+  } catch (error) {
+    return mapOrchestratorError(error, "Failed to list pre-installed skills");
+  }
+});
+
+app.openapi(installSkillRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { source, slug } = c.req.valid("json");
+
+  let input: HermesInstallSkillInput;
+  try {
+    const [detail, audit] = await Promise.all([
+      getSkillDetail(source, slug),
+      getSkillAudit(source, slug),
+    ]);
+    if (!detail) throw notFound("Skill not found.");
+    if (detail.files.length === 0) {
+      throw badRequest("This skill has no installable files.");
+    }
+    const auditRisk = worstAuditRisk(audit);
+    const hasFail = audit.audits.some((a) => a.status === "fail");
+    // Hard block — the orchestrator refuses these too (403); short-circuit so
+    // we never fetch-and-forward a known-unsafe skill.
+    if (auditRisk === "HIGH" || auditRisk === "CRITICAL" || hasFail) {
+      throw forbidden(
+        "This skill is blocked for safety (audit risk too high).",
+      );
+    }
+    input = {
+      skillId: detail.skillId,
+      source: detail.source,
+      slug: detail.slug,
+      name: detail.name,
+      hash: detail.hash,
+      auditRisk,
+      installUrl: detail.installUrl,
+      files: detail.files,
+    };
+  } catch (error) {
+    return mapSkillsCatalogError(error, "Failed to prepare skill for install");
+  }
+
+  try {
+    const result = await installSkill(userContext.userId, input);
+    return ok(c, installSkillResponseSchema.parse(result));
+  } catch (error) {
+    return mapSkillInstallError(error);
+  }
+});
+
+app.openapi(removeSkillRoute, async (c) => {
+  const userContext = requireUserContext(c.var.authContext);
+  const { slug } = c.req.valid("param");
+  try {
+    await removeInstalledSkill(userContext.userId, slug);
+    return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
+  } catch (error) {
+    return mapSkillRemoveError(error);
+  }
 });
 
 export default app;
