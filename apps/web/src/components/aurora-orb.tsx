@@ -31,6 +31,11 @@ interface AuroraOrbProps {
    * updates the live orb without remounting; null→set plays a "wake up".
    */
   expression?: OrbExpression | null;
+  /**
+   * Fire a one-shot transient expression (e.g. a wink on task-done, surprise on
+   * a new message) — bump `nonce` to trigger. Animated orbs only.
+   */
+  event?: { expr: OrbExpression; nonce: number } | null;
 }
 
 /**
@@ -54,6 +59,7 @@ export function AuroraOrb({
   className,
   alt = "",
   expression = null,
+  event = null,
 }: AuroraOrbProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -86,6 +92,13 @@ export function AuroraOrb({
   useEffect(() => {
     handleRef.current?.setSpeed(speed);
   }, [speed]);
+  const lastEventNonce = useRef(0);
+  useEffect(() => {
+    if (event && event.nonce !== lastEventNonce.current) {
+      lastEventNonce.current = event.nonce;
+      handleRef.current?.pulse(event.expr);
+    }
+  }, [event]);
 
   const dataUrl = useMemo(
     () => (mounted && !animate ? toDataURL(seed, size, expression) : null),

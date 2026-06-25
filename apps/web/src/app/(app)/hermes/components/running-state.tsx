@@ -888,10 +888,99 @@ export default function RunningState({
   // playful/warm), using the exact mapping the onboarding hero uses.
   const orbMotion = personalityToOrbMotion(instance?.personality);
 
+  // ── Live presence ─────────────────────────────────────────────────────────
+  // A single animated orb whose eyes track what's happening: listening while you
+  // type, thinking / focused while it replies, drowsy after a long idle, else the
+  // personality's resting face. Plus one-shot pulses on events — a wink when a
+  // gated action is approved, surprise when an unprompted message lands.
+  const [idle, setIdle] = useState(false);
+  const lastActivityRef = useRef(0);
+  const [orbEvent, setOrbEvent] = useState<{
+    expr: OrbExpression;
+    nonce: number;
+  } | null>(null);
+  const orbEventNonce = useRef(0);
+  const fireOrbEvent = useCallback((expr: OrbExpression) => {
+    orbEventNonce.current += 1;
+    setOrbEvent({ expr, nonce: orbEventNonce.current });
+  }, []);
+
+  useEffect(() => {
+    lastActivityRef.current = Date.now();
+    setIdle(false);
+  }, [messages, input, isReplying]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (
+        !isReplyingRef.current &&
+        Date.now() - lastActivityRef.current > 75_000
+      ) {
+        setIdle(true);
+      }
+    }, 5_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const approvedCountRef = useRef(0);
+  useEffect(() => {
+    let approved = 0;
+    resolvedConfirmations.forEach((e) => {
+      if (e.resolution.status === "approved") approved += 1;
+    });
+    if (approved > approvedCountRef.current) fireOrbEvent("wink");
+    approvedCountRef.current = approved;
+  }, [resolvedConfirmations, fireOrbEvent]);
+
+  const lastMsgIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    const lastId = last?.id ?? null;
+    // Only an UNPROMPTED, agent-initiated message (kind != null — an inbox push
+    // such as a reminder or cron result) should surprise the orb. A normal
+    // reply has kind === null, so the routine post-turn optimistic→persisted id
+    // swap (same content, new id) can never trigger a false surprise.
+    if (
+      lastId &&
+      lastMsgIdRef.current !== null &&
+      lastId !== lastMsgIdRef.current &&
+      !isReplyingRef.current &&
+      last?.role === "assistant" &&
+      last.kind !== null
+    ) {
+      fireOrbEvent("surprised");
+    }
+    lastMsgIdRef.current = lastId;
+  }, [messages, fireOrbEvent]);
+
+  const isTyping = input.trim().length > 0;
+  const presenceExpression: OrbExpression =
+    isReplying && progressChips.length > 0 && !streamingId
+      ? "focused"
+      : isReplying
+        ? "thinking"
+        : isTyping
+          ? "listening"
+          : idle
+            ? "sleeping"
+            : orbMotion.restExpression;
+  const presenceSpeed =
+    presenceExpression === "sleeping" ? 0.6 : orbMotion.speed;
+
   return (
     <AssistantSeedContext.Provider value={avatarSeed}>
       <AssistantMotionContext.Provider value={orbMotion}>
         <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+          {/* Floating live-presence orb (top-left) — the assistant's persistent
+              animated "face" reflecting what it's doing right now. */}
+          {!isEmpty ? (
+            <div className="absolute left-3 top-3 z-20">
+              <PresenceOrb
+                expression={presenceExpression}
+                speed={presenceSpeed}
+                event={orbEvent}
+              />
+            </div>
+          ) : null}
           {/* Floating top-right control — the integrations chip doubles as the
           entry point into Settings (covers autonomy, schedules, danger zone)
           so we don't need a separate gear button competing for attention. */}
@@ -1441,14 +1530,15 @@ function ProgressChips({
 }) {
   return (
     <div className="flex w-full items-start gap-3 px-4 py-1.5">
-      {/* Same avatar treatment as the thinking indicator, so it stays present
-          and consistent as the turn moves thinking → tools → answer. */}
+      {/* The active avatar — "focused" eyes while a tool runs, so it reads as
+          working rather than just drafting (the typing indicator stays
+          "thinking"). */}
       <span className="relative shrink-0">
         <span
           aria-hidden
           className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
         />
-        <AssistantAvatar animated expression="thinking" />
+        <AssistantAvatar animated expression="focused" />
       </span>
       <div className="flex min-w-0 flex-col gap-1.5 pt-1">
         {chips.map((chip, i) => {
@@ -1570,6 +1660,36 @@ function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
         {startedAt ? <ElapsedTimer startedAt={startedAt} /> : null}
       </div>
     </div>
+  );
+}
+
+/**
+ * The persistent live-presence orb (top-left of the chat). Always animated; its
+ * expression is driven by RunningState and it fires event pulses (wink on a
+ * gated action, surprise on an unprompted message) via the `event` prop.
+ */
+function PresenceOrb({
+  expression,
+  speed,
+  event,
+}: {
+  expression: OrbExpression;
+  speed: number;
+  event: { expr: OrbExpression; nonce: number } | null;
+}) {
+  const tCommon = useTranslations("App.Hermes.Common");
+  const seed = useContext(AssistantSeedContext);
+  return (
+    <AuroraOrb
+      seed={seed}
+      animate
+      size={72}
+      speed={speed}
+      expression={expression}
+      event={event}
+      alt={tCommon("hermesAvatarAlt")}
+      className="size-9 ring-1 ring-border/40"
+    />
   );
 }
 

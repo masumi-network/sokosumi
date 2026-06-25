@@ -13,7 +13,7 @@
  * Performance: `mount()` runs ONE rAF loop per canvas — use it only for the
  * few orbs actually shown large (the user's hero avatar). For lists/feeds use
  * `toDataURL(seed, size)` (cached) in an `<img>`. devicePixelRatio is capped
- * at 2.
+ * at 3.
  */
 
 export interface OrbLobe {
@@ -632,6 +632,10 @@ export function mount(
   const RESTING_EXPRS = new Set<OrbExpression>(["idle", "happy", "content"]);
   let gestureExpr: OrbExpression | null = null;
   let gestureUntil = 0; // in accumulated-time units (tt)
+  // True when the active gesture is an explicit pulse() (an event like a wink on
+  // task-done) rather than a spontaneous one — pulses show even over an active
+  // host expression (thinking / focused), spontaneous gestures do not.
+  let gestureIsPulse = false;
   let nextGestureIn = 4 + Math.random() * 5;
   let gzX = 0;
   let gzY = 0;
@@ -654,9 +658,10 @@ export function mount(
     if (placeholder) drawPlaceholder(ctx, canvas.width, tt);
     else draw(ctx, canvas.width, p, tt);
 
-    // resolve the spontaneous gesture (if any) vs the host's expression
+    // resolve the gesture (spontaneous or an explicit pulse) vs the host expr
     if (gestureExpr && tt >= gestureUntil) {
       gestureExpr = null;
+      gestureIsPulse = false;
       if (blinkP < 0) blinkP = 0; // blink to mask the return to rest
     }
     const hostResting = targetExpr === null || RESTING_EXPRS.has(targetExpr);
@@ -664,11 +669,12 @@ export function mount(
       nextGestureIn -= dt;
       if (nextGestureIn <= 0) {
         gestureExpr = pickGesture();
+        gestureIsPulse = false;
         gestureUntil = tt + 0.7 + Math.random() * 0.5;
         nextGestureIn = 5 + Math.random() * 7;
         if (blinkP < 0) blinkP = 0; // blink to mask the gesture in
       }
-    } else if (!hostResting) {
+    } else if (!hostResting && !gestureIsPulse) {
       gestureExpr = null; // host is in control (thinking / focused / …)
       nextGestureIn = Math.max(nextGestureIn, 3);
     }
@@ -770,6 +776,7 @@ export function mount(
     },
     pulse(expression: OrbExpression, ms = 1100) {
       gestureExpr = expression;
+      gestureIsPulse = true;
       gestureUntil = acc + (ms / 1000) * Math.max(0.2, speedVal);
       if (blinkP < 0) blinkP = 0;
       // keep the spontaneous scheduler from firing right after the pulse ends
