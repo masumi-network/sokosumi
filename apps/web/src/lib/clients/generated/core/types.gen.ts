@@ -1228,6 +1228,7 @@ export type HermesChatMessageRole = typeof HermesChatMessageRole[keyof typeof He
 export type HermesUnreadCount = {
     count: number;
     avatarSeed?: string | null;
+    assistantName?: string | null;
 };
 
 export type MarkHermesInboxSeenRequest = {

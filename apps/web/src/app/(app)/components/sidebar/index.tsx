@@ -83,8 +83,8 @@ export default async function Sidebar({
             activeOrganizationId={activeOrganizationId}
             planLabel={planLabel}
           >
-            <NewChatTaskActions />
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
+            <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />
             <MenuItems />
             <SidebarSeparator className="mx-0" />

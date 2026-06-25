@@ -28,6 +28,8 @@ interface AssistantNavState {
   count: number;
   /** The chosen orb seed, or null until the user picks one. */
   avatarSeed: string | null;
+  /** The chosen assistant name, or null until the user names it. */
+  assistantName: string | null;
 }
 
 /**
@@ -39,6 +41,7 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
   const [state, setState] = useState<AssistantNavState>({
     count: 0,
     avatarSeed: null,
+    assistantName: null,
   });
 
   useEffect(() => {
@@ -72,20 +75,26 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
     };
   }, [enabled]);
 
-  return enabled ? state : { count: 0, avatarSeed: null };
+  return enabled ? state : { count: 0, avatarSeed: null, assistantName: null };
 }
 
 /**
- * The Personal Assistant — the focal nav item, sitting directly under "New".
- * Carries a quiet primary-tinted treatment so it reads as the headline
- * destination without shouting (one accent role, per the design system).
+ * The Personal Assistant — the headline destination, sitting at the very top
+ * of the sidebar above "New". Framed as a bordered "featured button" (the only
+ * outlined row) so it reads as distinct without a permanent fill that would
+ * make it look perpetually selected. The live orb carries its identity, and
+ * the label becomes the assistant's chosen name once it has one.
  */
 export default function PersonalAssistantNav({
   enabled,
 }: PersonalAssistantNavProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  const { count: unread, avatarSeed } = useAssistantNavState(enabled);
+  const {
+    count: unread,
+    avatarSeed,
+    assistantName,
+  } = useAssistantNavState(enabled);
 
   if (!enabled) return null;
 
@@ -93,33 +102,36 @@ export default function PersonalAssistantNav({
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
   const showUnread = unread > 0;
   const unreadDisplay = unread > 99 ? "99+" : String(unread);
+  // Once the user names the assistant, the nav shows the name instead of the
+  // generic "Personal Assistant" label.
+  const label = assistantName?.trim() || t("hermes");
 
   return (
-    <SidebarGroup className="w-full py-1">
+    <SidebarGroup className="w-full pt-2">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive}>
+            <SidebarMenuButton asChild isActive={isActive} className="h-auto">
               <SheetClose asChild>
                 <Link
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex min-h-auto w-full items-center gap-2.5 rounded-md px-3 font-medium transition-colors",
+                    "flex min-h-auto w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 font-medium transition-colors",
                     isActive
-                      ? "text-primary-foreground"
-                      : "text-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      ? "border-transparent text-primary-foreground"
+                      : "border-border/70 text-foreground hover:border-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   {/* The live agent: chosen orb once a colour is committed,
                       else the white placeholder — always with its eyes. */}
                   <AssistantOrb
                     seed={avatarSeed}
-                    size={48}
+                    size={56}
                     expression="idle"
-                    className="size-5"
+                    className="size-6 shrink-0"
                   />
-                  <span className="flex-1 truncate">{t("hermes")}</span>
+                  <span className="flex-1 truncate">{label}</span>
                   {showUnread ? (
                     <span
                       aria-label={`${unreadDisplay} unread`}

@@ -208,13 +208,17 @@ export const listHermesMessagesAction = withSession<
  */
 export const getHermesUnreadCountAction = withSession<
   Record<string, never>,
-  Result<{ count: number; avatarSeed: string | null }, ActionError>
+  Result<
+    { count: number; avatarSeed: string | null; assistantName: string | null },
+    ActionError
+  >
 >(async () => {
   try {
     const response = await coreClient.getHermesUnreadCount();
     return Ok({
       count: response.data.count,
       avatarSeed: response.data.avatarSeed ?? null,
+      assistantName: response.data.assistantName ?? null,
     });
   } catch (error) {
     return Err(toActionError(error));

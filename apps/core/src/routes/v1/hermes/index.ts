@@ -1945,15 +1945,20 @@ app.openapi(listMessagesRoute, async (c) => {
 
 app.openapi(getUnreadCountRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
-  // Read the orb seed resiliently (tolerates the pending avatarSeed migration).
-  const { avatarSeed } = await readHermesInstanceMeta(userContext.userId);
+  // Read the orb seed + name resiliently (tolerates the pending migrations).
+  const { avatarSeed, assistantName } = await readHermesInstanceMeta(
+    userContext.userId,
+  );
   const instance = await prisma.hermesInstance.findUnique({
     where: { userId: userContext.userId },
     select: { lastSeenInboxAt: true },
   });
 
   if (!instance) {
-    return ok(c, hermesUnreadCountSchema.parse({ count: 0, avatarSeed }));
+    return ok(
+      c,
+      hermesUnreadCountSchema.parse({ count: 0, avatarSeed, assistantName }),
+    );
   }
 
   const count = await prisma.hermesMessage.count({
@@ -1966,7 +1971,10 @@ app.openapi(getUnreadCountRoute, async (c) => {
     },
   });
 
-  return ok(c, hermesUnreadCountSchema.parse({ count, avatarSeed }));
+  return ok(
+    c,
+    hermesUnreadCountSchema.parse({ count, avatarSeed, assistantName }),
+  );
 });
 
 app.openapi(markInboxSeenRoute, async (c) => {

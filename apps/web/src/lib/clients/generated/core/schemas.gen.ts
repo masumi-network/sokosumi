@@ -4677,6 +4677,13 @@ export const HermesUnreadCountSchema = {
                 'null'
             ],
             default: null
+        },
+        assistantName: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
         }
     },
     required: [

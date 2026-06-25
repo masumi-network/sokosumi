@@ -459,6 +459,12 @@ export const hermesUnreadCountSchema = z
      * sidebar shows a neutral placeholder orb in that case.
      */
     avatarSeed: z.string().nullable().default(null),
+    /**
+     * The user-chosen assistant name (Sokosumi-side), so the sidebar can show
+     * it in place of the generic "Personal Assistant" label without a heavier
+     * instance fetch. Null until the user names it.
+     */
+    assistantName: z.string().nullable().default(null),
   })
   .openapi("HermesUnreadCount");
 
