@@ -132,9 +132,9 @@ Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; s
 | New session — Investigator = `done` on Linear but no **session investigation** | Re-run Investigator before Tech Lead |
 | New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
 | `**Sapphire · Coder complete**` documents verification exit 0, CI green, Bugbot 0 High + open PR + Coder = `done` + **session spec** in context | Skip Coder implementation; run Reviewer |
-| `**PR handoff**` + open PR + Coder = `done`, missing or incomplete `**Sapphire · Coder complete**` | **Gate repair only** — run missing Pre-Reviewer gates 1–4 (local verification exit 0, CI green, Bugbot 0 High); post/update Phase 3 comments per `CODER.md`; do **not** re-implement unless gates fail |
-| `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
-| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing; confirm valid Coder complete (else **gate repair only**); Phase 4 + post-fix gates + **Completion** gate + **Exit gate** |
+| `**PR handoff**` + open PR + Coder = `done`, missing or incomplete `**Sapphire · Coder complete**` + **session spec** in context | **Gate repair only** — run missing Pre-Reviewer gates 1–4 (local verification exit 0, CI green, Bugbot 0 High); post/update Phase 3 comments per `CODER.md`; do **not** re-implement unless gates fail |
+| `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before gate repair or Reviewer (Investigator first if investigation missing) |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing; if Coder complete invalid → **gate repair only** via step 8; if valid → Phase 4 + post-fix gates + **Completion** gate + **Exit gate** |
 
 ## Post-run response
 

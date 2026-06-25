@@ -92,19 +92,19 @@ Scope hints only — agents map to allowlisted `pnpm` scripts per `REVIEWER.md`.
 
 **Do not** include these in every spec. Copy only the sections whose triggers fired; delete unused appendix blocks before handoff.
 
-### Mutation order (R6)
+### Mutation order (R1)
 
 | Step | On failure |
 |------|------------|
 | … | … |
 
-### State machine (R7)
+### State machine (R2)
 
 | User action | Target status | Notes |
 |-------------|---------------|-------|
 | … | … | derived / explicit |
 
-### Time semantics (R8)
+### Time semantics (R4)
 
 - Display TZ: …
 - Parse/persist TZ: …
