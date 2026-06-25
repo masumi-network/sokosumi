@@ -166,16 +166,35 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function slugFromSkillIdentifier(
+  identifier: string,
+  source: string,
+): string | null {
+  if (source) {
+    const prefix = `${source}/`;
+    if (identifier.startsWith(prefix)) {
+      const segment = identifier.slice(prefix.length);
+      if (segment.length > 0) return segment;
+    }
+  }
+  if (!identifier.includes("/")) return identifier;
+  const segment = identifier.split("/").at(-1);
+  return segment && segment.length > 0 ? segment : null;
+}
+
 function parseCatalogItem(
   raw: unknown,
   opts: { curated?: boolean } = {},
 ): SkillsShCatalogItem | null {
   const r = asRecord(raw);
   const source = str(r.source) ?? str(r.repo);
-  const slug = str(r.slug) ?? str(r.name);
+  const skillIdRaw = str(r.skillId) ?? str(r.id);
+  const slug =
+    str(r.slug) ??
+    (skillIdRaw ? slugFromSkillIdentifier(skillIdRaw, source ?? "") : null);
   if (!source || !slug) return null;
   return {
-    skillId: str(r.skillId) ?? str(r.id) ?? `${source}/${slug}`,
+    skillId: skillIdRaw ?? `${source}/${slug}`,
     source,
     slug,
     name: str(r.name) ?? slug,
