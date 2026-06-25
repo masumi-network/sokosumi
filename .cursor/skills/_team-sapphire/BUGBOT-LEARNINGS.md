@@ -139,12 +139,12 @@ In Cursor IDE, `/review-bugbot` runs the same flow when the editor skill is inst
 | Severity | Action |
 |----------|--------|
 | **High** | **Must fix** on the PR branch. Re-run Bugbot until **zero High** findings. |
-| **Medium** | **Do not block** Reviewer. Post a dedicated Linear comment `**Bugbot · medium (human review)**` (see below). Human fixes on merge pass if needed. Fix in PR only if trivial and in scope. |
+| **Medium** | **Do not block** Reviewer. Post `**Bugbot · medium (human review)**` **once** during **Phase gate** (`CODER.md` step 2) — not during the Bugbot run. Human fixes on merge pass if needed. Fix in PR only if trivial and in scope. |
 | **Low** | Optional note; no gate. |
 
-### Medium findings — Linear comment (required when N > 0)
+### Medium findings — Linear comment (Phase gate only)
 
-After Bugbot passes with 0 High, post `save_comment` on the issue:
+Post **once** during **Phase gate** step 2 in `CODER.md` — after `**PR handoff**`, before `**Sapphire · Coder complete**`. Skip when there are no medium findings.
 
 ```markdown
 **Bugbot · medium (human review)**

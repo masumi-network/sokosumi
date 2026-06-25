@@ -14,11 +14,10 @@ When Tech Lead defined one coder block (or no breakdown section):
 
 1. Implement all deliverables in the spec.
 2. Follow repo conventions (`AGENTS.md`, scoped app guides).
-3. Run allowlisted verification before PR.
-4. Open PR — body references Linear issue id (e.g. `SOK-549`).
-5. **Standalone Coder only:** Post `**PR handoff**` on the issue (see below).
-6. **Standalone Coder only:** Post `**Sapphire · Coder complete**`.
-7. **Standalone Coder only:** `save_issue` — Coder row → `done` (issue stays **In Progress**). See **Phase gate (blocking)**.
+3. Complete **Pre-Reviewer gates** (all four steps) — see table below. **Standalone Coder** runs steps 1–4 yourself. **Orchestrator + sole subagent:** subagent runs 1–2; orchestrator runs 3–4.
+4. **Standalone Coder only:** Run **Phase gate (blocking)** (Linear comments + Coder row `done`), then **Exit gate** (`PHASE-GATE.md`). Do **not** post `**PR handoff**` until steps 3–4 of Pre-Reviewer gates pass.
+
+Orchestrator mode: see **Subagent mode** — subagents do not post Linear gates.
 
 ## Subagent mode (`sapphire-coder`)
 
@@ -26,9 +25,10 @@ When the orchestrator delegates to `sapphire-coder`:
 
 ### Sole coder (one block / no breakdown)
 
-1. Implement, verify, and open PR per **Single coder** steps 1–4.
-2. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
-3. Return PR URL, branch, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
+1. Implement and follow repo conventions per **Single coder** steps 1–2.
+2. Complete **Pre-Reviewer gates** steps 1–2 (local verification, open PR).
+3. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
+4. Return PR URL, branch, verification summary, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
 
 The orchestrator runs **Phase gate (blocking)** after you finish — CI watch, Bugbot, then Linear comments.
 
@@ -75,7 +75,7 @@ Each subagent prompt must include:
 ## Handoff to Reviewer
 
 - **Sapphire orchestrator (default):** After Coder complete, continue to Phase 4 (Reviewer) in the **same run** per `SKILL.md` — do not stop early.
-- **Standalone Coder** (user invoked Coder only): Complete **Phase gate (blocking)** below (PR handoff + Coder complete + status row), then **Exit gate** (`PHASE-GATE.md`), then stop; Reviewer runs in a separate session.
+- **Standalone Coder** (user invoked Coder only): Complete **Pre-Reviewer gates**, then **Phase gate (blocking)** (PR handoff + optional medium comment + Coder complete + status row), then **Exit gate** (`PHASE-GATE.md`), then stop; Reviewer runs in a separate session.
 
 ## PR handoff comment
 
@@ -138,12 +138,12 @@ gh pr view <number> --json statusCheckRollup,state
 1. Launch Bugbot on the PR branch vs merge-base.
 2. **Fix every High finding** on the PR branch.
 3. Re-run Bugbot until **zero High** findings.
-4. **Medium:** post dedicated Linear comment (see below) — do not block Reviewer; human fixes on merge pass.
+4. **Medium:** record findings for **Phase gate** step 2 — do **not** post the Linear comment here (post once during Phase gate).
 5. Re-run local verification and confirm CI still green after High fixes.
 
 ### Medium findings — Linear comment
 
-When Bugbot reports one or more **Medium** findings, post `save_comment` **before** `**Sapphire · Coder complete**`:
+Post **once** during **Phase gate** step 2 — **only when** Bugbot reported ≥1 Medium. Do not post during the Bugbot run above.
 
 ```markdown
 **Bugbot · medium (human review)**
@@ -172,7 +172,7 @@ Include in `**Sapphire · Coder complete**`:
 Before Reviewer starts:
 
 1. `save_comment` — `**PR handoff**` (PR URL, branch, one-line summary)
-2. `save_comment` — `**Bugbot · medium (human review)**` — **only when** Bugbot reported ≥1 Medium (table per `BUGBOT-LEARNINGS.md`)
+2. `save_comment` — `**Bugbot · medium (human review)**` — **only when** Bugbot reported ≥1 Medium; **only place** this comment is posted (table below; see also `BUGBOT-LEARNINGS.md`)
 3. `save_comment` — `**Sapphire · Coder complete**` (verification, CI, Bugbot summary)
 4. `save_issue` — Coder row → `done` (issue stays **In Progress**)
 
