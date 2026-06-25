@@ -2,7 +2,15 @@
 
 **Goal:** Compare PR + code to the **session spec**. Loop with **`/goal`** until all criteria pass. Set issue **In Review** on pass.
 
-Runs after Coder posts `**PR handoff**`. Same issue — no sub-tasks.
+Runs after Phase 3 gates complete on the same issue — no sub-tasks. **Do not** start when only `**PR handoff**` exists; wait for `**Sapphire · Coder complete**` and Coder row `done`.
+
+**Entry requirements (blocking):** Reviewer must not start until `**Sapphire · Coder complete**` documents:
+
+- Local allowlisted verification — all exit 0
+- **CI green** on the PR (required GitHub checks pass)
+- **Bugbot** — zero **High** findings (medium listed in `**Bugbot · medium (human review)**` Linear comment for human merge pass — not Reviewer scope unless spec requires)
+
+If any gate is missing or failed, return to Coder/orchestrator — do not begin `/goal`.
 
 **Sapphire orchestrator:** Phase 4 runs in the **same session** as Phases 1–3 — do not exit after Coder complete. In a **new session**, do not start Reviewer without **session spec** — rebuild Tech Lead (and Investigator if needed) first per `SKILL.md`.
 
@@ -15,8 +23,9 @@ Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are p
 3. Compare diff to **Contract / behavior**, **Verification**, **Out of scope**.
 4. Run **Verification command trust** only.
 5. Capture screenshot or recording for user-facing changes — see `VISUAL-CAPTURE.md`.
-6. Fix on PR branch, push, rerun until pass or true blocker.
-7. On pass: run **Completion** gate below — `save_comment` → Reviewer complete, `save_issue` → Reviewer row `done`, then `save_issue` → `state: "In Review"` only (`PHASE-GATE.md`).
+6. Fix on PR branch, push, rerun verification until pass or true blocker.
+7. **Post-fix gates (blocking when step 6 pushed commits):** **Orchestrator** (or standalone Reviewer when no orchestrator) re-runs mandatory Bugbot until **0 High** and confirms **CI green** on the PR before **Completion** gate. Subagent returns `pushed: true` so orchestrator knows to re-gate.
+8. On pass: run **Completion** gate below — `save_comment` → Reviewer complete, `save_issue` → Reviewer row `done`, then `save_issue` → `state: "In Review"` only (`PHASE-GATE.md`).
 
 ## PR execution trust
 
@@ -75,9 +84,15 @@ Reject commands with `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`
 
 ### Quality gates
 
-- [ ] Lint/check — exit 0
+- [ ] Lint/check — exit 0 (confirmed in Coder complete; re-run if Reviewer fixes code)
 - [ ] Tests — exit 0
 - [ ] Build — exit 0
+- [ ] **CI green** on PR — required GitHub checks pass (`gh pr checks`)
+- [ ] **Bugbot** — 0 High at handoff; **re-run mandatory Bugbot** (orchestrator) after any Reviewer push before **In Review**
+
+### Bugbot regression (triggered rules)
+
+When the spec touches areas in `BUGBOT-LEARNINGS.md` R1–R12, verify those rules in `/goal` — do not rely on Bugbot alone for medium-risk patterns (timezone, state machine, client state races).
 
 ### Visual (UI changes)
 
@@ -111,7 +126,7 @@ When the orchestrator delegates to `sapphire-reviewer`:
 
 1. Follow **`/goal` loop** above — including fix on PR branch, push, and rerun until pass or blocker.
 2. **Do not** call Linear MCP — no `save_comment` or `save_issue`, and do not set **In Review**.
-3. Return pass/fail, evidence checklist, and draft `**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**` text to the orchestrator.
+3. Return pass/fail, whether you **pushed commits** to the PR branch, evidence checklist, and draft `**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**` text to the orchestrator.
 
 The orchestrator runs **Completion** and **Exit gate** after you pass.
 
