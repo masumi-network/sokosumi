@@ -9,6 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -32,18 +33,48 @@ const ANIMATION_DURATION =
   BELL_RING_CYCLE_MS * BELL_RING_REPEATS +
   SLIDE_DURATION_MS;
 
+function getIndicatorDotClassName(
+  hasAccountNotice: boolean,
+  accountNoticeTone: "warning" | "destructive" | undefined,
+): string {
+  if (hasAccountNotice) {
+    return accountNoticeTone === "destructive"
+      ? "bg-semantic-destructive"
+      : "bg-semantic-warning";
+  }
+
+  return "bg-primary";
+}
+
+function getBellPanelClassName(
+  accountNoticeTone: "warning" | "destructive" | undefined,
+): string {
+  if (accountNoticeTone === "destructive") {
+    return "notification-reminder-bell-panel-destructive";
+  }
+
+  if (accountNoticeTone === "warning") {
+    return "notification-reminder-bell-panel-warning";
+  }
+
+  return "notification-reminder-bell-panel-primary";
+}
+
 export function HeaderNotificationAvatar({
   sessionUser,
   organization,
 }: HeaderNotificationAvatarProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { unreadCount } = useNotifications();
+  const { notice } = useAccountNotice();
   const [isOpen, setIsOpen] = useState(false);
   const [showBell, setShowBell] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const bellAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const hasAccountNotice = notice !== null;
+  const hasIndicator = unreadCount > 0 || hasAccountNotice;
 
   useEffect(() => {
     const stopBellAnimation = () => {
@@ -55,7 +86,7 @@ export function HeaderNotificationAvatar({
       setIsAnimating(false);
     };
 
-    if (unreadCount === 0 || isOpen) {
+    if (!hasIndicator || isOpen) {
       stopBellAnimation();
       return;
     }
@@ -98,7 +129,14 @@ export function HeaderNotificationAvatar({
       document.removeEventListener("visibilitychange", onVisibilityChange);
       stopBellAnimation();
     };
-  }, [unreadCount, isOpen]);
+  }, [hasIndicator, isOpen]);
+
+  const ariaLabel =
+    unreadCount > 0
+      ? t("unreadBadge", { count: unreadCount })
+      : hasAccountNotice
+        ? t("accountNoticeIndicator")
+        : t("notifications");
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -106,11 +144,7 @@ export function HeaderNotificationAvatar({
         <button
           type="button"
           className="hover:opacity-80 relative flex shrink-0 items-center transition-opacity"
-          aria-label={
-            unreadCount > 0
-              ? t("unreadBadge", { count: unreadCount })
-              : t("notifications")
-          }
+          aria-label={ariaLabel}
         >
           <div
             className={cn(
@@ -128,7 +162,10 @@ export function HeaderNotificationAvatar({
               />
             </div>
             <div
-              className="notification-reminder-bell-panel bg-primary text-primary-foreground absolute inset-0 flex items-center justify-center"
+              className={cn(
+                "notification-reminder-bell-panel absolute inset-0 flex items-center justify-center",
+                getBellPanelClassName(notice?.tone),
+              )}
               aria-hidden={!showBell}
             >
               <Bell
@@ -139,9 +176,12 @@ export function HeaderNotificationAvatar({
               />
             </div>
           </div>
-          {unreadCount > 0 && !showBell ? (
+          {hasIndicator && !showBell ? (
             <span
-              className="bg-primary absolute right-0 top-0 size-2 animate-pulse rounded-full ring-2 ring-background"
+              className={cn(
+                "absolute right-0 top-0 size-2 animate-pulse rounded-full ring-2 ring-background",
+                getIndicatorDotClassName(hasAccountNotice, notice?.tone),
+              )}
               aria-hidden
             />
           ) : null}

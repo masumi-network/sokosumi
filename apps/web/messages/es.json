@@ -656,6 +656,7 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "Aviso de cuenta",
       "notifications": "Notificaciones",
       "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
       "title": "Notificaciones",

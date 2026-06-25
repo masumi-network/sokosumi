@@ -656,6 +656,7 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "アカウント通知",
       "notifications": "通知",
       "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
       "title": "通知",

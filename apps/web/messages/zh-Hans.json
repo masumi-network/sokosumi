@@ -656,6 +656,7 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "账户提醒",
       "notifications": "通知",
       "unreadBadge": "{count, plural, =1 {1 条未读通知} other {# 条未读通知}}",
       "title": "通知",
