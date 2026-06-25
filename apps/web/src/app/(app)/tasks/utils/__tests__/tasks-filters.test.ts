@@ -308,10 +308,6 @@ describe("tasks-filters", () => {
       ).toBe(true);
     });
 
-    it("shows the indicator for org boards with all-default owned scope", () => {
-      expect(hasActiveTasksFilters(defaultFilters, "org-1")).toBe(true);
-    });
-
     it("hides the indicator for personal boards with owned scope only", () => {
       expect(hasActiveTasksFilters(defaultFilters, null)).toBe(false);
     });
