@@ -186,6 +186,8 @@ describe("task coworker whitelist enforcement", () => {
       coworkerId: null,
       name: "Updated title",
       description: null,
+      metadata: null,
+      nextRunAt: null,
       credits: 0,
       events: [],
       jobs: [],

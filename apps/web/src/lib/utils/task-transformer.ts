@@ -91,6 +91,7 @@ export function mapTaskToTaskWithCoworker(
   )?.slice(0, 200);
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
+  const nextRunAt = task.nextRunAt?.toISOString() ?? null;
 
   return {
     id: task.id,
@@ -100,6 +101,8 @@ export function mapTaskToTaskWithCoworker(
     user: task.user,
     createdAt,
     updatedAt,
+    nextRunAt,
+    metadata: task.metadata ?? null,
     jobsCount: task.jobs.length,
     coworker,
     share: "share" in task ? (task.share ?? null) : null,

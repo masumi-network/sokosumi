@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FolderKanban,
-  History,
-  ListTodo,
-  Search,
-  Sparkles,
-} from "lucide-react";
+import { Bot, FolderKanban, History, ListTodo, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -82,7 +76,7 @@ export default function MenuItems() {
       key: "explore-agents",
       href: "/agents",
       label: t("exploreAgents"),
-      Icon: Sparkles,
+      Icon: Bot,
     },
     {
       key: "history",

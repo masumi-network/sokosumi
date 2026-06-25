@@ -1411,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "バックログ",
+        "scheduled": "予定済み",
         "todo": "未着手",
         "inProgress": "進行中",
         "inputRequired": "入力が必要",
@@ -1643,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "{account} アカウントに切り替えました"
+        "switchedWorkspace": "{account} アカウントに切り替えました",
+        "clonedFrom": "{name} から複製",
+        "schedule": "スケジュール"
       },
       "NewTask": {
         "title": "新しいタスク",
@@ -1661,6 +1664,7 @@
         "status": "ステータス",
         "statusDescription": "このタスクの初期ステータスを選択してください",
         "statusDraft": "下書き",
+        "statusQueued": "キュー中",
         "statusReady": "準備完了",
         "back": "戻る",
         "uploadFile": "ファイルをアップロード",
@@ -1671,6 +1675,8 @@
         "saveDraft": "保存",
         "saveAsDraft": "下書きとして保存",
         "createTask": "タスクを作成",
+        "scheduleTask": "タスクをスケジュール",
+        "openSchedule": "スケジュールを設定",
         "cancel": "キャンセル",
         "ctrl": "Ctrl",
         "chooseAgent": "エージェントを選択",
@@ -1724,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "添付ファイルを削除",
         "save": "保存",
+        "openSchedule": "スケジュールを設定",
         "cancel": "キャンセル",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "スケジュール",
+        "description": "1回または繰り返し実行を計画します。",
+        "clearSchedule": "スケジュールを削除",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "タイムゾーン",
+        "customCron": "カスタムcron式",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "{datetime} に1回"
+        },
+        "card": {
+          "overdue": "期限超過",
+          "dueInMinutes": "あと{minutes}分で実行",
+          "dueInHours": "あと{hours}時間で実行",
+          "tomorrowAt": "明日 {time}",
+          "nextRunAt": "次回実行: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1744,6 +1810,7 @@
           "total": "{count, plural, =0 {合計0件} =1 {合計1件} other {合計#件}}",
           "taskStatusAbbreviations": {
             "DRAFT": "下書き",
+            "QUEUED": "予定済み",
             "READY": "準備完了",
             "INPUT_REQUIRED": "入力",
             "APPROVAL_REQUIRED": "承認",

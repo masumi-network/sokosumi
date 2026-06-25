@@ -14,6 +14,7 @@ Single-issue updates only. No child issues.
 | Issue **state** (`In Progress` → `In Review`) | |
 | Phase summary **comments** | |
 | `**PR handoff**` comment | |
+| `**Bugbot · medium (human review)**` comment (when ≥1 Medium) | |
 
 Investigation and spec pass **in orchestrator session** to Tech Lead → Coder → Reviewer. See `SKILL.md` **Session artifacts**.
 
@@ -86,7 +87,7 @@ Use structured headers for audit trail:
 |-------|----------------|
 | Investigator | `**Sapphire · Investigator complete**` — 3–5 bullets |
 | Tech Lead | `**Sapphire · Tech Lead complete**` — coder count, order, 3–5 bullets |
-| Coder | `**PR handoff**` + `**Sapphire · Coder complete**` |
+| Coder | `**PR handoff**`; optional `**Bugbot · medium (human review)**` when ≥1 Medium; `**Sapphire · Coder complete**` (verification exit 0, CI green, Bugbot summary) |
 | Reviewer pass | `**Sapphire · Reviewer complete**` |
 | Reviewer fail | `**Sapphire · Review failed**` |
 
@@ -130,9 +131,10 @@ Legacy `## Investigation` / `## Spec` on the issue are ignored for skip logic; s
 | Same session — Tech Lead = `done` + **session spec** in context | Skip Tech Lead unless user asked to re-spec |
 | New session — Investigator = `done` on Linear but no **session investigation** | Re-run Investigator before Tech Lead |
 | New session — Tech Lead = `done` on Linear but no **session spec** | Re-run Tech Lead before Coder or Reviewer (Investigator first if investigation missing) |
-| `**PR handoff**` + open PR + Coder = `done` + **session spec** in context | Skip Coder; run Reviewer |
-| `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before Reviewer (Investigator first if investigation missing) |
-| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing, verify PR + `/goal`; on pass run **Completion** gate then **Exit gate** |
+| `**Sapphire · Coder complete**` documents verification exit 0, CI green, Bugbot 0 High + open PR + Coder = `done` + **session spec** in context | Skip Coder implementation; run Reviewer |
+| `**PR handoff**` + open PR + Coder = `done`, missing or incomplete `**Sapphire · Coder complete**` + **session spec** in context | **Gate repair only** — run missing Pre-Reviewer gates 1–4 (local verification exit 0, CI green, Bugbot 0 High); post/update Phase 3 comments per `CODER.md`; do **not** re-implement unless gates fail |
+| `**PR handoff**` + open PR, no **session spec** (new session) | Re-run Tech Lead before gate repair or Reviewer (Investigator first if investigation missing) |
+| All status rows = `done`, issue not `In Review` | Reviewer cleanup — rebuild session spec when missing; if Coder complete invalid → **gate repair only** via step 8; if valid → Phase 4 + post-fix gates + **Completion** gate + **Exit gate** |
 
 ## Post-run response
 

@@ -6,7 +6,12 @@ import type {
   TaskWithCoworker,
 } from "@/lib/types/task";
 
-import { DraggableTask, DroppableColumn, isDnDColumn } from "./task-dnd";
+import {
+  DraggableTask,
+  DroppableColumn,
+  isDnDDragColumn,
+  isDnDDropColumn,
+} from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListSection } from "./task-list-section";
 
@@ -46,7 +51,10 @@ export function TaskListView({
             const columnTasks = tasks
               .filter((task) => task.columnId === column.id)
               .sort(compareTasksDesc);
-            const isDraggableColumn = isDragEnabled && isDnDColumn(column.id);
+            const isDraggableColumn =
+              isDragEnabled && isDnDDragColumn(column.id);
+            const isDropTargetColumn =
+              isDragEnabled && isDnDDropColumn(column.id);
 
             const sectionContent = (
               <TaskListSection
@@ -84,7 +92,7 @@ export function TaskListView({
               />
             );
 
-            return isDraggableColumn ? (
+            return isDropTargetColumn ? (
               <DroppableColumn key={column.id} id={column.id} className="block">
                 {sectionContent}
               </DroppableColumn>

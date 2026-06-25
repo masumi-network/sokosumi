@@ -1216,12 +1216,16 @@ model Task {
   projectId String?    @db.Uuid
   project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  metadata  String?
+  nextRunAt DateTime?
+
   @@index([organizationId])
   @@index([workspaceId])
   @@index([archivedAt])
   @@index([userId])
   @@index([userId, organizationId])
   @@index([projectId])
+  @@index([status, nextRunAt])
   @@map("task")
 }
 
@@ -1393,7 +1397,15 @@ model HermesMessage {
   /// regular chat path. Drives the notification-style rendering for
   /// agent-initiated pushes.
   kind      String?
-  createdAt DateTime @default(now())
+  /// Progress steps (tool calls etc.) captured from the orchestrator's
+  /// `hermes.status` frames during a streamed turn, so the collapsible "steps"
+  /// disclosure survives a reload. Shape: `[{ label, detail? }]`. Null for
+  /// turns with no tool activity and for user messages.
+  steps      Json?
+  /// Total wall-clock time of the streamed turn (ms), so the "Answered in Ns"
+  /// stamp survives a reload. Null for user messages + non-streamed turns.
+  durationMs Int?
+  createdAt  DateTime @default(now())
 
   @@index([userId, createdAt])
   @@map("hermesMessage")

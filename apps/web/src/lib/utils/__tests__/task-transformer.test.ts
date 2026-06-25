@@ -28,6 +28,8 @@ function buildTask(
     name: "Test task",
     description: null,
     status,
+    metadata: null,
+    nextRunAt: null,
     credits: 0,
     events: [],
     jobs: [],
@@ -41,6 +43,14 @@ function buildTask(
 }
 
 describe("mapTaskToTaskWithCoworker", () => {
+  it("maps queued tasks to scheduled column", () => {
+    const task = buildTask(TaskStatus.QUEUED);
+
+    const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
+
+    expect(mapped.columnId).toBe("scheduled");
+  });
+
   it("maps canceled tasks to done column", () => {
     const task = buildTask(TaskStatus.CANCELED);
 
@@ -86,15 +96,18 @@ describe("mapTaskToTaskWithCoworker", () => {
   it("serializes Date timestamps to ISO strings", () => {
     const createdAt = new Date("2026-01-01T00:00:00.000Z");
     const updatedAt = new Date("2026-01-01T01:00:00.000Z");
+    const nextRunAt = new Date("2026-06-25T09:00:00.000Z");
     const task = buildTask(TaskStatus.READY, {
       createdAt,
       updatedAt,
+      nextRunAt,
     });
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
+    expect(mapped.nextRunAt).toBe("2026-06-25T09:00:00.000Z");
   });
 
   it("maps jobs count from the API task", () => {

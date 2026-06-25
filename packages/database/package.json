@@ -38,6 +38,11 @@
       "types": "./dist/types/job.d.ts",
       "import": "./dist/types/job.js",
       "default": "./dist/types/job.js"
+    },
+    "./types/task-schedule-metadata": {
+      "types": "./dist/types/task-schedule-metadata.d.ts",
+      "import": "./dist/types/task-schedule-metadata.js",
+      "default": "./dist/types/task-schedule-metadata.js"
     }
   },
   "files": [
@@ -70,6 +75,7 @@
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "pg": "8.22.0",
+    "zod": "4.4.3",
     "pg-pool": "3.14.0",
     "uuid": "14.0.0"
   },

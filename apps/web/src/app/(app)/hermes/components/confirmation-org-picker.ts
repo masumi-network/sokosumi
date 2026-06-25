@@ -21,7 +21,10 @@ export function isConfirmationOrgAwareTool(toolName: string): boolean {
  */
 export function mergeConfirmationOrgPickerOptions(
   organizations: ReadonlyArray<HermesOrganizationOption>,
-  confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
+  confirmation: Pick<
+    HermesPendingConfirmation,
+    "referencedOrganizations" | "organizationId" | "organizationName"
+  >,
 ): HermesOrganizationOption[] {
   const byId = new Map(organizations.map((org) => [org.id, org]));
   const merged = [...organizations];
@@ -30,19 +33,34 @@ export function mergeConfirmationOrgPickerOptions(
     byId.set(referenced.id, referenced);
     merged.push(referenced);
   }
+  // Ensure the workspace Hermes proposed is selectable even when it's not in
+  // the membership list or referenced orgs, so the pre-selected value always
+  // has a matching `SelectItem` (labelled with the orchestrator's name).
+  if (confirmation.organizationId && !byId.has(confirmation.organizationId)) {
+    const proposed: HermesOrganizationOption = {
+      id: confirmation.organizationId,
+      name: confirmation.organizationName ?? confirmation.organizationId,
+      slug: null,
+    };
+    byId.set(proposed.id, proposed);
+    merged.push(proposed);
+  }
   return merged;
 }
 
 /**
- * Initial org dropdown value for org-aware confirmations. Always default to
- * personal scope; users must actively choose an org to approve into one.
+ * Initial org dropdown value for org-aware confirmations: the workspace Hermes
+ * proposed in its tool call (`organizationId`), so the user sees and confirms
+ * the actual target. `null` means Hermes proposed personal scope. Combined with
+ * `buildConfirmationApproveOverrideIfChanged`, leaving this untouched sends no
+ * override, so Hermes' proposal stands.
  */
 export function resolveConfirmationOrgPickerValue(
-  _confirmation: Pick<HermesPendingConfirmation, "referencedOrganizations">,
+  confirmation: Pick<HermesPendingConfirmation, "organizationId">,
   _organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
   _activeOrganizationId: string | null,
 ): string {
-  return CONFIRMATION_PERSONAL_SCOPE_VALUE;
+  return confirmation.organizationId ?? CONFIRMATION_PERSONAL_SCOPE_VALUE;
 }
 
 /**
@@ -68,4 +86,61 @@ export function buildCurrentConfirmationApproveOrganizationOverride(
     selectedOrgValueRef.current,
     organizations,
   );
+}
+
+/**
+ * Organization override to send on approve — but ONLY when the user actually
+ * changed the workspace dropdown from its initial value. Returns `undefined`
+ * when the selection is unchanged so the caller omits `overrides.organizationId`
+ * entirely, letting the workspace Hermes proposed in its tool call stand.
+ *
+ * Sending an override on an untouched dropdown (including `organizationId: null`
+ * for Personal) is an explicit workspace choice the user never made, and the
+ * orchestrator applies it over Hermes' proposal — e.g. filing a task in Personal
+ * instead of the org Hermes chose. So an override is sent only on a deliberate
+ * change.
+ */
+export function buildConfirmationApproveOverrideIfChanged(
+  selectedOrgValue: string,
+  initialOrgValue: string,
+  organizations: ReadonlyArray<Pick<HermesOrganizationOption, "id">>,
+): { organizationId: string | null } | undefined {
+  if (selectedOrgValue === initialOrgValue) return undefined;
+  return buildConfirmationApproveOrganizationOverride(
+    selectedOrgValue,
+    organizations,
+  );
+}
+
+export interface ConfirmationOrgPickerSelectionState {
+  baselineOrgValue: string;
+  selectedOrgValue: string;
+  userChangedOrg: boolean;
+}
+
+/**
+ * Reconcile dropdown selection when Hermes' proposed workspace updates after an
+ * instance refresh. Preserves an explicit user change; otherwise follows the
+ * new proposal so approve does not compare stale selection to fresh baseline.
+ */
+export function applyConfirmationOrgProposalUpdate(
+  proposedOrgValue: string,
+  state: ConfirmationOrgPickerSelectionState,
+): ConfirmationOrgPickerSelectionState {
+  if (proposedOrgValue === state.baselineOrgValue) {
+    return state;
+  }
+
+  const userChangedSelection =
+    state.userChangedOrg || state.selectedOrgValue !== state.baselineOrgValue;
+
+  if (userChangedSelection) {
+    return { ...state, baselineOrgValue: proposedOrgValue };
+  }
+
+  return {
+    baselineOrgValue: proposedOrgValue,
+    selectedOrgValue: proposedOrgValue,
+    userChangedOrg: false,
+  };
 }

@@ -1095,6 +1095,23 @@ export const TaskSchema = {
             ],
             example: 'READY'
         },
+        metadata: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Serialized task schedule metadata JSON',
+            example: null
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-06-24T09:00:00.000Z',
+            description: 'Next scheduled run time for queued tasks'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -1149,6 +1166,8 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
+        'metadata',
+        'nextRunAt',
         'credits',
         'events',
         'jobs',
@@ -4439,6 +4458,22 @@ export const HermesPendingConfirmationSchema = {
                 $ref: '#/components/schemas/HermesConfirmationOrganizationRef'
             },
             default: []
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            default: null
+        },
+        organizationName: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            default: null
         }
     },
     required: [
@@ -4557,6 +4592,53 @@ export const HermesPersistedMessageSchema = {
                 'string',
                 'null'
             ]
+        },
+        steps: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                type: 'object',
+                properties: {
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'tool',
+                            'reasoning'
+                        ]
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    detail: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'label'
+                ]
+            },
+            description: 'Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.',
+            example: [
+                {
+                    kind: 'reasoning',
+                    label: 'The user wants a web search…'
+                },
+                {
+                    kind: 'tool',
+                    label: 'Searching the web',
+                    detail: 'latest MoE LLMs'
+                }
+            ]
+        },
+        durationMs: {
+            type: [
+                'integer',
+                'null'
+            ],
+            description: 'Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.',
+            example: 7840
         },
         createdAt: {
             type: 'string',
@@ -8524,7 +8606,8 @@ export const CoworkerOfferSchema = {
                             'image',
                             'slides',
                             'doc',
-                            'text'
+                            'text',
+                            'html'
                         ],
                         example: 'pdf'
                     },
@@ -8538,7 +8621,7 @@ export const CoworkerOfferSchema = {
                     },
                     text: {
                         type: 'string',
-                        description: 'Inline example content for text outputs (Markdown), shown as a sample deliverable when there is no file URL.',
+                        description: 'Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.',
                         example: '## Project plan\n\n- Milestone 1 — …'
                     }
                 },
@@ -8800,6 +8883,23 @@ export const TaskListItemSchema = {
             ],
             example: 'READY'
         },
+        metadata: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Serialized task schedule metadata JSON',
+            example: null
+        },
+        nextRunAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-06-24T09:00:00.000Z',
+            description: 'Next scheduled run time for queued tasks'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -8836,6 +8936,8 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
+        'metadata',
+        'nextRunAt',
         'credits',
         'events',
         'jobs',
@@ -8855,6 +8957,93 @@ export const TaskLinkDeletedSchema = {
     },
     required: [
         'deleted'
+    ]
+} as const;
+
+export const PutTaskScheduleRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'once'
+                    ]
+                },
+                runAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'When the one-time schedule should run'
+                }
+            },
+            required: [
+                'mode',
+                'runAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'recurring'
+                    ]
+                },
+                expr: {
+                    type: 'string',
+                    minLength: 1,
+                    description: 'Cron expression for recurring runs',
+                    example: '0 9 * * *'
+                },
+                timezone: {
+                    type: 'string',
+                    default: 'UTC',
+                    description: 'IANA timezone for the cron expression',
+                    example: 'America/New_York'
+                },
+                endsMode: {
+                    type: 'string',
+                    enum: [
+                        'never',
+                        'on',
+                        'after'
+                    ],
+                    default: 'never',
+                    example: 'never'
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59.000Z',
+                    description: 'End date when endsMode is on'
+                },
+                occurrences: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'Remaining occurrences when endsMode is after',
+                    example: 10
+                },
+                intervalDays: {
+                    type: 'integer',
+                    exclusiveMinimum: 0,
+                    description: 'When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps',
+                    example: 2
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-06-24T09:00:00.000Z',
+                    description: 'First run instant for intervalDays schedules (required when intervalDays > 1)'
+                }
+            },
+            required: [
+                'mode',
+                'expr'
+            ]
+        }
     ]
 } as const;
 
@@ -9166,5 +9355,22 @@ export const EffectiveDesignMdSchema = {
     },
     required: [
         'designMd'
+    ]
+} as const;
+
+export const WorkspaceOrganizationSchema = {
+    type: 'object',
+    properties: {
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization id for the workspace, or null for a personal workspace',
+            example: 'org_123'
+        }
+    },
+    required: [
+        'organizationId'
     ]
 } as const;

@@ -14,11 +14,10 @@ When Tech Lead defined one coder block (or no breakdown section):
 
 1. Implement all deliverables in the spec.
 2. Follow repo conventions (`AGENTS.md`, scoped app guides).
-3. Run allowlisted verification before PR.
-4. Open PR — body references Linear issue id (e.g. `SOK-549`).
-5. **Standalone Coder only:** Post `**PR handoff**` on the issue (see below).
-6. **Standalone Coder only:** Post `**Sapphire · Coder complete**`.
-7. **Standalone Coder only:** `save_issue` — Coder row → `done` (issue stays **In Progress**). See **Phase gate (blocking)**.
+3. Complete **Pre-Reviewer gates** (all four steps) — see table below. **Standalone Coder:** you are the gate runner — run steps 1–4 yourself (including CI watch and Bugbot). **Orchestrator + sole subagent:** subagent runs 1–2; orchestrator runs 3–4.
+4. **Standalone Coder only:** Run **Phase gate (blocking)** (Linear comments + Coder row `done`), then **Exit gate** (`PHASE-GATE.md`). Do **not** post `**PR handoff**` until steps 3–4 of Pre-Reviewer gates pass.
+
+Orchestrator mode: see **Subagent mode** — subagents do not post Linear gates.
 
 ## Subagent mode (`sapphire-coder`)
 
@@ -26,11 +25,12 @@ When the orchestrator delegates to `sapphire-coder`:
 
 ### Sole coder (one block / no breakdown)
 
-1. Implement, verify, and open PR per **Single coder** steps 1–4.
-2. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
-3. Return PR URL, branch, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
+1. Implement and follow repo conventions per **Single coder** steps 1–2.
+2. Complete **Pre-Reviewer gates** steps 1–2 (local verification, open PR).
+3. **Do not** call Linear MCP — no `save_comment` or `save_issue`.
+4. Return PR URL, branch, verification summary, and draft `**PR handoff**` / `**Sapphire · Coder complete**` text to the orchestrator.
 
-The orchestrator runs **Phase gate (blocking)** after you finish.
+The orchestrator runs **Phase gate (blocking)** after you finish — CI watch, Bugbot, then Linear comments.
 
 ### Parallel coders (Multiple coders flow)
 
@@ -42,7 +42,7 @@ When Tech Lead defined `### Coder A`, `### Coder B`, … and the orchestrator la
 4. Return to the orchestrator: branch name, changed files, commit message(s), verification results, and a one-line scope summary.
 5. **Do not** call Linear MCP. **Do not** edit files owned by other coders.
 
-The orchestrator merges all parallel coder branches onto one integration branch, runs combined verification if needed, opens **one PR** for the issue, then runs **Phase gate (blocking)**.
+The orchestrator merges all parallel coder branches onto one integration branch, runs allowlisted verification on the integration branch (exit 0), opens **one PR**, runs **CI green + Bugbot (0 High)**, then posts Phase 3 gates.
 
 ## Multiple coders (orchestrator)
 
@@ -50,7 +50,7 @@ When Tech Lead defined `### Coder A`, `### Coder B`, …:
 
 1. Respect **Execution order** — sequential coders wait for dependencies.
 2. Launch parallel **`sapphire-coder`** Task subagents (`model: composer-2.5`) for independent coders with disjoint file ownership — each subagent commits on a branch but **does not** open a PR.
-3. After all parallel coders return, merge work on one integration branch and open **one PR** for the issue.
+3. After all parallel coders return, merge work on one integration branch, run allowlisted verification on the integration branch (exit 0), and open **one PR** for the issue.
 4. One PR per issue — do not open multiple PRs for the same SOK unless human asked.
 
 Each subagent prompt must include:
@@ -75,7 +75,7 @@ Each subagent prompt must include:
 ## Handoff to Reviewer
 
 - **Sapphire orchestrator (default):** After Coder complete, continue to Phase 4 (Reviewer) in the **same run** per `SKILL.md` — do not stop early.
-- **Standalone Coder** (user invoked Coder only): Complete **Phase gate (blocking)** below (PR handoff + Coder complete + status row), then **Exit gate** (`PHASE-GATE.md`), then stop; Reviewer runs in a separate session.
+- **Standalone Coder** (user invoked Coder only): Complete **Pre-Reviewer gates**, then **Phase gate (blocking)** (PR handoff + optional medium comment + Coder complete + status row), then **Exit gate** (`PHASE-GATE.md`), then stop; Reviewer runs in a separate session.
 
 ## PR handoff comment
 
@@ -90,14 +90,90 @@ Each subagent prompt must include:
 
 ## Pre-PR verification
 
-Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verification command trust**. Run the narrowest set covering your deliverables.
+Map spec **Verification** scope to allowlisted commands in `REVIEWER.md` **Verification command trust**. Run the narrowest set covering your deliverables. **All commands must exit 0** before the PR is handed to Reviewer.
+
+## Pre-Reviewer gates (blocking)
+
+Complete in order **before** `**PR handoff**` / Phase 4:
+
+| Step | Gate | Who |
+|------|------|-----|
+| 1 | Local verification (exit 0) | Implementer (subagent or orchestrator) |
+| 2 | Open one PR on GitHub | Sole `sapphire-coder` when not parallel; **orchestrator** after parallel merge |
+| 3 | CI green on the PR | **Gate runner** — orchestrator after subagent returns; **standalone Coder** when no orchestrator |
+| 4 | Bugbot 0 High | **Gate runner** — orchestrator after subagent returns; **standalone Coder** when no orchestrator |
+
+**Standalone Coder** (user invoked Coder only): you are the gate runner — run all four steps yourself (CI watch + mandatory Bugbot per `BUGBOT-LEARNINGS.md`).
+
+**Subagent mode:** parallel coders run step 1 on their branch only; sole subagent runs steps 1–2 and returns draft handoff text; **orchestrator** runs steps 3–4 and posts Linear gates.
+
+Read `BUGBOT-LEARNINGS.md` for R1–R12 quality rules and the Coder self-check.
+
+### 1. Local verification (green)
+
+Run allowlisted `pnpm` commands for the spec scope. **Every command exit 0.** Fix failures on the branch; do not open the PR or hand off with failing local checks.
+
+### 2. Open PR
+
+Push the branch and open **one PR** per issue (body references Linear issue id). Parallel coders **do not** open a PR — orchestrator merges branches and opens it.
+
+### 3. CI green on the PR
+
+After the PR exists, confirm **GitHub CI is green** before Reviewer starts:
+
+```bash
+gh pr checks <number> --watch
+# or
+gh pr view <number> --json statusCheckRollup,state
+```
+
+- All **required** checks must pass (or repo has no required checks and latest workflow runs are success).
+- If CI fails, fix on the PR branch and re-push until green.
+- **Do not** post `**PR handoff**` or start Phase 4 while required checks are failing or pending without watching to completion.
+
+### 4. Mandatory Bugbot (High must be zero)
+
+**Gate runner** (orchestrator in squad mode; standalone Coder when invoked alone) runs Bugbot once on branch changes per `BUGBOT-LEARNINGS.md` **Mandatory Bugbot** (Task `subagent_type: "bugbot"`, `Diff: branch changes`).
+
+1. Launch Bugbot on the PR branch vs merge-base.
+2. **Fix every High finding** on the PR branch.
+3. Re-run Bugbot until **zero High** findings.
+4. **Medium:** record findings for **Phase gate** step 2 — do **not** post the Linear comment here (post once during Phase gate).
+5. Re-run local verification and confirm CI still green after High fixes.
+
+### Medium findings — Linear comment
+
+Post **once** during **Phase gate** step 2 — **only when** Bugbot reported ≥1 Medium. Do not post during the Bugbot run above.
+
+```markdown
+**Bugbot · medium (human review)**
+
+For human review on merge — not blocking Reviewer.
+
+| Severity | Location | Finding |
+|----------|----------|---------|
+| Medium | `path:line` | One-line summary |
+```
+
+When there are no medium findings, skip this comment.
+
+### Handoff comment additions
+
+Include in `**Sapphire · Coder complete**`:
+
+```markdown
+**Verification:** <commands run, all exit 0>
+**CI:** green on PR #<n> (required checks pass)
+**Bugbot:** 0 High. Medium: <N> — see `**Bugbot · medium (human review)**` comment (or `none`)
+```
 
 ## Phase gate (blocking)
 
 Before Reviewer starts:
 
 1. `save_comment` — `**PR handoff**` (PR URL, branch, one-line summary)
-2. `save_comment` — `**Sapphire · Coder complete**`
-3. `save_issue` — Coder row → `done` (issue stays **In Progress**)
+2. `save_comment` — `**Bugbot · medium (human review)**` — **only when** Bugbot reported ≥1 Medium; **only place** this comment is posted (table below; see also `BUGBOT-LEARNINGS.md`)
+3. `save_comment` — `**Sapphire · Coder complete**` (verification, CI, Bugbot summary)
+4. `save_issue` — Coder row → `done` (issue stays **In Progress**)
 
-Do **not** run `/goal` or set **In Review** until all three succeed. See `PHASE-GATE.md`.
+Do **not** run `/goal` or set **In Review** until the Phase gate steps succeed **and** **Pre-Reviewer gates** (local verification, CI green, Bugbot 0 High) pass. See `PHASE-GATE.md`.

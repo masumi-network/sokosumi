@@ -112,12 +112,48 @@ describe("getTasksColumnPage", () => {
     expect(page.tasks.map((task) => task.id)).toEqual(["task-2"]);
     expect(page.nextCursor).toBeNull();
     expect(listTasksMock).toHaveBeenCalledWith({
-      status: [TaskStatus.DRAFT, TaskStatus.QUEUED],
+      status: [TaskStatus.DRAFT],
       scope: "owned",
       coworkerId: undefined,
       projectId: undefined,
       cursor: "cursor-1",
       limit: 1,
+    });
+  });
+
+  it("queries scheduled column statuses in one request", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        buildTask({
+          id: "task-queued",
+          status: TaskStatus.QUEUED,
+          updatedAt: "2026-03-02T02:00:00.000Z",
+        }),
+      ],
+      pagination: { nextCursor: null },
+    });
+
+    const page = await getTasksColumnPage({
+      columnId: "scheduled",
+      cursor: null,
+      limit: 10,
+      scope: "owned",
+      coworkerId: null,
+      status: null,
+      projectId: null,
+      coworkersById: new Map(),
+      agentsById: new Map(),
+    });
+
+    expect(page.tasks.map((task) => task.id)).toEqual(["task-queued"]);
+    expect(listTasksMock).toHaveBeenCalledWith({
+      status: [TaskStatus.QUEUED],
+      scope: "owned",
+      coworkerId: undefined,
+      projectId: undefined,
+      cursor: null,
+      limit: 10,
+      sort: "nextRunAt",
     });
   });
 

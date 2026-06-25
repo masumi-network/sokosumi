@@ -1411,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "待规划",
+        "scheduled": "已排期",
         "todo": "待办",
         "inProgress": "进行中",
         "inputRequired": "需要输入",
@@ -1643,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "已切换到 {account} 账户"
+        "switchedWorkspace": "已切换到 {account} 账户",
+        "clonedFrom": "克隆自 {name}",
+        "schedule": "计划"
       },
       "NewTask": {
         "title": "新建任务",
@@ -1661,6 +1664,7 @@
         "status": "状态",
         "statusDescription": "选择此任务的初始状态",
         "statusDraft": "草稿",
+        "statusQueued": "已排队",
         "statusReady": "就绪",
         "back": "返回",
         "uploadFile": "上传文件",
@@ -1671,6 +1675,8 @@
         "saveDraft": "保存",
         "saveAsDraft": "保存为草稿",
         "createTask": "创建任务",
+        "scheduleTask": "安排任务",
+        "openSchedule": "设置计划",
         "cancel": "取消",
         "ctrl": "Ctrl",
         "chooseAgent": "选择智能体",
@@ -1724,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "移除附件",
         "save": "保存",
+        "openSchedule": "设置计划",
         "cancel": "取消",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "计划",
+        "description": "安排一次性或重复运行。",
+        "clearSchedule": "移除计划",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "时区",
+        "customCron": "自定义 cron 表达式",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "于 {datetime} 运行一次"
+        },
+        "card": {
+          "overdue": "已逾期",
+          "dueInMinutes": "{minutes} 分钟后运行",
+          "dueInHours": "{hours} 小时后运行",
+          "tomorrowAt": "明天 {time}",
+          "nextRunAt": "下次运行：{datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1744,6 +1810,7 @@
           "total": "{count, plural, =0 {共 0 个} =1 {共 1 个} other {共 # 个}}",
           "taskStatusAbbreviations": {
             "DRAFT": "草稿",
+            "QUEUED": "已排期",
             "READY": "就绪",
             "INPUT_REQUIRED": "需输入",
             "APPROVAL_REQUIRED": "需批准",

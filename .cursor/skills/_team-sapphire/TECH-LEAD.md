@@ -18,6 +18,7 @@
 - Resolve open questions from Investigation with concrete choices in **Key decisions**.
 - Include **Data flow** mermaid always.
 - Add **Current state** / **Target architecture** when rubric says so.
+- When `BUGBOT-LEARNINGS.md` triggers apply, add spec sections: **Mutation order**, **State machine**, **Time semantics**, **Auth matrix**, or **Ripple checklist** as needed.
 - Split work into multiple coders only when rubric score ≥ 2 — each block must be paste-ready for `CODER.md`.
 - Add `[repo=masumi-network/sokosumi]` at the top of the session spec.
 - Do not modify `## Requirement` on Linear.

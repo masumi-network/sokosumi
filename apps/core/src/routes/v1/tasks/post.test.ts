@@ -199,6 +199,8 @@ describe("POST /tasks", () => {
       name: "New Task",
       description: null,
       status: TaskStatus.DRAFT,
+      metadata: null,
+      nextRunAt: null,
       credits: 0,
       events: [],
       jobs: [],

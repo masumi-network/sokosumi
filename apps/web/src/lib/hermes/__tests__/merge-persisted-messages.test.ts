@@ -56,6 +56,30 @@ describe("mergeHermesMessageLists", () => {
     ).toEqual([serverAssistant]);
   });
 
+  it("keeps a follow-up assistant distinct from a prior server reply", () => {
+    // Regression: a time-window heuristic dropped this follow-up because the
+    // previous turn's reply was within 30s — causing the answer to flicker.
+    const priorServerAssistant = message({
+      id: "server-1",
+      role: "assistant",
+      content: "First answer",
+      createdAt: "2026-01-01T10:00:01.000Z",
+    });
+    const localFollowup = message({
+      id: "a-1760000001000",
+      role: "assistant",
+      content: "Second answer",
+      createdAt: "2026-01-01T10:00:05.000Z",
+    });
+
+    expect(
+      mergeHermesMessageLists(
+        [priorServerAssistant, localFollowup],
+        [priorServerAssistant],
+      ),
+    ).toEqual([priorServerAssistant, localFollowup]);
+  });
+
   it("retains an optimistic user while the server has not persisted that turn", () => {
     const localUser = message({
       id: "u-1760000000000",
@@ -92,5 +116,111 @@ describe("mergeHermesMessageLists", () => {
     expect(mergeHermesMessageLists([localUser], [serverUser])).toEqual([
       serverUser,
     ]);
+  });
+
+  it("keeps a repeat user message when an earlier turn already persisted the same text", () => {
+    const priorServerUser = message({
+      id: "server-yes-1",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:01.000Z",
+    });
+    const localRepeat = message({
+      id: "u-1760000001000",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:08.000Z",
+    });
+
+    expect(
+      mergeHermesMessageLists(
+        [priorServerUser, localRepeat],
+        [priorServerUser],
+      ),
+    ).toEqual([priorServerUser, localRepeat]);
+  });
+
+  it("keeps the second of two identical back-to-back user messages until both persist", () => {
+    // Regression: matching by "any server row with this content" collapses
+    // duplicate sends ("yes", "yes") into one — the second optimistic message
+    // vanishes until its own row lands. One-for-one matching must keep it.
+    const localFirst = message({
+      id: "u-1760000000000",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:05.000Z",
+    });
+    const localSecond = message({
+      id: "u-1760000001000",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:08.000Z",
+    });
+    const serverFirst = message({
+      id: "server-yes-1",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:06.000Z",
+    });
+
+    // Only the first "yes" has persisted: the second optimistic must survive.
+    expect(
+      mergeHermesMessageLists([localFirst, localSecond], [serverFirst]),
+    ).toEqual([serverFirst, localSecond]);
+
+    // Both "yes" rows persisted: both optimistic messages are now covered.
+    const serverSecond = message({
+      id: "server-yes-2",
+      role: "user",
+      content: "yes",
+      createdAt: "2026-01-01T10:00:09.000Z",
+    });
+    expect(
+      mergeHermesMessageLists(
+        [localFirst, localSecond],
+        [serverFirst, serverSecond],
+      ),
+    ).toEqual([serverFirst, serverSecond]);
+  });
+
+  it("drops a partial local assistant when the server persisted the full reply", () => {
+    const partialLocal = message({
+      id: "a-1760000000000",
+      role: "assistant",
+      content: "Hello wo",
+      createdAt: "2026-01-01T10:00:05.000Z",
+    });
+    const serverAssistant = message({
+      id: "server-assistant",
+      role: "assistant",
+      content: "Hello world",
+      createdAt: "2026-01-01T10:00:12.000Z",
+    });
+
+    expect(mergeHermesMessageLists([partialLocal], [serverAssistant])).toEqual([
+      serverAssistant,
+    ]);
+  });
+
+  it("keeps a new partial assistant when only an older reply shares a prefix", () => {
+    const priorServerAssistant = message({
+      id: "server-1",
+      role: "assistant",
+      content: "Hello world",
+      createdAt: "2026-01-01T10:00:01.000Z",
+    });
+    const partialLocal = message({
+      id: "a-1760000000000",
+      role: "assistant",
+      content: "Hel",
+      createdAt: "2026-01-01T10:00:05.000Z",
+    });
+
+    expect(
+      mergeHermesMessageLists(
+        [priorServerAssistant, partialLocal],
+        [priorServerAssistant],
+      ),
+    ).toEqual([priorServerAssistant, partialLocal]);
   });
 });

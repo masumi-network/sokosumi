@@ -1422,6 +1422,7 @@
       },
       "Columns": {
         "backlog": "Backlog",
+        "scheduled": "Scheduled",
         "todo": "Todo",
         "inProgress": "In Progress",
         "inputRequired": "Input Required",
@@ -1654,7 +1655,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Switched to {account} account"
+        "switchedWorkspace": "Switched to {account} account",
+        "clonedFrom": "Cloned from {name}",
+        "schedule": "Schedule"
       },
       "NewTask": {
         "title": "New Task",
@@ -1693,6 +1696,7 @@
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
+        "statusQueued": "Queued",
         "statusReady": "Ready",
         "back": "Back",
         "uploadFile": "Upload File",
@@ -1703,6 +1707,8 @@
         "saveDraft": "Save",
         "saveAsDraft": "Save as Draft",
         "createTask": "Create Task",
+        "scheduleTask": "Schedule Task",
+        "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
@@ -1735,8 +1741,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "save": "Save",
+        "openSchedule": "Set schedule",
         "cancel": "Cancel",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Schedule",
+        "description": "Plan a one-time or recurring run.",
+        "clearSchedule": "Remove schedule",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Timezone",
+        "customCron": "Custom cron expression",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Once on {datetime}"
+        },
+        "card": {
+          "overdue": "Overdue",
+          "dueInMinutes": "Due in {minutes, plural, one {# minute} other {# minutes}}",
+          "dueInHours": "Due in {hours, plural, one {# hour} other {# hours}}",
+          "tomorrowAt": "Tomorrow at {time}",
+          "nextRunAt": "Next run: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1755,6 +1821,7 @@
           "total": "{count, plural, =0 {0 total} =1 {1 total} other {# total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Draft",
+            "QUEUED": "Scheduled",
             "READY": "Ready",
             "INPUT_REQUIRED": "Input",
             "APPROVAL_REQUIRED": "Approval",
@@ -2176,6 +2243,7 @@
           "organizationLabel": "Create in",
           "organizationPersonal": "Personal",
           "costNotice": "Cost can't be calculated up front. Any credits this work uses will be deducted from your balance as it runs.",
+          "creatingInBackground": "The agent is creating your task in the background — it'll appear in the chat shortly.",
           "approvedStatus": "Approved",
           "rejectedStatus": "Rejected",
           "tools": {
@@ -2206,7 +2274,14 @@
             "defaultTask": "Task",
             "viewTask": "View task"
           }
-        }
+        },
+        "stillWorking": "Still working on it…",
+        "stillWorkingLong": "Still going — this one is taking a little longer…",
+        "answeredIn": "Answered in {seconds}s",
+        "copyAction": "Copy message",
+        "copiedAction": "Copied",
+        "jumpToLatest": "Latest",
+        "toolSteps": "{count} steps"
       },
       "Onboarding": {
         "eyebrow": "Welcome to your assistant",
@@ -3543,7 +3618,8 @@
           "slides": "Slides",
           "doc": "Document",
           "text": "Text",
-          "image": "Image"
+          "image": "Image",
+          "html": "Web"
         },
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",

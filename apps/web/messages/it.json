@@ -1411,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Backlog",
+        "scheduled": "Programmato",
         "todo": "Da fare",
         "inProgress": "In corso",
         "inputRequired": "Input richiesto",
@@ -1643,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Passato all’account {account}"
+        "switchedWorkspace": "Passato all’account {account}",
+        "clonedFrom": "Clonata da {name}",
+        "schedule": "Pianificazione"
       },
       "NewTask": {
         "title": "Nuovo task",
@@ -1661,6 +1664,7 @@
         "status": "Stato",
         "statusDescription": "Scegli lo stato iniziale per questo task",
         "statusDraft": "Bozza",
+        "statusQueued": "In coda",
         "statusReady": "Pronto",
         "back": "Indietro",
         "uploadFile": "Carica file",
@@ -1671,6 +1675,8 @@
         "saveDraft": "Salva",
         "saveAsDraft": "Salva come bozza",
         "createTask": "Crea task",
+        "scheduleTask": "Programma attività",
+        "openSchedule": "Imposta pianificazione",
         "cancel": "Annulla",
         "ctrl": "Ctrl",
         "chooseAgent": "Scegli il tuo agente",
@@ -1724,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Rimuovi allegato",
         "save": "Salva",
+        "openSchedule": "Imposta pianificazione",
         "cancel": "Annulla",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Pianificazione",
+        "description": "Pianifica un'esecuzione singola o ricorrente.",
+        "clearSchedule": "Rimuovi pianificazione",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Fuso orario",
+        "customCron": "Espressione cron personalizzata",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Una volta il {datetime}"
+        },
+        "card": {
+          "overdue": "In ritardo",
+          "dueInMinutes": "Scade tra {minutes, plural, one {# minuto} other {# minuti}}",
+          "dueInHours": "Scade tra {hours, plural, one {# ora} other {# ore}}",
+          "tomorrowAt": "Domani alle {time}",
+          "nextRunAt": "Prossima esecuzione: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1744,6 +1810,7 @@
           "total": "{count, plural, =0 {0 totali} =1 {1 totale} other {# totali}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Bozza",
+            "QUEUED": "Programmato",
             "READY": "Pronto",
             "INPUT_REQUIRED": "Input",
             "APPROVAL_REQUIRED": "Approvazione",

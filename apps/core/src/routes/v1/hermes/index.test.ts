@@ -906,6 +906,8 @@ describe("Hermes route contracts", () => {
           createdAt: "2026-05-25T10:00:00.000Z",
           referencedCoworkers: [],
           referencedOrganizations: [],
+          organizationId: orgId,
+          organizationName: "Acme Inc",
         },
       ],
     });

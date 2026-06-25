@@ -17,3 +17,13 @@ export const workspaceSummarySchema = z
     organization: workspaceOrganizationSummarySchema.nullable(),
   })
   .openapi("WorkspaceSummary");
+
+export const workspaceOrganizationSchema = z
+  .object({
+    organizationId: z.string().nullable().openapi({
+      description:
+        "Organization id for the workspace, or null for a personal workspace",
+      example: "org_123",
+    }),
+  })
+  .openapi("WorkspaceOrganization");

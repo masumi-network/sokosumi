@@ -76,12 +76,22 @@ const projectIdQuerySchema = z
     example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   });
 
+const taskSortQuerySchema = z
+  .enum(["nextRunAt"])
+  .optional()
+  .openapi({
+    param: { name: "sort", in: "query" },
+    description: "Sort tasks by nextRunAt ascending (nulls last)",
+    example: "nextRunAt",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
     status: taskStatusQuerySchema,
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
+    sort: taskSortQuerySchema,
     coworkerId: z
       .string()
       .optional()
@@ -115,7 +125,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const queryParams = c.req.valid("query");
-    const { coworkerId, projectId, q, scope, status: statuses } = queryParams;
+    const {
+      coworkerId,
+      projectId,
+      q,
+      scope,
+      sort,
+      status: statuses,
+    } = queryParams;
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
@@ -178,6 +195,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const takePlusOne = take + 1;
+    const orderBy =
+      sort === "nextRunAt"
+        ? ([
+            { nextRunAt: { sort: "asc" as const, nulls: "last" as const } },
+            { id: "asc" as const },
+          ] as const)
+        : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
     // Read-only list + count: run as independent queries instead of an
     // interactive transaction. The transaction added a 5s timeout that the
     // heavy nested include could exceed (esp. on a cold remote DB), surfacing
@@ -188,7 +212,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         take: takePlusOne,
         skip,
         cursor: cursor ? { id: cursor } : undefined,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        orderBy: [...orderBy],
         include: taskListInclude,
       }),
       prisma.task.count({ where }),

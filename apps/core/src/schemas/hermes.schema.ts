@@ -87,6 +87,11 @@ export const hermesPendingConfirmationSchema = z
     referencedOrganizations: z
       .array(hermesConfirmationOrganizationRefSchema)
       .default([]),
+    // Workspace Hermes proposed for the gated tool call (`null` = personal).
+    // Lets the UI pre-select the dropdown to Hermes' actual target instead of a
+    // local default. `organizationName` is a best-effort label (may be null).
+    organizationId: z.string().min(1).nullable().default(null),
+    organizationName: z.string().min(1).nullable().default(null),
   })
   .openapi("HermesPendingConfirmation");
 
@@ -415,6 +420,32 @@ export const hermesPersistedMessageSchema = z
     role: hermesChatMessageRoleSchema,
     content: z.string(),
     kind: z.string().nullable(),
+    steps: z
+      .array(
+        z.object({
+          kind: z.enum(["tool", "reasoning"]).optional(),
+          label: z.string(),
+          detail: z.string().optional(),
+        }),
+      )
+      .nullish()
+      .openapi({
+        description:
+          "Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.",
+        example: [
+          { kind: "reasoning", label: "The user wants a web search…" },
+          {
+            kind: "tool",
+            label: "Searching the web",
+            detail: "latest MoE LLMs",
+          },
+        ],
+      }),
+    durationMs: z.number().int().nullish().openapi({
+      description:
+        "Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.",
+      example: 7840,
+    }),
     createdAt: dateTimeSchema,
   })
   .openapi("HermesPersistedMessage");

@@ -31,6 +31,12 @@ const taskServiceMock = {
   createTaskLink: vi.fn(),
   createTask: vi.fn(),
   deleteTask: vi.fn(),
+  patchTask: vi.fn(),
+  createTaskEvent: vi.fn(),
+};
+const taskScheduleServiceMock = {
+  clearSchedule: vi.fn(),
+  setSchedule: vi.fn(),
 };
 const toCoreApiActionErrorMock = vi.fn();
 
@@ -47,6 +53,10 @@ vi.mock("@/lib/services/design-md.service", () => ({
 
 vi.mock("@/lib/services/task.service", () => ({
   taskService: taskServiceMock,
+}));
+
+vi.mock("@/lib/services/task-schedule.service", () => ({
+  taskScheduleService: taskScheduleServiceMock,
 }));
 
 function buildTaskLink(
@@ -76,7 +86,9 @@ function buildTaskLink(
   };
 }
 
-function buildTask(overrides?: Partial<{ id: string; name: string }>) {
+function buildTask(
+  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
+) {
   return {
     id: "task-created",
     name: "Generated task name",
@@ -95,6 +107,12 @@ describe("task link actions", () => {
     taskServiceMock.createTaskLink.mockReset();
     taskServiceMock.createTask.mockReset();
     taskServiceMock.deleteTask.mockReset();
+    taskServiceMock.patchTask.mockReset();
+    taskServiceMock.createTaskEvent.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+    taskServiceMock.patchTask.mockResolvedValue({});
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
     appendDesignMdToDescriptionMock.mockReset();
     appendDesignMdToDescriptionMock.mockImplementation(
       async (description: string) => description,
@@ -432,5 +450,175 @@ describe("task link actions", () => {
       },
     );
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
+  });
+});
+
+describe("updateTask schedule status", () => {
+  const recurringSchedule = {
+    mode: "recurring" as const,
+    timezone: "UTC",
+    cron: "0 9 * * *",
+    oneTimeLocalIso: "2026-06-25T09:00",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockResolvedValue({});
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+  });
+
+  it("does not re-queue after clearing a schedule on a queued task", async () => {
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.QUEUED,
+      hadSchedule: true,
+      originalSchedule: recurringSchedule,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not revert to draft after adding a schedule", async () => {
+    taskScheduleServiceMock.setSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.QUEUED,
+    });
+
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.DRAFT,
+      hadSchedule: false,
+      originalSchedule: { mode: "none", timezone: "UTC" },
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("applies an explicit draft/ready toggle when the schedule is unchanged", async () => {
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.READY,
+      hadSchedule: false,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("clears the schedule when reverting a queued task to draft", async () => {
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+
+    const { updateTask } = await import("../action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Task",
+      description: "Do work",
+      coworkerId: "coworker-1",
+      currentStatus: TaskStatus.QUEUED,
+      desiredStatus: TaskStatus.DRAFT,
+      hadSchedule: true,
+      originalSchedule: recurringSchedule,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("createTask schedule", () => {
+  const recurringSchedule = {
+    mode: "recurring" as const,
+    timezone: "UTC",
+    cron: "0 9 * * *",
+    oneTimeLocalIso: "2026-06-25T09:00",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.createTask.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskScheduleServiceMock.setSchedule.mockReset();
+    appendDesignMdToDescriptionMock.mockImplementation(
+      async (description: string) => description,
+    );
+  });
+
+  it("does not apply a schedule when saving as draft", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Draft task",
+      coworkerId: null,
+      status: TaskStatus.DRAFT,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+    expect(taskScheduleServiceMock.clearSchedule).not.toHaveBeenCalled();
+  });
+
+  it("applies a schedule when creating a ready task with a schedule", async () => {
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.DRAFT }),
+    );
+    taskScheduleServiceMock.setSchedule.mockResolvedValue({
+      id: "task-created",
+      status: TaskStatus.QUEUED,
+    });
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Scheduled task",
+      coworkerId: null,
+      status: TaskStatus.READY,
+      schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
   });
 });
