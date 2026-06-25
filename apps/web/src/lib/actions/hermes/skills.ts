@@ -51,26 +51,24 @@ export const getSkillsMarketplaceAction = withSession<
   Result<SkillsMarketplaceData, ActionError>
 >(async () => {
   try {
-    // Each call degrades to [] on its own (timeout / upstream error) so one
-    // slow dependency can't blank the whole marketplace — show what resolved.
-    const [marketingPool, installed, preinstalled] = await Promise.all([
-      Promise.all(
-        MARKETING_QUERIES.map((q) =>
-          coreClientNoRedirect
-            .searchSkillsCatalog({ q, limit: 20 })
-            .then((r) => r.data.skills)
-            .catch(() => [] as SkillCatalogItem[]),
+    // Marketing searches degrade individually so one slow query can't blank the
+    // shelf; installed/preinstalled must succeed so we never show a false empty
+    // state (Add on existing skills, missing Included shelf, removable built-ins).
+    const [marketingPool, installedResponse, preinstalledResponse] =
+      await Promise.all([
+        Promise.all(
+          MARKETING_QUERIES.map((q) =>
+            coreClientNoRedirect
+              .searchSkillsCatalog({ q, limit: 20 })
+              .then((r) => r.data.skills)
+              .catch(() => [] as SkillCatalogItem[]),
+          ),
         ),
-      ),
-      coreClientNoRedirect
-        .getInstalledSkills()
-        .then((r) => r.data.skills)
-        .catch(() => [] as InstalledSkill[]),
-      coreClientNoRedirect
-        .getPreinstalledSkills()
-        .then((r) => r.data.skills)
-        .catch(() => [] as PreinstalledSkill[]),
-    ]);
+        coreClientNoRedirect.getInstalledSkills(),
+        coreClientNoRedirect.getPreinstalledSkills(),
+      ]);
+    const installed = installedResponse.data.skills;
+    const preinstalled = preinstalledResponse.data.skills;
     // Don't offer skills the agent already has (installed or image-baked).
     const have = new Set<string>([
       ...installed.map((s) => s.slug),

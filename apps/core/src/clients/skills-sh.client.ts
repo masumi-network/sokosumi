@@ -139,7 +139,9 @@ async function skillsGet<T>(
   }
   const raw = (await res.json().catch(() => ({}))) as unknown;
   const value = parse(raw);
-  cache.set(url, { expiresAt: nowMs() + CACHE_TTL_MS, value });
+  if (value !== null) {
+    cache.set(url, { expiresAt: nowMs() + CACHE_TTL_MS, value });
+  }
   return value;
 }
 

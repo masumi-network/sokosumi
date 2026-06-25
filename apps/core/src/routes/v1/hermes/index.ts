@@ -2580,6 +2580,24 @@ function mapSkillInstallError(error: unknown): never {
   throw internalServerError("Failed to install skill.");
 }
 
+/** Maps orchestrator remove errors to user-facing responses. */
+function mapSkillRemoveError(error: unknown): never {
+  if (error instanceof HTTPException) throw error;
+  if (error instanceof HermesOrchestratorError) {
+    if (error.httpStatus === 403) {
+      throw forbidden("This skill can't be removed.");
+    }
+    if (error.httpStatus === 404) {
+      throw notFound("Skill not found.");
+    }
+    if (error.httpStatus === 400) {
+      throw badRequest(error.message || "This skill can't be removed.");
+    }
+    throw serviceUnavailable("Hermes is temporarily unavailable.");
+  }
+  throw internalServerError("Failed to remove skill.");
+}
+
 const browseSkillsRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
@@ -2711,6 +2729,8 @@ const removeSkillRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonSuccessResponse(hermesEmptyResponseSchema, "Skill removed"),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
       503: jsonErrorResponse("Service Unavailable"),
     },
   }),
@@ -2859,7 +2879,7 @@ app.openapi(removeSkillRoute, async (c) => {
     await removeInstalledSkill(userContext.userId, slug);
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to remove skill");
+    return mapSkillRemoveError(error);
   }
 });
 

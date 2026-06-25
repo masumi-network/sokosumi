@@ -106,6 +106,8 @@ export default function SkillsMarketplace({
         setMarketing(res.data.marketing.slice(0, max));
         setInstalled(res.data.installed);
         setPreinstalled(res.data.preinstalled);
+      } else {
+        toast.error(res.error.message ?? t("emptyCatalog"));
       }
       setLoading(false);
     })();
