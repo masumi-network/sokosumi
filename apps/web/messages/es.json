@@ -1203,6 +1203,7 @@
           "active": "Activo",
           "archived": "Archivado",
           "DRAFT": "Borrador",
+          "QUEUED": "En cola",
           "READY": "Listo",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
@@ -1410,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Pendiente",
+        "scheduled": "Programado",
         "todo": "Por hacer",
         "inProgress": "En proceso",
         "inputRequired": "Input requerido",
@@ -1469,6 +1471,7 @@
         "projectLabel": "Proyecto",
         "statusOptions": {
           "DRAFT": "Borrador",
+          "QUEUED": "En cola",
           "READY": "Listo",
           "INPUT_REQUIRED": "Entrada requerida",
           "APPROVAL_REQUIRED": "Aprobación requerida",
@@ -1641,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Cambiado a la cuenta de {account}"
+        "switchedWorkspace": "Cambiado a la cuenta de {account}",
+        "clonedFrom": "Clonada de {name}",
+        "schedule": "Programación"
       },
       "NewTask": {
         "title": "Nuevo Task",
@@ -1659,6 +1664,7 @@
         "status": "Estado",
         "statusDescription": "Elige el estado inicial de este Task",
         "statusDraft": "Borrador",
+        "statusQueued": "En cola",
         "statusReady": "Listo",
         "back": "Atrás",
         "uploadFile": "Subir archivo",
@@ -1669,8 +1675,36 @@
         "saveDraft": "Guardar",
         "saveAsDraft": "Guardar como borrador",
         "createTask": "Crear Task",
+        "scheduleTask": "Programar tarea",
+        "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Elige tu agente",
+        "chooseAgentDescription": "Elige quién debe gestionar esta tarea — compara su modelo, alojamiento y capacidades.",
+        "defaultBadge": "Predeterminado",
+        "modelLabel": "Modelo",
+        "hostingLabel": "Alojado en",
+        "examplesTitle": "Qué puede hacer {name}",
+        "continue": "Continuar",
+        "taskStepTitle": "¿Qué debe hacer {name}?",
+        "previousAgent": "Agente anterior",
+        "nextAgent": "Agente siguiente",
+        "searchAgents": "Buscar agentes…",
+        "noAgentsFound": "No se encontraron agentes.",
+        "askPrompt": "Pide a {name} que…",
+        "promptHint": "Haz clic en un ejemplo para empezar o escribe tus propias instrucciones.",
+        "tasksTitle": "Tareas listas para ejecutar",
+        "startFromScratch": "Empezar desde cero",
+        "startFromScratchHint": "Escribe tus propias instrucciones",
+        "previewExample": "Ver ejemplo",
+        "previewUse": "Usar esta tarea",
+        "previewEmpty": "Aún no hay salida de ejemplo disponible.",
+        "allCompanies": "Todos",
+        "taskCreated": "Tarea creada",
+        "taskCreatedHint": "Todo está configurado y listo.",
+        "goToTask": "Ir a la tarea",
+        "createAnother": "Crear otra tarea",
+        "close": "Cerrar"
       },
       "EditTask": {
         "title": "Editar Task",
@@ -1696,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Eliminar adjunto",
         "save": "Guardar",
+        "openSchedule": "Configurar programación",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Programación",
+        "description": "Planificar una ejecución única o recurrente.",
+        "clearSchedule": "Eliminar programación",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Zona horaria",
+        "customCron": "Expresión cron personalizada",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Una vez el {datetime}"
+        },
+        "card": {
+          "overdue": "Atrasada",
+          "dueInMinutes": "Vence en {minutes, plural, one {# minuto} other {# minutos}}",
+          "dueInHours": "Vence en {hours, plural, one {# hora} other {# horas}}",
+          "tomorrowAt": "Mañana a las {time}",
+          "nextRunAt": "Próxima ejecución: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1716,6 +1810,7 @@
           "total": "{count, plural, =0 {0 en total} =1 {1 en total} other {# en total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Borrador",
+            "QUEUED": "Programado",
             "READY": "Lista",
             "INPUT_REQUIRED": "Entrada",
             "APPROVAL_REQUIRED": "Aprobación",
@@ -2380,7 +2475,9 @@
           "projects": "Proyectos",
           "hermes": "Hermes",
           "history": "Historial",
-          "admin": "Administración"
+          "admin": "Administración",
+          "settings": "Configuración",
+          "back": "Atrás"
         }
       }
     },
@@ -3389,7 +3486,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "Un AI Coworker listo para ayudarte."
-      }
+      },
+      "allAgentsTitle": "Explorar todos los agentes",
+      "allAgentsSubtitle": "Todos los agentes en Sokosumi, agrupados según lo que hacen."
     },
     "EmailVerificationNotice": {
       "title": "Verifica tu dirección de correo",

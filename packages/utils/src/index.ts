@@ -171,7 +171,13 @@ export {
   TASK_ARCHIVABLE_STATUSES,
   type TaskArchivableStatus,
 } from "./task-archive.js";
+export {
+  isTaskEditableStatus,
+  TASK_EDITABLE_STATUSES,
+  type TaskEditableStatus,
+} from "./task-editable.js";
 export { TaskStatus } from "./task-status.js";
+export { canUserTransitionTaskStatus } from "./task-status-transitions.js";
 export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,

@@ -1203,6 +1203,7 @@
           "active": "Actif",
           "archived": "Archivé",
           "DRAFT": "Brouillon",
+          "QUEUED": "En file d'attente",
           "READY": "Prêt",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",
@@ -1410,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Backlog",
+        "scheduled": "Planifié",
         "todo": "À faire",
         "inProgress": "En cours",
         "inputRequired": "Saisie requise",
@@ -1469,6 +1471,7 @@
         "projectLabel": "Projet",
         "statusOptions": {
           "DRAFT": "Brouillon",
+          "QUEUED": "En file d'attente",
           "READY": "Prêt",
           "INPUT_REQUIRED": "Saisie requise",
           "APPROVAL_REQUIRED": "Approbation requise",
@@ -1641,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Passage au compte {account}"
+        "switchedWorkspace": "Passage au compte {account}",
+        "clonedFrom": "Clonée depuis {name}",
+        "schedule": "Planification"
       },
       "NewTask": {
         "title": "Nouvelle tâche",
@@ -1659,6 +1664,7 @@
         "status": "Statut",
         "statusDescription": "Choisissez le statut initial de cette tâche",
         "statusDraft": "Brouillon",
+        "statusQueued": "En file d'attente",
         "statusReady": "Prêt",
         "back": "Retour",
         "uploadFile": "Téléverser un fichier",
@@ -1669,8 +1675,36 @@
         "saveDraft": "Enregistrer",
         "saveAsDraft": "Enregistrer comme brouillon",
         "createTask": "Créer la tâche",
+        "scheduleTask": "Planifier la tâche",
+        "openSchedule": "Définir la planification",
         "cancel": "Annuler",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Choisissez votre agent",
+        "chooseAgentDescription": "Choisissez qui doit gérer cette tâche — comparez le modèle, l'hébergement et les capacités.",
+        "defaultBadge": "Par défaut",
+        "modelLabel": "Modèle",
+        "hostingLabel": "Hébergé en",
+        "examplesTitle": "Ce que {name} peut faire",
+        "continue": "Continuer",
+        "taskStepTitle": "Que doit faire {name} ?",
+        "previousAgent": "Agent précédent",
+        "nextAgent": "Agent suivant",
+        "searchAgents": "Rechercher des agents…",
+        "noAgentsFound": "Aucun agent trouvé.",
+        "askPrompt": "Demandez à {name} de…",
+        "promptHint": "Cliquez sur un exemple pour commencer ou écrivez vos propres instructions.",
+        "tasksTitle": "Tâches prêtes à l'emploi",
+        "startFromScratch": "Commencer de zéro",
+        "startFromScratchHint": "Rédigez vos propres instructions",
+        "previewExample": "Aperçu de l'exemple",
+        "previewUse": "Utiliser cette tâche",
+        "previewEmpty": "Aucun exemple disponible pour le moment.",
+        "allCompanies": "Tous",
+        "taskCreated": "Tâche créée",
+        "taskCreatedHint": "Tout est configuré et prêt.",
+        "goToTask": "Aller à la tâche",
+        "createAnother": "Créer une autre tâche",
+        "close": "Fermer"
       },
       "EditTask": {
         "title": "Modifier la tâche",
@@ -1696,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Supprimer la pièce jointe",
         "save": "Enregistrer",
+        "openSchedule": "Définir la planification",
         "cancel": "Annuler",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Planification",
+        "description": "Planifier une exécution unique ou récurrente.",
+        "clearSchedule": "Supprimer la planification",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Fuseau horaire",
+        "customCron": "Expression cron personnalisée",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Une fois le {datetime}"
+        },
+        "card": {
+          "overdue": "En retard",
+          "dueInMinutes": "Échéance dans {minutes, plural, one {# minute} other {# minutes}}",
+          "dueInHours": "Échéance dans {hours, plural, one {# heure} other {# heures}}",
+          "tomorrowAt": "Demain à {time}",
+          "nextRunAt": "Prochaine exécution : {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1716,6 +1810,7 @@
           "total": "{count, plural, =0 {0 au total} =1 {1 au total} other {# au total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Brouillon",
+            "QUEUED": "Planifié",
             "READY": "Prêt",
             "INPUT_REQUIRED": "Entrée",
             "APPROVAL_REQUIRED": "Approbation",
@@ -2380,7 +2475,9 @@
           "projects": "Projets",
           "hermes": "Hermes",
           "history": "Historique",
-          "admin": "Administration"
+          "admin": "Administration",
+          "settings": "Paramètres",
+          "back": "Retour"
         }
       }
     },
@@ -3420,7 +3517,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Collègue IA",
         "defaultDescription": "Un collègue propulsé par l’IA prêt à vous aider."
-      }
+      },
+      "allAgentsTitle": "Parcourir tous les agents",
+      "allAgentsSubtitle": "Tous les agents sur Sokosumi, regroupés par domaine."
     },
     "DesignMd": {
       "title": "DESIGN.md",

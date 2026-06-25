@@ -1029,16 +1029,23 @@ export async function ensureInstanceReady(userId: string): Promise<void> {
 
 /**
  * POST /v1/proxy/:userId/v1/chat/completions
+ *
+ * `init.headers` is forwarded to the orchestrator — used to opt into streaming
+ * progress (`X-Hermes-Progress: 1`) on the streaming chat path. `init.signal`
+ * aborts the upstream fetch when the client disconnects.
  */
 export async function proxyChatCompletions(
   userId: string,
   body: unknown,
+  init?: { headers?: HeadersInit; signal?: AbortSignal },
 ): Promise<Response> {
   return orchFetch(
     `/v1/proxy/${encodeURIComponent(userId)}/v1/chat/completions`,
     {
       method: "POST",
       jsonBody: body,
+      headers: init?.headers,
+      signal: init?.signal,
     },
   );
 }

@@ -11,6 +11,7 @@ Investigation markdown per the output template below. Keep it **in orchestrator 
 - Search routes, services, schemas, tests, and similar features.
 - Read scoped `AGENTS.md` for touched apps/packages.
 - Note **pitfalls**: auth gaps, web→core boundary, migrations, generated files, i18n keys.
+- When triggers match, flag risks from `BUGBOT-LEARNINGS.md` R1–R12 (mutation order, status machine, timezone, serverless, client state, auth matrix, enum ripples).
 - Point to **similar implementations** with file paths — e.g. "History list pattern in `apps/web/src/...` — consider extracting shared hook."
 - List **open technical questions** for the Tech Lead to resolve in the spec.
 - Link related Linear issues when MCP is available.

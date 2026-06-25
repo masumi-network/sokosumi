@@ -1203,6 +1203,7 @@
           "active": "Ativo",
           "archived": "Arquivado",
           "DRAFT": "Rascunho",
+          "QUEUED": "Na fila",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
@@ -1410,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "Backlog",
+        "scheduled": "Agendado",
         "todo": "A fazer",
         "inProgress": "Em andamento",
         "inputRequired": "Entrada necessária",
@@ -1469,6 +1471,7 @@
         "projectLabel": "Projeto",
         "statusOptions": {
           "DRAFT": "Rascunho",
+          "QUEUED": "Na fila",
           "READY": "Pronto",
           "INPUT_REQUIRED": "Entrada necessária",
           "APPROVAL_REQUIRED": "Aprovação necessária",
@@ -1641,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "Você mudou para a conta {account}"
+        "switchedWorkspace": "Você mudou para a conta {account}",
+        "clonedFrom": "Clonada de {name}",
+        "schedule": "Agendamento"
       },
       "NewTask": {
         "title": "Nova tarefa",
@@ -1659,6 +1664,7 @@
         "status": "Status",
         "statusDescription": "Escolha o status inicial para esta tarefa",
         "statusDraft": "Rascunho",
+        "statusQueued": "Na fila",
         "statusReady": "Pronta",
         "back": "Voltar",
         "uploadFile": "Enviar arquivo",
@@ -1669,8 +1675,36 @@
         "saveDraft": "Salvar",
         "saveAsDraft": "Salvar como rascunho",
         "createTask": "Criar tarefa",
+        "scheduleTask": "Agendar tarefa",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "Escolha seu agente",
+        "chooseAgentDescription": "Escolha quem deve gerenciar esta tarefa — compare o modelo, hospedagem e capacidades.",
+        "defaultBadge": "Padrão",
+        "modelLabel": "Modelo",
+        "hostingLabel": "Hospedado em",
+        "examplesTitle": "O que {name} pode fazer",
+        "continue": "Continuar",
+        "taskStepTitle": "O que {name} deve fazer?",
+        "previousAgent": "Agente anterior",
+        "nextAgent": "Próximo agente",
+        "searchAgents": "Buscar agentes…",
+        "noAgentsFound": "Nenhum agente encontrado.",
+        "askPrompt": "Peça para {name}…",
+        "promptHint": "Clique em um exemplo para começar ou escreva suas próprias instruções.",
+        "tasksTitle": "Tarefas prontas para executar",
+        "startFromScratch": "Começar do zero",
+        "startFromScratchHint": "Escreva suas próprias instruções",
+        "previewExample": "Visualizar exemplo",
+        "previewUse": "Usar esta tarefa",
+        "previewEmpty": "Nenhuma saída de exemplo disponível ainda.",
+        "allCompanies": "Todos",
+        "taskCreated": "Tarefa criada",
+        "taskCreatedHint": "Tudo está configurado e pronto.",
+        "goToTask": "Ir para a tarefa",
+        "createAnother": "Criar outra tarefa",
+        "close": "Fechar"
       },
       "EditTask": {
         "title": "Editar tarefa",
@@ -1696,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remover anexo",
         "save": "Salvar",
+        "openSchedule": "Definir agendamento",
         "cancel": "Cancelar",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "Agendamento",
+        "description": "Planejar uma execução única ou recorrente.",
+        "clearSchedule": "Remover agendamento",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "Fuso horário",
+        "customCron": "Expressão cron personalizada",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "Uma vez em {datetime}"
+        },
+        "card": {
+          "overdue": "Atrasada",
+          "dueInMinutes": "Vence em {minutes, plural, one {# minuto} other {# minutos}}",
+          "dueInHours": "Vence em {hours, plural, one {# hora} other {# horas}}",
+          "tomorrowAt": "Amanhã às {time}",
+          "nextRunAt": "Próxima execução: {datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1716,6 +1810,7 @@
           "total": "{count, plural, =0 {0 no total} =1 {1 no total} other {# no total}}",
           "taskStatusAbbreviations": {
             "DRAFT": "Rascunho",
+            "QUEUED": "Agendado",
             "READY": "Pronta",
             "INPUT_REQUIRED": "Entrada",
             "APPROVAL_REQUIRED": "Aprovação",
@@ -2380,7 +2475,9 @@
           "projects": "Projetos",
           "hermes": "Hermes",
           "history": "Histórico",
-          "admin": "Administração"
+          "admin": "Administração",
+          "settings": "Configurações",
+          "back": "Voltar"
         }
       }
     },
@@ -3420,7 +3517,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "Coworker de IA",
         "defaultDescription": "Um coworker com IA pronto para ajudar você."
-      }
+      },
+      "allAgentsTitle": "Explorar todos os agentes",
+      "allAgentsSubtitle": "Todos os agentes no Sokosumi, agrupados pelo que fazem."
     },
     "DesignMd": {
       "title": "DESIGN.md",

@@ -38,6 +38,7 @@ interface TasksPageProps {
   searchParams: Promise<{
     create?: string;
     coworker?: string;
+    prompt?: string;
     scope?: string | string[];
     coworkerId?: string | string[];
     status?: string | string[];
@@ -65,6 +66,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const {
     create,
     coworker: coworkerSlugParam,
+    prompt: promptParam,
     scope,
     coworkerId,
     status,
@@ -207,6 +209,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
+    scheduled: tColumns("scheduled"),
     todo: tColumns("todo"),
     "in-progress": tColumns("inProgress"),
     "input-required": tColumns("inputRequired"),
@@ -234,8 +237,11 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         defaultDensity={defaultDensity}
         initialCreateTaskOpen={initialCreateTaskOpen}
         initialCoworkerId={initialCoworkerId}
+        initialCreateTaskPrompt={
+          initialCreateTaskOpen ? (promptParam ?? null) : null
+        }
         initialDesignMdAttachment={initialDesignMdAttachment}
-        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}`}
+        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialCoworkerId ?? coworkerSlugParam ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
         labels={{
           tabs: {
             tasks: t("Tabs.tasks"),
@@ -254,6 +260,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
             projectLabel: t("Filters.projectLabel"),
             statusOptions: {
               [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
+              [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
               [TaskStatus.READY]: t("Filters.statusOptions.READY"),
               [TaskStatus.INPUT_REQUIRED]: t(
                 "Filters.statusOptions.INPUT_REQUIRED",

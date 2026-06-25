@@ -1203,6 +1203,7 @@
           "active": "活跃",
           "archived": "已归档",
           "DRAFT": "草稿",
+          "QUEUED": "已排队",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
@@ -1410,6 +1411,7 @@
       },
       "Columns": {
         "backlog": "待规划",
+        "scheduled": "已排期",
         "todo": "待办",
         "inProgress": "进行中",
         "inputRequired": "需要输入",
@@ -1469,6 +1471,7 @@
         "projectLabel": "项目",
         "statusOptions": {
           "DRAFT": "草稿",
+          "QUEUED": "已排队",
           "READY": "就绪",
           "INPUT_REQUIRED": "需要输入",
           "APPROVAL_REQUIRED": "需要批准",
@@ -1641,7 +1644,9 @@
             "taskNotFound": "Task not found"
           }
         },
-        "switchedWorkspace": "已切换到 {account} 账户"
+        "switchedWorkspace": "已切换到 {account} 账户",
+        "clonedFrom": "克隆自 {name}",
+        "schedule": "计划"
       },
       "NewTask": {
         "title": "新建任务",
@@ -1659,6 +1664,7 @@
         "status": "状态",
         "statusDescription": "选择此任务的初始状态",
         "statusDraft": "草稿",
+        "statusQueued": "已排队",
         "statusReady": "就绪",
         "back": "返回",
         "uploadFile": "上传文件",
@@ -1669,8 +1675,36 @@
         "saveDraft": "保存",
         "saveAsDraft": "保存为草稿",
         "createTask": "创建任务",
+        "scheduleTask": "安排任务",
+        "openSchedule": "设置计划",
         "cancel": "取消",
-        "ctrl": "Ctrl"
+        "ctrl": "Ctrl",
+        "chooseAgent": "选择智能体",
+        "chooseAgentDescription": "选择由谁处理此任务——比较其模型、托管位置和功能。",
+        "defaultBadge": "默认",
+        "modelLabel": "模型",
+        "hostingLabel": "托管于",
+        "examplesTitle": "{name} 能做什么",
+        "continue": "继续",
+        "taskStepTitle": "希望 {name} 做什么？",
+        "previousAgent": "上一个智能体",
+        "nextAgent": "下一个智能体",
+        "searchAgents": "搜索智能体…",
+        "noAgentsFound": "未找到智能体。",
+        "askPrompt": "请 {name}…",
+        "promptHint": "点击示例开始，或继续编写您自己的说明。",
+        "tasksTitle": "即开即用的任务",
+        "startFromScratch": "从头开始",
+        "startFromScratchHint": "编写您自己的说明",
+        "previewExample": "预览示例",
+        "previewUse": "使用此任务",
+        "previewEmpty": "暂无示例输出。",
+        "allCompanies": "全部",
+        "taskCreated": "任务已创建",
+        "taskCreatedHint": "一切已就绪，可以开始了。",
+        "goToTask": "前往任务",
+        "createAnother": "创建另一个任务",
+        "close": "关闭"
       },
       "EditTask": {
         "title": "编辑任务",
@@ -1696,8 +1730,68 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "移除附件",
         "save": "保存",
+        "openSchedule": "设置计划",
         "cancel": "取消",
         "ctrl": "Ctrl"
+      },
+      "Schedule": {
+        "title": "计划",
+        "description": "安排一次性或重复运行。",
+        "clearSchedule": "移除计划",
+        "option": {
+          "oneTime": "One-time",
+          "daily": "Daily",
+          "dailyWithTime": "Daily ({time})",
+          "dailyEveryNWithTime": "Every {n} days ({time})",
+          "weekly": "Weekly",
+          "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+          "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+          "monthly": "Monthly",
+          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "custom": "Custom cron"
+        },
+        "pickDateTime": "Run once at",
+        "timeOfDay": "Time of day",
+        "repeatEvery": "Repeat every",
+        "repeatOn": "Repeat on",
+        "ends": "Ends",
+        "never": "Never",
+        "on": "On date",
+        "after": "After",
+        "occurrences": "occurrences",
+        "pickDate": "Pick a date",
+        "preview": "Preview",
+        "noPreview": "No upcoming runs",
+        "timezone": "时区",
+        "customCron": "自定义 cron 表达式",
+        "customCronValid": "Valid cron expression",
+        "unit": {
+          "day": "day",
+          "week": "week",
+          "month": "month"
+        },
+        "save": "Save",
+        "cancel": "Cancel",
+        "footer": {
+          "oneTimeAt": "于 {datetime} 运行一次"
+        },
+        "card": {
+          "overdue": "已逾期",
+          "dueInMinutes": "{minutes} 分钟后运行",
+          "dueInHours": "{hours} 小时后运行",
+          "tomorrowAt": "明天 {time}",
+          "nextRunAt": "下次运行：{datetime}"
+        },
+        "errors": {
+          "required": "This field is required.",
+          "futureDateTime": "Select a future date and time.",
+          "invalidTime": "Enter a valid time (HH:MM).",
+          "positiveInteger": "Enter a positive integer.",
+          "selectAtLeastOneWeekday": "Select at least one weekday.",
+          "endDateInPast": "End date cannot be in the past.",
+          "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
       }
     },
     "Projects": {
@@ -1716,6 +1810,7 @@
           "total": "{count, plural, =0 {共 0 个} =1 {共 1 个} other {共 # 个}}",
           "taskStatusAbbreviations": {
             "DRAFT": "草稿",
+            "QUEUED": "已排期",
             "READY": "就绪",
             "INPUT_REQUIRED": "需输入",
             "APPROVAL_REQUIRED": "需批准",
@@ -2380,7 +2475,9 @@
           "projects": "项目",
           "hermes": "Hermes",
           "history": "历史记录",
-          "admin": "管理"
+          "admin": "管理",
+          "settings": "设置",
+          "back": "返回"
         }
       }
     },
@@ -3420,7 +3517,9 @@
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI 协作伙伴",
         "defaultDescription": "一位由 AI 驱动、随时准备协助您的协作伙伴。"
-      }
+      },
+      "allAgentsTitle": "浏览全部智能体",
+      "allAgentsSubtitle": "Sokosumi 上的全部智能体，按它们擅长的工作分类。"
     },
     "DesignMd": {
       "title": "DESIGN.md",

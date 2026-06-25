@@ -218,7 +218,7 @@ export type CreateInvoice = {
 export type AdminTaskListItem = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     createdAt: Date;
     user: {
         id: string;
@@ -259,7 +259,15 @@ export type Task = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Serialized task schedule metadata JSON
+     */
+    metadata: string | null;
+    /**
+     * Next scheduled run time for queued tasks
+     */
+    nextRunAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -316,7 +324,7 @@ export type TaskEvent = {
     comment?: string | null;
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
 };
 
 export type JobSummary = {
@@ -390,7 +398,7 @@ export type TaskLinkRelation = typeof TaskLinkRelation[keyof typeof TaskLinkRela
 export type TaskLinkPeerTask = {
     id: string;
     name: string;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     archivedAt: Date | null;
 };
 
@@ -1189,6 +1197,18 @@ export type HermesPersistedMessage = {
     role: HermesChatMessageRole;
     content: string;
     kind: string | null;
+    /**
+     * Turn trace captured during a streamed turn: `tool` action steps and `reasoning` chain-of-thought beats, in order. Null/absent for non-streamed turns and user messages.
+     */
+    steps?: Array<{
+        kind?: 'tool' | 'reasoning';
+        label: string;
+        detail?: string;
+    }> | null;
+    /**
+     * Total wall-clock time of the streamed turn (ms). Null for user messages and non-streamed turns.
+     */
+    durationMs?: number | null;
     createdAt: Date;
 };
 
@@ -1450,7 +1470,7 @@ export type HistoryTaskItem = {
      */
     owner: HistoryOwner | null;
     kind: 'task';
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
      * Project ID for the task, when assigned
      */
@@ -2043,7 +2063,7 @@ export type ProjectStatsEntry = {
 
 export type ProjectTaskStatusCount = {
     count: number;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
 };
 
 export type ProjectJobStatusCount = {
@@ -2334,7 +2354,7 @@ export type PublicSharedTask = {
     updatedAt: Date;
     name: string;
     description?: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     coworker?: PublicSharedTaskCoworker;
     jobs: Array<PublicSharedTaskJob>;
     events: Array<PublicSharedTaskMilestone>;
@@ -2362,7 +2382,7 @@ export type PublicSharedTaskMilestone = {
     createdAt: Date;
     updatedAt: Date;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
     comment: string | null;
     credits: number | null;
     actorName: string | null;
@@ -2405,7 +2425,42 @@ export type CoworkerMetadata = {
     channels: {
         [key: string]: string;
     };
+    profile?: CoworkerProfile;
+    /**
+     * Curated, pre-filled task offers shown in the agents marketplace.
+     */
+    offers?: Array<CoworkerOffer>;
 } | null;
+
+/**
+ * Public agent profile shown in selection UIs (model, hosting, capabilities, examples).
+ */
+export type CoworkerProfile = {
+    llm?: Array<string>;
+    hosting?: string;
+    capabilities?: Array<string>;
+    examples?: Array<string>;
+};
+
+export type CoworkerOffer = {
+    title: string;
+    prompt: string;
+    category?: string;
+    description?: string;
+    deliverable?: string;
+    /**
+     * Example outputs the offer produces — text and/or files (PDF, slides, image).
+     */
+    outputs?: Array<{
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text' | 'html';
+        url?: string;
+        label?: string;
+        /**
+         * Inline example content shown when there is no file URL. For `text` outputs this is Markdown; for `html` outputs it is a full HTML document rendered in a sandboxed iframe. `html` outputs may instead point at a hosted page via `url`.
+         */
+        text?: string;
+    }>;
+};
 
 export type CoworkerUsage = {
     id: string;
@@ -2451,7 +2506,15 @@ export type TaskListItem = {
     coworker: CoworkerSummary;
     name: string;
     description: string | null;
-    status: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * Serialized task schedule metadata JSON
+     */
+    metadata: string | null;
+    /**
+     * Next scheduled run time for queued tasks
+     */
+    nextRunAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2460,6 +2523,41 @@ export type TaskListItem = {
 
 export type TaskLinkDeleted = {
     deleted: true;
+};
+
+export type PutTaskScheduleRequest = {
+    mode: 'once';
+    /**
+     * When the one-time schedule should run
+     */
+    runAt: Date;
+} | {
+    mode: 'recurring';
+    /**
+     * Cron expression for recurring runs
+     */
+    expr: string;
+    /**
+     * IANA timezone for the cron expression
+     */
+    timezone?: string;
+    endsMode?: 'never' | 'on' | 'after';
+    /**
+     * End date when endsMode is on
+     */
+    endsOn?: Date;
+    /**
+     * Remaining occurrences when endsMode is after
+     */
+    occurrences?: number;
+    /**
+     * When greater than 1, run every N calendar days from anchorAt instead of using day-of-month cron steps
+     */
+    intervalDays?: number;
+    /**
+     * First run instant for intervalDays schedules (required when intervalDays > 1)
+     */
+    anchorAt?: Date;
 };
 
 /**
@@ -2538,6 +2636,13 @@ export type EffectiveDesignMd = {
          */
         url: string;
     } | null;
+};
+
+export type WorkspaceOrganization = {
+    /**
+     * Organization id for the workspace, or null for a personal workspace
+     */
+    organizationId: string | null;
 };
 
 /**
@@ -19414,7 +19519,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
+        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED'>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -19423,6 +19528,10 @@ export type GetTasksData = {
          * Filter tasks by project ID. Use the literal value 'null' to return tasks that are not assigned to a project.
          */
         projectId?: string | 'null';
+        /**
+         * Sort tasks by nextRunAt ascending (nulls last)
+         */
+        sort?: 'nextRunAt';
         /**
          * Filter tasks by coworker ID
          */
@@ -20184,6 +20293,178 @@ export type PatchTasksByIdResponses = {
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
 
+export type DeleteTasksByIdScheduleData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule';
+};
+
+export type DeleteTasksByIdScheduleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdScheduleError = DeleteTasksByIdScheduleErrors[keyof DeleteTasksByIdScheduleErrors];
+
+export type DeleteTasksByIdScheduleResponses = {
+    /**
+     * Task schedule removed
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdScheduleResponse = DeleteTasksByIdScheduleResponses[keyof DeleteTasksByIdScheduleResponses];
+
+export type PutTasksByIdScheduleData = {
+    body?: PutTaskScheduleRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/schedule';
+};
+
+export type PutTasksByIdScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutTasksByIdScheduleError = PutTasksByIdScheduleErrors[keyof PutTasksByIdScheduleErrors];
+
+export type PutTasksByIdScheduleResponses = {
+    /**
+     * Task schedule saved
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksByIdScheduleResponse = PutTasksByIdScheduleResponses[keyof PutTasksByIdScheduleResponses];
+
 export type DeleteTasksByIdShareData = {
     body?: never;
     path: {
@@ -20494,7 +20775,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
         comment?: string;
         authenticationUrl?: string;
         /**
@@ -22003,3 +22284,75 @@ export type GetWorkspacesDesignMdResponses = {
 };
 
 export type GetWorkspacesDesignMdResponse = GetWorkspacesDesignMdResponses[keyof GetWorkspacesDesignMdResponses];
+
+export type GetWorkspacesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}';
+};
+
+export type GetWorkspacesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspacesByIdError = GetWorkspacesByIdErrors[keyof GetWorkspacesByIdErrors];
+
+export type GetWorkspacesByIdResponses = {
+    /**
+     * Workspace organization mapping
+     */
+    200: {
+        data: WorkspaceOrganization;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspacesByIdResponse = GetWorkspacesByIdResponses[keyof GetWorkspacesByIdResponses];

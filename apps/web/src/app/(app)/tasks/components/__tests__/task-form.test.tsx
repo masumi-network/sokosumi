@@ -5,7 +5,6 @@ import { forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
-import { writeCreateTaskModalLastCoworkerId } from "@/app/tasks/utils/create-task-modal-preferences";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 
 const {
@@ -25,6 +24,7 @@ const {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
+    prefetch: vi.fn(),
   }),
 }));
 
@@ -62,6 +62,9 @@ vi.mock("sonner", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({
+    dateTime: (value: Date) => value.toISOString(),
+  }),
 }));
 
 vi.mock("../markdown-editor", () => ({
@@ -132,6 +135,7 @@ const baseLabels = {
   status: "Status",
   statusDescription: "Pick status",
   statusDraft: "Draft",
+  statusQueued: "Queued",
   statusReady: "Ready",
   markAsReady: "Mark as Ready",
   revertToDraft: "Revert to Draft",
@@ -140,8 +144,14 @@ const baseLabels = {
   submit: "Save",
   saveAsDraft: "Save as Draft",
   createTask: "Create Task",
+  scheduleTask: "Schedule Task",
+  openSchedule: "Set schedule",
   cancel: "Cancel",
   ctrl: "Ctrl",
+  taskCreated: "Task created",
+  taskCreatedHint: "Everything's set up and ready to go.",
+  goToTask: "Bring me to the task",
+  createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",
   uploadingFiles: "Uploading {count} files",
 };
@@ -203,10 +213,47 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
-  it("submits draft and ready from create modal actions", async () => {
-    const user = userEvent.setup();
+  it("shows the wizard when only a prompt is prefilled without a coworker", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ description: "Analyze competitors" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Start from scratch/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens directly on compose when a coworker is prefilled", () => {
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Start from scratch/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not create a task from Ctrl+Enter on wizard step 1", async () => {
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
 
     render(
       <TaskForm
@@ -215,6 +262,42 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+
+    expect(createTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("submits as draft from create modal actions", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -227,8 +310,26 @@ describe("TaskForm", () => {
         status: TaskStatus.DRAFT,
       }),
     );
+  });
 
-    createTaskMock.mockClear();
+  it("submits as ready from create modal actions", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
 
     await user.click(screen.getByRole("button", { name: "Create Task" }));
     expect(createTaskMock).toHaveBeenCalledWith(
@@ -236,6 +337,180 @@ describe("TaskForm", () => {
         status: TaskStatus.READY,
       }),
     );
+  });
+
+  it("opens schedule setup from the footer calendar button", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("timezone")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+
+    expect(screen.getByText("timezone")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "save" })).toBeInTheDocument();
+  });
+
+  it("changes the primary action to schedule task when a schedule is set", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: TaskStatus.READY,
+        schedule: expect.objectContaining({
+          mode: "once",
+          timezone: expect.any(String),
+          oneTimeLocalIso: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it("shows a queued celebration after creating a scheduled task", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({
+      taskId: "task-scheduled",
+      name: "Scheduled docs",
+    });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+
+    expect(await screen.findByText("Queued")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled docs")).toBeInTheDocument();
+    expect(screen.queryByText("Draft")).not.toBeInTheDocument();
+  });
+
+  it("clears a configured schedule from the schedule modal", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+    expect(
+      screen.getByRole("button", { name: /Schedule Task/ }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+
+    expect(screen.queryByText("footer.oneTimeAt")).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: "Create Task" }),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schedule: {
+          mode: "none",
+          timezone: expect.any(String),
+        },
+      }),
+    );
+  });
+
+  it("shows a success state with a go-to-task action after creating in the modal", async () => {
+    const user = userEvent.setup();
+    const onCreated = vi.fn();
+    const onSuccess = vi.fn();
+    const onCreateAnother = vi.fn();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onCreated={onCreated}
+        onSuccess={onSuccess}
+        onCreateAnother={onCreateAnother}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    const goToTask = await screen.findByRole("button", {
+      name: baseLabels.goToTask,
+    });
+    expect(onCreated).toHaveBeenCalledWith("task-1");
+    expect(onSuccess).not.toHaveBeenCalled();
+
+    await user.click(goToTask);
+    expect(onSuccess).toHaveBeenCalledWith("task-1");
   });
 
   it("toggles status in edit modal and keeps the toggled status on save", async () => {
@@ -260,6 +535,11 @@ describe("TaskForm", () => {
         onSuccess={vi.fn()}
       />,
     );
+
+    expect(screen.getByText("Soko")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Soko/i }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Mark as Ready" }));
     expect(
@@ -301,7 +581,7 @@ describe("TaskForm", () => {
   it("selects initialValues.coworkerId when provided", () => {
     render(
       <TaskForm
-        variant="modal"
+        variant="page"
         mode="create"
         showCancel={false}
         labels={baseLabels}
@@ -326,7 +606,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-2" }}
+        initialValues={{ projectId: "project-2", coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -344,6 +624,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -368,7 +649,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
-        initialValues={{ description: "Write docs" }}
+        initialValues={{ description: "Write docs", coworkerId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -383,7 +664,7 @@ describe("TaskForm", () => {
   it("skips design.md attachment when the prefilled link is removed in the editor", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
 
     render(
       <TaskForm
@@ -392,6 +673,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
@@ -412,13 +694,17 @@ describe("TaskForm", () => {
       coworkerId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: true,
+      schedule: {
+        mode: "none",
+        timezone: expect.any(String),
+      },
     });
   });
 
   it("passes projectId when creating a task from the project picker", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    createTaskMock.mockResolvedValue({ taskId: "task-1" });
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
 
     render(
       <TaskForm
@@ -428,7 +714,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}
-        initialValues={{ projectId: "project-1" }}
+        initialValues={{ projectId: "project-1", coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -515,8 +801,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("applies stored create-modal coworker from localStorage after mount", () => {
-    writeCreateTaskModalLastCoworkerId("coworker-1");
+  it("selects the Elena coworker by default on first open", () => {
     render(
       <TaskForm
         variant="modal"
@@ -528,14 +813,14 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /Soko/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: /Elena/i })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    // The create modal defaults to Elena (matched by slug/name), not the first
+    // option. The rail renders twice (mobile + desktop), so assert all matches.
+    for (const button of screen.getAllByRole("button", { name: /Elena/ })) {
+      expect(button).toHaveAttribute("aria-pressed", "true");
+    }
+    for (const button of screen.getAllByRole("button", { name: /Soko/ })) {
+      expect(button).toHaveAttribute("aria-pressed", "false");
+    }
   });
 
   it("passes agent mention options to MarkdownEditor", () => {
@@ -547,6 +832,7 @@ describe("TaskForm", () => {
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
         agentNameById={new Map([["agent-1", "Writer Agent"]])}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -604,6 +890,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -710,6 +997,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -770,6 +1058,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -830,6 +1119,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onSuccess={vi.fn()}
       />,
     );
@@ -855,7 +1145,10 @@ describe("TaskForm", () => {
   it("uses a custom create handler when provided", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
-    const onCreateTask = vi.fn().mockResolvedValue({ taskId: "linked-task-1" });
+    const onCreateTask = vi.fn().mockResolvedValue({
+      taskId: "linked-task-1",
+      name: "Linked task",
+    });
 
     render(
       <TaskForm
@@ -864,6 +1157,7 @@ describe("TaskForm", () => {
         showCancel={false}
         labels={baseLabels}
         coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
         onCreateTask={onCreateTask}
         onSuccess={vi.fn()}
       />,
@@ -877,7 +1171,50 @@ describe("TaskForm", () => {
       coworkerId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: false,
+      schedule: {
+        mode: "none",
+        timezone: expect.any(String),
+      },
     });
     expect(createTaskMock).not.toHaveBeenCalled();
+    expect(screen.getByText("Linked task")).toBeInTheDocument();
+  });
+
+  it("does not create a duplicate task when Ctrl+Enter is pressed on the success step", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ coworkerId: "coworker-2" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Bring me to the task" }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          ctrlKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
   });
 });

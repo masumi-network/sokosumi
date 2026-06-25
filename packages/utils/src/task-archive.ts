@@ -7,6 +7,7 @@
  */
 export const TASK_ARCHIVABLE_STATUSES = [
   "DRAFT",
+  "QUEUED",
   "READY",
   "CANCELED",
   "COMPLETED",

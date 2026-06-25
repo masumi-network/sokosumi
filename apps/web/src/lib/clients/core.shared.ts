@@ -51,6 +51,7 @@ import type {
   PostUsersByIdUploadsData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutTaskScheduleRequest,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
@@ -71,6 +72,7 @@ import {
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
+  deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   getAdminInvoice as coreGetAdminInvoice,
@@ -138,6 +140,7 @@ import {
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
+  getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
@@ -190,6 +193,7 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putTasksByIdSchedule as corePutTasksByIdSchedule,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
@@ -270,6 +274,9 @@ function transformTaskResponseEnvelope(data: any) {
 
   task.createdAt = toDate(task.createdAt);
   task.updatedAt = toDate(task.updatedAt);
+  if (task.nextRunAt) {
+    task.nextRunAt = toDate(task.nextRunAt);
+  }
   task.events = task.events.map((event: any) => ({
     ...event,
     createdAt: toDate(event.createdAt),
@@ -1647,6 +1654,7 @@ export function createCoreClient(getClient: GetClient) {
     body: {
       status?:
         | "DRAFT"
+        | "QUEUED"
         | "READY"
         | "INPUT_REQUIRED"
         | "APPROVAL_REQUIRED"
@@ -1749,6 +1757,35 @@ export function createCoreClient(getClient: GetClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to delete task",
+    );
+  }
+
+  async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePutTasksByIdSchedule({
+          client,
+          path: { id },
+          body,
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to save task schedule",
+    );
+  }
+
+  async function deleteTaskSchedule(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdSchedule({
+          client,
+          path: { id },
+          responseTransformer: async (data) =>
+            transformTaskResponseEnvelope(data),
+        }),
+      "Failed to clear task schedule",
     );
   }
 
@@ -1874,6 +1911,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to resolve workspace DESIGN.md",
+    );
+  }
+
+  async function getWorkspaceOrganizationId(workspaceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetWorkspacesById({
+          client,
+          path: { id: workspaceId },
+          cache: "no-store",
+        }),
+      "Failed to resolve workspace organization",
     );
   }
 
@@ -2636,6 +2686,7 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskShare,
     deleteTaskLink,
     deleteTask,
+    deleteTaskSchedule,
     getConversation,
     getConversationMessages,
     getConversations,
@@ -2721,6 +2772,7 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,
+    getWorkspaceOrganizationId,
     setMyDesignMd,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
@@ -2749,6 +2801,7 @@ export function createCoreClient(getClient: GetClient) {
     getUserTasksCount,
     patchTask,
     putJobShare,
+    putTaskSchedule,
     putTaskShare,
     unassignOrganizationSeat,
     updateConversation,

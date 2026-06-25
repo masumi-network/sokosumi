@@ -45,6 +45,7 @@ export default async function NewTaskPage() {
             status: t("status"),
             statusDescription: t("statusDescription"),
             statusDraft: t("statusDraft"),
+            statusQueued: t("statusQueued"),
             statusReady: t("statusReady"),
             back: t("back"),
             uploadFile: t("uploadFile"),
@@ -61,6 +62,8 @@ export default async function NewTaskPage() {
             submit: t("saveDraft"),
             saveAsDraft: t("saveAsDraft"),
             createTask: t("createTask"),
+            scheduleTask: t("scheduleTask"),
+            openSchedule: t("openSchedule"),
             cancel: t("cancel"),
             ctrl: t("ctrl"),
           }}

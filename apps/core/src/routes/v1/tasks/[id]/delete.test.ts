@@ -110,6 +110,8 @@ describe("DELETE /tasks/{id}", () => {
       coworkerId: null,
       name: "Archived task",
       description: null,
+      metadata: null,
+      nextRunAt: null,
       credits: 0,
       events: [],
       jobs: [],

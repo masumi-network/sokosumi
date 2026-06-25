@@ -1,6 +1,6 @@
 "use client";
 
-import { isTaskArchivableStatus } from "@sokosumi/utils";
+import { isTaskArchivableStatus, isTaskEditableStatus } from "@sokosumi/utils";
 import type { LucideIcon } from "lucide-react";
 import {
   Archive,
@@ -167,9 +167,7 @@ export function TaskDetailActions({
 
   const statusActions = isReadOnly ? [] : getTaskStatusActions(status, labels);
 
-  const canEdit =
-    !isReadOnly &&
-    (status === TASK_STATUS.DRAFT || status === TASK_STATUS.READY);
+  const canEdit = !isReadOnly && isTaskEditableStatus(status);
   const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
@@ -225,6 +223,7 @@ export function TaskDetailActions({
     status: tNewTask("status"),
     statusDescription: tNewTask("statusDescription"),
     statusDraft: tNewTask("statusDraft"),
+    statusQueued: tNewTask("statusQueued"),
     statusReady: tNewTask("statusReady"),
     back: tNewTask("back"),
     uploadFile: tNewTask("uploadFile"),
@@ -241,6 +240,8 @@ export function TaskDetailActions({
     submit: tNewTask("saveDraft"),
     saveAsDraft: tNewTask("saveAsDraft"),
     createTask: tNewTask("createTask"),
+    scheduleTask: tNewTask("scheduleTask"),
+    openSchedule: tNewTask("openSchedule"),
     cancel: tNewTask("cancel"),
     ctrl: tNewTask("ctrl"),
   };
@@ -820,6 +821,7 @@ export function TaskDetailActions({
               coworkerId,
               projectId,
               status,
+              schedule,
             }) => {
               const linkInput = getTaskLinkActionInput(
                 selectedCreateRelatedOption.relation,
@@ -830,21 +832,28 @@ export function TaskDetailActions({
                 coworkerId,
                 projectId,
                 status,
+                schedule,
                 ...linkInput,
               });
 
-              return { taskId: result.createdTaskId };
+              return {
+                taskId: result.createdTaskId,
+                name: result.name,
+              };
             }}
             onSubmittingChange={setIsCreateRelatedDismissDisabled}
             onCancel={() => {
               setIsCreateRelatedOpen(false);
               setSelectedCreateRelatedOption(null);
             }}
-            onSuccess={() => {
-              setIsCreateRelatedOpen(false);
-              setSelectedCreateRelatedOption(null);
+            onCreated={() => {
               router.refresh();
               toast.success(tDetailActions("createRelatedSuccess"));
+            }}
+            onSuccess={(createdTaskId) => {
+              setIsCreateRelatedOpen(false);
+              setSelectedCreateRelatedOption(null);
+              router.push(`/tasks/${createdTaskId}`);
             }}
           />
         </TaskFormModal>

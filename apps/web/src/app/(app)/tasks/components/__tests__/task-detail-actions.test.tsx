@@ -587,6 +587,17 @@ describe("TaskDetailActions", () => {
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
   });
 
+  it("shows edit for queued tasks", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: TASK_STATUS.QUEUED,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(screen.getByRole("link", { name: labels.edit })).toBeInTheDocument();
+  });
+
   it("hides archive while the coworker is running", async () => {
     const user = userEvent.setup();
     renderActions({
@@ -1010,6 +1021,7 @@ describe("TaskDetailActions", () => {
       taskId: "task-1",
       createdTaskId: "task-created",
       linkId: "link-created",
+      name: "Created related task",
     });
 
     renderActions();
@@ -1032,6 +1044,8 @@ describe("TaskDetailActions", () => {
         ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
       });
     });
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-created");
   });
 
   it("shows remove parent when the task has a parent link", async () => {
@@ -1299,6 +1313,7 @@ describe("TaskDetailActions", () => {
       taskId: "task-1",
       createdTaskId: "task-created",
       linkId: "link-created",
+      name: "Created related task",
     });
 
     renderActions();
@@ -1321,6 +1336,8 @@ describe("TaskDetailActions", () => {
         ...getTaskLinkActionInput(TaskLinkRelation.PARENT),
       });
     });
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-created");
   });
 
   it("expands remove related inline on mobile and removes the selected task", async () => {

@@ -3,12 +3,14 @@ import { BackToTasksButton } from "./back-to-tasks-button";
 interface TaskDetailHeaderProps {
   taskName: string;
   backLabel: string;
+  parentLink?: React.ReactNode;
   actions?: React.ReactNode;
 }
 
 export function TaskDetailHeader({
   taskName,
   backLabel,
+  parentLink,
   actions,
 }: TaskDetailHeaderProps) {
   return (
@@ -22,6 +24,7 @@ export function TaskDetailHeader({
       <h1 className="text-xl leading-tight font-semibold tracking-tight">
         {taskName}
       </h1>
+      {parentLink}
     </div>
   );
 }

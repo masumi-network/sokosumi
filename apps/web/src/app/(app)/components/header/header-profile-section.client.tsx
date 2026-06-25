@@ -12,14 +12,12 @@ interface HeaderProfileSectionClientProps {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
-  secondaryLabel?: string;
 }
 
 export default function HeaderProfileSectionClient({
   sessionUser,
   members,
   activeOrganizationId,
-  secondaryLabel,
 }: HeaderProfileSectionClientProps) {
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
 
@@ -40,7 +38,6 @@ export default function HeaderProfileSectionClient({
         activeOrganizationId={activeOrganizationId}
         isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}
-        secondaryLabel={secondaryLabel}
       />
       <HeaderNotificationAvatar
         sessionUser={sessionUser}

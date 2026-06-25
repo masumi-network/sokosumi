@@ -233,6 +233,7 @@ function createJob(
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
+    workspaceId: "11111111-1111-7111-8111-111111111111",
     ...overrides,
   };
 }
@@ -897,6 +898,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       },
       metadata: {
         agentId: "agent_1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
     });
   });
@@ -1694,6 +1696,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       },
       metadata: {
         agentId: "agent_1",
+        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
     });
   });

@@ -20,6 +20,8 @@ interface TaskEditModalProps {
     coworkerId: string;
     projectId?: string | null;
     status: TaskStatus;
+    metadata?: string | null;
+    nextRunAt?: string | null;
   };
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];

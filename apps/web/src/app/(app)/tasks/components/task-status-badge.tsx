@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 
 const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.DRAFT]: "Draft",
+  [TaskStatus.QUEUED]: "Queued",
   [TaskStatus.READY]: "Ready",
   [TaskStatus.INPUT_REQUIRED]: "Input required",
   [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
@@ -26,6 +27,11 @@ const STATUS_PILL_STYLES: Partial<
     bg: "bg-muted",
     text: "text-muted-foreground",
     dot: "bg-gray-400",
+  },
+  [TaskStatus.QUEUED]: {
+    bg: "bg-primary/10",
+    text: "text-primary",
+    dot: "bg-primary",
   },
   [TaskStatus.READY]: {
     bg: "bg-blue-500/10",

@@ -1,5 +1,6 @@
 "use client";
 
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
@@ -37,6 +38,37 @@ export async function activateOrganizationWorkspace(
   }
 }
 
+interface SwitchOrganizationWorkspaceOptions {
+  shouldRedirectAgentJobsBasePath?: boolean;
+  successMessage?: string;
+  router?: AppRouterInstance;
+  pathname?: string;
+}
+
+export async function switchOrganizationWorkspace(
+  organizationId: string | null,
+  options?: SwitchOrganizationWorkspaceOptions,
+): Promise<void> {
+  await activateOrganizationWorkspace(organizationId);
+
+  if (options?.successMessage) {
+    toast.success(options.successMessage);
+  }
+
+  const shouldRedirectAgentJobsBasePath =
+    options?.shouldRedirectAgentJobsBasePath ?? true;
+  if (shouldRedirectAgentJobsBasePath && options?.router && options?.pathname) {
+    const jobsBasePath = getAgentJobsBasePath(options.pathname);
+    if (jobsBasePath) {
+      options.router.replace(jobsBasePath);
+      options.router.refresh();
+      return;
+    }
+  }
+
+  options?.router?.refresh();
+}
+
 export function useWorkspaceSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
@@ -48,30 +80,20 @@ export function useWorkspaceSwitcher() {
       shouldRedirectAgentJobsBasePath?: boolean;
       successMessage?: string;
     },
-  ) => {
-    startTransition(async () => {
-      try {
-        await activateOrganizationWorkspace(organizationId);
-
-        if (options?.successMessage) {
-          toast.success(options.successMessage);
-        }
-
-        const shouldRedirectAgentJobsBasePath =
-          options?.shouldRedirectAgentJobsBasePath ?? true;
-        if (shouldRedirectAgentJobsBasePath) {
-          const jobsBasePath = getAgentJobsBasePath(pathname);
-          if (jobsBasePath) {
-            router.replace(jobsBasePath);
-            router.refresh();
-            return;
-          }
-        }
-
-        router.refresh();
-      } catch (error) {
-        console.error("Failed to switch organization:", error);
-      }
+  ): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      startTransition(() => {
+        void switchOrganizationWorkspace(organizationId, {
+          ...options,
+          router,
+          pathname,
+        })
+          .then(resolve)
+          .catch((error) => {
+            console.error("Failed to switch organization:", error);
+            reject(error);
+          });
+      });
     });
   };
 
