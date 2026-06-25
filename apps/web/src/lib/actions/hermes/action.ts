@@ -19,6 +19,7 @@ import type {
   HermesOnboardingStepStatus,
   HermesPendingConfirmation,
   HermesPersistedMessage,
+  HermesPersonality,
   HermesSchedule,
   HermesScheduleKind,
   HermesScheduleSource,
@@ -53,6 +54,8 @@ function mapHermesInstance(
     endpointUrl: instance.endpointUrl,
     lastActivityAt: toIsoString(instance.lastActivityAt),
     onboardedAt: toIsoString(instance.onboardedAt),
+    assistantName: instance.assistantName ?? null,
+    avatarSeed: instance.avatarSeed ?? null,
     autonomyLevel: (instance.autonomyLevel ?? "medium") as HermesAutonomyLevel,
     integrations: instance.integrations.map(mapHermesIntegration),
     transitioning: instance.transitioning ?? false,
@@ -199,11 +202,14 @@ export const listHermesMessagesAction = withSession<
  */
 export const getHermesUnreadCountAction = withSession<
   Record<string, never>,
-  Result<number, ActionError>
+  Result<{ count: number; avatarSeed: string | null }, ActionError>
 >(async () => {
   try {
     const response = await coreClient.getHermesUnreadCount();
-    return Ok(response.data.count);
+    return Ok({
+      count: response.data.count,
+      avatarSeed: response.data.avatarSeed ?? null,
+    });
   } catch (error) {
     return Err(toActionError(error));
   }
@@ -274,6 +280,10 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
   /** When true, the orchestrator skips the public-web research pass. */
   skipResearch: boolean;
   name?: string | null;
+  /** User-chosen display name for the assistant. Sokosumi-side only. */
+  assistantName?: string | null;
+  /** Seed for the chosen generative orb avatar. Sokosumi-side only. */
+  avatarSeed?: string | null;
   email?: string | null;
   /** Free-form role label (e.g. "Founder / CEO", "Engineering"). Hermes uses
    * this to personalize tone and prioritization, not for access control. */
@@ -283,6 +293,9 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
   company?: string | null;
   /** Optional autonomy override; PATCHed onto the instance before start. */
   autonomyLevel?: HermesAutonomyLevel | null;
+  /** Assistant personality (tone / detail / style, 0–100). Forwarded to the
+   * orchestrator to shape the agent's system prompt. */
+  personality?: HermesPersonality | null;
 }
 
 /**
@@ -294,27 +307,44 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
 export const startHermesOnboardingAction = withSession<
   StartOnboardingArgs,
   Result<void, ActionError>
->(async ({ skipResearch, name, email, role, company, autonomyLevel }) => {
-  try {
-    await coreClient.startHermesOnboarding({
-      name: name ?? undefined,
-      email: email ?? undefined,
-      role: role ?? undefined,
-      company: company ?? undefined,
-      // "shallow" = web-only research (used by skip-for-now path);
-      // "deep" = inbox + web (default for users who connected integrations).
-      researchDepth: skipResearch ? "shallow" : "deep",
-      autonomyLevel: autonomyLevel ?? undefined,
-    });
-    return Ok();
-  } catch (error) {
-    return Err(toActionError(error));
-  }
-});
+>(
+  async ({
+    skipResearch,
+    name,
+    assistantName,
+    avatarSeed,
+    email,
+    role,
+    company,
+    autonomyLevel,
+    personality,
+  }) => {
+    try {
+      await coreClient.startHermesOnboarding({
+        name: name ?? undefined,
+        assistantName: assistantName ?? undefined,
+        avatarSeed: avatarSeed ?? undefined,
+        email: email ?? undefined,
+        role: role ?? undefined,
+        company: company ?? undefined,
+        // "shallow" = web-only research (used by skip-for-now path);
+        // "deep" = inbox + web (default for users who connected integrations).
+        researchDepth: skipResearch ? "shallow" : "deep",
+        autonomyLevel: autonomyLevel ?? undefined,
+        personality: personality ?? undefined,
+      });
+      return Ok();
+    } catch (error) {
+      return Err(toActionError(error));
+    }
+  },
+);
 
 interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
   autonomyLevel?: HermesAutonomyLevel;
   name?: string | null;
+  /** Rename the assistant. Sokosumi-side metadata. */
+  assistantName?: string | null;
   email?: string | null;
   /** IANA tz, e.g. "America/New_York". */
   timezone?: string | null;
@@ -328,11 +358,12 @@ interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
 export const updateHermesInstanceAction = withSession<
   UpdateHermesInstanceArgs,
   Result<HermesInstancePublic, ActionError>
->(async ({ autonomyLevel, name, email, timezone }) => {
+>(async ({ autonomyLevel, name, assistantName, email, timezone }) => {
   try {
     const response = await coreClient.updateHermesInstance({
       autonomyLevel,
       name: name ?? undefined,
+      assistantName: assistantName ?? undefined,
       email: email ?? undefined,
       timezone: timezone ?? undefined,
     });

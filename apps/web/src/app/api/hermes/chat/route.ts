@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: "Internal Server Error",
-        message: "Couldn't reach Hermes. Check your connection.",
+        message: "Couldn't reach your assistant. Check your connection.",
       },
       { status: 500 },
     );

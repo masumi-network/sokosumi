@@ -20,6 +20,7 @@ import ChatListsClient from "./components/chat-lists.client";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import NewChatTaskActions from "./components/new-chat-task-actions";
+import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import SidebarCreditsFooter from "./components/sidebar-credits-footer.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 import SidebarNav from "./components/sidebar-nav.client";
@@ -83,8 +84,9 @@ export default async function Sidebar({
             planLabel={planLabel}
           >
             <NewChatTaskActions />
+            <PersonalAssistantNav enabled={hermesMenuEnabled} />
             <SidebarSeparator className="mx-0 mt-2" />
-            <MenuItems hermesMenuEnabled={hermesMenuEnabled} />
+            <MenuItems />
             <SidebarSeparator className="mx-0" />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
             <SidebarSeparator className="mx-0" />

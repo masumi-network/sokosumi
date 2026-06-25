@@ -4,11 +4,11 @@ import { useEffect } from "react";
 
 /**
  * Toggles `data-hermes-fullscreen="true"` on `<body>` for the duration of
- * the Hermes route. AppLayout reserves 64px at the top for the breadcrumb
- * header on every route — Hermes hides that header (see Header component)
- * and needs the main element to reclaim the full viewport. A global CSS
- * rule keyed off this attribute does the height + padding override so the
- * shared AppLayout doesn't have to know about Hermes.
+ * the Personal Assistant route. The shared breadcrumb header stays (like
+ * every other route); this attribute only tells a global CSS rule to drop
+ * AppLayout's `p-4` gutter so the chat/empty-state renders full-bleed in the
+ * content area below the header — without the shared AppLayout having to know
+ * about this surface.
  */
 export default function FullscreenEffect() {
   useEffect(() => {

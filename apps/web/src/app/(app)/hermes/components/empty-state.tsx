@@ -19,18 +19,24 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { type ComponentType, useState } from "react";
+import { type ComponentType, createContext, useContext, useState } from "react";
 
 import FlowBackground from "@/app/hermes/components/flow-background";
+import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
+/** The assistant's orb seed, shared with the journey-visual sub-components
+ * (referenced via a data array, so prop-threading would be awkward). */
+const EmptyStateSeedContext = createContext<string>("personal-assistant");
+
 interface EmptyStateProps {
   onActivate: () => void;
+  /** Orb seed for the assistant avatar. */
+  seed: string;
 }
 
 const SERVICE_LOGOS: Array<{
@@ -233,87 +239,70 @@ const EXAMPLES: Array<{
   },
 ];
 
-export default function EmptyState({ onActivate }: EmptyStateProps) {
+export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
   const t = useTranslations("App.Hermes.EmptyState");
-  const tBeta = useTranslations("App.Hermes");
   const tCommon = useTranslations("App.Hermes.Common");
   const tServices = useTranslations("App.Hermes.EmptyState.serviceLabels");
 
   return (
-    <FlowBackground>
-      <div className="mx-auto w-full max-w-5xl px-6 py-16 md:py-24">
-        {/* ── Hero ──────────────────────────────────────────────── */}
-        <div className="flex flex-col items-center text-center">
-          <div className="relative">
-            {/* Soft accent halo behind the avatar */}
-            <div
-              aria-hidden
-              className="bg-primary/20 absolute -inset-6 rounded-full blur-2xl"
+    <EmptyStateSeedContext.Provider value={seed}>
+      <FlowBackground>
+        <div className="mx-auto w-full max-w-5xl px-6 py-16 md:py-24">
+          {/* ── Hero ──────────────────────────────────────────────── */}
+          <div className="flex flex-col items-center text-center">
+            <PlaceholderOrb
+              size={224}
+              className="size-44 md:size-52"
+              alt={tCommon("hermesAvatarAlt")}
             />
-            <div className="bg-card border-border/60 ring-background relative size-44 overflow-hidden rounded-full border ring-8 md:size-52">
-              <Image
-                src="/images/hermes/avatar.png"
-                alt={tCommon("hermesAvatarAlt")}
-                fill
-                sizes="(min-width: 768px) 208px, 176px"
-                priority
-                className="object-cover"
-              />
+
+            <div className="mt-10">
+              <span className="text-primary text-xs font-semibold uppercase tracking-wider">
+                {t("eyebrow")}
+              </span>
+            </div>
+
+            <h1 className="text-foreground mt-5 max-w-3xl text-4xl font-light tracking-tight md:text-5xl lg:text-6xl">
+              {t("title")}
+            </h1>
+            <p className="text-foreground/80 mt-5 max-w-xl text-lg md:text-xl">
+              {t("subtitle")}
+            </p>
+            <p className="text-muted-foreground mt-6 max-w-xl text-sm leading-relaxed md:text-base">
+              {t("description")}
+            </p>
+
+            <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                variant="primary"
+                className="h-12 gap-2 px-6 text-base shadow-sm"
+                onClick={onActivate}
+              >
+                <span>{t("primaryCta")}</span>
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+              <a
+                href="https://hermes-agent.nousresearch.com/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm transition-colors"
+              >
+                <span>{t("secondaryCta")}</span>
+                <ArrowUpRight className="size-3.5" aria-hidden />
+              </a>
             </div>
           </div>
 
-          <div className="mt-10 inline-flex items-center gap-2">
-            <span className="text-primary text-xs font-semibold uppercase tracking-wider">
-              {t("eyebrow")}
-            </span>
-            <span className="border-border/60 bg-card/80 text-muted-foreground rounded-full border px-2 py-0.5 text-xs font-medium uppercase tracking-wider backdrop-blur-sm">
-              {tBeta("BetaTag")}
-            </span>
-          </div>
-
-          <h1 className="text-foreground mt-5 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl lg:text-6xl">
-            {t("title")}
-          </h1>
-          <p className="text-foreground/80 mt-5 max-w-xl text-lg md:text-xl">
-            {t("subtitle")}
-          </p>
-          <p className="text-muted-foreground mt-6 max-w-xl text-sm leading-relaxed md:text-base">
-            {t("description")}
-          </p>
-
-          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
-            <Button
-              size="lg"
-              variant="primary"
-              className="h-12 gap-2 px-6 text-base shadow-lg shadow-primary/20"
-              onClick={onActivate}
-            >
-              <span>{t("primaryCta")}</span>
-              <ArrowRight className="size-4" aria-hidden />
-            </Button>
-            <a
-              href="https://hermes-agent.nousresearch.com/"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm transition-colors"
-            >
-              <span>{t("secondaryCta")}</span>
-              <ArrowUpRight className="size-3.5" aria-hidden />
-            </a>
-          </div>
-        </div>
-
-        {/* ── Services strip ─────────────────────────────────────── */}
-        <Section
-          eyebrow={t("integrationsEyebrow")}
-          eyebrowColor="text-primary"
-          heading={t("servicesHeading")}
-          description={t("servicesHelp")}
-          marginTop="mt-28 md:mt-36"
-        >
-          <div className="border-border/60 from-card/80 to-card/40 relative overflow-hidden rounded-3xl border bg-gradient-to-br p-2 shadow-xl shadow-black/[0.03] backdrop-blur-md md:p-3">
-            {/* Inner panel for a layered look */}
-            <div className="border-border/40 bg-background/60 rounded-2xl border p-6 md:p-8">
+          {/* ── Services strip ─────────────────────────────────────── */}
+          <Section
+            eyebrow={t("integrationsEyebrow")}
+            eyebrowColor="text-primary"
+            heading={t("servicesHeading")}
+            description={t("servicesHelp")}
+            marginTop="mt-28 md:mt-36"
+          >
+            <div className="border-border/60 bg-card/60 rounded-2xl border p-6 md:p-8">
               <ul className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
                 {SERVICE_LOGOS.map(({ src, labelKey }) => (
                   <li
@@ -333,174 +322,174 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
                 </li>
               </ul>
             </div>
-          </div>
-        </Section>
+          </Section>
 
-        {/* ── Journey — end-to-end step-by-step ─────────────────── */}
-        <Section
-          eyebrow={t("journeyEyebrow")}
-          eyebrowColor="text-primary"
-          heading={t("journeyHeading")}
-          description={t("journeyDescription")}
-          marginTop="mt-32 md:mt-40"
-        >
-          <ol className="flex flex-col gap-16 md:gap-24">
-            {JOURNEY.map((step, idx) => (
-              <JourneyRow key={step.titleKey} step={step} index={idx} />
-            ))}
-          </ol>
-        </Section>
-
-        {/* ── Features (vertical list) ──────────────────────────── */}
-        <Section
-          eyebrow={t("featuresEyebrow")}
-          eyebrowColor="text-muted-foreground"
-          heading={t("featuresHeading")}
-          marginTop="mt-32 md:mt-40"
-        >
-          <ul className="border-border/60 bg-card/60 divide-border/60 flex flex-col divide-y overflow-hidden rounded-2xl border backdrop-blur-sm">
-            {FEATURES.map(({ titleKey, bodyKey, Icon, accent }) => (
-              <li
-                key={titleKey}
-                className="hover:bg-muted/20 flex items-start gap-4 px-6 py-5 transition-colors md:gap-5 md:px-8 md:py-6"
-              >
-                <div
-                  aria-hidden
-                  className={cn(
-                    "flex size-10 shrink-0 items-center justify-center rounded-xl",
-                    accent,
-                  )}
-                >
-                  <Icon className="size-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-foreground text-base font-semibold tracking-tight md:text-lg">
-                    {t(titleKey)}
-                  </h3>
-                  <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                    {t(bodyKey)}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-
-        {/* ── Things to try (click-through) ─────────────────────── */}
-        <Section
-          eyebrow={t("examplesEyebrow")}
-          eyebrowColor="text-muted-foreground"
-          heading={t("examplesHeading")}
-          description={t("examplesPickHint")}
-          marginTop="mt-32 md:mt-40"
-        >
-          <ExamplesCarousel />
-        </Section>
-
-        {/* ── Sokosumi gateway — accent hero ─────────────────────── */}
-        <div className="relative mt-32 md:mt-40">
-          {/* Outer gradient ring */}
-          <div
-            aria-hidden
-            className="bg-primary/20 absolute -inset-px rounded-3xl"
-          />
-          <div className="border-border/60 bg-card/80 relative overflow-hidden rounded-3xl border p-8 backdrop-blur-md md:p-12">
-            {/* Decorative blurred circle */}
-            <div
-              aria-hidden
-              className="bg-primary/20 absolute -right-20 -top-20 size-56 rounded-full blur-3xl"
-            />
-            <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
-              <div
-                aria-hidden
-                className="bg-primary/10 text-primary flex size-16 shrink-0 items-center justify-center rounded-2xl"
-              >
-                <SokosumiIcon
-                  animated={false}
-                  className="size-9 text-primary"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-primary text-xs font-semibold uppercase tracking-wider">
-                  Built for Sokosumi
-                </div>
-                <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
-                  {t("sokosumiTitle")}
-                </h2>
-                <p className="text-muted-foreground mt-3 max-w-3xl text-base leading-relaxed">
-                  {t("sokosumiBody")}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Bottom CTA ────────────────────────────────────────── */}
-        <div className="mt-24 flex flex-col items-center gap-4 md:mt-32">
-          <Button
-            size="lg"
-            variant="primary"
-            className="h-12 gap-2 px-8 text-base shadow-lg shadow-primary/20"
-            onClick={onActivate}
+          {/* ── Journey — end-to-end step-by-step ─────────────────── */}
+          <Section
+            eyebrow={t("journeyEyebrow")}
+            eyebrowColor="text-primary"
+            heading={t("journeyHeading")}
+            description={t("journeyDescription")}
+            marginTop="mt-32 md:mt-40"
           >
-            <span>{t("primaryCta")}</span>
-            <ArrowRight className="size-4" aria-hidden />
-          </Button>
-          <p className="text-muted-foreground/80 max-w-xl text-center text-xs leading-relaxed">
-            {t("footnote")}
-          </p>
-        </div>
+            <ol className="flex flex-col gap-16 md:gap-24">
+              {JOURNEY.map((step, idx) => (
+                <JourneyRow key={step.titleKey} step={step} index={idx} />
+              ))}
+            </ol>
+          </Section>
 
-        {/* ── Honest disclaimer about agent risks ─────────────────── */}
-        <div className="mt-20 md:mt-24">
-          <div className="border-border/60 bg-card/50 rounded-3xl border p-8 backdrop-blur-sm md:p-10">
-            <div className="flex items-center gap-3">
-              <div
-                aria-hidden
-                className="bg-amber-500/10 text-amber-700 dark:text-amber-400 flex size-10 shrink-0 items-center justify-center rounded-xl"
-              >
-                <ShieldAlert className="size-5" />
-              </div>
-              <span className="text-foreground text-lg font-semibold tracking-tight md:text-xl">
-                {t("disclaimerHeading")}
-              </span>
-            </div>
-            <ul className="mt-6 grid gap-3.5 md:grid-cols-2 md:gap-x-10 md:gap-y-4">
-              {(
-                [
-                  "disclaimer1",
-                  "disclaimer2",
-                  "disclaimer3",
-                  "disclaimer4",
-                ] as const
-              ).map((key) => (
-                <li key={key} className="flex items-start gap-3">
-                  <span
+          {/* ── Features (vertical list) ──────────────────────────── */}
+          <Section
+            eyebrow={t("featuresEyebrow")}
+            eyebrowColor="text-muted-foreground"
+            heading={t("featuresHeading")}
+            marginTop="mt-32 md:mt-40"
+          >
+            <ul className="border-border/60 bg-card/60 divide-border/60 flex flex-col divide-y overflow-hidden rounded-2xl border backdrop-blur-sm">
+              {FEATURES.map(({ titleKey, bodyKey, Icon, accent }) => (
+                <li
+                  key={titleKey}
+                  className="hover:bg-muted/20 flex items-start gap-4 px-6 py-5 transition-colors md:gap-5 md:px-8 md:py-6"
+                >
+                  <div
                     aria-hidden
-                    className="bg-amber-500/60 mt-2 size-1.5 shrink-0 rounded-full"
-                  />
-                  <span className="text-foreground/90 text-sm leading-relaxed">
-                    {t(key)}
-                  </span>
+                    className={cn(
+                      "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                      accent,
+                    )}
+                  >
+                    <Icon className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-foreground text-base font-semibold tracking-tight md:text-lg">
+                      {t(titleKey)}
+                    </h3>
+                    <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                      {t(bodyKey)}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
+          </Section>
+
+          {/* ── Things to try (click-through) ─────────────────────── */}
+          <Section
+            eyebrow={t("examplesEyebrow")}
+            eyebrowColor="text-muted-foreground"
+            heading={t("examplesHeading")}
+            description={t("examplesPickHint")}
+            marginTop="mt-32 md:mt-40"
+          >
+            <ExamplesCarousel />
+          </Section>
+
+          {/* ── Sokosumi gateway — accent hero ─────────────────────── */}
+          <div className="relative mt-32 md:mt-40">
+            {/* Outer gradient ring */}
+            <div
+              aria-hidden
+              className="bg-primary/20 absolute -inset-px rounded-2xl"
+            />
+            <div className="border-border/60 bg-card/80 relative overflow-hidden rounded-2xl border p-8 backdrop-blur-md md:p-12">
+              {/* Decorative blurred circle */}
+              <div
+                aria-hidden
+                className="bg-primary/20 absolute -right-20 -top-20 size-56 rounded-full blur-3xl"
+              />
+              <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
+                <div
+                  aria-hidden
+                  className="bg-primary/10 text-primary flex size-16 shrink-0 items-center justify-center rounded-2xl"
+                >
+                  <SokosumiIcon
+                    animated={false}
+                    className="size-9 text-primary"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-primary text-xs font-semibold uppercase tracking-wider">
+                    Built for Sokosumi
+                  </div>
+                  <h2 className="text-foreground mt-2 text-2xl font-light tracking-tight md:text-3xl">
+                    {t("sokosumiTitle")}
+                  </h2>
+                  <p className="text-muted-foreground mt-3 max-w-3xl text-base leading-relaxed">
+                    {t("sokosumiBody")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Bottom CTA ────────────────────────────────────────── */}
+          <div className="mt-24 flex flex-col items-center gap-4 md:mt-32">
+            <Button
+              size="lg"
+              variant="primary"
+              className="h-12 gap-2 px-8 text-base shadow-sm"
+              onClick={onActivate}
+            >
+              <span>{t("primaryCta")}</span>
+              <ArrowRight className="size-4" aria-hidden />
+            </Button>
+            <p className="text-muted-foreground/80 max-w-xl text-center text-xs leading-relaxed">
+              {t("footnote")}
+            </p>
+          </div>
+
+          {/* ── Honest disclaimer about agent risks ─────────────────── */}
+          <div className="mt-20 md:mt-24">
+            <div className="border-border/60 bg-card/50 rounded-2xl border p-8 backdrop-blur-sm md:p-10">
+              <div className="flex items-center gap-3">
+                <div
+                  aria-hidden
+                  className="bg-amber-500/10 text-amber-700 dark:text-amber-400 flex size-10 shrink-0 items-center justify-center rounded-xl"
+                >
+                  <ShieldAlert className="size-5" />
+                </div>
+                <span className="text-foreground text-lg font-light tracking-tight md:text-xl">
+                  {t("disclaimerHeading")}
+                </span>
+              </div>
+              <ul className="mt-6 grid gap-3.5 md:grid-cols-2 md:gap-x-10 md:gap-y-4">
+                {(
+                  [
+                    "disclaimer1",
+                    "disclaimer2",
+                    "disclaimer3",
+                    "disclaimer4",
+                  ] as const
+                ).map((key) => (
+                  <li key={key} className="flex items-start gap-3">
+                    <span
+                      aria-hidden
+                      className="bg-amber-500/60 mt-2 size-1.5 shrink-0 rounded-full"
+                    />
+                    <span className="text-foreground/90 text-sm leading-relaxed">
+                      {t(key)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* ── Powered by ──────────────────────────────────────────── */}
+          <div className="mt-10 flex justify-center">
+            <a
+              href="https://nousresearch.com"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-muted-foreground/60 hover:text-muted-foreground text-xs transition-colors"
+            >
+              {t("poweredBy")}
+            </a>
           </div>
         </div>
-
-        {/* ── Powered by ──────────────────────────────────────────── */}
-        <div className="mt-10 flex justify-center">
-          <a
-            href="https://nousresearch.com"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="text-muted-foreground/60 hover:text-muted-foreground text-xs transition-colors"
-          >
-            {t("poweredBy")}
-          </a>
-        </div>
-      </div>
-    </FlowBackground>
+      </FlowBackground>
+    </EmptyStateSeedContext.Provider>
   );
 }
 
@@ -532,7 +521,7 @@ function Section({
         >
           {eyebrow}
         </div>
-        <h2 className="text-foreground mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
+        <h2 className="text-foreground mt-3 max-w-2xl text-3xl font-light tracking-tight md:text-4xl">
           {heading}
         </h2>
         {description ? (
@@ -588,7 +577,7 @@ function JourneyRow({
             {t(step.tagKey)}
           </span>
         </div>
-        <h3 className="text-foreground mt-5 text-2xl font-semibold tracking-tight md:text-3xl">
+        <h3 className="text-foreground mt-5 text-2xl font-light tracking-tight md:text-3xl">
           {t(step.titleKey)}
         </h3>
         <p className="text-muted-foreground mt-3 max-w-md text-base leading-relaxed">
@@ -618,6 +607,7 @@ function JourneyRow({
 // rather than "marketing illustration".
 
 function ActivationVisual() {
+  const seed = useContext(EmptyStateSeedContext);
   const t = useTranslations("App.Hermes.EmptyState.visuals");
   const tCommon = useTranslations("App.Hermes.Common");
 
@@ -628,15 +618,7 @@ function ActivationVisual() {
         className="bg-primary/10 absolute size-40 rounded-full blur-3xl"
       />
       <div className="border-border/60 bg-background/80 relative flex flex-col items-center gap-4 rounded-2xl border px-8 py-6">
-        <div className="bg-card border-border/60 ring-background relative size-16 overflow-hidden rounded-full border ring-4">
-          <Image
-            src="/images/hermes/avatar.png"
-            alt=""
-            fill
-            sizes="64px"
-            className="object-cover"
-          />
-        </div>
+        <AuroraOrb seed={seed} size={96} className="size-16" />
         <div className="text-foreground text-sm font-semibold tracking-tight">
           {tCommon("hermesAvatarAlt")}
         </div>
@@ -706,6 +688,7 @@ function MicroVmVisual() {
 }
 
 function ConnectionVisual() {
+  const seed = useContext(EmptyStateSeedContext);
   const satellites: Array<{ src: string; pos: string }> = [
     { src: "/icons/gmail.svg", pos: "top-2 left-8" },
     { src: "/icons/google-calendar.svg", pos: "top-2 right-8" },
@@ -745,15 +728,7 @@ function ConnectionVisual() {
       </svg>
       {/* Center: Hermes */}
       <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-        <div className="bg-card border-border/60 ring-background relative size-16 overflow-hidden rounded-full border ring-4">
-          <Image
-            src="/images/hermes/avatar.png"
-            alt=""
-            fill
-            sizes="64px"
-            className="object-cover"
-          />
-        </div>
+        <AuroraOrb seed={seed} size={96} className="size-16" />
       </div>
       {/* Satellites */}
       {satellites.map(({ src, pos }) => (
@@ -979,6 +954,7 @@ function OvernightVisual() {
 // lines starting with `• ` or `1.`).
 
 function ExamplesCarousel() {
+  const seed = useContext(EmptyStateSeedContext);
   const t = useTranslations("App.Hermes.EmptyState");
   const tCommon = useTranslations("App.Hermes.Common");
   const [activeKey, setActiveKey] = useState<ExampleKey>(EXAMPLES[0]!.key);
@@ -1031,13 +1007,7 @@ function ExamplesCarousel() {
             aria-hidden
             className="bg-card border-border ring-background relative mt-0.5 size-8 shrink-0 overflow-hidden rounded-full border ring-2"
           >
-            <Image
-              src="/images/hermes/avatar.png"
-              alt=""
-              fill
-              sizes="32px"
-              className="object-cover"
-            />
+            <AuroraOrb seed={seed} size={64} className="size-full" />
           </span>
           <div className="border-border bg-background min-w-0 flex-1 rounded-2xl rounded-tl-md border px-4 py-3">
             <div className="text-tertiary-foreground mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">

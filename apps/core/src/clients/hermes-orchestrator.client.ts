@@ -896,6 +896,19 @@ export interface StartOnboardingInput {
   company?: string | null;
   /** "deep" runs the full context-aware research; default if omitted. */
   researchDepth?: "deep" | "shallow" | null;
+  /**
+   * Assistant personality — three 0–100 spectrums (50 = balanced). The
+   * orchestrator folds these into the agent's system prompt so its replies
+   * match the tone / detail / style the user chose at setup.
+   */
+  personality?: {
+    /** 0 = direct / to-the-point · 100 = warm / personable. */
+    tone: number;
+    /** 0 = concise / short answers · 100 = thorough / detailed. */
+    detail: number;
+    /** 0 = formal / professional · 100 = casual / playful. */
+    style: number;
+  } | null;
 }
 
 /**
@@ -907,7 +920,7 @@ export async function startInstanceOnboarding(
   userId: string,
   input: StartOnboardingInput = {},
 ): Promise<void> {
-  const body: Record<string, string> = {};
+  const body: Record<string, unknown> = {};
   if (input.name && input.name.trim().length > 0) body.name = input.name.trim();
   if (input.email && input.email.trim().length > 0) {
     body.email = input.email.trim();
@@ -917,6 +930,7 @@ export async function startInstanceOnboarding(
     body.company = input.company.trim();
   }
   if (input.researchDepth) body.researchDepth = input.researchDepth;
+  if (input.personality) body.personality = input.personality;
 
   const res = await orchFetch(
     `/v1/instances/${encodeURIComponent(userId)}/onboard`,

@@ -556,7 +556,7 @@ export const postEnterpriseContractsByIdCancel = <ThrowOnError extends boolean =
 });
 
 /**
- * Send a message to the current user's Hermes instance
+ * Send a message to the current user's assistant instance
  */
 export const postHermesChat = <ThrowOnError extends boolean = false>(options?: Options<PostHermesChatData, ThrowOnError>): RequestResult<PostHermesChatResponses, PostHermesChatErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesChatResponses, PostHermesChatErrors, ThrowOnError>({
     responseTransformer: postHermesChatResponseTransformer,
@@ -569,7 +569,7 @@ export const postHermesChat = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * Destroy the current user's Hermes instance
+ * Destroy the current user's assistant instance
  */
 export const deleteHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<DeleteHermesMeInstanceData, ThrowOnError>): RequestResult<DeleteHermesMeInstanceResponses, DeleteHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).delete<DeleteHermesMeInstanceResponses, DeleteHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: deleteHermesMeInstanceResponseTransformer,
@@ -578,7 +578,7 @@ export const deleteHermesMeInstance = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Get the current user's Hermes instance
+ * Get the current user's assistant instance
  */
 export const getHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeInstanceData, ThrowOnError>): RequestResult<GetHermesMeInstanceResponses, GetHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeInstanceResponses, GetHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: getHermesMeInstanceResponseTransformer,
@@ -587,7 +587,7 @@ export const getHermesMeInstance = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Update mutable fields (autonomyLevel, name, email) on the current user's Hermes instance
+ * Update mutable fields (autonomyLevel, name, email) on the current user's assistant instance
  */
 export const patchHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<PatchHermesMeInstanceData, ThrowOnError>): RequestResult<PatchHermesMeInstanceResponses, PatchHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).patch<PatchHermesMeInstanceResponses, PatchHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: patchHermesMeInstanceResponseTransformer,
@@ -600,7 +600,7 @@ export const patchHermesMeInstance = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Provision the current user's Hermes instance
+ * Provision the current user's assistant instance
  */
 export const postHermesMeInstance = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInstanceData, ThrowOnError>): RequestResult<PostHermesMeInstanceResponses, PostHermesMeInstanceErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInstanceResponses, PostHermesMeInstanceErrors, ThrowOnError>({
     responseTransformer: postHermesMeInstanceResponseTransformer,
@@ -609,7 +609,7 @@ export const postHermesMeInstance = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List the current user's persisted Hermes messages
+ * List the current user's persisted assistant messages
  */
 export const getHermesMeMessages = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeMessagesData, ThrowOnError>): RequestResult<GetHermesMeMessagesResponses, GetHermesMeMessagesErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeMessagesResponses, GetHermesMeMessagesErrors, ThrowOnError>({
     responseTransformer: getHermesMeMessagesResponseTransformer,
@@ -618,7 +618,7 @@ export const getHermesMeMessages = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Get the current user's unread Hermes inbox count
+ * Get the current user's unread assistant inbox count
  */
 export const getHermesMeUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeUnreadCountData, ThrowOnError>): RequestResult<GetHermesMeUnreadCountResponses, GetHermesMeUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeUnreadCountResponses, GetHermesMeUnreadCountErrors, ThrowOnError>({
     responseTransformer: getHermesMeUnreadCountResponseTransformer,
@@ -627,7 +627,7 @@ export const getHermesMeUnreadCount = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Mark current user's Hermes inbox messages as seen
+ * Mark current user's assistant inbox messages as seen
  */
 export const postHermesMeInboxSeen = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeInboxSeenData, ThrowOnError>): RequestResult<PostHermesMeInboxSeenResponses, PostHermesMeInboxSeenErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeInboxSeenResponses, PostHermesMeInboxSeenErrors, ThrowOnError>({
     responseTransformer: postHermesMeInboxSeenResponseTransformer,
@@ -640,7 +640,7 @@ export const postHermesMeInboxSeen = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Set a secret on the current user's Hermes instance
+ * Set a secret on the current user's assistant instance
  */
 export const postHermesMeSecrets = <ThrowOnError extends boolean = false>(options?: Options<PostHermesMeSecretsData, ThrowOnError>): RequestResult<PostHermesMeSecretsResponses, PostHermesMeSecretsErrors, ThrowOnError> => (options?.client ?? client).post<PostHermesMeSecretsResponses, PostHermesMeSecretsErrors, ThrowOnError>({
     responseTransformer: postHermesMeSecretsResponseTransformer,
@@ -675,7 +675,7 @@ export const getHermesMeInstanceOnboardingProgress = <ThrowOnError extends boole
 });
 
 /**
- * List the current user's connected Hermes integrations
+ * List the current user's connected assistant integrations
  */
 export const getHermesMeInstanceIntegrations = <ThrowOnError extends boolean = false>(options?: Options<GetHermesMeInstanceIntegrationsData, ThrowOnError>): RequestResult<GetHermesMeInstanceIntegrationsResponses, GetHermesMeInstanceIntegrationsErrors, ThrowOnError> => (options?.client ?? client).get<GetHermesMeInstanceIntegrationsResponses, GetHermesMeInstanceIntegrationsErrors, ThrowOnError>({
     responseTransformer: getHermesMeInstanceIntegrationsResponseTransformer,

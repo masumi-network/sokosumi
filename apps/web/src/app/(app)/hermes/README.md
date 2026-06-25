@@ -67,19 +67,18 @@ the `ProgressPips` macro indicator (`Setup → Personalize → Ready`).
 The wrapper `HermesExperience` polls the instance, normalizes states, and
 unmounts the polling effect when the route leaves the foreground.
 
-### Hermes owns its own chrome
+### Full-bleed chat under the shared header
 
-The shared `AppLayout` renders a breadcrumb `Header` and reserves 64px for it
-on every route. Hermes hides it via two pieces:
+The shared `AppLayout` renders a breadcrumb `Header` (reserving 64px) on every
+route, and the Personal Assistant surface keeps it like everywhere else. It
+only opts into a full-bleed content area below the header via:
 
-- `HeaderGate` (`apps/(app)/components/header-gate.tsx`) — client wrapper
-  that reads `usePathname` and `return null` on `/hermes(/*)`. The shared
-  `<Header>` is passed as `children`, so it stays a server component and
-  doesn't drag Prisma into the client bundle.
 - `FullscreenEffect` (`components/fullscreen-effect.tsx`) — client component
-  mounted from the Hermes layout that toggles `data-hermes-fullscreen="true"`
-  on `<body>`. A rule in `globals.css` keyed off that attribute forces
-  `[data-app-main]` to `100svh` and trims the top padding.
+  mounted from the layout that toggles `data-hermes-fullscreen="true"` on
+  `<body>`. A rule in `globals.css` keyed off that attribute drops
+  `[data-app-main]`'s `p-4` gutter (keeping the mobile fixed-header top
+  clearance) so the chat/empty-state fills the area while main keeps its
+  normal `calc(100svh-64px)` height and `overflow-y-auto`.
 
 ---
 

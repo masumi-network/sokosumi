@@ -1,7 +1,7 @@
 {
   "Common": {
     "cancel": "取消",
-    "hermesAvatarAlt": "Hermes",
+    "hermesAvatarAlt": "个人助手",
     "oauth": {
       "composioError": "Composio 报告了错误",
       "connectFailed": "无法连接此提供商。",
@@ -31,11 +31,11 @@
       "twitter": "X",
       "youtube": "Google"
     },
-    "bodyReadOnly": "Hermes 只能读取。尽管 {authProvider} 可能列出发送/修改权限，但在我们这边 Hermes 被锁定为只读——无法在你的账户中发送或修改任何内容。",
-    "bodyWrite": "Hermes 将能够代表你读取、发送并在你的账户中执行操作。",
+    "bodyReadOnly": "你的助手只能读取。尽管 {authProvider} 可能列出发送/修改权限，但在我们这边你的助手被锁定为只读——无法在你的账户中发送或修改任何内容。",
+    "bodyWrite": "你的助手将能够代表你读取、发送并在你的账户中执行操作。",
     "continueFallback": "提供商",
     "continueTo": "继续前往 {provider}",
-    "description": "{provider} 的授权页面会列出较广的权限——这很正常。Hermes 通过我们的集成提供商 Composio 连接，Composio 的 OAuth 应用已针对其完整默认权限集完成验证。",
+    "description": "{provider} 的授权页面会列出较广的权限——这很正常。你的助手通过我们的集成提供商 Composio 连接，Composio 的 OAuth 应用已针对其完整默认权限集完成验证。",
     "modeFullAccess": "完全访问",
     "modeReadOnly": "只读",
     "pickedPrefix": "你选择了",
@@ -44,9 +44,9 @@
     "title": "关于下一屏的提示"
   },
   "EmptyState": {
-    "disclaimer1": "Hermes 代表你行动。它发送的邮件、打开的工单、花费的积分都是真实的。请谨慎选择自主级别。",
+    "disclaimer1": "你的助手代表你行动。它发送的邮件、打开的工单、花费的积分都是真实的。请谨慎选择自主级别。",
     "disclaimer2": "它可能出错。在信任之前，请审阅任何涉及客户、同事或金钱的内容。",
-    "disclaimer3": "已连接账户通过 OAuth 授予 Hermes 限定访问权限。一旦不再信任，请立即断开任何集成。",
+    "disclaimer3": "已连接账户通过 OAuth 授予你的助手限定访问权限。一旦不再信任，请立即断开任何集成。",
     "disclaimer4": "测试版软件。行为可能在版本之间变化。对话历史属于你，但能力会不断演进。",
     "disclaimerHeading": "开始前有几句实话",
     "example1": "找出所有关于 Cardano 交易的邮件，聘请 Research 智能体分析对方团队，并在周五通话前向我简报。",
@@ -56,7 +56,7 @@
     "example3": "每个工作日上午 8 点，就昨日收件箱 + 今日日历聘请 Brief 智能体，并把摘要发到 Slack #me。",
     "example3Reply": "已安排。每个工作日上午 08:00 我会：\n\n1. 拉取前一日 20:00 以来的所有邮件及今日日历\n2. 聘请 **Brief** 智能体（每次 3 积分）进行摘要、标记冲突并浮现阻塞项\n3. 将结果发到 #me，每个需要决策的事项单独开线程\n\n首次运行：明天 08:00。",
     "example4": "检查我需要审查的 GitHub PR，为今天处理不了的创建 Linear 工单，其余发到 #engineering 请人接手。",
-    "example4Reply": "有 6 个 PR 需要你审查。其中 2 个已超过 24 小时：\n\n• **sok#2934**（Patrick）— Hermes Beta。约 2 小时审查。\n• **sok#2941**（Alex）— 账单修复。约 20 分钟。\n\n正在为你负责的 4 个较旧 PR 起草 Linear 工单，并在 #engineering 发帖请求支援两个较大的。批准后即可发送？",
+    "example4Reply": "有 6 个 PR 需要你审查。其中 2 个已超过 24 小时：\n\n• **sok#2934**（Patrick）— 个人助手 Beta。约 2 小时审查。\n• **sok#2941**（Alex）— 账单修复。约 20 分钟。\n\n正在为你负责的 4 个较旧 PR 起草 Linear 工单，并在 #engineering 发帖请求支援两个较大的。批准后即可发送？",
     "example5": "聘请 Reddit Research 智能体了解本周人们对 Masumi 的看法，然后发送主要情绪 + 可执行事项。",
     "example5Reply": "正在聘请 **Reddit Research**（15 积分），简报：过去 7 天在 r/cardano、r/agentic、r/MachineLearning 提及 Masumi 的帖子和评论。\n\n完成后我会呈现：整体情绪、三条最相关引用线程，以及具体行动项（待提交 bug、待感谢开发者、待回应 FUD）。预计约 12 分钟。",
     "example6": "当 Hannah 的交易任务变为 FAILED 时，申请退款并创建 Linear 工单——除非一周内发生两次，否则不要打扰我。",
@@ -72,29 +72,29 @@
     "examplesEyebrow": "试试看",
     "examplesHeading": "可以尝试的事",
     "examplesHelp": "打开聊天随便问。几个起点：",
-    "examplesPickHint": "选择一个提示，查看 Hermes 会如何回复",
+    "examplesPickHint": "选择一个提示，查看你的助手会如何回复",
     "featuresEyebrow": "功能",
     "featuresHeading": "为日常严肃工作而打造",
     "integrationsEyebrow": "集成",
     "journeyDescription": "从你激活智能体的那一刻，到明天早上手机上等待你的简报。",
     "journeyEyebrow": "端到端",
-    "journeyHeading": "Hermes 如何工作，一步步来",
-    "journeyStep1Body": "从你的 Sokosumi 账户一键完成。无需安装，无需管理 API 密钥。从此刻起 Hermes 即绑定到你的账户。",
+    "journeyHeading": "个人助手如何工作，一步步来",
+    "journeyStep1Body": "从你的 Sokosumi 账户一键完成。无需安装，无需管理 API 密钥。从此刻起你的助手即绑定到你的账户。",
     "journeyStep1Tag": "00:00",
-    "journeyStep1Title": "你激活 Hermes",
+    "journeyStep1Title": "你激活个人助手",
     "journeyStep2Body": "为你单独启动一台私有计算机。你的笔记和设置保持不变，密码安全存放，不会与任何人共享。",
     "journeyStep2Tag": "00:30",
     "journeyStep2Title": "你的专属计算机启动",
     "journeyStep3Body": "登录 Gmail、Outlook、Calendar、Slack、Notion、Linear、GitHub 等。你的凭据绝不会经过 Sokosumi——只保留在你的计算机上。",
     "journeyStep3Tag": "01:00",
     "journeyStep3Title": "你连接账户",
-    "journeyStep4Body": "Hermes 扫描你的收件箱、查看日历、同步 Sokosumi 任务，并建立关于重要人物与事项的私有记忆。",
+    "journeyStep4Body": "你的助手扫描你的收件箱、查看日历、同步 Sokosumi 任务，并建立关于重要人物与事项的私有记忆。",
     "journeyStep4Tag": "02:00",
     "journeyStep4Title": "它了解你的世界",
-    "journeyStep5Body": "用自然语言提问。Hermes 会选择合适的工具、起草邮件、打开工单，必要时聘请 Sokosumi 专家智能体，并把结果带回。",
+    "journeyStep5Body": "用自然语言提问。你的助手会选择合适的工具、起草邮件、打开工单，必要时聘请 Sokosumi 专家智能体，并把结果带回。",
     "journeyStep5Tag": "live",
     "journeyStep5Title": "聊天时它也在工作",
-    "journeyStep6Body": "用自然语言告诉 Hermes 何时运行任务。简报、跟进、夜间摘要会在你醒来前送达聊天（以及 Telegram 或 Slack）。",
+    "journeyStep6Body": "用自然语言告诉你的助手何时运行任务。简报、跟进、夜间摘要会在你醒来前送达聊天（以及 Telegram 或 Slack）。",
     "journeyStep6Tag": "scheduled",
     "journeyStep6Title": "你睡觉时它也在工作",
     "serviceLabels": {
@@ -114,7 +114,7 @@
       "twitter": "X"
     },
     "servicesHeading": "连接你使用的工具",
-    "servicesHelp": "在设置时连接一次即可。Hermes 可以在你的账户中读取、搜索、起草并执行操作。我们会定期添加更多工具连接器。",
+    "servicesHelp": "在设置时连接一次即可。你的助手可以在你的账户中读取、搜索、起草并执行操作。我们会定期添加更多工具连接器。",
     "servicesMoreLabel": "以及更多",
     "visuals": {
       "actHeld": "周二 · 上午 10:00 已预留",
@@ -124,7 +124,7 @@
         "聘请 Research 智能体获取背景信息"
       ],
       "actUserMessage": "安排下周二上午 10 点与 Hannah 通话。",
-      "actWorking": "Hermes 正在工作",
+      "actWorking": "你的助手正在工作",
       "activated": "已激活",
       "demoInbox": [
         {
@@ -164,27 +164,27 @@
     }
   },
   "Experience": {
-    "destroyFailed": "无法销毁你的 Hermes。",
-    "fetchFailed": "无法连接 Hermes。",
-    "instanceVanished": "Hermes 实例在配置过程中消失。",
+    "destroyFailed": "无法销毁你的助手。",
+    "fetchFailed": "无法连接你的助手。",
+    "instanceVanished": "助手实例在配置过程中消失。",
     "onboardingStartFailed": "无法开始入门设置。",
-    "provisionFailed": "无法配置你的 Hermes。",
+    "provisionFailed": "无法配置你的助手。",
     "provisionTimeout": "配置在 15 分钟后超时。请重试。"
   },
   "Metadata": {
     "description": "在你专属计算机上运行的私人 AI 助手。",
-    "title": "Hermes"
+    "title": "个人助手"
   },
   "Onboarding": {
-    "autonomyAriaLabel": "Hermes 自主级别",
-    "autonomyHeading": "Hermes 应有多大主动性？",
+    "autonomyAriaLabel": "你的助手自主级别",
+    "autonomyHeading": "你的助手应有多大主动性？",
     "autonomyHelp": "你可随时在设置中更改。",
-    "autonomyHighBody": "真正的智能体体验。Hermes 自行行动：打开工单、发送邮件，并在认为值得时花费你的 Sokosumi 积分聘请其他智能体。受成本规则约束（余额将低于 10 积分时拒绝；单个任务超过余额 25% 时询问）。信任其工作方式后最适合。",
+    "autonomyHighBody": "真正的智能体体验。你的助手自行行动：打开工单、发送邮件，并在认为值得时花费你的 Sokosumi 积分聘请其他智能体。受成本规则约束（余额将低于 10 积分时拒绝；单个任务超过余额 25% 时询问）。信任其工作方式后最适合。",
     "autonomyHighLabel": "自主",
     "autonomyHighSpendBadge": "会花费积分",
-    "autonomyLowBody": "Hermes 可以读取收件箱、日历和任务，但从不行动。熟悉阶段最安全。",
+    "autonomyLowBody": "你的助手可以读取收件箱、日历和任务，但从不行动。熟悉阶段最安全。",
     "autonomyLowLabel": "只读",
-    "autonomyMediumBody": "Hermes 可以行动，但在花费积分或进行非琐碎更改前会在聊天中确认。推荐。",
+    "autonomyMediumBody": "你的助手可以行动，但在花费积分或进行非琐碎更改前会在聊天中确认。推荐。",
     "autonomyMediumLabel": "先询问",
     "autonomyMediumRecommended": "推荐",
     "back": "上一步",
@@ -207,19 +207,19 @@
     "disconnect": "断开",
     "emailLabel": "邮箱",
     "emailPlaceholder": "patrick@example.com",
-    "eyebrow": "欢迎使用 Hermes",
+    "eyebrow": "欢迎使用个人助手",
     "footnote": "你可随时在设置中添加或移除集成。",
     "fullAccessBodyBold": "起草回复并代表你在账户中行动",
-    "fullAccessBodyPrefix": "Hermes 将能够",
+    "fullAccessBodyPrefix": "你的助手将能够",
     "fullAccessBodySuffix": "仅在你希望它代发邮件/创建事件时启用。",
     "fullAccessCta": "连接（完全访问 — 读 + 发）",
-    "fullAccessPrompt": "需要 Hermes 代表你发送/创建吗？",
+    "fullAccessPrompt": "需要你的助手代表你发送/创建吗？",
     "identityHeading": "你的信息",
-    "identityHelp": "Hermes 用这些信息作为上下文——以你的名字称呼你、优先处理与你的角色匹配的工作，并将研究基于你的公司。",
+    "identityHelp": "你的助手用这些信息作为上下文——以你的名字称呼你、优先处理与你的角色匹配的工作，并将研究基于你的公司。",
     "integrationsHeading": "集成",
-    "integrationsHelp": "Hermes 通过 Composio 连接。你在弹窗中授权每个提供商；令牌绝不会经过 Sokosumi。",
+    "integrationsHelp": "你的助手通过 Composio 连接。你在弹窗中授权每个提供商；令牌绝不会经过 Sokosumi。",
     "moreLaterHeading": "稍后还可连接",
-    "moreLaterHelp": "Hermes 设置完成后，可在设置中进行。",
+    "moreLaterHelp": "你的助手设置完成后，可在设置中进行。",
     "nameLabel": "姓名",
     "namePlaceholder": "Patrick Tobler",
     "next": "下一步",
@@ -260,21 +260,23 @@
     "skipCta": "跳过",
     "skipCtaHelp": "改用通用欢迎语。",
     "stepLabel": "第 {step} 步，共 {total} 步",
-    "subtitle": "连接几个工具，让 Hermes 从第一分钟就有用。若想从零开始可以跳过。",
-    "title": "来设置你的智能体。"
+    "subtitle": "连接几个工具，让你的助手从第一分钟就有用。若想从零开始可以跳过。",
+    "title": "来设置你的智能体。",
+    "assistantNameLabel": "助手",
+    "assistantNamePlaceholder": "给你的助手起个名字"
   },
   "OnboardingProgress": {
     "etaLabel": "大约还剩 {seconds} 秒",
     "etaSettling": "快完成了…",
     "eyebrow": "正在准备你的智能体",
-    "footerHint": "完成后，聊天将打开并显示来自 Hermes 的个性化介绍。",
+    "footerHint": "完成后，聊天将打开并显示来自你的助手的个性化介绍。",
     "hints": [
       "小贴士：进入后问「今天我的收件箱有什么重要的？」",
-      "Hermes 会记住你的项目、联系人和偏好。",
+      "你的助手会记住你的项目、联系人和偏好。",
       "试试：「每个工作日上午 8 点，把收件箱简报发给我。」",
-      "Hermes 可以聘请其他 Sokosumi 智能体协助研究。",
+      "你的助手可以聘请其他 Sokosumi 智能体协助研究。",
       "稍后在设置中连接更多工具 — Slack、Linear、Notion 等。",
-      "每天早上 Hermes 会发送需要你关注事项的简报。"
+      "每天早上你的助手会发送需要你关注事项的简报。"
     ],
     "pollError": "目前无法连接编排器 — 仍在重试。",
     "previewSteps": {
@@ -286,8 +288,8 @@
       "intro_draft": "正在起草你的介绍"
     },
     "stepFallbackLabel": "正在预热",
-    "subtitle": "这需要几分钟。你可以关闭此标签页；Hermes 会在后台继续设置。",
-    "title": "正在为你准备 Hermes"
+    "subtitle": "这需要几分钟。你可以关闭此标签页；你的助手会在后台继续设置。",
+    "title": "正在为你准备个人助手"
   },
   "ProgressPips": {
     "personalizing": "个性化",
@@ -296,31 +298,31 @@
   },
   "Provisioning": {
     "facts": [
-      "Hermes 拥有专属私有计算机，并在会话间记住你的上下文。",
+      "你的助手拥有专属私有计算机，并在会话间记住你的上下文。",
       "连接 Gmail、Outlook、Slack、Linear、GitHub、Notion 等。",
-      "Hermes 可以聘请其他 Sokosumi 智能体代你工作。",
+      "你的助手可以聘请其他 Sokosumi 智能体代你工作。",
       "在此、Telegram、Slack 或你工作的任何地方聊天——随时继续。",
-      "每天早上 Hermes 可以发送需要你关注事项的简报。",
+      "每天早上你的助手可以发送需要你关注事项的简报。",
       "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
-      "用自然语言让 Hermes 安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
+      "用自然语言让你的助手安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
     ],
     "settingUp": "正在设置你的智能体…",
-    "subtitle": "通常大约需要一分钟。你可以关闭此标签页 — Hermes 会在后台继续准备。",
-    "title": "正在启动你的 Hermes",
+    "subtitle": "通常大约需要一分钟。你可以关闭此标签页 — 你的助手会在后台继续准备。",
+    "title": "正在启动你的个人助手",
     "whileYouWait": "等待期间"
   },
   "Running": {
-    "composerDisabledPlaceholder": "Hermes 正在应用你的更改…",
+    "composerDisabledPlaceholder": "你的助手正在应用你的更改…",
     "confirmation": {
       "approve": "批准",
       "approveFailed": "无法批准。",
-      "approvedToast": "已批准。Hermes 将执行该操作。",
-      "rejectedToast": "已拒绝。Hermes 将不会执行该操作。",
-      "erroredAfterApproval": "Hermes 的操作在批准后出错。",
-      "heading": "Hermes 需要你的确认",
+      "approvedToast": "已批准。你的助手将执行该操作。",
+      "rejectedToast": "已拒绝。你的助手将不会执行该操作。",
+      "erroredAfterApproval": "你的助手的操作在批准后出错。",
+      "heading": "你的助手需要你的确认",
       "reject": "拒绝",
       "rejectFailed": "无法拒绝。",
-      "resolvedFallback": "Hermes 已执行你批准的操作。",
+      "resolvedFallback": "你的助手已执行你批准的操作。",
       "taskCard": {
         "defaultCoworker": "同事",
         "defaultOrganization": "组织",
@@ -351,11 +353,11 @@
       }
     },
     "errors": {
-      "apiError": "Hermes 返回错误（{status}）。",
-      "emptyResponse": "Hermes 返回了空响应。",
-      "notReady": "你的 Hermes 尚未就绪。",
-      "unreachable": "无法连接 Hermes。请检查网络连接。",
-      "warmingUp": "你的 Hermes 仍在预热。请几秒后重试。"
+      "apiError": "你的助手返回错误（{status}）。",
+      "emptyResponse": "你的助手返回了空响应。",
+      "notReady": "你的助手尚未就绪。",
+      "unreachable": "无法连接你的助手。请检查网络连接。",
+      "warmingUp": "你的助手仍在预热。请几秒后重试。"
     },
     "integrationsChip": {
       "ariaConnected": "{count, plural, one {已连接 # 个集成 — 打开设置} other {已连接 # 个集成 — 打开设置}}",
@@ -364,15 +366,15 @@
       "integrations": "集成"
     },
     "mockReplies": [
-      "这是本地 Hermes 预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实 Hermes。",
-      "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，Hermes 再响应。",
+      "这是本地个人助手预览的模拟回复。关闭 ?state=running 可查看通过编排器连接的真实助手。",
+      "收到。在生产环境中，你的消息会经过 Sokosumi 服务器，编排器返回你的私有端点，你的助手再响应。",
       "我会这样做：写入长期记忆、在任务列表添加跟进，并为下次会话保留上下文。"
     ],
     "outboxKinds": {
       "confirmation_resolved": "确认",
       "daily_brief": "每日简报",
       "daily_suggestions": "建议",
-      "default": "来自 Hermes",
+      "default": "来自你的助手",
       "job_complete": "任务完成",
       "reminder": "提醒",
       "task_result": "计划任务",
@@ -380,7 +382,7 @@
     },
     "removeFile": "移除",
     "rotatingHints": [
-      "给 Hermes 发消息…",
+      "给你的助手发消息…",
       "试试：每天上午 8 点安排收件箱简报",
       "试试：总结我未完结的 Cardano 线程",
       "试试：根据上次会议笔记起草跟进",
@@ -404,11 +406,12 @@
       "斟酌措辞",
       "快好了"
     ],
-    "transitioning": "Hermes 正在应用你的更改…",
-    "transitioningHint": "（约需 30 秒）"
+    "transitioning": "你的助手正在应用你的更改…",
+    "transitioningHint": "（约需 30 秒）",
+    "assistantFallback": "你的助手"
   },
   "Settings": {
-    "autonomyHelp": "允许 Hermes 采取多大主动性。较低级别会在行动前询问。",
+    "autonomyHelp": "允许你的助手采取多大主动性。较低级别会在行动前询问。",
     "autonomySaveFailed": "无法更新自主性。",
     "autonomySavedToast": "自主性已更新。",
     "autonomySaving": "保存中…",
@@ -418,16 +421,16 @@
     "connectingIntegration": "连接中…",
     "disconnectIntegration": "断开",
     "integrationsEmpty": "未连接任何集成。",
-    "integrationsHelp": "连接或断开 Hermes 可代表你访问的工具。更改会重启你的 Hermes。",
+    "integrationsHelp": "连接或断开你的助手可代表你访问的工具。更改会重启你的助手。",
     "integrationsSection": "集成",
     "modelProviderValue": "OpenRouter（托管）",
     "modelValue": "deepseek-4-flash",
     "retryIntegration": "重试",
     "schedulesDisableLabel": "禁用",
-    "schedulesEmpty": "尚无计划任务。在聊天中让 Hermes 安排某事（例如「每个工作日上午 8 点，把收件箱简报发给我」）。",
+    "schedulesEmpty": "尚无计划任务。在聊天中让你的助手安排某事（例如「每个工作日上午 8 点，把收件箱简报发给我」）。",
     "schedulesEnableLabel": "启用",
-    "schedulesHelp": "Hermes 代表你运行的周期性任务。工作区同步、每日简报、智能体安排的跟进等。",
-    "schedulesHermesBadge": "Hermes",
+    "schedulesHelp": "你的助手代表你运行的周期性任务。工作区同步、每日简报、智能体安排的跟进等。",
+    "schedulesHermesBadge": "个人助手",
     "schedulesKindSystemPromptBadge": "自动创建",
     "schedulesKindSystemSweepBadge": "后台任务",
     "schedulesKindUserBadge": "由你创建",
@@ -438,12 +441,18 @@
     "schedulesSection": "计划任务",
     "schedulesSystemBadge": "系统",
     "schedulesToggleFailed": "无法更新此计划。",
-    "syncHelp": "Hermes 通过在后台轮询你的 Sokosumi 工作区以及已连接的收件箱/日历来保持记忆最新。",
+    "syncHelp": "你的助手通过在后台轮询你的 Sokosumi 工作区以及已连接的收件箱/日历来保持记忆最新。",
     "syncInboxLabel": "收件箱和日历",
     "syncInboxNever": "连接集成后每 6 小时刷新一次。",
     "syncLastRun": "{when}",
     "syncSection": "记忆刷新",
     "syncWorkspaceLabel": "Sokosumi 工作区",
-    "syncWorkspaceNever": "尚未同步。首次入门时运行。"
+    "syncWorkspaceNever": "尚未同步。首次入门时运行。",
+    "nameSection": "名称",
+    "nameHelp": "你的助手在整个应用中显示的名称。",
+    "namePlaceholder": "给你的助手起个名字",
+    "nameSave": "保存",
+    "nameSavedToast": "名称已更新。",
+    "nameSaveFailed": "无法更新名称。请重试。"
   }
 }

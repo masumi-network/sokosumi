@@ -1408,6 +1408,17 @@ model HermesInstance {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// User-chosen display name for their personal assistant (set during setup,
+  /// editable in Settings). Sokosumi-side only — NOT forwarded to the
+  /// orchestrator, whose `name` field is the user's own name. Null until the
+  /// user names their assistant; the UI falls back to a generic label.
+  assistantName String?
+
+  /// Seed string for the assistant's deterministic generative "aurora orb"
+  /// avatar, chosen during setup. Same seed → identical orb (no image stored).
+  /// Null until chosen; the UI falls back to a per-user default seed.
+  avatarSeed String?
+
   /// When the inbox cron last attempted a poll (success or failure).
   lastPolledAt DateTime?
   /// `createdAt` of the most recent inbox message we've ingested. Used as the

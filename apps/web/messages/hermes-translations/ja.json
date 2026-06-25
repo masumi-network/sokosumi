@@ -1,7 +1,7 @@
 {
   "Common": {
     "cancel": "キャンセル",
-    "hermesAvatarAlt": "Hermes",
+    "hermesAvatarAlt": "アシスタント",
     "oauth": {
       "composioError": "Composio がエラーを報告しました",
       "connectFailed": "このプロバイダーを接続できませんでした。",
@@ -31,11 +31,11 @@
       "twitter": "X",
       "youtube": "Google"
     },
-    "bodyReadOnly": "Hermes は読み取りのみ可能です。{authProvider} が送信・変更の権限を表示していても、当社側では Hermes は読み取り専用に固定されており、アカウント内で送信や変更はできません。",
-    "bodyWrite": "Hermes はあなたの代わりに、アカウントの読み取り・送信・操作ができるようになります。",
+    "bodyReadOnly": "アシスタントは読み取りのみ可能です。{authProvider} が送信・変更の権限を表示していても、当社側ではアシスタントは読み取り専用に固定されており、アカウント内で送信や変更はできません。",
+    "bodyWrite": "アシスタントはあなたの代わりに、アカウントの読み取り・送信・操作ができるようになります。",
     "continueFallback": "プロバイダー",
     "continueTo": "{provider} に進む",
-    "description": "{provider} の同意画面には広い権限が表示されますが、これは正常です。Hermes は当社の連携プロバイダー Composio 経由で接続し、Composio の OAuth アプリはデフォルトの全スコープセットで検証済みです。",
+    "description": "{provider} の同意画面には広い権限が表示されますが、これは正常です。アシスタントは当社の連携プロバイダー Composio 経由で接続し、Composio の OAuth アプリはデフォルトの全スコープセットで検証済みです。",
     "modeFullAccess": "フルアクセス",
     "modeReadOnly": "読み取りのみ",
     "pickedPrefix": "選択したのは",
@@ -44,9 +44,9 @@
     "title": "次の画面について"
   },
   "EmptyState": {
-    "disclaimer1": "Hermes はあなたの代わりに行動します。送るメール、開くチケット、使うクレジットはすべて実物です。自律レベルは慎重に選んでください。",
+    "disclaimer1": "アシスタントはあなたの代わりに行動します。送るメール、開くチケット、使うクレジットはすべて実物です。自律レベルは慎重に選んでください。",
     "disclaimer2": "間違えることもあります。顧客・同僚・お金に関わる操作は、信頼する前に必ず確認してください。",
-    "disclaimer3": "接続したアカウントは OAuth で Hermes にスコープ付きアクセスを渡します。信頼できなくなったらすぐに連携を切断してください。",
+    "disclaimer3": "接続したアカウントは OAuth でアシスタントにスコープ付きアクセスを渡します。信頼できなくなったらすぐに連携を切断してください。",
     "disclaimer4": "ベータ版ソフトウェアです。リリース間で挙動が変わることがあります。会話履歴はあなたのものですが、機能は進化し続けます。",
     "disclaimerHeading": "始める前に、いくつか正直にお伝えします",
     "example1": "Cardano 案件に関するメールをすべて見つけ、Research エージェントに金曜の通話に出る4名のプロフィールを依頼し、通話前にブリーフして。",
@@ -56,7 +56,7 @@
     "example3": "平日毎朝8時に、前日の受信トレイ + 今日のカレンダーで Brief エージェントを起用し、要約を Slack #me に投稿して。",
     "example3Reply": "スケジュールしました。平日毎朝08:00に：\n\n1. 前日20:00以降のメールと今日のカレンダーを取得\n2. **Brief** エージェント（3 クレジット/回）で要約、競合のフラグ、ブロッカーの抽出\n3. 結果を #me に投稿。判断が必要な項目はスレッド付き\n\n初回実行：明日08:00。",
     "example4": "レビューが必要な GitHub PR を確認し、今日対応できない分は Linear チケットを開き、残りは #engineering に手伝いを依頼して。",
-    "example4Reply": "レビューが必要な PR が6件。24時間超は2件：\n\n• **sok#2934**（Patrick）— Hermes Beta。レビュー約2時間。\n• **sok#2941**（Alex）— 請求修正。約20分。\n\nあなたに割り当ての古い4件の Linear チケットを下書きし、大きい2件は #engineering にバックアップ依頼の Slack 投稿を下書きします。送信してよいですか？",
+    "example4Reply": "レビューが必要な PR が6件。24時間超は2件：\n\n• **sok#2934**（Patrick）— アシスタント Beta。レビュー約2時間。\n• **sok#2941**（Alex）— 請求修正。約20分。\n\nあなたに割り当ての古い4件の Linear チケットを下書きし、大きい2件は #engineering にバックアップ依頼の Slack 投稿を下書きします。送信してよいですか？",
     "example5": "今週 Masumi について Reddit で何が言われているか Reddit Research エージェントに調べ、上位のセンチメントとアクション項目を送って。",
     "example5Reply": "**Reddit Research**（15 クレジット）を起用。ブリーフ：過去7日間 r/cardano、r/agentic、r/MachineLearning で Masumi に言及した投稿・コメント。\n\n戻り次第：全体のセンチメント、引用スレッド上位3、具体的なアクション項目（バグ起票、開発者への感謝、FUD への対応）。所要約12分。",
     "example6": "Hannah の案件タスクが FAILED になったら返金を起用し Linear チケットを起票 — 1週間に2回起きない限り連絡しないで。",
@@ -72,29 +72,29 @@
     "examplesEyebrow": "試してみる",
     "examplesHeading": "試してみること",
     "examplesHelp": "チャットを開いて何でも聞いてください。いくつかの例：",
-    "examplesPickHint": "プロンプトを選ぶと Hermes の返答例が表示されます",
+    "examplesPickHint": "プロンプトを選ぶとアシスタントの返答例が表示されます",
     "featuresEyebrow": "機能",
     "featuresHeading": "毎日の本気の仕事のために",
     "integrationsEyebrow": "連携",
     "journeyDescription": "エージェントを有効化した瞬間から、明日の朝スマホに届くブリーフまで。",
     "journeyEyebrow": "エンドツーエンド",
-    "journeyHeading": "Hermes の動き方（ステップごと）",
-    "journeyStep1Body": "Sokosumi アカウントからワンクリック。インストール不要、API キーの管理も不要。この瞬間から Hermes はあなたのアカウントに紐づきます。",
+    "journeyHeading": "アシスタントの動き方（ステップごと）",
+    "journeyStep1Body": "Sokosumi アカウントからワンクリック。インストール不要、API キーの管理も不要。この瞬間からアシスタントはあなたのアカウントに紐づきます。",
     "journeyStep1Tag": "00:00",
-    "journeyStep1Title": "Hermes を有効化",
+    "journeyStep1Title": "アシスタントを有効化",
     "journeyStep2Body": "あなただけのプライベートなコンピュータが立ち上がります。メモや設定はそのまま残り、パスワードは保護され、他のユーザーと共有されることはありません。",
     "journeyStep2Tag": "00:30",
     "journeyStep2Title": "専用コンピュータが起動",
     "journeyStep3Body": "Gmail、Outlook、カレンダー、Slack、Notion、Linear、GitHub などにサインイン。認証情報は Sokosumi を経由せず、あなたのコンピュータだけに保存されます。",
     "journeyStep3Tag": "01:00",
     "journeyStep3Title": "アカウントを接続",
-    "journeyStep4Body": "Hermes は受信トレイをスキャンし、カレンダーを確認し、Sokosumi ジョブを同期し、誰と何が重要かのプライベートメモリを構築します。",
+    "journeyStep4Body": "アシスタントは受信トレイをスキャンし、カレンダーを確認し、Sokosumi ジョブを同期し、誰と何が重要かのプライベートメモリを構築します。",
     "journeyStep4Tag": "02:00",
     "journeyStep4Title": "あなたの世界を読み取る",
-    "journeyStep5Body": "普段の言葉で依頼してください。Hermes は適切なツールを選び、メールを下書きし、チケットを開き、必要なら Sokosumi のスペシャリストエージェントを起用し、結果を戻してきます。",
+    "journeyStep5Body": "普段の言葉で依頼してください。アシスタントは適切なツールを選び、メールを下書きし、チケットを開き、必要なら Sokosumi のスペシャリストエージェントを起用し、結果を戻してきます。",
     "journeyStep5Tag": "live",
     "journeyStep5Title": "チャット中も動き続ける",
-    "journeyStep6Body": "いつ実行するか Hermes に伝えてください。普段の言葉で。ブリーフ、フォローアップ、夜間ダイジェストが、目覚める前にチャット（および Telegram や Slack）に届きます。",
+    "journeyStep6Body": "いつ実行するかアシスタントに伝えてください。普段の言葉で。ブリーフ、フォローアップ、夜間ダイジェストが、目覚める前にチャット（および Telegram や Slack）に届きます。",
     "journeyStep6Tag": "scheduled",
     "journeyStep6Title": "眠っている間も動く",
     "poweredBy": "Powered by Nous Research",
@@ -115,7 +115,7 @@
       "twitter": "X"
     },
     "servicesHeading": "お使いのツールに接続",
-    "servicesHelp": "セットアップ時に一度接続するだけです。Hermes はアカウント内で読み取り・検索・下書き・操作ができます。新しいツールコネクタも随時追加されます。",
+    "servicesHelp": "セットアップ時に一度接続するだけです。アシスタントはアカウント内で読み取り・検索・下書き・操作ができます。新しいツールコネクタも随時追加されます。",
     "servicesMoreLabel": "など",
     "visuals": {
       "actHeld": "火曜 · 10:00 確保済み",
@@ -125,7 +125,7 @@
         "文脈のため Research エージェントを起用"
       ],
       "actUserMessage": "来週火曜10時に Hannah と通話を設定して。",
-      "actWorking": "Hermes が作業中",
+      "actWorking": "アシスタントが作業中",
       "activated": "有効化済み",
       "demoInbox": [
         {
@@ -165,27 +165,27 @@
     }
   },
   "Experience": {
-    "destroyFailed": "Hermes の削除に失敗しました。",
-    "fetchFailed": "Hermes に接続できませんでした。",
-    "instanceVanished": "プロビジョニング中に Hermes インスタンスが消えました。",
+    "destroyFailed": "アシスタントの削除に失敗しました。",
+    "fetchFailed": "アシスタントに接続できませんでした。",
+    "instanceVanished": "プロビジョニング中にアシスタントのインスタンスが消えました。",
     "onboardingStartFailed": "オンボーディングを開始できませんでした。",
-    "provisionFailed": "Hermes のプロビジョニングに失敗しました。",
+    "provisionFailed": "アシスタントのプロビジョニングに失敗しました。",
     "provisionTimeout": "プロビジョニングが15分でタイムアウトしました。もう一度お試しください。"
   },
   "Metadata": {
     "description": "専用のコンピュータ上で動作する、あなた専用の AI エージェント。",
-    "title": "Hermes"
+    "title": "パーソナルアシスタント"
   },
   "Onboarding": {
-    "autonomyAriaLabel": "Hermes の自律レベル",
-    "autonomyHeading": "Hermes にどの程度の裁量を持たせますか？",
+    "autonomyAriaLabel": "アシスタントの自律レベル",
+    "autonomyHeading": "アシスタントにどの程度の裁量を持たせますか？",
     "autonomyHelp": "設定からいつでも変更できます。",
-    "autonomyHighBody": "本格的なエージェント体験です。Hermes は独自に行動します。チケットを開き、メールを送り、価値があると判断したら Sokosumi クレジットで他エージェントを起用します。コストルールで制限（残高が10クレジット未満になる操作は拒否、単一ジョブが残高の25%超なら確認）。仕組みを信頼できてからがおすすめです。",
+    "autonomyHighBody": "本格的なエージェント体験です。アシスタントは独自に行動します。チケットを開き、メールを送り、価値があると判断したら Sokosumi クレジットで他エージェントを起用します。コストルールで制限（残高が10クレジット未満になる操作は拒否、単一ジョブが残高の25%超なら確認）。仕組みを信頼できてからがおすすめです。",
     "autonomyHighLabel": "自律",
     "autonomyHighSpendBadge": "クレジットを消費",
-    "autonomyLowBody": "Hermes は受信トレイ・カレンダー・タスクを読めますが、行動はしません。慣れるまで最も安全です。",
+    "autonomyLowBody": "アシスタントは受信トレイ・カレンダー・タスクを読めますが、行動はしません。慣れるまで最も安全です。",
     "autonomyLowLabel": "読み取りのみ",
-    "autonomyMediumBody": "Hermes は行動できますが、クレジット消費や重要な変更の前にチャットで確認します。推奨です。",
+    "autonomyMediumBody": "アシスタントは行動できますが、クレジット消費や重要な変更の前にチャットで確認します。推奨です。",
     "autonomyMediumLabel": "先に確認",
     "autonomyMediumRecommended": "推奨",
     "back": "戻る",
@@ -208,19 +208,19 @@
     "disconnect": "切断",
     "emailLabel": "メール",
     "emailPlaceholder": "patrick@example.com",
-    "eyebrow": "Hermes へようこそ",
+    "eyebrow": "パーソナルアシスタントへようこそ",
     "footnote": "連携は設定からいつでも追加・削除できます。",
     "fullAccessBodyBold": "返信の下書きと、あなたの代わりのアカウント内での操作",
-    "fullAccessBodyPrefix": "Hermes は",
+    "fullAccessBodyPrefix": "アシスタントは",
     "fullAccessBodySuffix": "ができるようになります。メール送信や予定作成を任せたい場合のみ有効にしてください。",
     "fullAccessCta": "接続（フルアクセス — 読み取り + 送信）",
-    "fullAccessPrompt": "Hermes に送信・作成を任せますか？",
+    "fullAccessPrompt": "アシスタントに送信・作成を任せますか？",
     "identityHeading": "あなたの情報",
-    "identityHelp": "Hermes はこれを文脈に使います — 名前で呼びかけ、役割に合った仕事を優先し、会社に根ざした調査を行います。",
+    "identityHelp": "アシスタントはこれを文脈に使います — 名前で呼びかけ、役割に合った仕事を優先し、会社に根ざした調査を行います。",
     "integrationsHeading": "連携",
-    "integrationsHelp": "Hermes は Composio 経由で接続します。各プロバイダーをポップアップで認可します。トークンは Sokosumi に触れません。",
+    "integrationsHelp": "アシスタントは Composio 経由で接続します。各プロバイダーをポップアップで認可します。トークンは Sokosumi に触れません。",
     "moreLaterHeading": "あとから接続できるもの",
-    "moreLaterHelp": "Hermes のセットアップ後、設定から行えます。",
+    "moreLaterHelp": "アシスタントのセットアップ後、設定から行えます。",
     "nameLabel": "名前",
     "namePlaceholder": "Patrick Tobler",
     "next": "次へ",
@@ -262,20 +262,22 @@
     "skipCtaHelp": "代わりに汎用のウェルカムを使用します。",
     "stepLabel": "ステップ {step} / {total}",
     "subtitle": "最初から役立つよう、いくつかツールを接続してください。まっさらに始めたい場合はスキップできます。",
-    "title": "エージェントをセットアップしましょう。"
+    "title": "エージェントをセットアップしましょう。",
+    "assistantNameLabel": "アシスタント",
+    "assistantNamePlaceholder": "アシスタントに名前を付けましょう"
   },
   "OnboardingProgress": {
     "etaLabel": "残り約 {seconds} 秒",
     "etaSettling": "もうすぐ完了…",
     "eyebrow": "エージェントを準備中",
-    "footerHint": "完了すると、Hermes からのパーソナライズされたイントロ付きでチャットが開きます。",
+    "footerHint": "完了すると、アシスタントからのパーソナライズされたイントロ付きでチャットが開きます。",
     "hints": [
       "ヒント：開始後は「今日の受信トレイで重要なことは？」と聞いてみてください。",
-      "Hermes はプロジェクト、連絡先、好みを覚えます。",
+      "アシスタントはプロジェクト、連絡先、好みを覚えます。",
       "試す：「平日毎朝8時に受信トレイのブリーフを送って」。",
-      "Hermes は調査のため他の Sokosumi エージェントを起用できます。",
+      "アシスタントは調査のため他の Sokosumi エージェントを起用できます。",
       "設定から後で Slack、Linear、Notion などを追加接続できます。",
-      "毎朝、注意が必要なことを Hermes がブリーフで送ります。"
+      "毎朝、注意が必要なことをアシスタントがブリーフで送ります。"
     ],
     "pollError": "オーケストレーターに今は接続できません — 再試行中です。",
     "previewSteps": {
@@ -287,8 +289,8 @@
       "intro_draft": "イントロを下書き中"
     },
     "stepFallbackLabel": "準備中",
-    "subtitle": "数分かかります。このタブを閉じても構いません。Hermes はバックグラウンドでセットアップを続けます。",
-    "title": "Hermes をあなた用に準備しています"
+    "subtitle": "数分かかります。このタブを閉じても構いません。アシスタントはバックグラウンドでセットアップを続けます。",
+    "title": "アシスタントをあなた用に準備しています"
   },
   "ProgressPips": {
     "personalizing": "パーソナライズ中",
@@ -297,31 +299,31 @@
   },
   "Provisioning": {
     "facts": [
-      "Hermes は専用のプライベートなコンピュータを持ち、セッションをまたいで文脈を覚えます。",
+      "アシスタントは専用のプライベートなコンピュータを持ち、セッションをまたいで文脈を覚えます。",
       "Gmail、Outlook、Slack、Linear、GitHub、Notion などを接続できます。",
-      "Hermes は他の Sokosumi エージェントをあなたの代わりに起用できます。",
+      "アシスタントは他の Sokosumi エージェントをあなたの代わりに起用できます。",
       "ここ、Telegram、Slack、普段お使いの場所からチャット — どこからでも続けられます。",
-      "毎朝、注意が必要なことを Hermes がブリーフで送れます。",
+      "毎朝、注意が必要なことをアシスタントがブリーフで送れます。",
       "受信トレイの確認、返信の下書き、会議の予約 — すべてチャットから。",
       "普段の言葉でスケジュールを依頼：「毎週月曜9時に、今週の予定を要約して」。"
     ],
     "settingUp": "エージェントをセットアップ中…",
-    "subtitle": "通常は約 1 分かかります。このタブを閉じても構いません — Hermes はバックグラウンドで準備を続けます。",
-    "title": "Hermes を起動しています",
+    "subtitle": "通常は約 1 分かかります。このタブを閉じても構いません — アシスタントはバックグラウンドで準備を続けます。",
+    "title": "アシスタントを起動しています",
     "whileYouWait": "お待ちの間"
   },
   "Running": {
-    "composerDisabledPlaceholder": "Hermes が変更を適用しています…",
+    "composerDisabledPlaceholder": "アシスタントが変更を適用しています…",
     "confirmation": {
       "approve": "承認",
       "approveFailed": "承認できませんでした。",
-      "approvedToast": "承認しました。Hermes がアクションを実行します。",
-      "rejectedToast": "却下しました。Hermes はアクションを実行しません。",
-      "erroredAfterApproval": "承認後に Hermes のアクションでエラーが発生しました。",
-      "heading": "Hermes の承認が必要です",
+      "approvedToast": "承認しました。アシスタントがアクションを実行します。",
+      "rejectedToast": "却下しました。アシスタントはアクションを実行しません。",
+      "erroredAfterApproval": "承認後にアシスタントのアクションでエラーが発生しました。",
+      "heading": "アシスタントの承認が必要です",
       "reject": "却下",
       "rejectFailed": "却下できませんでした。",
-      "resolvedFallback": "Hermes が承認されたアクションを実行しました。",
+      "resolvedFallback": "アシスタントが承認されたアクションを実行しました。",
       "taskCard": {
         "defaultCoworker": "同僚",
         "defaultOrganization": "組織",
@@ -352,11 +354,11 @@
       }
     },
     "errors": {
-      "apiError": "Hermes がエラーを返しました（{status}）。",
-      "emptyResponse": "Hermes が空の応答を返しました。",
-      "notReady": "Hermes はまだ準備できていません。",
-      "unreachable": "Hermes に接続できませんでした。接続を確認してください。",
-      "warmingUp": "Hermes はまだウォームアップ中です。数秒後にもう一度お試しください。"
+      "apiError": "アシスタントがエラーを返しました（{status}）。",
+      "emptyResponse": "アシスタントが空の応答を返しました。",
+      "notReady": "アシスタントはまだ準備できていません。",
+      "unreachable": "アシスタントに接続できませんでした。接続を確認してください。",
+      "warmingUp": "アシスタントはまだウォームアップ中です。数秒後にもう一度お試しください。"
     },
     "integrationsChip": {
       "ariaConnected": "{count, plural, one {# 件の連携が接続済み — 設定を開く} other {# 件の連携が接続済み — 設定を開く}}",
@@ -365,15 +367,15 @@
       "integrations": "連携"
     },
     "mockReplies": [
-      "ローカルの Hermes プレビューからのモック応答です。?state=running をオフにすると、オーケストレーター経由の本番 Hermes が表示されます。",
-      "了解です。本番ではメッセージは Sokosumi サーバーを経由し、オーケストレーターがプライベートエンドポイントを返し、Hermes が応答します。",
+      "ローカルのアシスタントプレビューからのモック応答です。?state=running をオフにすると、オーケストレーター経由の本番アシスタントが表示されます。",
+      "了解です。本番ではメッセージは Sokosumi サーバーを経由し、オーケストレーターがプライベートエンドポイントを返し、アシスタントが応答します。",
       "次のようにします：長期メモリに保存し、タスクリストにフォローアップを追加し、次のセッション用に文脈を保持します。"
     ],
     "outboxKinds": {
       "confirmation_resolved": "確認",
       "daily_brief": "デイリーブリーフ",
       "daily_suggestions": "提案",
-      "default": "Hermes から",
+      "default": "アシスタントから",
       "job_complete": "ジョブ完了",
       "reminder": "リマインダー",
       "task_result": "スケジュール済みタスク",
@@ -381,7 +383,7 @@
     },
     "removeFile": "削除",
     "rotatingHints": [
-      "Hermes にメッセージ…",
+      "アシスタントにメッセージ…",
       "試す：毎朝8時に受信トレイのブリーフをスケジュール",
       "試す：未完了の Cardano スレッドを要約",
       "試す：前回の議事録へのフォローアップを下書き",
@@ -405,11 +407,12 @@
       "言葉を選び中",
       "もうすぐです"
     ],
-    "transitioning": "Hermes が変更を適用しています…",
-    "transitioningHint": "（約30秒かかります）"
+    "transitioning": "アシスタントが変更を適用しています…",
+    "transitioningHint": "（約30秒かかります）",
+    "assistantFallback": "アシスタント"
   },
   "Settings": {
-    "autonomyHelp": "Hermes に許される裁量の大きさです。低い段階ほど行動前に確認します。",
+    "autonomyHelp": "アシスタントに許される裁量の大きさです。低い段階ほど行動前に確認します。",
     "autonomySaveFailed": "自律設定を更新できませんでした。",
     "autonomySavedToast": "自律設定を更新しました。",
     "autonomySaving": "保存中…",
@@ -419,16 +422,16 @@
     "connectingIntegration": "接続中…",
     "disconnectIntegration": "切断",
     "integrationsEmpty": "接続された連携はありません。",
-    "integrationsHelp": "Hermes があなたの代わりに使えるツールを接続・切断します。変更すると Hermes が再起動します。",
+    "integrationsHelp": "アシスタントがあなたの代わりに使えるツールを接続・切断します。変更するとアシスタントが再起動します。",
     "integrationsSection": "連携",
     "modelProviderValue": "OpenRouter（管理）",
     "modelValue": "deepseek-4-flash",
     "retryIntegration": "再試行",
     "schedulesDisableLabel": "無効",
-    "schedulesEmpty": "スケジュール済みタスクはまだありません。チャットで Hermes に予約を依頼してください（例：「平日毎朝8時に受信トレイのブリーフを送って」）。",
+    "schedulesEmpty": "スケジュール済みタスクはまだありません。チャットでアシスタントに予約を依頼してください（例：「平日毎朝8時に受信トレイのブリーフを送って」）。",
     "schedulesEnableLabel": "有効",
-    "schedulesHelp": "Hermes があなたの代わりに実行する定期ジョブ。ワークスペース同期、デイリーブリーフ、エージェントが予約したフォローアップ。",
-    "schedulesHermesBadge": "Hermes",
+    "schedulesHelp": "アシスタントがあなたの代わりに実行する定期ジョブ。ワークスペース同期、デイリーブリーフ、エージェントが予約したフォローアップ。",
+    "schedulesHermesBadge": "アシスタント",
     "schedulesKindSystemPromptBadge": "自動作成",
     "schedulesKindSystemSweepBadge": "バックグラウンドタスク",
     "schedulesKindUserBadge": "あなたが作成",
@@ -439,12 +442,18 @@
     "schedulesSection": "スケジュール済みタスク",
     "schedulesSystemBadge": "システム",
     "schedulesToggleFailed": "このスケジュールを更新できませんでした。",
-    "syncHelp": "Hermes はバックグラウンドで Sokosumi ワークスペースと接続済みの受信トレイ・カレンダーをポーリングし、メモリを最新に保ちます。",
+    "syncHelp": "アシスタントはバックグラウンドで Sokosumi ワークスペースと接続済みの受信トレイ・カレンダーをポーリングし、メモリを最新に保ちます。",
     "syncInboxLabel": "受信トレイとカレンダー",
     "syncInboxNever": "連携接続後、6時間ごとに更新されます。",
     "syncLastRun": "{when}",
     "syncSection": "メモリの更新",
     "syncWorkspaceLabel": "Sokosumi ワークスペース",
-    "syncWorkspaceNever": "まだ同期されていません。初回オンボーディングで実行されます。"
+    "syncWorkspaceNever": "まだ同期されていません。初回オンボーディングで実行されます。",
+    "nameSection": "名前",
+    "nameHelp": "アプリ全体でアシスタントを呼ぶ名前です。",
+    "namePlaceholder": "アシスタントに名前を付けましょう",
+    "nameSave": "保存",
+    "nameSavedToast": "名前を更新しました。",
+    "nameSaveFailed": "名前を更新できませんでした。もう一度お試しください。"
   }
 }

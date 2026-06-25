@@ -19,12 +19,14 @@ import {
   provisionHermesAction,
   startHermesOnboardingAction,
 } from "@/lib/actions/hermes";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type {
   HermesAutonomyLevel,
   HermesInstancePublic,
   HermesInstanceStatus,
   HermesOrganizationOption,
   HermesPersistedMessage,
+  HermesPersonality,
 } from "@/lib/hermes/types";
 
 export type { HermesOrganizationOption };
@@ -39,6 +41,8 @@ type UiState =
   | "error";
 
 interface HermesExperienceProps {
+  /** Stable per-user id — the base seed for the generative orb avatar. */
+  userId?: string | null;
   userName?: string | null;
   userEmail?: string | null;
   userImageUrl?: string | null;
@@ -127,6 +131,7 @@ const MOCK_CONFIRMATION_PREVIEW_ORGANIZATIONS: HermesOrganizationOption[] = [
 ];
 
 export default function HermesExperience({
+  userId,
   userName,
   userEmail,
   userImageUrl,
@@ -166,6 +171,15 @@ export default function HermesExperience({
    * wizard mounted so `OnboardingProgress` does not poll until onboard has
    * actually started. */
   const [isStartingOnboarding, setIsStartingOnboarding] = useState(false);
+  /**
+   * The orb the user committed to during setup, captured optimistically so the
+   * provisioning / progress screens show their actual choice before the
+   * instance round-trips it back. `undefined` = not chosen this session; `null`
+   * = the standard white placeholder; string = the chosen colour seed.
+   */
+  const [committedSeed, setCommittedSeed] = useState<string | null | undefined>(
+    undefined,
+  );
 
   /**
    * Loads instance state then persisted history. Sequenced (not parallel) because
@@ -388,11 +402,17 @@ export default function HermesExperience({
     async (options: {
       skipResearch: boolean;
       name: string | null;
+      assistantName: string | null;
+      avatarSeed: string | null;
       email: string | null;
       role: string | null;
       company: string | null;
       autonomyLevel: HermesAutonomyLevel;
+      personality: HermesPersonality;
     }) => {
+      // Show their actual orb choice on the provisioning / progress screens
+      // immediately, without waiting for the instance to round-trip it.
+      setCommittedSeed(options.avatarSeed);
       if (previewMode) {
         setUiState("onboarding");
         // Mock orchestrator flow: ~30s "research", then flip to running.
@@ -407,10 +427,13 @@ export default function HermesExperience({
         const result = await startHermesOnboardingAction({
           skipResearch: options.skipResearch,
           name: options.name,
+          assistantName: options.assistantName,
+          avatarSeed: options.avatarSeed,
           email: options.email,
           role: options.role,
           company: options.company,
           autonomyLevel: options.autonomyLevel,
+          personality: options.personality,
         });
         if (!result.ok) {
           toast.error(result.error.message ?? t("onboardingStartFailed"));
@@ -429,21 +452,36 @@ export default function HermesExperience({
     [previewMode, t],
   );
 
+  // Base seed for the generative orb avatar — the user id makes every user's
+  // orb unique; preview mode (no session) gets a stable placeholder seed.
+  const orbBaseSeed = userId ?? "preview-user";
+  // The committed avatar: the user's optimistic setup choice, else what the
+  // instance persisted. null → the white placeholder orb.
+  const committedOrbSeed: string | null =
+    committedSeed !== undefined
+      ? committedSeed
+      : (instance?.avatarSeed ?? null);
+  // Surfaces that need a concrete seed (chat message PNGs) fall back to a
+  // per-user default.
+  const effectiveOrbSeed: string =
+    committedOrbSeed ?? defaultOrbSeed(orbBaseSeed);
+
   if (uiState === "loading") {
-    return <LoadingState />;
+    return <LoadingState seed={effectiveOrbSeed} />;
   }
 
   if (uiState === "idle") {
-    return <EmptyState onActivate={handleActivate} />;
+    return <EmptyState onActivate={handleActivate} seed={effectiveOrbSeed} />;
   }
   if (uiState === "provisioning") {
-    return <ProvisioningState />;
+    return <ProvisioningState seed={committedOrbSeed} />;
   }
   if (uiState === "infrastructure_ready") {
     return (
       <OnboardingScreen
         defaultName={userName ?? ""}
         defaultEmail={userEmail ?? ""}
+        orbBaseSeed={orbBaseSeed}
         integrations={instance?.integrations ?? []}
         previewMode={previewMode}
         isStarting={isStartingOnboarding}
@@ -452,7 +490,9 @@ export default function HermesExperience({
     );
   }
   if (uiState === "onboarding") {
-    return <OnboardingProgress previewMode={previewMode} />;
+    return (
+      <OnboardingProgress previewMode={previewMode} seed={committedOrbSeed} />
+    );
   }
   if (uiState === "error") {
     return (
@@ -463,6 +503,7 @@ export default function HermesExperience({
     <RunningState
       userName={userName ?? null}
       userImageUrl={userImageUrl ?? null}
+      avatarSeed={effectiveOrbSeed}
       instance={instance}
       previewMode={previewMode}
       initialMessages={initialMessages}

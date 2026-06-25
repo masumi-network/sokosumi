@@ -59,6 +59,19 @@ export type HermesIntegrationMode = "read" | "write";
  */
 export type HermesAutonomyLevel = "low" | "medium" | "high";
 
+/**
+ * Assistant personality — three 0–100 spectrums set during setup and forwarded
+ * to the orchestrator (it shapes the agent's system prompt). 50 = balanced.
+ */
+export interface HermesPersonality {
+  /** 0 = direct / to-the-point · 100 = warm / personable. */
+  tone: number;
+  /** 0 = concise / short answers · 100 = thorough / detailed. */
+  detail: number;
+  /** 0 = formal / professional · 100 = casual / playful. */
+  style: number;
+}
+
 export interface HermesIntegration {
   provider: HermesIntegrationProvider;
   status: HermesIntegrationStatus;
@@ -78,6 +91,18 @@ export interface HermesInstancePublic {
    * screen and go straight to chat once the instance is `ready`.
    */
   onboardedAt: string | null;
+  /**
+   * User-chosen display name for the assistant (set during setup, editable
+   * in Settings). Null until named — the UI falls back to a generic label.
+   * Sokosumi-side metadata; the orchestrator never sees this.
+   */
+  assistantName: string | null;
+  /**
+   * Seed for the assistant's deterministic generative "aurora orb" avatar,
+   * chosen during setup. Null until chosen — the UI falls back to a per-user
+   * default seed. Sokosumi-side metadata.
+   */
+  avatarSeed: string | null;
   /**
    * Operational autonomy tier. Defaults to "medium" on instances created
    * before this field shipped.

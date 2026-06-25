@@ -55,6 +55,8 @@ interface SettingsPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   previewMode: boolean;
+  /** Current assistant display name (null until the user names it). */
+  assistantName: string | null;
   integrations: HermesIntegration[];
   /** Current autonomy tier — drives the selector's checked state. */
   autonomyLevel: HermesAutonomyLevel;
@@ -106,6 +108,7 @@ export default function SettingsPanel({
   open,
   onOpenChange,
   previewMode,
+  assistantName,
   integrations,
   autonomyLevel,
   lastSokosumiSyncAt,
@@ -120,6 +123,35 @@ export default function SettingsPanel({
   const composioOAuth = useComposioOAuth();
 
   const [destroyPending, startDestroyTransition] = useTransition();
+  // Optimistic local draft for the assistant name. Resyncs from the server
+  // prop so reopening the sheet reflects the persisted value.
+  const [nameDraft, setNameDraft] = useState(assistantName ?? "");
+  const [nameSaving, setNameSaving] = useState(false);
+
+  useEffect(() => {
+    setNameDraft(assistantName ?? "");
+  }, [assistantName]);
+
+  const handleSaveName = useCallback(async () => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || trimmed === (assistantName ?? "")) return;
+
+    if (previewMode) {
+      toast.success(t("nameSavedToast"));
+      return;
+    }
+
+    setNameSaving(true);
+    const result = await updateHermesInstanceAction({ assistantName: trimmed });
+    setNameSaving(false);
+
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("nameSaveFailed"));
+      return;
+    }
+    toast.success(t("nameSavedToast"));
+    void onRefreshInstance?.();
+  }, [nameDraft, assistantName, previewMode, onRefreshInstance, t]);
   const [schedules, setSchedules] = useState<HermesSchedule[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
   // Optimistic local autonomy: lets the radio reflect the user's click
@@ -308,6 +340,41 @@ export default function SettingsPanel({
           </SheetHeader>
 
           <div className="flex flex-col gap-10 px-6 py-6">
+            {/* ── Assistant name (identity; leads the panel) ────── */}
+            <PanelSection title={t("nameSection")} description={t("nameHelp")}>
+              <div className="flex items-center gap-2">
+                <input
+                  id="hermes-settings-assistant-name"
+                  type="text"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  placeholder={t("namePlaceholder")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={60}
+                  disabled={nameSaving}
+                  className="border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-sm outline-none focus-visible:ring-2"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  disabled={
+                    nameSaving ||
+                    nameDraft.trim().length === 0 ||
+                    nameDraft.trim() === (assistantName ?? "")
+                  }
+                  onClick={() => void handleSaveName()}
+                >
+                  {nameSaving ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : null}
+                  {t("nameSave")}
+                </Button>
+              </div>
+            </PanelSection>
+
             {/* ── Autonomy (most-used; leads the panel) ─────────── */}
             <PanelSection
               title={t("autonomySection")}
@@ -864,7 +931,7 @@ function ScheduleRow({
           <span className="text-foreground truncate text-sm font-medium">
             {schedule.name}
           </span>
-          <span className="text-muted-foreground/70 text-[10px] font-medium uppercase tracking-wider">
+          <span className="text-muted-foreground/70 text-xs font-medium uppercase tracking-wider">
             {kindLabel}
           </span>
         </div>

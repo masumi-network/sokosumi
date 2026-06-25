@@ -741,7 +741,7 @@ describe("Hermes route contracts", () => {
 
       expect(response.status).toBe(503);
       expect(body.error).toBe("ServiceUnavailable");
-      expect(body.message).toBe("Hermes is temporarily unavailable.");
+      expect(body.message).toBe("Your assistant is temporarily unavailable.");
       expect(captureExceptionMock).toHaveBeenCalledWith(
         expect.any(TypeError),
         expect.objectContaining({
@@ -845,7 +845,7 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Hermes is temporarily unavailable.");
+    expect(body.message).toBe("Your assistant is temporarily unavailable.");
     expect(proxyChatCompletionsMock).not.toHaveBeenCalled();
   });
 
@@ -1130,7 +1130,7 @@ describe("Hermes route contracts", () => {
 
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
-    expect(body.message).toBe("Hermes is temporarily unavailable.");
+    expect(body.message).toBe("Your assistant is temporarily unavailable.");
   });
 
   it("returns 200 when DELETE /me/instance succeeds", async () => {
@@ -1182,7 +1182,7 @@ describe("Hermes route contracts", () => {
     expect(response.status).toBe(503);
     expect(body.error).toBe("ServiceUnavailable");
     expect(body.message).toBe(
-      "Your Hermes instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+      "Your assistant instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
     );
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),

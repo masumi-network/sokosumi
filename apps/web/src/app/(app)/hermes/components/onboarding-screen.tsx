@@ -6,19 +6,21 @@ import {
   Briefcase as BriefcaseIcon,
   Building2,
   Check,
+  Gauge,
   Loader2,
+  Plug,
+  Sparkles,
   User as UserIcon,
 } from "lucide-react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type { ComponentType } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import ConnectInterstitial from "@/app/hermes/components/connect-interstitial";
 import FlowBackground from "@/app/hermes/components/flow-background";
 import { hermesOAuthConnectErrorMessage } from "@/app/hermes/components/hermes-oauth-messages";
 import ProgressPips from "@/app/hermes/components/progress-pips";
+import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,12 +30,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { disconnectHermesIntegrationAction } from "@/lib/actions/hermes";
+import { orbCandidateSeeds } from "@/lib/aurora-orb";
 import type {
   HermesAutonomyLevel,
   HermesIntegration,
   HermesIntegrationProvider,
   HermesIntegrationStatus,
+  HermesPersonality,
 } from "@/lib/hermes/types";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
@@ -43,6 +48,8 @@ import { useComposioOAuth } from "./use-composio-oauth";
 
 interface OnboardingScreenProps {
   defaultName: string;
+  /** Base seed for the orb-picker candidates (per-user — makes them unique). */
+  orbBaseSeed: string;
   /**
    * Session email — passed straight through to the orchestrator as-is.
    * The user doesn't get to edit it (we already verified it on signup) so
@@ -56,6 +63,9 @@ interface OnboardingScreenProps {
   onContinue: (options: {
     skipResearch: boolean;
     name: string | null;
+    assistantName: string | null;
+    avatarSeed: string | null;
+    personality: HermesPersonality;
     email: string | null;
     role: string | null;
     company: string | null;
@@ -103,8 +113,41 @@ const PROVIDERS: Array<{
 /** Simulated OAuth round-trip in preview mode (`?state=infrastructure_ready`). */
 const PREVIEW_CONNECT_DELAY_MS = 1_400;
 
+const DEFAULT_PERSONALITY: HermesPersonality = {
+  tone: 50,
+  detail: 50,
+  style: 50,
+};
+
+/**
+ * The three personality spectrums. Each maps to a 0–100 slider; the end labels
+ * come from i18n. Keys line up with `HermesPersonality` and the orchestrator
+ * contract.
+ */
+const PERSONALITY_DIMENSIONS = [
+  {
+    key: "tone",
+    labelKey: "personalityToneLabel",
+    lowKey: "personalityToneLow",
+    highKey: "personalityToneHigh",
+  },
+  {
+    key: "detail",
+    labelKey: "personalityDetailLabel",
+    lowKey: "personalityDetailLow",
+    highKey: "personalityDetailHigh",
+  },
+  {
+    key: "style",
+    labelKey: "personalityStyleLabel",
+    lowKey: "personalityStyleLow",
+    highKey: "personalityStyleHigh",
+  },
+] as const;
+
 export default function OnboardingScreen({
   defaultName,
+  orbBaseSeed,
   defaultEmail,
   integrations,
   previewMode,
@@ -120,21 +163,53 @@ export default function OnboardingScreen({
   const composioOAuth = useComposioOAuth();
 
   const [name, setName] = useState(defaultName);
+  const [assistantName, setAssistantName] = useState<string>("");
+  // null until the user explicitly picks a colour — until then the orb stays
+  // the white placeholder everywhere (the "standard" look).
+  const [selectedOrbIndex, setSelectedOrbIndex] = useState<number | null>(null);
+  const orbSeeds = useMemo(
+    () => orbCandidateSeeds(orbBaseSeed, 6),
+    [orbBaseSeed],
+  );
+  const selectedSeed =
+    selectedOrbIndex !== null ? (orbSeeds[selectedOrbIndex] ?? null) : null;
+  const [personality, setPersonality] =
+    useState<HermesPersonality>(DEFAULT_PERSONALITY);
   const [role, setRole] = useState<string>("");
   const [company, setCompany] = useState<string>("");
   const [autonomyLevel, setAutonomyLevel] =
     useState<HermesAutonomyLevel>("medium");
-  /** 1 = details, 2 = autonomy, 3 = integrations + final CTA. */
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const TOTAL_STEPS = 3;
+  /** 1 = name, 2 = look, 3 = personality, 4 = about you, 5 = autonomy, 6 = tools, 7 = review. */
+  type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  const [step, setStep] = useState<Step>(1);
+  const TOTAL_STEPS = 7;
   const goNext = useCallback(
-    () => setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as 1 | 2 | 3) : s)),
+    () => setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as Step) : s)),
     [],
   );
   const goBack = useCallback(
-    () => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s)),
+    () => setStep((s) => (s > 1 ? ((s - 1) as Step) : s)),
     [],
   );
+
+  // ── Orb animation driven by the chosen personality ───────────────────────
+  // Playful + warm → faster, livelier motion; formal + direct → calmer. High
+  // playfulness also tips the eyes into a smile. Applied from the Personality
+  // step on, so dragging the sliders visibly changes how the orb animates.
+  const orbEnergy = (personality.style * 0.6 + personality.tone * 0.4) / 100;
+  const personalitySpeed = 0.9 + orbEnergy * 1.2;
+  const personalityExpr = personality.style >= 60 ? "happy" : "idle";
+  const heroExpression =
+    step === 1
+      ? assistantName.trim()
+        ? "idle"
+        : null
+      : step === 2
+        ? "idle"
+        : step === 7
+          ? "happy"
+          : personalityExpr;
+  const heroSpeed = step >= 3 ? personalitySpeed : 1.3;
 
   /**
    * Local status overlay per provider. Any entry here wins over the
@@ -242,18 +317,34 @@ export default function OnboardingScreen({
       <div className="mx-auto w-full max-w-2xl px-6 py-8 md:py-12">
         <ProgressPips current="setup" />
 
-        {/* ── Hero ────────────────────────────────────────────────── */}
+        {/* ── Hero ────────────────────────────────────────────────────
+            The white placeholder orb until the user picks a colour on the Look
+            step, then it "takes form" into the chosen orb (keyed crossfade).
+            Its speed + expression follow the chosen personality. */}
         <div className="mb-6 flex flex-col items-center text-center md:mb-8">
-          <div className="bg-card border-border/60 ring-border/40 relative size-12 overflow-hidden rounded-full border ring-4">
-            <Image
-              src="/images/hermes/avatar.png"
-              alt=""
-              fill
-              sizes="48px"
-              className="object-cover"
-            />
+          <div
+            key={selectedSeed === null ? "placeholder" : "chosen"}
+            className="animate-in fade-in zoom-in-95 duration-500"
+          >
+            {selectedSeed === null ? (
+              <PlaceholderOrb
+                size={160}
+                speed={heroSpeed}
+                expression={heroExpression}
+                className="size-24 md:size-28"
+              />
+            ) : (
+              <AuroraOrb
+                seed={selectedSeed}
+                size={160}
+                animate
+                speed={heroSpeed}
+                expression={heroExpression}
+                className="size-24 md:size-28"
+              />
+            )}
           </div>
-          <h1 className="text-foreground mt-4 text-xl font-semibold tracking-tight md:text-2xl">
+          <h1 className="text-foreground mt-4 text-xl font-light tracking-tight md:text-2xl">
             {t("title")}
           </h1>
         </div>
@@ -265,12 +356,93 @@ export default function OnboardingScreen({
           label={t("stepLabel", { step, total: TOTAL_STEPS })}
         />
 
-        {/* ── Step content ────────────────────────────────────────── */}
+        {/* ── Step content ────────────────────────────────────────────
+            Anchored to a fixed min-height + vertically centered so the Back /
+            Next buttons land at the same Y on every step and the cursor
+            doesn't chase them. */}
         <div
           key={step}
-          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
+          className="animate-in fade-in-0 slide-in-from-bottom-2 flex min-h-[29rem] flex-col justify-center duration-200"
         >
           {step === 1 && (
+            <Section
+              heading={t("nameStepHeading")}
+              description={t("nameStepHelp")}
+            >
+              <div className="mx-auto flex max-w-sm flex-col items-center">
+                <input
+                  id="hermes-onboarding-assistant-name"
+                  type="text"
+                  value={assistantName}
+                  onChange={(e) => setAssistantName(e.target.value)}
+                  placeholder={t("assistantNamePlaceholder")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={60}
+                  autoFocus
+                  className="border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/50 focus:border-foreground/40 focus:bg-card h-14 w-full rounded-xl border px-5 text-center text-lg font-light tracking-tight outline-none transition-colors focus:outline-none"
+                />
+              </div>
+            </Section>
+          )}
+
+          {step === 2 && (
+            <Section
+              heading={t("lookStepHeading")}
+              description={t("lookStepHelp")}
+            >
+              {/* ── Orb picker. The white placeholder is the standard option
+                  (selected = nothing committed yet); each colour candidate is
+                  unique to this user. The preview only changes once picked. ── */}
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrbIndex(null)}
+                  aria-pressed={selectedOrbIndex === null}
+                  aria-label={t("orbWhiteLabel")}
+                  className={cn(
+                    "rounded-full p-0.5 outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40",
+                    selectedOrbIndex === null
+                      ? "ring-primary ring-offset-background ring-2 ring-offset-2"
+                      : "ring-border/60 hover:ring-foreground/30 ring-1",
+                  )}
+                >
+                  <PlaceholderOrb size={144} className="size-16" />
+                </button>
+                {orbSeeds.map((s, i) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSelectedOrbIndex(i)}
+                    aria-pressed={i === selectedOrbIndex}
+                    aria-label={t("orbOptionLabel", { index: i + 1 })}
+                    className={cn(
+                      "rounded-full p-0.5 outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40",
+                      i === selectedOrbIndex
+                        ? "ring-primary ring-offset-background ring-2 ring-offset-2"
+                        : "ring-border/60 hover:ring-foreground/30 ring-1",
+                    )}
+                  >
+                    <AuroraOrb seed={s} size={144} className="size-16" />
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {step === 3 && (
+            <Section
+              heading={t("personalityHeading")}
+              description={t("personalityStepHelp")}
+            >
+              <PersonalitySliders
+                value={personality}
+                onChange={setPersonality}
+              />
+            </Section>
+          )}
+
+          {step === 4 && (
             <Section
               heading={t("identityHeading")}
               description={t("identityHelp")}
@@ -334,7 +506,7 @@ export default function OnboardingScreen({
             </Section>
           )}
 
-          {step === 2 && (
+          {step === 5 && (
             <Section
               heading={t("autonomyHeading")}
               description={t("autonomyHelp")}
@@ -346,7 +518,7 @@ export default function OnboardingScreen({
             </Section>
           )}
 
-          {step === 3 && (
+          {step === 6 && (
             <Section
               heading={t("integrationsHeading")}
               description={t("integrationsHelp")}
@@ -376,48 +548,22 @@ export default function OnboardingScreen({
                 ))}
               </ul>
 
-              {/* Preview of providers users can connect later from Settings.
-                Tells them this isn't the full menu so they don't think these
-                three are all Hermes supports. */}
-              <div className="mt-6 flex flex-col gap-2.5 rounded-lg border border-dashed border-border/60 bg-card/40 px-4 py-3">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-foreground text-xs font-medium">
-                    {t("moreLaterHeading")}
-                  </span>
-                  <span className="text-muted-foreground text-[11px]">
-                    {t("moreLaterHelp")}
-                  </span>
-                </div>
-                <ul className="flex flex-wrap items-center gap-2">
-                  {[
-                    { slug: "slack", src: "/icons/slack.svg" },
-                    { slug: "teams", src: "/icons/teams.svg" },
-                    { slug: "linear", src: "/icons/linear.svg" },
-                    { slug: "jira", src: "/icons/jira.svg" },
-                    { slug: "github", src: "/icons/github.svg" },
-                    { slug: "notion", src: "/icons/notion.svg" },
-                    { slug: "google_sheets", src: "/icons/google-sheets.svg" },
-                    { slug: "google_docs", src: "/icons/google-docs.svg" },
-                    { slug: "hubspot", src: "/icons/hubspot.svg" },
-                    { slug: "twitter", src: "/icons/x.svg" },
-                    { slug: "linkedin", src: "/icons/linkedin.svg" },
-                    { slug: "instagram", src: "/icons/instagram.svg" },
-                    { slug: "youtube", src: "/icons/youtube.svg" },
-                  ].map(({ slug, src }) => (
-                    <li
-                      key={slug}
-                      title={tProviders(slug)}
-                      className="border-border/60 bg-background flex items-center gap-1.5 rounded-md border px-2 py-1"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="size-3.5" />
-                      <span className="text-muted-foreground text-[11px]">
-                        {tProviders(slug)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <p className="text-muted-foreground/80 mt-4 text-center text-xs leading-relaxed">
+                {t("moreLaterShort")}
+              </p>
+            </Section>
+          )}
+
+          {step === 7 && (
+            <Section heading={t("reviewHeading")} description={t("reviewHelp")}>
+              <AgentReviewCard
+                assistantName={assistantName.trim()}
+                userName={name.trim()}
+                role={role.trim()}
+                personality={personality}
+                autonomyLevel={autonomyLevel}
+                connectedCount={connectedCount}
+              />
             </Section>
           )}
         </div>
@@ -442,6 +588,7 @@ export default function OnboardingScreen({
                 size="lg"
                 variant="primary"
                 className="gap-2"
+                disabled={step === 1 && assistantName.trim().length === 0}
                 onClick={goNext}
               >
                 <span>{t("next")}</span>
@@ -449,80 +596,48 @@ export default function OnboardingScreen({
               </Button>
             </div>
           ) : (
-            <>
-              <div className="flex w-full max-w-md items-center justify-between gap-3">
-                <Button
-                  type="button"
-                  size="lg"
-                  variant="ghost"
-                  className="gap-2"
-                  disabled={isStarting}
-                  onClick={goBack}
-                >
-                  <ArrowLeft className="size-4" aria-hidden />
-                  <span>{t("back")}</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="lg"
-                  variant="primary"
-                  className="gap-2"
-                  disabled={isStarting}
-                  aria-busy={isStarting}
-                  onClick={() =>
-                    onContinue({
-                      skipResearch: false,
-                      name: name.trim() || null,
-                      email: defaultEmail || null,
-                      role: role.trim() || null,
-                      company: company.trim() || null,
-                      autonomyLevel,
-                    })
-                  }
-                >
-                  {isStarting ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : null}
-                  <span>{t("continueCta")}</span>
-                  {!isStarting ? (
-                    <ArrowRight className="size-4" aria-hidden />
-                  ) : null}
-                </Button>
-              </div>
-              <p className="text-muted-foreground/80 text-center text-xs">
-                {connectedCount === 0
-                  ? t("footnote")
-                  : t("continueWithCount", { count: connectedCount })}
-              </p>
-              <div className="border-border/60 mt-2 flex w-full max-w-xs flex-col items-center gap-1 border-t pt-4">
-                <button
-                  type="button"
-                  disabled={isStarting}
-                  className="text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50 text-sm transition-colors"
-                  onClick={() =>
-                    onContinue({
-                      // If the user actually connected an integration before
-                      // hitting "skip for now" we still want the deep
-                      // inbox-aware research path — otherwise we'd waste the
-                      // signal they just gave us. `skipResearch` only buys
-                      // the user a faster (shallow) cold start when there's
-                      // genuinely nothing to read from.
-                      skipResearch: connectedCount === 0,
-                      name: name.trim() || null,
-                      email: defaultEmail || null,
-                      role: role.trim() || null,
-                      company: company.trim() || null,
-                      autonomyLevel,
-                    })
-                  }
-                >
-                  {t("skipCta")}
-                </button>
-                <p className="text-muted-foreground/60 max-w-xs text-center text-xs leading-relaxed">
-                  {t("skipCtaHelp")}
-                </p>
-              </div>
-            </>
+            <div className="flex w-full max-w-md items-center justify-between gap-3">
+              <Button
+                type="button"
+                size="lg"
+                variant="ghost"
+                className="gap-2"
+                disabled={isStarting}
+                onClick={goBack}
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                <span>{t("back")}</span>
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                variant="primary"
+                className="gap-2"
+                disabled={isStarting}
+                aria-busy={isStarting}
+                onClick={() =>
+                  onContinue({
+                    skipResearch: false,
+                    name: name.trim() || null,
+                    assistantName: assistantName.trim() || null,
+                    avatarSeed: selectedSeed,
+                    personality,
+                    email: defaultEmail || null,
+                    role: role.trim() || null,
+                    company: company.trim() || null,
+                    autonomyLevel,
+                  })
+                }
+              >
+                {isStarting ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : null}
+                <span>{t("continueCta")}</span>
+                {!isStarting ? (
+                  <ArrowRight className="size-4" aria-hidden />
+                ) : null}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -562,14 +677,147 @@ function Section({
 }) {
   return (
     <section className="mt-6 md:mt-8">
-      <h2 className="text-foreground text-base font-medium">{heading}</h2>
+      <h2 className="text-foreground text-center text-base font-medium">
+        {heading}
+      </h2>
       {description && (
-        <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+        <p className="text-muted-foreground mx-auto mt-1.5 max-w-md text-center text-sm leading-relaxed">
           {description}
         </p>
       )}
       <div className="mt-5">{children}</div>
     </section>
+  );
+}
+
+/**
+ * Three personality spectrums (tone · detail · style) as 0–100 sliders. The
+ * values are sent to the orchestrator, which folds them into the assistant's
+ * system prompt. End labels make each spectrum self-explanatory; 50 = balanced.
+ */
+function PersonalitySliders({
+  value,
+  onChange,
+}: {
+  value: HermesPersonality;
+  onChange: (next: HermesPersonality) => void;
+}) {
+  const t = useTranslations("App.Hermes.Onboarding");
+  return (
+    <div className="border-border/60 bg-card/40 flex flex-col gap-6 rounded-xl border p-5">
+      {PERSONALITY_DIMENSIONS.map((dim) => (
+        <div key={dim.key} className="flex flex-col gap-2.5">
+          <span className="text-foreground text-sm font-medium">
+            {t(dim.labelKey)}
+          </span>
+          <Slider
+            value={[value[dim.key]]}
+            min={0}
+            max={100}
+            step={5}
+            aria-label={t(dim.labelKey)}
+            onValueChange={(next) =>
+              onChange({ ...value, [dim.key]: next[0] ?? 50 })
+            }
+          />
+          <div className="text-muted-foreground flex items-center justify-between text-xs">
+            <span>{t(dim.lowKey)}</span>
+            <span>{t(dim.highKey)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const AUTONOMY_LABEL_KEYS = {
+  low: "autonomyLowLabel",
+  medium: "autonomyMediumLabel",
+  high: "autonomyHighLabel",
+} as const satisfies Record<HermesAutonomyLevel, string>;
+
+/**
+ * Premium "meet your assistant" card for the final review step — the orb, the
+ * agent's name, whose assistant it is + its focus, and a recap of personality,
+ * initiative and connected tools. The reveal that closes setup.
+ */
+function AgentReviewCard({
+  assistantName,
+  userName,
+  role,
+  personality,
+  autonomyLevel,
+  connectedCount,
+}: {
+  assistantName: string;
+  userName: string;
+  role: string;
+  personality: HermesPersonality;
+  autonomyLevel: HermesAutonomyLevel;
+  connectedCount: number;
+}) {
+  const t = useTranslations("App.Hermes.Onboarding");
+
+  const traits: string[] = [];
+  if (personality.tone <= 33) traits.push(t("personalityToneLow"));
+  else if (personality.tone >= 67) traits.push(t("personalityToneHigh"));
+  if (personality.detail <= 33) traits.push(t("personalityDetailLow"));
+  else if (personality.detail >= 67) traits.push(t("personalityDetailHigh"));
+  if (personality.style <= 33) traits.push(t("personalityStyleLow"));
+  else if (personality.style >= 67) traits.push(t("personalityStyleHigh"));
+  const descriptor =
+    traits.length > 0 ? traits.join(" · ") : t("personalityBalanced");
+
+  const owner = userName
+    ? t("reviewOwnedBy", { name: userName })
+    : t("reviewGeneric");
+  const subtitle = role ? `${owner} · ${t("reviewFocus", { role })}` : owner;
+
+  const rows = [
+    { Icon: Sparkles, label: t("reviewPersonality"), value: descriptor },
+    {
+      Icon: Gauge,
+      label: t("reviewAutonomy"),
+      value: t(AUTONOMY_LABEL_KEYS[autonomyLevel]),
+    },
+    {
+      Icon: Plug,
+      label: t("reviewTools"),
+      value:
+        connectedCount > 0
+          ? t("reviewToolsCount", { count: connectedCount })
+          : t("reviewToolsNone"),
+    },
+  ];
+
+  return (
+    <div className="border-border/60 bg-card mx-auto max-w-md overflow-hidden rounded-2xl border">
+      <div className="flex flex-col items-center px-6 pt-6 pb-5 text-center">
+        <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+          {t("reviewMeet")}
+        </p>
+        <h3 className="text-foreground mt-1 text-2xl font-light tracking-tight">
+          {assistantName || t("assistantFallbackName")}
+        </h3>
+        <p className="text-muted-foreground mt-1.5 text-sm">{subtitle}</p>
+      </div>
+      <dl className="divide-border/60 border-border/60 divide-y border-t">
+        {rows.map(({ Icon, label, value }) => (
+          <div key={label} className="flex items-center gap-3 px-6 py-3.5">
+            <Icon
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden
+            />
+            <dt className="text-muted-foreground w-24 shrink-0 text-xs font-medium uppercase tracking-wider">
+              {label}
+            </dt>
+            <dd className="text-foreground min-w-0 flex-1 truncate text-right text-sm font-medium">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -589,7 +837,7 @@ function StepIndicator({
 }) {
   return (
     <div className="mb-6 flex flex-col items-center gap-2">
-      <span className="text-tertiary-foreground font-mono text-[10px] font-semibold uppercase tracking-wider tabular-nums">
+      <span className="text-tertiary-foreground font-mono text-xs font-semibold uppercase tracking-wider tabular-nums">
         {label}
       </span>
       <div aria-hidden className="flex w-full max-w-xs items-center gap-1.5">
@@ -630,18 +878,20 @@ function InlineRow({
   children,
 }: {
   htmlFor: string;
-  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  Icon?: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   label: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="focus-within:bg-muted/40 flex items-center gap-3 px-4 py-2 transition-colors">
-      <span
-        aria-hidden
-        className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md"
-      >
-        <Icon className="size-3.5" aria-hidden />
-      </span>
+      {Icon ? (
+        <span
+          aria-hidden
+          className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md"
+        >
+          <Icon className="size-3.5" aria-hidden />
+        </span>
+      ) : null}
       <Label
         htmlFor={htmlFor}
         className="text-muted-foreground w-20 shrink-0 cursor-pointer text-xs font-medium uppercase tracking-wider"

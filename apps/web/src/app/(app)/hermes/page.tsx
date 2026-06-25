@@ -51,6 +51,7 @@ export default async function HermesPage() {
   return (
     <Suspense fallback={<LoadingState />}>
       <HermesExperience
+        userId={session?.user.id ?? null}
         userName={userName}
         userEmail={userEmail}
         userImageUrl={userImageUrl}

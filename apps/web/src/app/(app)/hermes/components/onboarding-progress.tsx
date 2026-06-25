@@ -1,13 +1,12 @@
 "use client";
 
 import { AlertCircle, Check, Loader2 } from "lucide-react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
-
 import FlowBackground from "@/app/hermes/components/flow-background";
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
+import { AssistantOrb } from "@/components/aurora-orb";
 
 import { getHermesOnboardingProgressAction } from "@/lib/actions/hermes";
 import type {
@@ -19,6 +18,8 @@ import { cn } from "@/lib/utils";
 
 interface OnboardingProgressProps {
   previewMode: boolean;
+  /** Committed orb seed, or null for the white placeholder. */
+  seed: string | null;
 }
 
 const POLL_INTERVAL_MS = 1_000;
@@ -180,6 +181,7 @@ function useOnboardingProgress(
 
 export default function OnboardingProgress({
   previewMode,
+  seed,
 }: OnboardingProgressProps) {
   const t = useTranslations("App.Hermes.OnboardingProgress");
   const previewSteps = useMemo(
@@ -206,22 +208,19 @@ export default function OnboardingProgress({
     progress.steps.length > 0 ? progress.steps : skeletonSteps;
 
   return (
-    <FlowBackground className="flex h-full flex-col">
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-4 md:py-6">
+    <FlowBackground>
+      <div className="mx-auto w-full max-w-2xl px-6 py-8 md:py-12">
         <ProgressPips current="personalizing" />
 
         {/* ── Hero ────────────────────────────────────────────────── */}
         <div className="mb-6 flex flex-col items-center text-center md:mb-8">
-          <div className="bg-card border-border/60 ring-border/40 relative size-14 overflow-hidden rounded-full border ring-4">
-            <Image
-              src="/images/hermes/avatar.png"
-              alt=""
-              fill
-              sizes="56px"
-              className="object-cover"
-            />
-          </div>
-          <h1 className="text-foreground mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
+          <AssistantOrb
+            seed={seed}
+            size={160}
+            expression="happy"
+            className="size-20 md:size-24"
+          />
+          <h1 className="text-foreground mt-4 text-2xl font-light tracking-tight md:text-3xl">
             {t("title")}
           </h1>
           <p className="text-muted-foreground mt-2 max-w-xl text-sm leading-relaxed">

@@ -1093,6 +1093,8 @@ export type HermesInstance = {
     endpointUrl: string | null;
     lastActivityAt: Date | null;
     onboardedAt: Date | null;
+    assistantName?: string | null;
+    avatarSeed?: string | null;
     autonomyLevel?: HermesAutonomyLevel;
     integrations: Array<HermesIntegration>;
     transitioning?: boolean;
@@ -1176,6 +1178,7 @@ export type HermesConfirmationOrganizationRef = {
 export type HermesUpdateInstanceRequest = {
     autonomyLevel?: HermesAutonomyLevel;
     name?: string;
+    assistantName?: string;
     email?: string;
     timezone?: string;
 };
@@ -1202,6 +1205,7 @@ export type HermesChatMessageRole = typeof HermesChatMessageRole[keyof typeof He
 
 export type HermesUnreadCount = {
     count: number;
+    avatarSeed?: string | null;
 };
 
 export type MarkHermesInboxSeenRequest = {
@@ -1215,11 +1219,20 @@ export type SetHermesSecretRequest = {
 
 export type HermesStartOnboardingRequest = {
     name?: string;
+    assistantName?: string;
+    avatarSeed?: string;
     email?: string;
     role?: string;
     company?: string;
     researchDepth?: 'deep' | 'shallow';
+    personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
+};
+
+export type HermesPersonality = {
+    tone?: number;
+    detail?: number;
+    style?: number;
 };
 
 export type HermesOnboardingProgress = {
@@ -9169,7 +9182,7 @@ export type PostHermesChatErrors = {
         };
     };
     /**
-     * Hermes instance is not ready. Uses the standard data/meta envelope with only data.status.
+     * assistant instance is not ready. Uses the standard data/meta envelope with only data.status.
      */
     409: {
         data: HermesInstanceNotReady;
@@ -9213,7 +9226,7 @@ export type PostHermesChatError = PostHermesChatErrors[keyof PostHermesChatError
 
 export type PostHermesChatResponses = {
     /**
-     * Hermes chat response. The assistant message is returned as data.message.
+     * assistant chat response. The assistant message is returned as data.message.
      */
     200: {
         data: HermesChatResponse;
@@ -9297,7 +9310,7 @@ export type DeleteHermesMeInstanceError = DeleteHermesMeInstanceErrors[keyof Del
 
 export type DeleteHermesMeInstanceResponses = {
     /**
-     * Hermes instance destroyed
+     * assistant instance destroyed
      */
     200: {
         data: HermesEmptyResponse;
@@ -9381,7 +9394,7 @@ export type GetHermesMeInstanceError = GetHermesMeInstanceErrors[keyof GetHermes
 
 export type GetHermesMeInstanceResponses = {
     /**
-     * Hermes instance (data.instance is null when none exists)
+     * assistant instance (data.instance is null when none exists)
      */
     200: {
         data: HermesGetInstanceEnvelope;
@@ -9493,7 +9506,7 @@ export type PatchHermesMeInstanceError = PatchHermesMeInstanceErrors[keyof Patch
 
 export type PatchHermesMeInstanceResponses = {
     /**
-     * Updated Hermes instance
+     * Updated assistant instance
      */
     200: {
         data: HermesInstance;
@@ -9591,7 +9604,7 @@ export type PostHermesMeInstanceError = PostHermesMeInstanceErrors[keyof PostHer
 
 export type PostHermesMeInstanceResponses = {
     /**
-     * Hermes instance
+     * assistant instance
      */
     200: {
         data: HermesInstance;
@@ -9670,7 +9683,7 @@ export type GetHermesMeMessagesError = GetHermesMeMessagesErrors[keyof GetHermes
 
 export type GetHermesMeMessagesResponses = {
     /**
-     * Hermes messages
+     * assistant messages
      */
     200: {
         data: Array<HermesPersistedMessage>;
@@ -9824,7 +9837,7 @@ export type PostHermesMeInboxSeenError = PostHermesMeInboxSeenErrors[keyof PostH
 
 export type PostHermesMeInboxSeenResponses = {
     /**
-     * Hermes inbox marked seen
+     * assistant inbox marked seen
      */
     200: {
         data: HermesEmptyResponse;
@@ -9936,7 +9949,7 @@ export type PostHermesMeSecretsError = PostHermesMeSecretsErrors[keyof PostHerme
 
 export type PostHermesMeSecretsResponses = {
     /**
-     * Hermes secret set
+     * assistant secret set
      */
     200: {
         data: HermesEmptyResponse;

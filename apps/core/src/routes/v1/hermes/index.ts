@@ -557,7 +557,7 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
       error.httpStatus === 403 ||
       error.httpStatus === 429
     ) {
-      throw serviceUnavailable("Hermes is temporarily unavailable.");
+      throw serviceUnavailable("Your assistant is temporarily unavailable.");
     }
 
     throw badRequest(error.message);
@@ -566,12 +566,51 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
   throw internalServerError(fallback);
 }
 
-async function upsertHermesInstanceForUser(userId: string): Promise<void> {
+async function upsertHermesInstanceForUser(
+  userId: string,
+  data?: { assistantName?: string; avatarSeed?: string },
+): Promise<void> {
+  const patch: { assistantName?: string; avatarSeed?: string } = {};
+  if (data?.assistantName !== undefined)
+    patch.assistantName = data.assistantName;
+  if (data?.avatarSeed !== undefined) patch.avatarSeed = data.avatarSeed;
   await prisma.hermesInstance.upsert({
     where: { userId },
-    create: { userId },
-    update: {},
+    create: { userId, ...patch },
+    update: patch,
   });
+}
+
+interface HermesInstanceMeta {
+  assistantName: string | null;
+  avatarSeed: string | null;
+}
+
+/**
+ * Reads the Sokosumi-side display metadata (assistant name + orb avatar seed)
+ * for a user. These are supplementary display fields the orchestrator knows
+ * nothing about. Returns nulls on any read failure (e.g. a column-adding
+ * migration not yet applied, or a transient DB blip) so it never takes down
+ * the whole instance fetch — the assistant still loads with fallbacks.
+ */
+async function readHermesInstanceMeta(
+  userId: string,
+): Promise<HermesInstanceMeta> {
+  try {
+    const row = await prisma.hermesInstance.findUnique({
+      where: { userId },
+      select: { assistantName: true, avatarSeed: true },
+    });
+    return {
+      assistantName: row?.assistantName ?? null,
+      avatarSeed: row?.avatarSeed ?? null,
+    };
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_read_instance_meta" },
+    });
+    return { assistantName: null, avatarSeed: null };
+  }
 }
 
 /**
@@ -763,7 +802,7 @@ const postChatRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/chat",
-    description: "Send a message to the current user's Hermes instance",
+    description: "Send a message to the current user's assistant instance",
     tags: TAGS,
     request: {
       body: {
@@ -777,14 +816,14 @@ const postChatRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonSuccessResponse(
         hermesChatResponseSchema,
-        "Hermes chat response. The assistant message is returned as data.message.",
+        "assistant chat response. The assistant message is returned as data.message.",
       ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       409: jsonSuccessResponse(
         hermesInstanceNotReadySchema,
-        "Hermes instance is not ready. Uses the standard data/meta envelope with only data.status.",
+        "assistant instance is not ready. Uses the standard data/meta envelope with only data.status.",
       ),
       413: jsonErrorResponse("Payload Too Large"),
       503: jsonErrorResponse("Service Unavailable"),
@@ -796,12 +835,12 @@ const getInstanceRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/instance",
-    description: "Get the current user's Hermes instance",
+    description: "Get the current user's assistant instance",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(
         hermesGetInstanceEnvelopeSchema,
-        "Hermes instance (data.instance is null when none exists)",
+        "assistant instance (data.instance is null when none exists)",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -814,10 +853,10 @@ const provisionInstanceRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/me/instance",
-    description: "Provision the current user's Hermes instance",
+    description: "Provision the current user's assistant instance",
     tags: TAGS,
     responses: {
-      200: jsonSuccessResponse(hermesInstanceSchema, "Hermes instance"),
+      200: jsonSuccessResponse(hermesInstanceSchema, "assistant instance"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -831,7 +870,7 @@ const updateInstanceRoute = withGlobalHeaderParameters(
     method: "patch",
     path: "/me/instance",
     description:
-      "Update mutable fields (autonomyLevel, name, email) on the current user's Hermes instance",
+      "Update mutable fields (autonomyLevel, name, email) on the current user's assistant instance",
     tags: TAGS,
     request: {
       body: {
@@ -843,7 +882,10 @@ const updateInstanceRoute = withGlobalHeaderParameters(
       },
     },
     responses: {
-      200: jsonSuccessResponse(hermesInstanceSchema, "Updated Hermes instance"),
+      200: jsonSuccessResponse(
+        hermesInstanceSchema,
+        "Updated assistant instance",
+      ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -857,12 +899,12 @@ const destroyInstanceRoute = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
     path: "/me/instance",
-    description: "Destroy the current user's Hermes instance",
+    description: "Destroy the current user's assistant instance",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(
         hermesEmptyResponseSchema,
-        "Hermes instance destroyed",
+        "assistant instance destroyed",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -875,7 +917,7 @@ const listMessagesRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/messages",
-    description: "List the current user's persisted Hermes messages",
+    description: "List the current user's persisted assistant messages",
     tags: TAGS,
     request: {
       query: cursorPaginationQuerySchema,
@@ -883,7 +925,7 @@ const listMessagesRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonPaginatedSuccessResponse(
         z.array(hermesPersistedMessageSchema),
-        "Hermes messages",
+        "assistant messages",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -895,7 +937,7 @@ const getUnreadCountRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/unread-count",
-    description: "Get the current user's unread Hermes inbox count",
+    description: "Get the current user's unread assistant inbox count",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(hermesUnreadCountSchema, "Hermes unread count"),
@@ -909,7 +951,7 @@ const markInboxSeenRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/me/inbox/seen",
-    description: "Mark current user's Hermes inbox messages as seen",
+    description: "Mark current user's assistant inbox messages as seen",
     tags: TAGS,
     request: {
       body: {
@@ -923,7 +965,7 @@ const markInboxSeenRoute = withGlobalHeaderParameters(
     responses: {
       200: jsonSuccessResponse(
         hermesEmptyResponseSchema,
-        "Hermes inbox marked seen",
+        "assistant inbox marked seen",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -936,7 +978,7 @@ const setSecretRoute = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/me/secrets",
-    description: "Set a secret on the current user's Hermes instance",
+    description: "Set a secret on the current user's assistant instance",
     tags: TAGS,
     request: {
       body: {
@@ -948,7 +990,10 @@ const setSecretRoute = withGlobalHeaderParameters(
       },
     },
     responses: {
-      200: jsonSuccessResponse(hermesEmptyResponseSchema, "Hermes secret set"),
+      200: jsonSuccessResponse(
+        hermesEmptyResponseSchema,
+        "assistant secret set",
+      ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -1011,7 +1056,7 @@ const listIntegrationsRoute = withGlobalHeaderParameters(
   createRoute({
     method: "get",
     path: "/me/instance/integrations",
-    description: "List the current user's connected Hermes integrations",
+    description: "List the current user's connected assistant integrations",
     tags: TAGS,
     responses: {
       200: jsonSuccessResponse(
@@ -1263,7 +1308,7 @@ app.openapi(postChatRoute, async (c) => {
       return conflictWithData(c, { status: error.status });
     }
 
-    return mapOrchestratorError(error, "Failed to prepare Hermes instance");
+    return mapOrchestratorError(error, "Failed to prepare assistant instance");
   }
 
   const persistedUserContent = buildPersistedUserContent(trimmed, files);
@@ -1288,7 +1333,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes is temporarily unavailable.");
+    throw serviceUnavailable("Your assistant is temporarily unavailable.");
   }
 
   if (upstream.status >= 500) {
@@ -1300,7 +1345,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes is temporarily unavailable.");
+    throw serviceUnavailable("Your assistant is temporarily unavailable.");
   }
 
   if (!upstream.ok) {
@@ -1309,7 +1354,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw badRequest(text || "Hermes rejected the chat request.");
+    throw badRequest(text || "Your assistant rejected the chat request.");
   }
 
   const parsed = (await upstream
@@ -1325,7 +1370,7 @@ app.openapi(postChatRoute, async (c) => {
       userContext.userId,
       c.req.raw.signal,
     );
-    throw serviceUnavailable("Hermes returned an empty response.");
+    throw serviceUnavailable("Your assistant returned an empty response.");
   }
 
   const transcriptTurn: HermesChatTranscriptTurn = {
@@ -1375,8 +1420,10 @@ app.openapi(getInstanceRoute, async (c) => {
         instance.pendingConfirmations,
         userContext.userId,
       );
+      const meta = await readHermesInstanceMeta(userContext.userId);
       const parsedInstance = hermesInstanceSchema.parse({
         ...instance,
+        ...meta,
         pendingConfirmations: enrichedConfirmations,
       });
 
@@ -1415,7 +1462,7 @@ app.openapi(getInstanceRoute, async (c) => {
 
     return ok(c, hermesGetInstanceEnvelopeSchema.parse({ hasInstance: false }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to fetch Hermes instance");
+    return mapOrchestratorError(error, "Failed to fetch assistant instance");
   }
 });
 
@@ -1436,7 +1483,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
 
     if (!instance) {
       throw serviceUnavailable(
-        "Provision call succeeded but the Hermes instance is not visible yet.",
+        "Provision call succeeded but the assistant instance is not visible yet.",
       );
     }
 
@@ -1446,9 +1493,13 @@ app.openapi(provisionInstanceRoute, async (c) => {
       });
     });
 
-    return ok(c, hermesInstanceSchema.parse(instance));
+    const meta = await readHermesInstanceMeta(userContext.userId);
+    return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to provision Hermes instance");
+    return mapOrchestratorError(
+      error,
+      "Failed to provision assistant instance",
+    );
   }
 });
 
@@ -1463,17 +1514,27 @@ app.openapi(updateInstanceRoute, async (c) => {
       email: body.email,
       timezone: body.timezone,
     });
+    // Assistant name is Sokosumi-side metadata — persist it locally rather
+    // than forwarding to the orchestrator (whose `name` is the user's name).
+    if (body.assistantName !== undefined) {
+      await upsertHermesInstanceForUser(userContext.userId, {
+        assistantName: body.assistantName,
+      });
+    }
     const instance = await getInstance(userContext.userId);
 
     if (!instance) {
       throw serviceUnavailable(
-        "Update succeeded but the Hermes instance is no longer visible.",
+        "Update succeeded but the assistant instance is no longer visible.",
       );
     }
 
-    return ok(c, hermesInstanceSchema.parse(instance));
+    // Always re-merge the persisted name so an unrelated PATCH (e.g. autonomy)
+    // doesn't blank it out via the schema's `assistantName` default.
+    const meta = await readHermesInstanceMeta(userContext.userId);
+    return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to update Hermes instance");
+    return mapOrchestratorError(error, "Failed to update assistant instance");
   }
 });
 
@@ -1483,7 +1544,7 @@ app.openapi(destroyInstanceRoute, async (c) => {
   try {
     await destroyInstance(userContext.userId);
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to destroy Hermes instance");
+    return mapOrchestratorError(error, "Failed to destroy assistant instance");
   }
 
   try {
@@ -1501,7 +1562,7 @@ app.openapi(destroyInstanceRoute, async (c) => {
       extra: { userId: userContext.userId },
     });
     throw serviceUnavailable(
-      "Your Hermes instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
+      "Your assistant instance was removed, but we could not clear related data in our system. Please try again shortly; repeating this action is safe.",
     );
   }
 
@@ -1551,13 +1612,15 @@ app.openapi(listMessagesRoute, async (c) => {
 
 app.openapi(getUnreadCountRoute, async (c) => {
   const userContext = requireUserContext(c.var.authContext);
+  // Read the orb seed resiliently (tolerates the pending avatarSeed migration).
+  const { avatarSeed } = await readHermesInstanceMeta(userContext.userId);
   const instance = await prisma.hermesInstance.findUnique({
     where: { userId: userContext.userId },
     select: { lastSeenInboxAt: true },
   });
 
   if (!instance) {
-    return ok(c, hermesUnreadCountSchema.parse({ count: 0 }));
+    return ok(c, hermesUnreadCountSchema.parse({ count: 0, avatarSeed }));
   }
 
   const count = await prisma.hermesMessage.count({
@@ -1570,7 +1633,7 @@ app.openapi(getUnreadCountRoute, async (c) => {
     },
   });
 
-  return ok(c, hermesUnreadCountSchema.parse({ count }));
+  return ok(c, hermesUnreadCountSchema.parse({ count, avatarSeed }));
 });
 
 app.openapi(markInboxSeenRoute, async (c) => {
@@ -1626,7 +1689,7 @@ app.openapi(setSecretRoute, async (c) => {
     await setInstanceSecret(userContext.userId, body.key, body.value);
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to write Hermes secret");
+    return mapOrchestratorError(error, "Failed to write assistant secret");
   }
 });
 
@@ -1644,6 +1707,16 @@ app.openapi(startOnboardingRoute, async (c) => {
   });
 
   try {
+    // Persist the user's chosen assistant name + orb avatar seed (Sokosumi-side
+    // only) so they're available the moment the chat opens. Not forwarded to
+    // the orchestrator.
+    if (body.assistantName || body.avatarSeed) {
+      await upsertHermesInstanceForUser(userContext.userId, {
+        assistantName: body.assistantName,
+        avatarSeed: body.avatarSeed,
+      });
+    }
+
     // Push autonomy first so the orchestrator's research-intro reflects it.
     if (body.autonomyLevel) {
       await patchInstance(userContext.userId, {
@@ -1657,10 +1730,11 @@ app.openapi(startOnboardingRoute, async (c) => {
       role: body.role,
       company: body.company,
       researchDepth: body.researchDepth,
+      personality: body.personality,
     });
     return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to start Hermes onboarding");
+    return mapOrchestratorError(error, "Failed to start assistant onboarding");
   }
 });
 
@@ -1682,7 +1756,7 @@ app.openapi(listIntegrationsRoute, async (c) => {
     const integrations = await listInstanceIntegrations(userContext.userId);
     return ok(c, hermesIntegrationsListResponseSchema.parse({ integrations }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to list Hermes integrations");
+    return mapOrchestratorError(error, "Failed to list assistant integrations");
   }
 });
 
@@ -1693,7 +1767,7 @@ app.openapi(listSchedulesRoute, async (c) => {
     const schedules = await listInstanceSchedules(userContext.userId);
     return ok(c, hermesSchedulesListResponseSchema.parse({ schedules }));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to list Hermes schedules");
+    return mapOrchestratorError(error, "Failed to list assistant schedules");
   }
 });
 
@@ -1718,7 +1792,7 @@ app.openapi(patchScheduleRoute, async (c) => {
     }
     return ok(c, hermesScheduleSchema.parse(updated));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to update Hermes schedule");
+    return mapOrchestratorError(error, "Failed to update assistant schedule");
   }
 });
 
@@ -1763,7 +1837,10 @@ app.openapi(approveConfirmationRoute, async (c) => {
     );
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to approve Hermes confirmation");
+    return mapOrchestratorError(
+      error,
+      "Failed to approve assistant confirmation",
+    );
   }
 });
 
@@ -1780,7 +1857,10 @@ app.openapi(rejectConfirmationRoute, async (c) => {
     );
     return ok(c, hermesConfirmationResolveResponseSchema.parse(result));
   } catch (error) {
-    return mapOrchestratorError(error, "Failed to reject Hermes confirmation");
+    return mapOrchestratorError(
+      error,
+      "Failed to reject assistant confirmation",
+    );
   }
 });
 
@@ -1818,7 +1898,7 @@ app.openapi(disconnectIntegrationRoute, async (c) => {
   if (firstFailure) {
     return mapOrchestratorError(
       firstFailure.reason,
-      "Failed to disconnect Hermes integration",
+      "Failed to disconnect assistant integration",
     );
   }
   return ok(c, hermesEmptyResponseSchema.parse({ ok: true }));

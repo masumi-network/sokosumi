@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Feather,
   FolderKanban,
   History,
   ListTodo,
@@ -11,7 +10,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, type SVGProps, useEffect, useState } from "react";
+import type { ComponentType, SVGProps } from "react";
 import { useHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -22,13 +21,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
 import { cn } from "@/lib/utils";
-
-interface MenuItemsProps {
-  /** Hermes nav + unread polling; driven by `hermesBetaEnabled` in app layout. */
-  hermesMenuEnabled: boolean;
-}
 
 interface MenuItemConfig {
   key: string;
@@ -43,54 +36,9 @@ interface MenuItemConfig {
   ariaKeyshortcuts?: string;
 }
 
-const HERMES_UNREAD_POLL_INTERVAL_MS = 30_000;
-
-function useHermesUnreadCount(enabled: boolean): number {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-
-    const tick = async () => {
-      if (cancelled) return;
-      if (
-        typeof document !== "undefined" &&
-        document.visibilityState !== "visible"
-      ) {
-        return;
-      }
-      const result = await getHermesUnreadCountAction({});
-      if (cancelled || !result.ok) return;
-      setCount(result.data);
-    };
-
-    void tick();
-    const interval = setInterval(
-      () => void tick(),
-      HERMES_UNREAD_POLL_INTERVAL_MS,
-    );
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void tick();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [enabled]);
-
-  return enabled ? count : 0;
-}
-
-export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
+export default function MenuItems() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
-  const tHermes = useTranslations("App.Hermes");
-  const hermesBetaTag = tHermes("BetaTag");
   const pathname = usePathname();
-  const hermesUnread = useHermesUnreadCount(hermesMenuEnabled);
   const { openHistorySearch, searchShortcutLabel } = useHistorySearch();
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -136,18 +84,6 @@ export default function MenuItems({ hermesMenuEnabled }: MenuItemsProps) {
       label: t("exploreAgents"),
       Icon: Sparkles,
     },
-    ...(hermesMenuEnabled
-      ? ([
-          {
-            key: "hermes",
-            href: "/hermes",
-            label: t("hermes"),
-            Icon: Feather,
-            badge: hermesBetaTag,
-            unreadCount: hermesUnread,
-          },
-        ] satisfies MenuItemConfig[])
-      : []),
     {
       key: "history",
       href: "/history",

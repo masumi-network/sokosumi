@@ -11,13 +11,14 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import React, {
+  createContext,
   type FormEvent,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -33,6 +34,7 @@ import {
 } from "@/app/hermes/components/confirmation-org-picker";
 import RotatingMessages from "@/app/hermes/components/rotating-messages";
 import SettingsPanel from "@/app/hermes/components/settings-panel";
+import { AuroraOrb } from "@/components/aurora-orb";
 import { ArrowUpIcon, StopIcon } from "@/components/chat/icons";
 import {
   PromptInput,
@@ -72,6 +74,7 @@ import {
   markHermesInboxSeenAction,
   rejectHermesConfirmationAction,
 } from "@/lib/actions/hermes";
+import type { OrbExpression } from "@/lib/aurora-orb";
 import {
   type HermesUiMessage,
   mergeHermesMessageLists,
@@ -88,6 +91,8 @@ import { cn } from "@/lib/utils";
 interface RunningStateProps {
   userName?: string | null;
   userImageUrl?: string | null;
+  /** Seed for the assistant's generative orb avatar. */
+  avatarSeed: string;
   instance: HermesInstancePublic | null;
   previewMode: boolean;
   initialMessages?: HermesPersistedMessage[];
@@ -104,6 +109,11 @@ interface RunningStateProps {
 type Message = HermesUiMessage;
 
 const POLL_INTERVAL_MS = 5_000;
+
+/** The assistant's orb seed, provided once by RunningState so the avatar —
+ * rendered deep inside message rows / the typing indicator / confirmation
+ * cards — can read it without prop-threading through every component. */
+const AssistantSeedContext = createContext<string>("personal-assistant");
 
 function persistedToMessage(m: HermesPersistedMessage): Message | null {
   if (m.role !== "user" && m.role !== "assistant") return null;
@@ -166,6 +176,7 @@ function clientMimeForHermesUpload(file: File, dataUrl: string): string {
 export default function RunningState({
   userName,
   userImageUrl,
+  avatarSeed,
   instance,
   previewMode,
   initialMessages,
@@ -491,6 +502,10 @@ export default function RunningState({
   );
 
   const firstName = userName?.split(" ")[0] ?? null;
+  // The user's chosen name for their assistant, with a localized fallback
+  // ("your assistant") when they haven't named it yet.
+  const assistantName =
+    instance?.assistantName?.trim() || t("assistantFallback");
   // Active (still-pending) cards — interactive. We exclude anything the
   // user has already resolved this session so the optimistic transition
   // to "resolved" doesn't briefly render the same id twice while the
@@ -506,132 +521,142 @@ export default function RunningState({
     resolvedCards.length === 0;
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
-      {/* Floating top-right control — the integrations chip doubles as the
+    <AssistantSeedContext.Provider value={avatarSeed}>
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+        {/* Floating top-right control — the integrations chip doubles as the
           entry point into Settings (covers autonomy, schedules, danger zone)
           so we don't need a separate gear button competing for attention. */}
-      <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-        <IntegrationsChip
-          integrations={instance?.integrations ?? []}
-          onClick={() => setSettingsOpen(true)}
-        />
-      </div>
-
-      {/* Scrollable content area — flex-grows to fill remaining height,
-          composer below sits at natural height. No more manual bottom
-          offset to keep in sync with the composer's height. */}
-      <div
-        ref={scrollerRef}
-        className="scrollbar-none min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {isEmpty ? (
-          <WelcomeBlock firstName={firstName} />
-        ) : (
-          <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
-            <div className="flex w-full max-w-4xl flex-col gap-1">
-              {messages.map((msg) => (
-                <MessageRow
-                  key={msg.id}
-                  message={msg}
-                  userImageUrl={userImageUrl}
-                  userName={userName}
-                  onSelectSuggestion={(prompt) => {
-                    setInput(prompt);
-                    composerRef.current?.focus();
-                  }}
-                />
-              ))}
-              {isReplying ? <AssistantTyping /> : null}
-              {resolvedCards.map((entry) => (
-                <ConfirmationCard
-                  key={`resolved-${entry.confirmation.id}`}
-                  confirmation={entry.confirmation}
-                  organizations={organizations}
-                  activeOrganizationId={activeOrganizationId}
-                  resolution={entry.resolution}
-                  onResolved={() => {}}
-                />
-              ))}
-              {pendingCards.map((confirmation) => (
-                <ConfirmationCard
-                  key={confirmation.id}
-                  confirmation={confirmation}
-                  organizations={organizations}
-                  activeOrganizationId={activeOrganizationId}
-                  resolution={null}
-                  onResolved={(id, resolution) =>
-                    setResolvedConfirmations((prev) => {
-                      if (prev.has(id)) return prev;
-                      const next = new Map(prev);
-                      next.set(id, { confirmation, resolution });
-                      return next;
-                    })
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Composer (natural height, anchored at bottom of flex column) */}
-      <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
-        {/* Soft fade from scroll area into composer */}
-        <div
-          aria-hidden
-          className="from-background pointer-events-none absolute -top-8 right-0 left-0 z-5 h-8 bg-linear-to-t to-transparent"
-        />
-        {instance?.transitioning ? (
-          <div className="mb-2 w-full max-w-4xl">
-            <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
-              <Loader2
-                className="text-primary size-4 shrink-0 animate-spin"
-                aria-hidden
-              />
-              <span>
-                {t("transitioning")}{" "}
-                <span className="text-muted-foreground">
-                  {t("transitioningHint")}
-                </span>
-              </span>
-            </div>
-          </div>
-        ) : null}
-        <div className="w-full max-w-4xl">
-          <Composer
-            ref={composerRef}
-            input={input}
-            setInput={setInput}
-            files={files}
-            setFiles={setFiles}
-            onSubmit={handleSubmit}
-            isReplying={isReplying}
-            disabled={instance?.transitioning === true}
-            onStop={stop}
-            placeholder={t("composerPlaceholder")}
-            sendLabel={t("send")}
-            stopLabel={t("stop")}
-            attachLabel={t("attach")}
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+          <IntegrationsChip
+            integrations={instance?.integrations ?? []}
+            onClick={() => setSettingsOpen(true)}
           />
         </div>
-      </div>
 
-      <SettingsPanel
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        previewMode={previewMode}
-        integrations={instance?.integrations ?? []}
-        autonomyLevel={instance?.autonomyLevel ?? "medium"}
-        lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
-        lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
-        onDestroy={onDestroy}
-        onRefreshInstance={onRefresh}
-      />
-    </div>
+        {/* Scrollable content area — flex-grows to fill remaining height,
+          composer below sits at natural height. No more manual bottom
+          offset to keep in sync with the composer's height. */}
+        <div
+          ref={scrollerRef}
+          className="scrollbar-none min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {isEmpty ? (
+            <WelcomeBlock firstName={firstName} assistantName={assistantName} />
+          ) : (
+            <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
+              <div className="flex w-full max-w-4xl flex-col gap-1">
+                {messages.map((msg) => (
+                  <MessageRow
+                    key={msg.id}
+                    message={msg}
+                    userImageUrl={userImageUrl}
+                    userName={userName}
+                    assistantName={assistantName}
+                    onSelectSuggestion={(prompt) => {
+                      setInput(prompt);
+                      composerRef.current?.focus();
+                    }}
+                  />
+                ))}
+                {isReplying ? <AssistantTyping /> : null}
+                {resolvedCards.map((entry) => (
+                  <ConfirmationCard
+                    key={`resolved-${entry.confirmation.id}`}
+                    confirmation={entry.confirmation}
+                    organizations={organizations}
+                    activeOrganizationId={activeOrganizationId}
+                    resolution={entry.resolution}
+                    onResolved={() => {}}
+                  />
+                ))}
+                {pendingCards.map((confirmation) => (
+                  <ConfirmationCard
+                    key={confirmation.id}
+                    confirmation={confirmation}
+                    organizations={organizations}
+                    activeOrganizationId={activeOrganizationId}
+                    resolution={null}
+                    onResolved={(id, resolution) =>
+                      setResolvedConfirmations((prev) => {
+                        if (prev.has(id)) return prev;
+                        const next = new Map(prev);
+                        next.set(id, { confirmation, resolution });
+                        return next;
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Composer (natural height, anchored at bottom of flex column) */}
+        <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
+          {/* Soft fade from scroll area into composer */}
+          <div
+            aria-hidden
+            className="from-background pointer-events-none absolute -top-8 right-0 left-0 z-5 h-8 bg-linear-to-t to-transparent"
+          />
+          {instance?.transitioning ? (
+            <div className="mb-2 w-full max-w-4xl">
+              <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
+                <Loader2
+                  className="text-primary size-4 shrink-0 animate-spin"
+                  aria-hidden
+                />
+                <span>
+                  {t("transitioning")}{" "}
+                  <span className="text-muted-foreground">
+                    {t("transitioningHint")}
+                  </span>
+                </span>
+              </div>
+            </div>
+          ) : null}
+          <div className="w-full max-w-4xl">
+            <Composer
+              ref={composerRef}
+              input={input}
+              setInput={setInput}
+              files={files}
+              setFiles={setFiles}
+              onSubmit={handleSubmit}
+              isReplying={isReplying}
+              disabled={instance?.transitioning === true}
+              onStop={stop}
+              placeholder={t("composerPlaceholder")}
+              sendLabel={t("send")}
+              stopLabel={t("stop")}
+              attachLabel={t("attach")}
+            />
+          </div>
+        </div>
+
+        <SettingsPanel
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          previewMode={previewMode}
+          assistantName={instance?.assistantName ?? null}
+          integrations={instance?.integrations ?? []}
+          autonomyLevel={instance?.autonomyLevel ?? "medium"}
+          lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
+          lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
+          onDestroy={onDestroy}
+          onRefreshInstance={onRefresh}
+        />
+      </div>
+    </AssistantSeedContext.Provider>
   );
 }
 
-function WelcomeBlock({ firstName }: { firstName: string | null }) {
+function WelcomeBlock({
+  firstName,
+  assistantName,
+}: {
+  firstName: string | null;
+  assistantName: string;
+}) {
   const t = useTranslations("App.Hermes.Running");
   const greeting = firstName
     ? `${t("emptyTitle")}, ${firstName}`
@@ -652,7 +677,10 @@ function WelcomeBlock({ firstName }: { firstName: string | null }) {
   return (
     <div className="mt-[-80px] flex h-full flex-col items-center justify-center px-6">
       <div className="mx-auto w-full max-w-xl text-center">
-        <h1 className="text-foreground text-3xl font-semibold tracking-tight md:text-4xl">
+        <p className="text-tertiary-foreground mb-3 text-xs font-medium uppercase tracking-wider">
+          {assistantName}
+        </p>
+        <h1 className="text-foreground text-3xl font-light tracking-tight md:text-4xl">
           {greeting}
         </h1>
         <p className="text-muted-foreground mt-4 text-base leading-relaxed">
@@ -687,11 +715,13 @@ function MessageRow({
   message,
   userImageUrl,
   userName,
+  assistantName,
   onSelectSuggestion,
 }: {
   message: Message;
   userImageUrl?: string | null;
   userName?: string | null;
+  assistantName?: string;
   onSelectSuggestion?: (prompt: string) => void;
 }) {
   const t = useTranslations("App.Hermes.Running");
@@ -712,7 +742,7 @@ function MessageRow({
           </div>
           <time
             dateTime={message.createdAt}
-            className="text-tertiary-foreground px-1 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+            className="text-tertiary-foreground px-1 text-xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
           >
             {timestamp}
           </time>
@@ -761,7 +791,7 @@ function MessageRow({
 
   return (
     <div className="group/message flex min-h-11 w-full items-start justify-start gap-3 px-4 py-1.5">
-      <AssistantAvatar accent={Boolean(chip)} />
+      <AssistantAvatar accent={Boolean(chip)} alt={assistantName} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {chip ? (
           <span className="border-border/60 text-tertiary-foreground bg-muted/40 inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wider">
@@ -809,7 +839,7 @@ function MessageRow({
         ) : null}
         <time
           dateTime={message.createdAt}
-          className="text-tertiary-foreground pb-2 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+          className="text-tertiary-foreground pb-2 text-xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
         >
           {timestamp}
         </time>
@@ -864,7 +894,7 @@ function AssistantTyping() {
           aria-hidden
           className="bg-primary/30 absolute inset-0 animate-ping rounded-full"
         />
-        <AssistantAvatar />
+        <AssistantAvatar animated expression="thinking" />
       </span>
 
       {/* Rotating phrase + three pulsing dots. Phrase change has its own
@@ -890,24 +920,34 @@ function AssistantTyping() {
   );
 }
 
-function AssistantAvatar({ accent = false }: { accent?: boolean } = {}) {
+function AssistantAvatar({
+  accent = false,
+  alt,
+  animated = false,
+  expression = "idle",
+}: {
+  accent?: boolean;
+  alt?: string;
+  /** Live canvas (one rAF loop) — use only for the single "typing" avatar. */
+  animated?: boolean;
+  /** Eyes expression — "thinking" while it writes, "idle" otherwise. */
+  expression?: OrbExpression;
+} = {}) {
   const tCommon = useTranslations("App.Hermes.Common");
+  const seed = useContext(AssistantSeedContext);
 
   return (
-    <div
+    <AuroraOrb
+      seed={seed}
+      size={64}
+      animate={animated}
+      expression={expression}
+      alt={alt ?? tCommon("hermesAvatarAlt")}
       className={cn(
-        "relative size-8 shrink-0 overflow-hidden rounded-full bg-white",
-        accent ? "border-border/80 border" : "border-border/60 border",
+        "size-8 ring-1",
+        accent ? "ring-border/80" : "ring-border/40",
       )}
-    >
-      <Image
-        src="/images/hermes/avatar.png"
-        alt={tCommon("hermesAvatarAlt")}
-        fill
-        sizes="32px"
-        className="object-cover"
-      />
-    </div>
+    />
   );
 }
 
@@ -1296,7 +1336,7 @@ function CoworkerRefChip({
           className="border-border size-4 shrink-0 rounded-full border"
         />
       ) : (
-        <span className="bg-muted text-muted-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+        <span className="bg-muted text-muted-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
           {coworker.name.charAt(0).toUpperCase()}
         </span>
       )}

@@ -4256,6 +4256,21 @@ export const HermesInstanceSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        assistantName: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 120,
+            default: null
+        },
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
         },
@@ -4492,6 +4507,11 @@ export const HermesUpdateInstanceRequestSchema = {
             type: 'string',
             minLength: 1
         },
+        assistantName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 60
+        },
         email: {
             type: 'string',
             format: 'email'
@@ -4568,6 +4588,13 @@ export const HermesUnreadCountSchema = {
         count: {
             type: 'integer',
             minimum: 0
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            default: null
         }
     },
     required: [
@@ -4610,6 +4637,16 @@ export const HermesStartOnboardingRequestSchema = {
             type: 'string',
             minLength: 1
         },
+        assistantName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 60
+        },
+        avatarSeed: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120
+        },
         email: {
             type: 'string',
             format: 'email'
@@ -4631,8 +4668,35 @@ export const HermesStartOnboardingRequestSchema = {
                 'shallow'
             ]
         },
+        personality: {
+            $ref: '#/components/schemas/HermesPersonality'
+        },
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
+        }
+    }
+} as const;
+
+export const HermesPersonalitySchema = {
+    type: 'object',
+    properties: {
+        tone: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        },
+        detail: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        },
+        style: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
         }
     }
 } as const;

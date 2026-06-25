@@ -96,6 +96,18 @@ export const hermesInstanceSchema = z
     endpointUrl: z.url().nullable(),
     lastActivityAt: dateTimeSchema.nullable(),
     onboardedAt: dateTimeSchema.nullable(),
+    /**
+     * User-chosen display name for the assistant (Sokosumi-side metadata,
+     * not the orchestrator's `name`). Null until the user names it; the UI
+     * falls back to a generic label.
+     */
+    assistantName: z.string().nullable().default(null),
+    /**
+     * Seed for the assistant's deterministic generative "aurora orb" avatar,
+     * chosen during setup. Sokosumi-side only. Null until chosen; the UI
+     * falls back to a per-user default seed.
+     */
+    avatarSeed: z.string().max(120).nullable().default(null),
     autonomyLevel: hermesAutonomyLevelSchema.default("medium"),
     integrations: z.array(hermesIntegrationSchema),
     transitioning: z.boolean().default(false),
@@ -226,9 +238,33 @@ export const hermesOnboardingProgressSchema = z
   })
   .openapi("HermesOnboardingProgress");
 
+/**
+ * Assistant personality — three 0–100 spectrums captured during setup and
+ * forwarded to the orchestrator, which folds them into the agent's system
+ * prompt. 50 = balanced (the default for every dimension).
+ */
+export const hermesPersonalitySchema = z
+  .object({
+    /** 0 = direct / to-the-point · 100 = warm / personable. */
+    tone: z.number().int().min(0).max(100).default(50),
+    /** 0 = concise / short answers · 100 = thorough / detailed. */
+    detail: z.number().int().min(0).max(100).default(50),
+    /** 0 = formal / professional · 100 = casual / playful. */
+    style: z.number().int().min(0).max(100).default(50),
+  })
+  .openapi("HermesPersonality");
+
 export const hermesStartOnboardingRequestSchema = z
   .object({
     name: z.string().min(1).optional(),
+    /**
+     * User-chosen display name for the assistant itself (distinct from
+     * `name`, which is the user's own name). Stored Sokosumi-side and shown
+     * across the UI; not forwarded to the orchestrator.
+     */
+    assistantName: z.string().min(1).max(60).optional(),
+    /** Seed for the chosen generative orb avatar. Sokosumi-side only. */
+    avatarSeed: z.string().min(1).max(120).optional(),
     email: z.string().email().optional(),
     /**
      * Free-form role label captured on the identity step
@@ -244,6 +280,12 @@ export const hermesStartOnboardingRequestSchema = z
     company: z.string().min(1).max(120).optional(),
     researchDepth: z.enum(["deep", "shallow"]).optional(),
     /**
+     * Optional. The assistant's personality (tone / detail / style as 0–100
+     * spectrums) chosen on the first setup step. Forwarded to the orchestrator
+     * so the agent's system prompt reflects it from the first message.
+     */
+    personality: hermesPersonalitySchema.optional(),
+    /**
      * Optional. When provided, the autonomy is PATCHed onto the instance
      * before the onboarding flow starts, so the orchestrator's research
      * intro can already reflect the user's choice.
@@ -256,6 +298,8 @@ export const hermesUpdateInstanceRequestSchema = z
   .object({
     autonomyLevel: hermesAutonomyLevelSchema.optional(),
     name: z.string().min(1).optional(),
+    /** Rename the assistant. Sokosumi-side metadata; see start-onboarding. */
+    assistantName: z.string().min(1).max(60).optional(),
     email: z.string().email().optional(),
     /** IANA tz, e.g. "America/New_York". */
     timezone: z.string().min(1).max(64).optional(),
@@ -264,6 +308,7 @@ export const hermesUpdateInstanceRequestSchema = z
     (input) =>
       input.autonomyLevel !== undefined ||
       input.name !== undefined ||
+      input.assistantName !== undefined ||
       input.email !== undefined ||
       input.timezone !== undefined,
     { message: "At least one field must be provided." },
@@ -377,6 +422,12 @@ export const hermesPersistedMessageSchema = z
 export const hermesUnreadCountSchema = z
   .object({
     count: z.number().int().min(0),
+    /**
+     * The user's chosen orb avatar seed (Sokosumi-side), so the sidebar can
+     * show their orb without a heavier instance fetch. Null until chosen — the
+     * sidebar shows a neutral placeholder orb in that case.
+     */
+    avatarSeed: z.string().nullable().default(null),
   })
   .openapi("HermesUnreadCount");
 
