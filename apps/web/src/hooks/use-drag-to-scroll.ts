@@ -57,6 +57,14 @@ export function useDragToScroll<T extends HTMLElement>() {
       const state = pointerStateRef.current;
       if (!state || event.pointerId !== state.pointerId) return;
 
+      if (event.buttons === 0) {
+        if (state.isScrolling) {
+          element.releasePointerCapture(event.pointerId);
+        }
+        resetPointerState();
+        return;
+      }
+
       const deltaX = event.clientX - state.startX;
       const deltaY = event.clientY - state.startY;
 
