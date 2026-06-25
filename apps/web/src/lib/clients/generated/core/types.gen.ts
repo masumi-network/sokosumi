@@ -1103,6 +1103,7 @@ export type HermesInstance = {
     onboardedAt: Date | null;
     assistantName?: string | null;
     avatarSeed?: string | null;
+    personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
     integrations: Array<HermesIntegration>;
     transitioning?: boolean;
@@ -1111,6 +1112,12 @@ export type HermesInstance = {
     timezone?: string | null;
     pendingConfirmations?: Array<HermesPendingConfirmation>;
 };
+
+export type HermesPersonality = {
+    tone?: number;
+    detail?: number;
+    style?: number;
+} | null;
 
 export const HermesAutonomyLevel = {
     LOW: 'low',
@@ -1250,12 +1257,6 @@ export type HermesStartOnboardingRequest = {
     researchDepth?: 'deep' | 'shallow';
     personality?: HermesPersonality;
     autonomyLevel?: HermesAutonomyLevel;
-};
-
-export type HermesPersonality = {
-    tone?: number;
-    detail?: number;
-    style?: number;
 };
 
 export type HermesOnboardingProgress = {

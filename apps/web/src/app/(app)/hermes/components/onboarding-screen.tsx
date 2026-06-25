@@ -33,6 +33,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { disconnectHermesIntegrationAction } from "@/lib/actions/hermes";
 import { orbCandidateSeeds } from "@/lib/aurora-orb";
+import { personalityToOrbMotion } from "@/lib/hermes/personality-orb";
 import type {
   HermesAutonomyLevel,
   HermesIntegration,
@@ -195,10 +196,10 @@ export default function OnboardingScreen({
   // ── Orb animation driven by the chosen personality ───────────────────────
   // Playful + warm → faster, livelier motion; formal + direct → calmer. High
   // playfulness also tips the eyes into a smile. Applied from the Personality
-  // step on, so dragging the sliders visibly changes how the orb animates.
-  const orbEnergy = (personality.style * 0.6 + personality.tone * 0.4) / 100;
-  const personalitySpeed = 0.9 + orbEnergy * 1.2;
-  const personalityExpr = personality.style >= 60 ? "happy" : "idle";
+  // step on, so dragging the sliders visibly changes how the orb animates. The
+  // chat reuses the exact same mapping (personalityToOrbMotion) so they match.
+  const { speed: personalitySpeed, restExpression: personalityExpr } =
+    personalityToOrbMotion(personality);
   const heroExpression =
     step === 1
       ? assistantName.trim()

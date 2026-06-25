@@ -615,6 +615,98 @@ async function readHermesInstanceMeta(
   }
 }
 
+interface HermesPersonalityValues {
+  tone: number;
+  detail: number;
+  style: number;
+}
+
+/**
+ * Persists the chosen personality (the Sokosumi-side mirror of what's
+ * forwarded to the orchestrator) so the chat UI can reflect it. Resilient on
+ * its own: a write failure (e.g. the personality columns' migration not yet
+ * applied) is swallowed so it never fails onboarding — the agent still starts,
+ * the chat just falls back to a calm default orb.
+ */
+async function persistHermesPersonality(
+  userId: string,
+  personality: HermesPersonalityValues,
+): Promise<void> {
+  const patch = {
+    personalityTone: personality.tone,
+    personalityDetail: personality.detail,
+    personalityStyle: personality.style,
+  };
+  try {
+    await prisma.hermesInstance.upsert({
+      where: { userId },
+      create: { userId, ...patch },
+      update: patch,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_persist_personality" },
+    });
+  }
+}
+
+/**
+ * Reads the chosen personality back. Kept as its own query + try/catch
+ * (separate from readHermesInstanceMeta) so that if the personality columns'
+ * migration hasn't been applied, the failure stays isolated to personality and
+ * does NOT null out the assistant name / orb seed. Returns null when unset or
+ * on any read failure.
+ */
+async function readHermesInstancePersonality(
+  userId: string,
+): Promise<HermesPersonalityValues | null> {
+  try {
+    const row = await prisma.hermesInstance.findUnique({
+      where: { userId },
+      select: {
+        personalityTone: true,
+        personalityDetail: true,
+        personalityStyle: true,
+      },
+    });
+    if (
+      !row ||
+      row.personalityTone === null ||
+      row.personalityDetail === null ||
+      row.personalityStyle === null
+    ) {
+      return null;
+    }
+    return {
+      tone: row.personalityTone,
+      detail: row.personalityDetail,
+      style: row.personalityStyle,
+    };
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { context: "hermes_read_instance_personality" },
+    });
+    return null;
+  }
+}
+
+/**
+ * Convenience for the instance-response merge points: the display metadata
+ * (name + orb seed) plus the personality, each read resiliently and in
+ * parallel. Spread over the orchestrator instance before Zod parsing.
+ */
+async function readHermesInstanceDisplay(
+  userId: string,
+): Promise<
+  HermesInstanceMeta & { personality: HermesPersonalityValues | null }
+> {
+  const [meta, personality] = await Promise.all([
+    readHermesInstanceMeta(userId),
+    readHermesInstancePersonality(userId),
+  ]);
+  return { ...meta, personality };
+}
+
 /**
  * Stable namespace UUID for deriving HermesMessage ids from welcome-event
  * tuples. Bound to this codebase; do NOT change without a migration plan
@@ -1751,7 +1843,7 @@ app.openapi(getInstanceRoute, async (c) => {
         instance.pendingConfirmations,
         userContext.userId,
       );
-      const meta = await readHermesInstanceMeta(userContext.userId);
+      const meta = await readHermesInstanceDisplay(userContext.userId);
       const parsedInstance = hermesInstanceSchema.parse({
         ...instance,
         ...meta,
@@ -1824,7 +1916,7 @@ app.openapi(provisionInstanceRoute, async (c) => {
       });
     });
 
-    const meta = await readHermesInstanceMeta(userContext.userId);
+    const meta = await readHermesInstanceDisplay(userContext.userId);
     return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));
   } catch (error) {
     return mapOrchestratorError(
@@ -1862,7 +1954,7 @@ app.openapi(updateInstanceRoute, async (c) => {
 
     // Always re-merge the persisted name so an unrelated PATCH (e.g. autonomy)
     // doesn't blank it out via the schema's `assistantName` default.
-    const meta = await readHermesInstanceMeta(userContext.userId);
+    const meta = await readHermesInstanceDisplay(userContext.userId);
     return ok(c, hermesInstanceSchema.parse({ ...instance, ...meta }));
   } catch (error) {
     return mapOrchestratorError(error, "Failed to update assistant instance");
@@ -2056,6 +2148,13 @@ app.openapi(startOnboardingRoute, async (c) => {
         assistantName: body.assistantName,
         avatarSeed: body.avatarSeed,
       });
+    }
+
+    // Mirror the chosen personality Sokosumi-side (resilient on its own) so the
+    // chat orb can reflect it. It's still forwarded to the orchestrator below
+    // for the system prompt — this is purely the local display copy.
+    if (body.personality) {
+      await persistHermesPersonality(userContext.userId, body.personality);
     }
 
     // Push autonomy first so the orchestrator's research-intro reflects it.

@@ -56,6 +56,13 @@ function mapHermesInstance(
     onboardedAt: toIsoString(instance.onboardedAt),
     assistantName: instance.assistantName ?? null,
     avatarSeed: instance.avatarSeed ?? null,
+    personality: instance.personality
+      ? {
+          tone: instance.personality.tone ?? 50,
+          detail: instance.personality.detail ?? 50,
+          style: instance.personality.style ?? 50,
+        }
+      : null,
     autonomyLevel: (instance.autonomyLevel ?? "medium") as HermesAutonomyLevel,
     integrations: instance.integrations.map(mapHermesIntegration),
     transitioning: instance.transitioning ?? false,

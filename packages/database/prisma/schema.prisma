@@ -1431,6 +1431,15 @@ model HermesInstance {
   /// Null until chosen; the UI falls back to a per-user default seed.
   avatarSeed String?
 
+  /// Assistant personality chosen during setup, as three 0–100 spectrums.
+  /// Forwarded to the orchestrator for the system prompt AND mirrored here
+  /// (Sokosumi-side) so the chat UI can reflect it — e.g. the orb's liveliness
+  /// and resting expression. Null until set; the UI falls back to a calm
+  /// default. tone: direct↔warm · detail: concise↔thorough · style: formal↔playful.
+  personalityTone   Int?
+  personalityDetail Int?
+  personalityStyle  Int?
+
   /// When the inbox cron last attempted a poll (success or failure).
   lastPolledAt DateTime?
   /// `createdAt` of the most recent inbox message we've ingested. Used as the

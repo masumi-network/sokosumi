@@ -95,6 +95,22 @@ export const hermesPendingConfirmationSchema = z
   })
   .openapi("HermesPendingConfirmation");
 
+/**
+ * Assistant personality — three 0–100 spectrums captured during setup and
+ * forwarded to the orchestrator, which folds them into the agent's system
+ * prompt. 50 = balanced (the default for every dimension).
+ */
+export const hermesPersonalitySchema = z
+  .object({
+    /** 0 = direct / to-the-point · 100 = warm / personable. */
+    tone: z.number().int().min(0).max(100).default(50),
+    /** 0 = concise / short answers · 100 = thorough / detailed. */
+    detail: z.number().int().min(0).max(100).default(50),
+    /** 0 = formal / professional · 100 = casual / playful. */
+    style: z.number().int().min(0).max(100).default(50),
+  })
+  .openapi("HermesPersonality");
+
 export const hermesInstanceSchema = z
   .object({
     status: hermesInstanceStatusSchema,
@@ -113,6 +129,12 @@ export const hermesInstanceSchema = z
      * falls back to a per-user default seed.
      */
     avatarSeed: z.string().max(120).nullable().default(null),
+    /**
+     * The assistant's chosen personality (tone / detail / style as 0–100
+     * spectrums), mirrored Sokosumi-side so the chat UI can reflect it — the
+     * orb's liveliness and resting expression. Null until set.
+     */
+    personality: hermesPersonalitySchema.nullable().default(null),
     autonomyLevel: hermesAutonomyLevelSchema.default("medium"),
     integrations: z.array(hermesIntegrationSchema),
     transitioning: z.boolean().default(false),
@@ -242,22 +264,6 @@ export const hermesOnboardingProgressSchema = z
     etaSeconds: z.number().int().min(0).nullable(),
   })
   .openapi("HermesOnboardingProgress");
-
-/**
- * Assistant personality — three 0–100 spectrums captured during setup and
- * forwarded to the orchestrator, which folds them into the agent's system
- * prompt. 50 = balanced (the default for every dimension).
- */
-export const hermesPersonalitySchema = z
-  .object({
-    /** 0 = direct / to-the-point · 100 = warm / personable. */
-    tone: z.number().int().min(0).max(100).default(50),
-    /** 0 = concise / short answers · 100 = thorough / detailed. */
-    detail: z.number().int().min(0).max(100).default(50),
-    /** 0 = formal / professional · 100 = casual / playful. */
-    style: z.number().int().min(0).max(100).default(50),
-  })
-  .openapi("HermesPersonality");
 
 export const hermesStartOnboardingRequestSchema = z
   .object({

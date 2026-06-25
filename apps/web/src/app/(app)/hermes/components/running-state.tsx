@@ -86,6 +86,11 @@ import {
   mergeHermesMessageLists,
 } from "@/lib/hermes/merge-persisted-messages";
 import {
+  DEFAULT_ORB_MOTION,
+  type OrbMotion,
+  personalityToOrbMotion,
+} from "@/lib/hermes/personality-orb";
+import {
   deltaContentFrom,
   type HermesStatusEvent,
   parseHermesStatus,
@@ -102,6 +107,12 @@ import { cn } from "@/lib/utils";
 
 /** The committed orb seed — the assistant's avatar across the chat. */
 const AssistantSeedContext = createContext<string>("personal-assistant");
+
+/**
+ * The orb's personality-driven motion (liveliness + resting eyes), published to
+ * the chat avatars the same way the seed is. Defaults to calm/neutral.
+ */
+const AssistantMotionContext = createContext<OrbMotion>(DEFAULT_ORB_MOTION);
 
 interface RunningStateProps {
   userName?: string | null;
@@ -873,193 +884,200 @@ export default function RunningState({
     messages.length === 0 &&
     pendingCards.length === 0 &&
     resolvedCards.length === 0;
+  // The chat orb mirrors the chosen personality (livelier + a resting smile for
+  // playful/warm), using the exact mapping the onboarding hero uses.
+  const orbMotion = personalityToOrbMotion(instance?.personality);
 
   return (
     <AssistantSeedContext.Provider value={avatarSeed}>
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
-        {/* Floating top-right control — the integrations chip doubles as the
+      <AssistantMotionContext.Provider value={orbMotion}>
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+          {/* Floating top-right control — the integrations chip doubles as the
           entry point into Settings (covers autonomy, schedules, danger zone)
           so we don't need a separate gear button competing for attention. */}
-        <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
-          <IntegrationsChip
-            integrations={instance?.integrations ?? []}
-            onClick={() => setSettingsOpen(true)}
-          />
-        </div>
-
-        {/* Scrollable content area — flex-grows to fill remaining height,
-          composer below sits at natural height. No more manual bottom
-          offset to keep in sync with the composer's height. */}
-        <div
-          ref={scrollerRef}
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
-          }}
-          className="scrollbar-none min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {isEmpty ? (
-            <WelcomeBlock firstName={firstName} />
-          ) : (
-            <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
-              <div className="flex w-full max-w-4xl flex-col gap-1">
-                {timeline.map((item) =>
-                  item.kind === "message" ? (
-                    <MessageRow
-                      key={item.key}
-                      message={item.message}
-                      userImageUrl={userImageUrl}
-                      userName={userName}
-                      isStreaming={item.message.id === streamingId}
-                      durationMs={
-                        durations.get(durationKey(item.message.content)) ??
-                        item.message.durationMs
-                      }
-                      steps={
-                        stepsByKey.get(durationKey(item.message.content)) ??
-                        item.message.steps
-                      }
-                      onSelectSuggestion={(prompt) => {
-                        setInput(prompt);
-                        composerRef.current?.focus();
-                      }}
-                    />
-                  ) : (
-                    <ConfirmationCard
-                      key={item.key}
-                      confirmation={item.entry.confirmation}
-                      organizations={organizations}
-                      activeOrganizationId={activeOrganizationId}
-                      resolution={item.entry.resolution}
-                      onResolved={() => {}}
-                    />
-                  ),
-                )}
-                {isReplying && !streamingId ? (
-                  <>
-                    {progressChips.length > 0 ? (
-                      <ProgressChips
-                        chips={progressChips}
-                        startedAt={requestStartedAt}
-                      />
-                    ) : (
-                      <AssistantTyping startedAt={requestStartedAt} />
-                    )}
-                    {reasoning ? <ReasoningLine snippet={reasoning} /> : null}
-                  </>
-                ) : null}
-                {pendingCards.map((confirmation) => (
-                  <ConfirmationCard
-                    key={confirmation.id}
-                    confirmation={confirmation}
-                    organizations={organizations}
-                    activeOrganizationId={activeOrganizationId}
-                    resolution={null}
-                    onResolved={(id, resolution, resolvedConfirmation) => {
-                      setResolvedConfirmations((prev) => {
-                        if (prev.has(id)) return prev;
-                        const next = new Map(prev);
-                        next.set(id, {
-                          // Use the confirmation the card actually resolved, not
-                          // this map closure's capture — a background instance
-                          // refresh could have swapped the object for this id
-                          // mid-approval, storing stale metadata otherwise.
-                          confirmation: resolvedConfirmation,
-                          resolution,
-                          resolvedAt: Date.now(),
-                        });
-                        return next;
-                      });
-                      // Poll a few times to surface the orchestrator's result
-                      // quickly rather than waiting for the next 5s tick.
-                      for (const delay of [1200, 3000, 6000]) {
-                        setTimeout(() => void syncMessages(), delay);
-                      }
-                      // Refresh the instance so the resolved gate drops out of
-                      // pendingConfirmations (and any follow-up gate the tool
-                      // queued appears) without waiting for the 30s refresh.
-                      void onRefresh?.();
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Jump-to-latest pill — appears when scrolled up; snaps to the live answer. */}
-        {!atBottom && !isEmpty ? (
-          <button
-            type="button"
-            onClick={() => {
-              const el = scrollerRef.current;
-              if (el) {
-                el.scrollTop = el.scrollHeight;
-                setAtBottom(true);
-              }
-            }}
-            className="bg-background text-foreground border-border hover:bg-muted/60 focus-visible:ring-primary/40 absolute bottom-28 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm outline-none transition-colors focus-visible:ring-2"
-          >
-            <ArrowDown aria-hidden className="size-3.5" />
-            {t("jumpToLatest")}
-          </button>
-        ) : null}
-
-        {/* Composer (natural height, anchored at bottom of flex column) */}
-        <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
-          {/* Soft fade from scroll area into composer */}
-          <div
-            aria-hidden
-            className="from-background pointer-events-none absolute -top-8 right-0 left-0 z-5 h-8 bg-linear-to-t to-transparent"
-          />
-          {instance?.transitioning ? (
-            <div className="mb-2 w-full max-w-4xl">
-              <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
-                <Loader2
-                  className="text-primary size-4 shrink-0 animate-spin"
-                  aria-hidden
-                />
-                <span>
-                  {t("transitioning")}{" "}
-                  <span className="text-muted-foreground">
-                    {t("transitioningHint")}
-                  </span>
-                </span>
-              </div>
-            </div>
-          ) : null}
-          <div className="w-full max-w-4xl">
-            <Composer
-              ref={composerRef}
-              input={input}
-              setInput={setInput}
-              files={files}
-              setFiles={setFiles}
-              onSubmit={handleSubmit}
-              isReplying={isReplying}
-              disabled={instance?.transitioning === true}
-              onStop={stop}
-              placeholder={t("composerPlaceholder")}
-              sendLabel={t("send")}
-              stopLabel={t("stop")}
-              attachLabel={t("attach")}
+          <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+            <IntegrationsChip
+              integrations={instance?.integrations ?? []}
+              onClick={() => setSettingsOpen(true)}
             />
           </div>
-        </div>
 
-        <SettingsPanel
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-          previewMode={previewMode}
-          integrations={instance?.integrations ?? []}
-          autonomyLevel={instance?.autonomyLevel ?? "medium"}
-          lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
-          lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
-          assistantName={instance?.assistantName ?? null}
-          onDestroy={onDestroy}
-          onRefreshInstance={onRefresh}
-        />
-      </div>
+          {/* Scrollable content area — flex-grows to fill remaining height,
+          composer below sits at natural height. No more manual bottom
+          offset to keep in sync with the composer's height. */}
+          <div
+            ref={scrollerRef}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              setAtBottom(
+                el.scrollHeight - el.scrollTop - el.clientHeight < 80,
+              );
+            }}
+            className="scrollbar-none min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {isEmpty ? (
+              <WelcomeBlock firstName={firstName} />
+            ) : (
+              <div className="flex flex-col items-center pt-12 pb-6 md:pt-8">
+                <div className="flex w-full max-w-4xl flex-col gap-1">
+                  {timeline.map((item) =>
+                    item.kind === "message" ? (
+                      <MessageRow
+                        key={item.key}
+                        message={item.message}
+                        userImageUrl={userImageUrl}
+                        userName={userName}
+                        isStreaming={item.message.id === streamingId}
+                        durationMs={
+                          durations.get(durationKey(item.message.content)) ??
+                          item.message.durationMs
+                        }
+                        steps={
+                          stepsByKey.get(durationKey(item.message.content)) ??
+                          item.message.steps
+                        }
+                        onSelectSuggestion={(prompt) => {
+                          setInput(prompt);
+                          composerRef.current?.focus();
+                        }}
+                      />
+                    ) : (
+                      <ConfirmationCard
+                        key={item.key}
+                        confirmation={item.entry.confirmation}
+                        organizations={organizations}
+                        activeOrganizationId={activeOrganizationId}
+                        resolution={item.entry.resolution}
+                        onResolved={() => {}}
+                      />
+                    ),
+                  )}
+                  {isReplying && !streamingId ? (
+                    <>
+                      {progressChips.length > 0 ? (
+                        <ProgressChips
+                          chips={progressChips}
+                          startedAt={requestStartedAt}
+                        />
+                      ) : (
+                        <AssistantTyping startedAt={requestStartedAt} />
+                      )}
+                      {reasoning ? <ReasoningLine snippet={reasoning} /> : null}
+                    </>
+                  ) : null}
+                  {pendingCards.map((confirmation) => (
+                    <ConfirmationCard
+                      key={confirmation.id}
+                      confirmation={confirmation}
+                      organizations={organizations}
+                      activeOrganizationId={activeOrganizationId}
+                      resolution={null}
+                      onResolved={(id, resolution, resolvedConfirmation) => {
+                        setResolvedConfirmations((prev) => {
+                          if (prev.has(id)) return prev;
+                          const next = new Map(prev);
+                          next.set(id, {
+                            // Use the confirmation the card actually resolved, not
+                            // this map closure's capture — a background instance
+                            // refresh could have swapped the object for this id
+                            // mid-approval, storing stale metadata otherwise.
+                            confirmation: resolvedConfirmation,
+                            resolution,
+                            resolvedAt: Date.now(),
+                          });
+                          return next;
+                        });
+                        // Poll a few times to surface the orchestrator's result
+                        // quickly rather than waiting for the next 5s tick.
+                        for (const delay of [1200, 3000, 6000]) {
+                          setTimeout(() => void syncMessages(), delay);
+                        }
+                        // Refresh the instance so the resolved gate drops out of
+                        // pendingConfirmations (and any follow-up gate the tool
+                        // queued appears) without waiting for the 30s refresh.
+                        void onRefresh?.();
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Jump-to-latest pill — appears when scrolled up; snaps to the live answer. */}
+          {!atBottom && !isEmpty ? (
+            <button
+              type="button"
+              onClick={() => {
+                const el = scrollerRef.current;
+                if (el) {
+                  el.scrollTop = el.scrollHeight;
+                  setAtBottom(true);
+                }
+              }}
+              className="bg-background text-foreground border-border hover:bg-muted/60 focus-visible:ring-primary/40 absolute bottom-28 left-1/2 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm outline-none transition-colors focus-visible:ring-2"
+            >
+              <ArrowDown aria-hidden className="size-3.5" />
+              {t("jumpToLatest")}
+            </button>
+          ) : null}
+
+          {/* Composer (natural height, anchored at bottom of flex column) */}
+          <div className="bg-background relative mx-auto flex w-full shrink-0 flex-col items-center px-4 pt-2 pb-4">
+            {/* Soft fade from scroll area into composer */}
+            <div
+              aria-hidden
+              className="from-background pointer-events-none absolute -top-8 right-0 left-0 z-5 h-8 bg-linear-to-t to-transparent"
+            />
+            {instance?.transitioning ? (
+              <div className="mb-2 w-full max-w-4xl">
+                <div className="border-primary/30 bg-primary/5 text-foreground flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm">
+                  <Loader2
+                    className="text-primary size-4 shrink-0 animate-spin"
+                    aria-hidden
+                  />
+                  <span>
+                    {t("transitioning")}{" "}
+                    <span className="text-muted-foreground">
+                      {t("transitioningHint")}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            ) : null}
+            <div className="w-full max-w-4xl">
+              <Composer
+                ref={composerRef}
+                input={input}
+                setInput={setInput}
+                files={files}
+                setFiles={setFiles}
+                onSubmit={handleSubmit}
+                isReplying={isReplying}
+                disabled={instance?.transitioning === true}
+                onStop={stop}
+                placeholder={t("composerPlaceholder")}
+                sendLabel={t("send")}
+                stopLabel={t("stop")}
+                attachLabel={t("attach")}
+              />
+            </div>
+          </div>
+
+          <SettingsPanel
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            previewMode={previewMode}
+            integrations={instance?.integrations ?? []}
+            autonomyLevel={instance?.autonomyLevel ?? "medium"}
+            lastSokosumiSyncAt={instance?.lastSokosumiSyncAt ?? null}
+            lastInboxRefreshAt={instance?.lastInboxRefreshAt ?? null}
+            assistantName={instance?.assistantName ?? null}
+            onDestroy={onDestroy}
+            onRefreshInstance={onRefresh}
+          />
+        </div>
+      </AssistantMotionContext.Provider>
     </AssistantSeedContext.Provider>
   );
 }
@@ -1558,23 +1576,26 @@ function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
 function AssistantAvatar({
   accent = false,
   animated = false,
-  expression = "idle",
+  expression,
 }: {
   accent?: boolean;
   /** Live canvas (one rAF loop) — use only for the single "thinking" avatar. */
   animated?: boolean;
-  /** Eyes expression — "thinking" while it writes, "idle" otherwise. */
+  /** Eyes override — "thinking" while it writes. Omit to use the personality's
+   * resting expression. */
   expression?: OrbExpression;
 } = {}) {
   const tCommon = useTranslations("App.Hermes.Common");
   const seed = useContext(AssistantSeedContext);
+  const motion = useContext(AssistantMotionContext);
 
   return (
     <AuroraOrb
       seed={seed}
       size={64}
       animate={animated}
-      expression={expression}
+      speed={motion.speed}
+      expression={expression ?? motion.restExpression}
       alt={tCommon("hermesAvatarAlt")}
       className={cn(
         "size-8 ring-1",

@@ -98,6 +98,12 @@ export interface HermesInstancePublic {
    */
   avatarSeed: string | null;
   /**
+   * The assistant's chosen personality (tone / detail / style as 0–100
+   * spectrums), mirrored Sokosumi-side so the chat can reflect it — e.g. the
+   * orb's liveliness + resting expression. Null until set.
+   */
+  personality: HermesPersonality | null;
+  /**
    * Operational autonomy tier. Defaults to "medium" on instances created
    * before this field shipped.
    */

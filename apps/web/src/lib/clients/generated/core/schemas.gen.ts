@@ -4290,6 +4290,9 @@ export const HermesInstanceSchema = {
             maxLength: 120,
             default: null
         },
+        personality: {
+            $ref: '#/components/schemas/HermesPersonality'
+        },
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
         },
@@ -4343,6 +4346,34 @@ export const HermesInstanceSchema = {
         'onboardedAt',
         'integrations'
     ]
+} as const;
+
+export const HermesPersonalitySchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        tone: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        },
+        detail: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        },
+        style: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            default: 50
+        }
+    },
+    default: null
 } as const;
 
 export const HermesAutonomyLevelSchema = {
@@ -4762,30 +4793,6 @@ export const HermesStartOnboardingRequestSchema = {
         },
         autonomyLevel: {
             $ref: '#/components/schemas/HermesAutonomyLevel'
-        }
-    }
-} as const;
-
-export const HermesPersonalitySchema = {
-    type: 'object',
-    properties: {
-        tone: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            default: 50
-        },
-        detail: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            default: 50
-        },
-        style: {
-            type: 'integer',
-            minimum: 0,
-            maximum: 100,
-            default: 50
         }
     }
 } as const;
