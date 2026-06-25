@@ -7,9 +7,9 @@ Single-issue squad: Investigator → Tech Lead → Coder(s) → Reviewer.
 1. Read `SKILL.md` — includes **Role models** (Tech Lead, Coder, Reviewer subagents).
 2. Read `PHASE-GATE.md` — blocking Linear writes per phase; exit verification.
 3. Read `WORKFLOW.md`.
-4. Read role file for the current phase: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, or `REVIEWER.md`.
-5. Read `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md` before Tech Lead phase.
-6. Read `BUGBOT-LEARNINGS.md` before Coder phase (Pre-Reviewer gates).
+4. Read `BUGBOT-LEARNINGS.md` before Phase 1 (Investigator R1–R12 trigger flags) and before Coder Pre-Reviewer gates.
+5. Read role file for the current phase: `INVESTIGATOR.md`, `TECH-LEAD.md`, `CODER.md`, or `REVIEWER.md`.
+6. Read `SPEC-TEMPLATE.md` and `SUBAGENT-RUBRIC.md` before Tech Lead phase.
 7. Read `LINEAR-MCP.md` before Linear writes.
 8. Read `VISUAL-CAPTURE.md` before Reviewer phase (UI evidence).
 9. Read `CURSOR-AUTOMATION.md` when configuring optional Linear-triggered Cloud Agents.
