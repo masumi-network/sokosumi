@@ -79,11 +79,10 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
 }
 
 /**
- * The Personal Assistant — the headline destination, sitting at the very top
- * of the sidebar above "New". Framed as a bordered "featured button" (the only
- * outlined row) so it reads as distinct without a permanent fill that would
- * make it look perpetually selected. The live orb carries its identity, and
- * the label becomes the assistant's chosen name once it has one.
+ * The Personal Assistant — a normal nav item at the very top of the sidebar,
+ * set apart from "New" by a divider (rendered in the sidebar composition). Its
+ * live orb carries its identity, and the label becomes the assistant's chosen
+ * name once it has one.
  */
 export default function PersonalAssistantNav({
   enabled,
@@ -111,25 +110,25 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive} className="h-auto">
+            <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>
                 <Link
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex min-h-auto w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 font-medium transition-colors",
+                    "flex min-h-auto w-full items-center gap-2 px-3",
                     isActive
-                      ? "border-transparent text-primary-foreground"
-                      : "border-border/70 text-foreground hover:border-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      ? "text-primary-foreground"
+                      : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   {/* The live agent: chosen orb once a colour is committed,
                       else the white placeholder — always with its eyes. */}
                   <AssistantOrb
                     seed={avatarSeed}
-                    size={56}
+                    size={48}
                     expression="idle"
-                    className="size-6 shrink-0"
+                    className="size-5 shrink-0"
                   />
                   <span className="flex-1 truncate">{label}</span>
                   {showUnread ? (

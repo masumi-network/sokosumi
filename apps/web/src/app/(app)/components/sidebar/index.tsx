@@ -84,6 +84,7 @@ export default async function Sidebar({
             planLabel={planLabel}
           >
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
+            {hermesMenuEnabled ? <SidebarSeparator className="mx-0" /> : null}
             <NewChatTaskActions />
             <SidebarSeparator className="mx-0 mt-2" />
             <MenuItems />
