@@ -2,7 +2,6 @@
 
 import {
   ArrowRight,
-  ArrowUpRight,
   Brain,
   Calendar,
   Check,
@@ -252,6 +251,7 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
           <div className="flex flex-col items-center text-center">
             <PlaceholderOrb
               size={224}
+              expression="idle"
               className="size-44 md:size-52"
               alt={tCommon("hermesAvatarAlt")}
             />
@@ -272,7 +272,7 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
               {t("description")}
             </p>
 
-            <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+            <div className="mt-10 flex flex-col items-center">
               <Button
                 size="lg"
                 variant="primary"
@@ -282,15 +282,6 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
                 <span>{t("primaryCta")}</span>
                 <ArrowRight className="size-4" aria-hidden />
               </Button>
-              <a
-                href="https://hermes-agent.nousresearch.com/"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm transition-colors"
-              >
-                <span>{t("secondaryCta")}</span>
-                <ArrowUpRight className="size-3.5" aria-hidden />
-              </a>
             </div>
           </div>
 
@@ -475,18 +466,6 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
               </ul>
             </div>
           </div>
-
-          {/* ── Powered by ──────────────────────────────────────────── */}
-          <div className="mt-10 flex justify-center">
-            <a
-              href="https://nousresearch.com"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="text-muted-foreground/60 hover:text-muted-foreground text-xs transition-colors"
-            >
-              {t("poweredBy")}
-            </a>
-          </div>
         </div>
       </FlowBackground>
     </EmptyStateSeedContext.Provider>
@@ -618,7 +597,12 @@ function ActivationVisual() {
         className="bg-primary/10 absolute size-40 rounded-full blur-3xl"
       />
       <div className="border-border/60 bg-background/80 relative flex flex-col items-center gap-4 rounded-2xl border px-8 py-6">
-        <AuroraOrb seed={seed} size={96} className="size-16" />
+        <AuroraOrb
+          seed={seed}
+          size={96}
+          expression="happy"
+          className="size-16"
+        />
         <div className="text-foreground text-sm font-semibold tracking-tight">
           {tCommon("hermesAvatarAlt")}
         </div>
@@ -728,7 +712,12 @@ function ConnectionVisual() {
       </svg>
       {/* Center: Hermes */}
       <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-        <AuroraOrb seed={seed} size={96} className="size-16" />
+        <AuroraOrb
+          seed={seed}
+          size={96}
+          expression="idle"
+          className="size-16"
+        />
       </div>
       {/* Satellites */}
       {satellites.map(({ src, pos }) => (
@@ -1007,7 +996,12 @@ function ExamplesCarousel() {
             aria-hidden
             className="bg-card border-border ring-background relative mt-0.5 size-8 shrink-0 overflow-hidden rounded-full border ring-2"
           >
-            <AuroraOrb seed={seed} size={64} className="size-full" />
+            <AuroraOrb
+              seed={seed}
+              size={64}
+              expression="happy"
+              className="size-full"
+            />
           </span>
           <div className="border-border bg-background min-w-0 flex-1 rounded-2xl rounded-tl-md border px-4 py-3">
             <div className="text-tertiary-foreground mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
