@@ -29,6 +29,7 @@ import React, {
 import { toast } from "sonner";
 
 import {
+  applyConfirmationOrgProposalUpdate,
   buildConfirmationApproveOverrideIfChanged,
   buildCurrentConfirmationApproveOrganizationOverride,
   CONFIRMATION_PERSONAL_SCOPE_VALUE,
@@ -2050,13 +2051,39 @@ function ConfirmationCard({
           organizations,
           activeOrganizationId,
         );
-  const [selectedOrgValue, setSelectedOrgValue] =
-    useState<string>(initialOrgValue);
-  const selectedOrgRef = useRef(initialOrgValue);
+  const proposedOrgValue = resolveConfirmationOrgPickerValue(
+    confirmation,
+    organizations,
+    activeOrganizationId,
+  );
+  const [orgSelection, setOrgSelection] = useState(() => ({
+    baselineOrgValue: initialOrgValue,
+    selectedOrgValue: initialOrgValue,
+    userChangedOrg: false,
+  }));
+  const selectedOrgRef = useRef(orgSelection.selectedOrgValue);
+  selectedOrgRef.current = orgSelection.selectedOrgValue;
+
+  if (!isResolved && showOrgPicker) {
+    const syncedOrgSelection = applyConfirmationOrgProposalUpdate(
+      proposedOrgValue,
+      orgSelection,
+    );
+    if (syncedOrgSelection !== orgSelection) {
+      setOrgSelection(syncedOrgSelection);
+      selectedOrgRef.current = syncedOrgSelection.selectedOrgValue;
+    }
+  }
+
+  const selectedOrgValue = orgSelection.selectedOrgValue;
 
   const handleOrgValueChange = (value: string) => {
     selectedOrgRef.current = value;
-    setSelectedOrgValue(value);
+    setOrgSelection((current) => ({
+      ...current,
+      selectedOrgValue: value,
+      userChangedOrg: true,
+    }));
   };
 
   const handleApprove = async () => {
@@ -2083,7 +2110,7 @@ function ConfirmationCard({
     const workspaceOverride = showOrgPicker
       ? buildConfirmationApproveOverrideIfChanged(
           selectedOrgRef.current,
-          initialOrgValue,
+          orgSelection.baselineOrgValue,
           orgPickerOptions,
         )
       : undefined;

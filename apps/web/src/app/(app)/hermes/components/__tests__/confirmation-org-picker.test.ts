@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyConfirmationOrgProposalUpdate,
   buildConfirmationApproveOrganizationOverride,
   buildConfirmationApproveOverrideIfChanged,
   buildCurrentConfirmationApproveOrganizationOverride,
@@ -188,5 +189,50 @@ describe("buildConfirmationApproveOverrideIfChanged", () => {
         organizations,
       ),
     ).toEqual({ organizationId: null });
+  });
+});
+
+describe("applyConfirmationOrgProposalUpdate", () => {
+  it("returns the same state when the proposal is unchanged", () => {
+    const state = {
+      baselineOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      selectedOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      userChangedOrg: false,
+    };
+
+    expect(
+      applyConfirmationOrgProposalUpdate(
+        CONFIRMATION_PERSONAL_SCOPE_VALUE,
+        state,
+      ),
+    ).toBe(state);
+  });
+
+  it("follows a newly populated proposal when the user has not changed the dropdown", () => {
+    const state = {
+      baselineOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      selectedOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      userChangedOrg: false,
+    };
+
+    expect(applyConfirmationOrgProposalUpdate("org-a", state)).toEqual({
+      baselineOrgValue: "org-a",
+      selectedOrgValue: "org-a",
+      userChangedOrg: false,
+    });
+  });
+
+  it("keeps an explicit user selection when the proposal updates later", () => {
+    const state = {
+      baselineOrgValue: CONFIRMATION_PERSONAL_SCOPE_VALUE,
+      selectedOrgValue: "org-b",
+      userChangedOrg: true,
+    };
+
+    expect(applyConfirmationOrgProposalUpdate("org-a", state)).toEqual({
+      baselineOrgValue: "org-a",
+      selectedOrgValue: "org-b",
+      userChangedOrg: true,
+    });
   });
 });

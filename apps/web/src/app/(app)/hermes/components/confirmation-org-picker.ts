@@ -111,3 +111,36 @@ export function buildConfirmationApproveOverrideIfChanged(
     organizations,
   );
 }
+
+export interface ConfirmationOrgPickerSelectionState {
+  baselineOrgValue: string;
+  selectedOrgValue: string;
+  userChangedOrg: boolean;
+}
+
+/**
+ * Reconcile dropdown selection when Hermes' proposed workspace updates after an
+ * instance refresh. Preserves an explicit user change; otherwise follows the
+ * new proposal so approve does not compare stale selection to fresh baseline.
+ */
+export function applyConfirmationOrgProposalUpdate(
+  proposedOrgValue: string,
+  state: ConfirmationOrgPickerSelectionState,
+): ConfirmationOrgPickerSelectionState {
+  if (proposedOrgValue === state.baselineOrgValue) {
+    return state;
+  }
+
+  const userChangedSelection =
+    state.userChangedOrg || state.selectedOrgValue !== state.baselineOrgValue;
+
+  if (userChangedSelection) {
+    return { ...state, baselineOrgValue: proposedOrgValue };
+  }
+
+  return {
+    baselineOrgValue: proposedOrgValue,
+    selectedOrgValue: proposedOrgValue,
+    userChangedOrg: false,
+  };
+}
