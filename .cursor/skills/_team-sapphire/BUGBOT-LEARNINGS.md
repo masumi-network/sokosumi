@@ -118,7 +118,7 @@ Apply when the **trigger** matches the work. Investigator flags risks; Tech Lead
 
 ## Mandatory Bugbot (before Reviewer)
 
-Orchestrator runs **one Bugbot review** per PR before Phase 4 (after the PR exists). Launch a **Task** subagent — do not assume a repo-local skill file:
+**Gate runner** (orchestrator in squad mode; standalone Coder when invoked alone) runs **one Bugbot review** per PR before Phase 4 (after the PR exists). **Re-run** after Reviewer pushes commits to the PR branch — zero High required before **In Review**. Launch a **Task** subagent — do not assume a repo-local skill file:
 
 | Field | Value |
 |-------|-------|

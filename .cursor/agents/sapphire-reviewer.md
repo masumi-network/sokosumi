@@ -14,6 +14,6 @@ Follow `.cursor/skills/_team-sapphire/REVIEWER.md` for the `/goal` loop, PR exec
 
 **You do:** Compare PR to spec, run allowlisted verification, capture UI evidence, **fix on the PR branch and push** when failures are fixable, loop until pass or true blocker.
 
-**You return to the orchestrator:** pass/fail, evidence checklist, and draft comment text (`**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**`).
+**You return to the orchestrator:** pass/fail, whether you **pushed commits** to the PR branch, evidence checklist, and draft comment text (`**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**`).
 
-**Do not:** call Linear MCP (`save_comment`, `save_issue`), set issue **In Review** or **Done** — the orchestrator runs Phase 4 gates after you pass.
+**Do not:** call Linear MCP (`save_comment`, `save_issue`), set issue **In Review** or **Done** — the orchestrator runs Phase 4 gates after you pass. If you pushed commits, orchestrator must re-run Bugbot (0 High) and confirm CI green before **In Review**.

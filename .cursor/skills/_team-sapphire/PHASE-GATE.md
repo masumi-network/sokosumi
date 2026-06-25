@@ -17,8 +17,8 @@ Coder uses **three or four comments** plus status: (1) `save_comment` → `**PR 
 
 1. Local allowlisted verification — all exit 0 (on branch before PR)
 2. **PR open** on GitHub (sole subagent or orchestrator after parallel merge)
-3. **CI green** on the PR (`gh pr checks` / required checks pass) — **orchestrator** after PR exists
-4. **Bugbot** — orchestrator runs once; **fix all High**; re-run until 0 High; **record** Medium findings for Phase gate step 2 (do **not** post `**Bugbot · medium (human review)**` during the Bugbot run)
+3. **CI green** on the PR (`gh pr checks` / required checks pass) — **gate runner** after PR exists (orchestrator in squad mode; standalone Coder when alone)
+4. **Bugbot** — **gate runner** runs once; **fix all High**; re-run until 0 High; **record** Medium findings for Phase gate step 2 (do **not** post `**Bugbot · medium (human review)**` during the Bugbot run). **Re-run** after Reviewer pushes commits before **In Review**.
 
 See `CODER.md` and `BUGBOT-LEARNINGS.md`. Do not post `**PR handoff**` or start Reviewer until all four pass.
 
@@ -103,11 +103,12 @@ Coder additionally (in order):
 ```
 [ ] Local verification exit 0 (allowlisted pnpm) — before PR
 [ ] PR open on GitHub (validated via gh)
-[ ] CI green — required checks pass on PR (orchestrator)
-[ ] Bugbot run — 0 High (orchestrator)
+[ ] CI green — required checks pass on PR (gate runner)
+[ ] Bugbot run — 0 High (gate runner)
+[ ] **PR handoff** comment posted
 [ ] **Bugbot · medium (human review)** comment posted when ≥1 Medium
-[ ] **PR handoff** comment posted before Coder complete
 [ ] Coder complete lists verification + CI + Bugbot summary (points to medium comment or `none`)
+[ ] save_issue — Coder row `done` (issue stays In Progress)
 ```
 
 Reviewer additionally:
@@ -115,6 +116,7 @@ Reviewer additionally:
 ```
 [ ] Coder complete documents verification + CI green + Bugbot 0 High
 [ ] /goal criteria pass
+[ ] Bugbot re-run 0 High + CI green when Reviewer pushed commits
 [ ] Reviewer row done saved before state change
 [ ] save_issue state In Review (description omitted)
 ```

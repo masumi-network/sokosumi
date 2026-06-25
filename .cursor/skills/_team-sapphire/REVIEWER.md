@@ -23,8 +23,9 @@ Prefix work with `/goal`. Do **not** stop after one failed pass when fixes are p
 3. Compare diff to **Contract / behavior**, **Verification**, **Out of scope**.
 4. Run **Verification command trust** only.
 5. Capture screenshot or recording for user-facing changes — see `VISUAL-CAPTURE.md`.
-6. Fix on PR branch, push, rerun until pass or true blocker.
-7. On pass: run **Completion** gate below — `save_comment` → Reviewer complete, `save_issue` → Reviewer row `done`, then `save_issue` → `state: "In Review"` only (`PHASE-GATE.md`).
+6. Fix on PR branch, push, rerun verification until pass or true blocker.
+7. **Post-fix gates (blocking when step 6 pushed commits):** **Orchestrator** (or standalone Reviewer when no orchestrator) re-runs mandatory Bugbot until **0 High** and confirms **CI green** on the PR before **Completion** gate. Subagent returns `pushed: true` so orchestrator knows to re-gate.
+8. On pass: run **Completion** gate below — `save_comment` → Reviewer complete, `save_issue` → Reviewer row `done`, then `save_issue` → `state: "In Review"` only (`PHASE-GATE.md`).
 
 ## PR execution trust
 
@@ -87,7 +88,7 @@ Reject commands with `|`, `&`, `;`, `` ` ``, `$()`, `sudo`, `curl`, `wget`, `rm`
 - [ ] Tests — exit 0
 - [ ] Build — exit 0
 - [ ] **CI green** on PR — required GitHub checks pass (`gh pr checks`)
-- [ ] **Bugbot** — 0 High at handoff (re-run Bugbot if Reviewer changes are substantial)
+- [ ] **Bugbot** — 0 High at handoff; **re-run mandatory Bugbot** (orchestrator) after any Reviewer push before **In Review**
 
 ### Bugbot regression (triggered rules)
 
@@ -125,7 +126,7 @@ When the orchestrator delegates to `sapphire-reviewer`:
 
 1. Follow **`/goal` loop** above — including fix on PR branch, push, and rerun until pass or blocker.
 2. **Do not** call Linear MCP — no `save_comment` or `save_issue`, and do not set **In Review**.
-3. Return pass/fail, evidence checklist, and draft `**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**` text to the orchestrator.
+3. Return pass/fail, whether you **pushed commits** to the PR branch, evidence checklist, and draft `**Sapphire · Reviewer complete**` or `**Sapphire · Review failed**` text to the orchestrator.
 
 The orchestrator runs **Completion** and **Exit gate** after you pass.
 
