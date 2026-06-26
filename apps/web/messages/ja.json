@@ -1414,7 +1414,6 @@
       },
       "Columns": {
         "backlog": "バックログ",
-        "scheduled": "予定済み",
         "todo": "未着手",
         "inProgress": "進行中",
         "inputRequired": "入力が必要",

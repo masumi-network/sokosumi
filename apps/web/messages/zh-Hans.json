@@ -1414,7 +1414,6 @@
       },
       "Columns": {
         "backlog": "待规划",
-        "scheduled": "已排期",
         "todo": "待办",
         "inProgress": "进行中",
         "inputRequired": "需要输入",
