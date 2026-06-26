@@ -621,15 +621,15 @@ function PureMultimodalInput({
         <div
           data-chat-input-border-anchor
           className={cn(
-            "from-primary/50 to-chart-1/50 focus-within:from-primary focus-within:to-chart-1",
-            "relative overflow-visible rounded-xl bg-gradient-to-r p-[1.5px]",
+            "chat-input-border-anchor",
+            "relative rounded-xl",
             "shadow-[0_0_16px_0] shadow-primary/15",
             "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
-            "transition-all duration-300",
+            "transition-shadow duration-300",
           )}
         >
           <PromptInput
-            className="border-0 bg-background rounded-xl shadow-none transition-all duration-200"
+            className="relative z-10 border-0 bg-background rounded-[calc(var(--radius-xl)-1.5px)] shadow-none transition-all duration-200"
             onSubmit={(event) => {
               event.preventDefault();
               if (!canSubmit) {
