@@ -109,12 +109,6 @@ export const createTaskJobRequestSchema = createJobRequestSchema.extend({
   agentId: z.string().openapi({ example: "agent_123" }),
 });
 
-export const taskCountSchema = z
-  .object({
-    count: z.number().int().nonnegative().openapi({ example: 42 }),
-  })
-  .openapi("TaskCount");
-
 export const taskWorkspaceSchema = z
   .object({
     workspaceId: z.string().uuid().openapi({

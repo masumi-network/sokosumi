@@ -7,6 +7,11 @@ import { createProject, updateProject } from "@/lib/actions/project/action";
 
 const pushMock = vi.fn();
 const toastErrorMock = vi.fn();
+const trackMock = vi.fn();
+
+vi.mock("@vercel/analytics", () => ({
+  track: (...args: unknown[]) => trackMock(...args),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -91,8 +96,36 @@ describe("ProjectForm", () => {
         description: "Ship it",
       });
     });
-    expect(onSuccess).toHaveBeenCalledWith("project-1");
+    expect(onSuccess).toHaveBeenCalledWith("project-1", "Launch plan");
+    expect(trackMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("tracks project creation with the provided source", async () => {
+    const user = userEvent.setup();
+    const onSuccess = vi.fn();
+    const createProjectMock = vi.mocked(createProject);
+    createProjectMock.mockResolvedValue({ projectId: "project-1" });
+
+    render(
+      <ProjectForm
+        mode="create"
+        labels={baseLabels}
+        showCancel={false}
+        creationSource="task_form"
+        onSuccess={onSuccess}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Project name"), "Launch plan");
+    await user.click(screen.getByRole("button", { name: "Save project" }));
+
+    await waitFor(() => {
+      expect(trackMock).toHaveBeenCalledWith("Project created", {
+        source: "task_form",
+        variant: "page",
+      });
+    });
   });
 
   it("submits normalized edit values through updateProject", async () => {

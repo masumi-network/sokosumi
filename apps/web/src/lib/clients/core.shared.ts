@@ -24,7 +24,6 @@ import type {
   GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
-  GetUsersByIdTasksCountData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -140,7 +139,6 @@ import {
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
-  getUsersByIdTasksCount as coreGetUsersByIdTasksCount,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
@@ -537,23 +535,6 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch tasks",
-    );
-  }
-
-  async function getUserTasksCount(
-    userId: string,
-    query?: GetUsersByIdTasksCountData["query"],
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetUsersByIdTasksCount({
-          client,
-          path: { id: userId },
-          query,
-          cache: "no-store",
-        }),
-      "Failed to fetch user task count",
     );
   }
 
@@ -2813,7 +2794,6 @@ export function createCoreClient(getClient: GetClient) {
     getTaskLinks,
     getTaskWorkspace,
     getTasks,
-    getUserTasksCount,
     patchTask,
     putJobShare,
     putTaskSchedule,

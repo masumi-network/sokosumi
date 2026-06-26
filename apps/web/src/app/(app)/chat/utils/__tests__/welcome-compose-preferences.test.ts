@@ -86,14 +86,14 @@ describe("writeWelcomeComposePreferences", () => {
 });
 
 describe("buildWelcomeComposeStoredSnapshot", () => {
-  it("stores model id only for chat compose", () => {
+  it("stores model id for chat compose with model", () => {
     expect(
       buildWelcomeComposeStoredSnapshot({
-        composeKind: "task",
-        coworker: baseCoworker(),
+        composeKind: "chat",
+        coworker: null,
         model: { id: "kimi-k2-6", name: "Kimi" },
       }).modelId,
-    ).toBeNull();
+    ).toBe("kimi-k2-6");
   });
 
   it("stores coworker slug when present", () => {
@@ -159,7 +159,7 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.model).toEqual({ id: "kimi-k2-6", name: "Kimi K2.6" });
   });
 
-  it("when urlCoworkerSlug is true, keeps composeKind but clears model and coworker", () => {
+  it("when urlCoworkerSlug is true, migrates task to chat and clears model and coworker", () => {
     const stored = {
       v: 1 as const,
       composeKind: "task" as const,
@@ -171,7 +171,7 @@ describe("resolveHydratedWelcomeSelection", () => {
         urlCoworkerSlug: true,
       }),
     ).toEqual({
-      composeKind: "task",
+      composeKind: "chat",
       coworker: null,
       model: null,
     });
@@ -191,7 +191,7 @@ describe("resolveHydratedWelcomeSelection", () => {
     expect(r.coworker?.slug).toBe("alex");
   });
 
-  it("for task compose, picks a tasks-capable fallback when stored coworker cannot do tasks", () => {
+  it("for task compose, migrates to chat and picks a chat-capable fallback", () => {
     const stored = {
       v: 1 as const,
       composeKind: "task" as const,
@@ -201,12 +201,12 @@ describe("resolveHydratedWelcomeSelection", () => {
     const r = resolveHydratedWelcomeSelection(coworkers, stored, {
       urlCoworkerSlug: false,
     });
-    expect(r.composeKind).toBe("task");
-    expect(r.coworker?.capabilities?.includes("tasks")).toBe(true);
-    expect(r.coworker?.slug).toBe("alex");
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
+    expect(r.coworker?.slug).toBe("no-tasks");
   });
 
-  it("for task compose with null coworkerSlugOrId, picks first tasks-capable coworker", () => {
+  it("for task compose with null coworkerSlugOrId, migrates to chat and picks first chat-capable coworker", () => {
     const stored = {
       v: 1 as const,
       composeKind: "task" as const,
@@ -216,12 +216,12 @@ describe("resolveHydratedWelcomeSelection", () => {
     const r = resolveHydratedWelcomeSelection(coworkers, stored, {
       urlCoworkerSlug: false,
     });
-    expect(r.composeKind).toBe("task");
-    expect(r.coworker?.capabilities?.includes("tasks")).toBe(true);
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
     expect(r.coworker?.slug).toBe("alex");
   });
 
-  it("for task compose when stored coworker id/slug is unknown, picks first tasks-capable coworker", () => {
+  it("for task compose when stored coworker id/slug is unknown, migrates to chat and picks first chat-capable coworker", () => {
     const stored = {
       v: 1 as const,
       composeKind: "task" as const,
@@ -231,12 +231,12 @@ describe("resolveHydratedWelcomeSelection", () => {
     const r = resolveHydratedWelcomeSelection(coworkers, stored, {
       urlCoworkerSlug: false,
     });
-    expect(r.composeKind).toBe("task");
-    expect(r.coworker?.capabilities?.includes("tasks")).toBe(true);
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.capabilities?.includes("chat")).toBe(true);
     expect(r.coworker?.slug).toBe("alex");
   });
 
-  it("for task compose with no tasks-capable coworkers, returns null coworker", () => {
+  it("for task compose with chat-only coworkers, migrates to chat and picks the chat-capable coworker", () => {
     const chatOnly = [
       baseCoworker({ id: "b", slug: "no-tasks", capabilities: ["chat"] }),
     ];
@@ -249,8 +249,8 @@ describe("resolveHydratedWelcomeSelection", () => {
     const r = resolveHydratedWelcomeSelection(chatOnly, stored, {
       urlCoworkerSlug: false,
     });
-    expect(r.composeKind).toBe("task");
-    expect(r.coworker).toBeNull();
+    expect(r.composeKind).toBe("chat");
+    expect(r.coworker?.slug).toBe("no-tasks");
   });
 
   it("for chat compose, picks a chat-capable fallback when stored coworker cannot chat", () => {
