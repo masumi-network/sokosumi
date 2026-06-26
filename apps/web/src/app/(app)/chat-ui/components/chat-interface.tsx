@@ -1621,7 +1621,7 @@ export default function ChatInterface({
   ]);
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+    <div className="relative flex h-full w-full flex-col overflow-visible rounded-lg">
       <div className="relative flex h-full min-h-0 w-full flex-col">
         {selectedChatId ? (
           <>

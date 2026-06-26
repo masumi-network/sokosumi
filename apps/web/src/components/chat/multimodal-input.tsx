@@ -542,7 +542,12 @@ function PureMultimodalInput({
   const showAttachmentMenu = supportsChatImageInput || supportsImageGeneration;
 
   return (
-    <div className={cn("relative flex w-full flex-col gap-4", className)}>
+    <div
+      className={cn(
+        "relative flex w-full flex-col gap-4 overflow-visible",
+        className,
+      )}
+    >
       {!chatId && (
         <div className="flex items-center justify-center gap-2">
           <span className="text-muted-foreground text-xs">
@@ -612,30 +617,67 @@ function PureMultimodalInput({
         </div>
       )}
 
-      <PromptInput
-        data-chat-input-border-anchor
-        className="border-border bg-background focus-within:border-border hover:border-muted-foreground/50 rounded-xl border transition-all duration-200"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!canSubmit) {
-            return;
-          }
-          void submitForm();
-        }}
-      >
-        <div className="flex flex-row items-start gap-1 sm:gap-2">
-          {supportsChatImageInput ? (
-            <FileUpload
-              value={pendingUploadFiles}
-              onValueChange={setPendingUploadFiles}
-              onAccept={(files) => {
-                void handleAttachFiles(files);
-              }}
-              multiple
-              disabled={isUploadingAttachments}
-              className="w-full"
-            >
-              <FileUploadDropzone className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent">
+      <div className="-mx-4 -mt-8 w-[calc(100%+2rem)] overflow-visible pt-8">
+        <div
+          data-chat-input-border-anchor
+          className={cn(
+            "from-primary/50 to-chart-1/50 focus-within:from-primary focus-within:to-chart-1",
+            "relative overflow-visible rounded-xl bg-gradient-to-r p-[1.5px]",
+            "shadow-[0_0_16px_0] shadow-primary/15",
+            "focus-within:shadow-[0_0_24px_2px] focus-within:shadow-primary/30",
+            "transition-all duration-300",
+          )}
+        >
+          <PromptInput
+            className="border-0 bg-background rounded-xl shadow-none transition-all duration-200"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!canSubmit) {
+                return;
+              }
+              void submitForm();
+            }}
+          >
+            <div className="flex flex-row items-start gap-1 sm:gap-2">
+              {supportsChatImageInput ? (
+                <FileUpload
+                  value={pendingUploadFiles}
+                  onValueChange={setPendingUploadFiles}
+                  onAccept={(files) => {
+                    void handleAttachFiles(files);
+                  }}
+                  multiple
+                  disabled={isUploadingAttachments}
+                  className="w-full"
+                >
+                  <FileUploadDropzone className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent">
+                    <PromptInputTextarea
+                      allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
+                      className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+                      data-testid="multimodal-input"
+                      disableAutoResize={true}
+                      maxHeight={200}
+                      minHeight={44}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={handleInput}
+                      placeholder={placeholder}
+                      ref={textareaRef}
+                      rows={1}
+                      value={input}
+                    />
+                    <FileUploadTrigger asChild>
+                      <button
+                        ref={attachmentTriggerRef}
+                        type="button"
+                        className="sr-only"
+                        aria-label={taskUploadFileLabel}
+                      >
+                        {taskUploadFileLabel}
+                      </button>
+                    </FileUploadTrigger>
+                  </FileUploadDropzone>
+                </FileUpload>
+              ) : (
                 <PromptInputTextarea
                   allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
                   className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
@@ -650,136 +692,115 @@ function PureMultimodalInput({
                   rows={1}
                   value={input}
                 />
-                <FileUploadTrigger asChild>
-                  <button
-                    ref={attachmentTriggerRef}
-                    type="button"
-                    className="sr-only"
-                    aria-label={taskUploadFileLabel}
-                  >
-                    {taskUploadFileLabel}
-                  </button>
-                </FileUploadTrigger>
-              </FileUploadDropzone>
-            </FileUpload>
-          ) : (
-            <PromptInputTextarea
-              allowEnterToSubmitOnMobile={enterSubmitsOnMobile}
-              className="placeholder:text-muted-foreground grow resize-none border-0! border-none! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] [scrollbar-width:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
-              data-testid="multimodal-input"
-              disableAutoResize={true}
-              maxHeight={200}
-              minHeight={44}
-              onClick={(event) => event.stopPropagation()}
-              onChange={handleInput}
-              placeholder={placeholder}
-              ref={textareaRef}
-              rows={1}
-              value={input}
-            />
-          )}
-        </div>
-        {chatFileParts.length > 0 || effectiveImageGenerationEnabled ? (
-          <div className="flex flex-col items-start gap-3 px-2 pb-1">
-            {chatFileParts.length > 0 ? (
-              <div className="flex w-full flex-wrap items-start gap-3">
-                {chatFileParts.map((part) => (
-                  <FileChipMiniPreviewWithMetadata
-                    key={part.url}
-                    url={part.url}
-                    fileName={part.filename}
-                    onRemove={() => handleRemoveChatAttachment(part.url)}
-                    removeLabel={removeAttachmentLabel}
-                  />
-                ))}
-              </div>
-            ) : null}
-            {effectiveImageGenerationEnabled ? (
-              <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
-                <ImagePlus className="text-muted-foreground size-3.5" />
-                <span>{createImageChipLabel}</span>
-                {!persistentImageGeneration ? (
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
-                    aria-label={removeCreateImageLabel}
-                    onClick={() => setImageGenerationEnabled(false)}
-                  >
-                    <X className="size-3" />
-                  </button>
+              )}
+            </div>
+            {chatFileParts.length > 0 || effectiveImageGenerationEnabled ? (
+              <div className="flex flex-col items-start gap-3 px-2 pb-1">
+                {chatFileParts.length > 0 ? (
+                  <div className="flex w-full flex-wrap items-start gap-3">
+                    {chatFileParts.map((part) => (
+                      <FileChipMiniPreviewWithMetadata
+                        key={part.url}
+                        url={part.url}
+                        fileName={part.filename}
+                        onRemove={() => handleRemoveChatAttachment(part.url)}
+                        removeLabel={removeAttachmentLabel}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {effectiveImageGenerationEnabled ? (
+                  <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
+                    <ImagePlus className="text-muted-foreground size-3.5" />
+                    <span>{createImageChipLabel}</span>
+                    {!persistentImageGeneration ? (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground rounded-full p-0.5 transition-colors"
+                        aria-label={removeCreateImageLabel}
+                        onClick={() => setImageGenerationEnabled(false)}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             ) : null}
-          </div>
-        ) : null}
-        <PromptInputToolbar className="border-top-0! border-t-0! p-3 dark:border-0 dark:border-transparent!">
-          <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
-            {showAttachmentMenu ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="size-8 rounded-full! p-0"
-                    disabled={isUploadingAttachments}
-                    title={attachmentMenuTriggerLabel}
-                    aria-label={attachmentMenuTriggerLabel}
-                  >
-                    <Plus className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="top" sideOffset={8}>
-                  {supportsChatImageInput ? (
-                    <DropdownMenuItem
-                      disabled={isUploadingAttachments}
-                      onSelect={() => attachmentTriggerRef.current?.click()}
+            <PromptInputToolbar className="border-top-0! border-t-0! p-3 dark:border-0 dark:border-transparent!">
+              <PromptInputTools className="flex-wrap gap-1 sm:gap-1.5">
+                {showAttachmentMenu ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="size-8 rounded-full! p-0"
+                        disabled={isUploadingAttachments}
+                        title={attachmentMenuTriggerLabel}
+                        aria-label={attachmentMenuTriggerLabel}
+                      >
+                        <Plus className="size-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      side="top"
+                      sideOffset={8}
                     >
-                      <Paperclip className="size-4" />
-                      {uploadFileMenuLabel}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {supportsImageGeneration ? (
-                    <DropdownMenuItem
-                      disabled={
-                        isUploadingAttachments ||
-                        effectiveImageGenerationEnabled
-                      }
-                      onSelect={handleEnableImageGeneration}
-                    >
-                      <ImagePlus className="size-4" />
-                      {createImageMenuLabel}
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-            <CoworkerModelSelector
-              selectedCoworker={selectedCoworker}
-              selectedModel={selectedModel}
-              coworkers={availableCoworkers}
-              coworkersLoading={propCoworkersLoading}
-              onSelectCoworker={handleCoworkerSelect}
-              onSelectModel={handleModelSelect}
-              disabled={!!chatId}
-              showModels
-            />
-          </PromptInputTools>
+                      {supportsChatImageInput ? (
+                        <DropdownMenuItem
+                          disabled={isUploadingAttachments}
+                          onSelect={() => attachmentTriggerRef.current?.click()}
+                        >
+                          <Paperclip className="size-4" />
+                          {uploadFileMenuLabel}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {supportsImageGeneration ? (
+                        <DropdownMenuItem
+                          disabled={
+                            isUploadingAttachments ||
+                            effectiveImageGenerationEnabled
+                          }
+                          onSelect={handleEnableImageGeneration}
+                        >
+                          <ImagePlus className="size-4" />
+                          {createImageMenuLabel}
+                        </DropdownMenuItem>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+                <CoworkerModelSelector
+                  selectedCoworker={selectedCoworker}
+                  selectedModel={selectedModel}
+                  coworkers={availableCoworkers}
+                  coworkersLoading={propCoworkersLoading}
+                  onSelectCoworker={handleCoworkerSelect}
+                  onSelectModel={handleModelSelect}
+                  disabled={!!chatId}
+                  showModels
+                />
+              </PromptInputTools>
 
-          {status === "submitted" ? (
-            <StopButton setMessages={setMessages} stop={stop} />
-          ) : (
-            <PromptInputSubmit
-              className="size-8 rounded-full transition-colors duration-200"
-              data-testid="send-button"
-              disabled={!canSubmit}
-              status={status}
-            >
-              <ArrowUpIcon size={14} />
-            </PromptInputSubmit>
-          )}
-        </PromptInputToolbar>
-      </PromptInput>
+              {status === "submitted" ? (
+                <StopButton setMessages={setMessages} stop={stop} />
+              ) : (
+                <PromptInputSubmit
+                  className="size-8 rounded-full transition-colors duration-200"
+                  data-testid="send-button"
+                  disabled={!canSubmit}
+                  status={status}
+                >
+                  <ArrowUpIcon size={14} />
+                </PromptInputSubmit>
+              )}
+            </PromptInputToolbar>
+          </PromptInput>
+        </div>
+      </div>
     </div>
   );
 }
