@@ -2,7 +2,6 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
-import { TaskStatus } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
@@ -37,7 +36,6 @@ import {
 } from "@/app/chat/utils/coworker-utils";
 import type {
   Chat,
-  ChatComposeKind,
   ChatComposeMessage,
   ChatComposeSubmitOptions,
   ChatSendMessage,
@@ -71,7 +69,6 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
-import { createTask } from "@/lib/actions/task/action";
 import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 
 import MessageList from "./message-list";
@@ -322,7 +319,7 @@ export default function ChatInterface({
       return findCoworkerBySlugOrId(coworkers, welcomeCoworkerSlug);
     }
     return findDefaultCoworker(
-      filterCoworkersForComposeKind(coworkers, "task"),
+      filterCoworkersForComposeKind(coworkers, "chat"),
     );
   }, [coworkers, welcomeCoworkerSlug]);
 
@@ -332,8 +329,6 @@ export default function ChatInterface({
     id: string;
     name: string;
   } | null>(null);
-  const [welcomeComposeKind, setWelcomeComposeKind] =
-    useState<ChatComposeKind>("task");
   const effectiveWelcomeCoworker = useMemo(() => {
     if (welcomeSelectedModel != null) {
       return null;
@@ -345,18 +340,16 @@ export default function ChatInterface({
     if (!candidate) {
       return null;
     }
-    const capability = welcomeComposeKind === "task" ? "tasks" : "chat";
-    return coworkerHasCapability(candidate, capability) ? candidate : null;
+    return coworkerHasCapability(candidate, "chat") ? candidate : null;
   }, [
     initialWelcomeCoworker,
-    welcomeComposeKind,
     welcomeCoworkerSlug,
     welcomeSelectedCoworker,
     welcomeSelectedModel,
   ]);
 
-  const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
-  const welcomeTaskCreationInFlightRef = useRef(false);
+  const [isWelcomeSubmitting, setIsWelcomeSubmitting] = useState(false);
+  const welcomeCreationInFlightRef = useRef(false);
 
   const welcomePrefsHydratedRef = useRef(false);
   const previousWelcomeCoworkerSlugRef = useRef<string | null>(
@@ -367,12 +360,10 @@ export default function ChatInterface({
     id: string;
     name: string;
   } | null>(null);
-  const welcomeComposeKindRef = useRef<ChatComposeKind>("task");
   const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
   const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
   welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
   welcomeSelectedModelRef.current = welcomeSelectedModel;
-  welcomeComposeKindRef.current = welcomeComposeKind;
   welcomePrefsWriteSelectedChatIdRef.current = selectedChatId;
   welcomePrefsWriteWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
 
@@ -381,21 +372,12 @@ export default function ChatInterface({
     if (welcomePrefsWriteWelcomeCoworkerSlugRef.current != null) return;
     writeWelcomeComposePreferences(
       buildWelcomeComposeStoredSnapshot({
-        composeKind: welcomeComposeKindRef.current,
+        composeKind: "chat",
         coworker: welcomeSelectedCoworkerRef.current,
         model: welcomeSelectedModelRef.current,
       }),
     );
   }, []);
-
-  const handleWelcomeComposeKindChange = useCallback(
-    (kind: ChatComposeKind) => {
-      setWelcomeComposeKind(kind);
-      welcomeComposeKindRef.current = kind;
-      writeWelcomePrefsFromRefs();
-    },
-    [writeWelcomePrefsFromRefs],
-  );
 
   const handleWelcomeCoworkerChange = useCallback(
     (coworker: Coworker | null) => {
@@ -452,9 +434,6 @@ export default function ChatInterface({
     const resolved = resolveHydratedWelcomeSelection(coworkers, stored, {
       urlCoworkerSlug: welcomeCoworkerSlug != null,
     });
-
-    setWelcomeComposeKind(resolved.composeKind);
-    welcomeComposeKindRef.current = resolved.composeKind;
 
     if (welcomeCoworkerSlug != null) {
       setWelcomeSelectedModel(null);
@@ -1432,121 +1411,87 @@ export default function ChatInterface({
       model?: { id: string; name: string },
       options?: ChatComposeSubmitOptions,
     ): Promise<boolean> => {
-      if (!hasSendMessageContent(message) || isLoading) {
+      if (
+        !hasSendMessageContent(message) ||
+        isLoading ||
+        (!selectedChatId &&
+          (welcomeCreationInFlightRef.current || isWelcomeTransitioning))
+      ) {
         return false;
       }
 
       const imageGenerationForSend =
         options?.imageGeneration === true ||
         (selectedChatId != null && selectedConversationImageGeneration);
-      const messageText = getSendMessageText(message);
+      const _messageText = getSendMessageText(message);
       const sendPayload = withImageGenerationMetadata(
         toChatSendMessage(message),
         imageGenerationForSend,
       );
-      const composeKind = options?.kind ?? "task";
       const sendOptions = imageGenerationForSend
         ? { body: { imageGeneration: true } }
         : undefined;
 
       if (!selectedChatId) {
-        if (composeKind === "task") {
-          if (!messageText) {
-            return false;
+        welcomeCreationInFlightRef.current = true;
+        setIsWelcomeSubmitting(true);
+        try {
+          setIsWelcomeTransitioning(true);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
+          let conversationId: string | null = null;
+
+          if (model || selectedModel) {
+            const modelToUse = model || selectedModel;
+            if (modelToUse) {
+              conversationId = await handleModelSelected(modelToUse, {
+                imageGeneration: imageGenerationForSend,
+              });
+            }
+          } else {
+            const selectedCoworker =
+              (coworker && coworkerHasCapability(coworker, "chat")
+                ? coworker
+                : null) ??
+              (effectiveWelcomeCoworker &&
+              coworkerHasCapability(effectiveWelcomeCoworker, "chat")
+                ? effectiveWelcomeCoworker
+                : null) ??
+              coworkers.find((candidate) =>
+                coworkerHasCapability(candidate, "chat"),
+              ) ??
+              null;
+            if (!selectedCoworker) {
+              toast.error(t("noCoworkersAvailable"));
+              setIsWelcomeTransitioning(false);
+              return false;
+            }
+            conversationId = await handleCoworkerSelected(selectedCoworker);
           }
 
-          if (welcomeTaskCreationInFlightRef.current) {
-            return false;
-          }
-
-          const selectedTaskCoworker =
-            coworker ??
-            coworkers.find((candidate) =>
-              coworkerHasCapability(candidate, "tasks"),
-            ) ??
-            null;
-
-          if (!selectedTaskCoworker) {
-            toast.error(t("noTaskCoworkers"));
-            return false;
-          }
-
-          welcomeTaskCreationInFlightRef.current = true;
-          setIsWelcomeTaskSubmitting(true);
-          try {
-            const result = await createTask({
-              description: messageText,
-              coworkerId: selectedTaskCoworker.id,
-              skipDesignMdAttachment: options?.skipDesignMdAttachment,
-              status:
-                options?.taskStatus === "DRAFT"
-                  ? TaskStatus.DRAFT
-                  : TaskStatus.READY,
-            });
-            router.push(`/tasks/${result.taskId}`);
-            return true;
-          } catch (error) {
-            console.error("Failed to create task from chat composer", error);
-            toast.error(t("taskCreationFailed"));
-            return false;
-          } finally {
-            welcomeTaskCreationInFlightRef.current = false;
-            setIsWelcomeTaskSubmitting(false);
-          }
-        }
-
-        setIsWelcomeTransitioning(true);
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        let conversationId: string | null = null;
-
-        if (model || selectedModel) {
-          const modelToUse = model || selectedModel;
-          if (modelToUse) {
-            conversationId = await handleModelSelected(modelToUse, {
-              imageGeneration: imageGenerationForSend,
-            });
-          }
-        } else {
-          const selectedCoworker =
-            (coworker && coworkerHasCapability(coworker, "chat")
-              ? coworker
-              : null) ??
-            (effectiveWelcomeCoworker &&
-            coworkerHasCapability(effectiveWelcomeCoworker, "chat")
-              ? effectiveWelcomeCoworker
-              : null) ??
-            coworkers.find((candidate) =>
-              coworkerHasCapability(candidate, "chat"),
-            ) ??
-            null;
-          if (!selectedCoworker) {
-            toast.error(t("noCoworkersAvailable"));
+          if (!conversationId) {
             setIsWelcomeTransitioning(false);
             return false;
           }
-          conversationId = await handleCoworkerSelected(selectedCoworker);
-        }
 
-        if (!conversationId) {
-          setIsWelcomeTransitioning(false);
-          return false;
-        }
-
-        if (!currentChatIdRef.current) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
           if (!currentChatIdRef.current) {
-            setIsWelcomeTransitioning(false);
-            return false;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!currentChatIdRef.current) {
+              setIsWelcomeTransitioning(false);
+              return false;
+            }
           }
-        }
 
-        const cid = currentChatIdRef.current ?? conversationId;
-        const sent = cid
-          ? sendInConversation(cid, sendPayload, sendOptions)
-          : false;
-        if (sent) setInput("");
-        return sent;
+          const cid = currentChatIdRef.current ?? conversationId;
+          const sent = cid
+            ? sendInConversation(cid, sendPayload, sendOptions)
+            : false;
+          if (sent) setInput("");
+          return sent;
+        } finally {
+          welcomeCreationInFlightRef.current = false;
+          setIsWelcomeSubmitting(false);
+        }
       }
 
       if (selectedChatId) {
@@ -1571,6 +1516,7 @@ export default function ChatInterface({
     [
       coworkers,
       isLoading,
+      isWelcomeTransitioning,
       selectedChatId,
       selectedConversationImageGeneration,
       sendInConversation,
@@ -1691,7 +1637,7 @@ export default function ChatInterface({
   ]);
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+    <div className="relative flex h-full w-full flex-col overflow-visible rounded-lg">
       <div className="relative flex h-full min-h-0 w-full flex-col">
         {selectedChatId ? (
           <>
@@ -1770,10 +1716,8 @@ export default function ChatInterface({
             mobileKeyboardOptimized={mobileKeyboardOptimized}
             showGreetingAndSuggestions={showGreetingAndSuggestions}
             userName={userName?.split(" ")[0] ?? userName}
-            welcomeComposeKind={welcomeComposeKind}
-            onWelcomeComposeKindChange={handleWelcomeComposeKindChange}
-            welcomeSendBlocked={isWelcomeTaskSubmitting}
             onSendMessage={handleSendMessage}
+            welcomeSendBlocked={isWelcomeSubmitting || isWelcomeTransitioning}
             isTransitioning={isWelcomeTransitioning}
             input={input}
             setInput={setInput}
@@ -1787,7 +1731,6 @@ export default function ChatInterface({
             onCoworkerChange={handleWelcomeCoworkerChange}
             selectedModel={welcomeSelectedModel}
             onSelectModel={handleWelcomeModelChange}
-            initialDesignMdAttachment={initialDesignMdAttachment}
           />
         )}
       </div>

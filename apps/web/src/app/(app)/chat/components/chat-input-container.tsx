@@ -52,8 +52,8 @@ export default function ChatInputContainer({
   persistentImageGeneration = false,
 }: ChatInputContainerProps) {
   return (
-    <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-0">
-      <div className="w-full max-w-4xl">
+    <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0">
+      <div className="w-full max-w-4xl overflow-visible">
         <MultimodalInput
           blurOnSendOnMobile={mobileKeyboardOptimized}
           chatId={selectedChatId || undefined}

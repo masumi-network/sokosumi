@@ -107,15 +107,13 @@ export function resolveHydratedWelcomeSelection(
     };
   }
 
-  const composeKind: ChatComposeKind = isChatComposeKind(stored.composeKind)
-    ? stored.composeKind
-    : defaultCompose;
+  const composeKind: ChatComposeKind = "chat";
 
   if (options.urlCoworkerSlug) {
     return { composeKind, coworker: null, model: null };
   }
 
-  if (composeKind === "chat" && stored.modelId) {
+  if (stored.modelId) {
     const model = CHAT_MODELS.find((m) => m.id === stored.modelId);
     if (model) {
       return {
@@ -135,16 +133,6 @@ export function resolveHydratedWelcomeSelection(
         x.id.toLowerCase() === key.toLowerCase(),
     );
     if (c) {
-      if (composeKind === "task") {
-        if (coworkerHasCapability(c, "tasks")) {
-          return { composeKind: "task", coworker: c, model: null };
-        }
-        return {
-          composeKind: "task",
-          coworker: firstCoworkerWithCapability(coworkers, "tasks"),
-          model: null,
-        };
-      }
       if (coworkerHasCapability(c, "chat")) {
         return { composeKind: "chat", coworker: c, model: null };
       }
@@ -154,14 +142,6 @@ export function resolveHydratedWelcomeSelection(
         model: null,
       };
     }
-  }
-
-  if (composeKind === "task") {
-    return {
-      composeKind: "task",
-      coworker: firstCoworkerWithCapability(coworkers, "tasks"),
-      model: null,
-    };
   }
 
   return {
