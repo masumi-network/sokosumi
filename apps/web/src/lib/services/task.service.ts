@@ -114,6 +114,18 @@ export const taskService = (() => {
     }
   }
 
+  async function getTaskWorkspace(taskId: string): Promise<{
+    workspaceId: string;
+    organizationId: string | null;
+  } | null> {
+    try {
+      const result = await coreClient.getTaskWorkspace(taskId);
+      return result.data;
+    } catch {
+      return null;
+    }
+  }
+
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask(input);
 
@@ -210,6 +222,7 @@ export const taskService = (() => {
     listJobs,
     listTasks,
     getTaskById,
+    getTaskWorkspace,
     createTask,
     createTaskLink,
     createTaskEvent,

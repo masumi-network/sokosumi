@@ -131,6 +131,7 @@ import {
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
+  getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
@@ -635,6 +636,19 @@ export function createCoreClient(getClient: GetClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to fetch task",
+    );
+  }
+
+  async function getTaskWorkspace(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdWorkspace({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to resolve task workspace",
     );
   }
 
@@ -2797,6 +2811,7 @@ export function createCoreClient(getClient: GetClient) {
     setHermesSecret,
     getTaskById,
     getTaskLinks,
+    getTaskWorkspace,
     getTasks,
     getUserTasksCount,
     patchTask,
