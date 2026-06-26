@@ -32,37 +32,46 @@ export function InlineCreateProjectModal({
     onOpenChange(false);
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setIsDismissDisabled(false);
+    }
+    onOpenChange(nextOpen);
+  }
+
   return (
     <TaskFormModal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={t("NewProject.title")}
       cancelLabel={t("NewProject.cancel")}
       isDismissDisabled={isDismissDisabled}
     >
-      <ProjectForm
-        key={initialName}
-        mode="create"
-        variant="modal"
-        showCancel={false}
-        labels={{
-          details: t("NewProject.details"),
-          detailsDescription: t("NewProject.detailsDescription"),
-          name: t("NewProject.name"),
-          namePlaceholder: t("NewProject.namePlaceholder"),
-          description: t("NewProject.description"),
-          descriptionPlaceholder: t("NewProject.descriptionPlaceholder"),
-          submit: t("NewProject.createProject"),
-          cancel: t("NewProject.cancel"),
-          error: t("Detail.errors.create"),
-        }}
-        initialValues={{
-          name: initialName,
-        }}
-        onCancel={handleCancel}
-        onSubmittingChange={setIsDismissDisabled}
-        onSuccess={handleSuccess}
-      />
+      {open ? (
+        <ProjectForm
+          key={initialName}
+          mode="create"
+          variant="modal"
+          showCancel={false}
+          labels={{
+            details: t("NewProject.details"),
+            detailsDescription: t("NewProject.detailsDescription"),
+            name: t("NewProject.name"),
+            namePlaceholder: t("NewProject.namePlaceholder"),
+            description: t("NewProject.description"),
+            descriptionPlaceholder: t("NewProject.descriptionPlaceholder"),
+            submit: t("NewProject.createProject"),
+            cancel: t("NewProject.cancel"),
+            error: t("Detail.errors.create"),
+          }}
+          initialValues={{
+            name: initialName,
+          }}
+          onCancel={handleCancel}
+          onSubmittingChange={setIsDismissDisabled}
+          onSuccess={handleSuccess}
+        />
+      ) : null}
     </TaskFormModal>
   );
 }

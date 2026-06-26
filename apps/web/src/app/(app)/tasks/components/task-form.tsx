@@ -765,7 +765,10 @@ export function TaskForm({
                 variant="ghost"
                 size="sm"
                 className="text-primary -ml-2"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  setIsCreateProjectModalOpen(false);
+                  setStep(1);
+                }}
               >
                 <ArrowLeft className="mr-1 size-3.5" />
                 {labels.back}
