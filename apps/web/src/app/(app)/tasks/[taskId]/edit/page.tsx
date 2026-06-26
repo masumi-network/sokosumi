@@ -98,6 +98,8 @@ export default async function EditTaskPage({
         projectNone: tEdit("projectNone"),
         projectSearchPlaceholder: tEdit("projectSearchPlaceholder"),
         projectEmptyResults: tEdit("projectEmptyResults"),
+        projectCreate: tEdit("projectCreate"),
+        projectCreateNamed: tEdit("projectCreateNamed"),
         coworker: tEdit("coworker"),
         coworkerDescription: tEdit("coworkerDescription"),
         status: tEdit("status"),
