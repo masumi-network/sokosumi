@@ -16,6 +16,7 @@ import {
   PenLine,
   Play,
   Presentation,
+  Table,
   Users,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
@@ -38,6 +39,7 @@ const OUTPUT_ICON: Record<OutputKind, typeof FileText> = {
   pdf: FileText,
   doc: FileText,
   slides: Presentation,
+  sheet: Table,
   image: ImageIcon,
   text: AlignLeft,
   html: AppWindow,
@@ -48,6 +50,7 @@ const DEFAULT_OUTPUT_LABEL: Record<OutputKind, string> = {
   pdf: "PDF",
   doc: "Doc",
   slides: "Slides",
+  sheet: "Sheet",
   image: "Image",
   text: "Text",
   html: "Web",
@@ -84,6 +87,7 @@ export function OutputTypeIcon({
 type MockKind =
   | "slides"
   | "page"
+  | "sheet"
   | "image"
   | "text"
   | "chart"
@@ -167,12 +171,19 @@ function mockKind(offer: CoworkerOffer): MockKind {
   const primary = offerOutputs(offer)[0];
   if (primary.type === "image" && primary.url) return "image";
   if (primary.type === "slides") return "slides";
+  if (primary.type === "sheet") return "sheet";
   if (primary.type === "html") return "web";
   if ((primary.type === "pdf" || primary.type === "doc") && primary.url) {
     return "page";
   }
   return CATEGORY_MOCK[offer.category ?? ""] ?? "text";
 }
+
+// Stable keys for the decorative 4×4 spreadsheet grid (avoids array-index keys).
+const SHEET_CELLS = Array.from(
+  { length: 16 },
+  (_cell, index) => `r${Math.floor(index / 4)}c${index % 4}`,
+);
 
 /** Stylized skeleton of the output — decorative, no fabricated content. One element
  * carries the category accent so the preview is color-cued without becoming a wash. */
@@ -304,6 +315,23 @@ function OfferMock({
             <div className={cn("h-6 w-full rounded", accent)} />
             <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
             <div className="bg-muted-foreground/20 h-1.5 w-1/2 rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "sheet") {
+    return (
+      <div className="flex h-full items-center justify-center p-5">
+        <div className="ring-border w-full max-w-[82%] overflow-hidden rounded-md bg-card shadow-sm ring-1">
+          <div className={cn("h-2 w-full", accent)} />
+          <div className="grid grid-cols-4">
+            {SHEET_CELLS.map((cell) => (
+              <div
+                key={cell}
+                className="border-border/60 h-3.5 border-r border-b last:border-r-0"
+              />
+            ))}
           </div>
         </div>
       </div>
