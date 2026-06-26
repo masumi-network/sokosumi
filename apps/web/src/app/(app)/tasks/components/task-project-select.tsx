@@ -25,12 +25,15 @@ interface TaskProjectSelectLabels {
   searchPlaceholder: string;
   emptyResults: string;
   placeholder?: string;
+  projectCreate?: string;
+  projectCreateNamed?: string;
 }
 
 interface TaskProjectSelectProps extends TaskProjectSelectLabels {
   projectOptions: ProjectFilterOption[];
   value: string | null;
   onChange: (value: string | null) => void;
+  onCreateProject?: (searchQuery: string) => void;
 }
 
 const NO_PROJECT_VALUE = "__no_project__";
@@ -44,8 +47,12 @@ export function TaskProjectSelect({
   searchPlaceholder,
   emptyResults,
   placeholder,
+  projectCreate,
+  projectCreateNamed,
+  onCreateProject,
 }: TaskProjectSelectProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const selectedProject = useMemo(
     () => projectOptions.find((project) => project.id === value) ?? null,
     [projectOptions, value],
@@ -64,6 +71,17 @@ export function TaskProjectSelect({
     onChange(projectId);
     setOpen(false);
   }
+
+  function handleCreateProject() {
+    if (!onCreateProject) return;
+    const trimmedQuery = search.trim();
+    onCreateProject(trimmedQuery);
+    setOpen(false);
+  }
+
+  const createLabel = search.trim()
+    ? projectCreateNamed?.replace("{name}", search.trim())
+    : projectCreate;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -92,7 +110,12 @@ export function TaskProjectSelect({
         className="w-(--radix-popover-trigger-width) p-0"
       >
         <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>
-          <CommandInput autoFocus placeholder={searchPlaceholder} />
+          <CommandInput
+            autoFocus
+            placeholder={searchPlaceholder}
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <CommandEmpty>{emptyResults}</CommandEmpty>
             <CommandItem
@@ -126,6 +149,16 @@ export function TaskProjectSelect({
                 />
               </CommandItem>
             ))}
+            {onCreateProject && createLabel ? (
+              <CommandItem
+                forceMount
+                value="__create_project__"
+                keywords={[createLabel]}
+                onSelect={handleCreateProject}
+              >
+                <span className="flex-1 truncate">{createLabel}</span>
+              </CommandItem>
+            ) : null}
           </CommandList>
         </Command>
       </PopoverContent>
