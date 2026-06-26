@@ -656,8 +656,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "Avis de compte",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 notification non lue} other {# notifications non lues}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notification non lue et avis de compte} other {# notifications non lues et avis de compte}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
       "emptyState": "Aucune notification pour le moment",
@@ -669,6 +671,7 @@
       "fetchError": "Impossible de charger les notifications",
       "retry": "Réessayer",
       "dismiss": "Ignorer",
+      "view": "Voir",
       "dismissNotification": "Ignorer la notification"
     },
     "HashValue": {

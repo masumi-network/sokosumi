@@ -656,8 +656,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "账户提醒",
       "notifications": "通知",
       "unreadBadge": "{count, plural, =1 {1 条未读通知} other {# 条未读通知}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 条未读通知和账户提醒} other {# 条未读通知和账户提醒}}",
       "title": "通知",
       "pageTitle": "通知",
       "emptyState": "暂无通知",
@@ -669,6 +671,7 @@
       "fetchError": "无法加载通知",
       "retry": "重试",
       "dismiss": "关闭",
+      "view": "查看",
       "dismissNotification": "关闭通知"
     },
     "HashValue": {

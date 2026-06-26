@@ -656,8 +656,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "アカウント通知",
       "notifications": "通知",
       "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {未読通知が1件とアカウント通知} other {未読通知が#件とアカウント通知}}",
       "title": "通知",
       "pageTitle": "通知",
       "emptyState": "まだ通知はありません",
@@ -669,6 +671,7 @@
       "fetchError": "通知を読み込めませんでした",
       "retry": "再試行",
       "dismiss": "閉じる",
+      "view": "表示",
       "dismissNotification": "通知を閉じる"
     },
     "HashValue": {

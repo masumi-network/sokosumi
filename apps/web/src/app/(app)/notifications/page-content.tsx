@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
+import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -30,6 +32,7 @@ export function NotificationsPageContent({
   const { data: session } = useSession();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const { notice } = useAccountNotice();
   const {
     markRead,
     markAllRead,
@@ -186,6 +189,7 @@ export function NotificationsPageContent({
 
   return (
     <div className="flex flex-col gap-5 pb-4">
+      {notice !== null ? <AccountNoticeRow /> : null}
       {unreadCount > 0 ? (
         <div className="flex justify-end">
           <Button
@@ -225,13 +229,13 @@ export function NotificationsPageContent({
             {tCenter("retry")}
           </Button>
         </div>
-      ) : notifications.length === 0 ? (
+      ) : notifications.length === 0 && notice === null ? (
         <div className="bg-muted/30 border-border/50 flex flex-col items-center justify-center rounded-xl border p-8">
           <p className="text-muted-foreground text-center">
             {tCenter("emptyState")}
           </p>
         </div>
-      ) : (
+      ) : notifications.length > 0 ? (
         <>
           <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
             <div className="divide-border/50 divide-y">
@@ -291,7 +295,7 @@ export function NotificationsPageContent({
             </div>
           ) : null}
         </>
-      )}
+      ) : null}
     </div>
   );
 }
