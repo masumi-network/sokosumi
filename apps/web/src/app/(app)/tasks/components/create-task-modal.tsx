@@ -210,7 +210,7 @@ export function CreateTaskModal({
           projectSearchPlaceholder: t("projectSearchPlaceholder"),
           projectEmptyResults: t("projectEmptyResults"),
           projectCreate: t("projectCreate"),
-          projectCreateNamed: t("projectCreateNamed"),
+          projectCreateNamed: t.raw("projectCreateNamed") as string,
           coworker: t("coworker"),
           coworkerDescription: t("coworkerDescription"),
           chooseAgent: t("chooseAgent"),

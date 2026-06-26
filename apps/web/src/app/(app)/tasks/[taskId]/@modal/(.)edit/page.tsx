@@ -94,7 +94,7 @@ export default async function TaskEditModalPage({
         projectSearchPlaceholder: tEdit("projectSearchPlaceholder"),
         projectEmptyResults: tEdit("projectEmptyResults"),
         projectCreate: tEdit("projectCreate"),
-        projectCreateNamed: tEdit("projectCreateNamed"),
+        projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
         coworker: tEdit("coworker"),
         coworkerDescription: tEdit("coworkerDescription"),
         status: tEdit("status"),
