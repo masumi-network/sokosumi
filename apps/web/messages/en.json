@@ -3607,6 +3607,7 @@
           "pdf": "PDF",
           "slides": "Slides",
           "doc": "Document",
+          "sheet": "Spreadsheet",
           "text": "Text",
           "image": "Image",
           "html": "Web"

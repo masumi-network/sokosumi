@@ -2447,10 +2447,13 @@ export type CoworkerOffer = {
     description?: string;
     deliverable?: string;
     /**
-     * Example outputs the offer produces — text and/or files (PDF, slides, image).
+     * Example outputs the offer produces — text and/or files (PDF, document, slides, spreadsheet, image, html). Multiple outputs render as switchable tabs in the preview.
      */
     outputs?: Array<{
-        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text' | 'html';
+        /**
+         * Output kind. Common file extensions are accepted and normalized (e.g. docx→doc, pptx→slides, xlsx/xls/csv→sheet, png/jpg→image).
+         */
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'sheet' | 'text' | 'html';
         url?: string;
         label?: string;
         /**
