@@ -1,6 +1,8 @@
 import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Task } from "@/lib/clients/generated/core";
+
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
@@ -88,8 +90,13 @@ function buildTaskLink(
 }
 
 function buildTask(
-  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
-) {
+  overrides?: Partial<
+    Pick<Task, "id" | "name" | "description" | "coworkerId" | "status"> & {
+      metadata: string | null;
+      nextRunAt: Date | null;
+    }
+  >,
+): Task {
   return {
     id: "task-created",
     name: "Generated task name",
@@ -97,7 +104,7 @@ function buildTask(
     coworkerId: null,
     status: TaskStatus.READY,
     ...overrides,
-  } as never;
+  } as Task;
 }
 
 describe("task link actions", () => {
@@ -602,14 +609,14 @@ describe("setTaskStatusFromDrag", () => {
   });
 
   it("clears the schedule before moving a scheduled queued task to ready", async () => {
-    taskServiceMock.getTaskById.mockResolvedValue({
-      ...buildTask({
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
         id: "task-1",
         status: TaskStatus.QUEUED,
+        metadata: scheduledMetadata,
+        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
       }),
-      metadata: scheduledMetadata,
-      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
-    });
+    );
     taskScheduleServiceMock.clearSchedule.mockResolvedValue({
       id: "task-1",
       status: TaskStatus.DRAFT,
@@ -631,14 +638,14 @@ describe("setTaskStatusFromDrag", () => {
   });
 
   it("clears the schedule without re-queuing when reverting a scheduled queued task to draft", async () => {
-    taskServiceMock.getTaskById.mockResolvedValue({
-      ...buildTask({
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
         id: "task-1",
         status: TaskStatus.QUEUED,
+        metadata: scheduledMetadata,
+        nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
       }),
-      metadata: scheduledMetadata,
-      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
-    });
+    );
     taskScheduleServiceMock.clearSchedule.mockResolvedValue({
       id: "task-1",
       status: TaskStatus.DRAFT,
