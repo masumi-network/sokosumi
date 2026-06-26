@@ -656,8 +656,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "Avviso account",
       "notifications": "Notifiche",
       "unreadBadge": "{count, plural, =1 {1 notifica non letta} other {# notifiche non lette}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notifica non letta e avviso account} other {# notifiche non lette e avviso account}}",
       "title": "Notifiche",
       "pageTitle": "Notifiche",
       "emptyState": "Nessuna notifica per ora",
@@ -669,6 +671,7 @@
       "fetchError": "Impossibile caricare le notifiche",
       "retry": "Riprova",
       "dismiss": "Ignora",
+      "view": "Visualizza",
       "dismissNotification": "Ignora notifica"
     },
     "HashValue": {
@@ -1411,7 +1414,6 @@
       },
       "Columns": {
         "backlog": "Backlog",
-        "scheduled": "Programmato",
         "todo": "Da fare",
         "inProgress": "In corso",
         "inputRequired": "Input richiesto",
@@ -1659,6 +1661,8 @@
         "projectNone": "Nessun progetto",
         "projectSearchPlaceholder": "Cerca progetti...",
         "projectEmptyResults": "Nessun progetto trovato.",
+        "projectCreate": "Crea progetto...",
+        "projectCreateNamed": "Crea \"{name}\"",
         "coworker": "Coworker",
         "coworkerDescription": "Scegli un coworker LLM che gestirà questo task per te",
         "status": "Stato",
@@ -1717,6 +1721,8 @@
         "projectNone": "Nessun progetto",
         "projectSearchPlaceholder": "Cerca progetti...",
         "projectEmptyResults": "Nessun progetto trovato.",
+        "projectCreate": "Crea progetto...",
+        "projectCreateNamed": "Crea \"{name}\"",
         "coworker": "Coworker",
         "coworkerDescription": "Scegli un coworker LLM che gestirà questo task per te",
         "status": "Stato",

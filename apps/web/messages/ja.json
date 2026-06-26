@@ -656,8 +656,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "アカウント通知",
       "notifications": "通知",
       "unreadBadge": "{count, plural, =1 {未読通知が1件} other {未読通知が#件}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {未読通知が1件とアカウント通知} other {未読通知が#件とアカウント通知}}",
       "title": "通知",
       "pageTitle": "通知",
       "emptyState": "まだ通知はありません",
@@ -669,6 +671,7 @@
       "fetchError": "通知を読み込めませんでした",
       "retry": "再試行",
       "dismiss": "閉じる",
+      "view": "表示",
       "dismissNotification": "通知を閉じる"
     },
     "HashValue": {
@@ -1411,7 +1414,6 @@
       },
       "Columns": {
         "backlog": "バックログ",
-        "scheduled": "予定済み",
         "todo": "未着手",
         "inProgress": "進行中",
         "inputRequired": "入力が必要",
@@ -1659,6 +1661,8 @@
         "projectNone": "プロジェクトなし",
         "projectSearchPlaceholder": "プロジェクトを検索...",
         "projectEmptyResults": "プロジェクトが見つかりません。",
+        "projectCreate": "プロジェクトを作成...",
+        "projectCreateNamed": "「{name}」を作成",
         "coworker": "同僚",
         "coworkerDescription": "このタスクを管理する同僚LLMを選択してください",
         "status": "ステータス",
@@ -1717,6 +1721,8 @@
         "projectNone": "プロジェクトなし",
         "projectSearchPlaceholder": "プロジェクトを検索...",
         "projectEmptyResults": "プロジェクトが見つかりません。",
+        "projectCreate": "プロジェクトを作成...",
+        "projectCreateNamed": "「{name}」を作成",
         "coworker": "同僚",
         "coworkerDescription": "このタスクを管理する同僚LLMを選択してください",
         "status": "ステータス",

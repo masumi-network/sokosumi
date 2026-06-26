@@ -209,7 +209,6 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
 
   const columnLabels: Record<KanbanColumnId, string> = {
     backlog: tColumns("backlog"),
-    scheduled: tColumns("scheduled"),
     todo: tColumns("todo"),
     "in-progress": tColumns("inProgress"),
     "input-required": tColumns("inputRequired"),

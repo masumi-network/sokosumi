@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { getDefaultAuthenticatedLandingPath } from "@/lib/utils/landing-path";
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 export default async function Page() {
-  const path = await getDefaultAuthenticatedLandingPath();
-  redirect(path);
+  redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
 }

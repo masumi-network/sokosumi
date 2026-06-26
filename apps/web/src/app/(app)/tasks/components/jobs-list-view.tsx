@@ -97,7 +97,6 @@ export function JobsListView({
   const groupedJobs = useMemo(() => {
     const initial: Record<KanbanColumnId, TasksViewJob[]> = {
       backlog: [],
-      scheduled: [],
       todo: [],
       "in-progress": [],
       "input-required": [],

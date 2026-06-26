@@ -1,10 +1,11 @@
-export type AppTopNotice =
-  | { kind: "none" }
-  | { email: string; kind: "emailVerification" }
-  | { kind: "lowCredits"; path: string }
-  | { kind: "outOfCredits"; path: string };
+export type AccountNoticeTone = "warning" | "destructive";
 
-interface ResolveAppTopNoticeParams {
+export type AccountNotice =
+  | { type: "emailVerification"; email: string; tone: "warning" }
+  | { type: "lowCredits"; path: string; tone: "warning" }
+  | { type: "outOfCredits"; path: string; tone: "destructive" };
+
+interface ResolveAccountNoticeParams {
   email: string | null | undefined;
   emailVerified: boolean;
   credits: number | null;
@@ -22,37 +23,40 @@ export function resolveLowCreditsBillingPath(
   return "/billing?tab=credits";
 }
 
-export function resolveAppTopNotice({
+export function resolveAccountNotice({
   email,
   emailVerified,
   credits,
   currentPlan,
   threshold,
-}: ResolveAppTopNoticeParams): AppTopNotice {
+}: ResolveAccountNoticeParams): AccountNotice | null {
   if (!emailVerified && email) {
     return {
       email,
-      kind: "emailVerification",
+      tone: "warning",
+      type: "emailVerification",
     };
   }
 
   if (typeof credits !== "number") {
-    return { kind: "none" };
+    return null;
   }
 
   if (credits <= 0) {
     return {
-      kind: "outOfCredits",
       path: resolveLowCreditsBillingPath(currentPlan),
+      tone: "destructive",
+      type: "outOfCredits",
     };
   }
 
   if (credits >= threshold) {
-    return { kind: "none" };
+    return null;
   }
 
   return {
-    kind: "lowCredits",
     path: resolveLowCreditsBillingPath(currentPlan),
+    tone: "warning",
+    type: "lowCredits",
   };
 }
