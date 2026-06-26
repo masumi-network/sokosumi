@@ -1271,16 +1271,8 @@
       "Chat": {
         "newChat": "New Chat",
         "sidebarNew": "New",
-        "composeMode": "Compose mode",
-        "composeChat": "Chat",
-        "composeTask": "Task",
-        "taskStatus": "Task status",
-        "taskStatusDraft": "Draft",
-        "taskStatusReady": "Ready",
         "noChats": "No chats yet",
         "noCoworkersAvailable": "No coworkers available. Please try again later.",
-        "noTaskCoworkers": "No task-enabled coworkers are available right now.",
-        "taskCreationFailed": "Failed to create task.",
         "emptyState": {
           "title": "Start a conversation",
           "titleWithName": "Start a conversation with {name}",
@@ -1293,7 +1285,7 @@
           "question": "How can we help you today?",
           "title": "Welcome! How can we help you today?",
           "titleWithName": "Welcome {name}! How can we help you today?",
-          "placeholder": "Enter your task and submit it to {coworkerSlug}.",
+          "placeholder": "Message {coworkerSlug}...",
           "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
           "prompts": {

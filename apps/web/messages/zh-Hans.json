@@ -1260,16 +1260,8 @@
       "Chat": {
         "newChat": "新建聊天",
         "sidebarNew": "新建",
-        "composeMode": "创建模式",
-        "composeChat": "聊天",
-        "composeTask": "任务",
-        "taskStatus": "任务状态",
-        "taskStatusDraft": "草稿",
-        "taskStatusReady": "就绪",
         "noChats": "暂无聊天",
         "noCoworkersAvailable": "暂无可用协作伙伴。请稍后重试。",
-        "noTaskCoworkers": "当前没有启用任务功能的协作伙伴。",
-        "taskCreationFailed": "创建任务失败。",
         "emptyState": {
           "title": "开始对话",
           "titleWithName": "与 {name} 开始对话",
@@ -1282,7 +1274,7 @@
           "question": "今天我们能如何帮助您？",
           "title": "欢迎！今天我们能如何帮助您？",
           "titleWithName": "欢迎 {name}！今天我们能如何帮助您？",
-          "placeholder": "输入您的任务并提交给 {coworkerSlug}。",
+          "placeholder": "给 {coworkerSlug} 发消息...",
           "coworkerSlugFallback": "协作者",
           "suggestionsLabel": "试试问",
           "prompts": {

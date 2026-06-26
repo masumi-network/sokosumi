@@ -1260,16 +1260,8 @@
       "Chat": {
         "newChat": "Nuova chat",
         "sidebarNew": "Nuovo",
-        "composeMode": "Modalità di creazione",
-        "composeChat": "Chat",
-        "composeTask": "Attività",
-        "taskStatus": "Stato dell'attività",
-        "taskStatusDraft": "Bozza",
-        "taskStatusReady": "Pronta",
         "noChats": "Ancora nessuna chat",
         "noCoworkersAvailable": "Nessun coworker disponibile. Riprova più tardi.",
-        "noTaskCoworkers": "Al momento non ci sono coworker con le attività abilitate.",
-        "taskCreationFailed": "Impossibile creare l'attività.",
         "emptyState": {
           "title": "Avvia una conversazione",
           "titleWithName": "Avvia una conversazione con {name}",
@@ -1282,7 +1274,7 @@
           "question": "Come possiamo aiutarti oggi?",
           "title": "Benvenuto! Come possiamo aiutarti oggi?",
           "titleWithName": "Benvenuto {name}! Come possiamo aiutarti oggi?",
-          "placeholder": "Inserisci il tuo compito e invialo a {coworkerSlug}.",
+          "placeholder": "Messaggio a {coworkerSlug}...",
           "coworkerSlugFallback": "il coworker",
           "suggestionsLabel": "Prova a chiedere",
           "prompts": {

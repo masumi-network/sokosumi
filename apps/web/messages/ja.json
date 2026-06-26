@@ -1260,16 +1260,8 @@
       "Chat": {
         "newChat": "新しいチャット",
         "sidebarNew": "新規",
-        "composeMode": "作成モード",
-        "composeChat": "チャット",
-        "composeTask": "タスク",
-        "taskStatus": "タスクの状態",
-        "taskStatusDraft": "下書き",
-        "taskStatusReady": "準備完了",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
-        "noTaskCoworkers": "現在、タスク対応の同僚は利用できません。",
-        "taskCreationFailed": "タスクを作成できませんでした。",
         "emptyState": {
           "title": "会話を開始",
           "titleWithName": "{name}と会話を開始",
@@ -1282,7 +1274,7 @@
           "question": "本日はどのようにお手伝いできますか？",
           "title": "ようこそ！本日はどのようにお手伝いできますか？",
           "titleWithName": "ようこそ {name} さん！本日はどのようにお手伝いできますか？",
-          "placeholder": "タスクを入力して {coworkerSlug} に送信してください。",
+          "placeholder": "{coworkerSlug} にメッセージ...",
           "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
           "prompts": {

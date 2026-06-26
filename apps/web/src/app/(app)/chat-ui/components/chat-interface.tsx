@@ -319,7 +319,7 @@ export default function ChatInterface({
       return findCoworkerBySlugOrId(coworkers, welcomeCoworkerSlug);
     }
     return findDefaultCoworker(
-      filterCoworkersForComposeKind(coworkers, "task"),
+      filterCoworkersForComposeKind(coworkers, "chat"),
     );
   }, [coworkers, welcomeCoworkerSlug]);
 
@@ -1714,7 +1714,6 @@ export default function ChatInterface({
             onCoworkerChange={handleWelcomeCoworkerChange}
             selectedModel={welcomeSelectedModel}
             onSelectModel={handleWelcomeModelChange}
-            initialDesignMdAttachment={initialDesignMdAttachment}
           />
         )}
       </div>

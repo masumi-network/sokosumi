@@ -1260,16 +1260,8 @@
       "Chat": {
         "newChat": "Nouveau chat",
         "sidebarNew": "Nouveau",
-        "composeMode": "Mode de création",
-        "composeChat": "Chat",
-        "composeTask": "Tâche",
-        "taskStatus": "Statut de la tâche",
-        "taskStatusDraft": "Brouillon",
-        "taskStatusReady": "Prête",
         "noChats": "Aucun chat pour le moment",
         "noCoworkersAvailable": "Aucun collègue disponible. Veuillez réessayer plus tard.",
-        "noTaskCoworkers": "Aucun collègue avec la fonctionnalité tâches n’est disponible actuellement.",
-        "taskCreationFailed": "Échec de la création de la tâche.",
         "emptyState": {
           "title": "Démarrer une conversation",
           "titleWithName": "Démarrer une conversation avec {name}",
@@ -1282,7 +1274,7 @@
           "question": "Comment pouvons-nous vous aider aujourd’hui ?",
           "title": "Bienvenue ! Comment pouvons-nous vous aider aujourd’hui ?",
           "titleWithName": "Bienvenue {name} ! Comment pouvons-nous vous aider aujourd’hui ?",
-          "placeholder": "Saisissez votre tâche et envoyez-la à {coworkerSlug}.",
+          "placeholder": "Message à {coworkerSlug}...",
           "coworkerSlugFallback": "le coworker",
           "suggestionsLabel": "Essayez de demander",
           "prompts": {
