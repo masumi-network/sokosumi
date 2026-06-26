@@ -86,12 +86,16 @@ describe("TaskEditModalPage", () => {
     });
     getTranslationsMock.mockImplementation(async (namespace: string) => {
       if (namespace === "Components.OrganizationSwitcher") {
-        return (key: string) =>
+        const translator = (key: string) =>
           key === "personalAccount" ? "Personal Account" : key;
+        translator.raw = (key: string) => key;
+        return translator;
       }
 
-      return (key: string, values?: Record<string, unknown>) =>
+      const translator = (key: string, values?: Record<string, unknown>) =>
         values ? `${key}:${JSON.stringify(values)}` : key;
+      translator.raw = (key: string) => key;
+      return translator;
     });
   });
 
