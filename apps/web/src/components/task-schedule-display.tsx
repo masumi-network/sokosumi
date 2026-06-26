@@ -1,6 +1,5 @@
 "use client";
 
-import { Clock } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import {
@@ -8,6 +7,7 @@ import {
   formatScheduleTitle,
 } from "@/components/schedules/format";
 import { cn } from "@/lib/utils";
+import { getScheduleIcon } from "@/lib/utils/schedule-icon";
 import { parseTaskScheduleMetadata } from "@/lib/utils/task-schedule";
 
 interface TaskScheduleDisplayProps {
@@ -72,11 +72,15 @@ export function TaskScheduleDisplay({
     : null;
 
   if (variant === "card") {
+    const ScheduleIcon = scheduleMetadata
+      ? getScheduleIcon(scheduleMetadata.mode)
+      : null;
+
     return (
       <div className={cn("flex items-center justify-between gap-2", className)}>
-        {scheduleLabel ? (
+        {scheduleLabel && ScheduleIcon ? (
           <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-            <Clock className="size-3.5 shrink-0" aria-hidden />
+            <ScheduleIcon className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{scheduleLabel}</span>
           </p>
         ) : null}

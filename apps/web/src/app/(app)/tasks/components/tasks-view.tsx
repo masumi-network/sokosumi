@@ -83,7 +83,12 @@ import { JobsListView } from "./jobs-list-view";
 import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
-import { isDnDDragColumn, isDnDDropColumn, statusForColumn } from "./task-dnd";
+import {
+  isDnDDragColumn,
+  isDnDDropColumn,
+  isTaskDnDDraggable,
+  statusForColumn,
+} from "./task-dnd";
 import type { TaskFormInitialDesignMdAttachment } from "./task-form";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
@@ -593,6 +598,7 @@ export function TasksView({
     const draggedTask = itemsRef.current.find((task) => task.id === activeId);
     if (
       !draggedTask ||
+      !isTaskDnDDraggable(draggedTask) ||
       !isTaskDraggableForViewFilters(
         draggedTask,
         userId,
@@ -1015,6 +1021,7 @@ export function TasksView({
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
+                      isTaskDnDDraggable(task) &&
                       isTaskDraggableForViewFilters(
                         task,
                         userId,
@@ -1037,6 +1044,7 @@ export function TasksView({
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
+                      isTaskDnDDraggable(task) &&
                       isTaskDraggableForViewFilters(
                         task,
                         userId,
