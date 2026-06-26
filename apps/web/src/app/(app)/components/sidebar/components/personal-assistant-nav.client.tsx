@@ -106,9 +106,9 @@ export default function PersonalAssistantNav({
   const label = assistantName?.trim() || t("hermes");
 
   return (
-    <SidebarGroup className="w-full pt-2">
+    <SidebarGroup className="w-full">
       <SidebarGroupContent>
-        <SidebarMenu className="gap-0">
+        <SidebarMenu className="gap-0 pt-2">
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>
@@ -123,12 +123,15 @@ export default function PersonalAssistantNav({
                   )}
                 >
                   {/* The live agent: chosen orb once a colour is committed,
-                      else the white placeholder — always with its eyes. */}
+                      else the white placeholder — always with its eyes. Sized
+                      to match the 16px nav icons so the label aligns with the
+                      rest of the menu (the orb is a canvas, so the button's
+                      `[&>svg]:size-4` rule doesn't reach it). */}
                   <AssistantOrb
                     seed={avatarSeed}
                     size={48}
                     expression="idle"
-                    className="size-5 shrink-0"
+                    className="size-4 shrink-0"
                   />
                   <span className="flex-1 truncate">{label}</span>
                   {showUnread ? (
