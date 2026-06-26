@@ -69,8 +69,26 @@ const OFFICE_FILE = /\.(pptx?|docx?|xlsx?)(\?|#|$)/i;
 export function isOfficeFile(url: string): boolean {
   return OFFICE_FILE.test(url);
 }
-export function officeViewerUrl(url: string): string {
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+// Office document kinds — these must go through the Office viewer regardless of
+// the URL's extension, otherwise the browser downloads them instead of showing them.
+const OFFICE_EXT: Partial<Record<OutputKind, string>> = {
+  doc: "docx",
+  slides: "pptx",
+  sheet: "xlsx",
+};
+export function isOfficeType(type: OutputKind): boolean {
+  return type in OFFICE_EXT;
+}
+export function officeViewerUrl(url: string, type?: OutputKind): string {
+  // The Office viewer identifies the format from the URL's file extension.
+  // Extensionless URLs (e.g. IPFS hashes) need a filename hint or the viewer
+  // can't open them — append one derived from the output type.
+  let src = url;
+  if (!isOfficeFile(url)) {
+    const ext = (type && OFFICE_EXT[type]) ?? "docx";
+    src = `${url}${url.includes("?") ? "&" : "?"}filename=file.${ext}`;
+  }
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`;
 }
 
 export function OutputTypeIcon({
@@ -496,10 +514,13 @@ export function OfferEmbed({
     );
   }
   if (url) {
-    // Hide the browser's native PDF chrome (toolbar / thumbnail rail) for a clean preview.
-    const src = isOfficeFile(url)
-      ? officeViewerUrl(url)
-      : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+    // Office documents must use the viewer (the browser would download them);
+    // route by the declared type so extensionless URLs still embed. PDFs render
+    // natively — hide the browser's PDF chrome (toolbar / thumbnail rail).
+    const src =
+      isOfficeType(type) || isOfficeFile(url)
+        ? officeViewerUrl(url, type)
+        : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
     return (
       <iframe src={src} title={title} className="bg-muted/40 h-full w-full" />
     );

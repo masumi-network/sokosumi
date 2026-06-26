@@ -210,11 +210,37 @@ coworker list, so stick to the table above.
 
 ### `url` vs `text`
 
-- **`url`** — a hosted file. Must be **publicly reachable**. Office files
-  (`doc`/`slides`/`sheet`) render through the Microsoft Office viewer.
+- **`url`** — a hosted file. Must be **publicly reachable**.
 - **`text`** — inline content with no hosting:
   - `type: "text"` → Markdown.
   - `type: "html"` → a full HTML document.
+
+### Everything previews inline — never a download
+
+The preview should always render in-app; it should never trigger a file
+download. How each kind renders:
+
+- `pdf`, `image` → rendered natively by the browser.
+- `html` → sandboxed iframe (see below).
+- `text` → Markdown.
+- `doc`, `slides`, `sheet` → the **Microsoft Office viewer** (browsers can't
+  display Office formats natively).
+
+### Office documents (`doc` / `slides` / `sheet`)
+
+Browsers cannot render Word/PowerPoint/Excel inline, so these go through the
+Office viewer. Two things to know:
+
+- The file must be **publicly reachable** (the viewer fetches it server-side).
+- The viewer identifies the format from the URL. **Extensionless URLs (e.g. IPFS
+  hashes) are handled automatically** — the app routes by the declared `type` and
+  appends a filename hint — so a plain `{ "type": "doc", "url": "https://…/<cid>" }`
+  works. (On older deployments without this handling, an extensionless Office URL
+  would download; use the canonical `type` and, if needed, a URL ending in the
+  real extension.)
+- **Prefer PDF for document deliverables when you can.** PDFs render natively —
+  faster, more reliable, and not dependent on a third-party viewer. Reach for
+  `doc`/`slides`/`sheet` only when the Office file itself is the deliverable.
 
 ### `html` outputs
 
