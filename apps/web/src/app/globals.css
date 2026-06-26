@@ -225,6 +225,10 @@
   --animate-rotate-once: rotate-once 0.6s ease-in-out;
   --animate-roll-up: roll-up 0.2s ease-out forwards;
   --animate-roll-down: roll-down 0.2s ease-out forwards;
+  --animate-chat-input-border-spin: chat-input-border-angle-spin 1.2s linear
+    forwards;
+  --animate-chat-input-border-rest: chat-input-border-rest-focus 0.25s 1.2s
+    ease-out forwards;
 }
 
 :root {
@@ -572,6 +576,75 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
     &:hover {
       animation: none;
     }
+  }
+}
+
+@property --chat-input-border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.chat-input-border-anchor {
+  --chat-input-border-angle: 0deg;
+  position: relative;
+  padding: 1.5px;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
+    linear-gradient(
+      to right,
+      color-mix(in oklch, var(--primary) 50%, transparent),
+      color-mix(in oklch, var(--chart-1) 50%, transparent)
+    )
+    border-box;
+}
+
+.chat-input-border-anchor:focus-within {
+  --chat-input-border-angle: 0deg;
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
+    conic-gradient(
+      from var(--chat-input-border-angle),
+      var(--primary) 0deg,
+      color-mix(in oklch, var(--primary) 70%, var(--chart-1)) 45deg,
+      color-mix(in oklch, var(--primary) 40%, var(--chart-1)) 90deg,
+      color-mix(in oklch, var(--primary) 15%, var(--chart-1)) 135deg,
+      var(--chart-1) 180deg,
+      color-mix(in oklch, var(--primary) 15%, var(--chart-1)) 225deg,
+      color-mix(in oklch, var(--primary) 40%, var(--chart-1)) 270deg,
+      color-mix(in oklch, var(--primary) 70%, var(--chart-1)) 315deg,
+      var(--primary) 360deg
+    )
+    border-box;
+  animation:
+    var(--animate-chat-input-border-spin), var(--animate-chat-input-border-rest);
+}
+
+@keyframes chat-input-border-angle-spin {
+  from {
+    --chat-input-border-angle: 0deg;
+  }
+
+  to {
+    --chat-input-border-angle: 360deg;
+  }
+}
+
+@keyframes chat-input-border-rest-focus {
+  to {
+    background:
+      linear-gradient(var(--background), var(--background)) padding-box,
+      linear-gradient(to right, var(--primary), var(--chart-1)) border-box;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-input-border-anchor:focus-within {
+    animation: none;
+    background:
+      linear-gradient(var(--background), var(--background)) padding-box,
+      linear-gradient(to right, var(--primary), var(--chart-1)) border-box;
   }
 }
 

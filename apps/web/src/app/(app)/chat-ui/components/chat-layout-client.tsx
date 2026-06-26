@@ -141,7 +141,7 @@ export function ChatLayoutClient({
         <div
           className={
             mobileChatOnly && conversationIdFromPath
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden lg:min-h-0"
+              ? "flex min-h-0 flex-1 flex-col overflow-visible lg:min-h-0"
               : "flex h-full flex-col"
           }
         >
