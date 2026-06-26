@@ -77,7 +77,7 @@ export default function WelcomeScreen({
   const showSuggestions = promptsList.length > 0 && selectedModel == null;
 
   function handleSuggestionClick(text: string) {
-    if (!text.trim() || !initialCoworker) return;
+    if (!text.trim() || !initialCoworker || welcomeSendBlocked) return;
     void onSendMessage(text.trim(), initialCoworker, undefined, {
       kind: "chat",
     });

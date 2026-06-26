@@ -348,6 +348,9 @@ export default function ChatInterface({
     welcomeSelectedModel,
   ]);
 
+  const [isWelcomeSubmitting, setIsWelcomeSubmitting] = useState(false);
+  const welcomeCreationInFlightRef = useRef(false);
+
   const welcomePrefsHydratedRef = useRef(false);
   const previousWelcomeCoworkerSlugRef = useRef<string | null>(
     welcomeCoworkerSlug,
@@ -1408,7 +1411,12 @@ export default function ChatInterface({
       model?: { id: string; name: string },
       options?: ChatComposeSubmitOptions,
     ): Promise<boolean> => {
-      if (!hasSendMessageContent(message) || isLoading) {
+      if (
+        !hasSendMessageContent(message) ||
+        isLoading ||
+        (!selectedChatId &&
+          (welcomeCreationInFlightRef.current || isWelcomeTransitioning))
+      ) {
         return false;
       }
 
@@ -1425,58 +1433,65 @@ export default function ChatInterface({
         : undefined;
 
       if (!selectedChatId) {
-        setIsWelcomeTransitioning(true);
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        welcomeCreationInFlightRef.current = true;
+        setIsWelcomeSubmitting(true);
+        try {
+          setIsWelcomeTransitioning(true);
+          await new Promise((resolve) => setTimeout(resolve, 300));
 
-        let conversationId: string | null = null;
+          let conversationId: string | null = null;
 
-        if (model || selectedModel) {
-          const modelToUse = model || selectedModel;
-          if (modelToUse) {
-            conversationId = await handleModelSelected(modelToUse, {
-              imageGeneration: imageGenerationForSend,
-            });
+          if (model || selectedModel) {
+            const modelToUse = model || selectedModel;
+            if (modelToUse) {
+              conversationId = await handleModelSelected(modelToUse, {
+                imageGeneration: imageGenerationForSend,
+              });
+            }
+          } else {
+            const selectedCoworker =
+              (coworker && coworkerHasCapability(coworker, "chat")
+                ? coworker
+                : null) ??
+              (effectiveWelcomeCoworker &&
+              coworkerHasCapability(effectiveWelcomeCoworker, "chat")
+                ? effectiveWelcomeCoworker
+                : null) ??
+              coworkers.find((candidate) =>
+                coworkerHasCapability(candidate, "chat"),
+              ) ??
+              null;
+            if (!selectedCoworker) {
+              toast.error(t("noCoworkersAvailable"));
+              setIsWelcomeTransitioning(false);
+              return false;
+            }
+            conversationId = await handleCoworkerSelected(selectedCoworker);
           }
-        } else {
-          const selectedCoworker =
-            (coworker && coworkerHasCapability(coworker, "chat")
-              ? coworker
-              : null) ??
-            (effectiveWelcomeCoworker &&
-            coworkerHasCapability(effectiveWelcomeCoworker, "chat")
-              ? effectiveWelcomeCoworker
-              : null) ??
-            coworkers.find((candidate) =>
-              coworkerHasCapability(candidate, "chat"),
-            ) ??
-            null;
-          if (!selectedCoworker) {
-            toast.error(t("noCoworkersAvailable"));
+
+          if (!conversationId) {
             setIsWelcomeTransitioning(false);
             return false;
           }
-          conversationId = await handleCoworkerSelected(selectedCoworker);
-        }
 
-        if (!conversationId) {
-          setIsWelcomeTransitioning(false);
-          return false;
-        }
-
-        if (!currentChatIdRef.current) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
           if (!currentChatIdRef.current) {
-            setIsWelcomeTransitioning(false);
-            return false;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!currentChatIdRef.current) {
+              setIsWelcomeTransitioning(false);
+              return false;
+            }
           }
-        }
 
-        const cid = currentChatIdRef.current ?? conversationId;
-        const sent = cid
-          ? sendInConversation(cid, sendPayload, sendOptions)
-          : false;
-        if (sent) setInput("");
-        return sent;
+          const cid = currentChatIdRef.current ?? conversationId;
+          const sent = cid
+            ? sendInConversation(cid, sendPayload, sendOptions)
+            : false;
+          if (sent) setInput("");
+          return sent;
+        } finally {
+          welcomeCreationInFlightRef.current = false;
+          setIsWelcomeSubmitting(false);
+        }
       }
 
       if (selectedChatId) {
@@ -1501,6 +1516,7 @@ export default function ChatInterface({
     [
       coworkers,
       isLoading,
+      isWelcomeTransitioning,
       selectedChatId,
       selectedConversationImageGeneration,
       sendInConversation,
@@ -1701,6 +1717,7 @@ export default function ChatInterface({
             showGreetingAndSuggestions={showGreetingAndSuggestions}
             userName={userName?.split(" ")[0] ?? userName}
             onSendMessage={handleSendMessage}
+            welcomeSendBlocked={isWelcomeSubmitting || isWelcomeTransitioning}
             isTransitioning={isWelcomeTransitioning}
             input={input}
             setInput={setInput}
