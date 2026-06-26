@@ -5,7 +5,6 @@ import type { UIMessage } from "ai";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction } from "react";
-import { findDefaultCoworker } from "@/app/chat/utils/coworker-utils";
 import type {
   ChatComposeMessage,
   ChatComposeSubmitOptions,

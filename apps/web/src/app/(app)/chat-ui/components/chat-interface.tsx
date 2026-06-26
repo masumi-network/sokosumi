@@ -2,7 +2,6 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
-import { TaskStatus } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
@@ -37,7 +36,6 @@ import {
 } from "@/app/chat/utils/coworker-utils";
 import type {
   Chat,
-  ChatComposeKind,
   ChatComposeMessage,
   ChatComposeSubmitOptions,
   ChatSendMessage,
@@ -71,7 +69,6 @@ import {
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
-import { createTask } from "@/lib/actions/task/action";
 import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
 
 import MessageList from "./message-list";
@@ -1418,7 +1415,7 @@ export default function ChatInterface({
       const imageGenerationForSend =
         options?.imageGeneration === true ||
         (selectedChatId != null && selectedConversationImageGeneration);
-      const messageText = getSendMessageText(message);
+      const _messageText = getSendMessageText(message);
       const sendPayload = withImageGenerationMetadata(
         toChatSendMessage(message),
         imageGenerationForSend,
