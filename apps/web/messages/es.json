@@ -659,6 +659,7 @@
       "accountNoticeIndicator": "Aviso de cuenta",
       "notifications": "Notificaciones",
       "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notificación sin leer y aviso de cuenta} other {# notificaciones sin leer y aviso de cuenta}}",
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
       "emptyState": "Aún no hay notificaciones",

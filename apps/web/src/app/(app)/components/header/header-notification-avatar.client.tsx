@@ -132,11 +132,13 @@ export function HeaderNotificationAvatar({
   }, [hasIndicator, isOpen]);
 
   const ariaLabel =
-    unreadCount > 0
-      ? t("unreadBadge", { count: unreadCount })
-      : hasAccountNotice
-        ? t("accountNoticeIndicator")
-        : t("notifications");
+    unreadCount > 0 && hasAccountNotice
+      ? t("unreadBadgeWithAccountNotice", { count: unreadCount })
+      : unreadCount > 0
+        ? t("unreadBadge", { count: unreadCount })
+        : hasAccountNotice
+          ? t("accountNoticeIndicator")
+          : t("notifications");
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>

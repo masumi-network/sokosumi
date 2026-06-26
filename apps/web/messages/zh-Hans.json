@@ -659,6 +659,7 @@
       "accountNoticeIndicator": "账户提醒",
       "notifications": "通知",
       "unreadBadge": "{count, plural, =1 {1 条未读通知} other {# 条未读通知}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 条未读通知和账户提醒} other {# 条未读通知和账户提醒}}",
       "title": "通知",
       "pageTitle": "通知",
       "emptyState": "暂无通知",

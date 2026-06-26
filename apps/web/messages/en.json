@@ -675,6 +675,7 @@
       "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
       "emptyState": "No notifications yet",
