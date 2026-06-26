@@ -266,6 +266,7 @@
       "organizations": "Organizations",
       "users": "Users",
       "edit": "Edit",
+      "editor": "Editor",
       "enterprise-contracts": "Enterprise contracts",
       "invoices": "Invoices",
       "mcp": "Model Context Protocol (MCP)",
@@ -3689,6 +3690,7 @@
       "autoDescription": "Generate from the website URL. Turn off to upload manually.",
       "actionsMenuLabel": "Open DESIGN.md actions",
       "menuDownload": "Download",
+      "menuEdit": "Edit",
       "menuPreview": "Preview",
       "menuRegenerate": "Regenerate",
       "menuRemove": "Remove",
@@ -3725,7 +3727,20 @@
       "uploadRejected": "File is not accepted",
       "removeSelectedUpload": "Remove selected file",
       "descriptionPersonal": "Create and manage the DESIGN.md used for tasks from your personal workspace.",
-      "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization."
+      "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization.",
+      "editPageTitle": "Edit DESIGN.md",
+      "editTab": "Edit",
+      "previewTab": "Preview",
+      "editSave": "Save",
+      "editSaving": "Saving...",
+      "editSaveSuccess": "DESIGN.md saved",
+      "editUnavailableTitle": "DESIGN.md is not available",
+      "editLoadErrorTitle": "Could not load DESIGN.md",
+      "editLoadErrorDescription": "The file could not be fetched. Try again later or go back to your profile.",
+      "editBackToProfile": "Back to profile",
+      "discardDialogTitle": "Discard changes?",
+      "discardDialogDescription": "Your edits will be lost if you leave without saving.",
+      "discardConfirm": "Discard changes"
     }
   },
   "Share": {

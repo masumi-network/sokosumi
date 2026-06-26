@@ -250,6 +250,7 @@
       "organizations": "Organizzazioni",
       "users": "Utenti",
       "edit": "Modifica",
+      "editor": "Editor",
       "enterprise-contracts": "Contratti enterprise",
       "mcp": "Protocollo Model Context (MCP)",
       "chat": "Chat",
@@ -3534,6 +3535,7 @@
       "autoDescription": "Genera dall’URL del sito web. Disattiva per caricare manualmente.",
       "actionsMenuLabel": "Apri azioni DESIGN.md",
       "menuDownload": "Scarica",
+      "menuEdit": "Modifica",
       "menuPreview": "Anteprima",
       "menuRegenerate": "Rigenera",
       "menuRemove": "Rimuovi",
@@ -3570,7 +3572,20 @@
       "uploadRejected": "File non accettato",
       "removeSelectedUpload": "Rimuovi file selezionato",
       "descriptionPersonal": "Crea e gestisci il DESIGN.md usato per i task del tuo workspace personale.",
-      "descriptionOrganization": "Crea e gestisci il DESIGN.md usato per i task di questa organizzazione."
+      "descriptionOrganization": "Crea e gestisci il DESIGN.md usato per i task di questa organizzazione.",
+      "editPageTitle": "Modifica DESIGN.md",
+      "editTab": "Modifica",
+      "previewTab": "Anteprima",
+      "editSave": "Salva",
+      "editSaving": "Salvataggio...",
+      "editSaveSuccess": "DESIGN.md salvato",
+      "editUnavailableTitle": "DESIGN.md non è disponibile",
+      "editLoadErrorTitle": "Impossibile caricare DESIGN.md",
+      "editLoadErrorDescription": "Impossibile recuperare il file. Riprova più tardi o torna al profilo.",
+      "editBackToProfile": "Torna al profilo",
+      "discardDialogTitle": "Annullare le modifiche?",
+      "discardDialogDescription": "Le modifiche andranno perse se esci senza salvare.",
+      "discardConfirm": "Annulla modifiche"
     }
   },
   "Share": {

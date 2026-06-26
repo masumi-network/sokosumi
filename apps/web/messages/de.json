@@ -250,6 +250,7 @@
       "organizations": "Organisationen",
       "users": "Benutzer",
       "edit": "Bearbeiten",
+      "editor": "Editor",
       "enterprise-contracts": "Enterprise-Verträge",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
@@ -3534,6 +3535,7 @@
       "autoDescription": "Aus der Website-URL generieren. Ausschalten, um manuell hochzuladen.",
       "actionsMenuLabel": "DESIGN.md-Aktionen öffnen",
       "menuDownload": "Herunterladen",
+      "menuEdit": "Bearbeiten",
       "menuPreview": "Vorschau",
       "menuRegenerate": "Neu generieren",
       "menuRemove": "Entfernen",
@@ -3570,7 +3572,20 @@
       "uploadRejected": "Datei wird nicht akzeptiert",
       "removeSelectedUpload": "Ausgewählte Datei entfernen",
       "descriptionPersonal": "Erstelle und verwalte die DESIGN.md, die für Tasks aus deinem persönlichen Workspace verwendet wird.",
-      "descriptionOrganization": "Erstelle und verwalte die DESIGN.md, die für Tasks dieser Organisation verwendet wird."
+      "descriptionOrganization": "Erstelle und verwalte die DESIGN.md, die für Tasks dieser Organisation verwendet wird.",
+      "editPageTitle": "DESIGN.md bearbeiten",
+      "editTab": "Bearbeiten",
+      "previewTab": "Vorschau",
+      "editSave": "Speichern",
+      "editSaving": "Wird gespeichert...",
+      "editSaveSuccess": "DESIGN.md gespeichert",
+      "editUnavailableTitle": "DESIGN.md ist nicht verfügbar",
+      "editLoadErrorTitle": "DESIGN.md konnte nicht geladen werden",
+      "editLoadErrorDescription": "Die Datei konnte nicht abgerufen werden. Versuche es später erneut oder kehre zu deinem Profil zurück.",
+      "editBackToProfile": "Zurück zum Profil",
+      "discardDialogTitle": "Änderungen verwerfen?",
+      "discardDialogDescription": "Deine Bearbeitungen gehen verloren, wenn du ohne Speichern gehst.",
+      "discardConfirm": "Änderungen verwerfen"
     }
   },
   "Share": {

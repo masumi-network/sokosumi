@@ -35,6 +35,8 @@ const breadcrumbMessages = {
   organizations: "Organizations",
   users: "Users",
   agents: "Agents",
+  account: "Account",
+  editor: "Editor",
 };
 
 describe("BreadcrumbNavigationClient", () => {
@@ -108,6 +110,23 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText("Organizations")).toBeInTheDocument();
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+  });
+
+  it("shows account design-md editor breadcrumbs without design-md segment", () => {
+    usePathnameMock.mockReturnValue("/account/design-md/edit");
+
+    render(
+      <BreadcrumbNavigationClient
+        agents={[] as CoreAgentDto[]}
+        organizations={organizations}
+        breadcrumbMessages={breadcrumbMessages}
+      />,
+    );
+
+    expect(screen.getByText("Account")).toBeInTheDocument();
+    expect(screen.getByText("Editor")).toBeInTheDocument();
+    expect(screen.queryByText("design-md")).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit")).not.toBeInTheDocument();
   });
 
   it("shows admin users list breadcrumbs", () => {
