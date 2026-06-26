@@ -64,9 +64,7 @@ export function NotificationDropdownContent({
   const accountNoticeSection =
     notice !== null ? (
       <>
-        <div className="p-2">
-          <AccountNoticeRow />
-        </div>
+        <AccountNoticeRow variant="menu" onActionComplete={onClose} />
         <DropdownMenuSeparator />
       </>
     ) : null;
