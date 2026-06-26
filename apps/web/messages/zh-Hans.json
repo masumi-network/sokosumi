@@ -670,6 +670,7 @@
       "fetchError": "无法加载通知",
       "retry": "重试",
       "dismiss": "关闭",
+      "view": "查看",
       "dismissNotification": "关闭通知"
     },
     "HashValue": {

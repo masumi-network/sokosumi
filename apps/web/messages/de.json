@@ -670,6 +670,7 @@
       "fetchError": "Benachrichtigungen konnten nicht geladen werden",
       "retry": "Erneut versuchen",
       "dismiss": "Schließen",
+      "view": "Ansehen",
       "dismissNotification": "Benachrichtigung schließen"
     },
     "HashValue": {

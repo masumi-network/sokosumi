@@ -686,6 +686,7 @@
       "fetchError": "Could not load notifications",
       "retry": "Try again",
       "dismiss": "Dismiss",
+      "view": "View",
       "dismissNotification": "Dismiss notification"
     },
     "HashValue": {

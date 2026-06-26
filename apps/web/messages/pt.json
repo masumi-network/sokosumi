@@ -670,6 +670,7 @@
       "fetchError": "Não foi possível carregar as notificações",
       "retry": "Tentar novamente",
       "dismiss": "Dispensar",
+      "view": "Ver",
       "dismissNotification": "Dispensar notificação"
     },
     "HashValue": {
