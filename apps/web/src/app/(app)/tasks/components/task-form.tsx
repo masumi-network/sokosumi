@@ -357,10 +357,22 @@ export function TaskForm({
   const canUseSubmitShortcut = showTaskStep && !isSaveDisabled;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
   const shouldShowEditToggle = mode === "edit";
+  const canMarkAsReady = !hasSchedule;
   const statusToggleLabel =
     status === TaskStatus.DRAFT
       ? (labels.markAsReady ?? labels.statusReady)
       : (labels.revertToDraft ?? labels.statusDraft);
+  const isStatusToggleDisabled =
+    isSubmitting || (status === TaskStatus.DRAFT && !canMarkAsReady);
+
+  function handleStatusToggle() {
+    setStatus((current) => {
+      if (current === TaskStatus.DRAFT) {
+        return canMarkAsReady ? TaskStatus.READY : current;
+      }
+      return TaskStatus.DRAFT;
+    });
+  }
 
   const handleSave = useCallback(
     async (overrideStatus?: TaskStatus) => {
@@ -1023,14 +1035,8 @@ export function TaskForm({
                       type="button"
                       variant="outline"
                       className="min-w-28"
-                      onClick={() =>
-                        setStatus((current) =>
-                          current === TaskStatus.DRAFT
-                            ? TaskStatus.READY
-                            : TaskStatus.DRAFT,
-                        )
-                      }
-                      disabled={isSubmitting}
+                      onClick={handleStatusToggle}
+                      disabled={isStatusToggleDisabled}
                     >
                       {statusToggleLabel}
                     </Button>

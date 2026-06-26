@@ -513,6 +513,83 @@ describe("TaskForm", () => {
     expect(onSuccess).toHaveBeenCalledWith("task-1");
   });
 
+  it("disables Mark as Ready in edit mode when the task has a schedule", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          coworkerId: "coworker-1",
+          status: TaskStatus.DRAFT,
+          metadata: JSON.stringify({
+            version: 1,
+            mode: "once",
+            scheduledAt: "2026-06-26T09:00:00.000Z",
+            runAt: "2026-06-26T09:00:00.000Z",
+          }),
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const markAsReadyButton = screen.getByRole("button", {
+      name: "Mark as Ready",
+    });
+    expect(markAsReadyButton).toBeDisabled();
+
+    await user.click(markAsReadyButton);
+    expect(
+      screen.getByRole("button", { name: "Mark as Ready" }),
+    ).toBeInTheDocument();
+  });
+
+  it("disables Mark as Ready after adding a schedule while editing", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          coworkerId: "coworker-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Mark as Ready" }),
+    ).not.toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    const markAsReadyButton = screen.getByRole("button", {
+      name: "Mark as Ready",
+    });
+    expect(markAsReadyButton).toBeDisabled();
+
+    await user.click(markAsReadyButton);
+    expect(
+      screen.getByRole("button", { name: "Mark as Ready" }),
+    ).toBeInTheDocument();
+  });
+
   it("toggles status in edit modal and keeps the toggled status on save", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
