@@ -15,6 +15,7 @@ import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
+  hasActiveSchedule,
   hasTaskScheduleChanged,
   selectionToApiBody,
 } from "@/lib/utils/task-schedule";
@@ -489,9 +490,29 @@ export const setTaskStatusFromDrag = withSession<
   { taskId: string }
 >(async ({ taskId, desiredStatus }) => {
   try {
-    await taskService.createTaskEvent(taskId, {
-      status: desiredStatus,
-    });
+    const task = await taskService.getTaskById(taskId);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    const currentStatus = task.status as TaskStatus;
+    let statusAfterSchedule = currentStatus;
+
+    const shouldClearSchedule =
+      currentStatus === TaskStatus.QUEUED &&
+      desiredStatus !== TaskStatus.QUEUED &&
+      hasActiveSchedule(task.metadata, task.nextRunAt);
+
+    if (shouldClearSchedule) {
+      const clearedTask = await taskScheduleService.clearSchedule(taskId);
+      statusAfterSchedule = clearedTask.status as TaskStatus;
+    }
+
+    if (desiredStatus !== statusAfterSchedule) {
+      await taskService.createTaskEvent(taskId, {
+        status: desiredStatus,
+      });
+    }
 
     revalidatePath("/tasks");
     revalidatePath(`/tasks/${taskId}`);

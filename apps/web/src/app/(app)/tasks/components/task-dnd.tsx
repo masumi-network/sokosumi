@@ -10,8 +10,9 @@ import {
 import { TaskStatus } from "@sokosumi/utils";
 import { type CSSProperties, type ReactNode, useRef } from "react";
 
-import type { KanbanColumnId } from "@/lib/types/task";
+import type { KanbanColumnId, TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
+import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 
 /** Columns whose tasks can be dragged. */
 const DND_DRAG_COLUMNS = new Set<KanbanColumnId>(["backlog", "todo"]);
@@ -54,6 +55,20 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
     default:
       return null;
   }
+}
+
+/** Scheduled backlog tasks must not be dragged; status changes require clearing the schedule first. */
+export function isTaskDnDDraggable(
+  task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt">,
+): boolean {
+  if (task.status !== TaskStatus.QUEUED) {
+    return true;
+  }
+
+  return !hasActiveSchedule(
+    task.metadata,
+    task.nextRunAt ? new Date(task.nextRunAt) : null,
+  );
 }
 
 export function DraggableTask({ id, columnId, children }: DraggableTaskProps) {

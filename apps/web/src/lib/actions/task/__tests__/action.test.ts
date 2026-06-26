@@ -33,6 +33,7 @@ const taskServiceMock = {
   deleteTask: vi.fn(),
   patchTask: vi.fn(),
   createTaskEvent: vi.fn(),
+  getTaskById: vi.fn(),
 };
 const taskScheduleServiceMock = {
   clearSchedule: vi.fn(),
@@ -109,6 +110,7 @@ describe("task link actions", () => {
     taskServiceMock.deleteTask.mockReset();
     taskServiceMock.patchTask.mockReset();
     taskServiceMock.createTaskEvent.mockReset();
+    taskServiceMock.getTaskById.mockReset();
     taskScheduleServiceMock.clearSchedule.mockReset();
     taskScheduleServiceMock.setSchedule.mockReset();
     taskServiceMock.patchTask.mockResolvedValue({});
@@ -556,6 +558,97 @@ describe("updateTask schedule status", () => {
       hadSchedule: true,
       originalSchedule: recurringSchedule,
       schedule: recurringSchedule,
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("setTaskStatusFromDrag", () => {
+  const scheduledMetadata = JSON.stringify({
+    schedule: { mode: "daily", timezone: "UTC" },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.getTaskById.mockReset();
+    taskServiceMock.createTaskEvent.mockReset();
+    taskScheduleServiceMock.clearSchedule.mockReset();
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
+  });
+
+  it("creates a status event for a simple draft to ready move", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({
+        id: "task-1",
+        status: TaskStatus.DRAFT,
+      }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("../action");
+
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).not.toHaveBeenCalled();
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("clears the schedule before moving a scheduled queued task to ready", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue({
+      ...buildTask({
+        id: "task-1",
+        status: TaskStatus.QUEUED,
+      }),
+      metadata: scheduledMetadata,
+      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+    });
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+
+    const { setTaskStatusFromDrag } = await import("../action");
+
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
+      "task-1",
+    );
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("clears the schedule without re-queuing when reverting a scheduled queued task to draft", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue({
+      ...buildTask({
+        id: "task-1",
+        status: TaskStatus.QUEUED,
+      }),
+      metadata: scheduledMetadata,
+      nextRunAt: new Date("2026-06-25T09:00:00.000Z"),
+    });
+    taskScheduleServiceMock.clearSchedule.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+
+    const { setTaskStatusFromDrag } = await import("../action");
+
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.DRAFT,
     });
 
     expect(taskScheduleServiceMock.clearSchedule).toHaveBeenCalledWith(
