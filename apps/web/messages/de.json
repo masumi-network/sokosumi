@@ -1280,13 +1280,9 @@
           "greeting": "Willkommen!",
           "greetingWithName": "Willkommen {name}!",
           "question": "Wie können wir dir heute helfen?",
-          "taskGreeting": "Neue Aufgabe",
-          "taskGreetingWithName": "{name}, erstelle eine neue Aufgabe",
-          "taskQuestion": "Beschreibe die Arbeit für deinen Coworker und sende sie ab, wenn du bereit bist.",
           "title": "Willkommen! Wie können wir dir heute helfen?",
           "titleWithName": "Willkommen {name}! Wie können wir dir heute helfen?",
           "placeholder": "Aufgabe eingeben und an {coworkerSlug} senden.",
-          "taskPlaceholder": "Beschreibe die Aufgabe, die du für {coworkerSlug} erstellen möchtest.",
           "coworkerSlugFallback": "den Coworker",
           "suggestionsLabel": "Probiere zum Beispiel",
           "prompts": {

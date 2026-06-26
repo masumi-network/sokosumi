@@ -1291,13 +1291,9 @@
           "greeting": "Welcome!",
           "greetingWithName": "Welcome {name}!",
           "question": "How can we help you today?",
-          "taskGreeting": "New task",
-          "taskGreetingWithName": "{name}, create a new task",
-          "taskQuestion": "Describe the work for your coworker and submit when you are ready.",
           "title": "Welcome! How can we help you today?",
           "titleWithName": "Welcome {name}! How can we help you today?",
           "placeholder": "Enter your task and submit it to {coworkerSlug}.",
-          "taskPlaceholder": "Describe the task you want to create for {coworkerSlug}.",
           "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
           "prompts": {

@@ -332,8 +332,6 @@ export default function ChatInterface({
     id: string;
     name: string;
   } | null>(null);
-  const [welcomeComposeKind, setWelcomeComposeKind] =
-    useState<ChatComposeKind>("task");
   const effectiveWelcomeCoworker = useMemo(() => {
     if (welcomeSelectedModel != null) {
       return null;
@@ -345,18 +343,13 @@ export default function ChatInterface({
     if (!candidate) {
       return null;
     }
-    const capability = welcomeComposeKind === "task" ? "tasks" : "chat";
-    return coworkerHasCapability(candidate, capability) ? candidate : null;
+    return coworkerHasCapability(candidate, "chat") ? candidate : null;
   }, [
     initialWelcomeCoworker,
-    welcomeComposeKind,
     welcomeCoworkerSlug,
     welcomeSelectedCoworker,
     welcomeSelectedModel,
   ]);
-
-  const [isWelcomeTaskSubmitting, setIsWelcomeTaskSubmitting] = useState(false);
-  const welcomeTaskCreationInFlightRef = useRef(false);
 
   const welcomePrefsHydratedRef = useRef(false);
   const previousWelcomeCoworkerSlugRef = useRef<string | null>(
@@ -367,12 +360,10 @@ export default function ChatInterface({
     id: string;
     name: string;
   } | null>(null);
-  const welcomeComposeKindRef = useRef<ChatComposeKind>("task");
   const welcomePrefsWriteSelectedChatIdRef = useRef<string | null>(null);
   const welcomePrefsWriteWelcomeCoworkerSlugRef = useRef<string | null>(null);
   welcomeSelectedCoworkerRef.current = welcomeSelectedCoworker;
   welcomeSelectedModelRef.current = welcomeSelectedModel;
-  welcomeComposeKindRef.current = welcomeComposeKind;
   welcomePrefsWriteSelectedChatIdRef.current = selectedChatId;
   welcomePrefsWriteWelcomeCoworkerSlugRef.current = welcomeCoworkerSlug;
 
@@ -381,21 +372,12 @@ export default function ChatInterface({
     if (welcomePrefsWriteWelcomeCoworkerSlugRef.current != null) return;
     writeWelcomeComposePreferences(
       buildWelcomeComposeStoredSnapshot({
-        composeKind: welcomeComposeKindRef.current,
+        composeKind: "chat",
         coworker: welcomeSelectedCoworkerRef.current,
         model: welcomeSelectedModelRef.current,
       }),
     );
   }, []);
-
-  const handleWelcomeComposeKindChange = useCallback(
-    (kind: ChatComposeKind) => {
-      setWelcomeComposeKind(kind);
-      welcomeComposeKindRef.current = kind;
-      writeWelcomePrefsFromRefs();
-    },
-    [writeWelcomePrefsFromRefs],
-  );
 
   const handleWelcomeCoworkerChange = useCallback(
     (coworker: Coworker | null) => {
@@ -452,9 +434,6 @@ export default function ChatInterface({
     const resolved = resolveHydratedWelcomeSelection(coworkers, stored, {
       urlCoworkerSlug: welcomeCoworkerSlug != null,
     });
-
-    setWelcomeComposeKind(resolved.composeKind);
-    welcomeComposeKindRef.current = resolved.composeKind;
 
     if (welcomeCoworkerSlug != null) {
       setWelcomeSelectedModel(null);
@@ -1444,57 +1423,11 @@ export default function ChatInterface({
         toChatSendMessage(message),
         imageGenerationForSend,
       );
-      const composeKind = options?.kind ?? "task";
       const sendOptions = imageGenerationForSend
         ? { body: { imageGeneration: true } }
         : undefined;
 
       if (!selectedChatId) {
-        if (composeKind === "task") {
-          if (!messageText) {
-            return false;
-          }
-
-          if (welcomeTaskCreationInFlightRef.current) {
-            return false;
-          }
-
-          const selectedTaskCoworker =
-            coworker ??
-            coworkers.find((candidate) =>
-              coworkerHasCapability(candidate, "tasks"),
-            ) ??
-            null;
-
-          if (!selectedTaskCoworker) {
-            toast.error(t("noTaskCoworkers"));
-            return false;
-          }
-
-          welcomeTaskCreationInFlightRef.current = true;
-          setIsWelcomeTaskSubmitting(true);
-          try {
-            const result = await createTask({
-              description: messageText,
-              coworkerId: selectedTaskCoworker.id,
-              skipDesignMdAttachment: options?.skipDesignMdAttachment,
-              status:
-                options?.taskStatus === "DRAFT"
-                  ? TaskStatus.DRAFT
-                  : TaskStatus.READY,
-            });
-            router.push(`/tasks/${result.taskId}`);
-            return true;
-          } catch (error) {
-            console.error("Failed to create task from chat composer", error);
-            toast.error(t("taskCreationFailed"));
-            return false;
-          } finally {
-            welcomeTaskCreationInFlightRef.current = false;
-            setIsWelcomeTaskSubmitting(false);
-          }
-        }
-
         setIsWelcomeTransitioning(true);
         await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -1770,9 +1703,6 @@ export default function ChatInterface({
             mobileKeyboardOptimized={mobileKeyboardOptimized}
             showGreetingAndSuggestions={showGreetingAndSuggestions}
             userName={userName?.split(" ")[0] ?? userName}
-            welcomeComposeKind={welcomeComposeKind}
-            onWelcomeComposeKindChange={handleWelcomeComposeKindChange}
-            welcomeSendBlocked={isWelcomeTaskSubmitting}
             onSendMessage={handleSendMessage}
             isTransitioning={isWelcomeTransitioning}
             input={input}

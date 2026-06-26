@@ -1280,13 +1280,9 @@
           "greeting": "¡Bienvenido!",
           "greetingWithName": "¡Bienvenido {name}!",
           "question": "¿En qué podemos ayudarte hoy?",
-          "taskGreeting": "Nueva tarea",
-          "taskGreetingWithName": "{name}, crea una nueva tarea",
-          "taskQuestion": "Describe el trabajo para tu coworker y envíalo cuando estés listo.",
           "title": "¡Bienvenido! ¿En qué podemos ayudarte hoy?",
           "titleWithName": "¡Bienvenido {name}! ¿En qué podemos ayudarte hoy?",
           "placeholder": "Introduce tu tarea y envíala a {coworkerSlug}.",
-          "taskPlaceholder": "Describe la tarea que quieres crear para {coworkerSlug}.",
           "coworkerSlugFallback": "el coworker",
           "suggestionsLabel": "Por ejemplo",
           "prompts": {

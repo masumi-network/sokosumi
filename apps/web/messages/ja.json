@@ -1280,13 +1280,9 @@
           "greeting": "ようこそ！",
           "greetingWithName": "{name}さん、ようこそ！",
           "question": "本日はどのようにお手伝いできますか？",
-          "taskGreeting": "新しいタスク",
-          "taskGreetingWithName": "{name}さん、新しいタスクを作成しましょう",
-          "taskQuestion": "同僚向けの作業内容を書き、準備ができたら送信してください。",
           "title": "ようこそ！本日はどのようにお手伝いできますか？",
           "titleWithName": "ようこそ {name} さん！本日はどのようにお手伝いできますか？",
           "placeholder": "タスクを入力して {coworkerSlug} に送信してください。",
-          "taskPlaceholder": "{coworkerSlug} 向けに作成したいタスクを説明してください。",
           "coworkerSlugFallback": "コワーカー",
           "suggestionsLabel": "試してみる",
           "prompts": {

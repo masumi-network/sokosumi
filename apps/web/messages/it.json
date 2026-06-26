@@ -1280,13 +1280,9 @@
           "greeting": "Benvenuto!",
           "greetingWithName": "Benvenuto {name}!",
           "question": "Come possiamo aiutarti oggi?",
-          "taskGreeting": "Nuova attività",
-          "taskGreetingWithName": "{name}, crea una nuova attività",
-          "taskQuestion": "Descrivi il lavoro per il tuo coworker e invia quando sei pronto.",
           "title": "Benvenuto! Come possiamo aiutarti oggi?",
           "titleWithName": "Benvenuto {name}! Come possiamo aiutarti oggi?",
           "placeholder": "Inserisci il tuo compito e invialo a {coworkerSlug}.",
-          "taskPlaceholder": "Descrivi l'attività che vuoi creare per {coworkerSlug}.",
           "coworkerSlugFallback": "il coworker",
           "suggestionsLabel": "Prova a chiedere",
           "prompts": {
