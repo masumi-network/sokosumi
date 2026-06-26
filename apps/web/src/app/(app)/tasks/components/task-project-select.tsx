@@ -67,16 +67,23 @@ export function TaskProjectSelect({
   const selectedLabel =
     selectedProject?.name ?? (value ? value : (placeholder ?? noneLabel));
 
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSearch("");
+    }
+  }
+
   function handleSelect(projectId: string | null) {
     onChange(projectId);
-    setOpen(false);
+    handleOpenChange(false);
   }
 
   function handleCreateProject() {
     if (!onCreateProject) return;
     const trimmedQuery = search.trim();
     onCreateProject(trimmedQuery);
-    setOpen(false);
+    handleOpenChange(false);
   }
 
   const createLabel = search.trim()
@@ -84,7 +91,7 @@ export function TaskProjectSelect({
     : projectCreate;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           type="button"

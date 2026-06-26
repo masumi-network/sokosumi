@@ -212,9 +212,18 @@ export function TaskForm({
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
   );
-  const [localProjectOptions, setLocalProjectOptions] = useState<
+  const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
-  >(projectOptions ?? []);
+  >([]);
+  const localProjectOptions = useMemo(() => {
+    const parentOptions = projectOptions ?? [];
+    const parentIds = new Set(parentOptions.map((project) => project.id));
+    const localOnly = inlineCreatedProjects.filter(
+      (project) => !parentIds.has(project.id),
+    );
+
+    return [...parentOptions, ...localOnly];
+  }, [inlineCreatedProjects, projectOptions]);
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
@@ -308,7 +317,7 @@ export function TaskForm({
         id: result.projectId,
         name: result.name,
       };
-      setLocalProjectOptions((prev) => [...prev, newProject]);
+      setInlineCreatedProjects((prev) => [...prev, newProject]);
       setProjectId(result.projectId);
     },
     [],
