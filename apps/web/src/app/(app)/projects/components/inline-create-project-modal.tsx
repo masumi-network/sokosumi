@@ -52,6 +52,7 @@ export function InlineCreateProjectModal({
           key={initialName}
           mode="create"
           variant="modal"
+          creationSource="task_form"
           showCancel={false}
           labels={{
             details: t("NewProject.details"),

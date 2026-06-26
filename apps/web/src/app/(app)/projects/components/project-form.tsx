@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@vercel/analytics";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
@@ -13,6 +14,8 @@ import { createProject, updateProject } from "@/lib/actions/project/action";
 
 const PROJECT_NAME_MAX_LENGTH = 200;
 const PROJECT_DESCRIPTION_MAX_LENGTH = 10_000;
+
+export type ProjectCreationSource = "projects_page" | "task_form";
 
 export interface ProjectFormLabels {
   details: string;
@@ -41,6 +44,7 @@ interface ProjectFormProps {
   onCancel?: () => void;
   onSuccess?: (projectId: string, name: string) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
+  creationSource?: ProjectCreationSource;
 }
 
 export function ProjectForm({
@@ -53,6 +57,7 @@ export function ProjectForm({
   onCancel,
   onSuccess,
   onSubmittingChange,
+  creationSource,
 }: ProjectFormProps) {
   const router = useRouter();
   const isModal = variant === "modal";
@@ -87,6 +92,13 @@ export function ProjectForm({
               projectId: projectId ?? "",
               ...input,
             });
+
+      if (mode === "create" && creationSource) {
+        track("Project created", {
+          source: creationSource,
+          variant,
+        });
+      }
 
       if (onSuccess) {
         onSuccess(result.projectId, trimmedName);
