@@ -190,23 +190,30 @@ and the default tab.
 | `text` | rendered **Markdown** | `text` |
 | `html` | **sandboxed iframe** (scripts run) | `url` or `text` |
 
-### File extensions are normalized
+### Always use the canonical `type` value
 
-You can use the natural file extension as the `type` — it's mapped to the
-canonical kind automatically (case-insensitive):
+The `type` MUST be one of these exact values:
 
-| You write | Becomes |
+> `pdf` · `image` · `slides` · `doc` · `sheet` · `text` · `html`
+
+**Do NOT use file extensions** (`docx`, `pptx`, `xlsx`, `png`, …) as the `type`.
+Map your file to the canonical kind instead:
+
+| Your file | Use `type` |
 | --- | --- |
-| `docx`, `doc` | `doc` |
-| `pptx`, `ppt`, `slides` | `slides` |
-| `xlsx`, `xls`, `csv`, `sheet` | `sheet` |
-| `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `image` | `image` |
-| `md`, `markdown`, `text` | `text` |
-| `htm`, `html` | `html` |
-| `pdf` | `pdf` |
+| Word (`.docx`) | `doc` |
+| PowerPoint (`.pptx`) | `slides` |
+| Excel / CSV (`.xlsx` / `.csv`) | `sheet` |
+| Image (`.png` / `.jpg` / …) | `image` |
+| PDF | `pdf` |
+| Markdown / plain text | `text` |
+| Web page / interactive HTML | `html` |
 
-Anything else (e.g. `zip`) is **rejected** — and an invalid type breaks the
-coworker list, so stick to the table above.
+> ⚠️ Extensions like `docx`/`xlsx`/`pptx` are accepted **only as a fallback on the
+> latest deployment** (normalized to `doc`/`sheet`/`slides`). On an older
+> deployment they are **rejected**, and an invalid `type` **breaks the entire
+> coworker list** (the page won't load). The canonical names are always correct,
+> so use them. Any value outside the canonical list (e.g. `zip`) is rejected.
 
 ### `url` vs `text`
 
@@ -295,9 +302,9 @@ hosts are fine).
       "description": "Research high-converting landing pages and produce a designer-ready brief.",
       "deliverable": "Conversion-focused landing page brief.",
       "outputs": [
-        { "type": "docx", "url": "https://host/brief.docx",  "label": "Landing Page Brief" },
-        { "type": "xlsx", "url": "https://host/research.xlsx", "label": "Consumer Research" },
-        { "type": "xlsx", "url": "https://host/seo.xlsx",      "label": "SEO Intelligence" }
+        { "type": "doc",   "url": "https://host/brief.docx",    "label": "Landing Page Brief" },
+        { "type": "sheet", "url": "https://host/research.xlsx", "label": "Consumer Research" },
+        { "type": "sheet", "url": "https://host/seo.xlsx",      "label": "SEO Intelligence" }
       ]
     }
   ]
@@ -306,7 +313,8 @@ hosts are fine).
 
 The second offer has three outputs → the preview shows three tabs
 ("Landing Page Brief", "Consumer Research", "SEO Intelligence"), with the brief
-shown first. The `docx`/`xlsx` types are normalized to `doc`/`sheet`.
+shown first. Note the canonical types: a Word file is `doc` and a spreadsheet is
+`sheet` — never `docx`/`xlsx`.
 
 ### An interactive HTML output
 
@@ -343,15 +351,26 @@ shown first. The `docx`/`xlsx` types are normalized to `doc`/`sheet`.
 - **`channels` is required** (it can be `{}`, but the key must exist).
 - Per offer, only **`title` + `prompt`** are required.
 - **Invalid data breaks the whole coworker list**, not just one card — most
-  commonly an unsupported `type`. Stick to the types/extensions table.
+  commonly an unsupported `type`. Use only the canonical type values.
+- **Use canonical types, never file extensions** — `doc` not `docx`, `slides`
+  not `pptx`, `sheet` not `xlsx`.
 - **Hosted files must be public** and (for `html`) embeddable in an iframe.
 - **`email`/`whatsapp` are plain strings** — not Markdown links.
 - `outputs` has no "folder" concept — list each file as its own entry.
 
-### Deployment / compatibility
+### Deployment / compatibility (read this)
 
-`sheet` and `html`, and the file-extension normalization, require the code that
-adds them to be **deployed**. On an older deployment the allowed types are only
-`pdf | image | slides | doc | text`, and using a newer type there will break the
-page. When in doubt, confirm the target environment is up to date before using
-`sheet` / `html` / extension aliases.
+Not every type is live everywhere yet. Pick by where you're editing:
+
+| Type | Availability |
+| --- | --- |
+| `pdf`, `image`, `slides`, `doc`, `text` | **Safe everywhere** |
+| `html` | Needs a recent deployment |
+| `sheet` | Newest — needs the latest deployment |
+| extension aliases (`docx`, `xlsx`, `pptx`, …) | Latest only — **avoid; use canonical types** |
+
+Using a type the target environment doesn't have yet is rejected and **breaks the
+whole page**. On the **current mainnet** the safe set is
+`pdf · image · slides · doc · text · html`. If unsure, confirm the environment is
+up to date (or use `pdf`, which works everywhere) before using `sheet`. Never use
+extension aliases.
