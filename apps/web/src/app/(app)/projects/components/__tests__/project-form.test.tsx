@@ -91,7 +91,7 @@ describe("ProjectForm", () => {
         description: "Ship it",
       });
     });
-    expect(onSuccess).toHaveBeenCalledWith("project-1");
+    expect(onSuccess).toHaveBeenCalledWith("project-1", "Launch plan");
     expect(pushMock).not.toHaveBeenCalled();
   });
 

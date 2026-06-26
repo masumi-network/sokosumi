@@ -39,7 +39,7 @@ interface ProjectFormProps {
   variant?: "page" | "modal";
   showCancel?: boolean;
   onCancel?: () => void;
-  onSuccess?: (projectId: string) => void;
+  onSuccess?: (projectId: string, name: string) => void;
   onSubmittingChange?: (isSubmitting: boolean) => void;
 }
 
@@ -74,8 +74,9 @@ export function ProjectForm({
 
     updateSubmitting(true);
     try {
+      const trimmedName = name.trim();
       const input = {
-        name: name.trim(),
+        name: trimmedName,
         description: description.trim() || null,
       };
 
@@ -88,7 +89,7 @@ export function ProjectForm({
             });
 
       if (onSuccess) {
-        onSuccess(result.projectId);
+        onSuccess(result.projectId, trimmedName);
         return;
       }
 
@@ -113,9 +114,15 @@ export function ProjectForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className={isModal ? "space-y-0" : "max-w-3xl space-y-6"}
+      className={
+        isModal ? "flex min-h-0 flex-1 flex-col" : "max-w-3xl space-y-6"
+      }
     >
-      <section className={isModal ? "space-y-0" : "rounded-xl border"}>
+      <section
+        className={
+          isModal ? "flex min-h-0 flex-1 flex-col" : "rounded-xl border"
+        }
+      >
         {!isModal ? (
           <div className="space-y-1 p-6">
             <h2 className="text-lg font-semibold">{labels.details}</h2>
@@ -127,7 +134,9 @@ export function ProjectForm({
 
         <div
           className={
-            isModal ? "space-y-4 px-6 py-5" : "space-y-4 border-t px-6 py-6"
+            isModal
+              ? "flex min-h-0 flex-1 flex-col overflow-y-auto space-y-4 px-6 py-5"
+              : "space-y-4 border-t px-6 py-6"
           }
         >
           <div className="space-y-2">
@@ -143,7 +152,11 @@ export function ProjectForm({
             />
           </div>
 
-          <div className="space-y-2">
+          <div
+            className={
+              isModal ? "flex min-h-0 flex-1 flex-col space-y-2" : "space-y-2"
+            }
+          >
             <Label htmlFor="project-description">{labels.description}</Label>
             <Textarea
               id="project-description"
@@ -152,7 +165,9 @@ export function ProjectForm({
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               disabled={isSubmitting}
-              className="min-h-32 resize-none"
+              className={
+                isModal ? "flex-1 resize-none" : "min-h-32 resize-none"
+              }
             />
           </div>
         </div>
@@ -160,7 +175,7 @@ export function ProjectForm({
         <div
           className={
             isModal
-              ? "flex justify-end gap-3 border-t px-6 py-4"
+              ? "flex shrink-0 justify-end gap-3 border-t px-6 py-4"
               : "flex justify-end gap-3 border-t px-6 py-6"
           }
         >
