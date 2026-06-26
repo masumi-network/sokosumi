@@ -33,7 +33,7 @@ import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
-import { getDefaultAuthenticatedLandingPath } from "@/lib/utils/landing-path";
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   // Redirect before rendering client providers. A redirect-only `/` page leaves
   // the router on `/` during client navigation and triggers hook mismatches.
   if (pathname === "/") {
-    redirect(await getDefaultAuthenticatedLandingPath());
+    redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
   }
 
   const cookieStorePromise = cookies();

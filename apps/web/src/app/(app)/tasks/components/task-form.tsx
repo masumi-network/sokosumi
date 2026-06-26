@@ -20,7 +20,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
+import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { AgentDetail } from "@/app/tasks/new/components/agent-detail";
 import { AgentSpotlight } from "@/app/tasks/new/components/agent-spotlight";
 import { CoworkerCard } from "@/app/tasks/new/components/coworker-card";
@@ -80,6 +80,8 @@ export interface TaskFormLabels {
   projectNone: string;
   projectSearchPlaceholder: string;
   projectEmptyResults: string;
+  projectCreate?: string;
+  projectCreateNamed?: string;
   coworker: string;
   coworkerDescription: string;
   chooseAgent?: string;
@@ -210,6 +212,21 @@ export function TaskForm({
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
   );
+  const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
+    ProjectFilterOption[]
+  >([]);
+  const localProjectOptions = useMemo(() => {
+    const parentOptions = projectOptions ?? [];
+    const parentIds = new Set(parentOptions.map((project) => project.id));
+    const localOnly = inlineCreatedProjects.filter(
+      (project) => !parentIds.has(project.id),
+    );
+
+    return [...parentOptions, ...localOnly];
+  }, [inlineCreatedProjects, projectOptions]);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] =
+    useState(false);
+  const [createProjectQuery, setCreateProjectQuery] = useState("");
   const defaultCoworkerId = useMemo(() => {
     // Default to Elena on first open. Match by slug or name (case-insensitive)
     // so it works across environments (dev seed + mainnet) where the slug may
@@ -289,6 +306,23 @@ export function TaskForm({
     setCoworkerId(id);
   }, []);
 
+  const handleCreateProject = useCallback((searchQuery: string) => {
+    setCreateProjectQuery(searchQuery);
+    setIsCreateProjectModalOpen(true);
+  }, []);
+
+  const handleProjectCreated = useCallback(
+    (result: { projectId: string; name: string }) => {
+      const newProject: ProjectFilterOption = {
+        id: result.projectId,
+        name: result.name,
+      };
+      setInlineCreatedProjects((prev) => [...prev, newProject]);
+      setProjectId(result.projectId);
+    },
+    [],
+  );
+
   const abortActiveUploads = useCallback(() => {
     for (const controller of activeUploadControllersRef.current) {
       controller.abort();
@@ -354,7 +388,8 @@ export function TaskForm({
   const useModalShellLayout = isModal;
   const useModalScrollFill = isModal;
   const useModalFieldFill = isModal && showTaskStep;
-  const canUseSubmitShortcut = showTaskStep && !isSaveDisabled;
+  const canUseSubmitShortcut =
+    showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
   const shouldShowEditToggle = mode === "edit";
   const canMarkAsReady = !hasSchedule;
@@ -740,7 +775,10 @@ export function TaskForm({
                 variant="ghost"
                 size="sm"
                 className="text-primary -ml-2"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  setIsCreateProjectModalOpen(false);
+                  setStep(1);
+                }}
               >
                 <ArrowLeft className="mr-1 size-3.5" />
                 {labels.back}
@@ -814,13 +852,16 @@ export function TaskForm({
                 <div className="space-y-2">
                   <Label>{labels.projectLabel}</Label>
                   <TaskProjectSelect
-                    projectOptions={projectOptions ?? []}
+                    projectOptions={localProjectOptions}
                     value={projectId}
                     onChange={setProjectId}
                     projectLabel={labels.projectLabel}
                     noneLabel={labels.projectNone}
                     searchPlaceholder={labels.projectSearchPlaceholder}
                     emptyResults={labels.projectEmptyResults}
+                    projectCreate={labels.projectCreate}
+                    projectCreateNamed={labels.projectCreateNamed}
+                    onCreateProject={handleCreateProject}
                   />
                 </div>
               ) : null}
@@ -942,6 +983,15 @@ export function TaskForm({
             initialSelection={scheduleSelection}
             onApply={setScheduleSelection}
             onClearSchedule={handleClearSchedule}
+          />
+        ) : null}
+
+        {showTaskStep && shouldShowProjectSelect ? (
+          <InlineCreateProjectModal
+            open={isCreateProjectModalOpen}
+            onOpenChange={setIsCreateProjectModalOpen}
+            initialName={createProjectQuery}
+            onCreated={handleProjectCreated}
           />
         ) : null}
 

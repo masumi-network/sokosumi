@@ -106,6 +106,7 @@ export function CreateProjectModal() {
         key={formInstanceKey}
         mode="create"
         variant="modal"
+        creationSource="projects_page"
         showCancel={false}
         labels={{
           details: t("NewProject.details"),
