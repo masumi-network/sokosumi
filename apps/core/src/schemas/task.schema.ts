@@ -114,3 +114,17 @@ export const taskCountSchema = z
     count: z.number().int().nonnegative().openapi({ example: 42 }),
   })
   .openapi("TaskCount");
+
+export const taskWorkspaceSchema = z
+  .object({
+    workspaceId: z.string().uuid().openapi({
+      description: "Workspace id for the task",
+      example: "11111111-1111-7111-8111-111111111111",
+    }),
+    organizationId: z.string().nullable().openapi({
+      description:
+        "Organization id for the workspace, or null for a personal workspace",
+      example: "org_123",
+    }),
+  })
+  .openapi("TaskWorkspace");
