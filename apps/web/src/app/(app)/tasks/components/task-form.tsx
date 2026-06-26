@@ -388,7 +388,8 @@ export function TaskForm({
   const useModalShellLayout = isModal;
   const useModalScrollFill = isModal;
   const useModalFieldFill = isModal && showTaskStep;
-  const canUseSubmitShortcut = showTaskStep && !isSaveDisabled;
+  const canUseSubmitShortcut =
+    showTaskStep && !isSaveDisabled && !isCreateProjectModalOpen;
   const taskStepTitle = labels.taskStepTitle ?? "What should {name} do?";
   const shouldShowEditToggle = mode === "edit";
   const canMarkAsReady = !hasSchedule;
