@@ -47,6 +47,7 @@ interface FilterDropdownMenuProps {
   searchPlaceholder: string;
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
+  showActiveIndicator?: boolean;
 }
 
 const ALL_FILTER_VALUE = "__all__";
@@ -56,6 +57,7 @@ export function FilterDropdownMenu({
   searchPlaceholder,
   emptyResultsLabel,
   sections,
+  showActiveIndicator = false,
 }: FilterDropdownMenuProps) {
   const [open, setOpen] = useState(false);
 
@@ -66,9 +68,15 @@ export function FilterDropdownMenu({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="relative gap-2">
           <ListFilter className="size-4" aria-hidden />
           <span className="hidden sm:inline">{buttonLabel}</span>
+          {showActiveIndicator ? (
+            <span
+              aria-hidden
+              className="absolute top-1 right-1 size-1.5 rounded-full bg-primary ring-2 ring-background"
+            />
+          ) : null}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

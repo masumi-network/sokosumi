@@ -656,8 +656,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "Aviso de cuenta",
       "notifications": "Notificaciones",
       "unreadBadge": "{count, plural, =1 {1 notificación sin leer} other {# notificaciones sin leer}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notificación sin leer y aviso de cuenta} other {# notificaciones sin leer y aviso de cuenta}}",
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
       "emptyState": "Aún no hay notificaciones",
@@ -669,6 +671,7 @@
       "fetchError": "No se pudieron cargar las notificaciones",
       "retry": "Intentar de nuevo",
       "dismiss": "Descartar",
+      "view": "Ver",
       "dismissNotification": "Descartar notificación"
     },
     "HashValue": {
@@ -1411,7 +1414,6 @@
       },
       "Columns": {
         "backlog": "Pendiente",
-        "scheduled": "Programado",
         "todo": "Por hacer",
         "inProgress": "En proceso",
         "inputRequired": "Input requerido",

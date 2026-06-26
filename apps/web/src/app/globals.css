@@ -845,6 +845,21 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
   transform: translateX(100%);
 }
 
+.notification-reminder-bell-panel-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.notification-reminder-bell-panel-warning {
+  background: var(--semantic-warning);
+  color: var(--semantic-warning-foreground);
+}
+
+.notification-reminder-bell-panel-destructive {
+  background: var(--semantic-destructive);
+  color: var(--semantic-destructive-foreground);
+}
+
 .notification-reminder-bell-active .notification-reminder-avatar-panel {
   transform: translateX(-100%);
 }

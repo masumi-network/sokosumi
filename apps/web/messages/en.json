@@ -672,8 +672,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
       "emptyState": "No notifications yet",
@@ -685,6 +687,7 @@
       "fetchError": "Could not load notifications",
       "retry": "Try again",
       "dismiss": "Dismiss",
+      "view": "View",
       "dismissNotification": "Dismiss notification"
     },
     "HashValue": {
@@ -1422,7 +1425,6 @@
       },
       "Columns": {
         "backlog": "Backlog",
-        "scheduled": "Scheduled",
         "todo": "Todo",
         "inProgress": "In Progress",
         "inputRequired": "Input Required",

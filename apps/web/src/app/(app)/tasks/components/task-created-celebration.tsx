@@ -4,10 +4,15 @@ import { ArrowRight, Check, Clock } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
-import { COLUMN_STATUS_COLORS, type KanbanColumnId } from "@/lib/types/task";
+import { COLUMN_STATUS_COLORS } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
 
 type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";
+
+type CelebrationColumnId = "backlog" | "todo" | "celebration-scheduled";
+
+/** Matches removed kanban `scheduled` column dot color for unchanged celebration UI. */
+const CELEBRATION_SCHEDULED_DOT = "bg-primary";
 
 interface TaskCreatedCelebrationProps {
   name: string;
@@ -26,10 +31,10 @@ interface TaskCreatedCelebrationProps {
 
 // A 3-column slice of the real kanban board (matching its column dot colors).
 // A DRAFT task lands in "Backlog", READY in "To Do", QUEUED in "Scheduled".
-const COLUMNS: Array<{ id: KanbanColumnId; dot: string }> = [
+const COLUMNS: Array<{ id: CelebrationColumnId; dot: string }> = [
   { id: "backlog", dot: COLUMN_STATUS_COLORS.backlog },
   { id: "todo", dot: COLUMN_STATUS_COLORS.todo },
-  { id: "scheduled", dot: COLUMN_STATUS_COLORS.scheduled },
+  { id: "celebration-scheduled", dot: CELEBRATION_SCHEDULED_DOT },
 ];
 
 const STATUS_COLUMN_INDEX: Record<CelebrationTaskStatus, number> = {
@@ -52,7 +57,7 @@ const STATUS_CARD_STYLES: Record<
   },
   QUEUED: {
     badge: "bg-primary/10 text-primary",
-    dot: COLUMN_STATUS_COLORS.scheduled,
+    dot: CELEBRATION_SCHEDULED_DOT,
   },
 };
 

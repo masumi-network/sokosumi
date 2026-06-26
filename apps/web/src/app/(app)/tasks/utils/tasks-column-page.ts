@@ -57,7 +57,6 @@ export async function getTasksColumnPage({
     projectId: projectId ?? undefined,
     cursor,
     limit,
-    ...(columnId === "scheduled" ? { sort: "nextRunAt" as const } : {}),
   });
   const tasks = result.tasks.map((task) =>
     mapTaskToTaskWithCoworker(task, coworkersById, agentsById),
