@@ -1,3 +1,5 @@
+import { TaskStatus } from "@sokosumi/utils";
+
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import type { TaskWithCoworker } from "@/lib/types/task";
@@ -69,7 +71,8 @@ export function TaskCard({
               </div>
             ) : null}
 
-            {hasActiveSchedule(
+            {task.status === TaskStatus.QUEUED &&
+            hasActiveSchedule(
               task.metadata,
               task.nextRunAt ? new Date(task.nextRunAt) : null,
             ) ? (
