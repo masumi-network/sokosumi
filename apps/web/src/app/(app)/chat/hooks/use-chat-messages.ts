@@ -18,6 +18,8 @@ interface UseChatMessagesProps {
   messagesChatIdRef: React.MutableRefObject<string | null>;
   chatMessagesRef: React.MutableRefObject<Map<string, unknown[]>>;
   streamingConversationIdsRef?: React.MutableRefObject<Set<string>>;
+  welcomeCreationInFlightRef?: React.MutableRefObject<boolean>;
+  pendingUrlConversationIdRef?: React.MutableRefObject<string | null>;
 }
 
 type SerializedConversationMessagesResult =
@@ -85,6 +87,8 @@ export function useChatMessages({
   messagesChatIdRef,
   chatMessagesRef,
   streamingConversationIdsRef,
+  welcomeCreationInFlightRef,
+  pendingUrlConversationIdRef,
 }: UseChatMessagesProps) {
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -117,9 +121,22 @@ export function useChatMessages({
         setMessagesForConversation(currentSelectedChatId, dbMessages);
         chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
       } else {
+        previousChatIdRef.current = currentSelectedChatId;
+        const cachedMessages = chatMessagesRef.current.get(
+          currentSelectedChatId,
+        );
+        const isPendingNavigation =
+          pendingUrlConversationIdRef?.current === currentSelectedChatId;
+        if (
+          welcomeCreationInFlightRef?.current ||
+          isPendingNavigation ||
+          (cachedMessages && cachedMessages.length > 0)
+        ) {
+          messagesChatIdRef.current = currentSelectedChatId;
+          return;
+        }
         messagesChatIdRef.current = null;
         setMessagesForConversation(currentSelectedChatId, []);
-        previousChatIdRef.current = currentSelectedChatId;
       }
 
       const loadMessagesFromDB = async (
@@ -265,6 +282,8 @@ export function useChatMessages({
     chatMessagesRef,
     retryTimeoutRef,
     streamingConversationIdsRef,
+    welcomeCreationInFlightRef,
+    pendingUrlConversationIdRef,
   ]);
 
   useEffect(() => {

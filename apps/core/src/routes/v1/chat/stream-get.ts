@@ -91,6 +91,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const meta = (conversation.metadata ?? {}) as Record<string, unknown>;
     const activeStreamId = readActiveUiStreamIdFromMetadata(meta);
     if (!activeStreamId) {
+      // #region agent log
+      try {
+        const { appendFileSync } = await import("node:fs");
+        appendFileSync(
+          "/Users/francisluz/Documents/Projects/sokosumi-review/.cursor/debug-94182f.log",
+          `${JSON.stringify({
+            sessionId: "94182f",
+            runId: "connection-lost",
+            hypothesisId: "H2",
+            location: "stream-get.ts:resume",
+            message: "resume skipped no active stream id",
+            data: {
+              conversationId,
+              status: 204,
+              reason: "no_active_stream_id",
+            },
+            timestamp: Date.now(),
+          })}\n`,
+        );
+      } catch {
+        /* debug log best-effort */
+      }
+      // #endregion
       return new Response(null, { status: 204 });
     }
 
@@ -106,6 +129,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "Resumable UI stream resume timed out waiting for Redis ack (likely slow Redis or cross-instance latency)",
         { conversationId, activeStreamId },
       );
+      // #region agent log
+      try {
+        const { appendFileSync } = await import("node:fs");
+        appendFileSync(
+          "/Users/francisluz/Documents/Projects/sokosumi-review/.cursor/debug-94182f.log",
+          `${JSON.stringify({
+            sessionId: "94182f",
+            runId: "connection-lost",
+            hypothesisId: "H2",
+            location: "stream-get.ts:resume",
+            message: "resume ack timeout",
+            data: {
+              conversationId,
+              activeStreamId,
+              status: 204,
+              reason: "redis_ack_timeout",
+            },
+            timestamp: Date.now(),
+          })}\n`,
+        );
+      } catch {
+        /* debug log best-effort */
+      }
+      // #endregion
       void clearActiveUiStreamIdInMetadata({
         conversationId,
         userId: userContext.userId,

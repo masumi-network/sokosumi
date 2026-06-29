@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import ChatInputContainer from "@/app/chat/components/chat-input-container";
 import SelectCoworkerModal from "@/app/chat/components/select-coworker-modal";
@@ -28,6 +29,7 @@ import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
+import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import {
   coworkerHasCapability,
   filterCoworkersForComposeKind,
@@ -51,6 +53,7 @@ import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
   CHAT_API_PATH,
+  CHAT_APP_ROUTE_PREFIX,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
   isChatShellPathname,
@@ -64,8 +67,16 @@ import {
   extractMessageContent,
   extractReasoningStepMessages,
   hasMessageTextOrFileParts,
-  mergeAssistantThoughtMetadataFromDb,
+  reconcileSlotMessagesWithDb,
 } from "@/app/chat-ui/utils/message-utils";
+import {
+  cancelCoworkerDbSync,
+  hasGoodCoworkerAssistantTail,
+  isStaleCoworkerAssistantTail,
+  isSuspiciouslyShortCoworkerAssistantTail,
+  shouldRejectCoworkerMessageRegression,
+  syncCoworkerSlotFromDbWithRetry,
+} from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
@@ -349,7 +360,16 @@ export default function ChatInterface({
   ]);
 
   const [isWelcomeSubmitting, setIsWelcomeSubmitting] = useState(false);
+  const [welcomeSendRetryTick, setWelcomeSendRetryTick] = useState(0);
   const welcomeCreationInFlightRef = useRef(false);
+  const pendingWelcomeSendRef = useRef<{
+    conversationId: string;
+    bucketSlug: string;
+    payload: ChatSendMessage;
+    sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1];
+    createdAt: number;
+    navigationRequested: boolean;
+  } | null>(null);
 
   const welcomePrefsHydratedRef = useRef(false);
   const previousWelcomeCoworkerSlugRef = useRef<string | null>(
@@ -816,13 +836,81 @@ export default function ChatInterface({
     };
   }, []);
 
+  const setMessagesForConversationRef = useRef<
+    (
+      convId: string,
+      messages: UIMessage[],
+      options?: { forceFromDb?: boolean },
+    ) => void
+  >(() => {});
+
+  const getLiveSlotMessagesForConversationRef = useRef<
+    (conversationId: string) => UIMessage[]
+  >(() => []);
+
   const onErrorForSlot = useCallback(
     (slotIndex: number) => (error: unknown) => {
       console.error(`Chat API error (slot ${slotIndex}):`, error);
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "94182f",
+          },
+          body: JSON.stringify({
+            sessionId: "94182f",
+            runId: "connection-lost",
+            hypothesisId: "H3",
+            location: "chat-interface.tsx:onError",
+            message: "useChat stream error",
+            data: {
+              slotIndex,
+              convId: slotPayloadRef.current[slotIndex]?.conversationId ?? null,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : String(error ?? "unknown"),
+            },
+            timestamp: Date.now(),
+          }),
+        },
+      ).catch(() => {});
+      // #endregion
       const convId = slotPayloadRef.current[slotIndex]?.conversationId ?? null;
-      if (convId) void selectConversation(convId);
+      if (convId) {
+        welcomeCreationInFlightRef.current = false;
+        const isCoworkerThread =
+          (
+            conversations.find((c) => c.id === convId)?.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined
+          )?.type === "coworker" ||
+          Boolean(chats.find((c) => c.id === convId)?.coworker);
+        if (isCoworkerThread) {
+          const slotMessagesSnapshot =
+            getLiveSlotMessagesForConversationRef.current(convId);
+          void syncCoworkerSlotFromDbWithRetry({
+            conversationId: convId,
+            slotMessages: slotMessagesSnapshot,
+            getLiveSlotMessages: () =>
+              getLiveSlotMessagesForConversationRef.current(convId),
+            onApply: (dbMessages) => {
+              setMessagesForConversationRef.current(convId, dbMessages, {
+                forceFromDb: true,
+              });
+              chatMessagesRef.current.set(convId, dbMessages);
+            },
+          });
+          return;
+        }
+        void selectConversation(convId);
+      }
     },
-    [selectConversation],
+    [selectConversation, conversations, chats],
   );
 
   const onFinishForSlot = useCallback(
@@ -832,31 +920,131 @@ export default function ChatInterface({
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
 
-        void refreshConversations();
+        const isCoworkerThread =
+          (
+            conversations.find((c) => c.id === conversationId)?.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined
+          )?.type === "coworker" ||
+          Boolean(chats.find((c) => c.id === conversationId)?.coworker);
 
-        const lastAssistantMessage = [...finishedMessages]
-          .reverse()
-          .find((msg) => msg.role === "assistant");
-        if (lastAssistantMessage) {
-          const content = extractMessageContent(lastAssistantMessage);
-          if (
-            content &&
-            previousChatIdRef.current === conversationId &&
-            messagesChatIdRef.current === conversationId &&
-            updateChatPreviewRef.current
-          ) {
-            const isFirstAssistantMessage =
-              finishedMessages.filter((m) => m.role === "assistant").length ===
-              1;
-            updateChatPreviewRef.current(
-              conversationId,
-              content,
-              isFirstAssistantMessage,
-            );
+        void (async () => {
+          const lastAssistantMessage = [...finishedMessages]
+            .reverse()
+            .find((msg) => msg.role === "assistant");
+          const content = lastAssistantMessage
+            ? extractMessageContent(lastAssistantMessage).trim()
+            : "";
+
+          if (!isCoworkerThread) {
+            void refreshConversations();
+            if (
+              content &&
+              previousChatIdRef.current === conversationId &&
+              messagesChatIdRef.current === conversationId &&
+              updateChatPreviewRef.current
+            ) {
+              const isFirstAssistantMessage =
+                finishedMessages.filter((m) => m.role === "assistant")
+                  .length === 1;
+              updateChatPreviewRef.current(
+                conversationId,
+                content,
+                isFirstAssistantMessage,
+              );
+            }
+            return;
           }
-        }
+
+          if (
+            content.length > 0 &&
+            !isSuspiciouslyShortCoworkerAssistantTail(finishedMessages)
+          ) {
+            setMessagesForConversationRef.current(
+              conversationId,
+              finishedMessages,
+              { forceFromDb: true },
+            );
+            chatMessagesRef.current.set(conversationId, finishedMessages);
+          }
+
+          const liveBeforeSync =
+            getLiveSlotMessagesForConversationRef.current(conversationId);
+          const liveTail =
+            liveBeforeSync[liveBeforeSync.length - 1]?.role === "assistant"
+              ? extractMessageContent(
+                  liveBeforeSync[liveBeforeSync.length - 1] ?? {},
+                ).trim().length
+              : -1;
+          // #region agent log
+          fetch(
+            "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Debug-Session-Id": "94182f",
+              },
+              body: JSON.stringify({
+                sessionId: "94182f",
+                runId: "db-sync-retry",
+                hypothesisId: "LIVE",
+                location: "chat-interface.tsx:onFinish:beforeSync",
+                message: "live slot vs finishedMessages before db sync",
+                data: {
+                  conversationId,
+                  finishedTailLength: content.length,
+                  liveTailLength: liveTail,
+                  liveStale: isStaleCoworkerAssistantTail(liveBeforeSync),
+                  finishedGood: hasGoodCoworkerAssistantTail(finishedMessages),
+                },
+                timestamp: Date.now(),
+              }),
+            },
+          ).catch(() => {});
+          // #endregion
+
+          await syncCoworkerSlotFromDbWithRetry({
+            conversationId,
+            slotMessages: finishedMessages,
+            getLiveSlotMessages: () =>
+              getLiveSlotMessagesForConversationRef.current(conversationId),
+            onApply: (dbMessages) => {
+              setMessagesForConversationRef.current(
+                conversationId,
+                dbMessages,
+                {
+                  forceFromDb: true,
+                },
+              );
+              chatMessagesRef.current.set(conversationId, dbMessages);
+
+              const dbTail = dbMessages[dbMessages.length - 1];
+              const dbContent =
+                dbTail?.role === "assistant"
+                  ? extractMessageContent(dbTail).trim()
+                  : "";
+              if (
+                dbContent &&
+                previousChatIdRef.current === conversationId &&
+                messagesChatIdRef.current === conversationId &&
+                updateChatPreviewRef.current
+              ) {
+                const isFirstAssistantMessage =
+                  dbMessages.filter((m) => m.role === "assistant").length === 1;
+                updateChatPreviewRef.current(
+                  conversationId,
+                  dbContent,
+                  isFirstAssistantMessage,
+                );
+              }
+            },
+          });
+          void refreshConversations();
+        })();
       },
-    [refreshConversations],
+    [refreshConversations, conversations, chats],
   );
 
   const chat0 = useChat({
@@ -954,59 +1142,178 @@ export default function ChatInterface({
       return s === "streaming" || s === "submitted";
     })();
 
-  const refetchedForEmptyAssistantRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectedChatId || isSelectedChatLoading) {
-      return;
-    }
-    const slot = conversationToSlot.get(selectedChatId);
-    if (slot === undefined) return;
-    const msgs = (slotMessages[slot] ?? []) as UIMessage[];
-    const last = msgs[msgs.length - 1];
-    const lastContent =
-      last?.role === "assistant" ? extractMessageContent(last).trim() : "";
-    const emptyAssistantEnd =
-      last?.role === "assistant" && lastContent === "" && msgs.length > 0;
-    if (!emptyAssistantEnd) {
-      refetchedForEmptyAssistantRef.current = null;
-      return;
-    }
-    if (refetchedForEmptyAssistantRef.current === selectedChatId) return;
-    refetchedForEmptyAssistantRef.current = selectedChatId;
-    void selectConversation(selectedChatId);
-  }, [
-    selectedChatId,
-    conversationToSlot,
-    slotMessages,
-    isSelectedChatLoading,
-    selectConversation,
-  ]);
+  const slotMessagesRef = useRef<UIMessage[][]>([[], [], []]);
+  useLayoutEffect(() => {
+    slotMessagesRef.current = slotMessages as UIMessage[][];
+  }, [slotMessages]);
+
+  const getLiveSlotMessagesForConversation = useCallback(
+    (conversationId: string): UIMessage[] => {
+      const slot = conversationToSlot.get(conversationId);
+      if (slot !== undefined && slot >= 0 && slot < NUM_SLOTS) {
+        return (slotMessagesRef.current[slot] ?? []) as UIMessage[];
+      }
+      return cachedMessagesByConversation[conversationId] ?? [];
+    },
+    [conversationToSlot, cachedMessagesByConversation],
+  );
+  getLiveSlotMessagesForConversationRef.current =
+    getLiveSlotMessagesForConversation;
+
+  const [messageListRevision, setMessageListRevision] = useState(0);
+
+  const bumpMessageListRevision = useCallback(() => {
+    setMessageListRevision((revision) => revision + 1);
+  }, []);
 
   const setMessagesForConversation = useCallback(
-    (convId: string, messages: UIMessage[]) => {
-      if (streamingConversationIdsRef.current.has(convId)) return;
+    (
+      convId: string,
+      messages: UIMessage[],
+      options?: { forceFromDb?: boolean },
+    ) => {
+      if (
+        !options?.forceFromDb &&
+        streamingConversationIdsRef.current.has(convId)
+      ) {
+        return;
+      }
       const slot = conversationToSlot.get(convId);
+      const applySlotMessages = (apply: () => void) => {
+        if (options?.forceFromDb) {
+          flushSync(apply);
+          bumpMessageListRevision();
+          // #region agent log
+          fetch(
+            "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Debug-Session-Id": "94182f",
+              },
+              body: JSON.stringify({
+                sessionId: "94182f",
+                runId: "db-sync-retry",
+                hypothesisId: "RENDER",
+                location: "chat-interface.tsx:setMessagesForConversation",
+                message: "forceFromDb slot commit",
+                data: {
+                  convId,
+                  messageCount: messages.length,
+                  tailLength: extractMessageContent(
+                    messages[messages.length - 1] ?? {},
+                  ).trim().length,
+                },
+                timestamp: Date.now(),
+              }),
+            },
+          ).catch(() => {});
+          // #endregion
+        } else {
+          apply();
+        }
+      };
       if (slot !== undefined && slot >= 0 && slot < NUM_SLOTS) {
-        setMessagesSlots[slot]((prev) => {
-          const prevArr = (prev ?? []) as UIMessage[];
-          if (prevArr.length === 0 && messages.length > 0) {
-            return messages;
-          }
-          if (messages.length === 0) {
-            return prevArr;
-          }
-          return mergeAssistantThoughtMetadataFromDb(prevArr, messages);
+        applySlotMessages(() => {
+          setMessagesSlots[slot]((prev) => {
+            const prevArr = (prev ?? []) as UIMessage[];
+            if (
+              shouldRejectCoworkerMessageRegression(prevArr, messages) &&
+              !options?.forceFromDb
+            ) {
+              // #region agent log
+              fetch(
+                "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "X-Debug-Session-Id": "94182f",
+                  },
+                  body: JSON.stringify({
+                    sessionId: "94182f",
+                    runId: "db-sync-retry",
+                    hypothesisId: "WIPE",
+                    location: "chat-interface.tsx:setMessagesForConversation",
+                    message: "rejected message regression",
+                    data: {
+                      convId,
+                      prevCount: prevArr.length,
+                      nextCount: messages.length,
+                      prevTail: extractMessageContent(
+                        prevArr[prevArr.length - 1] ?? {},
+                      ).trim().length,
+                      nextTail: extractMessageContent(
+                        messages[messages.length - 1] ?? {},
+                      ).trim().length,
+                    },
+                    timestamp: Date.now(),
+                  }),
+                },
+              ).catch(() => {});
+              // #endregion
+              return prevArr;
+            }
+            if (options?.forceFromDb) {
+              if (shouldRejectCoworkerMessageRegression(prevArr, messages)) {
+                // #region agent log
+                fetch(
+                  "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Debug-Session-Id": "94182f",
+                    },
+                    body: JSON.stringify({
+                      sessionId: "94182f",
+                      runId: "post-fix",
+                      hypothesisId: "WIPE",
+                      location: "chat-interface.tsx:setMessagesForConversation",
+                      message: "forceFromDb rejected regression",
+                      data: {
+                        convId,
+                        prevCount: prevArr.length,
+                        nextCount: messages.length,
+                        prevTail: extractMessageContent(
+                          prevArr[prevArr.length - 1] ?? {},
+                        ).trim().length,
+                        nextTail: extractMessageContent(
+                          messages[messages.length - 1] ?? {},
+                        ).trim().length,
+                      },
+                      timestamp: Date.now(),
+                    }),
+                  },
+                ).catch(() => {});
+                // #endregion
+                return prevArr;
+              }
+              return messages;
+            }
+            if (prevArr.length === 0 && messages.length > 0) {
+              return messages;
+            }
+            if (messages.length === 0) {
+              return prevArr;
+            }
+            return reconcileSlotMessagesWithDb(prevArr, messages);
+          });
         });
         return;
       }
-      setCachedMessagesByConversation((prev) => ({
-        ...prev,
-        [convId]: messages,
-      }));
-      chatMessagesRef.current.set(convId, messages);
+      applySlotMessages(() => {
+        setCachedMessagesByConversation((prev) => ({
+          ...prev,
+          [convId]: messages,
+        }));
+        chatMessagesRef.current.set(convId, messages);
+      });
     },
-    [conversationToSlot, setMessagesSlots],
+    [conversationToSlot, setMessagesSlots, bumpMessageListRevision],
   );
+  setMessagesForConversationRef.current = setMessagesForConversation;
 
   useEffect(() => {
     slotToConversation.forEach((convId, slot) => {
@@ -1140,6 +1447,7 @@ export default function ChatInterface({
       message: ChatSendMessage,
       sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1],
     ): boolean => {
+      cancelCoworkerDbSync(conversationId);
       const payload = toChatSendMessage(message);
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
@@ -1260,7 +1568,93 @@ export default function ChatInterface({
         Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
   );
 
-  useChatSelection({
+  useEffect(() => {
+    if (!selectedChatId || isSelectedChatLoading) {
+      return;
+    }
+    if (!isSelectedChatCoworker) {
+      return;
+    }
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot === undefined) return;
+    const msgs = (slotMessages[slot] ?? []) as UIMessage[];
+    const last = msgs[msgs.length - 1];
+    const lastContent =
+      last?.role === "assistant" ? extractMessageContent(last).trim() : "";
+    const emptyAssistantEnd =
+      last?.role === "assistant" && lastContent === "" && msgs.length > 0;
+    const suspiciousShortAssistantEnd =
+      last?.role === "assistant" &&
+      isSuspiciouslyShortCoworkerAssistantTail(msgs);
+    if (!emptyAssistantEnd && !suspiciousShortAssistantEnd) {
+      return;
+    }
+    void syncCoworkerSlotFromDbWithRetry({
+      conversationId: selectedChatId,
+      slotMessages: msgs,
+      getLiveSlotMessages: () =>
+        getLiveSlotMessagesForConversationRef.current(selectedChatId),
+      onApply: (dbMessages) => {
+        setMessagesForConversation(selectedChatId, dbMessages, {
+          forceFromDb: true,
+        });
+        chatMessagesRef.current.set(selectedChatId, dbMessages);
+      },
+    });
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotMessages,
+    isSelectedChatLoading,
+    isSelectedChatCoworker,
+    setMessagesForConversation,
+  ]);
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const conversationId = selectedChatId;
+      if (!conversationId || isSelectedChatLoading || !isSelectedChatCoworker) {
+        return;
+      }
+      const liveMessages =
+        getLiveSlotMessagesForConversationRef.current(conversationId);
+      if (
+        hasGoodCoworkerAssistantTail(liveMessages) &&
+        !isStaleCoworkerAssistantTail(liveMessages)
+      ) {
+        bumpMessageListRevision();
+        return;
+      }
+      void syncCoworkerSlotFromDbWithRetry({
+        conversationId,
+        slotMessages: liveMessages,
+        getLiveSlotMessages: () =>
+          getLiveSlotMessagesForConversationRef.current(conversationId),
+        onApply: (dbMessages) => {
+          setMessagesForConversation(conversationId, dbMessages, {
+            forceFromDb: true,
+          });
+          chatMessagesRef.current.set(conversationId, dbMessages);
+        },
+      });
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    selectedChatId,
+    isSelectedChatLoading,
+    isSelectedChatCoworker,
+    setMessagesForConversation,
+    bumpMessageListRevision,
+  ]);
+
+  const { selectChat: _selectChat } = useChatSelection({
     urlConversationId,
     pathname,
     conversations,
@@ -1280,6 +1674,9 @@ export default function ChatInterface({
     isUpdatingUrlRef,
     pendingUrlConversationIdRef,
     isConversationsLoading,
+    isSelectedChatStreaming: isSelectedChatLoading,
+    isConversationLoading:
+      Boolean(selectedChatId) && selectedConversation?.id !== selectedChatId,
     enabled: isRouteDriven,
   });
 
@@ -1288,6 +1685,16 @@ export default function ChatInterface({
   useEffect(() => {
     updateChatPreviewRef.current = updateChatPreview;
   }, [updateChatPreview]);
+
+  useEffect(() => {
+    if (!welcomeCreationInFlightRef.current || !selectedChatId) return;
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot === undefined) return;
+    const status = slotStatuses[slot];
+    if (status === "submitted" || status === "streaming") {
+      welcomeCreationInFlightRef.current = false;
+    }
+  }, [selectedChatId, conversationToSlot, slotStatuses]);
 
   const { cacheMessages: _cacheMessages, clearMessages: _clearMessages } =
     useChatMessages({
@@ -1298,6 +1705,8 @@ export default function ChatInterface({
       messagesChatIdRef,
       chatMessagesRef,
       streamingConversationIdsRef,
+      welcomeCreationInFlightRef,
+      pendingUrlConversationIdRef,
     });
 
   const { userTailRecoveryLoading, userTailRecoveryFailed } =
@@ -1321,6 +1730,7 @@ export default function ChatInterface({
     isWelcomeTransitioning,
     setIsWelcomeTransitioning,
     showMessagesAfterTransition,
+    setShowMessagesAfterTransition,
   } = useChatCreation({
     createNewConversation,
     setChats,
@@ -1356,6 +1766,55 @@ export default function ChatInterface({
     selectedModelRef,
     coworkers,
   });
+
+  useEffect(() => {
+    const pending = pendingWelcomeSendRef.current;
+    if (!pending) return;
+
+    const pathConversationId = pathname
+      ? getConversationIdFromChatPathname(pathname)
+      : null;
+    const routeReady =
+      isRouteDriven &&
+      (urlConversationId === pending.conversationId ||
+        pathConversationId === pending.conversationId);
+    const controlledReady =
+      !isRouteDriven && selectedChatId === pending.conversationId;
+
+    if (isRouteDriven && !routeReady) {
+      if (!pending.navigationRequested) {
+        pending.navigationRequested = true;
+        pendingUrlConversationIdRef.current = pending.conversationId;
+        isUpdatingUrlRef.current = true;
+        const targetPath = `${CHAT_APP_ROUTE_PREFIX}/${pending.bucketSlug}/conversation/${pending.conversationId}`;
+        router.push(targetPath, { scroll: false });
+      }
+      return;
+    }
+
+    if (!routeReady && !controlledReady) {
+      return;
+    }
+
+    pendingWelcomeSendRef.current = null;
+
+    const sent = sendInConversation(
+      pending.conversationId,
+      pending.payload,
+      pending.sendOptions,
+    );
+    if (!sent) {
+      welcomeCreationInFlightRef.current = false;
+    }
+  }, [
+    urlConversationId,
+    pathname,
+    isRouteDriven,
+    selectedChatId,
+    sendInConversation,
+    welcomeSendRetryTick,
+    router,
+  ]);
 
   const handleModelSelected = useCallback(
     async (
@@ -1440,13 +1899,21 @@ export default function ChatInterface({
           await new Promise((resolve) => setTimeout(resolve, 300));
 
           let conversationId: string | null = null;
+          let bucketSlug: string | null = null;
 
           if (model || selectedModel) {
             const modelToUse = model || selectedModel;
             if (modelToUse) {
-              conversationId = await handleModelSelected(modelToUse, {
+              const conversation = await createModelChat(modelToUse, {
                 imageGeneration: imageGenerationForSend,
+                deferNavigation: true,
               });
+              if (conversation) {
+                conversationId = conversation.id;
+                bucketSlug =
+                  displaySlugFromMetadata(conversation.metadata ?? null) ||
+                  `model-${modelToUse.id.replace(/\//g, "-")}`;
+              }
             }
           } else {
             const selectedCoworker =
@@ -1464,32 +1931,49 @@ export default function ChatInterface({
             if (!selectedCoworker) {
               toast.error(t("noCoworkersAvailable"));
               setIsWelcomeTransitioning(false);
+              welcomeCreationInFlightRef.current = false;
               return false;
             }
-            conversationId = await handleCoworkerSelected(selectedCoworker);
+            const conversation = await createCoworkerChat(selectedCoworker, {
+              deferNavigation: true,
+            });
+            if (conversation) {
+              conversationId = conversation.id;
+              bucketSlug =
+                displaySlugFromMetadata(conversation.metadata ?? null) ||
+                slugify(selectedCoworker.slug) ||
+                slugify(selectedCoworker.name) ||
+                `coworker-${selectedCoworker.id}`;
+            }
           }
 
-          if (!conversationId) {
+          if (!conversationId || !bucketSlug) {
             setIsWelcomeTransitioning(false);
+            welcomeCreationInFlightRef.current = false;
             return false;
           }
 
-          if (!currentChatIdRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            if (!currentChatIdRef.current) {
-              setIsWelcomeTransitioning(false);
-              return false;
-            }
+          setShowMessagesAfterTransition(true);
+          setIsWelcomeTransitioning(false);
+          pendingWelcomeSendRef.current = {
+            conversationId,
+            bucketSlug,
+            payload: sendPayload,
+            sendOptions,
+            createdAt: Date.now(),
+            navigationRequested: false,
+          };
+          setInput("");
+          queueMicrotask(() => {
+            setWelcomeSendRetryTick((tick) => tick + 1);
+          });
+          for (const delayMs of [50, 150, 350, 700, 1500, 5000, 10_000]) {
+            window.setTimeout(() => {
+              setWelcomeSendRetryTick((tick) => tick + 1);
+            }, delayMs);
           }
-
-          const cid = currentChatIdRef.current ?? conversationId;
-          const sent = cid
-            ? sendInConversation(cid, sendPayload, sendOptions)
-            : false;
-          if (sent) setInput("");
-          return sent;
+          return true;
         } finally {
-          welcomeCreationInFlightRef.current = false;
           setIsWelcomeSubmitting(false);
         }
       }
@@ -1515,21 +1999,21 @@ export default function ChatInterface({
     },
     [
       coworkers,
+      createCoworkerChat,
+      createModelChat,
       isLoading,
       isWelcomeTransitioning,
       selectedChatId,
       selectedConversationImageGeneration,
-      sendInConversation,
-      setInput,
-      handleCoworkerSelected,
-      handleModelSelected,
       selectedModel,
       effectiveWelcomeCoworker,
       t,
-      router,
       setIsWelcomeTransitioning,
-      currentChatIdRef,
+      setShowMessagesAfterTransition,
+      urlConversationId,
+      pathname,
       setChats,
+      setInput,
     ],
   );
 
@@ -1670,6 +2154,7 @@ export default function ChatInterface({
                     messages={displayedMessages}
                     onResendLastMessage={handleResendLastMessage}
                     userTailRecoveryFailed={userTailRecoveryFailed}
+                    listRevision={messageListRevision}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined
@@ -1682,7 +2167,7 @@ export default function ChatInterface({
                 )}
               </>
             )}
-            {!isConversationLoading && (
+            {!isConversationLoading || isWelcomeSubmitting ? (
               <>
                 <div
                   aria-hidden
@@ -1709,7 +2194,7 @@ export default function ChatInterface({
                   }
                 />
               </>
-            )}
+            ) : null}
           </>
         ) : (
           <WelcomeScreen

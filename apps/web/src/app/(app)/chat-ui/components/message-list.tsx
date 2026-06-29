@@ -100,6 +100,7 @@ interface MessageListProps {
   isCoworker?: boolean;
   onResendLastMessage?: (lastUserMessage: UIMessage) => void;
   userTailRecoveryFailed?: boolean;
+  listRevision?: number;
 }
 
 const MessageList = forwardRef<MessageListHandle, MessageListProps>(
@@ -119,6 +120,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       isCoworker = false,
       onResendLastMessage,
       userTailRecoveryFailed = false,
+      listRevision = 0,
     },
     ref,
   ) {
@@ -307,6 +309,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           ? null
           : (reasoningEndedAt ?? null);
       const isStreaming = isLoading && isLastMessage && role === "assistant";
+      if (
+        role === "assistant" &&
+        !content.trim() &&
+        !isStreaming &&
+        !isLastMessage
+      ) {
+        return null;
+      }
       const hideEmptyAssistantWhileLoading =
         isLastMessage &&
         role === "assistant" &&
@@ -321,7 +331,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         showPendingErrorForEmptyAssistant;
       const stableKeyForLastAssistant = isLastMessage && role === "assistant";
       const messageKey = stableKeyForLastAssistant
-        ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant`
+        ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant-${content.trim().length}-${listRevision}`
         : `${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`;
 
       return (

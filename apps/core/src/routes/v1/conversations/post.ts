@@ -1,6 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { v4 as uuidv4 } from "uuid";
-import { pinCoworkerConversationBinding } from "@/helpers/access-control";
+import {
+  pinCoworkerConversationBinding,
+  requireCoworkerChatCapability,
+} from "@/helpers/access-control";
 import { conflict, internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -10,6 +13,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
+import { ensureCoworkerProviderConversation } from "@/routes/v1/chat/coworker-conversation";
 import {
   conversationSchema,
   createConversationRequestSchema,
@@ -98,6 +102,49 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return tx.conversation.create({ data: conversationData });
       });
+
+      const conversationMetadata =
+        (conversation.metadata as Record<string, unknown> | null) ?? null;
+      const coworkerSlug = conversationMetadata?.coworker_slug as
+        | string
+        | undefined;
+      const coworkerId = conversationMetadata?.coworker_id as
+        | string
+        | undefined;
+      const isCoworkerChat =
+        conversationMetadata?.type === "coworker" ||
+        Boolean(coworkerSlug || coworkerId);
+
+      if (isCoworkerChat && (coworkerSlug || coworkerId)) {
+        try {
+          const coworkerIdentity = await prisma.coworker.findFirst({
+            where: {
+              archivedAt: null,
+              ...(coworkerId ? { id: coworkerId } : { slug: coworkerSlug }),
+            },
+            select: { id: true },
+          });
+          if (coworkerIdentity) {
+            const coworker = await requireCoworkerChatCapability(
+              coworkerIdentity.id,
+            );
+            if (coworker.baseURL?.trim()) {
+              await ensureCoworkerProviderConversation({
+                internalConversationId: conversation.id,
+                userId: userContext.userId,
+                organizationId: userContext.organizationId ?? null,
+                coworkerSlug: coworker.slug,
+                responsesApiBaseUrl: coworker.baseURL.trim(),
+              });
+            }
+          }
+        } catch (error) {
+          console.error(
+            "Failed to eagerly create coworker provider conversation; will retry on first message:",
+            error,
+          );
+        }
+      }
 
       // Map to response schema
       const response = {

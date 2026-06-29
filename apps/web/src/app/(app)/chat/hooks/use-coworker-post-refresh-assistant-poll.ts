@@ -3,11 +3,14 @@
 import type { UIMessage } from "ai";
 import type { MutableRefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-import { convertItemsToMessages } from "@/app/chat/utils/message-utils";
 import { readPendingResponsesApiResponseIdFromMetadata } from "@/app/chat-ui/utils/conversation-metadata";
+import { fetchConversationUiMessages } from "@/app/chat-ui/utils/fetch-conversation-ui-messages";
 import { extractMessageContent } from "@/app/chat-ui/utils/message-utils";
-import { getConversationMessages } from "@/lib/actions/conversation/core-api-actions";
+import {
+  hasGoodCoworkerAssistantTail,
+  isStaleCoworkerAssistantTail,
+  isSuspiciouslyShortCoworkerAssistantTail,
+} from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
 
 const DEFAULT_POLL_TIMEOUT_MS = 60_000;
 
@@ -41,60 +44,6 @@ function isLastMessageUserWithText(messages: UIMessage[]): boolean {
   return extractMessageContent(last).trim().length > 0;
 }
 
-type SerializedMessagesResult =
-  | {
-      ok: true;
-      data: {
-        messages: Array<{
-          id: string;
-          role: string;
-          content: Array<{ type: string; text?: string }> | string;
-          createdAt: number;
-          thoughtTiming?: {
-            startedAtMs: number | null;
-            endedAtMs: number | null;
-          };
-        }>;
-      };
-    }
-  | { ok: false; error: unknown }
-  | { isOk: () => boolean; value?: unknown };
-
-type SerializedConversationMessages = Extract<
-  SerializedMessagesResult,
-  { ok: true }
->["data"]["messages"];
-
-function extractMessagesFromGetConversationMessagesResult(
-  raw: unknown,
-): SerializedConversationMessages | null {
-  const resultAny = raw as SerializedMessagesResult;
-  if (
-    resultAny &&
-    "ok" in resultAny &&
-    resultAny.ok === true &&
-    "data" in resultAny &&
-    resultAny.data &&
-    typeof resultAny.data === "object" &&
-    "messages" in resultAny.data
-  ) {
-    return resultAny.data.messages;
-  }
-  if (
-    resultAny &&
-    "isOk" in resultAny &&
-    typeof resultAny.isOk === "function"
-  ) {
-    if (resultAny.isOk() && "value" in resultAny) {
-      const value = resultAny.value as {
-        messages: SerializedConversationMessages;
-      };
-      return value.messages;
-    }
-  }
-  return null;
-}
-
 export interface UseCoworkerPostRefreshAssistantPollParams {
   conversationId: string | null;
   isCoworkerThread: boolean;
@@ -102,7 +51,11 @@ export interface UseCoworkerPostRefreshAssistantPollParams {
   conversationMetadata: Record<string, unknown> | null | undefined;
   messagesChatIdRef: MutableRefObject<string | null>;
   displayedMessages: UIMessage[];
-  setMessagesForConversation: (convId: string, messages: UIMessage[]) => void;
+  setMessagesForConversation: (
+    convId: string,
+    messages: UIMessage[],
+    options?: { forceFromDb?: boolean },
+  ) => void;
   refreshConversations: () => Promise<unknown>;
 }
 
@@ -167,13 +120,18 @@ export function useCoworkerPostRefreshAssistantPoll({
       return;
     }
 
-    if (!isLastMessageUserWithText(displayedMessages)) {
+    if (hasGoodCoworkerAssistantTail(displayedMessages)) {
       setUserTailRecoveryLoading(false);
       setUserTailRecoveryFailed(false);
       return;
     }
 
-    if (hasNonEmptyAssistantTail(displayedMessages)) {
+    const needsRecovery =
+      isLastMessageUserWithText(displayedMessages) ||
+      isStaleCoworkerAssistantTail(displayedMessages) ||
+      isSuspiciouslyShortCoworkerAssistantTail(displayedMessages);
+
+    if (!needsRecovery) {
       setUserTailRecoveryLoading(false);
       setUserTailRecoveryFailed(false);
       return;
@@ -205,21 +163,17 @@ export function useCoworkerPostRefreshAssistantPoll({
           return;
         }
 
-        const raw = await getConversationMessages({
-          conversationId,
-          limit: 100,
-        });
+        const dbMessages = await fetchConversationUiMessages(conversationId);
         if (isStale()) {
           setUserTailRecoveryLoading(false);
           return;
         }
 
-        const conversationMessages =
-          extractMessagesFromGetConversationMessagesResult(raw);
-        if (conversationMessages && conversationMessages.length > 0) {
-          const dbMessages = convertItemsToMessages(conversationMessages);
-          if (hasNonEmptyAssistantTail(dbMessages)) {
-            setMessagesForConversation(conversationId, dbMessages);
+        if (dbMessages && dbMessages.length > 0) {
+          if (hasGoodCoworkerAssistantTail(dbMessages)) {
+            setMessagesForConversation(conversationId, dbMessages, {
+              forceFromDb: true,
+            });
             void refreshConversations();
             if (!isStale()) {
               setUserTailRecoveryLoading(false);

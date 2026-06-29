@@ -13,6 +13,10 @@ import {
 } from "@/app/chat-ui/utils/chat-route-base";
 import type { Conversation } from "@/lib/actions/conversation";
 
+interface ChatCreationOptions {
+  deferNavigation?: boolean;
+}
+
 interface UseChatCreationProps {
   createNewConversation: (
     metadata?: Record<string, unknown>,
@@ -67,7 +71,7 @@ export function useChatCreation({
   const createModelChat = useCallback(
     async (
       model: { id: string; name: string },
-      options?: { imageGeneration?: boolean },
+      options?: { imageGeneration?: boolean } & ChatCreationOptions,
     ) => {
       const conversation = await createNewConversation(
         {
@@ -127,15 +131,19 @@ export function useChatCreation({
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         `model-${model.id.replace(/\//g, "-")}`;
 
-      if (navigateToConversation) {
+      if (!options?.deferNavigation) {
+        if (navigateToConversation) {
+          void navigateToConversation(conversation, slug);
+        } else {
+          router.push(
+            `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
+            {
+              scroll: false,
+            },
+          );
+        }
+      } else if (navigateToConversation) {
         void navigateToConversation(conversation, slug);
-      } else {
-        router.push(
-          `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
-          {
-            scroll: false,
-          },
-        );
       }
 
       return conversation;
@@ -160,7 +168,7 @@ export function useChatCreation({
   );
 
   const createCoworkerChat = useCallback(
-    async (coworker: Coworker) => {
+    async (coworker: Coworker, options?: ChatCreationOptions) => {
       setSelectedModel(null);
       selectedModelRef.current = null;
 
@@ -221,15 +229,19 @@ export function useChatCreation({
         slugify(coworker.name) ||
         `coworker-${coworker.id}`;
 
-      if (navigateToConversation) {
+      if (!options?.deferNavigation) {
+        if (navigateToConversation) {
+          void navigateToConversation(conversation, slug);
+        } else {
+          router.push(
+            `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
+            {
+              scroll: false,
+            },
+          );
+        }
+      } else if (navigateToConversation) {
         void navigateToConversation(conversation, slug);
-      } else {
-        router.push(
-          `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
-          {
-            scroll: false,
-          },
-        );
       }
 
       return conversation;
@@ -288,5 +300,6 @@ export function useChatCreation({
     isWelcomeTransitioning,
     setIsWelcomeTransitioning,
     showMessagesAfterTransition,
+    setShowMessagesAfterTransition,
   };
 }

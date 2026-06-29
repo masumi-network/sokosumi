@@ -55,7 +55,12 @@ function userAndAssistantMessagesResponse() {
         {
           id: "a1",
           role: "assistant",
-          content: [{ type: "text", text: "done" }],
+          content: [
+            {
+              type: "text",
+              text: "This is a complete coworker reply with enough text.",
+            },
+          ],
           createdAt: 2,
         },
       ],

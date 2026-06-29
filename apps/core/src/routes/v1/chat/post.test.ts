@@ -19,6 +19,7 @@ const {
   convertToModelMessagesMock,
   coworkerFindFirstMock,
   createCoworkerConversationMock,
+  ensureCoworkerProviderConversationMock,
   createNewResumableStreamMock,
   generateChatTitleMock,
   getOpenRouterChatApiKeyForProviderMock,
@@ -43,6 +44,7 @@ const {
   convertToModelMessagesMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   createCoworkerConversationMock: vi.fn(),
+  ensureCoworkerProviderConversationMock: vi.fn(),
   createNewResumableStreamMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
   getOpenRouterChatApiKeyForProviderMock: vi.fn(),
@@ -83,6 +85,8 @@ vi.mock("./coworker-conversation", async (importOriginal) => {
     ...actual,
     createCoworkerConversation: (...args: unknown[]) =>
       createCoworkerConversationMock(...args),
+    ensureCoworkerProviderConversation: (...args: unknown[]) =>
+      ensureCoworkerProviderConversationMock(...args),
   };
 });
 
@@ -196,6 +200,27 @@ describe("POST /chat", () => {
         }),
     );
     createCoworkerConversationMock.mockResolvedValue({ id: "conv_test_1" });
+    ensureCoworkerProviderConversationMock.mockImplementation(
+      async (options: {
+        internalConversationId: string;
+        userId: string;
+        organizationId: string | null;
+        coworkerSlug: string;
+        responsesApiBaseUrl: string;
+      }) => {
+        const created = await createCoworkerConversationMock({
+          responsesApiBaseUrl: options.responsesApiBaseUrl,
+          sokosumiUserId: options.userId,
+          sokosumiOrganizationId: options.organizationId,
+          coworkerSlug: options.coworkerSlug,
+          sokosumiConversationId: options.internalConversationId,
+        });
+        return {
+          providerConversationId: created.id,
+          justCreated: true,
+        };
+      },
+    );
     validateUIMessagesMock.mockImplementation(
       async ({ messages }: { messages: unknown[] }) => messages,
     );
@@ -342,20 +367,12 @@ describe("POST /chat", () => {
         }),
       }),
     );
-    expect(createCoworkerConversationMock).toHaveBeenCalledWith({
-      responsesApiBaseUrl: "https://responses.example.com/v1",
-      sokosumiUserId: "delegated_user_123",
-      sokosumiOrganizationId: "delegated_org_123",
+    expect(ensureCoworkerProviderConversationMock).toHaveBeenCalledWith({
+      internalConversationId: cid,
+      userId: "delegated_user_123",
+      organizationId: "delegated_org_123",
       coworkerSlug: "ops-agent",
-      sokosumiConversationId: cid,
-    });
-    expect(conversationUpdateManyMock).toHaveBeenCalledWith({
-      where: {
-        id: cid,
-        userId: "delegated_user_123",
-        providerConversationId: null,
-      },
-      data: { providerConversationId: "conv_test_1" },
+      responsesApiBaseUrl: "https://responses.example.com/v1",
     });
     const args = streamTextMock.mock.calls[0]![0] as {
       providerOptions?: {
@@ -670,9 +687,7 @@ describe("POST /chat", () => {
     expect(args.providerOptions?.sokosumi?.providerConversationId).toBe(
       "conv_remote_1",
     );
-    expect(args.providerOptions?.sokosumi?.previousResponseId).toBe(
-      "resp_stale",
-    );
+    expect(args.providerOptions?.sokosumi?.previousResponseId).toBeNull();
     const onInvalidProviderConversationId =
       args.providerOptions?.sokosumi?.onInvalidProviderConversationId;
     expect(onInvalidProviderConversationId).toEqual(expect.any(Function));
@@ -686,7 +701,7 @@ describe("POST /chat", () => {
     });
   });
 
-  it("prefers request body previousResponseId over metadata for coworker", async () => {
+  it("ignores previousResponseId when coworker Conversations mode is active", async () => {
     conversationFindFirstMock.mockResolvedValueOnce({
       id: "550e8400-e29b-41d4-a716-446655440000",
       metadata: {
@@ -723,9 +738,7 @@ describe("POST /chat", () => {
         sokosumi?: { previousResponseId?: string | null };
       };
     };
-    expect(args.providerOptions?.sokosumi?.previousResponseId).toBe(
-      "resp_from_body",
-    );
+    expect(args.providerOptions?.sokosumi?.previousResponseId).toBeNull();
   });
 
   it("merges DB history when the client sends only the new message (submit-message)", async () => {

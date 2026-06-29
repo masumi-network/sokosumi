@@ -10,6 +10,13 @@ import {
   type SharedV3Warning,
 } from "@ai-sdk/provider";
 import { getModelIdentifier } from "@sokosumi/chat";
+import {
+  COWORKER_AGENT_ERROR_RETRY_ATTEMPTS,
+  COWORKER_AGENT_ERROR_RETRY_DELAY_MS,
+  coworkerSseBodyLooksLikeAgentError,
+  coworkerSseBodyLooksSuspiciouslyShort,
+  sleepMs,
+} from "./coworker-agent-error.js";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 import {
   buildResponsesApiWarnings,
@@ -357,66 +364,137 @@ async function streamCoworker(
     }
   }
 
-  let response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    signal: options.abortSignal,
-  });
+  async function fetchCoworkerResponses(
+    requestBody: CoworkerResponsesBody,
+  ): Promise<Response> {
+    let response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: options.abortSignal,
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    const isInvalidConversationId =
-      Boolean(body.conversation) &&
-      (errorText.includes("invalid_conversation") ||
-        errorText.includes("conversation not found") ||
-        errorText.includes("invalid_conversation_id") ||
-        errorText.includes("Unknown conversation"));
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
+      const isInvalidConversationId =
+        Boolean(requestBody.conversation) &&
+        (errorText.includes("invalid_conversation") ||
+          errorText.includes("conversation not found") ||
+          errorText.includes("invalid_conversation_id") ||
+          errorText.includes("Unknown conversation"));
 
-    if (isInvalidConversationId) {
-      const notify = sokosumiOpts.onInvalidProviderConversationId;
-      if (notify) {
-        try {
-          await Promise.resolve(notify());
-        } catch (_error) {}
+      if (isInvalidConversationId) {
+        const notify = sokosumiOpts.onInvalidProviderConversationId;
+        if (notify) {
+          try {
+            await Promise.resolve(notify());
+          } catch (_error) {}
+        }
+        const retryBody: CoworkerResponsesBody = {
+          input: fullResponsesInput,
+          stream: true,
+        };
+        body = retryBody;
+        requestBodyForError = retryBody;
+        response = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(retryBody),
+          signal: options.abortSignal,
+        });
+      } else {
+        throwCoworkerResponsesApiError(
+          response,
+          errorText,
+          requestBodyForError,
+        );
       }
-      const retryBody: CoworkerResponsesBody = {
-        input: fullResponsesInput,
-        stream: true,
-      };
-      body = retryBody;
-      requestBodyForError = retryBody;
-      response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(retryBody),
-        signal: options.abortSignal,
-      });
-    } else {
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Unknown error");
       throwCoworkerResponsesApiError(response, errorText, requestBodyForError);
     }
+
+    return response;
   }
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throwCoworkerResponsesApiError(response, errorText, requestBodyForError);
+  let sseRaw = "";
+  let attempts = 0;
+  while (attempts < COWORKER_AGENT_ERROR_RETRY_ATTEMPTS) {
+    attempts++;
+    const response = await fetchCoworkerResponses(body);
+    sseRaw = await response.text();
+    const shouldRetryOnAgentError =
+      Boolean(body.conversation) &&
+      sseRaw.length > 0 &&
+      attempts < COWORKER_AGENT_ERROR_RETRY_ATTEMPTS &&
+      (coworkerSseBodyLooksLikeAgentError(sseRaw) ||
+        coworkerSseBodyLooksSuspiciouslyShort(sseRaw));
+
+    if (!shouldRetryOnAgentError) {
+      break;
+    }
+
+    await sleepMs(COWORKER_AGENT_ERROR_RETRY_DELAY_MS);
   }
 
-  if (!response.body) {
-    throw new EmptyResponseBodyError({
-      message: "Coworker Responses API returned no body",
-    });
+  // #region agent log
+  if (
+    Boolean(body.conversation) &&
+    (sseRaw.length === 0 ||
+      coworkerSseBodyLooksLikeAgentError(sseRaw) ||
+      coworkerSseBodyLooksSuspiciouslyShort(sseRaw))
+  ) {
+    try {
+      const { appendFileSync } = await import("node:fs");
+      appendFileSync(
+        "/Users/francisluz/Documents/Projects/sokosumi-review/.cursor/debug-94182f.log",
+        `${JSON.stringify({
+          sessionId: "94182f",
+          runId: "connection-lost",
+          hypothesisId: "H1",
+          location: "sokosumi-language-model.ts:streamCoworker",
+          message: "coworker stream ended empty or agent-error",
+          data: {
+            attempts,
+            sseLength: sseRaw.length,
+            looksLikeAgentError: coworkerSseBodyLooksLikeAgentError(sseRaw),
+            looksSuspiciouslyShort:
+              coworkerSseBodyLooksSuspiciouslyShort(sseRaw),
+          },
+          timestamp: Date.now(),
+        })}\n`,
+      );
+    } catch {
+      /* debug log best-effort */
+    }
   }
+  // #endregion
+
+  const responseBody =
+    sseRaw.length > 0
+      ? new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(sseRaw));
+            controller.close();
+          },
+        })
+      : new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        });
 
   return {
-    stream: createResponsesSseToV3Stream(response.body, {
+    stream: createResponsesSseToV3Stream(responseBody, {
       warnings: promptWarnings,
       onResponseStarted: sokosumiOpts.onResponseStarted,
       onResponseCompleted: sokosumiOpts.onResponseCompleted,
     }),
     request: { body },
     response: {
-      headers: headersToRecord(response.headers),
+      headers: {},
     },
   };
 }

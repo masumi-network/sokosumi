@@ -45,6 +45,7 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
 import {
   clearPendingAndSetPrevious,
+  clearPendingResponseId,
   persistPendingResponseId,
 } from "@/helpers/persist-pending-response-id";
 import { normalizeSafeRemoteUrl } from "@/helpers/safe-url";
@@ -71,7 +72,7 @@ import {
   aiSdkChatRequestSchema,
 } from "@/schemas/chat-request.schema.js";
 import {
-  createCoworkerConversation,
+  ensureCoworkerProviderConversation,
   throwCoworkerRemoteConversationHttpError,
 } from "./coworker-conversation";
 
@@ -694,37 +695,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         internalConversationId &&
         !providerConversationId
       ) {
-        let created: { id: string };
         try {
-          created = await createCoworkerConversation({
-            responsesApiBaseUrl: coworker.baseURL!.trim(),
-            sokosumiUserId: userContext.userId,
-            sokosumiOrganizationId: userContext.organizationId ?? null,
+          const ensured = await ensureCoworkerProviderConversation({
+            internalConversationId,
+            userId: userContext.userId,
+            organizationId: userContext.organizationId ?? null,
             coworkerSlug: coworker.slug,
-            sokosumiConversationId: internalConversationId,
+            responsesApiBaseUrl: coworker.baseURL!.trim(),
           });
+          providerConversationId = ensured.providerConversationId;
         } catch (error) {
           throwCoworkerRemoteConversationHttpError(error);
-        }
-        const updated = await prisma.conversation.updateMany({
-          where: {
-            id: internalConversationId,
-            userId: userContext.userId,
-            providerConversationId: null,
-          },
-          data: { providerConversationId: created.id },
-        });
-        if (updated.count === 0) {
-          const refetched = await prisma.conversation.findFirst({
-            where: {
-              id: internalConversationId,
-              userId: userContext.userId,
-            },
-            select: { providerConversationId: true },
-          });
-          providerConversationId = refetched?.providerConversationId ?? null;
-        } else {
-          providerConversationId = created.id;
         }
       }
 
@@ -803,6 +784,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!useCoworker) {
           return null;
         }
+        if (providerConversationId?.trim()) {
+          return null;
+        }
         const fromRequest = previousResponseIdFromRequest?.trim();
         if (fromRequest) {
           return fromRequest;
@@ -850,11 +834,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           try {
-            await clearPendingAndSetPrevious({
-              conversationId: internalConversationId,
-              userId: userContext.userId,
-              responseId,
-            });
+            if (coworkerConversationsMode) {
+              await clearPendingResponseId({
+                conversationId: internalConversationId,
+                userId: userContext.userId,
+              });
+            } else {
+              await clearPendingAndSetPrevious({
+                conversationId: internalConversationId,
+                userId: userContext.userId,
+                responseId,
+              });
+            }
           } catch (error) {
             console.error(
               "Failed to clear pending and set previous response id:",
@@ -899,6 +890,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (!internalConversationId) {
             return;
           }
+          // #region agent log
+          if (useCoworker) {
+            try {
+              const { appendFileSync } = await import("node:fs");
+              appendFileSync(
+                "/Users/francisluz/Documents/Projects/sokosumi-review/.cursor/debug-94182f.log",
+                `${JSON.stringify({
+                  sessionId: "94182f",
+                  runId: "connection-lost",
+                  hypothesisId: "H4",
+                  location: "post.ts:onFinish",
+                  message: "coworker stream finished",
+                  data: {
+                    textLength: finishEvent.text?.length ?? 0,
+                    reasoningCount: Array.isArray(finishEvent.reasoning)
+                      ? finishEvent.reasoning.length
+                      : 0,
+                    thoughtStart: thoughtPhaseMs.start,
+                    thoughtEnd: thoughtPhaseMs.end,
+                    looksLikeAgentError: finishEvent.text.includes(
+                      "Something went wrong while processing your task",
+                    ),
+                  },
+                  timestamp: Date.now(),
+                })}\n`,
+              );
+            } catch {
+              /* debug log best-effort */
+            }
+          }
+          // #endregion
           try {
             const hasReasoning =
               Array.isArray(finishEvent.reasoning) &&
@@ -948,6 +970,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               thoughtTiming,
               uiParts: preparedAssistantMessage.uiParts,
             });
+            const looksLikeAgentError = finishEvent.text.includes(
+              "Something went wrong while processing your task",
+            );
+            if (useCoworker && looksLikeAgentError) {
+              const current = await prisma.conversation.findFirst({
+                where: {
+                  id: internalConversationId,
+                  userId: userContext.userId,
+                },
+                select: { metadata: true },
+              });
+              if (current) {
+                const currentMeta =
+                  (current.metadata as Record<string, unknown>) ?? {};
+                await prisma.conversation.update({
+                  where: {
+                    id: internalConversationId,
+                    userId: userContext.userId,
+                  },
+                  data: {
+                    metadata: {
+                      ...currentMeta,
+                      previous_response_id: null,
+                      pending_responses_api_response_id: null,
+                    },
+                  },
+                });
+              }
+            }
           } catch (error) {
             console.error(
               "Failed to persist assistant message (POST /chat):",
