@@ -87,7 +87,31 @@ describe("HeaderProfileSectionClient", () => {
     });
   });
 
-  it("prefers the client session active organization over the server prop", () => {
+  it("prefers the client session active organization when it matches the server", () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: "org-b",
+        },
+      },
+    });
+
+    render(
+      <HeaderProfileSectionClient
+        sessionUser={sessionUser}
+        members={members}
+        activeOrganizationId="org-b"
+      />,
+    );
+
+    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeOrganizationId: "org-b",
+      }),
+    );
+  });
+
+  it("keeps the server active organization visible while client and server are out of sync", () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -106,7 +130,8 @@ describe("HeaderProfileSectionClient", () => {
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeOrganizationId: "org-b",
+        activeOrganizationId: "org-a",
+        isPending: true,
       }),
     );
   });
