@@ -1636,6 +1636,14 @@
           }
         },
         "switchedWorkspace": "Você mudou para a conta {account}",
+        "workspaceSwitchPrompt": {
+          "title": "Esta tarefa foi criada em outro espaço de trabalho",
+          "description": "“{taskName}” foi criada no espaço de trabalho <accountName>{account}</accountName>. Troque de espaço de trabalho para abri-la.",
+          "avatarTransition": "De {currentAccount} para {targetAccount}",
+          "cancel": "Ficar aqui",
+          "confirm": "Trocar espaço de trabalho",
+          "switchError": "Não foi possível trocar de espaço de trabalho. Tente novamente."
+        },
         "clonedFrom": "Clonada de {name}",
         "schedule": "Agendamento"
       },

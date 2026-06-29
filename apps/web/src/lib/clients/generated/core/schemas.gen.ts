@@ -9324,6 +9324,36 @@ export const PutTaskScheduleRequestSchema = {
     ]
 } as const;
 
+export const TaskWorkspaceSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            description: 'Task title',
+            example: 'Research competitor pricing'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Workspace id for the task',
+            example: '11111111-1111-7111-8111-111111111111'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization id for the workspace, or null for a personal workspace',
+            example: 'org_123'
+        }
+    },
+    required: [
+        'name',
+        'workspaceId',
+        'organizationId'
+    ]
+} as const;
+
 export const MasumiPaymentSchema = {
     type: 'object',
     properties: {

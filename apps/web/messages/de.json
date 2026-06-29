@@ -1636,6 +1636,14 @@
           }
         },
         "switchedWorkspace": "Zu {account}-Account gewechselt",
+        "workspaceSwitchPrompt": {
+          "title": "Dieser Task wurde in einem anderen Arbeitsbereich erstellt",
+          "description": "„{taskName}“ wurde im Arbeitsbereich <accountName>{account}</accountName> erstellt. Wechsle den Arbeitsbereich, um ihn zu öffnen.",
+          "avatarTransition": "Von {currentAccount} zu {targetAccount}",
+          "cancel": "Hier bleiben",
+          "confirm": "Arbeitsbereich wechseln",
+          "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
+        },
         "clonedFrom": "Geklont von {name}",
         "schedule": "Zeitplan"
       },

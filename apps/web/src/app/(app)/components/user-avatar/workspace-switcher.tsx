@@ -2,7 +2,7 @@
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { updatePreferredOrganization } from "@/lib/actions/organization";
@@ -16,6 +16,15 @@ export function getAgentJobsBasePath(pathname: string): string | null {
 
   const [, agentId] = jobsRouteMatch;
   return `/agents/${agentId}/jobs`;
+}
+
+export function getTaskDetailBasePath(pathname: string): string | null {
+  const taskDetailRouteMatch = pathname.match(/^\/tasks\/(?!new$)[^/]+$/);
+  if (!taskDetailRouteMatch) {
+    return null;
+  }
+
+  return "/tasks";
 }
 
 export async function activateOrganizationWorkspace(
@@ -40,6 +49,7 @@ export async function activateOrganizationWorkspace(
 
 interface SwitchOrganizationWorkspaceOptions {
   shouldRedirectAgentJobsBasePath?: boolean;
+  shouldRedirectTaskDetailPath?: boolean;
   successMessage?: string;
   router?: AppRouterInstance;
   pathname?: string;
@@ -66,35 +76,47 @@ export async function switchOrganizationWorkspace(
     }
   }
 
+  const shouldRedirectTaskDetailPath =
+    options?.shouldRedirectTaskDetailPath ?? true;
+  if (shouldRedirectTaskDetailPath && options?.router && options?.pathname) {
+    const taskDetailBasePath = getTaskDetailBasePath(options.pathname);
+    if (taskDetailBasePath) {
+      options.router.replace(taskDetailBasePath);
+      options.router.refresh();
+      return;
+    }
+  }
+
   options?.router?.refresh();
 }
 
 export function useWorkspaceSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
   const handleSelectWorkspace = (
     organizationId: string | null,
     options?: {
       shouldRedirectAgentJobsBasePath?: boolean;
+      shouldRedirectTaskDetailPath?: boolean;
       successMessage?: string;
     },
   ): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      startTransition(() => {
-        void switchOrganizationWorkspace(organizationId, {
-          ...options,
-          router,
-          pathname,
-        })
-          .then(resolve)
-          .catch((error) => {
-            console.error("Failed to switch organization:", error);
-            reject(error);
-          });
+    setIsPending(true);
+
+    return switchOrganizationWorkspace(organizationId, {
+      ...options,
+      router,
+      pathname,
+    })
+      .catch((error) => {
+        console.error("Failed to switch organization:", error);
+        throw error;
+      })
+      .finally(() => {
+        setIsPending(false);
       });
-    });
   };
 
   return {
