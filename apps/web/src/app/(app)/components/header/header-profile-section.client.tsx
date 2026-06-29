@@ -23,20 +23,20 @@ export default function HeaderProfileSectionClient({
   const { data: clientSession } = useSession();
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
 
-  const liveActiveOrganizationId =
-    clientSession?.session.activeOrganizationId ??
-    serverActiveOrganizationId ??
-    null;
+  const clientActiveOrganizationId =
+    clientSession?.session.activeOrganizationId;
+  const hasClientActiveOrganization = clientActiveOrganizationId !== undefined;
 
-  const hasClientActiveOrganization =
-    clientSession?.session.activeOrganizationId !== undefined;
+  const liveActiveOrganizationId = hasClientActiveOrganization
+    ? clientActiveOrganizationId
+    : serverActiveOrganizationId;
 
   // Client session updates on setActive before router.refresh() finishes. Keep the
   // server-rendered workspace visible (and loading) until both sides agree.
   const isWorkspaceSyncing =
     isPending ||
     (hasClientActiveOrganization &&
-      liveActiveOrganizationId !== serverActiveOrganizationId);
+      clientActiveOrganizationId !== serverActiveOrganizationId);
 
   const activeOrganizationId = isWorkspaceSyncing
     ? serverActiveOrganizationId

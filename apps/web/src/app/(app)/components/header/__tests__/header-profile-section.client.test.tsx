@@ -156,6 +156,31 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
+  it("keeps the server active organization visible while switching to personal account", () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: null,
+        },
+      },
+    });
+
+    render(
+      <HeaderProfileSectionClient
+        sessionUser={sessionUser}
+        members={members}
+        activeOrganizationId="org-a"
+      />,
+    );
+
+    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeOrganizationId: "org-a",
+        isPending: true,
+      }),
+    );
+  });
+
   it("keeps the server active organization visible while a switch is pending", () => {
     useSessionMock.mockReturnValue({
       data: {
