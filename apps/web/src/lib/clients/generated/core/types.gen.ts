@@ -2561,6 +2561,21 @@ export type PutTaskScheduleRequest = {
     anchorAt?: Date;
 };
 
+export type TaskWorkspace = {
+    /**
+     * Task title
+     */
+    name: string;
+    /**
+     * Workspace id for the task
+     */
+    workspaceId: string;
+    /**
+     * Organization id for the workspace, or null for a personal workspace
+     */
+    organizationId: string | null;
+};
+
 /**
  * On-chain Masumi purchase parameters for task completion. Coworker-only; requires status COMPLETED; omit credits when set.
  */
@@ -20533,6 +20548,78 @@ export type PutTasksByIdShareResponses = {
 };
 
 export type PutTasksByIdShareResponse = PutTasksByIdShareResponses[keyof PutTasksByIdShareResponses];
+
+export type GetTasksByIdWorkspaceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/workspace';
+};
+
+export type GetTasksByIdWorkspaceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdWorkspaceError = GetTasksByIdWorkspaceErrors[keyof GetTasksByIdWorkspaceErrors];
+
+export type GetTasksByIdWorkspaceResponses = {
+    /**
+     * Task workspace mapping
+     */
+    200: {
+        data: TaskWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdWorkspaceResponse = GetTasksByIdWorkspaceResponses[keyof GetTasksByIdWorkspaceResponses];
 
 export type PutTasksByIdWorkspaceData = {
     body?: {

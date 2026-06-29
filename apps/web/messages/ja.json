@@ -1636,6 +1636,14 @@
           }
         },
         "switchedWorkspace": "{account} アカウントに切り替えました",
+        "workspaceSwitchPrompt": {
+          "title": "このタスクは別のワークスペースで作成されました",
+          "description": "「{taskName}」は <accountName>{account}</accountName> ワークスペースで作成されました。開くにはワークスペースを切り替えてください。",
+          "avatarTransition": "{currentAccount} から {targetAccount} へ",
+          "cancel": "ここに留まる",
+          "confirm": "ワークスペースを切り替える",
+          "switchError": "ワークスペースを切り替えられませんでした。もう一度お試しください。"
+        },
         "clonedFrom": "{name} から複製",
         "schedule": "スケジュール"
       },

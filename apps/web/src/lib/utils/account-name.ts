@@ -1,4 +1,7 @@
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import type {
+  MemberWithOrganization,
+  OrganizationRecord,
+} from "@/lib/clients/generated/core";
 
 /**
  * Resolves an account name from an organization ID and members list.
@@ -22,4 +25,18 @@ export function resolveAccountName(
   );
 
   return member?.organization.name ?? organizationId;
+}
+
+export function resolveOrganization(
+  organizationId: string | null,
+  members: MemberWithOrganization[],
+): OrganizationRecord | null {
+  if (!organizationId) {
+    return null;
+  }
+
+  return (
+    members.find((member) => member.organizationId === organizationId)
+      ?.organization ?? null
+  );
 }

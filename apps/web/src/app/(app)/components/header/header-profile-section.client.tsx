@@ -2,6 +2,7 @@
 
 import { SessionUser } from "@sokosumi/utils";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { useSession } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
@@ -17,9 +18,20 @@ interface HeaderProfileSectionClientProps {
 export default function HeaderProfileSectionClient({
   sessionUser,
   members,
-  activeOrganizationId,
+  activeOrganizationId: serverActiveOrganizationId,
 }: HeaderProfileSectionClientProps) {
+  const { data: clientSession } = useSession();
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
+
+  const liveActiveOrganizationId =
+    clientSession?.session.activeOrganizationId ??
+    serverActiveOrganizationId ??
+    null;
+
+  // Keep the pre-switch label while the async workspace change runs.
+  const activeOrganizationId = isPending
+    ? serverActiveOrganizationId
+    : liveActiveOrganizationId;
 
   const activeOrganizationMember = activeOrganizationId
     ? members.find((member) => member.organizationId === activeOrganizationId)

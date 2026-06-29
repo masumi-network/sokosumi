@@ -88,10 +88,15 @@ export async function TaskDetailView({
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-4xl px-4 pb-8">
+        <Suspense fallback={null}>
+          <TaskDetailRealtimeListener
+            taskId={taskId}
+            sessionPromise={sessionPromise}
+          />
+        </Suspense>
         {enableAutoSwitch ? (
           <Suspense fallback={null}>
-            <TaskDetailEffects
-              taskId={taskId}
+            <TaskDetailAutoSwitch
               targetOrganizationId={task.workspace.organizationId ?? null}
               membersPromise={membersPromise}
               sessionPromise={sessionPromise}
@@ -191,13 +196,29 @@ export async function TaskDetailView({
   );
 }
 
-async function TaskDetailEffects({
+async function TaskDetailRealtimeListener({
   taskId,
+  sessionPromise,
+}: {
+  taskId: string;
+  sessionPromise: Promise<SessionResult>;
+}) {
+  const session = await sessionPromise;
+
+  if (!session?.user.id) {
+    return null;
+  }
+
+  return (
+    <TaskStatusRealtimeListener userId={session.user.id} taskId={taskId} />
+  );
+}
+
+async function TaskDetailAutoSwitch({
   targetOrganizationId,
   membersPromise,
   sessionPromise,
 }: {
-  taskId: string;
   targetOrganizationId: string | null;
   membersPromise: Promise<MembersResult>;
   sessionPromise: Promise<SessionResult>;
@@ -216,18 +237,13 @@ async function TaskDetailEffects({
   );
 
   return (
-    <>
-      <AutoContextSwitch
-        activeOrganizationId={activeOrganizationId}
-        targetOrganizationId={targetOrganizationId}
-        successMessage={t("switchedWorkspace", {
-          account: targetAccountName,
-        })}
-      />
-      {session?.user.id ? (
-        <TaskStatusRealtimeListener userId={session.user.id} taskId={taskId} />
-      ) : null}
-    </>
+    <AutoContextSwitch
+      activeOrganizationId={activeOrganizationId}
+      targetOrganizationId={targetOrganizationId}
+      successMessage={t("switchedWorkspace", {
+        account: targetAccountName,
+      })}
+    />
   );
 }
 
