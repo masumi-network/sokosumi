@@ -250,6 +250,7 @@
       "organizations": "Organizaciones",
       "users": "Usuarios",
       "edit": "Editar",
+      "editor": "Editor",
       "enterprise-contracts": "Contratos empresariales",
       "mcp": "Model Context Protocol (MCP)",
       "chat": "Chat",
@@ -3542,6 +3543,7 @@
       "autoDescription": "Generar desde la URL del sitio web. Desactívalo para subir manualmente.",
       "actionsMenuLabel": "Abrir acciones de DESIGN.md",
       "menuDownload": "Descargar",
+      "menuEdit": "Editar",
       "menuPreview": "Vista previa",
       "menuRegenerate": "Regenerar",
       "menuRemove": "Eliminar",
@@ -3578,7 +3580,20 @@
       "uploadRejected": "Archivo no aceptado",
       "removeSelectedUpload": "Eliminar archivo seleccionado",
       "descriptionPersonal": "Crea y gestiona el DESIGN.md usado para tareas de tu workspace personal.",
-      "descriptionOrganization": "Crea y gestiona el DESIGN.md usado para tareas de esta organización."
+      "descriptionOrganization": "Crea y gestiona el DESIGN.md usado para tareas de esta organización.",
+      "editPageTitle": "Editar DESIGN.md",
+      "editTab": "Editar",
+      "previewTab": "Vista previa",
+      "editSave": "Guardar",
+      "editSaving": "Guardando...",
+      "editSaveSuccess": "DESIGN.md guardado",
+      "editUnavailableTitle": "DESIGN.md no está disponible",
+      "editLoadErrorTitle": "No se pudo cargar DESIGN.md",
+      "editLoadErrorDescription": "No se pudo obtener el archivo. Inténtalo más tarde o vuelve a tu perfil.",
+      "editBackToProfile": "Volver al perfil",
+      "discardDialogTitle": "¿Descartar cambios?",
+      "discardDialogDescription": "Perderás tus ediciones si sales sin guardar.",
+      "discardConfirm": "Descartar cambios"
     }
   },
   "Share": {

@@ -250,6 +250,7 @@
       "organizations": "组织",
       "users": "用户",
       "edit": "编辑",
+      "editor": "编辑器",
       "enterprise-contracts": "企业合同",
       "mcp": "模型上下文协议（MCP）",
       "chat": "聊天",
@@ -3542,6 +3543,7 @@
       "autoDescription": "从网站 URL 生成。关闭后可手动上传。",
       "actionsMenuLabel": "打开 DESIGN.md 操作",
       "menuDownload": "下载",
+      "menuEdit": "编辑",
       "menuPreview": "预览",
       "menuRegenerate": "重新生成",
       "menuRemove": "移除",
@@ -3578,7 +3580,20 @@
       "uploadRejected": "文件不被接受",
       "removeSelectedUpload": "移除所选文件",
       "descriptionPersonal": "创建并管理个人工作区任务使用的 DESIGN.md。",
-      "descriptionOrganization": "创建并管理此组织任务使用的 DESIGN.md。"
+      "descriptionOrganization": "创建并管理此组织任务使用的 DESIGN.md。",
+      "editPageTitle": "编辑 DESIGN.md",
+      "editTab": "编辑",
+      "previewTab": "预览",
+      "editSave": "保存",
+      "editSaving": "保存中...",
+      "editSaveSuccess": "DESIGN.md 已保存",
+      "editUnavailableTitle": "DESIGN.md 不可用",
+      "editLoadErrorTitle": "无法加载 DESIGN.md",
+      "editLoadErrorDescription": "无法获取文件。请稍后重试或返回个人资料。",
+      "editBackToProfile": "返回个人资料",
+      "discardDialogTitle": "放弃更改？",
+      "discardDialogDescription": "如果不保存就离开，您的编辑将丢失。",
+      "discardConfirm": "放弃更改"
     }
   },
   "Share": {

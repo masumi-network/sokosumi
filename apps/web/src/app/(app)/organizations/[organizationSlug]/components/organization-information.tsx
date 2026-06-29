@@ -138,6 +138,7 @@ export default async function OrganizationInformation({
       <OrganizationDesignMdSection
         owner={{ type: "organization", organizationId: organization.id }}
         canManage={isOwnerOrAdmin}
+        editHref={`/organizations/${organization.slug}/design-md/edit`}
         value={designMdValue}
         websiteUrl={websiteUrl}
       />

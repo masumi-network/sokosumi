@@ -250,6 +250,7 @@
       "organizations": "組織",
       "users": "ユーザー",
       "edit": "編集",
+      "editor": "エディター",
       "enterprise-contracts": "エンタープライズ契約",
       "mcp": "Model Context Protocol（MCP）",
       "chat": "チャット",
@@ -3542,6 +3543,7 @@
       "autoDescription": "WebサイトURLから生成します。手動でアップロードするにはオフにします。",
       "actionsMenuLabel": "DESIGN.md の操作を開く",
       "menuDownload": "ダウンロード",
+      "menuEdit": "編集",
       "menuPreview": "プレビュー",
       "menuRegenerate": "再生成",
       "menuRemove": "削除",
@@ -3578,7 +3580,20 @@
       "uploadRejected": "ファイルは受け付けられません",
       "removeSelectedUpload": "選択したファイルを削除",
       "descriptionPersonal": "個人ワークスペースのタスクで使う DESIGN.md を作成、管理します。",
-      "descriptionOrganization": "この組織のタスクで使う DESIGN.md を作成、管理します。"
+      "descriptionOrganization": "この組織のタスクで使う DESIGN.md を作成、管理します。",
+      "editPageTitle": "DESIGN.md を編集",
+      "editTab": "編集",
+      "previewTab": "プレビュー",
+      "editSave": "保存",
+      "editSaving": "保存中...",
+      "editSaveSuccess": "DESIGN.md を保存しました",
+      "editUnavailableTitle": "DESIGN.md は利用できません",
+      "editLoadErrorTitle": "DESIGN.md を読み込めませんでした",
+      "editLoadErrorDescription": "ファイルを取得できませんでした。後でもう一度お試しいただくか、プロフィールに戻ってください。",
+      "editBackToProfile": "プロフィールに戻る",
+      "discardDialogTitle": "変更を破棄しますか？",
+      "discardDialogDescription": "保存せずに離れると、編集内容は失われます。",
+      "discardConfirm": "変更を破棄"
     }
   },
   "Share": {

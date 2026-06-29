@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { coworkerSchema } from "./coworker.schema";
+import { coworkerOfferSchema, coworkerSchema } from "./coworker.schema";
 
 describe("coworkerSchema", () => {
   it("parses coworker profile metadata fields", () => {
@@ -135,5 +135,62 @@ describe("coworkerSchema", () => {
         baseURL: null,
       });
     }).toThrow();
+  });
+});
+
+describe("coworkerOfferSchema output types", () => {
+  function parseType(type: string): string | undefined {
+    return coworkerOfferSchema.parse({
+      title: "Title",
+      prompt: "Prompt",
+      outputs: [{ type, url: "https://example.com/file" }],
+    }).outputs?.[0].type;
+  }
+
+  it("normalizes common file extensions to canonical kinds", () => {
+    expect(parseType("docx")).toBe("doc");
+    expect(parseType("pptx")).toBe("slides");
+    expect(parseType("xlsx")).toBe("sheet");
+    expect(parseType("xls")).toBe("sheet");
+    expect(parseType("csv")).toBe("sheet");
+    expect(parseType("png")).toBe("image");
+  });
+
+  it("passes canonical kinds through unchanged", () => {
+    for (const kind of [
+      "pdf",
+      "image",
+      "slides",
+      "doc",
+      "sheet",
+      "text",
+      "html",
+    ]) {
+      expect(parseType(kind)).toBe(kind);
+    }
+  });
+
+  it("is case-insensitive", () => {
+    expect(parseType("XLSX")).toBe("sheet");
+    expect(parseType("PDF")).toBe("pdf");
+  });
+
+  it("rejects unknown output types", () => {
+    expect(() => parseType("zip")).toThrow();
+  });
+
+  it("accepts and normalizes multiple outputs", () => {
+    const result = coworkerOfferSchema.parse({
+      title: "Title",
+      prompt: "Prompt",
+      outputs: [
+        { type: "docx", url: "https://example.com/a.docx", label: "Brief" },
+        { type: "xlsx", url: "https://example.com/b.xlsx", label: "Data" },
+      ],
+    });
+    expect(result.outputs?.map((output) => output.type)).toEqual([
+      "doc",
+      "sheet",
+    ]);
   });
 });

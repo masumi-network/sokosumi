@@ -117,6 +117,9 @@ function generateSegments(
 
       if (segment === "conversation") return;
 
+      // design-md is a route segment only — hide it from breadcrumbs (Account > Editor).
+      if (segment === "design-md") return;
+
       // No org overview page — /organizations/* hides the parent segment (SOK-546).
       // Admin org routes keep it for Admin > Organizations > {name}.
       if (segment === "organizations" && pathSegments[0] === "organizations") {
@@ -145,8 +148,11 @@ function generateSegments(
       const organization = organizations.find(
         (o) => o.slug === decodeURIComponent(segment),
       );
+      const isDesignMdEditor =
+        segment === "edit" && pathSegments[index - 1] === "design-md";
       const label =
         segmentLabels[segment] ??
+        (isDesignMdEditor ? breadcrumbMessages?.editor : undefined) ??
         (agent && getAgentName(agent)) ??
         (organization && organization.name) ??
         (breadcrumbMessages && segment in breadcrumbMessages
