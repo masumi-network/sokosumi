@@ -264,6 +264,12 @@ function buildHeaders(env: EnvConfig): Record<string, string> {
   return headers;
 }
 
+function maskSensitive(value: string, visiblePrefix = 4, visibleSuffix = 2): string {
+  if (!value) return "[redacted]";
+  if (value.length <= visiblePrefix + visibleSuffix) return "[redacted]";
+  return `${value.slice(0, visiblePrefix)}…${value.slice(-visibleSuffix)}`;
+}
+
 function extractConversationId(body: unknown): string | null {
   if (!body || typeof body !== "object") {
     return null;
@@ -697,7 +703,7 @@ async function main() {
   if (!args.json) {
     console.log("Coworker chat benchmark");
     console.log(`  base URL:  ${env.baseUrl}`);
-    console.log(`  user:      ${env.userId}`);
+    console.log(`  user:      ${maskSensitive(env.userId)}`);
     console.log(`  coworker:  ${env.coworkerSlug}`);
     console.log(`  scenario:  ${args.scenario}`);
     if (env.organizationId) {
