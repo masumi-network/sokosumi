@@ -9247,6 +9247,11 @@ export const PutTaskScheduleRequestSchema = {
 export const TaskWorkspaceSchema = {
     type: 'object',
     properties: {
+        name: {
+            type: 'string',
+            description: 'Task title',
+            example: 'Research competitor pricing'
+        },
         workspaceId: {
             type: 'string',
             format: 'uuid',
@@ -9263,6 +9268,7 @@ export const TaskWorkspaceSchema = {
         }
     },
     required: [
+        'name',
         'workspaceId',
         'organizationId'
     ]

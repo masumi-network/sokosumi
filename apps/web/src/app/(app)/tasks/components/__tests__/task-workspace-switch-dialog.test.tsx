@@ -1,5 +1,7 @@
+import * as Sentry from "@sentry/nextjs";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
@@ -42,6 +44,9 @@ vi.mock("next-intl", () => ({
       }
       if (key === "cancel") return "Stay here";
       if (key === "confirm") return "Switch workspace";
+      if (key === "switchError") {
+        return "Failed to switch workspace. Please try again.";
+      }
       return key;
     };
     t.rich = (key: string, values?: RichValues) => {
@@ -76,8 +81,13 @@ vi.mock("@/lib/actions/organization", () => ({
   updatePreferredOrganization: vi.fn(),
 }));
 
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
+    error: vi.fn(),
     success: vi.fn(),
   },
 }));
@@ -184,5 +194,36 @@ describe("TaskWorkspaceSwitchDialog", () => {
 
     expect(backMock).toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an error toast and reports to Sentry when switching fails", async () => {
+    const switchError = new Error("setActive failed");
+    vi.mocked(authClient.organization.setActive).mockRejectedValue(switchError);
+
+    render(<TaskWorkspaceSwitchDialog {...defaultProps} />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Switch workspace",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Failed to switch workspace. Please try again.",
+      );
+      expect(Sentry.captureException).toHaveBeenCalledWith(switchError, {
+        extra: {
+          targetOrganizationId: "org_123",
+          taskName: "Quarterly report",
+        },
+        tags: { context: "task_workspace_switch_dialog" },
+      });
+    });
+
+    expect(
+      screen.getByText("This task was created in another workspace"),
+    ).toBeInTheDocument();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

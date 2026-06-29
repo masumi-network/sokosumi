@@ -2560,6 +2560,10 @@ export type PutTaskScheduleRequest = {
 
 export type TaskWorkspace = {
     /**
+     * Task title
+     */
+    name: string;
+    /**
      * Workspace id for the task
      */
     workspaceId: string;

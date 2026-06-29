@@ -1,10 +1,12 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import type { SessionUser } from "@sokosumi/utils";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 
 import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -62,7 +64,14 @@ export function TaskWorkspaceSwitchDialog({
         successMessage,
       });
     } catch (error) {
-      console.error("Failed to switch workspace for task", error);
+      Sentry.captureException(error, {
+        extra: {
+          targetOrganizationId,
+          taskName,
+        },
+        tags: { context: "task_workspace_switch_dialog" },
+      });
+      toast.error(t("switchError"));
     }
   };
 

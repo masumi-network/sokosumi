@@ -111,6 +111,10 @@ export const createTaskJobRequestSchema = createJobRequestSchema.extend({
 
 export const taskWorkspaceSchema = z
   .object({
+    name: z.string().openapi({
+      description: "Task title",
+      example: "Research competitor pricing",
+    }),
     workspaceId: z.string().uuid().openapi({
       description: "Workspace id for the task",
       example: "11111111-1111-7111-8111-111111111111",

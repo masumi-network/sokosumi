@@ -9,6 +9,7 @@ import type {
   TaskLink,
   TaskLinkDeleted,
   TaskLinkRelation,
+  TaskWorkspace,
 } from "@/lib/clients/generated/core/types.gen";
 import type { AgentJobStatus } from "@/lib/types/core-dto";
 
@@ -114,10 +115,9 @@ export const taskService = (() => {
     }
   }
 
-  async function getTaskWorkspace(taskId: string): Promise<{
-    workspaceId: string;
-    organizationId: string | null;
-  } | null> {
+  async function getTaskWorkspace(
+    taskId: string,
+  ): Promise<TaskWorkspace | null> {
     try {
       const result = await coreClient.getTaskWorkspace(taskId);
       return result.data;

@@ -27,6 +27,7 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(taskWorkspaceSchema, "Task workspace mapping", {
       data: {
+        name: "Research competitor pricing",
         workspaceId: "11111111-1111-7111-8111-111111111111",
         organizationId: "org_123",
       },
@@ -53,6 +54,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         archivedAt: null,
       },
       select: {
+        name: true,
         userId: true,
         workspaceId: true,
         workspace: {
@@ -80,6 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       taskWorkspaceSchema.parse({
+        name: task.name,
         workspaceId: task.workspaceId,
         organizationId: task.workspace.organizationId,
       }),

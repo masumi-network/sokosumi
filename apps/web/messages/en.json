@@ -1651,7 +1651,8 @@
           "description": "\"{taskName}\" was created in the <accountName>{account}</accountName> workspace. Switch workspace to open it.",
           "avatarTransition": "From {currentAccount} to {targetAccount}",
           "cancel": "Stay here",
-          "confirm": "Switch workspace"
+          "confirm": "Switch workspace",
+          "switchError": "Failed to switch workspace. Please try again."
         },
         "clonedFrom": "Cloned from {name}",
         "schedule": "Schedule"
