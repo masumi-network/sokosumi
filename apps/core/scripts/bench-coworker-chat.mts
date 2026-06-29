@@ -264,7 +264,11 @@ function buildHeaders(env: EnvConfig): Record<string, string> {
   return headers;
 }
 
-function maskSensitive(value: string, visiblePrefix = 4, visibleSuffix = 2): string {
+function maskSensitive(
+  value: string,
+  visiblePrefix = 4,
+  visibleSuffix = 2,
+): string {
   if (!value) return "[redacted]";
   if (value.length <= visiblePrefix + visibleSuffix) return "[redacted]";
   return `${value.slice(0, visiblePrefix)}…${value.slice(-visibleSuffix)}`;
