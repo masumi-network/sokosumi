@@ -31,14 +31,8 @@ export default function HeaderProfileSectionClient({
     ? clientActiveOrganizationId
     : serverActiveOrganizationId;
 
-  // Client session updates on setActive before router.refresh() finishes. Keep the
-  // server-rendered workspace visible (and loading) until both sides agree.
-  const isWorkspaceSyncing =
-    isPending ||
-    (hasClientActiveOrganization &&
-      clientActiveOrganizationId !== serverActiveOrganizationId);
-
-  const activeOrganizationId = isWorkspaceSyncing
+  // Keep the pre-switch label while the async workspace change runs.
+  const activeOrganizationId = isPending
     ? serverActiveOrganizationId
     : liveActiveOrganizationId;
 
@@ -50,14 +44,14 @@ export default function HeaderProfileSectionClient({
     <div
       className={cn(
         "flex items-center gap-2 transition-opacity",
-        isWorkspaceSyncing && "pointer-events-none opacity-50",
+        isPending && "pointer-events-none opacity-50",
       )}
     >
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId={activeOrganizationId}
-        isPending={isWorkspaceSyncing}
+        isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}
       />
       <HeaderNotificationAvatar

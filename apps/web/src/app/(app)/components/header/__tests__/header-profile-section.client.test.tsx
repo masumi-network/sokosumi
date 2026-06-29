@@ -111,7 +111,7 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("keeps the server active organization visible while client and server are out of sync", () => {
+  it("prefers the client session active organization when client and server differ", () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -130,8 +130,8 @@ describe("HeaderProfileSectionClient", () => {
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeOrganizationId: "org-a",
-        isPending: true,
+        activeOrganizationId: "org-b",
+        isPending: false,
       }),
     );
   });
@@ -156,7 +156,7 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("keeps the server active organization visible while switching to personal account", () => {
+  it("shows personal account from client session when active organization is null", () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -175,8 +175,8 @@ describe("HeaderProfileSectionClient", () => {
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeOrganizationId: "org-a",
-        isPending: true,
+        activeOrganizationId: null,
+        isPending: false,
       }),
     );
   });
