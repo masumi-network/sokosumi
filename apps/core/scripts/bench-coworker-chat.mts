@@ -819,7 +819,15 @@ async function main() {
   }
 
   if (args.json) {
-    console.log(JSON.stringify(report, null, 2));
+    const sanitizedReport = {
+      ...report,
+      meta: {
+        ...report.meta,
+        userId: "[REDACTED]",
+        organizationId: report.meta.organizationId ? "[REDACTED]" : null,
+      },
+    };
+    console.log(JSON.stringify(sanitizedReport, null, 2));
   } else {
     printSummary(report);
     console.log(
