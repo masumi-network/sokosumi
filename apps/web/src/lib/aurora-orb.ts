@@ -119,9 +119,23 @@ function mulberry32(a: number): () => number {
 
 export function params(seed: string): OrbParams {
   const r = mulberry32(xmur3(String(seed))());
-  const h0 = r() * 360;
-  const h1 = (h0 + 40 + r() * 70) % 360;
-  const h2 = (h0 + 150 + r() * 80) % 360;
+  // Curated cool / jewel hue bands (teal → rose, brand-adjacent around violet).
+  // Skips the muddy yellow-green-olive-brown range so every seed reads premium
+  // rather than ugly, while still giving each user a distinct colour.
+  const BANDS: Array<[number, number]> = [
+    [168, 198], // teal → cyan
+    [200, 232], // sky → blue
+    [232, 264], // indigo → violet (Wisteria-adjacent)
+    [264, 296], // violet → purple
+    [296, 330], // magenta → fuchsia
+    [330, 352], // rose
+  ];
+  const band = BANDS[Math.floor(r() * BANDS.length)] ?? BANDS[2]!;
+  const h0 = band[0] + r() * (band[1] - band[0]);
+  // Gentle analogous companions (a small forward drift) so the orb stays a
+  // cohesive jewel instead of clashing with a hard complement.
+  const h1 = (h0 + 16 + r() * 24) % 360;
+  const h2 = (h0 + 34 + r() * 34) % 360;
   const hues = [h0, h1, h2];
   const lobes: OrbLobe[] = [];
   const n = 3 + Math.floor(r() * 3);
@@ -177,8 +191,8 @@ export function draw(
   ctx.clip();
 
   const base = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
-  base.addColorStop(0, `hsl(${p.h0},80%,46%)`);
-  base.addColorStop(1, `hsl(${p.h2},78%,34%)`);
+  base.addColorStop(0, `hsl(${p.h0},72%,50%)`);
+  base.addColorStop(1, `hsl(${p.h2},68%,40%)`);
   ctx.fillStyle = base;
   ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
 
@@ -189,8 +203,8 @@ export function draw(
     const bx = cx + Math.cos(a) * R * dd;
     const by = cy + Math.sin(a) * R * dd;
     const g = ctx.createRadialGradient(bx, by, 0, bx, by, R * b.rad);
-    g.addColorStop(0, `hsla(${Math.round(b.hue)},96%,65%,${b.al})`);
-    g.addColorStop(1, `hsla(${Math.round(b.hue)},96%,65%,0)`);
+    g.addColorStop(0, `hsla(${Math.round(b.hue)},82%,68%,${b.al})`);
+    g.addColorStop(1, `hsla(${Math.round(b.hue)},82%,68%,0)`);
     ctx.fillStyle = g;
     ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
   }
