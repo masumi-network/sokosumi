@@ -1,8 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountGetTaskWorkspace from "./get";
 
@@ -41,22 +42,25 @@ function createTask(
   };
 }
 
-function createApp() {
+function createApp(
+  authContext: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: "org_123",
+    role: "user",
+  },
+) {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
   }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: "org_123",
-      role: "user",
-    });
+    c.set("authContext", authContext);
 
     return await next();
   });
+  app.onError(errorHandler);
 
   mountGetTaskWorkspace(app as unknown as OpenAPIHonoWithAuth);
 
@@ -108,5 +112,21 @@ describe("GET /tasks/{id}/workspace", () => {
       organizationId: null,
     });
     expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects delegated coworker API keys", async () => {
+    const response = await createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      delegation: {
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+    }).request("/tsk_123/workspace");
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.message).toBe("User authentication required");
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 });

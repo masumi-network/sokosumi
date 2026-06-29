@@ -1,7 +1,9 @@
+import type { SessionUser } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HeaderProfileSectionClient from "@/app/components/header/header-profile-section.client";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const headerWorkspaceSwitchMock = vi.fn();
@@ -27,28 +29,34 @@ vi.mock("@/app/components/header/header-notification-avatar.client", () => ({
   HeaderNotificationAvatar: () => null,
 }));
 
-const sessionUser = {
+const sessionUser: SessionUser = {
   id: "user-1",
   name: "Test User",
   email: "test@example.com",
   emailVerified: true,
   image: null,
-  createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  termsAccepted: true,
+  marketingOptIn: false,
+  onboardingCompleted: true,
 };
 
-const members = [
+const members: MemberWithOrganization[] = [
   {
     id: "member-1",
     organizationId: "org-a",
     userId: "user-1",
     role: "member",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    seatAssignedAt: null,
     organization: {
       id: "org-a",
       name: "Org A",
       slug: "org-a",
       logo: null,
+      metadata: null,
+      stripeCustomerId: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     },
   },
@@ -58,11 +66,14 @@ const members = [
     userId: "user-1",
     role: "member",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    seatAssignedAt: null,
     organization: {
       id: "org-b",
       name: "Org B",
       slug: "org-b",
       logo: null,
+      metadata: null,
+      stripeCustomerId: null,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     },
   },
