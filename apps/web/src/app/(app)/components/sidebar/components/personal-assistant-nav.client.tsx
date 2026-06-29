@@ -108,7 +108,7 @@ export default function PersonalAssistantNav({
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent>
-        <SidebarMenu className="gap-0 pt-2">
+        <SidebarMenu className="gap-0">
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive}>
               <SheetClose asChild>

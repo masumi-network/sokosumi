@@ -5,9 +5,11 @@ import {
   ExternalLink,
   FileText,
   MoreVertical,
+  Pencil,
   RefreshCw,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -33,6 +35,7 @@ interface DesignMdFileRowLabels {
   actionsMenu: string;
   confirmRemove: string;
   download: string;
+  edit: string;
   preview: string;
   regenerate: string;
   remove: string;
@@ -47,6 +50,7 @@ interface DesignMdFileRowProps {
   canManage: boolean;
   description: string;
   designMdUrl: string;
+  editHref?: null | string;
   isRemoving: boolean;
   labels: DesignMdFileRowLabels;
   onRegenerateClick: () => void;
@@ -60,6 +64,7 @@ export function DesignMdFileRow({
   canManage,
   description,
   designMdUrl,
+  editHref,
   isRemoving,
   labels,
   onRegenerateClick,
@@ -119,6 +124,14 @@ export function DesignMdFileRow({
                   <ExternalLink className="size-4" />
                   {labels.preview}
                 </a>
+              </DropdownMenuItem>
+            ) : null}
+            {canManage && editHref ? (
+              <DropdownMenuItem asChild>
+                <Link href={editHref}>
+                  <Pencil className="size-4" />
+                  {labels.edit}
+                </Link>
               </DropdownMenuItem>
             ) : null}
             {canManage ? (

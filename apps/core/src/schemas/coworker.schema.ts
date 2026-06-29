@@ -33,6 +33,51 @@ export const coworkerProfileSchema = z
   })
   .openapi("CoworkerProfile");
 
+// Canonical, semantic output kinds. Files are described by what they are, not
+// by extension, so the UI can pick the right icon/preview.
+const OUTPUT_TYPES = [
+  "pdf",
+  "image",
+  "slides",
+  "doc",
+  "sheet",
+  "text",
+  "html",
+] as const;
+
+// Common file extensions / spellings → canonical kind, so a hand-filled offer
+// can use the natural extension (e.g. "xlsx", "docx", "pptx", "png") instead of
+// the abstract name and still validate. Unknown strings pass through unchanged
+// and are then rejected by the enum.
+const OUTPUT_TYPE_ALIASES: Record<string, (typeof OUTPUT_TYPES)[number]> = {
+  doc: "doc",
+  docx: "doc",
+  slides: "slides",
+  ppt: "slides",
+  pptx: "slides",
+  sheet: "sheet",
+  xls: "sheet",
+  xlsx: "sheet",
+  csv: "sheet",
+  pdf: "pdf",
+  image: "image",
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  gif: "image",
+  webp: "image",
+  svg: "image",
+  text: "text",
+  md: "text",
+  markdown: "text",
+  html: "html",
+  htm: "html",
+};
+function normalizeOutputType(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  return OUTPUT_TYPE_ALIASES[value.toLowerCase()] ?? value;
+}
+
 export const coworkerOfferSchema = z
   .object({
     title: z.string().openapi({ example: "Competitive analysis" }),
@@ -53,8 +98,10 @@ export const coworkerOfferSchema = z
       .array(
         z.object({
           type: z
-            .enum(["pdf", "image", "slides", "doc", "text", "html"])
+            .preprocess(normalizeOutputType, z.enum(OUTPUT_TYPES))
             .openapi({
+              description:
+                "Output kind. Common file extensions are accepted and normalized (e.g. docx→doc, pptx→slides, xlsx/xls/csv→sheet, png/jpg→image).",
               example: "pdf",
             }),
           url: z.string().optional().openapi({
@@ -74,7 +121,7 @@ export const coworkerOfferSchema = z
       .optional()
       .openapi({
         description:
-          "Example outputs the offer produces — text and/or files (PDF, slides, image).",
+          "Example outputs the offer produces — text and/or files (PDF, document, slides, spreadsheet, image, html). Multiple outputs render as switchable tabs in the preview.",
       }),
   })
   .openapi("CoworkerOffer");

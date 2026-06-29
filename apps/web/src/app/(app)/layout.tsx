@@ -10,6 +10,7 @@ import { HistorySearchDialogProvider } from "@/app/components/history-search-dia
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { AppChatRailProvider } from "@/contexts/app-chat-rail-context";
 import { ConversationsProvider } from "@/contexts/conversations-context";
@@ -32,19 +33,18 @@ import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
-import { getDefaultAuthenticatedLandingPath } from "@/lib/utils/landing-path";
-
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
+import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
-import EmailVerificationNotice from "./components/email-verification-notice";
 import Header from "./components/header";
-import LowCreditsNotice from "./components/low-credits-notice";
+import HeaderGate from "./components/header-gate";
+import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
 import { OnboardingDialogLoader } from "./components/onboarding-dialog-loader";
 import Sidebar from "./components/sidebar";
-import { resolveAppTopNotice } from "./components/top-notice-state";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   // Redirect before rendering client providers. A redirect-only `/` page leaves
   // the router on `/` during client navigation and triggers hook mismatches.
   if (pathname === "/") {
-    redirect(await getDefaultAuthenticatedLandingPath());
+    redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
   }
 
   const cookieStorePromise = cookies();
@@ -140,7 +140,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     : 0;
   const lowCreditsThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const topNotice = resolveAppTopNotice({
+  const accountNotice = resolveAccountNotice({
     credits: creditsData?.total ?? null,
     currentPlan,
     email: session.user.email,
@@ -182,19 +182,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                   data-app-main
                 >
                   <EmergencyDialog />
-                  {topNotice.kind === "emailVerification" ? (
-                    <EmailVerificationNotice
-                      email={topNotice.email}
-                      emailVerified={false}
-                    />
-                  ) : null}
-                  {topNotice.kind === "lowCredits" ||
-                  topNotice.kind === "outOfCredits" ? (
-                    <LowCreditsNotice
-                      kind={topNotice.kind}
-                      path={topNotice.path}
-                    />
-                  ) : null}
                   <div
                     className="flex h-full flex-1 flex-col overflow-visible"
                     data-app-main-inner
@@ -222,24 +209,30 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <ConversationsProvider>
         <DynamicAblyProvider>
           <NotificationProvider userId={session.user.id}>
-            <NotificationToaster />
-            <NotificationToastListener userId={session.user.id} />
-            <CoworkersProvider initialCoworkers={coworkers}>
-              {content}
-              {shouldShowOnboarding ? (
-                <OnboardingDialogLoader
-                  activeOrganization={activeOrganization}
-                  loginId={session.session.id}
-                  subscriptionOnly={false}
-                />
-              ) : shouldLoadSubscriptionOnboarding ? (
-                <OnboardingDialogLoader
-                  activeOrganization={activeOrganization}
-                  loginId={session.session.id}
-                  subscriptionOnly
-                />
-              ) : null}
-            </CoworkersProvider>
+            <AccountNoticeProvider
+              notice={accountNotice}
+              sessionId={session.session.id}
+            >
+              <NotificationToaster />
+              <NotificationToastListener userId={session.user.id} />
+              <LoginAccountNoticeToast />
+              <CoworkersProvider initialCoworkers={coworkers}>
+                {content}
+                {shouldShowOnboarding ? (
+                  <OnboardingDialogLoader
+                    activeOrganization={activeOrganization}
+                    loginId={session.session.id}
+                    subscriptionOnly={false}
+                  />
+                ) : shouldLoadSubscriptionOnboarding ? (
+                  <OnboardingDialogLoader
+                    activeOrganization={activeOrganization}
+                    loginId={session.session.id}
+                    subscriptionOnly
+                  />
+                ) : null}
+              </CoworkersProvider>
+            </AccountNoticeProvider>
           </NotificationProvider>
         </DynamicAblyProvider>
       </ConversationsProvider>

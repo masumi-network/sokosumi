@@ -7,6 +7,7 @@ import { useCallback, useMemo } from "react";
 import {
   buildTasksFiltersSearchParams,
   getTasksFiltersFromSearchParams,
+  hasActiveTasksFilters,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -54,6 +55,11 @@ export function TasksViewFilters({
         projectOptions,
       ),
     [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
+  );
+
+  const showActiveIndicator = useMemo(
+    () => hasActiveTasksFilters(filters, activeOrganizationId),
+    [activeOrganizationId, filters],
   );
 
   const handleFilterChange = useCallback(
@@ -190,6 +196,7 @@ export function TasksViewFilters({
       searchPlaceholder={labels.searchPlaceholder}
       emptyResultsLabel={labels.emptyResults}
       sections={sections}
+      showActiveIndicator={showActiveIndicator}
     />
   );
 }

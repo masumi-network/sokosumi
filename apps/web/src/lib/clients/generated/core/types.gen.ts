@@ -1897,10 +1897,6 @@ export type ActiveSubscriptionResponse = {
     } | null;
 };
 
-export type TaskCount = {
-    count: number;
-};
-
 export type User = {
     id: string;
     createdAt: Date;
@@ -2466,10 +2462,13 @@ export type CoworkerOffer = {
     description?: string;
     deliverable?: string;
     /**
-     * Example outputs the offer produces — text and/or files (PDF, slides, image).
+     * Example outputs the offer produces — text and/or files (PDF, document, slides, spreadsheet, image, html). Multiple outputs render as switchable tabs in the preview.
      */
     outputs?: Array<{
-        type: 'pdf' | 'image' | 'slides' | 'doc' | 'text' | 'html';
+        /**
+         * Output kind. Common file extensions are accepted and normalized (e.g. docx→doc, pptx→slides, xlsx/xls/csv→sheet, png/jpg→image).
+         */
+        type: 'pdf' | 'image' | 'slides' | 'doc' | 'sheet' | 'text' | 'html';
         url?: string;
         label?: string;
         /**
@@ -14205,114 +14204,6 @@ export type GetUsersByIdSubscriptionResponses = {
 };
 
 export type GetUsersByIdSubscriptionResponse = GetUsersByIdSubscriptionResponses[keyof GetUsersByIdSubscriptionResponses];
-
-export type GetUsersByIdTasksCountData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-        /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
-         */
-        'X-Delegation-User-Id'?: string;
-        /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
-         */
-        'X-Delegation-Organization-Id'?: string;
-    };
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
-         */
-        id: string;
-    };
-    query?: {
-        /**
-         * Count scope. Defaults to 'workspace' (active workspace only). Use 'all' to count non-archived tasks owned by the user across every workspace.
-         */
-        scope?: 'workspace' | 'all';
-    };
-    url: '/users/{id}/tasks/count';
-};
-
-export type GetUsersByIdTasksCountErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdTasksCountError = GetUsersByIdTasksCountErrors[keyof GetUsersByIdTasksCountErrors];
-
-export type GetUsersByIdTasksCountResponses = {
-    /**
-     * Retrieve the user's task count
-     */
-    200: {
-        data: TaskCount;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdTasksCountResponse = GetUsersByIdTasksCountResponses[keyof GetUsersByIdTasksCountResponses];
 
 export type GetUsersByIdData = {
     body?: never;

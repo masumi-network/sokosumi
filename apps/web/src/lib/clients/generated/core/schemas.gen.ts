@@ -6582,20 +6582,6 @@ export const ActiveSubscriptionResponseSchema = {
     ]
 } as const;
 
-export const TaskCountSchema = {
-    type: 'object',
-    properties: {
-        count: {
-            type: 'integer',
-            minimum: 0,
-            example: 42
-        }
-    },
-    required: [
-        'count'
-    ]
-} as const;
-
 export const UserSchema = {
     type: 'object',
     properties: {
@@ -8895,9 +8881,11 @@ export const CoworkerOfferSchema = {
                             'image',
                             'slides',
                             'doc',
+                            'sheet',
                             'text',
                             'html'
                         ],
+                        description: 'Output kind. Common file extensions are accepted and normalized (e.g. docx→doc, pptx→slides, xlsx/xls/csv→sheet, png/jpg→image).',
                         example: 'pdf'
                     },
                     url: {
@@ -8918,7 +8906,7 @@ export const CoworkerOfferSchema = {
                     'type'
                 ]
             },
-            description: 'Example outputs the offer produces — text and/or files (PDF, slides, image).'
+            description: 'Example outputs the offer produces — text and/or files (PDF, document, slides, spreadsheet, image, html). Multiple outputs render as switchable tabs in the preview.'
         }
     },
     required: [

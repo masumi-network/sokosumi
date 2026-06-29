@@ -1,6 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-import { resolveLowCreditsBillingPath } from "@/app/components/top-notice-state";
+import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import UserCredits, {
   type UserCreditsData,
 } from "@/app/components/user-credits";

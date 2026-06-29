@@ -266,6 +266,7 @@
       "organizations": "Organizations",
       "users": "Users",
       "edit": "Edit",
+      "editor": "Editor",
       "enterprise-contracts": "Enterprise contracts",
       "invoices": "Invoices",
       "mcp": "Model Context Protocol (MCP)",
@@ -672,8 +673,10 @@
       }
     },
     "NotificationCenter": {
+      "accountNoticeIndicator": "Account notice",
       "notifications": "Notifications",
       "unreadBadge": "{count, plural, =1 {1 unread notification} other {# unread notifications}}",
+      "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
       "emptyState": "No notifications yet",
@@ -685,6 +688,7 @@
       "fetchError": "Could not load notifications",
       "retry": "Try again",
       "dismiss": "Dismiss",
+      "view": "View",
       "dismissNotification": "Dismiss notification"
     },
     "HashValue": {
@@ -1268,16 +1272,8 @@
       "Chat": {
         "newChat": "New Chat",
         "sidebarNew": "New",
-        "composeMode": "Compose mode",
-        "composeChat": "Chat",
-        "composeTask": "Task",
-        "taskStatus": "Task status",
-        "taskStatusDraft": "Draft",
-        "taskStatusReady": "Ready",
         "noChats": "No chats yet",
         "noCoworkersAvailable": "No coworkers available. Please try again later.",
-        "noTaskCoworkers": "No task-enabled coworkers are available right now.",
-        "taskCreationFailed": "Failed to create task.",
         "emptyState": {
           "title": "Start a conversation",
           "titleWithName": "Start a conversation with {name}",
@@ -1288,13 +1284,9 @@
           "greeting": "Welcome!",
           "greetingWithName": "Welcome {name}!",
           "question": "How can we help you today?",
-          "taskGreeting": "New task",
-          "taskGreetingWithName": "{name}, create a new task",
-          "taskQuestion": "Describe the work for your coworker and submit when you are ready.",
           "title": "Welcome! How can we help you today?",
           "titleWithName": "Welcome {name}! How can we help you today?",
-          "placeholder": "Enter your task and submit it to {coworkerSlug}.",
-          "taskPlaceholder": "Describe the task you want to create for {coworkerSlug}.",
+          "placeholder": "Message {coworkerSlug}...",
           "coworkerSlugFallback": "the coworker",
           "suggestionsLabel": "Try asking",
           "prompts": {
@@ -1422,7 +1414,6 @@
       },
       "Columns": {
         "backlog": "Backlog",
-        "scheduled": "Scheduled",
         "todo": "Todo",
         "inProgress": "In Progress",
         "inputRequired": "Input Required",
@@ -1670,6 +1661,8 @@
         "projectNone": "No project",
         "projectSearchPlaceholder": "Search projects...",
         "projectEmptyResults": "No projects found.",
+        "projectCreate": "Create project...",
+        "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
         "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
         "chooseAgent": "Choose your agent",
@@ -1728,6 +1721,8 @@
         "projectNone": "No project",
         "projectSearchPlaceholder": "Search projects...",
         "projectEmptyResults": "No projects found.",
+        "projectCreate": "Create project...",
+        "projectCreateNamed": "Create \"{name}\"",
         "coworker": "Coworker",
         "coworkerDescription": "Choose a Coworker LLM that will manage this task for you",
         "status": "Status",
@@ -3655,6 +3650,7 @@
           "pdf": "PDF",
           "slides": "Slides",
           "doc": "Document",
+          "sheet": "Spreadsheet",
           "text": "Text",
           "image": "Image",
           "html": "Web"
@@ -3738,6 +3734,7 @@
       "autoDescription": "Generate from the website URL. Turn off to upload manually.",
       "actionsMenuLabel": "Open DESIGN.md actions",
       "menuDownload": "Download",
+      "menuEdit": "Edit",
       "menuPreview": "Preview",
       "menuRegenerate": "Regenerate",
       "menuRemove": "Remove",
@@ -3774,7 +3771,20 @@
       "uploadRejected": "File is not accepted",
       "removeSelectedUpload": "Remove selected file",
       "descriptionPersonal": "Create and manage the DESIGN.md used for tasks from your personal workspace.",
-      "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization."
+      "descriptionOrganization": "Create and manage the DESIGN.md used for tasks from this organization.",
+      "editPageTitle": "Edit DESIGN.md",
+      "editTab": "Edit",
+      "previewTab": "Preview",
+      "editSave": "Save",
+      "editSaving": "Saving...",
+      "editSaveSuccess": "DESIGN.md saved",
+      "editUnavailableTitle": "DESIGN.md is not available",
+      "editLoadErrorTitle": "Could not load DESIGN.md",
+      "editLoadErrorDescription": "The file could not be fetched. Try again later or go back to your profile.",
+      "editBackToProfile": "Back to profile",
+      "discardDialogTitle": "Discard changes?",
+      "discardDialogDescription": "Your edits will be lost if you leave without saving.",
+      "discardConfirm": "Discard changes"
     }
   },
   "Share": {

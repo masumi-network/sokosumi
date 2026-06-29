@@ -16,6 +16,7 @@ import {
   PenLine,
   Play,
   Presentation,
+  Table,
   Users,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
@@ -38,6 +39,7 @@ const OUTPUT_ICON: Record<OutputKind, typeof FileText> = {
   pdf: FileText,
   doc: FileText,
   slides: Presentation,
+  sheet: Table,
   image: ImageIcon,
   text: AlignLeft,
   html: AppWindow,
@@ -48,6 +50,7 @@ const DEFAULT_OUTPUT_LABEL: Record<OutputKind, string> = {
   pdf: "PDF",
   doc: "Doc",
   slides: "Slides",
+  sheet: "Sheet",
   image: "Image",
   text: "Text",
   html: "Web",
@@ -66,8 +69,26 @@ const OFFICE_FILE = /\.(pptx?|docx?|xlsx?)(\?|#|$)/i;
 export function isOfficeFile(url: string): boolean {
   return OFFICE_FILE.test(url);
 }
-export function officeViewerUrl(url: string): string {
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+// Office document kinds — these must go through the Office viewer regardless of
+// the URL's extension, otherwise the browser downloads them instead of showing them.
+const OFFICE_EXT: Partial<Record<OutputKind, string>> = {
+  doc: "docx",
+  slides: "pptx",
+  sheet: "xlsx",
+};
+export function isOfficeType(type: OutputKind): boolean {
+  return type in OFFICE_EXT;
+}
+export function officeViewerUrl(url: string, type?: OutputKind): string {
+  // The Office viewer identifies the format from the URL's file extension.
+  // Extensionless URLs (e.g. IPFS hashes) need a filename hint or the viewer
+  // can't open them — append one derived from the output type.
+  let src = url;
+  if (!isOfficeFile(url)) {
+    const ext = (type && OFFICE_EXT[type]) ?? "docx";
+    src = `${url}${url.includes("?") ? "&" : "?"}filename=file.${ext}`;
+  }
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`;
 }
 
 export function OutputTypeIcon({
@@ -84,6 +105,7 @@ export function OutputTypeIcon({
 type MockKind =
   | "slides"
   | "page"
+  | "sheet"
   | "image"
   | "text"
   | "chart"
@@ -167,12 +189,19 @@ function mockKind(offer: CoworkerOffer): MockKind {
   const primary = offerOutputs(offer)[0];
   if (primary.type === "image" && primary.url) return "image";
   if (primary.type === "slides") return "slides";
+  if (primary.type === "sheet") return "sheet";
   if (primary.type === "html") return "web";
   if ((primary.type === "pdf" || primary.type === "doc") && primary.url) {
     return "page";
   }
   return CATEGORY_MOCK[offer.category ?? ""] ?? "text";
 }
+
+// Stable keys for the decorative 4×4 spreadsheet grid (avoids array-index keys).
+const SHEET_CELLS = Array.from(
+  { length: 16 },
+  (_cell, index) => `r${Math.floor(index / 4)}c${index % 4}`,
+);
 
 /** Stylized skeleton of the output — decorative, no fabricated content. One element
  * carries the category accent so the preview is color-cued without becoming a wash. */
@@ -304,6 +333,23 @@ function OfferMock({
             <div className={cn("h-6 w-full rounded", accent)} />
             <div className="bg-muted-foreground/20 h-1.5 w-2/3 rounded" />
             <div className="bg-muted-foreground/20 h-1.5 w-1/2 rounded" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (kind === "sheet") {
+    return (
+      <div className="flex h-full items-center justify-center p-5">
+        <div className="ring-border w-full max-w-[82%] overflow-hidden rounded-md bg-card shadow-sm ring-1">
+          <div className={cn("h-2 w-full", accent)} />
+          <div className="grid grid-cols-4">
+            {SHEET_CELLS.map((cell) => (
+              <div
+                key={cell}
+                className="border-border/60 h-3.5 border-r border-b last:border-r-0"
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -468,10 +514,13 @@ export function OfferEmbed({
     );
   }
   if (url) {
-    // Hide the browser's native PDF chrome (toolbar / thumbnail rail) for a clean preview.
-    const src = isOfficeFile(url)
-      ? officeViewerUrl(url)
-      : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+    // Office documents must use the viewer (the browser would download them);
+    // route by the declared type so extensionless URLs still embed. PDFs render
+    // natively — hide the browser's PDF chrome (toolbar / thumbnail rail).
+    const src =
+      isOfficeType(type) || isOfficeFile(url)
+        ? officeViewerUrl(url, type)
+        : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
     return (
       <iframe src={src} title={title} className="bg-muted/40 h-full w-full" />
     );

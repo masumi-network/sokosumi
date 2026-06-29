@@ -1,7 +1,10 @@
+import { TaskStatus } from "@sokosumi/utils";
+
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import type { TaskWithCoworker } from "@/lib/types/task";
 import { cn } from "@/lib/utils";
+import { hasActiveSchedule } from "@/lib/utils/task-schedule";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
@@ -68,7 +71,11 @@ export function TaskCard({
               </div>
             ) : null}
 
-            {task.columnId === "scheduled" ? (
+            {task.status === TaskStatus.QUEUED &&
+            hasActiveSchedule(
+              task.metadata,
+              task.nextRunAt ? new Date(task.nextRunAt) : null,
+            ) ? (
               <TaskScheduleDisplay
                 variant="card"
                 metadata={task.metadata}

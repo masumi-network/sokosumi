@@ -229,6 +229,37 @@ export function getTasksFiltersResetKey(
   return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.coworkerId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
 }
 
+/**
+ * Determines whether to show the active filter indicator dot.
+ *
+ * Business logic:
+ * - Organization boards: Show the dot when `scope` is "owned" or "workspace",
+ *   even though "owned" is the default. This signals the board is filtered
+ *   (either "My Tasks" or "All workspace tasks") as opposed to a hypothetical
+ *   unfiltered view. Also show when coworkerId, status, or projectId is set.
+ * - Personal boards: Show the dot only when a non-default filter is applied
+ *   (coworkerId, status, or projectId). The default "owned" scope alone does
+ *   not show the dot, as there's no workspace context to distinguish from.
+ */
+export function hasActiveTasksFilters(
+  filters: TasksFilters,
+  activeOrganizationId: string | null,
+): boolean {
+  const hasNonScopeFilter = Boolean(
+    filters.coworkerId || filters.status || filters.projectId,
+  );
+
+  if (activeOrganizationId !== null) {
+    return (
+      filters.scope === "owned" ||
+      filters.scope === "workspace" ||
+      hasNonScopeFilter
+    );
+  }
+
+  return hasNonScopeFilter;
+}
+
 export function isTaskOwnerEditable(
   task: Pick<TaskWithCoworker, "userId">,
   userId: string | null | undefined,

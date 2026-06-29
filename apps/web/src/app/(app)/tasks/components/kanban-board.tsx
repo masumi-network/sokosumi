@@ -1,7 +1,4 @@
-import {
-  compareScheduledTasksAsc,
-  compareTasksDesc,
-} from "@/app/tasks/utils/task-sort";
+import { compareTasksDesc } from "@/app/tasks/utils/task-sort";
 import type { TaskStatus } from "@/lib/types/core-dto";
 import {
   COLUMN_STATUS_COLORS,
@@ -51,11 +48,7 @@ export function KanbanBoard({
       {columns.map((column, index) => {
         const columnTasks = tasks
           .filter((task) => task.columnId === column.id)
-          .sort(
-            column.id === "scheduled"
-              ? compareScheduledTasksAsc
-              : compareTasksDesc,
-          );
+          .sort(compareTasksDesc);
         const isFirstColumn = index === 0;
         const isDraggableColumn = isDragEnabled && isDnDDragColumn(column.id);
         const isDropTargetColumn = isDragEnabled && isDnDDropColumn(column.id);

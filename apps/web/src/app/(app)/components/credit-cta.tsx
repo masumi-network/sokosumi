@@ -1,8 +1,7 @@
 import { Coins } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-
+import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import BuyCreditsButton from "./buy-credits-button";
-import { resolveLowCreditsBillingPath } from "./top-notice-state";
 
 interface CreditCtaProps {
   currentPlan: string | null;

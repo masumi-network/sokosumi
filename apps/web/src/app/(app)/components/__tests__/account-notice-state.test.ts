@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  resolveAppTopNotice,
+  resolveAccountNotice,
   resolveLowCreditsBillingPath,
-} from "@/app/components/top-notice-state";
+} from "@/app/components/account-notice-state";
 
-describe("top-notice-state", () => {
-  it("prioritizes email verification over the low-credits banner", () => {
+describe("account-notice-state", () => {
+  it("prioritizes email verification over the low-credits notice", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 25,
         currentPlan: "starter",
         email: "user@example.com",
@@ -16,7 +16,8 @@ describe("top-notice-state", () => {
       }),
     ).toEqual({
       email: "user@example.com",
-      kind: "emailVerification",
+      tone: "warning",
+      type: "emailVerification",
     });
   });
 
@@ -25,7 +26,7 @@ describe("top-notice-state", () => {
       "/billing?tab=subscription",
     );
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 25,
         currentPlan: "free",
         email: "user@example.com",
@@ -33,14 +34,15 @@ describe("top-notice-state", () => {
         threshold: 500,
       }),
     ).toEqual({
-      kind: "lowCredits",
       path: "/billing?tab=subscription",
+      tone: "warning",
+      type: "lowCredits",
     });
   });
 
   it("routes free users with no credits to the subscription tab and uses the out-of-credits state", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 0,
         currentPlan: "free",
         email: "user@example.com",
@@ -48,8 +50,9 @@ describe("top-notice-state", () => {
         threshold: 500,
       }),
     ).toEqual({
-      kind: "outOfCredits",
       path: "/billing?tab=subscription",
+      tone: "destructive",
+      type: "outOfCredits",
     });
   });
 
@@ -58,7 +61,7 @@ describe("top-notice-state", () => {
       "/billing?tab=credits",
     );
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 25,
         currentPlan: "starter",
         email: "user@example.com",
@@ -66,14 +69,15 @@ describe("top-notice-state", () => {
         threshold: 500,
       }),
     ).toEqual({
-      kind: "lowCredits",
       path: "/billing?tab=credits",
+      tone: "warning",
+      type: "lowCredits",
     });
   });
 
   it("routes paid-plan users with no credits to the credits tab and uses the out-of-credits state", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 0,
         currentPlan: "starter",
         email: "user@example.com",
@@ -81,14 +85,15 @@ describe("top-notice-state", () => {
         threshold: 500,
       }),
     ).toEqual({
-      kind: "outOfCredits",
       path: "/billing?tab=credits",
+      tone: "destructive",
+      type: "outOfCredits",
     });
   });
 
-  it("still shows the out-of-credits banner when the threshold is zero", () => {
+  it("still shows the out-of-credits notice when the threshold is zero", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 0,
         currentPlan: "starter",
         email: "user@example.com",
@@ -96,50 +101,45 @@ describe("top-notice-state", () => {
         threshold: 0,
       }),
     ).toEqual({
-      kind: "outOfCredits",
       path: "/billing?tab=credits",
+      tone: "destructive",
+      type: "outOfCredits",
     });
   });
 
-  it("does not show the low-credits banner above zero when the threshold is zero", () => {
+  it("does not show the low-credits notice above zero when the threshold is zero", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 1,
         currentPlan: "starter",
         email: "user@example.com",
         emailVerified: true,
         threshold: 0,
       }),
-    ).toEqual({
-      kind: "none",
-    });
+    ).toBeNull();
   });
 
-  it("does not show the low-credits banner when the balance equals the threshold", () => {
+  it("does not show the low-credits notice when the balance equals the threshold", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: 500,
         currentPlan: "starter",
         email: "user@example.com",
         emailVerified: true,
         threshold: 500,
       }),
-    ).toEqual({
-      kind: "none",
-    });
+    ).toBeNull();
   });
 
-  it("does not show the low-credits banner when credits are unavailable", () => {
+  it("does not show the low-credits notice when credits are unavailable", () => {
     expect(
-      resolveAppTopNotice({
+      resolveAccountNotice({
         credits: null,
         currentPlan: "starter",
         email: "user@example.com",
         emailVerified: true,
         threshold: 500,
       }),
-    ).toEqual({
-      kind: "none",
-    });
+    ).toBeNull();
   });
 });
