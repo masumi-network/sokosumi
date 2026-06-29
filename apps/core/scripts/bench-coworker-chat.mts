@@ -707,7 +707,7 @@ async function main() {
   if (!args.json) {
     console.log("Coworker chat benchmark");
     console.log(`  base URL:  ${env.baseUrl}`);
-    console.log(`  user:      ${maskSensitive(env.userId)}`);
+    console.log("  user:      [configured]");
     console.log(`  coworker:  ${env.coworkerSlug}`);
     console.log(`  scenario:  ${args.scenario}`);
     if (env.organizationId) {
