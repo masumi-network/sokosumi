@@ -17,24 +17,26 @@ export function AutoContextSwitch({
 }: AutoContextSwitchProps) {
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
   const hasTriggeredRef = useRef(false);
-  const shouldSwitch = activeOrganizationId !== targetOrganizationId;
+  const initialSwitchRef = useRef({
+    shouldSwitch: activeOrganizationId !== targetOrganizationId,
+    successMessage,
+    targetOrganizationId,
+  });
 
   useEffect(() => {
-    if (!shouldSwitch || hasTriggeredRef.current) {
+    const initialSwitch = initialSwitchRef.current;
+
+    if (!initialSwitch.shouldSwitch || hasTriggeredRef.current) {
       return;
     }
 
     hasTriggeredRef.current = true;
-    handleSelectWorkspace(targetOrganizationId, {
+    void handleSelectWorkspace(initialSwitch.targetOrganizationId, {
       shouldRedirectAgentJobsBasePath: false,
-      successMessage,
+      shouldRedirectTaskDetailPath: false,
+      successMessage: initialSwitch.successMessage,
     });
-  }, [
-    handleSelectWorkspace,
-    shouldSwitch,
-    successMessage,
-    targetOrganizationId,
-  ]);
+  }, [handleSelectWorkspace]);
 
   return null;
 }

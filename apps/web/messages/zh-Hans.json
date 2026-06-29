@@ -1635,6 +1635,13 @@
           }
         },
         "switchedWorkspace": "已切换到 {account} 账户",
+        "workspaceSwitchPrompt": {
+          "title": "此任务是在其他工作区创建的",
+          "description": "“{taskName}” 是在 <accountName>{account}</accountName> 工作区创建的。请切换工作区以打开它。",
+          "avatarTransition": "从 {currentAccount} 到 {targetAccount}",
+          "cancel": "留在此处",
+          "confirm": "切换工作区"
+        },
         "clonedFrom": "克隆自 {name}",
         "schedule": "计划"
       },

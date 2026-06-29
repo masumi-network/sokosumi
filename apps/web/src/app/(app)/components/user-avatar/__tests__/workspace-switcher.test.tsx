@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   activateOrganizationWorkspace,
   getAgentJobsBasePath,
+  getTaskDetailBasePath,
   useWorkspaceSwitcher,
 } from "@/app/components/user-avatar/workspace-switcher";
 import { updatePreferredOrganization } from "@/lib/actions/organization";
@@ -151,6 +152,18 @@ describe("workspace switcher", () => {
     });
   });
 
+  describe("getTaskDetailBasePath", () => {
+    it("returns the tasks base path for task detail routes", () => {
+      expect(getTaskDetailBasePath("/tasks/task-9")).toBe("/tasks");
+    });
+
+    it("returns null for task edit and list routes", () => {
+      expect(getTaskDetailBasePath("/tasks")).toBeNull();
+      expect(getTaskDetailBasePath("/tasks/new")).toBeNull();
+      expect(getTaskDetailBasePath("/tasks/task-9/edit")).toBeNull();
+    });
+  });
+
   it("replaces to the jobs base path when current route is inside agent jobs", async () => {
     pathnameMock = "/agents/agent-1/jobs/job-9";
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
@@ -177,6 +190,36 @@ describe("workspace switcher", () => {
         organizationId: "org-1",
       });
       expect(replaceMock).toHaveBeenCalledWith("/agents/agent-1/jobs");
+      expect(refreshMock).toHaveBeenCalled();
+    });
+  });
+
+  it("replaces to the tasks base path when current route is a task detail", async () => {
+    pathnameMock = "/tasks/task-9";
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        organizationId: "org-1",
+      },
+    });
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherTestComponent />);
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    await waitFor(() => {
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(replaceMock).toHaveBeenCalledWith("/tasks");
       expect(refreshMock).toHaveBeenCalled();
     });
   });
@@ -259,6 +302,55 @@ describe("workspace switcher", () => {
       expect(replaceMock).not.toHaveBeenCalled();
       expect(refreshMock).toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalledWith("Switched to Org One account");
+    });
+  });
+
+  it("supports disabling task detail route replacement", async () => {
+    pathnameMock = "/tasks/task-9";
+    vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        organizationId: "org-1",
+      },
+    });
+
+    function WorkspaceSwitcherWithTaskOptionsTestComponent() {
+      const { handleSelectWorkspace } = useWorkspaceSwitcher();
+
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            handleSelectWorkspace("org-1", {
+              shouldRedirectTaskDetailPath: false,
+            })
+          }
+        >
+          Dialog switch workspace
+        </button>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherWithTaskOptionsTestComponent />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Dialog switch workspace" }),
+    );
+
+    await waitFor(() => {
+      expect(authClient.organization.setActive).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(updatePreferredOrganization).toHaveBeenCalledWith({
+        organizationId: "org-1",
+      });
+      expect(replaceMock).not.toHaveBeenCalled();
+      expect(refreshMock).toHaveBeenCalled();
     });
   });
 

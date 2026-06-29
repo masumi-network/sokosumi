@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
+import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
 import { getSession } from "@/lib/auth/auth.server";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
-import { resolveAccountName } from "@/lib/utils/account-name";
+import {
+  resolveAccountName,
+  resolveOrganization,
+} from "@/lib/utils/account-name";
 
 export default async function TaskDetailPage({
   params,
@@ -14,14 +17,20 @@ export default async function TaskDetailPage({
 }) {
   const { taskId } = await params;
 
-  const taskWorkspace = await taskService.getTaskWorkspace(taskId);
+  const [taskWorkspace, session] = await Promise.all([
+    taskService.getTaskWorkspace(taskId),
+    getSession(),
+  ]);
 
   if (!taskWorkspace) {
     return notFound();
   }
 
-  const activeOrganizationId =
-    (await getSession())?.session.activeOrganizationId ?? null;
+  if (!session) {
+    return notFound();
+  }
+
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const targetOrganizationId = taskWorkspace.organizationId ?? null;
 
   if (activeOrganizationId !== targetOrganizationId) {
@@ -35,11 +44,21 @@ export default async function TaskDetailPage({
       members,
       tOrganizationSwitcher("personalAccount"),
     );
+    const currentAccountName = resolveAccountName(
+      activeOrganizationId,
+      members,
+      tOrganizationSwitcher("personalAccount"),
+    );
 
     return (
-      <AutoContextSwitch
-        activeOrganizationId={activeOrganizationId}
+      <TaskWorkspaceSwitchDialog
+        currentAccountName={currentAccountName}
+        currentOrganization={resolveOrganization(activeOrganizationId, members)}
+        sessionUser={session.user}
+        taskName={taskWorkspace.name}
+        targetOrganization={resolveOrganization(targetOrganizationId, members)}
         targetOrganizationId={targetOrganizationId}
+        targetAccountName={targetAccountName}
         successMessage={tDetail("switchedWorkspace", {
           account: targetAccountName,
         })}
@@ -53,5 +72,5 @@ export default async function TaskDetailPage({
     return notFound();
   }
 
-  return <TaskDetailView task={task} enableAutoSwitch />;
+  return <TaskDetailView task={task} />;
 }

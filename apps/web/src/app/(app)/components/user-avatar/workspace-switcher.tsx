@@ -18,6 +18,15 @@ export function getAgentJobsBasePath(pathname: string): string | null {
   return `/agents/${agentId}/jobs`;
 }
 
+export function getTaskDetailBasePath(pathname: string): string | null {
+  const taskDetailRouteMatch = pathname.match(/^\/tasks\/(?!new$)[^/]+$/);
+  if (!taskDetailRouteMatch) {
+    return null;
+  }
+
+  return "/tasks";
+}
+
 export async function activateOrganizationWorkspace(
   organizationId: string | null,
 ): Promise<void> {
@@ -40,6 +49,7 @@ export async function activateOrganizationWorkspace(
 
 interface SwitchOrganizationWorkspaceOptions {
   shouldRedirectAgentJobsBasePath?: boolean;
+  shouldRedirectTaskDetailPath?: boolean;
   successMessage?: string;
   router?: AppRouterInstance;
   pathname?: string;
@@ -66,6 +76,17 @@ export async function switchOrganizationWorkspace(
     }
   }
 
+  const shouldRedirectTaskDetailPath =
+    options?.shouldRedirectTaskDetailPath ?? true;
+  if (shouldRedirectTaskDetailPath && options?.router && options?.pathname) {
+    const taskDetailBasePath = getTaskDetailBasePath(options.pathname);
+    if (taskDetailBasePath) {
+      options.router.replace(taskDetailBasePath);
+      options.router.refresh();
+      return;
+    }
+  }
+
   options?.router?.refresh();
 }
 
@@ -78,6 +99,7 @@ export function useWorkspaceSwitcher() {
     organizationId: string | null,
     options?: {
       shouldRedirectAgentJobsBasePath?: boolean;
+      shouldRedirectTaskDetailPath?: boolean;
       successMessage?: string;
     },
   ): Promise<void> => {
