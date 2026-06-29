@@ -213,42 +213,6 @@ export async function syncCoworkerSlotFromDbWithRetry(options: {
       return { applied: false, attempts, cancelled: true };
     }
 
-    // #region agent log
-    fetch("http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "94182f",
-      },
-      body: JSON.stringify({
-        sessionId: "94182f",
-        runId: "db-sync-retry",
-        hypothesisId: "RACE",
-        location: "sync-coworker-slot-from-db.ts:poll",
-        message: "coworker db sync poll attempt",
-        data: {
-          conversationId: options.conversationId,
-          generation,
-          attempt: attempts,
-          liveTailLength: extractMessageContent(
-            liveSlot[liveSlot.length - 1] ?? {},
-          ).trim().length,
-          finishedTailLength: extractMessageContent(
-            options.slotMessages[options.slotMessages.length - 1] ?? {},
-          ).trim().length,
-          dbTailLength: extractMessageContent(
-            dbMessages?.[dbMessages.length - 1] ?? {},
-          ).trim().length,
-          liveStale: isStaleCoworkerAssistantTail(liveSlot),
-          liveGood: hasGoodCoworkerAssistantTail(liveSlot),
-          dbGood: dbMessages ? hasGoodCoworkerAssistantTail(dbMessages) : false,
-          keepPolling: shouldKeepPollingCoworkerDbSync(liveSlot, dbMessages),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     if (dbMessages && dbMessages.length > 0) {
       const dbGood = hasGoodCoworkerAssistantTail(dbMessages);
       const shouldReplace = shouldReplaceSlotMessagesWithDb(

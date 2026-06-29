@@ -439,39 +439,6 @@ async function streamCoworker(
     await sleepMs(COWORKER_AGENT_ERROR_RETRY_DELAY_MS);
   }
 
-  // #region agent log
-  if (
-    Boolean(body.conversation) &&
-    (sseRaw.length === 0 ||
-      coworkerSseBodyLooksLikeAgentError(sseRaw) ||
-      coworkerSseBodyLooksSuspiciouslyShort(sseRaw))
-  ) {
-    try {
-      const { appendFileSync } = await import("node:fs");
-      appendFileSync(
-        "/Users/francisluz/Documents/Projects/sokosumi-review/.cursor/debug-94182f.log",
-        `${JSON.stringify({
-          sessionId: "94182f",
-          runId: "connection-lost",
-          hypothesisId: "H1",
-          location: "sokosumi-language-model.ts:streamCoworker",
-          message: "coworker stream ended empty or agent-error",
-          data: {
-            attempts,
-            sseLength: sseRaw.length,
-            looksLikeAgentError: coworkerSseBodyLooksLikeAgentError(sseRaw),
-            looksSuspiciouslyShort:
-              coworkerSseBodyLooksSuspiciouslyShort(sseRaw),
-          },
-          timestamp: Date.now(),
-        })}\n`,
-      );
-    } catch {
-      /* debug log best-effort */
-    }
-  }
-  // #endregion
-
   const responseBody =
     sseRaw.length > 0
       ? new ReadableStream<Uint8Array>({

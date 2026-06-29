@@ -890,37 +890,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (!internalConversationId) {
             return;
           }
-          // #region agent log
-          if (useCoworker) {
-            try {
-              const { appendFileSync } = await import("node:fs");
-              appendFileSync(
-                "/Users/francisluz/Documents/Projects/sokosumi-review/.cursor/debug-94182f.log",
-                `${JSON.stringify({
-                  sessionId: "94182f",
-                  runId: "connection-lost",
-                  hypothesisId: "H4",
-                  location: "post.ts:onFinish",
-                  message: "coworker stream finished",
-                  data: {
-                    textLength: finishEvent.text?.length ?? 0,
-                    reasoningCount: Array.isArray(finishEvent.reasoning)
-                      ? finishEvent.reasoning.length
-                      : 0,
-                    thoughtStart: thoughtPhaseMs.start,
-                    thoughtEnd: thoughtPhaseMs.end,
-                    looksLikeAgentError: finishEvent.text.includes(
-                      "Something went wrong while processing your task",
-                    ),
-                  },
-                  timestamp: Date.now(),
-                })}\n`,
-              );
-            } catch {
-              /* debug log best-effort */
-            }
-          }
-          // #endregion
           try {
             const hasReasoning =
               Array.isArray(finishEvent.reasoning) &&

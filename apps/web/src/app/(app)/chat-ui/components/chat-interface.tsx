@@ -851,34 +851,6 @@ export default function ChatInterface({
   const onErrorForSlot = useCallback(
     (slotIndex: number) => (error: unknown) => {
       console.error(`Chat API error (slot ${slotIndex}):`, error);
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "94182f",
-          },
-          body: JSON.stringify({
-            sessionId: "94182f",
-            runId: "connection-lost",
-            hypothesisId: "H3",
-            location: "chat-interface.tsx:onError",
-            message: "useChat stream error",
-            data: {
-              slotIndex,
-              convId: slotPayloadRef.current[slotIndex]?.conversationId ?? null,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : String(error ?? "unknown"),
-            },
-            timestamp: Date.now(),
-          }),
-        },
-      ).catch(() => {});
-      // #endregion
       const convId = slotPayloadRef.current[slotIndex]?.conversationId ?? null;
       if (convId) {
         welcomeCreationInFlightRef.current = false;
@@ -968,42 +940,6 @@ export default function ChatInterface({
             );
             chatMessagesRef.current.set(conversationId, finishedMessages);
           }
-
-          const liveBeforeSync =
-            getLiveSlotMessagesForConversationRef.current(conversationId);
-          const liveTail =
-            liveBeforeSync[liveBeforeSync.length - 1]?.role === "assistant"
-              ? extractMessageContent(
-                  liveBeforeSync[liveBeforeSync.length - 1] ?? {},
-                ).trim().length
-              : -1;
-          // #region agent log
-          fetch(
-            "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Debug-Session-Id": "94182f",
-              },
-              body: JSON.stringify({
-                sessionId: "94182f",
-                runId: "db-sync-retry",
-                hypothesisId: "LIVE",
-                location: "chat-interface.tsx:onFinish:beforeSync",
-                message: "live slot vs finishedMessages before db sync",
-                data: {
-                  conversationId,
-                  finishedTailLength: content.length,
-                  liveTailLength: liveTail,
-                  liveStale: isStaleCoworkerAssistantTail(liveBeforeSync),
-                  finishedGood: hasGoodCoworkerAssistantTail(finishedMessages),
-                },
-                timestamp: Date.now(),
-              }),
-            },
-          ).catch(() => {});
-          // #endregion
 
           await syncCoworkerSlotFromDbWithRetry({
             conversationId,
@@ -1183,33 +1119,6 @@ export default function ChatInterface({
         if (options?.forceFromDb) {
           flushSync(apply);
           bumpMessageListRevision();
-          // #region agent log
-          fetch(
-            "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Debug-Session-Id": "94182f",
-              },
-              body: JSON.stringify({
-                sessionId: "94182f",
-                runId: "db-sync-retry",
-                hypothesisId: "RENDER",
-                location: "chat-interface.tsx:setMessagesForConversation",
-                message: "forceFromDb slot commit",
-                data: {
-                  convId,
-                  messageCount: messages.length,
-                  tailLength: extractMessageContent(
-                    messages[messages.length - 1] ?? {},
-                  ).trim().length,
-                },
-                timestamp: Date.now(),
-              }),
-            },
-          ).catch(() => {});
-          // #endregion
         } else {
           apply();
         }
@@ -1222,72 +1131,10 @@ export default function ChatInterface({
               shouldRejectCoworkerMessageRegression(prevArr, messages) &&
               !options?.forceFromDb
             ) {
-              // #region agent log
-              fetch(
-                "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "X-Debug-Session-Id": "94182f",
-                  },
-                  body: JSON.stringify({
-                    sessionId: "94182f",
-                    runId: "db-sync-retry",
-                    hypothesisId: "WIPE",
-                    location: "chat-interface.tsx:setMessagesForConversation",
-                    message: "rejected message regression",
-                    data: {
-                      convId,
-                      prevCount: prevArr.length,
-                      nextCount: messages.length,
-                      prevTail: extractMessageContent(
-                        prevArr[prevArr.length - 1] ?? {},
-                      ).trim().length,
-                      nextTail: extractMessageContent(
-                        messages[messages.length - 1] ?? {},
-                      ).trim().length,
-                    },
-                    timestamp: Date.now(),
-                  }),
-                },
-              ).catch(() => {});
-              // #endregion
               return prevArr;
             }
             if (options?.forceFromDb) {
               if (shouldRejectCoworkerMessageRegression(prevArr, messages)) {
-                // #region agent log
-                fetch(
-                  "http://127.0.0.1:7541/ingest/8edb227b-ad2a-46cf-bc16-6d4896cf7788",
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "X-Debug-Session-Id": "94182f",
-                    },
-                    body: JSON.stringify({
-                      sessionId: "94182f",
-                      runId: "post-fix",
-                      hypothesisId: "WIPE",
-                      location: "chat-interface.tsx:setMessagesForConversation",
-                      message: "forceFromDb rejected regression",
-                      data: {
-                        convId,
-                        prevCount: prevArr.length,
-                        nextCount: messages.length,
-                        prevTail: extractMessageContent(
-                          prevArr[prevArr.length - 1] ?? {},
-                        ).trim().length,
-                        nextTail: extractMessageContent(
-                          messages[messages.length - 1] ?? {},
-                        ).trim().length,
-                      },
-                      timestamp: Date.now(),
-                    }),
-                  },
-                ).catch(() => {});
-                // #endregion
                 return prevArr;
               }
               return messages;
