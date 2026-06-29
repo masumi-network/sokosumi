@@ -43,8 +43,10 @@ export default function HeaderProfileSectionClient({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 transition-opacity",
-        isPending && "pointer-events-none opacity-50",
+        "flex items-center gap-2",
+        isPending
+          ? "pointer-events-none animate-pulse opacity-60"
+          : "transition-opacity",
       )}
     >
       <HeaderWorkspaceSwitch
