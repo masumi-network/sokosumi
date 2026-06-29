@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -51,10 +52,11 @@ function createApp(
   },
 ) {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & RequestIdVariables;
   }>();
 
   app.use("*", async (c, next) => {
+    c.set("requestId", "req_workspace_get_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
 
