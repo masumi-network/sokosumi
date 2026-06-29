@@ -255,7 +255,6 @@ describe("workspace switcher", () => {
   });
 
   it("supports disabling job route replacement and shows success toast", async () => {
-    pathnameMock = "/agents/agent-1/jobs/job-9";
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,
       error: null,
@@ -351,6 +350,53 @@ describe("workspace switcher", () => {
       });
       expect(replaceMock).not.toHaveBeenCalled();
       expect(refreshMock).toHaveBeenCalled();
+    });
+  });
+
+  it("exposes a pending state for the full async workspace switch", async () => {
+    pathnameMock = "/tasks";
+    let resolveSetActive: (() => void) | undefined;
+    vi.mocked(authClient.organization.setActive).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSetActive = () => resolve({ data: null, error: null });
+        }),
+    );
+    vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
+      ok: true,
+      data: {
+        organizationId: "org-1",
+      },
+    });
+
+    function WorkspaceSwitcherPendingTestComponent() {
+      const { handleSelectWorkspace, isPending } = useWorkspaceSwitcher();
+
+      return (
+        <>
+          <span data-testid="pending-state">
+            {isPending ? "pending" : "idle"}
+          </span>
+          <button type="button" onClick={() => handleSelectWorkspace("org-1")}>
+            Switch workspace
+          </button>
+        </>
+      );
+    }
+
+    const user = userEvent.setup();
+    render(<WorkspaceSwitcherPendingTestComponent />);
+
+    expect(screen.getByTestId("pending-state")).toHaveTextContent("idle");
+
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+
+    expect(screen.getByTestId("pending-state")).toHaveTextContent("pending");
+
+    resolveSetActive?.();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("pending-state")).toHaveTextContent("idle");
     });
   });
 

@@ -2,7 +2,7 @@
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { updatePreferredOrganization } from "@/lib/actions/organization";
@@ -93,7 +93,7 @@ export async function switchOrganizationWorkspace(
 export function useWorkspaceSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
   const handleSelectWorkspace = (
     organizationId: string | null,
@@ -103,20 +103,20 @@ export function useWorkspaceSwitcher() {
       successMessage?: string;
     },
   ): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      startTransition(() => {
-        void switchOrganizationWorkspace(organizationId, {
-          ...options,
-          router,
-          pathname,
-        })
-          .then(resolve)
-          .catch((error) => {
-            console.error("Failed to switch organization:", error);
-            reject(error);
-          });
+    setIsPending(true);
+
+    return switchOrganizationWorkspace(organizationId, {
+      ...options,
+      router,
+      pathname,
+    })
+      .catch((error) => {
+        console.error("Failed to switch organization:", error);
+        throw error;
+      })
+      .finally(() => {
+        setIsPending(false);
       });
-    });
   };
 
   return {
