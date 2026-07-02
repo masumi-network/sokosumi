@@ -29,6 +29,7 @@ export interface WarmupCoworkerConversationOptions {
 export interface CoworkerReadyStateReadResult {
   state: CoworkerWarmupReadState;
   completedAt: string | null;
+  attempts: number | null;
   source: CoworkerWarmupStateSource;
 }
 
@@ -101,6 +102,7 @@ function readMetadataWarmupState(
 ): {
   state: CoworkerWarmupReadState;
   completedAt: string | null;
+  attempts: number | null;
 } {
   const warmupState = metadata?.warmup_state;
   if (
@@ -109,13 +111,15 @@ function readMetadataWarmupState(
     warmupState === "failed"
   ) {
     const completedAt = metadata?.warmup_completed_at;
+    const attempts = metadata?.warmup_attempts;
     return {
       state: warmupState,
       completedAt: typeof completedAt === "string" ? completedAt : null,
+      attempts: typeof attempts === "number" ? attempts : null,
     };
   }
 
-  return { state: "unknown", completedAt: null };
+  return { state: "unknown", completedAt: null, attempts: null };
 }
 
 async function mergeConversationWarmupMetadata(
@@ -153,6 +157,7 @@ export async function setCoworkerReadyState(
   userId: string,
   state: CoworkerWarmupState,
   completedAt: string | null = null,
+  attempts: number | null = null,
 ): Promise<void> {
   await writeRedisWarmupState(internalConversationId, state);
 
@@ -161,6 +166,9 @@ export async function setCoworkerReadyState(
   };
   if (completedAt !== null) {
     metadataPatch.warmup_completed_at = completedAt;
+  }
+  if (attempts !== null) {
+    metadataPatch.warmup_attempts = attempts;
   }
 
   await mergeConversationWarmupMetadata(
@@ -176,10 +184,11 @@ export async function readCoworkerReadyState(
 ): Promise<CoworkerReadyStateReadResult> {
   const redisState = await readRedisWarmupState(internalConversationId);
   if (redisState) {
-    const { completedAt } = readMetadataWarmupState(metadata);
+    const { attempts, completedAt } = readMetadataWarmupState(metadata);
     return {
       state: redisState,
       completedAt: redisState === "pending" ? null : completedAt,
+      attempts,
       source: "redis",
     };
   }
@@ -189,6 +198,7 @@ export async function readCoworkerReadyState(
     return {
       state: metadataState.state,
       completedAt: metadataState.completedAt,
+      attempts: metadataState.attempts,
       source: "metadata",
     };
   }
@@ -196,6 +206,7 @@ export async function readCoworkerReadyState(
   return {
     state: "unknown",
     completedAt: null,
+    attempts: null,
     source: "none",
   };
 }
@@ -270,6 +281,8 @@ export async function warmupCoworkerConversation(
       options.internalConversationId,
       options.userId,
       "pending",
+      null,
+      0,
     );
 
     for (let attempt = 1; attempt <= MAX_WARMUP_ATTEMPTS; attempt++) {
@@ -290,21 +303,30 @@ export async function warmupCoworkerConversation(
           options.userId,
           "ready",
           new Date().toISOString(),
+          attempt,
         );
         return;
       }
 
       if (!result.retryable || attempt === MAX_WARMUP_ATTEMPTS) {
+        await setCoworkerReadyState(
+          options.internalConversationId,
+          options.userId,
+          "failed",
+          new Date().toISOString(),
+          attempt,
+        );
         break;
       }
-    }
 
-    await setCoworkerReadyState(
-      options.internalConversationId,
-      options.userId,
-      "failed",
-      new Date().toISOString(),
-    );
+      await setCoworkerReadyState(
+        options.internalConversationId,
+        options.userId,
+        "pending",
+        null,
+        attempt,
+      );
+    }
   } catch (error) {
     console.error("[warmup] Unexpected error during coworker warmup:", error);
     try {

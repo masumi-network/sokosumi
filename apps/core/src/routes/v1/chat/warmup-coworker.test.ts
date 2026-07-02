@@ -111,7 +111,10 @@ describe("warmup-coworker", () => {
     expect(conversationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          metadata: expect.objectContaining({ warmup_state: "ready" }),
+          metadata: expect.objectContaining({
+            warmup_attempts: 1,
+            warmup_state: "ready",
+          }),
         }),
       }),
     );
@@ -177,6 +180,7 @@ describe("warmup-coworker", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           metadata: expect.objectContaining({
+            warmup_attempts: MAX_WARMUP_ATTEMPTS,
             warmup_state: "failed",
             warmup_completed_at: expect.any(String),
           }),
@@ -203,6 +207,7 @@ describe("warmup-coworker", () => {
         data: expect.objectContaining({
           metadata: expect.objectContaining({
             coworker: "Elena",
+            warmup_attempts: 1,
             warmup_state: "ready",
           }),
         }),
@@ -224,6 +229,7 @@ describe("warmup-coworker", () => {
     expect(result).toEqual({
       state: "ready",
       completedAt: "2025-01-01T00:00:00.000Z",
+      attempts: null,
       source: "redis",
     });
   });
@@ -234,12 +240,14 @@ describe("warmup-coworker", () => {
       {
         warmup_state: "ready",
         warmup_completed_at: "2025-01-01T00:00:00.000Z",
+        warmup_attempts: 3,
       },
     );
 
     expect(result).toEqual({
       state: "ready",
       completedAt: "2025-01-01T00:00:00.000Z",
+      attempts: 3,
       source: "metadata",
     });
   });

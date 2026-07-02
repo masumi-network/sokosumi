@@ -768,11 +768,15 @@ export type ConversationWarmupState = {
     /**
      * Coworker container warmup state
      */
-    state: 'pending' | 'ready' | 'failed' | 'unknown';
+    state: 'pending' | 'ready' | 'failed';
     /**
      * ISO timestamp when warmup reached a terminal state (ready or failed)
      */
     completedAt: Date | null;
+    /**
+     * Number of warmup attempts made so far
+     */
+    attempts?: number | null;
     /**
      * Where the warmup state was resolved from
      */

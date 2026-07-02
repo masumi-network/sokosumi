@@ -3138,8 +3138,7 @@ export const ConversationWarmupStateSchema = {
             enum: [
                 'pending',
                 'ready',
-                'failed',
-                'unknown'
+                'failed'
             ],
             description: 'Coworker container warmup state',
             example: 'ready'
@@ -3152,6 +3151,15 @@ export const ConversationWarmupStateSchema = {
             format: 'date-time',
             description: 'ISO timestamp when warmup reached a terminal state (ready or failed)',
             example: '2025-01-21T12:00:00.000Z'
+        },
+        attempts: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            description: 'Number of warmup attempts made so far',
+            example: 2
         },
         source: {
             type: 'string',

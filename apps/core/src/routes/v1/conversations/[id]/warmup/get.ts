@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireConversationCoworkerAccess } from "@/helpers/access-control";
-import { internalServerError, notFound } from "@/helpers/error";
+import {
+  requireConversationCoworkerAccess,
+  resolveConversationCoworkerId,
+} from "@/helpers/access-control";
+import { forbidden, internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -69,12 +72,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const found = await tx.conversation.findFirst({
           where: {
             id,
-            userId: userContext.userId,
             archivedAt: null,
           },
         });
 
         if (!found) {
+          throw notFound("Conversation not found");
+        }
+
+        if (found.userId !== userContext.userId) {
+          throw forbidden("You can only access your own conversations");
+        }
+
+        const conversationCoworkerId = await resolveConversationCoworkerId(
+          found.metadata,
+          tx,
+        );
+        if (!conversationCoworkerId) {
           throw notFound("Conversation not found");
         }
 
@@ -90,13 +104,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const metadata =
         (conversation.metadata as Record<string, unknown> | null) ?? null;
       const readyState = await readCoworkerReadyState(id, metadata);
+      const state =
+        readyState.state === "unknown" ? "pending" : readyState.state;
 
       return ok(
         c,
         conversationWarmupStateSchema.parse({
           conversationId: id,
-          state: readyState.state,
+          state,
           completedAt: readyState.completedAt,
+          attempts: readyState.attempts,
           source: readyState.source,
         }),
       );

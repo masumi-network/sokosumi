@@ -106,7 +106,7 @@ export const conversationWarmupStateSchema = z
       description: "Internal conversation ID",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-    state: z.enum(["pending", "ready", "failed", "unknown"]).openapi({
+    state: z.enum(["pending", "ready", "failed"]).openapi({
       description: "Coworker container warmup state",
       example: "ready",
     }),
@@ -114,6 +114,10 @@ export const conversationWarmupStateSchema = z
       description:
         "ISO timestamp when warmup reached a terminal state (ready or failed)",
       example: "2025-01-21T12:00:00.000Z",
+    }),
+    attempts: z.number().int().nonnegative().nullable().optional().openapi({
+      description: "Number of warmup attempts made so far",
+      example: 2,
     }),
     source: z.enum(["redis", "metadata", "none"]).openapi({
       description: "Where the warmup state was resolved from",
