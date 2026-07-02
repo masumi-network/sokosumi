@@ -22,6 +22,7 @@ const DEFAULT_FIRST_TOKEN_P50_THRESHOLD_MS = 3000;
 const DEFAULT_AGENT_ERROR_RATE_THRESHOLD = 0.1;
 const BENCH_HTTP_REFERER = "https://sokosumi.com/benchmark";
 const MAX_OUTPUT_TOKENS = 4096;
+const MAX_ACCUMULATED_TEXT_LENGTH = 50_000; // ~12.5K tokens - limits memory for error checking
 
 const COWORKER_AGENT_ERROR_SNIPPET =
   "Something went wrong while processing your task";
@@ -192,6 +193,14 @@ function extractOutputTokens(chunk: {
   return null;
 }
 
+/**
+ * Sanitize error messages to prevent credential leakage.
+ * Removes API keys and sensitive headers from error text.
+ */
+function sanitizeErrorMessage(message: string, apiKey: string): string {
+  return message.replaceAll(apiKey, "[REDACTED]");
+}
+
 async function runSample(options: {
   endpoint: string;
   apiKey: string;
@@ -236,6 +245,7 @@ async function runSample(options: {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
+      const sanitizedError = sanitizeErrorMessage(errorText, options.apiKey);
       return {
         iteration: options.iteration,
         ok: false,
@@ -243,7 +253,7 @@ async function runSample(options: {
         totalMs: null,
         outputTokens: null,
         responseId: null,
-        error: `HTTP ${response.status}: ${errorText.slice(0, 200)}`,
+        error: `HTTP ${response.status}: ${sanitizedError.slice(0, 200)}`,
       };
     }
 
@@ -285,31 +295,40 @@ async function runSample(options: {
         }
 
         try {
-          const chunk = JSON.parse(data) as {
-            type?: string;
-            delta?: string;
-            response?: { id?: string; usage?: { output_tokens?: number } };
-            usage?: { output_tokens?: number };
-          };
+          const chunk = JSON.parse(data);
 
+          // Runtime validation for type safety
           if (
-            chunk.type === RESPONSES_API_EVENTS.OUTPUT_TEXT_DELTA &&
-            typeof chunk.delta === "string"
+            typeof chunk === "object" &&
+            chunk !== null &&
+            typeof chunk.type === "string"
           ) {
-            if (firstTokenMs === null) {
-              firstTokenMs = performance.now() - startMs;
+            if (
+              chunk.type === RESPONSES_API_EVENTS.OUTPUT_TEXT_DELTA &&
+              typeof chunk.delta === "string"
+            ) {
+              if (firstTokenMs === null) {
+                firstTokenMs = performance.now() - startMs;
+              }
+              // Limit accumulation to prevent memory leak
+              if (accumulatedText.length < MAX_ACCUMULATED_TEXT_LENGTH) {
+                accumulatedText += chunk.delta;
+              }
             }
-            accumulatedText += chunk.delta;
-          }
 
-          if (chunk.type === RESPONSES_API_EVENTS.COMPLETED) {
-            totalMs = performance.now() - startMs;
-            if (typeof chunk.response?.id === "string") {
-              responseId = chunk.response.id;
+            if (chunk.type === RESPONSES_API_EVENTS.COMPLETED) {
+              totalMs = performance.now() - startMs;
+              if (
+                typeof chunk.response === "object" &&
+                chunk.response !== null &&
+                typeof chunk.response.id === "string"
+              ) {
+                responseId = chunk.response.id;
+              }
+              outputTokens = extractOutputTokens(chunk);
+              streamDone = true;
+              break;
             }
-            outputTokens = extractOutputTokens(chunk);
-            streamDone = true;
-            break;
           }
         } catch {
           // skip malformed SSE chunks
@@ -340,6 +359,7 @@ async function runSample(options: {
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const sanitizedMessage = sanitizeErrorMessage(message, options.apiKey);
     const isTimeout =
       err instanceof Error &&
       (err.name === "TimeoutError" || err.name === "AbortError");
@@ -351,7 +371,7 @@ async function runSample(options: {
       totalMs: null,
       outputTokens: null,
       responseId: null,
-      error: isTimeout ? "Request timeout" : message,
+      error: isTimeout ? "Request timeout" : sanitizedMessage,
     };
   }
 }
