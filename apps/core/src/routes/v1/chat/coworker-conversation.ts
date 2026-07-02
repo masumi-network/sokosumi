@@ -255,7 +255,6 @@ export async function ensureCoworkerProviderConversation(
     data: { providerConversationId: created.id },
   });
 
-  let providerConversationId = created.id;
   if (updated.count === 0) {
     const refetched = await prisma.conversation.findFirst({
       where: {
@@ -264,9 +263,15 @@ export async function ensureCoworkerProviderConversation(
       },
       select: { providerConversationId: true },
     });
-    providerConversationId =
-      refetched?.providerConversationId?.trim() ?? created.id;
+    const refetchedId = refetched?.providerConversationId?.trim();
+    if (!refetchedId) {
+      throw new CoworkerConversationError(
+        "Could not persist coworker provider conversation id",
+        503,
+      );
+    }
+    return { providerConversationId: refetchedId, justCreated: false };
   }
 
-  return { providerConversationId, justCreated: true };
+  return { providerConversationId: created.id, justCreated: true };
 }

@@ -359,4 +359,56 @@ describe("useChatMessages", () => {
       limit: 100,
     });
   });
+
+  it("loads database messages after welcome creation flags clear following many deferrals", async () => {
+    vi.useFakeTimers();
+    getConversationMessagesMock.mockResolvedValue({
+      ok: true,
+      data: {
+        messages: [
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            createdAt: 1,
+          },
+        ],
+        pagination: null,
+      },
+    });
+    const setMessagesForConversation = vi.fn();
+    const previousChatIdRef = { current: null };
+    const messagesChatIdRef = { current: null };
+    const chatMessagesRef = { current: new Map<string, unknown[]>() };
+    const welcomeCreationInFlightRef = { current: true };
+
+    renderHook(() =>
+      useChatMessages({
+        selectedChatId: CONVERSATION_ID,
+        selectedConversation: null,
+        setMessagesForConversation,
+        previousChatIdRef,
+        messagesChatIdRef,
+        chatMessagesRef,
+        welcomeCreationInFlightRef,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(31 * 300);
+    });
+    expect(getConversationMessagesMock).not.toHaveBeenCalled();
+
+    welcomeCreationInFlightRef.current = false;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(getConversationMessagesMock).toHaveBeenCalledWith({
+      conversationId: CONVERSATION_ID,
+      limit: 100,
+    });
+  });
 });

@@ -160,9 +160,6 @@ export function useChatMessages({
           if (previousChatIdRef.current !== currentSelectedChatId) {
             return;
           }
-          if (retryAttempt >= 30) {
-            return;
-          }
           retryTimeoutRef.current = setTimeout(() => {
             void loadMessagesFromDB({
               forceRefresh: true,
