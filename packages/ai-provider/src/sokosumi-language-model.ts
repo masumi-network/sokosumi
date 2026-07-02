@@ -10,13 +10,6 @@ import {
   type SharedV3Warning,
 } from "@ai-sdk/provider";
 import { getModelIdentifier } from "@sokosumi/chat";
-import {
-  COWORKER_AGENT_ERROR_RETRY_ATTEMPTS,
-  COWORKER_AGENT_ERROR_RETRY_DELAY_MS,
-  coworkerSseBodyLooksLikeAgentError,
-  coworkerSseBodyLooksSuspiciouslyShort,
-  sleepMs,
-} from "./coworker-agent-error.js";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 import {
   buildResponsesApiWarnings,
@@ -419,49 +412,23 @@ async function streamCoworker(
     return response;
   }
 
-  let sseRaw = "";
-  let attempts = 0;
-  while (attempts < COWORKER_AGENT_ERROR_RETRY_ATTEMPTS) {
-    attempts++;
-    const response = await fetchCoworkerResponses(body);
-    sseRaw = await response.text();
-    const shouldRetryOnAgentError =
-      Boolean(body.conversation) &&
-      sseRaw.length > 0 &&
-      attempts < COWORKER_AGENT_ERROR_RETRY_ATTEMPTS &&
-      (coworkerSseBodyLooksLikeAgentError(sseRaw) ||
-        coworkerSseBodyLooksSuspiciouslyShort(sseRaw));
+  const response = await fetchCoworkerResponses(body);
 
-    if (!shouldRetryOnAgentError) {
-      break;
-    }
-
-    await sleepMs(COWORKER_AGENT_ERROR_RETRY_DELAY_MS);
+  if (!response.body) {
+    throw new EmptyResponseBodyError({
+      message: "Coworker Responses API returned no body",
+    });
   }
 
-  const responseBody =
-    sseRaw.length > 0
-      ? new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(sseRaw));
-            controller.close();
-          },
-        })
-      : new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.close();
-          },
-        });
-
   return {
-    stream: createResponsesSseToV3Stream(responseBody, {
+    stream: createResponsesSseToV3Stream(response.body, {
       warnings: promptWarnings,
       onResponseStarted: sokosumiOpts.onResponseStarted,
       onResponseCompleted: sokosumiOpts.onResponseCompleted,
     }),
     request: { body },
     response: {
-      headers: {},
+      headers: headersToRecord(response.headers),
     },
   };
 }

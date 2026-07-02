@@ -10,7 +10,6 @@ import {
 const DEFAULT_SYNC_TIMEOUT_MS = 120_000;
 const INITIAL_BACKOFF_MS = 400;
 const MAX_BACKOFF_MS = 8_000;
-const MIN_GOOD_ASSISTANT_TAIL_CHARS = 20;
 
 const syncGenerationByConversation = new Map<string, number>();
 
@@ -39,23 +38,9 @@ function readAssistantTailText(messages: UIMessage[]): string {
   return extractMessageContent(last).trim();
 }
 
-export function isSuspiciouslyShortCoworkerAssistantTail(
-  messages: UIMessage[],
-): boolean {
-  const text = readAssistantTailText(messages);
-  return (
-    text.length > 0 &&
-    text.length < MIN_GOOD_ASSISTANT_TAIL_CHARS &&
-    !text.includes(COWORKER_AGENT_ERROR_SNIPPET)
-  );
-}
-
 export function hasGoodCoworkerAssistantTail(messages: UIMessage[]): boolean {
   const text = readAssistantTailText(messages);
-  return (
-    text.length >= MIN_GOOD_ASSISTANT_TAIL_CHARS &&
-    !text.includes(COWORKER_AGENT_ERROR_SNIPPET)
-  );
+  return text.length > 0 && !text.includes(COWORKER_AGENT_ERROR_SNIPPET);
 }
 
 export function isStaleCoworkerAssistantTail(messages: UIMessage[]): boolean {
@@ -91,23 +76,25 @@ export function shouldRejectCoworkerMessageRegression(
   }
 
   const prevStale = isStaleCoworkerAssistantTail(prevMessages);
-  const prevSuspicious = isSuspiciouslyShortCoworkerAssistantTail(prevMessages);
   const prevGood = hasGoodCoworkerAssistantTail(prevMessages);
   const nextGood = hasGoodCoworkerAssistantTail(nextMessages);
   const prevTail = readAssistantTailLength(prevMessages);
   const nextTail = readAssistantTailLength(nextMessages);
 
-  if (
-    (prevStale ||
-      prevSuspicious ||
-      (prevTail >= 0 && prevTail < MIN_GOOD_ASSISTANT_TAIL_CHARS)) &&
-    (nextGood ||
-      (nextTail > prevTail && nextTail >= MIN_GOOD_ASSISTANT_TAIL_CHARS))
-  ) {
+  if (prevStale && nextGood) {
+    return false;
+  }
+  if (!prevGood && nextGood && nextTail > prevTail) {
     return false;
   }
 
   if (nextMessages.length + 1 < prevMessages.length) {
+    if (
+      nextGood &&
+      (prevStale || !prevGood || nextTail > Math.max(prevTail, 0))
+    ) {
+      return false;
+    }
     return true;
   }
   if (prevGood && !nextGood && nextMessages.length <= prevMessages.length) {
@@ -129,9 +116,6 @@ export function shouldKeepPollingCoworkerDbSync(
   dbMessages: UIMessage[] | null,
 ): boolean {
   if (isStaleCoworkerAssistantTail(slotMessages)) {
-    return true;
-  }
-  if (isSuspiciouslyShortCoworkerAssistantTail(slotMessages)) {
     return true;
   }
   if (!hasGoodCoworkerAssistantTail(slotMessages)) {

@@ -60,7 +60,7 @@ describe("hasGoodCoworkerAssistantTail", () => {
     ).toBe(true);
   });
 
-  it("returns false for suspiciously short assistant text", () => {
+  it("returns true for short non-error assistant text", () => {
     expect(
       hasGoodCoworkerAssistantTail([
         {
@@ -69,7 +69,7 @@ describe("hasGoodCoworkerAssistantTail", () => {
           parts: [{ type: "text", text: "Done" }],
         },
       ]),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

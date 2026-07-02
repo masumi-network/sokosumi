@@ -9,7 +9,6 @@ import { extractMessageContent } from "@/app/chat-ui/utils/message-utils";
 import {
   hasGoodCoworkerAssistantTail,
   isStaleCoworkerAssistantTail,
-  isSuspiciouslyShortCoworkerAssistantTail,
 } from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
 
 const DEFAULT_POLL_TIMEOUT_MS = 60_000;
@@ -128,8 +127,7 @@ export function useCoworkerPostRefreshAssistantPoll({
 
     const needsRecovery =
       isLastMessageUserWithText(displayedMessages) ||
-      isStaleCoworkerAssistantTail(displayedMessages) ||
-      isSuspiciouslyShortCoworkerAssistantTail(displayedMessages);
+      isStaleCoworkerAssistantTail(displayedMessages);
 
     if (!needsRecovery) {
       setUserTailRecoveryLoading(false);

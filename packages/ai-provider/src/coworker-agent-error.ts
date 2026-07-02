@@ -1,10 +1,6 @@
 export const COWORKER_AGENT_ERROR_SNIPPET =
   "Something went wrong while processing your task";
 
-export const COWORKER_AGENT_ERROR_RETRY_ATTEMPTS = 5;
-
-export const COWORKER_AGENT_ERROR_RETRY_DELAY_MS = 1000;
-
 export const MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS = 20;
 
 export function coworkerSseBodyLooksLikeAgentError(sseBody: string): boolean {
@@ -46,10 +42,4 @@ export function coworkerSseBodyLooksSuspiciouslyShort(
   }
   const text = coworkerSseBodyExtractOutputText(sseBody);
   return text.length > 0 && text.length < MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS;
-}
-
-export function sleepMs(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }

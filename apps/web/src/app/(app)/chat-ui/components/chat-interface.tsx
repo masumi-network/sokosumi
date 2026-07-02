@@ -73,7 +73,6 @@ import {
   cancelCoworkerDbSync,
   hasGoodCoworkerAssistantTail,
   isStaleCoworkerAssistantTail,
-  isSuspiciouslyShortCoworkerAssistantTail,
   shouldRejectCoworkerMessageRegression,
   syncCoworkerSlotFromDbWithRetry,
 } from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
@@ -929,10 +928,7 @@ export default function ChatInterface({
             return;
           }
 
-          if (
-            content.length > 0 &&
-            !isSuspiciouslyShortCoworkerAssistantTail(finishedMessages)
-          ) {
+          if (content.length > 0) {
             setMessagesForConversationRef.current(
               conversationId,
               finishedMessages,
@@ -1430,10 +1426,7 @@ export default function ChatInterface({
       last?.role === "assistant" ? extractMessageContent(last).trim() : "";
     const emptyAssistantEnd =
       last?.role === "assistant" && lastContent === "" && msgs.length > 0;
-    const suspiciousShortAssistantEnd =
-      last?.role === "assistant" &&
-      isSuspiciouslyShortCoworkerAssistantTail(msgs);
-    if (!emptyAssistantEnd && !suspiciousShortAssistantEnd) {
+    if (!emptyAssistantEnd) {
       return;
     }
     void syncCoworkerSlotFromDbWithRetry({
@@ -1643,8 +1636,6 @@ export default function ChatInterface({
       return;
     }
 
-    pendingWelcomeSendRef.current = null;
-
     const sent = sendInConversation(
       pending.conversationId,
       pending.payload,
@@ -1652,7 +1643,10 @@ export default function ChatInterface({
     );
     if (!sent) {
       welcomeCreationInFlightRef.current = false;
+      return;
     }
+
+    pendingWelcomeSendRef.current = null;
   }, [
     urlConversationId,
     pathname,
