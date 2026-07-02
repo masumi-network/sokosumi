@@ -3124,6 +3124,54 @@ export const CreateConversationRequestSchema = {
     }
 } as const;
 
+export const ConversationWarmupStateSchema = {
+    type: 'object',
+    properties: {
+        conversationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Internal conversation ID',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'pending',
+                'ready',
+                'failed',
+                'unknown'
+            ],
+            description: 'Coworker container warmup state',
+            example: 'ready'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            description: 'ISO timestamp when warmup reached a terminal state (ready or failed)',
+            example: '2025-01-21T12:00:00.000Z'
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'redis',
+                'metadata',
+                'none'
+            ],
+            description: 'Where the warmup state was resolved from',
+            example: 'redis'
+        }
+    },
+    required: [
+        'conversationId',
+        'state',
+        'completedAt',
+        'source'
+    ]
+} as const;
+
 export const UpdateConversationRequestSchema = {
     type: 'object',
     properties: {

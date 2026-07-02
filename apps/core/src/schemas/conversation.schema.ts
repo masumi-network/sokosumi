@@ -99,3 +99,29 @@ export type UpdateConversationRequest = z.infer<
 export const conversationListResponseSchema = z
   .array(conversationSchema)
   .openapi("ConversationList");
+
+export const conversationWarmupStateSchema = z
+  .object({
+    conversationId: z.string().uuid().openapi({
+      description: "Internal conversation ID",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    state: z.enum(["pending", "ready", "failed", "unknown"]).openapi({
+      description: "Coworker container warmup state",
+      example: "ready",
+    }),
+    completedAt: z.string().datetime().nullable().openapi({
+      description:
+        "ISO timestamp when warmup reached a terminal state (ready or failed)",
+      example: "2025-01-21T12:00:00.000Z",
+    }),
+    source: z.enum(["redis", "metadata", "none"]).openapi({
+      description: "Where the warmup state was resolved from",
+      example: "redis",
+    }),
+  })
+  .openapi("ConversationWarmupState");
+
+export type ConversationWarmupState = z.infer<
+  typeof conversationWarmupStateSchema
+>;

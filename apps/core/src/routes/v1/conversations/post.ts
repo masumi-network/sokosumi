@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 import { v4 as uuidv4 } from "uuid";
 import {
   pinCoworkerConversationBinding,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { ensureCoworkerProviderConversation } from "@/routes/v1/chat/coworker-conversation";
+import { warmupCoworkerConversation } from "@/routes/v1/chat/warmup-coworker";
 import {
   conversationSchema,
   createConversationRequestSchema,
@@ -129,13 +131,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               coworkerIdentity.id,
             );
             if (coworker.baseURL?.trim()) {
+              const responsesApiBaseUrl = coworker.baseURL.trim();
               await ensureCoworkerProviderConversation({
                 internalConversationId: conversation.id,
                 userId: userContext.userId,
                 organizationId: userContext.organizationId ?? null,
                 coworkerSlug: coworker.slug,
-                responsesApiBaseUrl: coworker.baseURL.trim(),
+                responsesApiBaseUrl,
               });
+              waitUntil(
+                warmupCoworkerConversation({
+                  internalConversationId: conversation.id,
+                  userId: userContext.userId,
+                  organizationId: userContext.organizationId ?? null,
+                  coworkerSlug: coworker.slug,
+                  responsesApiBaseUrl,
+                }),
+              );
             }
           }
         } catch (error) {
