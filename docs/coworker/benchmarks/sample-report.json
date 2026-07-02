@@ -2,162 +2,91 @@
   "benchmark": "bench-coworker-chat",
   "version": 1,
   "generatedAt": "2026-07-02T22:00:00.000Z",
+  "scenario": "realistic",
+  "model": "openai/gpt-5.4",
+  "iterations": 5,
+  "metrics": {
+    "firstToken": {
+      "p50": 1180,
+      "p95": 1542
+    },
+    "totalDuration": {
+      "p50": 8420,
+      "p95": 9100
+    },
+    "outputTokens": {
+      "mean": 443.75
+    },
+    "agentError": {
+      "rate": 0.2
+    }
+  },
+  "samples": [
+    {
+      "iteration": 1,
+      "ok": true,
+      "firstTokenMs": 1024,
+      "totalDurationMs": 7980,
+      "outputTokens": 398,
+      "responseId": "resp_real_001",
+      "agentError": false,
+      "error": null
+    },
+    {
+      "iteration": 2,
+      "ok": false,
+      "firstTokenMs": null,
+      "totalDurationMs": null,
+      "outputTokens": null,
+      "responseId": null,
+      "agentError": true,
+      "error": "Request timeout"
+    },
+    {
+      "iteration": 3,
+      "ok": true,
+      "firstTokenMs": 1180,
+      "totalDurationMs": 8420,
+      "outputTokens": 420,
+      "responseId": "resp_real_003",
+      "agentError": false,
+      "error": null
+    },
+    {
+      "iteration": 4,
+      "ok": true,
+      "firstTokenMs": 1310,
+      "totalDurationMs": 8650,
+      "outputTokens": 445,
+      "responseId": "resp_real_004",
+      "agentError": false,
+      "error": null
+    },
+    {
+      "iteration": 5,
+      "ok": true,
+      "firstTokenMs": 1542,
+      "totalDurationMs": 9100,
+      "outputTokens": 512,
+      "responseId": "resp_real_005",
+      "agentError": false,
+      "error": null
+    }
+  ],
   "git": {
     "commit": "abc123def456789",
     "ref": "sok-626-bench-coworker-chat"
   },
   "config": {
     "endpoint": "https://openrouter.ai/api/v1/responses",
-    "model": "openai/gpt-5.4",
-    "iterations": 5,
-    "requestTimeoutMs": 30000
+    "requestTimeoutMs": 25000
   },
   "thresholds": {
-    "firstTokenP50Ms": 3000,
-    "agentErrorRate": 0.1
+    "firstTokenP50Ms": 1200,
+    "agentErrorRate": 0.05
   },
-  "scenarios": [
-    {
-      "name": "short",
-      "samples": 5,
-      "errors": 0,
-      "agentErrorRate": 0,
-      "firstTokenMs": {
-        "p50": 842,
-        "p95": 1204,
-        "min": 710,
-        "max": 1204
-      },
-      "totalMs": {
-        "p50": 1850,
-        "p95": 2410
-      },
-      "outputTokens": {
-        "p50": 12
-      },
-      "results": [
-        {
-          "iteration": 1,
-          "ok": true,
-          "firstTokenMs": 710,
-          "totalMs": 1620,
-          "outputTokens": 8,
-          "responseId": "resp_short_001",
-          "error": null
-        },
-        {
-          "iteration": 2,
-          "ok": true,
-          "firstTokenMs": 842,
-          "totalMs": 1850,
-          "outputTokens": 12,
-          "responseId": "resp_short_002",
-          "error": null
-        },
-        {
-          "iteration": 3,
-          "ok": true,
-          "firstTokenMs": 891,
-          "totalMs": 1920,
-          "outputTokens": 11,
-          "responseId": "resp_short_003",
-          "error": null
-        },
-        {
-          "iteration": 4,
-          "ok": true,
-          "firstTokenMs": 956,
-          "totalMs": 2100,
-          "outputTokens": 14,
-          "responseId": "resp_short_004",
-          "error": null
-        },
-        {
-          "iteration": 5,
-          "ok": true,
-          "firstTokenMs": 1204,
-          "totalMs": 2410,
-          "outputTokens": 15,
-          "responseId": "resp_short_005",
-          "error": null
-        }
-      ]
-    },
-    {
-      "name": "realistic",
-      "samples": 5,
-      "errors": 1,
-      "agentErrorRate": 0.2,
-      "firstTokenMs": {
-        "p50": 1180,
-        "p95": 1542,
-        "min": 1024,
-        "max": 1542
-      },
-      "totalMs": {
-        "p50": 8420,
-        "p95": 9100
-      },
-      "outputTokens": {
-        "p50": 420
-      },
-      "results": [
-        {
-          "iteration": 1,
-          "ok": true,
-          "firstTokenMs": 1024,
-          "totalMs": 7980,
-          "outputTokens": 398,
-          "responseId": "resp_real_001",
-          "error": null
-        },
-        {
-          "iteration": 2,
-          "ok": false,
-          "firstTokenMs": null,
-          "totalMs": null,
-          "outputTokens": null,
-          "responseId": null,
-          "error": "Request timeout"
-        },
-        {
-          "iteration": 3,
-          "ok": true,
-          "firstTokenMs": 1180,
-          "totalMs": 8420,
-          "outputTokens": 420,
-          "responseId": "resp_real_003",
-          "error": null
-        },
-        {
-          "iteration": 4,
-          "ok": true,
-          "firstTokenMs": 1310,
-          "totalMs": 8650,
-          "outputTokens": 445,
-          "responseId": "resp_real_004",
-          "error": null
-        },
-        {
-          "iteration": 5,
-          "ok": true,
-          "firstTokenMs": 1542,
-          "totalMs": 9100,
-          "outputTokens": 512,
-          "responseId": "resp_real_005",
-          "error": null
-        }
-      ]
-    }
-  ],
-  "summary": {
-    "totalSamples": 10,
-    "totalErrors": 1,
-    "agentErrorRate": 0.1,
-    "firstTokenP50Ms": 1024,
-    "thresholdStatus": {
-      "firstTokenP50": "pass",
-      "agentErrorRate": "pass"
-    }
+  "thresholdStatus": {
+    "firstTokenP50": "pass",
+    "agentErrorRate": "warn"
   }
 }

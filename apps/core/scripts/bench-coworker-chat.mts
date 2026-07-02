@@ -16,16 +16,18 @@ import { performance } from "node:perf_hooks";
 import { getModelIdentifier } from "@sokosumi/chat";
 
 const DEFAULT_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
-const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 25_000;
 const DEFAULT_ITERATIONS = 5;
-const DEFAULT_FIRST_TOKEN_P50_THRESHOLD_MS = 3000;
-const DEFAULT_AGENT_ERROR_RATE_THRESHOLD = 0.1;
+const DEFAULT_FIRST_TOKEN_P50_THRESHOLD_MS = 1200;
+const DEFAULT_AGENT_ERROR_RATE_THRESHOLD = 0.05;
 const BENCH_HTTP_REFERER = "https://sokosumi.com/benchmark";
 const MAX_OUTPUT_TOKENS = 4096;
 const MAX_ACCUMULATED_TEXT_LENGTH = 50_000; // ~12.5K tokens - limits memory for error checking
 
-const COWORKER_AGENT_ERROR_SNIPPET =
-  "Something went wrong while processing your task";
+const COWORKER_AGENT_ERROR_MARKERS = [
+  "AGENT_ERROR",
+  "Something went wrong while processing your task",
+] as const;
 
 const RESPONSES_API_EVENTS = {
   OUTPUT_TEXT_DELTA: "response.output_text.delta",
@@ -37,70 +39,72 @@ const SSE_DATA_PREFIX = "data: ";
 
 const SCENARIOS = {
   short: {
-    name: "short" as const,
-    prompt: "Hi",
+    turns: ["Hi"],
   },
   realistic: {
-    name: "realistic" as const,
-    prompt:
+    turns: [
       "I'm preparing a go-to-market brief for our AI coworker product. Please outline a structured approach: key research areas about the target market, 3–5 competitor differentiators to investigate, suggested data sources, and 2–3 quick wins we could validate in the next two weeks. Keep it actionable but concise.",
+      "Add the first three concrete validation steps you would run tomorrow, and call out the main risk for each one.",
+    ],
   },
 } as const;
 
 type ScenarioName = keyof typeof SCENARIOS;
-type ScenarioSelection = ScenarioName | "all";
 
 interface SampleResult {
   iteration: number;
   ok: boolean;
   firstTokenMs: number | null;
-  totalMs: number | null;
+  totalDurationMs: number | null;
   outputTokens: number | null;
   responseId: string | null;
+  agentError: boolean;
   error: string | null;
 }
 
-interface ScenarioReport {
-  name: string;
-  samples: number;
-  errors: number;
-  agentErrorRate: number;
-  firstTokenMs: { p50: number; p95: number; min: number; max: number };
-  totalMs: { p50: number; p95: number };
-  outputTokens: { p50: number | null };
-  results: SampleResult[];
+interface BenchmarkMetrics {
+  firstToken: {
+    p50: number | null;
+    p95: number | null;
+  };
+  totalDuration: {
+    p50: number | null;
+    p95: number | null;
+  };
+  outputTokens: {
+    mean: number | null;
+  };
+  agentError: {
+    rate: number;
+  };
 }
 
 interface BenchmarkReport {
   benchmark: "bench-coworker-chat";
   version: 1;
   generatedAt: string;
+  scenario: ScenarioName;
+  model: string;
+  iterations: number;
+  metrics: BenchmarkMetrics;
+  samples: SampleResult[];
   git: { commit: string | null; ref: string | null };
   config: {
     endpoint: string;
-    model: string;
-    iterations: number;
     requestTimeoutMs: number;
   };
   thresholds: {
     firstTokenP50Ms: number;
     agentErrorRate: number;
   };
-  scenarios: ScenarioReport[];
-  summary: {
-    totalSamples: number;
-    totalErrors: number;
-    agentErrorRate: number;
-    firstTokenP50Ms: number | null;
-    thresholdStatus: {
-      firstTokenP50: "pass" | "warn";
-      agentErrorRate: "pass" | "warn";
-    };
+  thresholdStatus: {
+    firstTokenP50: "pass" | "warn";
+    agentErrorRate: "pass" | "warn";
   };
 }
 
 interface CliOptions {
-  scenario: ScenarioSelection;
+  scenario: ScenarioName;
   iterations: number;
   model: string | undefined;
   out: string | undefined;
@@ -108,7 +112,7 @@ interface CliOptions {
 }
 
 function parseArgs(argv: string[]): CliOptions {
-  let scenario: ScenarioSelection = "all";
+  let scenario: ScenarioName = "short";
   let iterations = parseIntEnv("BENCH_ITERATIONS", DEFAULT_ITERATIONS);
   let model: string | undefined;
   let out: string | undefined;
@@ -117,7 +121,7 @@ function parseArgs(argv: string[]): CliOptions {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--scenario" && argv[i + 1]) {
-      scenario = argv[++i] as ScenarioSelection;
+      scenario = argv[++i] as ScenarioName;
     } else if (arg === "--iterations" && argv[i + 1]) {
       iterations = Number.parseInt(argv[++i] ?? "", 10);
     } else if (arg === "--model" && argv[i + 1]) {
@@ -165,21 +169,14 @@ function percentile(values: number[], p: number): number {
   return sorted[Math.max(0, index)] ?? 0;
 }
 
-function aggregateLatencyStats(values: number[]): {
-  p50: number;
-  p95: number;
-  min: number;
-  max: number;
-} {
-  if (values.length === 0) {
-    return { p50: 0, p95: 0, min: 0, max: 0 };
-  }
-  return {
-    p50: percentile(values, 50),
-    p95: percentile(values, 95),
-    min: Math.min(...values),
-    max: Math.max(...values),
-  };
+function nullablePercentile(values: number[], p: number): number | null {
+  if (values.length === 0) return null;
+  return percentile(values, p);
+}
+
+function mean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function extractOutputTokens(chunk: {
@@ -201,17 +198,21 @@ function sanitizeErrorMessage(message: string, apiKey: string): string {
   return message.replaceAll(apiKey, "[REDACTED]");
 }
 
+function hasAgentErrorMarker(text: string): boolean {
+  return COWORKER_AGENT_ERROR_MARKERS.some((marker) => text.includes(marker));
+}
+
 async function runSample(options: {
   endpoint: string;
   apiKey: string;
   model: string;
-  prompt: string;
+  turns: readonly string[];
   requestTimeoutMs: number;
   iteration: number;
 }): Promise<SampleResult> {
   const startMs = performance.now();
   let firstTokenMs: number | null = null;
-  let totalMs: number | null = null;
+  let totalDurationMs: number | null = null;
   let outputTokens: number | null = null;
   let responseId: string | null = null;
   let accumulatedText = "";
@@ -219,13 +220,11 @@ async function runSample(options: {
 
   const requestBody = {
     model: options.model,
-    input: [
-      {
-        type: "message",
-        role: "user",
-        content: [{ type: "input_text", text: options.prompt }],
-      },
-    ],
+    input: options.turns.map((text) => ({
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text }],
+    })),
     stream: true,
     max_output_tokens: MAX_OUTPUT_TOKENS,
   };
@@ -250,9 +249,10 @@ async function runSample(options: {
         iteration: options.iteration,
         ok: false,
         firstTokenMs: null,
-        totalMs: null,
+        totalDurationMs: null,
         outputTokens: null,
         responseId: null,
+        agentError: true,
         error: `HTTP ${response.status}: ${sanitizedError.slice(0, 200)}`,
       };
     }
@@ -262,9 +262,10 @@ async function runSample(options: {
         iteration: options.iteration,
         ok: false,
         firstTokenMs: null,
-        totalMs: null,
+        totalDurationMs: null,
         outputTokens: null,
         responseId: null,
+        agentError: true,
         error: "No response body",
       };
     }
@@ -286,10 +287,10 @@ async function runSample(options: {
         if (!line.trim() || line.startsWith(":")) continue;
         if (!line.startsWith(SSE_DATA_PREFIX)) continue;
 
-        const data = line.slice(SSE_DATA_PREFIX.length);
+        const data = line.slice(SSE_DATA_PREFIX.length).trimEnd();
 
         if (data === SSE_DONE_MARKER) {
-          totalMs ??= performance.now() - startMs;
+          totalDurationMs ??= performance.now() - startMs;
           streamDone = true;
           break;
         }
@@ -317,7 +318,7 @@ async function runSample(options: {
             }
 
             if (chunk.type === RESPONSES_API_EVENTS.COMPLETED) {
-              totalMs = performance.now() - startMs;
+              totalDurationMs = performance.now() - startMs;
               if (
                 typeof chunk.response === "object" &&
                 chunk.response !== null &&
@@ -336,25 +337,27 @@ async function runSample(options: {
       }
     }
 
-    if (totalMs === null && firstTokenMs !== null) {
-      totalMs = performance.now() - startMs;
+    if (totalDurationMs === null && firstTokenMs !== null) {
+      totalDurationMs = performance.now() - startMs;
     }
 
     if (firstTokenMs === null) {
       error = "No first token received";
-    } else if (accumulatedText.includes(COWORKER_AGENT_ERROR_SNIPPET)) {
+    } else if (hasAgentErrorMarker(accumulatedText)) {
       error = "Agent error marker in output";
     }
 
-    const ok = error === null;
+    const agentError = error !== null;
+    const ok = !agentError;
 
     return {
       iteration: options.iteration,
       ok,
       firstTokenMs,
-      totalMs,
+      totalDurationMs,
       outputTokens,
       responseId,
+      agentError,
       error: ok ? null : error,
     };
   } catch (err) {
@@ -368,9 +371,10 @@ async function runSample(options: {
       iteration: options.iteration,
       ok: false,
       firstTokenMs: null,
-      totalMs: null,
+      totalDurationMs: null,
       outputTokens: null,
       responseId: null,
+      agentError: true,
       error: isTimeout ? "Request timeout" : sanitizedMessage,
     };
   }
@@ -385,62 +389,63 @@ async function runScenario(
     iterations: number;
     requestTimeoutMs: number;
   },
-): Promise<ScenarioReport> {
+): Promise<SampleResult[]> {
   const scenario = SCENARIOS[name];
   const results: SampleResult[] = [];
 
   for (let i = 1; i <= options.iterations; i++) {
     const result = await runSample({
       ...options,
-      prompt: scenario.prompt,
+      turns: scenario.turns,
       iteration: i,
     });
     results.push(result);
   }
 
-  const errors = results.filter((result) => !result.ok).length;
-  const okFirstTokens = results
-    .filter((result) => result.ok && result.firstTokenMs !== null)
-    .map((result) => result.firstTokenMs as number);
-  const okTotals = results
-    .filter((result) => result.ok && result.totalMs !== null)
-    .map((result) => result.totalMs as number);
-  const okOutputTokens = results
-    .filter((result) => result.ok && result.outputTokens !== null)
-    .map((result) => result.outputTokens as number);
+  return results;
+}
+
+function isScenarioName(scenario: string): scenario is ScenarioName {
+  return scenario in SCENARIOS;
+}
+
+function createMetrics(samples: SampleResult[]): BenchmarkMetrics {
+  const okFirstTokens = samples
+    .filter((sample) => sample.ok && sample.firstTokenMs !== null)
+    .map((sample) => sample.firstTokenMs as number);
+  const okTotals = samples
+    .filter((sample) => sample.ok && sample.totalDurationMs !== null)
+    .map((sample) => sample.totalDurationMs as number);
+  const okOutputTokens = samples
+    .filter((sample) => sample.ok && sample.outputTokens !== null)
+    .map((sample) => sample.outputTokens as number);
+  const agentErrors = samples.filter((sample) => sample.agentError).length;
 
   return {
-    name: scenario.name,
-    samples: results.length,
-    errors,
-    agentErrorRate: results.length > 0 ? errors / results.length : 0,
-    firstTokenMs: aggregateLatencyStats(okFirstTokens),
-    totalMs: {
-      p50: percentile(okTotals, 50),
-      p95: percentile(okTotals, 95),
+    firstToken: {
+      p50: nullablePercentile(okFirstTokens, 50),
+      p95: nullablePercentile(okFirstTokens, 95),
+    },
+    totalDuration: {
+      p50: nullablePercentile(okTotals, 50),
+      p95: nullablePercentile(okTotals, 95),
     },
     outputTokens: {
-      p50: okOutputTokens.length > 0 ? percentile(okOutputTokens, 50) : null,
+      mean: mean(okOutputTokens),
     },
-    results,
+    agentError: {
+      rate: samples.length > 0 ? agentErrors / samples.length : 0,
+    },
   };
 }
 
-function resolveScenarioNames(
-  scenario: ScenarioSelection,
-): ScenarioName[] | null {
-  if (scenario === "all") return ["short", "realistic"];
-  if (scenario in SCENARIOS) return [scenario as ScenarioName];
-  return null;
-}
-
 function evaluateThresholds(report: BenchmarkReport, strict: boolean): number {
-  const { summary, thresholds } = report;
+  const { metrics, thresholds } = report;
   let hasWarn = false;
 
-  const firstTokenP50 = summary.firstTokenP50Ms;
+  const firstTokenP50 = metrics.firstToken.p50;
   if (firstTokenP50 === null || firstTokenP50 > thresholds.firstTokenP50Ms) {
-    summary.thresholdStatus.firstTokenP50 = "warn";
+    report.thresholdStatus.firstTokenP50 = "warn";
     hasWarn = true;
     console.error(
       firstTokenP50 === null
@@ -453,15 +458,15 @@ function evaluateThresholds(report: BenchmarkReport, strict: boolean): number {
     );
   }
 
-  if (summary.agentErrorRate > thresholds.agentErrorRate) {
-    summary.thresholdStatus.agentErrorRate = "warn";
+  if (metrics.agentError.rate >= thresholds.agentErrorRate) {
+    report.thresholdStatus.agentErrorRate = "warn";
     hasWarn = true;
     console.error(
-      `WARN: agent error rate ${(summary.agentErrorRate * 100).toFixed(1)}% exceeds threshold ${(thresholds.agentErrorRate * 100).toFixed(1)}%`,
+      `WARN: agent error rate ${(metrics.agentError.rate * 100).toFixed(1)}% breaches threshold < ${(thresholds.agentErrorRate * 100).toFixed(1)}%`,
     );
   } else {
     console.error(
-      `PASS: agent error rate ${(summary.agentErrorRate * 100).toFixed(1)}% within threshold ${(thresholds.agentErrorRate * 100).toFixed(1)}%`,
+      `PASS: agent error rate ${(metrics.agentError.rate * 100).toFixed(1)}% within threshold < ${(thresholds.agentErrorRate * 100).toFixed(1)}%`,
     );
   }
 
@@ -490,10 +495,9 @@ async function main() {
     process.exit(1);
   }
 
-  const scenarioNames = resolveScenarioNames(scenario);
-  if (!scenarioNames) {
+  if (!isScenarioName(scenario)) {
     console.error(
-      `Error: unknown scenario "${scenario}". Use short, realistic, or all.`,
+      `Error: unknown scenario "${scenario}". Use short or realistic.`,
     );
     process.exit(1);
   }
@@ -517,63 +521,41 @@ async function main() {
     DEFAULT_AGENT_ERROR_RATE_THRESHOLD,
   );
 
-  const scenarioReports: ScenarioReport[] = [];
-  for (const name of scenarioNames) {
-    console.error(`Running scenario "${name}" (${iterations} iterations)...`);
-    scenarioReports.push(
-      await runScenario(name, {
-        endpoint,
-        apiKey,
-        model,
-        iterations,
-        requestTimeoutMs,
-      }),
-    );
-  }
-
-  const totalSamples = scenarioReports.reduce(
-    (sum, report) => sum + report.samples,
-    0,
-  );
-  const totalErrors = scenarioReports.reduce(
-    (sum, report) => sum + report.errors,
-    0,
-  );
-  const allOkFirstTokens = scenarioReports.flatMap((report) =>
-    report.results
-      .filter((result) => result.ok && result.firstTokenMs !== null)
-      .map((result) => result.firstTokenMs as number),
-  );
+  console.error(`Running scenario "${scenario}" (${iterations} iterations)...`);
+  const samples = await runScenario(scenario, {
+    endpoint,
+    apiKey,
+    model,
+    iterations,
+    requestTimeoutMs,
+  });
+  const metrics = createMetrics(samples);
 
   const report: BenchmarkReport = {
     benchmark: "bench-coworker-chat",
     version: 1,
     generatedAt: new Date().toISOString(),
+    scenario,
+    model,
+    iterations,
+    metrics,
+    samples,
     git: getGitInfo(),
     config: {
       endpoint,
-      model,
-      iterations,
       requestTimeoutMs,
     },
     thresholds: {
       firstTokenP50Ms: firstTokenP50ThresholdMs,
       agentErrorRate: agentErrorRateThreshold,
     },
-    scenarios: scenarioReports,
-    summary: {
-      totalSamples,
-      totalErrors,
-      agentErrorRate: totalSamples > 0 ? totalErrors / totalSamples : 0,
-      firstTokenP50Ms:
-        allOkFirstTokens.length > 0 ? percentile(allOkFirstTokens, 50) : null,
-      thresholdStatus: {
-        firstTokenP50: "pass",
-        agentErrorRate: "pass",
-      },
+    thresholdStatus: {
+      firstTokenP50: "pass",
+      agentErrorRate: "pass",
     },
   };
 
+  const exitCode = evaluateThresholds(report, strict);
   const json = `${JSON.stringify(report, null, 2)}\n`;
   console.log(json);
 
@@ -582,7 +564,7 @@ async function main() {
     console.error(`Wrote report to ${out}`);
   }
 
-  process.exit(evaluateThresholds(report, strict));
+  process.exit(exitCode);
 }
 
 main().catch((err) => {
