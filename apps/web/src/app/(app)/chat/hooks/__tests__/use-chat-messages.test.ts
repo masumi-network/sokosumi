@@ -235,4 +235,128 @@ describe("useChatMessages", () => {
       ],
     );
   });
+
+  it("refreshes database messages when cached messages exist for a re-selected conversation", async () => {
+    getConversationMessagesMock.mockResolvedValue({
+      ok: true,
+      data: {
+        messages: [
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            createdAt: 1,
+          },
+          {
+            id: "msg-2",
+            role: "assistant",
+            content: "Fresh answer",
+            createdAt: 2,
+          },
+        ],
+        pagination: null,
+      },
+    });
+    const setMessagesForConversation = vi.fn();
+    const previousChatIdRef = { current: null };
+    const messagesChatIdRef = { current: null };
+    const chatMessagesRef = {
+      current: new Map<string, unknown[]>([
+        [
+          CONVERSATION_ID,
+          [
+            {
+              id: "msg-1",
+              role: "user",
+              parts: [{ type: "text", text: "Hello" }],
+            },
+          ],
+        ],
+      ]),
+    };
+
+    renderHook(() =>
+      useChatMessages({
+        selectedChatId: CONVERSATION_ID,
+        selectedConversation: null,
+        setMessagesForConversation,
+        previousChatIdRef,
+        messagesChatIdRef,
+        chatMessagesRef,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getConversationMessagesMock).toHaveBeenCalledWith({
+        conversationId: CONVERSATION_ID,
+        limit: 100,
+      });
+    });
+    await waitFor(() => {
+      expect(setMessagesForConversation).toHaveBeenLastCalledWith(
+        CONVERSATION_ID,
+        [
+          expect.objectContaining({
+            id: "msg-1",
+            content: "Hello",
+          }),
+          expect.objectContaining({
+            id: "msg-2",
+            content: "Fresh answer",
+          }),
+        ],
+      );
+    });
+  });
+
+  it("loads database messages after welcome creation flags clear", async () => {
+    vi.useFakeTimers();
+    getConversationMessagesMock.mockResolvedValue({
+      ok: true,
+      data: {
+        messages: [
+          {
+            id: "msg-1",
+            role: "user",
+            content: "Hello",
+            createdAt: 1,
+          },
+        ],
+        pagination: null,
+      },
+    });
+    const setMessagesForConversation = vi.fn();
+    const previousChatIdRef = { current: null };
+    const messagesChatIdRef = { current: null };
+    const chatMessagesRef = { current: new Map<string, unknown[]>() };
+    const welcomeCreationInFlightRef = { current: true };
+
+    renderHook(() =>
+      useChatMessages({
+        selectedChatId: CONVERSATION_ID,
+        selectedConversation: null,
+        setMessagesForConversation,
+        previousChatIdRef,
+        messagesChatIdRef,
+        chatMessagesRef,
+        welcomeCreationInFlightRef,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(getConversationMessagesMock).not.toHaveBeenCalled();
+
+    welcomeCreationInFlightRef.current = false;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(getConversationMessagesMock).toHaveBeenCalledWith({
+      conversationId: CONVERSATION_ID,
+      limit: 100,
+    });
+  });
 });

@@ -125,24 +125,52 @@ export function useChatMessages({
         const cachedMessages = chatMessagesRef.current.get(
           currentSelectedChatId,
         );
-        const isPendingNavigation =
-          pendingUrlConversationIdRef?.current === currentSelectedChatId;
-        if (
+        const hasCachedMessages =
+          cachedMessages !== undefined && cachedMessages.length > 0;
+        const isDeferredLoad =
           welcomeCreationInFlightRef?.current ||
-          isPendingNavigation ||
-          (cachedMessages && cachedMessages.length > 0)
-        ) {
+          pendingUrlConversationIdRef?.current === currentSelectedChatId;
+
+        if (hasCachedMessages) {
           messagesChatIdRef.current = currentSelectedChatId;
-          return;
+          setMessagesForConversation(
+            currentSelectedChatId,
+            cachedMessages as UIMessage[],
+          );
+        } else if (isDeferredLoad) {
+          messagesChatIdRef.current = currentSelectedChatId;
+        } else {
+          messagesChatIdRef.current = null;
+          setMessagesForConversation(currentSelectedChatId, []);
         }
-        messagesChatIdRef.current = null;
-        setMessagesForConversation(currentSelectedChatId, []);
       }
+
+      const shouldForceRefreshOnLoad =
+        selectedConversationMessages !== null ||
+        (chatMessagesRef.current.get(currentSelectedChatId)?.length ?? 0) > 0;
 
       const loadMessagesFromDB = async (
         options: { forceRefresh?: boolean; retryAttempt?: number } = {},
       ) => {
         const { forceRefresh = false, retryAttempt = 0 } = options;
+        const isDeferredLoad =
+          welcomeCreationInFlightRef?.current ||
+          pendingUrlConversationIdRef?.current === currentSelectedChatId;
+        if (isDeferredLoad) {
+          if (previousChatIdRef.current !== currentSelectedChatId) {
+            return;
+          }
+          if (retryAttempt >= 30) {
+            return;
+          }
+          retryTimeoutRef.current = setTimeout(() => {
+            void loadMessagesFromDB({
+              forceRefresh: true,
+              retryAttempt: retryAttempt + 1,
+            });
+          }, 300);
+          return;
+        }
         // Use ref-based check instead of closure values to detect chat changes
         if (
           previousChatIdRef.current !== currentSelectedChatId ||
@@ -256,7 +284,7 @@ export function useChatMessages({
 
       const timeoutId = setTimeout(() => {
         void loadMessagesFromDB({
-          forceRefresh: selectedConversationMessages !== null,
+          forceRefresh: shouldForceRefreshOnLoad,
         });
       }, 0);
 

@@ -44,6 +44,7 @@ import {
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
 import {
+  clearCoworkerResponseChain,
   clearPendingAndSetPrevious,
   clearPendingResponseId,
   persistPendingResponseId,
@@ -943,30 +944,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               "Something went wrong while processing your task",
             );
             if (useCoworker && looksLikeAgentError) {
-              const current = await prisma.conversation.findFirst({
-                where: {
-                  id: internalConversationId,
-                  userId: userContext.userId,
-                },
-                select: { metadata: true },
+              await clearCoworkerResponseChain({
+                conversationId: internalConversationId,
+                userId: userContext.userId,
               });
-              if (current) {
-                const currentMeta =
-                  (current.metadata as Record<string, unknown>) ?? {};
-                await prisma.conversation.update({
-                  where: {
-                    id: internalConversationId,
-                    userId: userContext.userId,
-                  },
-                  data: {
-                    metadata: {
-                      ...currentMeta,
-                      previous_response_id: null,
-                      pending_responses_api_response_id: null,
-                    },
-                  },
-                });
-              }
             }
           } catch (error) {
             console.error(
