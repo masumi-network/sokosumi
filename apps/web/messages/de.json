@@ -1263,6 +1263,7 @@
         "sidebarNew": "Neu",
         "noChats": "Noch keine Chats",
         "noCoworkersAvailable": "Keine Coworker verfügbar. Bitte versuche es später erneut.",
+        "welcomeSendFailed": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.",
         "emptyState": {
           "title": "Gespräch starten",
           "titleWithName": "Gespräch mit {name} starten",

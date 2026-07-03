@@ -85,6 +85,12 @@ import MessageList from "./message-list";
 
 const NUM_SLOTS = 3;
 
+const WELCOME_SEND_RETRY_DELAYS_MS = [
+  50, 150, 350, 700, 1500, 5000, 10_000,
+] as const;
+const WELCOME_SEND_MAX_AGE_MS =
+  WELCOME_SEND_RETRY_DELAYS_MS[WELCOME_SEND_RETRY_DELAYS_MS.length - 1] + 500;
+
 const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
   "__sokosumi_empty_slot_0__",
   "__sokosumi_empty_slot_1__",
@@ -499,6 +505,9 @@ export default function ChatInterface({
     setSelectedChatId(controlledConversationId);
 
     if (controlledConversationId !== null) {
+      if (pendingUrlConversationIdRef.current === controlledConversationId) {
+        pendingUrlConversationIdRef.current = null;
+      }
       previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
@@ -1130,9 +1139,6 @@ export default function ChatInterface({
               return prevArr;
             }
             if (options?.forceFromDb) {
-              if (shouldRejectCoworkerMessageRegression(prevArr, messages)) {
-                return prevArr;
-              }
               return messages;
             }
             if (prevArr.length === 0 && messages.length > 0) {
@@ -1547,6 +1553,7 @@ export default function ChatInterface({
       streamingConversationIdsRef,
       welcomeCreationInFlightRef,
       pendingUrlConversationIdRef,
+      isRouteDriven,
     });
 
   const { userTailRecoveryLoading, userTailRecoveryFailed } =
@@ -1590,6 +1597,7 @@ export default function ChatInterface({
     pendingUrlConversationIdRef,
     chats,
     conversations,
+    isRouteDriven,
     navigateToConversation: isRouteDriven
       ? undefined
       : async (conversation: Conversation) => {
@@ -1607,9 +1615,36 @@ export default function ChatInterface({
     coworkers,
   });
 
+  const failPendingWelcomeSend = useCallback(
+    (
+      pending: NonNullable<(typeof pendingWelcomeSendRef)["current"]>,
+      options?: { restoreInput?: boolean },
+    ) => {
+      if (options?.restoreInput !== false) {
+        const text = getSendMessageText(pending.payload);
+        if (text) {
+          setInput(text);
+        }
+      }
+      if (pendingUrlConversationIdRef.current === pending.conversationId) {
+        pendingUrlConversationIdRef.current = null;
+      }
+      welcomeCreationInFlightRef.current = false;
+      pendingWelcomeSendRef.current = null;
+      toast.error(t("welcomeSendFailed"));
+    },
+    [setInput, t],
+  );
+
   useEffect(() => {
     const pending = pendingWelcomeSendRef.current;
     if (!pending) return;
+
+    const elapsedMs = Date.now() - pending.createdAt;
+    if (elapsedMs > WELCOME_SEND_MAX_AGE_MS) {
+      failPendingWelcomeSend(pending);
+      return;
+    }
 
     const pathConversationId = pathname
       ? getConversationIdFromChatPathname(pathname)
@@ -1642,10 +1677,11 @@ export default function ChatInterface({
       pending.sendOptions,
     );
     if (!sent) {
-      welcomeCreationInFlightRef.current = false;
+      failPendingWelcomeSend(pending);
       return;
     }
 
+    setInput("");
     pendingWelcomeSendRef.current = null;
   }, [
     urlConversationId,
@@ -1655,6 +1691,7 @@ export default function ChatInterface({
     sendInConversation,
     welcomeSendRetryTick,
     router,
+    failPendingWelcomeSend,
   ]);
 
   const handleModelSelected = useCallback(
@@ -1804,11 +1841,10 @@ export default function ChatInterface({
             createdAt: Date.now(),
             navigationRequested: false,
           };
-          setInput("");
           queueMicrotask(() => {
             setWelcomeSendRetryTick((tick) => tick + 1);
           });
-          for (const delayMs of [50, 150, 350, 700, 1500, 5000, 10_000]) {
+          for (const delayMs of WELCOME_SEND_RETRY_DELAYS_MS) {
             window.setTimeout(() => {
               setWelcomeSendRetryTick((tick) => tick + 1);
             }, delayMs);

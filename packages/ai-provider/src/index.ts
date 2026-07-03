@@ -1,4 +1,11 @@
 export { extractTextFromCompletedOutput } from "./completed-output-text.js";
+export {
+  COWORKER_AGENT_ERROR_SNIPPET,
+  coworkerSseBodyExtractOutputText,
+  coworkerSseBodyLooksLikeAgentError,
+  coworkerSseBodyLooksSuspiciouslyShort,
+  MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS,
+} from "./coworker-agent-error.js";
 export type { SokosumiProvider } from "./create-sokosumi.js";
 export { createSokosumi, isSokosumiLanguageModel } from "./create-sokosumi.js";
 export { parseSokosumiProviderOptions } from "./parse-provider-options.js";
