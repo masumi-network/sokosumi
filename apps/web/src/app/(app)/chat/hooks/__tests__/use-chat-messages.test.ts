@@ -431,7 +431,9 @@ describe("useChatMessages", () => {
     const previousChatIdRef = { current: null };
     const messagesChatIdRef = { current: null };
     const chatMessagesRef = { current: new Map<string, unknown[]>() };
-    const pendingUrlConversationIdRef = { current: CONVERSATION_ID };
+    const pendingUrlConversationIdRef: React.MutableRefObject<string | null> = {
+      current: CONVERSATION_ID,
+    };
 
     renderHook(() =>
       useChatMessages({
@@ -474,7 +476,9 @@ describe("useChatMessages", () => {
     const previousChatIdRef = { current: null };
     const messagesChatIdRef = { current: null };
     const chatMessagesRef = { current: new Map<string, unknown[]>() };
-    const pendingUrlConversationIdRef = { current: CONVERSATION_ID };
+    const pendingUrlConversationIdRef: React.MutableRefObject<string | null> = {
+      current: CONVERSATION_ID,
+    };
 
     renderHook(() =>
       useChatMessages({
