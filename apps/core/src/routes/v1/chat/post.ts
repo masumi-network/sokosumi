@@ -25,7 +25,19 @@ import {
 } from "@/helpers/active-ui-stream-metadata";
 import { conversationMessagesToUiMessages } from "@/helpers/conversation-messages-to-ui-messages";
 import {
+  clearPendingResponseMirror,
+  getPendingResponseMirror,
+  setPendingResponseMirror,
+} from "@/helpers/coworker-pending-response-mirror";
+import { pollCoworkerResponseStatus } from "@/helpers/coworker-response-poll";
+import {
+  acquireStreamLock,
+  releaseStreamLock,
+  startStreamLockHeartbeat,
+} from "@/helpers/coworker-stream-lock";
+import {
   badRequest,
+  conflict,
   forbidden,
   internalServerError,
   notFound,
@@ -59,6 +71,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
+import { getRedisClient } from "@/lib/redis";
 import {
   getResumableUiStreamContext,
   isUiStreamResumptionConfigured,
@@ -374,6 +387,85 @@ async function persistUserOrSystemTurnForConversation(params: {
   }
 }
 
+interface CoworkerStreamPreambleResult {
+  releaseOwnedStreamLock: () => Promise<void>;
+}
+
+async function runCoworkerStreamPreamble(params: {
+  conversationId: string;
+  userId: string;
+  organizationId: string | null;
+  metadata: Record<string, unknown> | null;
+  coworker: { slug: string; baseURL: string };
+}): Promise<CoworkerStreamPreambleResult> {
+  const redis = getRedisClient();
+  const streamLockOwnerToken = await acquireStreamLock(params.conversationId);
+  if (redis && !streamLockOwnerToken) {
+    throw conflict(
+      "A coworker response is already in progress for this conversation.",
+    );
+  }
+
+  const releaseOwnedStreamLock = async () => {
+    if (streamLockOwnerToken) {
+      await releaseStreamLock(params.conversationId, streamLockOwnerToken);
+    }
+  };
+
+  try {
+    const metadataPending = params.metadata?.pending_responses_api_response_id;
+    const mirroredPending = await getPendingResponseMirror(
+      params.conversationId,
+    );
+    const pendingResponseId =
+      (typeof metadataPending === "string" && metadataPending.trim().length > 0
+        ? metadataPending.trim()
+        : null) ?? mirroredPending;
+
+    if (pendingResponseId) {
+      const pollResult = await pollCoworkerResponseStatus({
+        responsesApiBaseUrl: params.coworker.baseURL,
+        responseId: pendingResponseId,
+        userId: params.userId,
+        organizationId: params.organizationId,
+        coworkerSlug: params.coworker.slug,
+      });
+
+      if (pollResult.status === "in_progress") {
+        throw conflict(
+          "A coworker response is already in progress for this conversation.",
+        );
+      }
+
+      if (pollResult.status === "error") {
+        throw serviceUnavailable(
+          "Coworker chat could not verify an in-flight response. Try again shortly.",
+        );
+      }
+
+      await clearPendingResponseId({
+        conversationId: params.conversationId,
+        userId: params.userId,
+      });
+      await clearPendingResponseMirror(params.conversationId);
+    }
+  } catch (error) {
+    await releaseOwnedStreamLock();
+    throw error;
+  }
+
+  const stopHeartbeat = streamLockOwnerToken
+    ? startStreamLockHeartbeat(params.conversationId, streamLockOwnerToken)
+    : null;
+
+  return {
+    releaseOwnedStreamLock: async () => {
+      stopHeartbeat?.();
+      await releaseOwnedStreamLock();
+    },
+  };
+}
+
 async function validateUiMessagesOrBadRequest(
   messages: UIMessage[],
 ): Promise<void> {
@@ -416,6 +508,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Conversation not found"),
+    409: jsonErrorResponse("Conflict"),
     503: jsonErrorResponse("Service Unavailable"),
     422: jsonErrorResponse("Unprocessable Entity"),
     500: jsonErrorResponse("Internal Server Error"),
@@ -747,6 +840,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         uiMessages.map(({ id: _id, ...rest }) => rest),
       );
 
+      let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null = null;
+      if (useCoworker && internalConversationId && coworker?.baseURL?.trim()) {
+        const preamble = await runCoworkerStreamPreamble({
+          conversationId: internalConversationId,
+          userId: userContext.userId,
+          organizationId: userContext.organizationId ?? null,
+          metadata,
+          coworker: {
+            slug: coworker.slug,
+            baseURL: coworker.baseURL.trim(),
+          },
+        });
+        releaseOwnedCoworkerStreamLock = preamble.releaseOwnedStreamLock;
+      }
+
       const responsesApiResponseIdRef: { current: string | null } = {
         current: null,
       };
@@ -819,6 +927,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           try {
+            await setPendingResponseMirror(internalConversationId, responseId);
             await persistPendingResponseId({
               conversationId: internalConversationId,
               userId: userContext.userId,
@@ -835,6 +944,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           try {
+            await clearPendingResponseMirror(internalConversationId);
             if (coworkerConversationsMode) {
               await clearPendingResponseId({
                 conversationId: internalConversationId,
@@ -968,6 +1078,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const enableResumableUiStream =
         Boolean(internalConversationId) && isUiStreamResumptionConfigured();
 
+      const finalizeCoworkerStreamLock = () => {
+        if (!releaseOwnedCoworkerStreamLock) {
+          return;
+        }
+        waitUntil(releaseOwnedCoworkerStreamLock());
+      };
+
       return result.toUIMessageStreamResponse({
         originalMessages: uiMessages,
         generateMessageId: generateId,
@@ -1005,6 +1122,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 await registration;
               },
               onFinish: async () => {
+                finalizeCoworkerStreamLock();
                 if (uiStreamResumptionRegistration) {
                   await uiStreamResumptionRegistration;
                 }
@@ -1033,7 +1151,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 }
               },
             }
-          : {}),
+          : releaseOwnedCoworkerStreamLock
+            ? {
+                onFinish: async () => {
+                  finalizeCoworkerStreamLock();
+                },
+              }
+            : {}),
       });
     } catch (error) {
       if (logImageGenerationRequest) {
