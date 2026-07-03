@@ -108,3 +108,21 @@ export const tasksSchema = z.array(taskSchema);
 export const createTaskJobRequestSchema = createJobRequestSchema.extend({
   agentId: z.string().openapi({ example: "agent_123" }),
 });
+
+export const taskWorkspaceSchema = z
+  .object({
+    name: z.string().openapi({
+      description: "Task title",
+      example: "Research competitor pricing",
+    }),
+    workspaceId: z.string().uuid().openapi({
+      description: "Workspace id for the task",
+      example: "11111111-1111-7111-8111-111111111111",
+    }),
+    organizationId: z.string().nullable().openapi({
+      description:
+        "Organization id for the workspace, or null for a personal workspace",
+      example: "org_123",
+    }),
+  })
+  .openapi("TaskWorkspace");

@@ -2,7 +2,7 @@
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { updatePreferredOrganization } from "@/lib/actions/organization";
@@ -16,6 +16,15 @@ export function getAgentJobsBasePath(pathname: string): string | null {
 
   const [, agentId] = jobsRouteMatch;
   return `/agents/${agentId}/jobs`;
+}
+
+export function getTaskDetailBasePath(pathname: string): string | null {
+  const taskDetailRouteMatch = pathname.match(/^\/tasks\/(?!new$)[^/]+$/);
+  if (!taskDetailRouteMatch) {
+    return null;
+  }
+
+  return "/tasks";
 }
 
 export async function activateOrganizationWorkspace(
@@ -40,9 +49,23 @@ export async function activateOrganizationWorkspace(
 
 interface SwitchOrganizationWorkspaceOptions {
   shouldRedirectAgentJobsBasePath?: boolean;
+  shouldRedirectTaskDetailPath?: boolean;
   successMessage?: string;
   router?: AppRouterInstance;
   pathname?: string;
+  startTransition?: (callback: () => void) => void;
+}
+
+function runRouterTransition(
+  callback: () => void,
+  startTransition?: (callback: () => void) => void,
+) {
+  if (startTransition) {
+    startTransition(callback);
+    return;
+  }
+
+  callback();
 }
 
 export async function switchOrganizationWorkspace(
@@ -60,45 +83,67 @@ export async function switchOrganizationWorkspace(
   if (shouldRedirectAgentJobsBasePath && options?.router && options?.pathname) {
     const jobsBasePath = getAgentJobsBasePath(options.pathname);
     if (jobsBasePath) {
-      options.router.replace(jobsBasePath);
-      options.router.refresh();
+      runRouterTransition(() => {
+        options.router?.replace(jobsBasePath);
+        options.router?.refresh();
+      }, options.startTransition);
       return;
     }
   }
 
-  options?.router?.refresh();
+  const shouldRedirectTaskDetailPath =
+    options?.shouldRedirectTaskDetailPath ?? true;
+  if (shouldRedirectTaskDetailPath && options?.router && options?.pathname) {
+    const taskDetailBasePath = getTaskDetailBasePath(options.pathname);
+    if (taskDetailBasePath) {
+      runRouterTransition(() => {
+        options.router?.replace(taskDetailBasePath);
+        options.router?.refresh();
+      }, options.startTransition);
+      return;
+    }
+  }
+
+  if (options?.router) {
+    runRouterTransition(() => {
+      options.router?.refresh();
+    }, options.startTransition);
+  }
 }
 
 export function useWorkspaceSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
+  const [isActivating, setIsActivating] = useState(false);
+  const [isRefreshing, startTransition] = useTransition();
 
   const handleSelectWorkspace = (
     organizationId: string | null,
     options?: {
       shouldRedirectAgentJobsBasePath?: boolean;
+      shouldRedirectTaskDetailPath?: boolean;
       successMessage?: string;
     },
   ): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      startTransition(() => {
-        void switchOrganizationWorkspace(organizationId, {
-          ...options,
-          router,
-          pathname,
-        })
-          .then(resolve)
-          .catch((error) => {
-            console.error("Failed to switch organization:", error);
-            reject(error);
-          });
+    setIsActivating(true);
+
+    return switchOrganizationWorkspace(organizationId, {
+      ...options,
+      router,
+      pathname,
+      startTransition,
+    })
+      .catch((error) => {
+        console.error("Failed to switch organization:", error);
+        throw error;
+      })
+      .finally(() => {
+        setIsActivating(false);
       });
-    });
   };
 
   return {
-    isPending,
+    isPending: isActivating || isRefreshing,
     handleSelectWorkspace,
   };
 }
