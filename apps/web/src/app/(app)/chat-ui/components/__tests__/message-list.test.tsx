@@ -145,7 +145,13 @@ describe("MessageList", () => {
         createdAt: new Date("2026-05-10T09:00:00.000Z"),
         updatedAt: new Date("2026-05-10T09:00:00.000Z"),
         status: "active",
-        coworker: { id: "coworker-1", name: "Elena", slug: "elena" },
+        coworker: {
+          id: "coworker-1",
+          name: "Elena",
+          slug: "elena",
+          description: "Test coworker",
+          useCase: "Testing",
+        },
       },
     ] satisfies Chat[];
 
