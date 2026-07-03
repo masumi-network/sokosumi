@@ -10,7 +10,10 @@ import { CoworkerConversationError } from "./coworker-conversation";
 import mountPostChat from "./post";
 
 const {
+  acquireStreamLockMock,
   clearActiveUiStreamIdInMetadataMock,
+  clearPendingResponseIdMock,
+  clearPendingResponseMirrorMock,
   conversationFindFirstMock,
   conversationMessageCreateMock,
   conversationMessageFindManyMock,
@@ -23,19 +26,28 @@ const {
   createNewResumableStreamMock,
   generateChatTitleMock,
   getOpenRouterChatApiKeyForProviderMock,
+  getPendingResponseMirrorMock,
+  getRedisClientMock,
   getSokosumiProviderMock,
   isUiStreamResumptionConfiguredMock,
+  pollCoworkerResponseStatusMock,
   prismaTransactionMock,
+  releaseStreamLockMock,
   requireConversationCoworkerAccessMock,
   requireCoworkerChatCapabilityMock,
   setActiveUiStreamIdInMetadataMock,
+  setPendingResponseMirrorMock,
+  startStreamLockHeartbeatMock,
   streamTextMock,
   toUIMessageStreamResponseMock,
   uploadGeneratedChatImageMock,
   validateUIMessagesMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
+  acquireStreamLockMock: vi.fn(),
   clearActiveUiStreamIdInMetadataMock: vi.fn(),
+  clearPendingResponseIdMock: vi.fn(),
+  clearPendingResponseMirrorMock: vi.fn(),
   conversationFindFirstMock: vi.fn(),
   conversationMessageCreateMock: vi.fn(),
   conversationMessageFindManyMock: vi.fn(),
@@ -48,12 +60,18 @@ const {
   createNewResumableStreamMock: vi.fn(),
   generateChatTitleMock: vi.fn(),
   getOpenRouterChatApiKeyForProviderMock: vi.fn(),
+  getPendingResponseMirrorMock: vi.fn(),
+  getRedisClientMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(() => false),
+  pollCoworkerResponseStatusMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  releaseStreamLockMock: vi.fn(),
   requireConversationCoworkerAccessMock: vi.fn(),
   requireCoworkerChatCapabilityMock: vi.fn(),
   setActiveUiStreamIdInMetadataMock: vi.fn(),
+  setPendingResponseMirrorMock: vi.fn(),
+  startStreamLockHeartbeatMock: vi.fn(() => vi.fn()),
   streamTextMock: vi.fn(),
   toUIMessageStreamResponseMock: vi.fn(),
   uploadGeneratedChatImageMock: vi.fn(),
@@ -141,6 +159,46 @@ vi.mock("@/lib/blob", async (importOriginal) => {
       uploadGeneratedChatImageMock(...args),
   };
 });
+
+vi.mock("@/lib/redis", () => ({
+  getRedisClient: getRedisClientMock,
+}));
+
+vi.mock("@/helpers/coworker-stream-lock", () => ({
+  acquireStreamLock: acquireStreamLockMock,
+  releaseStreamLock: releaseStreamLockMock,
+  startStreamLockHeartbeat: startStreamLockHeartbeatMock,
+}));
+
+vi.mock("@/helpers/coworker-response-poll", () => ({
+  pollCoworkerResponseStatus: pollCoworkerResponseStatusMock,
+}));
+
+vi.mock("@/helpers/coworker-pending-response-mirror", () => ({
+  getPendingResponseMirror: getPendingResponseMirrorMock,
+  setPendingResponseMirror: setPendingResponseMirrorMock,
+  clearPendingResponseMirror: clearPendingResponseMirrorMock,
+}));
+
+vi.mock("@/helpers/persist-pending-response-id", () => ({
+  persistPendingResponseId: vi.fn(),
+  clearPendingResponseId: clearPendingResponseIdMock,
+  clearPendingAndSetPrevious: vi.fn(),
+  clearCoworkerResponseChain: vi.fn(),
+}));
+
+function setupCoworkerChatConversation(
+  metadata: Record<string, unknown> = { coworker_slug: "ops-agent" },
+) {
+  const cid = "550e8400-e29b-41d4-a716-446655440000";
+  conversationFindFirstMock.mockResolvedValueOnce({
+    id: cid,
+    metadata,
+    providerConversationId: "conv_remote_1",
+  });
+  coworkerFindFirstMock.mockResolvedValueOnce({ id: "cow_123" });
+  return cid;
+}
 
 function createApp({
   authContext = {
@@ -255,6 +313,17 @@ describe("POST /chat", () => {
       baseURL: "https://responses.example.com/v1",
     });
     requireConversationCoworkerAccessMock.mockResolvedValue(undefined);
+    getRedisClientMock.mockReturnValue({ connected: true });
+    acquireStreamLockMock.mockResolvedValue("instance-test:lock-token");
+    releaseStreamLockMock.mockResolvedValue(true);
+    getPendingResponseMirrorMock.mockResolvedValue(null);
+    pollCoworkerResponseStatusMock.mockResolvedValue({
+      status: "completed",
+      responseId: "resp_pending",
+    });
+    clearPendingResponseIdMock.mockResolvedValue(undefined);
+    clearPendingResponseMirrorMock.mockResolvedValue(undefined);
+    setPendingResponseMirrorMock.mockResolvedValue(undefined);
   });
 
   it("returns 422 when the JSON body fails OpenAPI / Zod validation", async () => {
@@ -2013,5 +2082,211 @@ describe("POST /chat", () => {
     await init.onFinish!();
 
     expect(clearActiveUiStreamIdInMetadataMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe("coworker stream lock and pending recovery", () => {
+    it("returns 409 when the coworker stream lock is already held", async () => {
+      const cid = setupCoworkerChatConversation();
+      acquireStreamLockMock.mockResolvedValueOnce(null);
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(streamTextMock).not.toHaveBeenCalled();
+      expect(releaseStreamLockMock).not.toHaveBeenCalled();
+    });
+
+    it("proceeds unlocked when redis is unavailable", async () => {
+      const cid = setupCoworkerChatConversation();
+      getRedisClientMock.mockReturnValueOnce(null);
+      acquireStreamLockMock.mockResolvedValueOnce(null);
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(streamTextMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns 409 when a pending coworker response is still in progress", async () => {
+      const cid = setupCoworkerChatConversation({
+        coworker_slug: "ops-agent",
+        pending_responses_api_response_id: "resp_pending",
+      });
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "in_progress",
+        responseId: "resp_pending",
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(pollCoworkerResponseStatusMock).toHaveBeenCalledOnce();
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        cid,
+        "instance-test:lock-token",
+      );
+      expect(streamTextMock).not.toHaveBeenCalled();
+    });
+
+    it("clears completed pending responses and proceeds", async () => {
+      const cid = setupCoworkerChatConversation({
+        coworker_slug: "ops-agent",
+        pending_responses_api_response_id: "resp_pending",
+      });
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "completed",
+        responseId: "resp_pending",
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(clearPendingResponseIdMock).toHaveBeenCalledWith({
+        conversationId: cid,
+        userId: "user_123",
+      });
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith(cid);
+      expect(streamTextMock).toHaveBeenCalledOnce();
+    });
+
+    it("clears failed pending responses and proceeds", async () => {
+      const cid = setupCoworkerChatConversation({
+        coworker_slug: "ops-agent",
+        pending_responses_api_response_id: "resp_pending",
+      });
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "failed",
+        responseId: "resp_pending",
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(clearPendingResponseIdMock).toHaveBeenCalledOnce();
+      expect(streamTextMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns 503 when pending response polling fails", async () => {
+      const cid = setupCoworkerChatConversation({
+        coworker_slug: "ops-agent",
+        pending_responses_api_response_id: "resp_pending",
+      });
+      pollCoworkerResponseStatusMock.mockResolvedValueOnce({
+        status: "error",
+        responseId: "resp_pending",
+        cause: new Error("upstream unavailable"),
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(503);
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        cid,
+        "instance-test:lock-token",
+      );
+      expect(streamTextMock).not.toHaveBeenCalled();
+    });
+
+    it("releases the stream lock on finish while retaining pending on disconnect", async () => {
+      const cid = setupCoworkerChatConversation();
+      const stopHeartbeatMock = vi.fn();
+      startStreamLockHeartbeatMock.mockReturnValueOnce(stopHeartbeatMock);
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      const streamCall = streamTextMock.mock.calls[0]![0] as {
+        providerOptions?: {
+          sokosumi?: {
+            onResponseStarted?: (responseId: string) => Promise<void>;
+            onResponseCompleted?: (responseId: string) => Promise<void>;
+          };
+        };
+      };
+      await streamCall.providerOptions?.sokosumi?.onResponseStarted?.(
+        "resp_live",
+      );
+      expect(setPendingResponseMirrorMock).toHaveBeenCalledWith(
+        cid,
+        "resp_live",
+      );
+
+      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+        onFinish?: () => Promise<void>;
+      };
+      await init.onFinish?.();
+      expect(waitUntilCapturedPromises).toHaveLength(1);
+      await waitUntilCapturedPromises[0]!;
+      expect(stopHeartbeatMock).toHaveBeenCalledOnce();
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        cid,
+        "instance-test:lock-token",
+      );
+      expect(clearPendingResponseMirrorMock).not.toHaveBeenCalled();
+      expect(clearPendingResponseIdMock).not.toHaveBeenCalled();
+    });
   });
 });
