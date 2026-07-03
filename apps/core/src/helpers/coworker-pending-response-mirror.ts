@@ -5,7 +5,7 @@ import { COWORKER_STREAM_LOCK_TTL_SECONDS } from "./coworker-stream-lock";
 export function coworkerPendingResponseRedisKey(
   internalConversationId: string,
 ): string {
-  return `coworker:pending-response:${internalConversationId}`;
+  return `coworker:pending_resp:${internalConversationId}`;
 }
 
 export async function setPendingResponseMirror(

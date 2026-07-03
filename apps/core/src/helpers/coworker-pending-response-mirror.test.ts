@@ -35,7 +35,7 @@ describe("coworker-pending-response-mirror", () => {
 
   it("builds the expected redis key", () => {
     expect(coworkerPendingResponseRedisKey("conv-1")).toBe(
-      "coworker:pending-response:conv-1",
+      "coworker:pending_resp:conv-1",
     );
   });
 

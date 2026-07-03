@@ -18,6 +18,7 @@ vi.mock("@/lib/redis", () => ({
 
 import {
   acquireStreamLock,
+  COWORKER_STREAM_LOCK_HEARTBEAT_MS,
   COWORKER_STREAM_LOCK_TTL_SECONDS,
   coworkerStreamLockRedisKey,
   releaseStreamLock,
@@ -42,34 +43,50 @@ describe("coworker-stream-lock", () => {
 
   it("builds the expected redis key", () => {
     expect(coworkerStreamLockRedisKey("conv-1")).toBe(
-      "coworker:stream-lock:conv-1",
+      "coworker:stream_lock:conv-1",
     );
   });
 
-  it("returns null when redis is unavailable", async () => {
+  it("returns unavailable when redis is unavailable", async () => {
     getRedisClientMock.mockReturnValue(null);
 
-    await expect(acquireStreamLock("conv-1")).resolves.toBeNull();
+    await expect(acquireStreamLock("conv-1")).resolves.toEqual({
+      status: "unavailable",
+    });
     expect(redisSetMock).not.toHaveBeenCalled();
   });
 
   it("acquires a lock with owner token and TTL", async () => {
-    const ownerToken = await acquireStreamLock("conv-1");
+    const result = await acquireStreamLock("conv-1");
 
-    expect(ownerToken).toMatch(/^instance-test:/);
+    expect(result.status).toBe("acquired");
+    if (result.status !== "acquired") {
+      throw new Error("Expected lock to be acquired");
+    }
+    expect(result.ownerToken).toMatch(/^instance-test:/);
     expect(redisSetMock).toHaveBeenCalledWith(
       coworkerStreamLockRedisKey("conv-1"),
-      ownerToken,
+      result.ownerToken,
       "EX",
       COWORKER_STREAM_LOCK_TTL_SECONDS,
       "NX",
     );
   });
 
-  it("returns null when the lock is already held", async () => {
+  it("returns held when the lock is already held", async () => {
     redisSetMock.mockResolvedValue(null);
 
-    await expect(acquireStreamLock("conv-1")).resolves.toBeNull();
+    await expect(acquireStreamLock("conv-1")).resolves.toEqual({
+      status: "held",
+    });
+  });
+
+  it("returns unavailable when redis acquisition fails", async () => {
+    redisSetMock.mockRejectedValue(new Error("redis down"));
+
+    await expect(acquireStreamLock("conv-1")).resolves.toEqual({
+      status: "unavailable",
+    });
   });
 
   it("renews only when owner token matches", async () => {
@@ -100,7 +117,7 @@ describe("coworker-stream-lock", () => {
   it("heartbeat renews the lock on an interval", async () => {
     vi.useFakeTimers();
     const stop = startStreamLockHeartbeat("conv-1", "instance-test:token-1");
-    await vi.advanceTimersByTimeAsync(40_000);
+    await vi.advanceTimersByTimeAsync(COWORKER_STREAM_LOCK_HEARTBEAT_MS);
 
     expect(redisEvalMock).toHaveBeenCalled();
     stop();

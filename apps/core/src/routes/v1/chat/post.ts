@@ -72,7 +72,6 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { getRedisClient } from "@/lib/redis";
 import {
   getResumableUiStreamContext,
   isUiStreamResumptionConfigured,
@@ -399,13 +398,14 @@ async function runCoworkerStreamPreamble(params: {
   metadata: Record<string, unknown> | null;
   coworker: { slug: string; baseURL: string };
 }): Promise<CoworkerStreamPreambleResult> {
-  const redis = getRedisClient();
-  const streamLockOwnerToken = await acquireStreamLock(params.conversationId);
-  if (redis && !streamLockOwnerToken) {
+  const streamLock = await acquireStreamLock(params.conversationId);
+  if (streamLock.status === "held") {
     throw conflict(
       "A coworker response is already in progress for this conversation.",
     );
   }
+  const streamLockOwnerToken =
+    streamLock.status === "acquired" ? streamLock.ownerToken : null;
 
   const releaseOwnedStreamLock = async () => {
     if (streamLockOwnerToken) {
@@ -522,6 +522,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let logConversationId: string | null = null;
     let logSelectedModel: string | null = null;
     let logImageGenerationModel: string | null = null;
+    let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null = null;
     try {
       const userContext = requireUserContext(c.var.authContext);
 
@@ -722,6 +723,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      if (useCoworker && internalConversationId && coworker?.baseURL?.trim()) {
+        const preamble = await runCoworkerStreamPreamble({
+          conversationId: internalConversationId,
+          userId: userContext.userId,
+          organizationId: userContext.organizationId ?? null,
+          metadata,
+          coworker: {
+            slug: coworker.slug,
+            baseURL: coworker.baseURL.trim(),
+          },
+        });
+        releaseOwnedCoworkerStreamLock = preamble.releaseOwnedStreamLock;
+      }
+
       let uiMessages;
       if (
         useServerMergedHistory &&
@@ -840,21 +855,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const modelMessages = await convertToModelMessages(
         uiMessages.map(({ id: _id, ...rest }) => rest),
       );
-
-      let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null = null;
-      if (useCoworker && internalConversationId && coworker?.baseURL?.trim()) {
-        const preamble = await runCoworkerStreamPreamble({
-          conversationId: internalConversationId,
-          userId: userContext.userId,
-          organizationId: userContext.organizationId ?? null,
-          metadata,
-          coworker: {
-            slug: coworker.slug,
-            baseURL: coworker.baseURL.trim(),
-          },
-        });
-        releaseOwnedCoworkerStreamLock = preamble.releaseOwnedStreamLock;
-      }
 
       const responsesApiResponseIdRef: { current: string | null } = {
         current: null,
@@ -1168,6 +1168,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           imageGenerationModel: logImageGenerationModel,
           error,
         });
+      }
+      if (releaseOwnedCoworkerStreamLock) {
+        try {
+          await releaseOwnedCoworkerStreamLock();
+        } catch (releaseError) {
+          console.error(
+            "Failed to release coworker stream lock after chat setup error:",
+            releaseError,
+          );
+        }
       }
       if (
         error &&

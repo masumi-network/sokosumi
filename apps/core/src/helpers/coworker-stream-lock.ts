@@ -4,6 +4,12 @@ import { getEnv } from "@/config/env";
 import { getRedisClient } from "@/lib/redis";
 
 export const COWORKER_STREAM_LOCK_TTL_SECONDS = 120;
+export const COWORKER_STREAM_LOCK_HEARTBEAT_MS = 60_000;
+
+export type AcquireStreamLockResult =
+  | { status: "acquired"; ownerToken: string }
+  | { status: "held" }
+  | { status: "unavailable" };
 
 const RENEW_STREAM_LOCK_SCRIPT = `
 if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -24,7 +30,7 @@ end
 export function coworkerStreamLockRedisKey(
   internalConversationId: string,
 ): string {
-  return `coworker:stream-lock:${internalConversationId}`;
+  return `coworker:stream_lock:${internalConversationId}`;
 }
 
 function createStreamLockOwnerToken(): string {
@@ -33,10 +39,13 @@ function createStreamLockOwnerToken(): string {
 
 export async function acquireStreamLock(
   internalConversationId: string,
-): Promise<string | null> {
+): Promise<AcquireStreamLockResult> {
   const redis = getRedisClient();
   if (!redis) {
-    return null;
+    console.warn(
+      "[coworker-stream-lock] Redis unavailable; skipping coworker stream lock.",
+    );
+    return { status: "unavailable" };
   }
 
   const key = coworkerStreamLockRedisKey(internalConversationId);
@@ -50,13 +59,15 @@ export async function acquireStreamLock(
       COWORKER_STREAM_LOCK_TTL_SECONDS,
       "NX",
     );
-    return result === "OK" ? ownerToken : null;
+    return result === "OK"
+      ? { status: "acquired", ownerToken }
+      : { status: "held" };
   } catch (error) {
-    console.error(
-      "[coworker-stream-lock] Failed to acquire stream lock:",
+    console.warn(
+      "[coworker-stream-lock] Redis error; skipping coworker stream lock:",
       error,
     );
-    return null;
+    return { status: "unavailable" };
   }
 }
 
@@ -118,14 +129,9 @@ export function startStreamLockHeartbeat(
   internalConversationId: string,
   ownerToken: string,
 ): () => void {
-  const intervalMs = Math.max(
-    5_000,
-    Math.floor((COWORKER_STREAM_LOCK_TTL_SECONDS * 1000) / 3),
-  );
-
   const timer = setInterval(() => {
     void renewStreamLock(internalConversationId, ownerToken);
-  }, intervalMs);
+  }, COWORKER_STREAM_LOCK_HEARTBEAT_MS);
 
   return () => {
     clearInterval(timer);

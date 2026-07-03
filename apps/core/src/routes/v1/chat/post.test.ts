@@ -314,7 +314,10 @@ describe("POST /chat", () => {
     });
     requireConversationCoworkerAccessMock.mockResolvedValue(undefined);
     getRedisClientMock.mockReturnValue({ connected: true });
-    acquireStreamLockMock.mockResolvedValue("instance-test:lock-token");
+    acquireStreamLockMock.mockResolvedValue({
+      status: "acquired",
+      ownerToken: "instance-test:lock-token",
+    });
     releaseStreamLockMock.mockResolvedValue(true);
     getPendingResponseMirrorMock.mockResolvedValue(null);
     pollCoworkerResponseStatusMock.mockResolvedValue({
@@ -1921,6 +1924,10 @@ describe("POST /chat", () => {
     });
 
     expect(response.status).toBe(503);
+    expect(releaseStreamLockMock).toHaveBeenCalledWith(
+      cid,
+      "instance-test:lock-token",
+    );
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 
@@ -2087,7 +2094,7 @@ describe("POST /chat", () => {
   describe("coworker stream lock and pending recovery", () => {
     it("returns 409 when the coworker stream lock is already held", async () => {
       const cid = setupCoworkerChatConversation();
-      acquireStreamLockMock.mockResolvedValueOnce(null);
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "held" });
 
       const app = createApp();
       const response = await app.request("http://localhost/", {
@@ -2102,13 +2109,13 @@ describe("POST /chat", () => {
 
       expect(response.status).toBe(409);
       expect(streamTextMock).not.toHaveBeenCalled();
+      expect(conversationMessageCreateMock).not.toHaveBeenCalled();
       expect(releaseStreamLockMock).not.toHaveBeenCalled();
     });
 
     it("proceeds unlocked when redis is unavailable", async () => {
       const cid = setupCoworkerChatConversation();
-      getRedisClientMock.mockReturnValueOnce(null);
-      acquireStreamLockMock.mockResolvedValueOnce(null);
+      acquireStreamLockMock.mockResolvedValueOnce({ status: "unavailable" });
 
       const app = createApp();
       const response = await app.request("http://localhost/", {
