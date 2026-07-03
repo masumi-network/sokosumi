@@ -1,9 +1,9 @@
 {
   "benchmark": "bench-coworker-chat",
-  "version": 1,
+  "version": 2,
   "generatedAt": "2026-07-02T22:00:00.000Z",
   "scenario": "realistic",
-  "model": "openai/gpt-5.4",
+  "coworkerSlug": "elena",
   "iterations": 5,
   "metrics": {
     "firstToken": {
@@ -78,7 +78,9 @@
     "ref": "sok-626-bench-coworker-chat"
   },
   "config": {
-    "endpoint": "https://openrouter.ai/api/v1/responses",
+    "endpoint": "https://responses.example.com/v1/responses",
+    "coworkerSlug": "elena",
+    "baseUrlSource": "database",
     "requestTimeoutMs": 25000
   },
   "thresholds": {
