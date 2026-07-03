@@ -83,6 +83,27 @@ describe("AutoContextSwitch", () => {
     expect(updatePreferredOrganization).not.toHaveBeenCalled();
   });
 
+  it("does not switch when a later profile switch creates a mismatch", () => {
+    const view = render(
+      <AutoContextSwitch
+        activeOrganizationId="org-1"
+        targetOrganizationId="org-1"
+        successMessage="Switched to Org One account"
+      />,
+    );
+
+    view.rerender(
+      <AutoContextSwitch
+        activeOrganizationId="org-2"
+        targetOrganizationId="org-1"
+        successMessage="Switched to Org One account"
+      />,
+    );
+
+    expect(authClient.organization.setActive).not.toHaveBeenCalled();
+    expect(updatePreferredOrganization).not.toHaveBeenCalled();
+  });
+
   it("does not re-trigger on rerender after first switch", async () => {
     vi.mocked(authClient.organization.setActive).mockResolvedValueOnce({
       data: null,

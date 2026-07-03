@@ -687,6 +687,9 @@ export const auth = betterAuth({
         onSubscriptionUpdate: handleStripeBackedSubscriptionLifecycle,
         getCheckoutSessionParams: async () => ({
           params: {
+            automatic_tax: {
+              enabled: true,
+            },
             billing_address_collection: "required",
             customer_update: {
               address: "auto",

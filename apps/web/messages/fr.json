@@ -1637,6 +1637,14 @@
           }
         },
         "switchedWorkspace": "Passage au compte {account}",
+        "workspaceSwitchPrompt": {
+          "title": "Cette tâche a été créée dans un autre espace de travail",
+          "description": "« {taskName} » a été créée dans l’espace de travail <accountName>{account}</accountName>. Changez d’espace de travail pour l’ouvrir.",
+          "avatarTransition": "De {currentAccount} à {targetAccount}",
+          "cancel": "Rester ici",
+          "confirm": "Changer d’espace de travail",
+          "switchError": "Échec du changement d’espace de travail. Veuillez réessayer."
+        },
         "clonedFrom": "Clonée depuis {name}",
         "schedule": "Planification"
       },

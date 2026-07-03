@@ -272,6 +272,7 @@ export const stripeClient = {
     return await stripe.subscriptions.update(
       subscriptionId,
       {
+        automatic_tax: { enabled: true },
         items: [
           {
             id: itemId,
@@ -421,6 +422,7 @@ export const stripeClient = {
         pending_invoice_items_behavior: "include",
         collection_method: "charge_automatically",
         auto_advance: true,
+        automatic_tax: { enabled: true },
         metadata: {
           coupon_id: couponId,
           price_id: price.id,
@@ -629,6 +631,7 @@ export const stripeClient = {
         address: "auto",
         name: "auto",
       },
+      automatic_tax: { enabled: true },
       metadata: sessionMetadata,
       invoice_creation: {
         enabled: true,
@@ -795,6 +798,7 @@ export const stripeClient = {
       collection_method: "send_invoice",
       days_until_due: params.daysUntilDue ?? 30,
       auto_advance: false,
+      automatic_tax: { enabled: true },
       metadata,
     });
 

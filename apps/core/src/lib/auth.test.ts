@@ -531,6 +531,9 @@ describe("core auth config", () => {
           subscription: {
             getCheckoutSessionParams: () => Promise<{
               params?: {
+                automatic_tax?: {
+                  enabled: boolean;
+                };
                 billing_address_collection?: string;
                 customer_update?: {
                   address?: string;
@@ -552,6 +555,9 @@ describe("core auth config", () => {
 
     expect(sessionParams).toEqual({
       params: {
+        automatic_tax: {
+          enabled: true,
+        },
         billing_address_collection: "required",
         customer_update: {
           address: "auto",

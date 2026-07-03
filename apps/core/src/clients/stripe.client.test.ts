@@ -11,6 +11,7 @@ const {
   stripeInvoicesFinalizeMock,
   stripePricesListMock,
   stripeProductsRetrieveMock,
+  stripeSubscriptionsUpdateMock,
 } = vi.hoisted(() => ({
   stripeConstructorMock: vi.fn(),
   stripeCheckoutSessionsCreateMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   stripeInvoicesFinalizeMock: vi.fn(),
   stripePricesListMock: vi.fn(),
   stripeProductsRetrieveMock: vi.fn(),
+  stripeSubscriptionsUpdateMock: vi.fn(),
 }));
 
 vi.mock("stripe", () => ({
@@ -59,6 +61,10 @@ vi.mock("stripe", () => ({
       create: (...args: unknown[]) => stripeInvoicesCreateMock(...args),
       finalizeInvoice: (...args: unknown[]) =>
         stripeInvoicesFinalizeMock(...args),
+    };
+
+    subscriptions = {
+      update: (...args: unknown[]) => stripeSubscriptionsUpdateMock(...args),
     };
 
     constructor(secretKey: string, options?: unknown) {
@@ -271,6 +277,7 @@ describe("stripeClient", () => {
 
     expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        automatic_tax: { enabled: true },
         metadata: expect.objectContaining({
           coupon_id: "coupon_1",
           price_id: "price_credits",
@@ -301,6 +308,29 @@ describe("stripeClient", () => {
         }),
       }),
       expect.anything(),
+    );
+  });
+
+  it("enables automatic tax when updating subscription item quantity", async () => {
+    stripeSubscriptionsUpdateMock.mockResolvedValue({ id: "sub_1" });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.updateSubscriptionItemQuantity("sub_1", "si_1", 3);
+
+    expect(stripeSubscriptionsUpdateMock).toHaveBeenCalledWith(
+      "sub_1",
+      expect.objectContaining({
+        automatic_tax: { enabled: true },
+        items: [
+          {
+            id: "si_1",
+            quantity: 3,
+          },
+        ],
+        payment_behavior: "error_if_incomplete",
+        proration_behavior: "always_invoice",
+      }),
+      undefined,
     );
   });
 
@@ -378,6 +408,7 @@ describe("stripeClient", () => {
 
     expect(stripeCheckoutSessionsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        automatic_tax: { enabled: true },
         success_url:
           "https://app.sokosumi.test/billing?tab=credits&session_id={CHECKOUT_SESSION_ID}",
         cancel_url: "https://app.sokosumi.test/billing?tab=credits&cancel=true",
@@ -447,7 +478,14 @@ describe("stripeClient.createAdminInvoice", () => {
     // (it would compute against €0); it belongs on the product-priced line item
     // so a product-scoped coupon applies.
     expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(
-      expect.not.objectContaining({ discounts: expect.anything() }),
+      expect.objectContaining({
+        automatic_tax: { enabled: true },
+      }),
+    );
+    expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        discounts: expect.anything(),
+      }),
     );
     expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
