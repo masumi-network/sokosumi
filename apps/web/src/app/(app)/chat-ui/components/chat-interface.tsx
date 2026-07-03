@@ -900,6 +900,10 @@ export default function ChatInterface({
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
 
+        if (welcomeCreationInFlightRef.current) {
+          welcomeCreationInFlightRef.current = false;
+        }
+
         const isCoworkerThread =
           (
             conversations.find((c) => c.id === conversationId)?.metadata as
@@ -1534,13 +1538,41 @@ export default function ChatInterface({
 
   useEffect(() => {
     if (!welcomeCreationInFlightRef.current || !selectedChatId) return;
+
+    const pendingWelcome = pendingWelcomeSendRef.current;
+    if (pendingWelcome?.conversationId === selectedChatId) {
+      return;
+    }
+    if (pendingUrlConversationIdRef.current === selectedChatId) {
+      return;
+    }
+
     const slot = conversationToSlot.get(selectedChatId);
-    if (slot === undefined) return;
+    if (slot === undefined) {
+      return;
+    }
+
     const status = slotStatuses[slot];
-    if (status === "submitted" || status === "streaming") {
+    if (
+      status === "submitted" ||
+      status === "streaming" ||
+      status === "error"
+    ) {
+      welcomeCreationInFlightRef.current = false;
+      return;
+    }
+
+    const messages = slotMessages[slot] as UIMessage[] | undefined;
+    if (status === "ready" && (messages?.length ?? 0) > 0) {
       welcomeCreationInFlightRef.current = false;
     }
-  }, [selectedChatId, conversationToSlot, slotStatuses]);
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotStatuses,
+    slotMessagesSignature,
+    welcomeSendRetryTick,
+  ]);
 
   const { cacheMessages: _cacheMessages, clearMessages: _clearMessages } =
     useChatMessages({
