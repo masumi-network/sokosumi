@@ -1263,6 +1263,7 @@
         "sidebarNew": "新建",
         "noChats": "暂无聊天",
         "noCoworkersAvailable": "暂无可用协作伙伴。请稍后重试。",
+        "welcomeSendFailed": "无法发送您的消息。请重试。",
         "emptyState": {
           "title": "开始对话",
           "titleWithName": "与 {name} 开始对话",

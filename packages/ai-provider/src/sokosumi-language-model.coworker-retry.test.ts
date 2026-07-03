@@ -1,7 +1,44 @@
 import { InvalidPromptError } from "@ai-sdk/provider";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { COWORKER_AGENT_ERROR_SNIPPET } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
+
+async function collectStreamText(
+  stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV3StreamPart>,
+): Promise<string> {
+  const reader = stream.getReader();
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (value.type === "text-delta") {
+      text += value.delta;
+    }
+  }
+  return text;
+}
+
+function coworkerSseResponse(delta: string): Response {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: {"type":"response.output_text.delta","delta":${JSON.stringify(delta)}}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    },
+  );
+}
 
 describe("SokosumiLanguageModel coworker Conversations mode", () => {
   const originalFetch = globalThis.fetch;
@@ -264,5 +301,153 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
     expect(onInvalidProviderConversationId).toHaveBeenCalledOnce();
     const reader = stream.getReader();
     await reader.cancel();
+  });
+
+  it("retries conversation-mode streams that return Elena agent error text", async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn(async () => {
+      call++;
+      const delta =
+        call === 1
+          ? `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`
+          : "This is a complete coworker reply with enough text.";
+      return coworkerSseResponse(delta);
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    const { stream } = await model.doStream({
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+      ],
+      providerOptions: {
+        sokosumi: {
+          mode: "coworker",
+          coworkerBaseUrl: "https://cow.example/api",
+          coworkerSlug: "agent",
+          sokosumiUserId: "user-1",
+          providerConversationId: "conv_new",
+        },
+      },
+    });
+
+    const text = await collectStreamText(stream);
+    expect(call).toBe(2);
+    expect(text).toBe("This is a complete coworker reply with enough text.");
+  });
+
+  it("retries conversation-mode streams that return suspiciously short text", async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn(async () => {
+      call++;
+      const delta =
+        call === 1
+          ? "Done"
+          : "This is a complete coworker reply with enough text.";
+      return coworkerSseResponse(delta);
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    const { stream } = await model.doStream({
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+      ],
+      providerOptions: {
+        sokosumi: {
+          mode: "coworker",
+          coworkerBaseUrl: "https://cow.example/api",
+          coworkerSlug: "agent",
+          sokosumiUserId: "user-1",
+          providerConversationId: "conv_new",
+        },
+      },
+    });
+
+    const text = await collectStreamText(stream);
+    expect(call).toBe(2);
+    expect(text).toBe("This is a complete coworker reply with enough text.");
+  });
+
+  it("does not retry previous_response_id-only coworker streams", async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn(async () => {
+      call++;
+      return coworkerSseResponse(
+        `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`,
+      );
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    const { stream } = await model.doStream({
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+      ],
+      providerOptions: {
+        sokosumi: {
+          mode: "coworker",
+          coworkerBaseUrl: "https://cow.example/api",
+          coworkerSlug: "agent",
+          sokosumiUserId: "user-1",
+          previousResponseId: "resp_only",
+        },
+      },
+    });
+
+    expect(call).toBe(1);
+    const text = await collectStreamText(stream);
+    expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
+  });
+
+  it("streams good conversation output without duplicate POSTs", async () => {
+    let call = 0;
+    globalThis.fetch = vi.fn(async () => {
+      call++;
+      return coworkerSseResponse(
+        "This is a complete coworker reply with enough text.",
+      );
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    const { stream } = await model.doStream({
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Hello" }],
+        },
+      ],
+      providerOptions: {
+        sokosumi: {
+          mode: "coworker",
+          coworkerBaseUrl: "https://cow.example/api",
+          coworkerSlug: "agent",
+          sokosumiUserId: "user-1",
+          providerConversationId: "conv_new",
+        },
+      },
+    });
+
+    expect(call).toBe(1);
+    const text = await collectStreamText(stream);
+    expect(text).toBe("This is a complete coworker reply with enough text.");
   });
 });

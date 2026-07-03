@@ -1274,6 +1274,7 @@
         "sidebarNew": "New",
         "noChats": "No chats yet",
         "noCoworkersAvailable": "No coworkers available. Please try again later.",
+        "welcomeSendFailed": "Your message could not be sent. Please try again.",
         "emptyState": {
           "title": "Start a conversation",
           "titleWithName": "Start a conversation with {name}",

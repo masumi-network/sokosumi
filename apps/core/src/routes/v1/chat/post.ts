@@ -944,10 +944,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               "Something went wrong while processing your task",
             );
             if (useCoworker && looksLikeAgentError) {
-              await clearCoworkerResponseChain({
-                conversationId: internalConversationId,
-                userId: userContext.userId,
-              });
+              try {
+                await clearCoworkerResponseChain({
+                  conversationId: internalConversationId,
+                  userId: userContext.userId,
+                });
+              } catch (clearError) {
+                console.error(
+                  "Failed to clear coworker response chain (POST /chat):",
+                  clearError,
+                );
+              }
             }
           } catch (error) {
             console.error(
