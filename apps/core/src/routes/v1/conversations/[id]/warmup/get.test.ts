@@ -124,10 +124,8 @@ describe("GET /conversations/{id}/warmup", () => {
     });
   });
 
-  it("returns 403 when the conversation belongs to another user", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce(
-      conversation({ coworker_slug: "elena" }),
-    );
+  it("returns 404 when the conversation belongs to another user", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce(null);
 
     const response = await createApp({
       actor: "user",
@@ -136,7 +134,7 @@ describe("GET /conversations/{id}/warmup", () => {
       role: "user",
     }).request(`http://localhost/${cid}/warmup`);
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 
   it("returns 404 when the conversation is not a coworker conversation", async () => {

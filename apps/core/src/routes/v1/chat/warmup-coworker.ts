@@ -246,7 +246,6 @@ async function runWarmupAttempt(
   userId: string,
   organizationId: string | null,
   coworkerSlug: string,
-  providerConversationId: string,
 ): Promise<{ succeeded: boolean; retryable: boolean }> {
   const base = responsesApiBaseUrl.replace(/\/$/, "");
   const url = `${base}/responses`;
@@ -267,7 +266,6 @@ async function runWarmupAttempt(
       body: JSON.stringify({
         input: [WARMUP_INPUT_MESSAGE],
         stream: true,
-        conversation: providerConversationId,
       }),
       signal: AbortSignal.timeout(WARMUP_ATTEMPT_TIMEOUT_MS),
     });
@@ -284,7 +282,14 @@ async function runWarmupAttempt(
     };
   }
 
-  const sseBody = await consumeResponseBody(response);
+  let sseBody: string;
+  try {
+    sseBody = await consumeResponseBody(response);
+  } catch (error) {
+    console.error("[warmup] Warmup body read failed:", error);
+    return { succeeded: false, retryable: true };
+  }
+
   if (warmupAttemptSucceeded(sseBody)) {
     return { succeeded: true, retryable: false };
   }
@@ -296,26 +301,6 @@ export async function warmupCoworkerConversation(
   options: WarmupCoworkerConversationOptions,
 ): Promise<void> {
   try {
-    const conversation = await prisma.conversation.findFirst({
-      where: {
-        id: options.internalConversationId,
-        userId: options.userId,
-      },
-      select: { providerConversationId: true },
-    });
-    const providerConversationId =
-      conversation?.providerConversationId?.trim() ?? null;
-    if (!providerConversationId) {
-      await setCoworkerReadyState(
-        options.internalConversationId,
-        options.userId,
-        "failed",
-        new Date().toISOString(),
-        0,
-      );
-      return;
-    }
-
     await setCoworkerReadyState(
       options.internalConversationId,
       options.userId,
@@ -334,7 +319,6 @@ export async function warmupCoworkerConversation(
         options.userId,
         options.organizationId,
         options.coworkerSlug,
-        providerConversationId,
       );
 
       if (result.succeeded) {

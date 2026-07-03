@@ -51,8 +51,6 @@ const DEFAULT_OPTIONS = {
   responsesApiBaseUrl: "https://api.coworker.example.com/v1",
 };
 
-const DEFAULT_PROVIDER_CONVERSATION_ID = "conv_remote_warmup";
-
 function goodSseBody(text: string): string {
   return `data: {"type":"response.output_text.delta","delta":"${text}"}\n\n`;
 }
@@ -81,9 +79,6 @@ describe("warmup-coworker", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockReset();
-    conversationFindFirstMock.mockResolvedValue({
-      providerConversationId: DEFAULT_PROVIDER_CONVERSATION_ID,
-    });
     mockConversationMetadata({ coworker: "Elena" });
     transactionMock.mockImplementation(async (callback) =>
       callback({
@@ -120,7 +115,6 @@ describe("warmup-coworker", () => {
     expect(JSON.parse(String(fetchInit.body))).toEqual({
       input: expect.any(Array),
       stream: true,
-      conversation: DEFAULT_PROVIDER_CONVERSATION_ID,
     });
     expect(redisSetMock).toHaveBeenCalledWith(
       coworkerReadyRedisKey(DEFAULT_OPTIONS.internalConversationId),
@@ -215,17 +209,49 @@ describe("warmup-coworker", () => {
     );
   });
 
-  it("marks failed when provider conversation id is missing", async () => {
-    conversationFindFirstMock.mockResolvedValueOnce({
-      providerConversationId: null,
-    });
+  it("does not attach warmup traffic to a provider conversation", async () => {
+    fetchMock.mockResolvedValueOnce(
+      sseResponse(
+        goodSseBody(
+          "Warmup succeeds without polluting user conversation history.",
+        ),
+      ),
+    );
 
     await warmupCoworkerConversation(DEFAULT_OPTIONS);
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(fetchInit.body))).not.toHaveProperty(
+      "conversation",
+    );
     expect(redisSetMock).toHaveBeenCalledWith(
       coworkerReadyRedisKey(DEFAULT_OPTIONS.internalConversationId),
-      "failed",
+      "ready",
+      "EX",
+      120,
+    );
+  });
+
+  it("retries after the SSE body read fails", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockRejectedValue(new Error("Body read timed out")),
+      } as unknown as Response)
+      .mockResolvedValueOnce(
+        sseResponse(
+          goodSseBody("Recovered after body read failure with enough text."),
+        ),
+      );
+
+    await warmupCoworkerConversation(DEFAULT_OPTIONS);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(redisSetMock).toHaveBeenCalledWith(
+      coworkerReadyRedisKey(DEFAULT_OPTIONS.internalConversationId),
+      "ready",
       "EX",
       120,
     );
