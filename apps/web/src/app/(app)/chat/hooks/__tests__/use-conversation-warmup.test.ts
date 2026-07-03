@@ -72,7 +72,7 @@ describe("useConversationWarmup", () => {
     expect(getConversationWarmupMock).not.toHaveBeenCalled();
   });
 
-  it("sets isWarmupPending while state is pending", async () => {
+  it("sets warmupPending while state is pending", async () => {
     getConversationWarmupMock.mockResolvedValue(pendingWarmupResponse());
 
     const { result } = renderHook(() =>
@@ -88,7 +88,8 @@ describe("useConversationWarmup", () => {
       });
     });
     await waitFor(() => {
-      expect(result.current.isWarmupPending).toBe(true);
+      expect(result.current.warmupPending).toBe(true);
+      expect(result.current.warmupFailed).toBe(false);
       expect(result.current.warmupState).toBe("pending");
     });
   });
@@ -104,7 +105,8 @@ describe("useConversationWarmup", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.isWarmupPending).toBe(false);
+      expect(result.current.warmupPending).toBe(false);
+      expect(result.current.warmupFailed).toBe(false);
       expect(result.current.warmupState).toBe("ready");
     });
   });
@@ -120,12 +122,47 @@ describe("useConversationWarmup", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.isWarmupPending).toBe(false);
+      expect(result.current.warmupPending).toBe(false);
+      expect(result.current.warmupFailed).toBe(true);
       expect(result.current.warmupState).toBe("failed");
     });
   });
 
+  it("polls pending state every two seconds", async () => {
+    vi.useFakeTimers();
+    getConversationWarmupMock.mockResolvedValue(pendingWarmupResponse());
+
+    const { result } = renderHook(() =>
+      useConversationWarmup({
+        conversationId: CONV_ID,
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.warmupPending).toBe(true);
+    expect(getConversationWarmupMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1999);
+    });
+    expect(getConversationWarmupMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(getConversationWarmupMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(getConversationWarmupMock).toHaveBeenCalledTimes(3);
+  });
+
   it("clears pending after timeout while still pending", async () => {
+    vi.useFakeTimers();
     (
       globalThis as { __SOKOSUMI_TEST_POLL_TIMEOUT_MS?: number }
     ).__SOKOSUMI_TEST_POLL_TIMEOUT_MS = 250;
@@ -138,15 +175,22 @@ describe("useConversationWarmup", () => {
       }),
     );
 
-    await waitFor(() => {
-      expect(getConversationWarmupMock).toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
     });
-    await waitFor(
-      () => {
-        expect(result.current.isWarmupPending).toBe(false);
-      },
-      { timeout: 3000 },
-    );
+    expect(getConversationWarmupMock).toHaveBeenCalledTimes(1);
+    expect(result.current.warmupPending).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(249);
+    });
+    expect(result.current.warmupPending).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(result.current.warmupPending).toBe(false);
+    expect(result.current.warmupFailed).toBe(true);
   });
 
   it("does not block on fetch error", async () => {
@@ -162,7 +206,8 @@ describe("useConversationWarmup", () => {
     await waitFor(() => {
       expect(getConversationWarmupMock).toHaveBeenCalled();
     });
-    expect(result.current.isWarmupPending).toBe(false);
+    expect(result.current.warmupPending).toBe(false);
+    expect(result.current.warmupFailed).toBe(false);
   });
 
   it("does not block on action error result", async () => {
@@ -181,7 +226,8 @@ describe("useConversationWarmup", () => {
     await waitFor(() => {
       expect(getConversationWarmupMock).toHaveBeenCalled();
     });
-    expect(result.current.isWarmupPending).toBe(false);
+    expect(result.current.warmupPending).toBe(false);
+    expect(result.current.warmupFailed).toBe(false);
   });
 
   it("does not throw when unmounted mid-poll", async () => {

@@ -5,7 +5,8 @@ import type { ConversationWarmupData } from "@/lib/actions/conversation/core-api
 import { getConversationWarmup } from "@/lib/actions/conversation/core-api-actions";
 
 const DEFAULT_POLL_TIMEOUT_MS = 30_000;
-const INITIAL_BACKOFF_MS = 2000;
+const POLL_INTERVAL_MS = 2000;
+const INITIAL_BACKOFF_MS = POLL_INTERVAL_MS;
 const MAX_BACKOFF_MS = 5000;
 
 const CONVERSATION_UUID_RE =
@@ -41,7 +42,8 @@ export interface UseConversationWarmupParams {
 
 export interface UseConversationWarmupResult {
   warmupState: ConversationWarmupData["state"] | null;
-  isWarmupPending: boolean;
+  warmupPending: boolean;
+  warmupFailed: boolean;
 }
 
 export function useConversationWarmup({
@@ -51,13 +53,15 @@ export function useConversationWarmup({
   const [warmupState, setWarmupState] = useState<
     ConversationWarmupData["state"] | null
   >(null);
-  const [isWarmupPending, setIsWarmupPending] = useState(false);
+  const [warmupPending, setWarmupPending] = useState(false);
+  const [warmupFailed, setWarmupFailed] = useState(false);
   const pollGenerationRef = useRef(0);
 
   useEffect(() => {
     if (!enabled || !conversationId || !isConversationUuid(conversationId)) {
       setWarmupState(null);
-      setIsWarmupPending(false);
+      setWarmupPending(false);
+      setWarmupFailed(false);
       return;
     }
 
@@ -74,24 +78,27 @@ export function useConversationWarmup({
 
       while (true) {
         if (isStale()) {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
           return;
         }
 
         if (Date.now() - pollStartedAt >= pollTimeoutMs) {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
+          setWarmupFailed(true);
           return;
         }
 
         let fetchResult: unknown;
+        let shouldBackoff = false;
         try {
           fetchResult = await getConversationWarmup({ conversationId });
         } catch {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
+          shouldBackoff = true;
         }
 
         if (isStale()) {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
           return;
         }
 
@@ -100,39 +107,49 @@ export function useConversationWarmup({
           setWarmupState(state);
 
           if (state === "ready" || state === "failed") {
-            setIsWarmupPending(false);
+            setWarmupPending(false);
+            setWarmupFailed(state === "failed");
             return;
           }
 
           if (state === "pending") {
-            setIsWarmupPending(true);
+            setWarmupPending(true);
+            setWarmupFailed(false);
+            backoffMs = INITIAL_BACKOFF_MS;
           }
         } else {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
+          shouldBackoff = true;
         }
 
         const remaining = pollTimeoutMs - (Date.now() - pollStartedAt);
         if (remaining <= 0) {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
+          setWarmupFailed(true);
           return;
         }
 
-        const sleep = Math.min(backoffMs, Math.max(0, remaining));
+        const sleep = Math.min(
+          shouldBackoff ? backoffMs : POLL_INTERVAL_MS,
+          Math.max(0, remaining),
+        );
         await new Promise((r) => setTimeout(r, sleep));
         if (isStale()) {
-          setIsWarmupPending(false);
+          setWarmupPending(false);
           return;
         }
 
-        backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+        if (shouldBackoff) {
+          backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+        }
       }
     })();
 
     return () => {
       pollGenerationRef.current += 1;
-      setIsWarmupPending(false);
+      setWarmupPending(false);
     };
   }, [conversationId, enabled]);
 
-  return { warmupState, isWarmupPending };
+  return { warmupState, warmupPending, warmupFailed };
 }

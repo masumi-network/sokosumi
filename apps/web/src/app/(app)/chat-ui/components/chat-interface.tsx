@@ -1609,7 +1609,7 @@ export default function ChatInterface({
     [displayedMessages],
   );
 
-  const { isWarmupPending } = useConversationWarmup({
+  const { warmupPending } = useConversationWarmup({
     conversationId: selectedChatId,
     enabled: Boolean(
       selectedChatId && isSelectedChatCoworker && isCoworkerFirstTurn,
@@ -2077,7 +2077,7 @@ export default function ChatInterface({
                     onResendLastMessage={handleResendLastMessage}
                     userTailRecoveryFailed={userTailRecoveryFailed}
                     listRevision={messageListRevision}
-                    warmupPending={isWarmupPending}
+                    warmupPending={warmupPending}
                     warmupCoworkerName={selectedChatCoworker?.name}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
@@ -2116,7 +2116,7 @@ export default function ChatInterface({
                   persistentImageGeneration={
                     selectedConversationImageGeneration
                   }
-                  submitBlocked={isWarmupPending}
+                  submitBlocked={warmupPending}
                 />
               </>
             ) : null}
