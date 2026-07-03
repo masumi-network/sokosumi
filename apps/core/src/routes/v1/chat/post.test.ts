@@ -2295,5 +2295,57 @@ describe("POST /chat", () => {
       expect(clearPendingResponseMirrorMock).not.toHaveBeenCalled();
       expect(clearPendingResponseIdMock).not.toHaveBeenCalled();
     });
+
+    it("releases the stream lock when setup fails after the lock is acquired", async () => {
+      const cid = setupCoworkerChatConversation();
+      streamTextMock.mockImplementationOnce(() => {
+        throw new Error("stream setup failed");
+      });
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(500);
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        cid,
+        "instance-test:lock-token",
+      );
+      expect(toUIMessageStreamResponseMock).not.toHaveBeenCalled();
+    });
+
+    it("releases the stream lock when the UI stream errors before finish", async () => {
+      const cid = setupCoworkerChatConversation();
+
+      const app = createApp();
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
+        onError?: (error: unknown) => string;
+      };
+      init.onError?.(new Error("upstream stream failed"));
+      expect(waitUntilCapturedPromises).toHaveLength(1);
+      await waitUntilCapturedPromises[0]!;
+      expect(releaseStreamLockMock).toHaveBeenCalledWith(
+        cid,
+        "instance-test:lock-token",
+      );
+    });
   });
 });

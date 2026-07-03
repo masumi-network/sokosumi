@@ -523,6 +523,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let logSelectedModel: string | null = null;
     let logImageGenerationModel: string | null = null;
     let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null = null;
+    const finalizeCoworkerStreamLock = () => {
+      const release = releaseOwnedCoworkerStreamLock;
+      if (!release) {
+        return;
+      }
+      releaseOwnedCoworkerStreamLock = null;
+      waitUntil(release());
+    };
     try {
       const userContext = requireUserContext(c.var.authContext);
 
@@ -1079,12 +1087,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const enableResumableUiStream =
         Boolean(internalConversationId) && isUiStreamResumptionConfigured();
 
-      const finalizeCoworkerStreamLock = () => {
-        if (!releaseOwnedCoworkerStreamLock) {
-          return;
-        }
-        waitUntil(releaseOwnedCoworkerStreamLock());
-      };
+      const coworkerStreamResponseOptions = releaseOwnedCoworkerStreamLock
+        ? {
+            onError: () => {
+              finalizeCoworkerStreamLock();
+              return "An error occurred.";
+            },
+          }
+        : {};
 
       return result.toUIMessageStreamResponse({
         originalMessages: uiMessages,
@@ -1096,6 +1106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? { "x-sokosumi-conversation-id": internalConversationId }
             : {}),
         },
+        ...coworkerStreamResponseOptions,
         ...(enableResumableUiStream && internalConversationId
           ? {
               consumeSseStream: async ({ stream }) => {
@@ -1161,6 +1172,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : {}),
       });
     } catch (error) {
+      if (releaseOwnedCoworkerStreamLock) {
+        const release = releaseOwnedCoworkerStreamLock;
+        releaseOwnedCoworkerStreamLock = null;
+        try {
+          await release();
+        } catch (releaseError) {
+          console.error(
+            "Failed to release coworker stream lock (POST /chat):",
+            releaseError,
+          );
+        }
+      }
       if (logImageGenerationRequest) {
         console.error("Failed to stream OpenRouter image generation chat", {
           conversationId: logConversationId,
@@ -1168,16 +1191,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           imageGenerationModel: logImageGenerationModel,
           error,
         });
-      }
-      if (releaseOwnedCoworkerStreamLock) {
-        try {
-          await releaseOwnedCoworkerStreamLock();
-        } catch (releaseError) {
-          console.error(
-            "Failed to release coworker stream lock after chat setup error:",
-            releaseError,
-          );
-        }
       }
       if (
         error &&

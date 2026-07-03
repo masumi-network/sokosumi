@@ -283,7 +283,7 @@ describe("warmup-coworker", () => {
     );
   });
 
-  it("reads Redis state before metadata", async () => {
+  it("prefers terminal metadata over stale Redis ready", async () => {
     redisGetMock.mockResolvedValueOnce("ready");
 
     const result = await readCoworkerReadyState(
@@ -291,13 +291,34 @@ describe("warmup-coworker", () => {
       {
         warmup_state: "failed",
         warmup_completed_at: "2025-01-01T00:00:00.000Z",
+        warmup_attempts: 5,
+      },
+    );
+
+    expect(result).toEqual({
+      state: "failed",
+      completedAt: "2025-01-01T00:00:00.000Z",
+      attempts: 5,
+      source: "metadata",
+    });
+  });
+
+  it("reads matching Redis state before metadata", async () => {
+    redisGetMock.mockResolvedValueOnce("ready");
+
+    const result = await readCoworkerReadyState(
+      DEFAULT_OPTIONS.internalConversationId,
+      {
+        warmup_state: "ready",
+        warmup_completed_at: "2025-01-01T00:00:00.000Z",
+        warmup_attempts: 2,
       },
     );
 
     expect(result).toEqual({
       state: "ready",
       completedAt: "2025-01-01T00:00:00.000Z",
-      attempts: null,
+      attempts: 2,
       source: "redis",
     });
   });

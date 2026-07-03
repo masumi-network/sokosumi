@@ -192,8 +192,8 @@ export async function readCoworkerReadyState(
   const redisState = await readRedisWarmupState(internalConversationId);
   if (redisState) {
     if (
-      redisState === "pending" &&
-      isTerminalWarmupState(metadataState.state)
+      isTerminalWarmupState(metadataState.state) &&
+      redisState !== metadataState.state
     ) {
       return {
         state: metadataState.state,
