@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import {
   chatModelSupportsWebSearch,
   getChatModelImageGenerationOpenRouterId,
@@ -891,6 +892,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (!internalConversationId) {
             return;
           }
+          const shouldClearCoworkerChain =
+            useCoworker && coworkerTextLooksLikeAgentError(finishEvent.text);
           try {
             const hasReasoning =
               Array.isArray(finishEvent.reasoning) &&
@@ -940,10 +943,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               thoughtTiming,
               uiParts: preparedAssistantMessage.uiParts,
             });
-            const looksLikeAgentError = finishEvent.text.includes(
-              "Something went wrong while processing your task",
+          } catch (error) {
+            console.error(
+              "Failed to persist assistant message (POST /chat):",
+              error,
             );
-            if (useCoworker && looksLikeAgentError) {
+          } finally {
+            if (shouldClearCoworkerChain) {
               try {
                 await clearCoworkerResponseChain({
                   conversationId: internalConversationId,
@@ -956,11 +962,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 );
               }
             }
-          } catch (error) {
-            console.error(
-              "Failed to persist assistant message (POST /chat):",
-              error,
-            );
           }
         },
       });

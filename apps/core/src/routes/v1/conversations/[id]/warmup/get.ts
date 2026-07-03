@@ -101,8 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const metadata =
         (conversation.metadata as Record<string, unknown> | null) ?? null;
       const readyState = await readCoworkerReadyState(id, metadata);
-      const state =
-        readyState.state === "unknown" ? "pending" : readyState.state;
+      const state = readyState.state === "unknown" ? "ready" : readyState.state;
 
       return ok(
         c,

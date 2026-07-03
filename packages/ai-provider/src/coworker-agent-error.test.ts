@@ -1,12 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  COWORKER_AGENT_ERROR_MARKER,
   COWORKER_AGENT_ERROR_SNIPPET,
   coworkerSseBodyExtractOutputText,
   coworkerSseBodyLooksLikeAgentError,
   coworkerSseBodyLooksSuspiciouslyShort,
+  coworkerTextLooksLikeAgentError,
 } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
+
+describe("coworkerTextLooksLikeAgentError", () => {
+  it("detects Elena agent error text and AGENT_ERROR markers", () => {
+    expect(
+      coworkerTextLooksLikeAgentError(
+        `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`,
+      ),
+    ).toBe(true);
+    expect(coworkerTextLooksLikeAgentError(COWORKER_AGENT_ERROR_MARKER)).toBe(
+      true,
+    );
+    expect(coworkerTextLooksLikeAgentError("Hello there")).toBe(false);
+  });
+});
 
 describe("coworkerSseBodyLooksLikeAgentError", () => {
   it("detects Elena agent error text in SSE bodies", () => {

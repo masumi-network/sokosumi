@@ -172,7 +172,7 @@ describe("GET /conversations/{id}/warmup", () => {
     expect(body.data.attempts).toBe(2);
   });
 
-  it("returns pending when warmup state has not been persisted yet", async () => {
+  it("returns ready when warmup state has not been persisted yet", async () => {
     conversationFindFirstMock.mockResolvedValueOnce(
       conversation({ coworker_slug: "elena" }),
     );
@@ -191,7 +191,7 @@ describe("GET /conversations/{id}/warmup", () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
       conversationId: cid,
-      state: "pending",
+      state: "ready",
       completedAt: null,
       attempts: null,
       source: "none",

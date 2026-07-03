@@ -123,6 +123,16 @@ function hasSendMessageContent(message: ChatComposeMessage): boolean {
     : hasMessageTextOrFileParts(message);
 }
 
+function isPendingWelcomeSendForConversation(
+  pending: { conversationId: string } | null,
+  conversationId: string | null,
+): boolean {
+  return (
+    pending != null &&
+    (conversationId == null || pending.conversationId === conversationId)
+  );
+}
+
 function toChatSendMessage(message: ChatComposeMessage): ChatSendMessage {
   if (typeof message === "string") {
     return { text: message.trim() } as ChatSendMessage;
@@ -1422,11 +1432,9 @@ export default function ChatInterface({
         Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
   );
 
+  const refetchedForEmptyAssistantRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedChatId || isSelectedChatLoading) {
-      return;
-    }
-    if (!isSelectedChatCoworker) {
       return;
     }
     const slot = conversationToSlot.get(selectedChatId);
@@ -1438,26 +1446,36 @@ export default function ChatInterface({
     const emptyAssistantEnd =
       last?.role === "assistant" && lastContent === "" && msgs.length > 0;
     if (!emptyAssistantEnd) {
+      refetchedForEmptyAssistantRef.current = null;
       return;
     }
-    void syncCoworkerSlotFromDbWithRetry({
-      conversationId: selectedChatId,
-      slotMessages: msgs,
-      getLiveSlotMessages: () =>
-        getLiveSlotMessagesForConversationRef.current(selectedChatId),
-      onApply: (dbMessages) => {
-        setMessagesForConversation(selectedChatId, dbMessages, {
-          forceFromDb: true,
-        });
-        chatMessagesRef.current.set(selectedChatId, dbMessages);
-      },
-    });
+    if (refetchedForEmptyAssistantRef.current === selectedChatId) return;
+    refetchedForEmptyAssistantRef.current = selectedChatId;
+
+    if (isSelectedChatCoworker) {
+      void syncCoworkerSlotFromDbWithRetry({
+        conversationId: selectedChatId,
+        slotMessages: msgs,
+        getLiveSlotMessages: () =>
+          getLiveSlotMessagesForConversationRef.current(selectedChatId),
+        onApply: (dbMessages) => {
+          setMessagesForConversation(selectedChatId, dbMessages, {
+            forceFromDb: true,
+          });
+          chatMessagesRef.current.set(selectedChatId, dbMessages);
+        },
+      });
+      return;
+    }
+
+    void selectConversation(selectedChatId);
   }, [
     selectedChatId,
     conversationToSlot,
     slotMessages,
     isSelectedChatLoading,
     isSelectedChatCoworker,
+    selectConversation,
     setMessagesForConversation,
   ]);
 
@@ -1796,6 +1814,10 @@ export default function ChatInterface({
       if (
         !hasSendMessageContent(message) ||
         isLoading ||
+        isPendingWelcomeSendForConversation(
+          pendingWelcomeSendRef.current,
+          selectedChatId,
+        ) ||
         (!selectedChatId &&
           (welcomeCreationInFlightRef.current || isWelcomeTransitioning))
       ) {
@@ -1950,6 +1972,11 @@ export default function ChatInterface({
     (message?: ChatSendMessage) => {
       const cid = selectedChatId ?? currentChatIdRef.current;
       if (!cid) return Promise.resolve();
+      if (
+        isPendingWelcomeSendForConversation(pendingWelcomeSendRef.current, cid)
+      ) {
+        return Promise.resolve();
+      }
       if (message && hasSendMessageContent(message)) {
         sendInConversation(cid, message);
       }
@@ -1995,6 +2022,11 @@ export default function ChatInterface({
       );
     },
     [selectedChatId, sendInConversation, refreshConversations],
+  );
+
+  const isPendingWelcomeSendBlocked = isPendingWelcomeSendForConversation(
+    pendingWelcomeSendRef.current,
+    selectedChatId,
   );
 
   const selectedChat = chats.find((c) => c.id === selectedChatId);
@@ -2116,7 +2148,7 @@ export default function ChatInterface({
                   persistentImageGeneration={
                     selectedConversationImageGeneration
                   }
-                  submitBlocked={warmupPending}
+                  submitBlocked={warmupPending || isPendingWelcomeSendBlocked}
                 />
               </>
             ) : null}
