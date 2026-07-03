@@ -757,10 +757,10 @@ async function main() {
     console.error(`Wrote report to ${out}`);
   }
 
-  process.exit(exitCode);
+  process.exitCode = exitCode;
 }
 
 main().catch((err) => {
   console.error("Fatal error:", err);
-  process.exit(1);
+  process.exitCode = 1;
 });
