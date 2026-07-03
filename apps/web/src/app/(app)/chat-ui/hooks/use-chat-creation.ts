@@ -40,6 +40,7 @@ interface UseChatCreationProps {
     conversation: Conversation,
     slug: string,
   ) => void | Promise<void>;
+  isRouteDriven?: boolean;
 }
 
 /**
@@ -62,6 +63,7 @@ export function useChatCreation({
   chats,
   conversations,
   navigateToConversation,
+  isRouteDriven = true,
 }: UseChatCreationProps) {
   const router = useRouter();
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
@@ -117,15 +119,17 @@ export function useChatCreation({
       currentChatIdRef.current = conversation.id;
       selectedModelRef.current = model;
       setSelectedModel(model);
-      pendingUrlConversationIdRef.current = conversation.id;
-      isUpdatingUrlRef.current = true;
-      try {
-        sessionStorage.setItem(
-          getPendingConversationStorageKey(),
-          conversation.id,
-        );
-      } catch {
-        // ignore
+      if (isRouteDriven) {
+        pendingUrlConversationIdRef.current = conversation.id;
+        isUpdatingUrlRef.current = true;
+        try {
+          sessionStorage.setItem(
+            getPendingConversationStorageKey(),
+            conversation.id,
+          );
+        } catch {
+          // ignore
+        }
       }
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
@@ -164,6 +168,7 @@ export function useChatCreation({
       selectedModelRef,
       isUpdatingUrlRef,
       pendingUrlConversationIdRef,
+      isRouteDriven,
     ],
   );
 
@@ -213,15 +218,17 @@ export function useChatCreation({
 
       setSelectedChatId(conversation.id);
       currentChatIdRef.current = conversation.id;
-      pendingUrlConversationIdRef.current = conversation.id;
-      isUpdatingUrlRef.current = true;
-      try {
-        sessionStorage.setItem(
-          getPendingConversationStorageKey(),
-          conversation.id,
-        );
-      } catch {
-        // ignore
+      if (isRouteDriven) {
+        pendingUrlConversationIdRef.current = conversation.id;
+        isUpdatingUrlRef.current = true;
+        try {
+          sessionStorage.setItem(
+            getPendingConversationStorageKey(),
+            conversation.id,
+          );
+        } catch {
+          // ignore
+        }
       }
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
@@ -262,6 +269,7 @@ export function useChatCreation({
       selectedModelRef,
       isUpdatingUrlRef,
       pendingUrlConversationIdRef,
+      isRouteDriven,
     ],
   );
 

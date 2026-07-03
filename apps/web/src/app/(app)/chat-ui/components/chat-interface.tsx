@@ -505,6 +505,9 @@ export default function ChatInterface({
     setSelectedChatId(controlledConversationId);
 
     if (controlledConversationId !== null) {
+      if (pendingUrlConversationIdRef.current === controlledConversationId) {
+        pendingUrlConversationIdRef.current = null;
+      }
       previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
@@ -1550,6 +1553,7 @@ export default function ChatInterface({
       streamingConversationIdsRef,
       welcomeCreationInFlightRef,
       pendingUrlConversationIdRef,
+      isRouteDriven,
     });
 
   const { userTailRecoveryLoading, userTailRecoveryFailed } =
@@ -1593,6 +1597,7 @@ export default function ChatInterface({
     pendingUrlConversationIdRef,
     chats,
     conversations,
+    isRouteDriven,
     navigateToConversation: isRouteDriven
       ? undefined
       : async (conversation: Conversation) => {

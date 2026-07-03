@@ -20,6 +20,7 @@ interface UseChatMessagesProps {
   streamingConversationIdsRef?: React.MutableRefObject<Set<string>>;
   welcomeCreationInFlightRef?: React.MutableRefObject<boolean>;
   pendingUrlConversationIdRef?: React.MutableRefObject<string | null>;
+  isRouteDriven?: boolean;
 }
 
 type SerializedConversationMessagesResult =
@@ -89,6 +90,7 @@ export function useChatMessages({
   streamingConversationIdsRef,
   welcomeCreationInFlightRef,
   pendingUrlConversationIdRef,
+  isRouteDriven = true,
 }: UseChatMessagesProps) {
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -129,7 +131,8 @@ export function useChatMessages({
           cachedMessages !== undefined && cachedMessages.length > 0;
         const isDeferredLoad =
           welcomeCreationInFlightRef?.current ||
-          pendingUrlConversationIdRef?.current === currentSelectedChatId;
+          (isRouteDriven &&
+            pendingUrlConversationIdRef?.current === currentSelectedChatId);
 
         if (hasCachedMessages) {
           messagesChatIdRef.current = currentSelectedChatId;
@@ -155,7 +158,8 @@ export function useChatMessages({
         const { forceRefresh = false, retryAttempt = 0 } = options;
         const isDeferredLoad =
           welcomeCreationInFlightRef?.current ||
-          pendingUrlConversationIdRef?.current === currentSelectedChatId;
+          (isRouteDriven &&
+            pendingUrlConversationIdRef?.current === currentSelectedChatId);
         if (isDeferredLoad) {
           if (previousChatIdRef.current !== currentSelectedChatId) {
             return;
@@ -309,6 +313,7 @@ export function useChatMessages({
     streamingConversationIdsRef,
     welcomeCreationInFlightRef,
     pendingUrlConversationIdRef,
+    isRouteDriven,
   ]);
 
   useEffect(() => {
