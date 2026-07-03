@@ -72,6 +72,10 @@ export default function ChatMessage({
   const isPaused = useStreamingPaused(content, isAssistantStreaming);
   const hasDisplayContent = displayContent.trim().length > 0;
   const hasFileParts = fileParts.length > 0;
+  const isContentFullyDisplayed =
+    content.trim().length > 0 && displayContent.length >= content.length;
+  const showPausedProcessing =
+    isAssistantStreaming && isPaused && !isContentFullyDisplayed;
 
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
   const [showPromptToggle, setShowPromptToggle] = useState(false);
@@ -333,7 +337,7 @@ export default function ChatMessage({
                   label={t("authorize")}
                 />
               ) : null}
-              {isAssistantStreaming && isPaused && (
+              {showPausedProcessing && (
                 <div className="mt-2">
                   <span className="reasoning-text-shine text-sm">
                     {t("reasoning.processing")}
