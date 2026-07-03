@@ -28,6 +28,7 @@ import WelcomeScreen from "@/app/chat/components/welcome-screen";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
+import { useConversationWarmup } from "@/app/chat/hooks/use-conversation-warmup";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
 import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import {
@@ -1603,6 +1604,18 @@ export default function ChatInterface({
       refreshConversations,
     });
 
+  const isCoworkerFirstTurn = useMemo(
+    () => !hasGoodCoworkerAssistantTail(displayedMessages),
+    [displayedMessages],
+  );
+
+  const { isWarmupPending } = useConversationWarmup({
+    conversationId: selectedChatId,
+    enabled: Boolean(
+      selectedChatId && isSelectedChatCoworker && isCoworkerFirstTurn,
+    ),
+  });
+
   const {
     createModelChat,
     createCoworkerChat,
@@ -2064,6 +2077,8 @@ export default function ChatInterface({
                     onResendLastMessage={handleResendLastMessage}
                     userTailRecoveryFailed={userTailRecoveryFailed}
                     listRevision={messageListRevision}
+                    warmupPending={isWarmupPending}
+                    warmupCoworkerName={selectedChatCoworker?.name}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined
@@ -2101,6 +2116,7 @@ export default function ChatInterface({
                   persistentImageGeneration={
                     selectedConversationImageGeneration
                   }
+                  submitBlocked={isWarmupPending}
                 />
               </>
             ) : null}

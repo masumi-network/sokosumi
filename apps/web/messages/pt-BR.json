@@ -1361,6 +1361,8 @@
         "uploadFileErrorRetry": "Falha ao enviar o arquivo, tente novamente!",
         "uploadPastedImageError": "Falha ao enviar a(s) imagem(ns) colada(s)",
         "pendingResponseFailed": "Algo deu errado do nosso lado. Tente reenviar sua última mensagem.",
+        "coworkerWarmingUp": "{name} está iniciando — os primeiros chats podem levar ~15 segundos.",
+        "coworkerNameFallback": "Seu coworker",
         "resend": "Reenviar",
         "noResponseConnectionLost": "A conexão foi perdida. Atualize o navegador e tente novamente.",
         "waitForResponses": "Aguarde outras respostas terminarem (máx. 3 ao mesmo tempo).",

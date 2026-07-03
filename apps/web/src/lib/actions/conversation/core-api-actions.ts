@@ -62,6 +62,17 @@ interface GetConversationMessagesParameters extends AuthenticatedRequest {
   cursor?: string | null;
 }
 
+interface GetConversationWarmupParameters extends AuthenticatedRequest {
+  conversationId: string;
+}
+
+export type ConversationWarmupData = {
+  state: "pending" | "ready" | "failed";
+  completedAt: string | null;
+  attempts?: number | null;
+  source: "redis" | "metadata" | "none";
+};
+
 /** API response may have optional title/metadata; we normalize to Conversation. */
 function toConversation(conversation: CoreConversation): Conversation {
   return {
@@ -156,6 +167,37 @@ export const getConversationMessages = withSession<
     },
     ActionError
   >;
+});
+
+/**
+ * Gets coworker container warmup state for a conversation via Core API.
+ * CRITICAL: Validates ownership before returning.
+ */
+export const getConversationWarmup = withSession<
+  GetConversationWarmupParameters,
+  Result<ConversationWarmupData, ActionError>
+>(async ({ conversationId }) => {
+  const result = await makeCoreApiRequest(() =>
+    coreClient.getConversationWarmup(conversationId),
+  );
+
+  if (result.isErr()) {
+    return {
+      ok: false,
+      error: result.error,
+    } as unknown as Result<ConversationWarmupData, ActionError>;
+  }
+
+  const data = result.value.data;
+  return {
+    ok: true,
+    data: {
+      state: data.state,
+      completedAt: data.completedAt?.toISOString() ?? null,
+      attempts: data.attempts,
+      source: data.source,
+    },
+  } as unknown as Result<ConversationWarmupData, ActionError>;
 });
 
 /**

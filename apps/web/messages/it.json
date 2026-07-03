@@ -1361,6 +1361,8 @@
         "uploadFileErrorRetry": "Caricamento del file non riuscito, riprova!",
         "uploadPastedImageError": "Caricamento delle immagini incollate non riuscito",
         "pendingResponseFailed": "Qualcosa è andato storto da parte nostra. Prova a reinviare il tuo ultimo messaggio.",
+        "coworkerWarmingUp": "{name} si sta avviando — le prime chat possono richiedere ~15 secondi.",
+        "coworkerNameFallback": "Il tuo coworker",
         "resend": "Invia di nuovo",
         "noResponseConnectionLost": "La connessione è andata persa. Aggiorna la pagina e riprova.",
         "waitForResponses": "Attendi il completamento delle altre risposte (max 3 alla volta).",

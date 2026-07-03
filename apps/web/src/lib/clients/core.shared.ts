@@ -89,6 +89,7 @@ import {
   getConversations as coreGetConversations,
   getConversationsById as coreGetConversationsById,
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
+  getConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
@@ -506,6 +507,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch conversation messages",
+    );
+  }
+
+  async function getConversationWarmup(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetConversationsByIdWarmup({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch conversation warmup state",
     );
   }
 
@@ -2684,6 +2698,7 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskSchedule,
     getConversation,
     getConversationMessages,
+    getConversationWarmup,
     getConversations,
     getHermesInstance,
     getHermesMessages,

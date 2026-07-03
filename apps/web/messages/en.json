@@ -1372,6 +1372,8 @@
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadPastedImageError": "Failed to upload pasted image(s)",
         "pendingResponseFailed": "Something went wrong on our side. Please try resending your last message again.",
+        "coworkerWarmingUp": "{name} is starting up — first chats can take ~15 seconds.",
+        "coworkerNameFallback": "Your coworker",
         "resend": "Resend",
         "noResponseConnectionLost": "The connection was lost. Please refresh the browser and try again.",
         "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",

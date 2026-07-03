@@ -124,4 +124,49 @@ describe("MessageList", () => {
 
     expect(screen.getAllByTestId("day-separator")).toHaveLength(2);
   });
+
+  it("shows warmup notice and suppresses pending error when warmupPending", () => {
+    const messages = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [],
+      },
+    ] satisfies UIMessage[];
+    const chats = [
+      {
+        id: "conversation-1",
+        title: "Elena",
+        createdAt: new Date("2026-05-10T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-10T09:00:00.000Z"),
+        status: "active",
+        coworker: { id: "coworker-1", name: "Elena", slug: "elena" },
+      },
+    ] satisfies Chat[];
+
+    render(
+      <MessageList
+        chats={chats}
+        conversationCoworkerFallback={{
+          id: "coworker-1",
+          name: "Elena",
+        }}
+        isCoworker={true}
+        isLoading={false}
+        messages={messages}
+        selectedChatId="conversation-1"
+        userImageUrl=""
+        warmupPending={true}
+        warmupCoworkerName="Elena"
+      />,
+    );
+
+    expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
+    expect(screen.queryByText("pendingResponseFailed")).toBeNull();
+  });
 });
