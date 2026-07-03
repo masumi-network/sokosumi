@@ -1361,6 +1361,7 @@
         "uploadFileErrorRetry": "Falha ao carregar o ficheiro, tente novamente!",
         "uploadPastedImageError": "Falha ao carregar a(s) imagem(ns) colada(s)",
         "pendingResponseFailed": "Algo correu mal do nosso lado. Tente reenviar a sua última mensagem.",
+        "responseAlreadyInProgress": "Já está a ser gerada uma resposta. Aguarde.",
         "coworkerWarmingUp": "{name} está a iniciar — as primeiras conversas podem demorar ~15 segundos.",
         "coworkerNameFallback": "O seu coworker",
         "resend": "Reenviar",

@@ -53,6 +53,10 @@ import {
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
+  isCoworkerChatConflictError,
+  removeTrailingUserUiMessage,
+} from "@/app/chat-ui/utils/chat-api-error";
+import {
   CHAT_API_PATH,
   CHAT_APP_ROUTE_PREFIX,
   getConversationIdFromChatPathname,
@@ -867,6 +871,14 @@ export default function ChatInterface({
     (conversationId: string) => UIMessage[]
   >(() => []);
 
+  const setMessagesSlotsRef = useRef<
+    Array<UseChatHelpers<UIMessage>["setMessages"] | undefined>
+  >([undefined, undefined, undefined]);
+
+  const [coworkerResponseInProgress, setCoworkerResponseInProgress] = useState<
+    Record<string, true>
+  >({});
+
   const onErrorForSlot = useCallback(
     (slotIndex: number) => (error: unknown) => {
       console.error(`Chat API error (slot ${slotIndex}):`, error);
@@ -882,8 +894,27 @@ export default function ChatInterface({
           )?.type === "coworker" ||
           Boolean(chats.find((c) => c.id === convId)?.coworker);
         if (isCoworkerThread) {
-          const slotMessagesSnapshot =
+          let slotMessagesSnapshot =
             getLiveSlotMessagesForConversationRef.current(convId);
+          if (isCoworkerChatConflictError(error)) {
+            setCoworkerResponseInProgress((prev) => ({
+              ...prev,
+              [convId]: true,
+            }));
+            if (pendingWelcomeSendRef.current?.conversationId === convId) {
+              pendingWelcomeSendRef.current = null;
+            }
+            const setSlotMessages = setMessagesSlotsRef.current[slotIndex];
+            if (setSlotMessages) {
+              setSlotMessages((prev) =>
+                removeTrailingUserUiMessage((prev ?? []) as UIMessage[]),
+              );
+            }
+            slotMessagesSnapshot =
+              removeTrailingUserUiMessage(slotMessagesSnapshot);
+            setMessagesForConversationRef.current(convId, slotMessagesSnapshot);
+            chatMessagesRef.current.set(convId, slotMessagesSnapshot);
+          }
           void syncCoworkerSlotFromDbWithRetry({
             conversationId: convId,
             slotMessages: slotMessagesSnapshot,
@@ -894,6 +925,16 @@ export default function ChatInterface({
                 forceFromDb: true,
               });
               chatMessagesRef.current.set(convId, dbMessages);
+              if (hasGoodCoworkerAssistantTail(dbMessages)) {
+                setCoworkerResponseInProgress((prev) => {
+                  if (!prev[convId]) {
+                    return prev;
+                  }
+                  const next = { ...prev };
+                  delete next[convId];
+                  return next;
+                });
+              }
             },
           });
           return;
@@ -1062,6 +1103,10 @@ export default function ChatInterface({
     [chat0.sendMessage, chat1.sendMessage, chat2.sendMessage],
   );
 
+  useLayoutEffect(() => {
+    setMessagesSlotsRef.current = setMessagesSlots;
+  }, [setMessagesSlots]);
+
   const streamingConversationIdsRef = useRef<Set<string>>(new Set());
   const streamingIds = useMemo(() => {
     const set = new Set<string>();
@@ -1097,6 +1142,20 @@ export default function ChatInterface({
       const s = slotStatuses[slot];
       return s === "streaming" || s === "submitted";
     })();
+
+  useEffect(() => {
+    if (!selectedChatId || !isSelectedChatLoading) {
+      return;
+    }
+    setCoworkerResponseInProgress((prev) => {
+      if (!prev[selectedChatId]) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[selectedChatId];
+      return next;
+    });
+  }, [selectedChatId, isSelectedChatLoading]);
 
   const slotMessagesRef = useRef<UIMessage[][]>([[], [], []]);
   useLayoutEffect(() => {
@@ -1965,8 +2024,17 @@ export default function ChatInterface({
     if (!selectedChatId) return "ready" as const;
     const slot = conversationToSlot.get(selectedChatId);
     if (slot === undefined) return "ready" as const;
-    return slotStatuses[slot];
-  }, [selectedChatId, conversationToSlot, slotStatuses]);
+    const status = slotStatuses[slot];
+    if (status === "error" && coworkerResponseInProgress[selectedChatId]) {
+      return "ready" as const;
+    }
+    return status;
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotStatuses,
+    coworkerResponseInProgress,
+  ]);
 
   const sendMessageForInput = useCallback(
     (message?: ChatSendMessage) => {
@@ -2108,6 +2176,10 @@ export default function ChatInterface({
                     messages={displayedMessages}
                     onResendLastMessage={handleResendLastMessage}
                     userTailRecoveryFailed={userTailRecoveryFailed}
+                    coworkerResponseInProgress={Boolean(
+                      selectedChatId &&
+                        coworkerResponseInProgress[selectedChatId],
+                    )}
                     listRevision={messageListRevision}
                     warmupPending={warmupPending}
                     warmupCoworkerName={selectedChatCoworker?.name}
@@ -2148,7 +2220,14 @@ export default function ChatInterface({
                   persistentImageGeneration={
                     selectedConversationImageGeneration
                   }
-                  submitBlocked={warmupPending || isPendingWelcomeSendBlocked}
+                  submitBlocked={
+                    warmupPending ||
+                    isPendingWelcomeSendBlocked ||
+                    Boolean(
+                      selectedChatId &&
+                        coworkerResponseInProgress[selectedChatId],
+                    )
+                  }
                 />
               </>
             ) : null}

@@ -1388,6 +1388,7 @@
         "tryAgain": "Intentar de nuevo",
         "networkErrorAfterRetry": "No se pudo conectar con el servidor tras varios intentos. Por favor, comprueba tu conexión e inténtalo de nuevo.",
         "pendingResponseFailed": "Algo salió mal de nuestro lado. Por favor, intenta reenviar tu último mensaje.",
+        "responseAlreadyInProgress": "Ya se está generando una respuesta. Espera un momento.",
         "coworkerWarmingUp": "{name} se está iniciando — los primeros chats pueden tardar ~15 segundos.",
         "coworkerNameFallback": "Tu coworker",
         "resend": "Reenviar",

@@ -1361,6 +1361,7 @@
         "uploadFileErrorRetry": "ファイルのアップロードに失敗しました。もう一度お試しください。",
         "uploadPastedImageError": "貼り付けた画像のアップロードに失敗しました",
         "pendingResponseFailed": "こちら側で問題が発生しました。最後のメッセージを再送してみてください。",
+        "responseAlreadyInProgress": "応答を生成中です。しばらくお待ちください。",
         "coworkerWarmingUp": "{name} を起動しています — 最初のチャットには約15秒かかることがあります。",
         "coworkerNameFallback": "コワーカー",
         "resend": "再送信",

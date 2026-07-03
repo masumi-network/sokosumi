@@ -100,6 +100,7 @@ interface MessageListProps {
   isCoworker?: boolean;
   onResendLastMessage?: (lastUserMessage: UIMessage) => void;
   userTailRecoveryFailed?: boolean;
+  coworkerResponseInProgress?: boolean;
   listRevision?: number;
   warmupPending?: boolean;
   warmupCoworkerName?: string;
@@ -122,6 +123,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       isCoworker = false,
       onResendLastMessage,
       userTailRecoveryFailed = false,
+      coworkerResponseInProgress = false,
       listRevision = 0,
       warmupPending = false,
       warmupCoworkerName,
@@ -228,7 +230,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       lastMessage?.role === "user" &&
       lastUserMessageHasContent;
     const showPendingOrTailError =
-      !warmupPending && (showPendingError || showUserTailRecoveryError);
+      !warmupPending &&
+      !coworkerResponseInProgress &&
+      (showPendingError || showUserTailRecoveryError);
     const canResendPendingOrTail = Boolean(
       showPendingOrTailError &&
         onResendLastMessage &&
@@ -236,6 +240,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     );
 
     const pendingErrorMessage = t("pendingResponseFailed");
+    const responseInProgressMessage = t("responseAlreadyInProgress");
     const warmupNoticeName =
       warmupCoworkerName?.trim() ||
       coworkerName?.trim() ||
@@ -263,6 +268,31 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         </div>
       </div>
     );
+    const responseInProgressBlock = coworkerResponseInProgress &&
+      !warmupPending &&
+      !isLoading && (
+        <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
+          <Avatar
+            className={cn(
+              "size-8 shrink-0 overflow-hidden rounded-full",
+              modelId && "bg-white dark:bg-black",
+            )}
+          >
+            <AssistantAvatarContent
+              coworkerId={coworkerId ?? undefined}
+              coworkerImageUrl={coworkerImageUrl}
+              coworkerName={coworkerName}
+              modelId={modelId ?? undefined}
+              modelName={modelName}
+            />
+          </Avatar>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="text-muted-foreground text-sm">
+              {responseInProgressMessage}
+            </p>
+          </div>
+        </div>
+      );
     const pendingOrTailErrorBlock = showPendingOrTailError && (
       <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
         <Avatar
@@ -432,6 +462,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                     <LoadingIndicator label={loadingIndicatorLabel} />
                   )}
                   {warmupNoticeBlock}
+                  {responseInProgressBlock}
                   {pendingOrTailErrorBlock}
                   <div
                     className="min-h-[160px] shrink-0"
@@ -481,6 +512,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                           <LoadingIndicator label={loadingIndicatorLabel} />
                         )}
                         {warmupNoticeBlock}
+                        {responseInProgressBlock}
                         {pendingOrTailErrorBlock}
                         {showLoadingArea && (
                           <div

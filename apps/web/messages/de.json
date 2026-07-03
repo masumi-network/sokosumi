@@ -1388,6 +1388,7 @@
         "tryAgain": "Erneut versuchen",
         "networkErrorAfterRetry": "Der Server konnte nach mehreren Versuchen nicht erreicht werden. Bitte prüfe deine Verbindung und versuche es erneut.",
         "pendingResponseFailed": "Bei uns ist etwas schiefgelaufen. Bitte sende deine letzte Nachricht erneut.",
+        "responseAlreadyInProgress": "Es wird bereits eine Antwort erstellt. Bitte warte.",
         "coworkerWarmingUp": "{name} startet gerade — erste Chats können etwa 15 Sekunden dauern.",
         "coworkerNameFallback": "Dein Coworker",
         "resend": "Erneut senden",

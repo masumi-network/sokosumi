@@ -1361,6 +1361,7 @@
         "uploadFileErrorRetry": "Échec du téléversement du fichier, veuillez réessayer !",
         "uploadPastedImageError": "Échec du téléversement de l’image/des images collée(s)",
         "pendingResponseFailed": "Un problème est survenu de notre côté. Veuillez réenvoyer votre dernier message.",
+        "responseAlreadyInProgress": "Une réponse est déjà en cours de génération. Veuillez patienter.",
         "coworkerWarmingUp": "{name} démarre — les premiers chats peuvent prendre ~15 secondes.",
         "coworkerNameFallback": "Votre coworker",
         "resend": "Renvoyer",

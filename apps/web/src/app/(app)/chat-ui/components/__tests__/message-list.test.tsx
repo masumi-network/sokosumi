@@ -175,4 +175,43 @@ describe("MessageList", () => {
     expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
     expect(screen.queryByText("pendingResponseFailed")).toBeNull();
   });
+
+  it("shows a translated wait notice when a coworker response is already in progress", () => {
+    const messages = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+      },
+    ] satisfies UIMessage[];
+    const chats = [
+      {
+        id: "conversation-1",
+        title: "Elena",
+        createdAt: new Date("2026-05-10T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-10T09:00:00.000Z"),
+        status: "active",
+        coworker: { id: "coworker-1", name: "Elena", slug: "elena" },
+      },
+    ] satisfies Chat[];
+
+    render(
+      <MessageList
+        chats={chats}
+        conversationCoworkerFallback={{
+          id: "coworker-1",
+          name: "Elena",
+        }}
+        coworkerResponseInProgress={true}
+        isCoworker={true}
+        isLoading={false}
+        messages={messages}
+        selectedChatId="conversation-1"
+        userImageUrl=""
+      />,
+    );
+
+    expect(screen.getByText("responseAlreadyInProgress")).toBeInTheDocument();
+    expect(screen.queryByText("pendingResponseFailed")).toBeNull();
+  });
 });
