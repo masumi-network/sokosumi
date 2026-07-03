@@ -11,13 +11,17 @@ import {
 
 const {
   conversationFindFirstMock,
-  conversationUpdateManyMock,
+  conversationUpdateMock,
+  queryRawMock,
+  transactionMock,
   getRedisClientMock,
   redisGetMock,
   redisSetMock,
 } = vi.hoisted(() => ({
   conversationFindFirstMock: vi.fn(),
-  conversationUpdateManyMock: vi.fn(),
+  conversationUpdateMock: vi.fn(),
+  queryRawMock: vi.fn(),
+  transactionMock: vi.fn(),
   getRedisClientMock: vi.fn(),
   redisGetMock: vi.fn(),
   redisSetMock: vi.fn(),
@@ -27,8 +31,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     conversation: {
       findFirst: conversationFindFirstMock,
-      updateMany: conversationUpdateManyMock,
+      update: conversationUpdateMock,
     },
+    $transaction: transactionMock,
   },
 }));
 
@@ -45,6 +50,8 @@ const DEFAULT_OPTIONS = {
   coworkerSlug: "elena",
   responsesApiBaseUrl: "https://api.coworker.example.com/v1",
 };
+
+const DEFAULT_PROVIDER_CONVERSATION_ID = "conv_remote_warmup";
 
 function goodSseBody(text: string): string {
   return `data: {"type":"response.output_text.delta","delta":"${text}"}\n\n`;
@@ -65,14 +72,27 @@ function sseResponse(body: string): Response {
   });
 }
 
+function mockConversationMetadata(metadata: Record<string, unknown>): void {
+  queryRawMock.mockResolvedValue([{ metadata }]);
+  conversationUpdateMock.mockResolvedValue({});
+}
+
 describe("warmup-coworker", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockReset();
     conversationFindFirstMock.mockResolvedValue({
-      metadata: { coworker: "Elena" },
+      providerConversationId: DEFAULT_PROVIDER_CONVERSATION_ID,
     });
-    conversationUpdateManyMock.mockResolvedValue({ count: 1 });
+    mockConversationMetadata({ coworker: "Elena" });
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        $queryRaw: queryRawMock,
+        conversation: {
+          update: conversationUpdateMock,
+        },
+      }),
+    );
     getRedisClientMock.mockReturnValue({
       get: redisGetMock,
       set: redisSetMock,
@@ -96,6 +116,12 @@ describe("warmup-coworker", () => {
     await warmupCoworkerConversation(DEFAULT_OPTIONS);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(fetchInit.body))).toEqual({
+      input: expect.any(Array),
+      stream: true,
+      conversation: DEFAULT_PROVIDER_CONVERSATION_ID,
+    });
     expect(redisSetMock).toHaveBeenCalledWith(
       coworkerReadyRedisKey(DEFAULT_OPTIONS.internalConversationId),
       "pending",
@@ -108,7 +134,7 @@ describe("warmup-coworker", () => {
       "EX",
       120,
     );
-    expect(conversationUpdateManyMock).toHaveBeenCalledWith(
+    expect(conversationUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           metadata: expect.objectContaining({
@@ -176,7 +202,7 @@ describe("warmup-coworker", () => {
       "EX",
       120,
     );
-    expect(conversationUpdateManyMock).toHaveBeenCalledWith(
+    expect(conversationUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           metadata: expect.objectContaining({
@@ -186,6 +212,22 @@ describe("warmup-coworker", () => {
           }),
         }),
       }),
+    );
+  });
+
+  it("marks failed when provider conversation id is missing", async () => {
+    conversationFindFirstMock.mockResolvedValueOnce({
+      providerConversationId: null,
+    });
+
+    await warmupCoworkerConversation(DEFAULT_OPTIONS);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(redisSetMock).toHaveBeenCalledWith(
+      coworkerReadyRedisKey(DEFAULT_OPTIONS.internalConversationId),
+      "failed",
+      "EX",
+      120,
     );
   });
 
@@ -202,7 +244,7 @@ describe("warmup-coworker", () => {
     ).resolves.toBeUndefined();
 
     expect(redisSetMock).not.toHaveBeenCalled();
-    expect(conversationUpdateManyMock).toHaveBeenCalledWith(
+    expect(conversationUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           metadata: expect.objectContaining({
@@ -234,6 +276,26 @@ describe("warmup-coworker", () => {
     });
   });
 
+  it("prefers terminal metadata over stale Redis pending", async () => {
+    redisGetMock.mockResolvedValueOnce("pending");
+
+    const result = await readCoworkerReadyState(
+      DEFAULT_OPTIONS.internalConversationId,
+      {
+        warmup_state: "ready",
+        warmup_completed_at: "2025-01-01T00:00:00.000Z",
+        warmup_attempts: 2,
+      },
+    );
+
+    expect(result).toEqual({
+      state: "ready",
+      completedAt: "2025-01-01T00:00:00.000Z",
+      attempts: 2,
+      source: "metadata",
+    });
+  });
+
   it("falls back to metadata when Redis misses", async () => {
     const result = await readCoworkerReadyState(
       DEFAULT_OPTIONS.internalConversationId,
@@ -259,10 +321,9 @@ describe("warmup-coworker", () => {
       "pending",
     );
 
-    expect(conversationUpdateManyMock).toHaveBeenCalledWith({
+    expect(conversationUpdateMock).toHaveBeenCalledWith({
       where: {
         id: DEFAULT_OPTIONS.internalConversationId,
-        userId: DEFAULT_OPTIONS.userId,
       },
       data: {
         metadata: {

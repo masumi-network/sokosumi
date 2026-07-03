@@ -85,6 +85,12 @@ import MessageList from "./message-list";
 
 const NUM_SLOTS = 3;
 
+const WELCOME_SEND_RETRY_DELAYS_MS = [
+  50, 150, 350, 700, 1500, 5000, 10_000,
+] as const;
+const WELCOME_SEND_MAX_AGE_MS =
+  WELCOME_SEND_RETRY_DELAYS_MS[WELCOME_SEND_RETRY_DELAYS_MS.length - 1] + 500;
+
 const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
   "__sokosumi_empty_slot_0__",
   "__sokosumi_empty_slot_1__",
@@ -1611,6 +1617,13 @@ export default function ChatInterface({
     const pending = pendingWelcomeSendRef.current;
     if (!pending) return;
 
+    const elapsedMs = Date.now() - pending.createdAt;
+    if (elapsedMs > WELCOME_SEND_MAX_AGE_MS) {
+      pendingWelcomeSendRef.current = null;
+      welcomeCreationInFlightRef.current = false;
+      return;
+    }
+
     const pathConversationId = pathname
       ? getConversationIdFromChatPathname(pathname)
       : null;
@@ -1643,6 +1656,7 @@ export default function ChatInterface({
     );
     if (!sent) {
       welcomeCreationInFlightRef.current = false;
+      pendingWelcomeSendRef.current = null;
       return;
     }
 
@@ -1808,7 +1822,7 @@ export default function ChatInterface({
           queueMicrotask(() => {
             setWelcomeSendRetryTick((tick) => tick + 1);
           });
-          for (const delayMs of [50, 150, 350, 700, 1500, 5000, 10_000]) {
+          for (const delayMs of WELCOME_SEND_RETRY_DELAYS_MS) {
             window.setTimeout(() => {
               setWelcomeSendRetryTick((tick) => tick + 1);
             }, delayMs);

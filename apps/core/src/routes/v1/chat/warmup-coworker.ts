@@ -127,28 +127,28 @@ async function mergeConversationWarmupMetadata(
   userId: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
-  const existing = await prisma.conversation.findFirst({
-    where: {
-      id: internalConversationId,
-      userId,
-    },
-    select: { metadata: true },
-  });
+  await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<Array<{ metadata: unknown }>>`
+      SELECT "metadata" FROM "conversation"
+      WHERE "id" = ${internalConversationId} AND "userId" = ${userId}
+      FOR UPDATE
+    `;
+    if (rows.length === 0) {
+      throw new Error("Conversation not found");
+    }
 
-  const currentMetadata =
-    (existing?.metadata as Record<string, unknown> | null) ?? {};
+    const currentMetadata =
+      (rows[0]!.metadata as Record<string, unknown>) ?? {};
 
-  await prisma.conversation.updateMany({
-    where: {
-      id: internalConversationId,
-      userId,
-    },
-    data: {
-      metadata: {
-        ...currentMetadata,
-        ...patch,
+    await tx.conversation.update({
+      where: { id: internalConversationId },
+      data: {
+        metadata: {
+          ...currentMetadata,
+          ...patch,
+        },
       },
-    },
+    });
   });
 }
 
@@ -178,22 +178,39 @@ export async function setCoworkerReadyState(
   );
 }
 
+function isTerminalWarmupState(
+  state: CoworkerWarmupReadState,
+): state is Exclude<CoworkerWarmupState, "pending"> {
+  return state === "ready" || state === "failed";
+}
+
 export async function readCoworkerReadyState(
   internalConversationId: string,
   metadata: Record<string, unknown> | null | undefined,
 ): Promise<CoworkerReadyStateReadResult> {
+  const metadataState = readMetadataWarmupState(metadata);
   const redisState = await readRedisWarmupState(internalConversationId);
   if (redisState) {
-    const { attempts, completedAt } = readMetadataWarmupState(metadata);
+    if (
+      redisState === "pending" &&
+      isTerminalWarmupState(metadataState.state)
+    ) {
+      return {
+        state: metadataState.state,
+        completedAt: metadataState.completedAt,
+        attempts: metadataState.attempts,
+        source: "metadata",
+      };
+    }
+
     return {
       state: redisState,
-      completedAt: redisState === "pending" ? null : completedAt,
-      attempts,
+      completedAt: redisState === "pending" ? null : metadataState.completedAt,
+      attempts: metadataState.attempts,
       source: "redis",
     };
   }
 
-  const metadataState = readMetadataWarmupState(metadata);
   if (metadataState.state !== "unknown") {
     return {
       state: metadataState.state,
@@ -229,6 +246,7 @@ async function runWarmupAttempt(
   userId: string,
   organizationId: string | null,
   coworkerSlug: string,
+  providerConversationId: string,
 ): Promise<{ succeeded: boolean; retryable: boolean }> {
   const base = responsesApiBaseUrl.replace(/\/$/, "");
   const url = `${base}/responses`;
@@ -249,6 +267,7 @@ async function runWarmupAttempt(
       body: JSON.stringify({
         input: [WARMUP_INPUT_MESSAGE],
         stream: true,
+        conversation: providerConversationId,
       }),
       signal: AbortSignal.timeout(WARMUP_ATTEMPT_TIMEOUT_MS),
     });
@@ -277,6 +296,26 @@ export async function warmupCoworkerConversation(
   options: WarmupCoworkerConversationOptions,
 ): Promise<void> {
   try {
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: options.internalConversationId,
+        userId: options.userId,
+      },
+      select: { providerConversationId: true },
+    });
+    const providerConversationId =
+      conversation?.providerConversationId?.trim() ?? null;
+    if (!providerConversationId) {
+      await setCoworkerReadyState(
+        options.internalConversationId,
+        options.userId,
+        "failed",
+        new Date().toISOString(),
+        0,
+      );
+      return;
+    }
+
     await setCoworkerReadyState(
       options.internalConversationId,
       options.userId,
@@ -295,6 +334,7 @@ export async function warmupCoworkerConversation(
         options.userId,
         options.organizationId,
         options.coworkerSlug,
+        providerConversationId,
       );
 
       if (result.succeeded) {
