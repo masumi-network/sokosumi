@@ -1136,9 +1136,6 @@ export default function ChatInterface({
               return prevArr;
             }
             if (options?.forceFromDb) {
-              if (shouldRejectCoworkerMessageRegression(prevArr, messages)) {
-                return prevArr;
-              }
               return messages;
             }
             if (prevArr.length === 0 && messages.length > 0) {
@@ -1613,14 +1610,34 @@ export default function ChatInterface({
     coworkers,
   });
 
+  const failPendingWelcomeSend = useCallback(
+    (
+      pending: NonNullable<(typeof pendingWelcomeSendRef)["current"]>,
+      options?: { restoreInput?: boolean },
+    ) => {
+      if (options?.restoreInput !== false) {
+        const text = getSendMessageText(pending.payload);
+        if (text) {
+          setInput(text);
+        }
+      }
+      if (pendingUrlConversationIdRef.current === pending.conversationId) {
+        pendingUrlConversationIdRef.current = null;
+      }
+      welcomeCreationInFlightRef.current = false;
+      pendingWelcomeSendRef.current = null;
+      toast.error(t("welcomeSendFailed"));
+    },
+    [setInput, t],
+  );
+
   useEffect(() => {
     const pending = pendingWelcomeSendRef.current;
     if (!pending) return;
 
     const elapsedMs = Date.now() - pending.createdAt;
     if (elapsedMs > WELCOME_SEND_MAX_AGE_MS) {
-      pendingWelcomeSendRef.current = null;
-      welcomeCreationInFlightRef.current = false;
+      failPendingWelcomeSend(pending);
       return;
     }
 
@@ -1655,11 +1672,11 @@ export default function ChatInterface({
       pending.sendOptions,
     );
     if (!sent) {
-      welcomeCreationInFlightRef.current = false;
-      pendingWelcomeSendRef.current = null;
+      failPendingWelcomeSend(pending);
       return;
     }
 
+    setInput("");
     pendingWelcomeSendRef.current = null;
   }, [
     urlConversationId,
@@ -1669,6 +1686,7 @@ export default function ChatInterface({
     sendInConversation,
     welcomeSendRetryTick,
     router,
+    failPendingWelcomeSend,
   ]);
 
   const handleModelSelected = useCallback(
@@ -1818,7 +1836,6 @@ export default function ChatInterface({
             createdAt: Date.now(),
             navigationRequested: false,
           };
-          setInput("");
           queueMicrotask(() => {
             setWelcomeSendRetryTick((tick) => tick + 1);
           });

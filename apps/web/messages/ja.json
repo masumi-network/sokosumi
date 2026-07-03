@@ -1263,6 +1263,7 @@
         "sidebarNew": "新規",
         "noChats": "チャットはまだありません",
         "noCoworkersAvailable": "利用可能な同僚がいません。しばらくしてから再度お試しください。",
+        "welcomeSendFailed": "メッセージを送信できませんでした。もう一度お試しください。",
         "emptyState": {
           "title": "会話を開始",
           "titleWithName": "{name}と会話を開始",
