@@ -85,7 +85,7 @@ import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
 import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
-
+import { isCoworkerWarmupReadyForWelcomeSend } from "../utils/welcome-send-warmup";
 import MessageList from "./message-list";
 
 const NUM_SLOTS = 3;
@@ -95,6 +95,8 @@ const WELCOME_SEND_RETRY_DELAYS_MS = [
 ] as const;
 const WELCOME_SEND_MAX_AGE_MS =
   WELCOME_SEND_RETRY_DELAYS_MS[WELCOME_SEND_RETRY_DELAYS_MS.length - 1] + 500;
+/** Match `useConversationWarmup` poll timeout plus buffer for the welcome send effect. */
+const WELCOME_SEND_COWORKER_MAX_AGE_MS = 35_000;
 
 const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
   "__sokosumi_empty_slot_0__",
@@ -385,6 +387,7 @@ export default function ChatInterface({
   const pendingWelcomeSendRef = useRef<{
     conversationId: string;
     bucketSlug: string;
+    isCoworker: boolean;
     payload: ChatSendMessage;
     sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1];
     createdAt: number;
@@ -1686,7 +1689,7 @@ export default function ChatInterface({
     [displayedMessages],
   );
 
-  const { warmupPending } = useConversationWarmup({
+  const { warmupPending, warmupState, warmupFailed } = useConversationWarmup({
     conversationId: selectedChatId,
     enabled: Boolean(
       selectedChatId && isSelectedChatCoworker && isCoworkerFirstTurn,
@@ -1762,8 +1765,11 @@ export default function ChatInterface({
     const pending = pendingWelcomeSendRef.current;
     if (!pending) return;
 
+    const maxAgeMs = pending.isCoworker
+      ? WELCOME_SEND_COWORKER_MAX_AGE_MS
+      : WELCOME_SEND_MAX_AGE_MS;
     const elapsedMs = Date.now() - pending.createdAt;
-    if (elapsedMs > WELCOME_SEND_MAX_AGE_MS) {
+    if (elapsedMs > maxAgeMs) {
       failPendingWelcomeSend(pending);
       return;
     }
@@ -1793,6 +1799,14 @@ export default function ChatInterface({
       return;
     }
 
+    if (
+      pending.isCoworker &&
+      selectedChatId === pending.conversationId &&
+      !isCoworkerWarmupReadyForWelcomeSend({ warmupState, warmupFailed })
+    ) {
+      return;
+    }
+
     const sent = sendInConversation(
       pending.conversationId,
       pending.payload,
@@ -1814,6 +1828,8 @@ export default function ChatInterface({
     welcomeSendRetryTick,
     router,
     failPendingWelcomeSend,
+    warmupState,
+    warmupFailed,
   ]);
 
   const handleModelSelected = useCallback(
@@ -1904,6 +1920,7 @@ export default function ChatInterface({
 
           let conversationId: string | null = null;
           let bucketSlug: string | null = null;
+          let isCoworkerWelcome = false;
 
           if (model || selectedModel) {
             const modelToUse = model || selectedModel;
@@ -1920,6 +1937,7 @@ export default function ChatInterface({
               }
             }
           } else {
+            isCoworkerWelcome = true;
             const selectedCoworker =
               (coworker && coworkerHasCapability(coworker, "chat")
                 ? coworker
@@ -1962,6 +1980,7 @@ export default function ChatInterface({
           pendingWelcomeSendRef.current = {
             conversationId,
             bucketSlug,
+            isCoworker: isCoworkerWelcome,
             payload: sendPayload,
             sendOptions,
             createdAt: Date.now(),
