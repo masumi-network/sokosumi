@@ -1364,7 +1364,7 @@
         "responseAlreadyInProgress": "正在生成回复，请稍候。",
         "coworkerWarmupThinking": "{name} 正在思考…",
         "coworkerWarmingUp": "{name} 正在准备…",
-        "coworkerWarmupSlow": "仍在处理中 — 新聊天的首次运行可能需要一点时间。",
+        "coworkerWarmupSlow": "仍在处理中 — 这可能需要一点时间。",
         "coworkerNameFallback": "你的同事",
         "resend": "重新发送",
         "noResponseConnectionLost": "连接已断开。请刷新浏览器后重试。",

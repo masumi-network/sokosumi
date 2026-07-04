@@ -225,6 +225,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const loadingIndicatorLabel = undefined;
 
     const sections = groupMessagesIntoSection(messages);
+    const showEmptyStateLoaders =
+      sections.length === 0 && (showLoadingArea || warmupPending);
 
     const selectedChat = chats.find((c) => c.id === selectedChatId);
     const coworkerId =
@@ -468,7 +470,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         >
           <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
             <div className="flex w-full max-w-4xl flex-col">
-              {sections.length === 0 && showLoadingArea && (
+              {showEmptyStateLoaders && (
                 <>
                   {showReasoningLoaders && (
                     <ReasoningLoaders

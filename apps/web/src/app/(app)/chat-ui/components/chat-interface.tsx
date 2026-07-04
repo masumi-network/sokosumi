@@ -2116,6 +2116,13 @@ export default function ChatInterface({
     selectedChatId,
   );
 
+  const coworkerWarmupUiPending =
+    isSelectedChatCoworker &&
+    isCoworkerFirstTurn &&
+    (warmupPending ||
+      isPendingWelcomeSendBlocked ||
+      (warmupState === null && !warmupFailed));
+
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedChatCoworker = useMemo(() => {
     if (
@@ -2200,7 +2207,7 @@ export default function ChatInterface({
                         coworkerResponseInProgress[selectedChatId],
                     )}
                     listRevision={messageListRevision}
-                    warmupPending={warmupPending}
+                    warmupPending={coworkerWarmupUiPending}
                     warmupCoworkerName={selectedChatCoworker?.name}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
@@ -2240,7 +2247,7 @@ export default function ChatInterface({
                     selectedConversationImageGeneration
                   }
                   submitBlocked={
-                    warmupPending ||
+                    coworkerWarmupUiPending ||
                     isPendingWelcomeSendBlocked ||
                     Boolean(
                       selectedChatId &&

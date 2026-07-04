@@ -1364,7 +1364,7 @@
         "responseAlreadyInProgress": "Já estamos gerando uma resposta. Aguarde.",
         "coworkerWarmupThinking": "{name} está pensando…",
         "coworkerWarmingUp": "{name} está se preparando…",
-        "coworkerWarmupSlow": "Ainda estamos trabalhando — a primeira vez em um novo chat pode levar um momento.",
+        "coworkerWarmupSlow": "Ainda estamos trabalhando — isso pode levar um momento.",
         "coworkerNameFallback": "Seu coworker",
         "resend": "Reenviar",
         "noResponseConnectionLost": "A conexão foi perdida. Atualize o navegador e tente novamente.",

@@ -300,4 +300,42 @@ describe("MessageList", () => {
     expect(screen.getByText("responseAlreadyInProgress")).toBeInTheDocument();
     expect(screen.queryByText("pendingResponseFailed")).toBeNull();
   });
+
+  it("shows warmup notice on an empty thread while waiting for the first send", () => {
+    const chats = [
+      {
+        id: "conversation-1",
+        title: "Elena",
+        createdAt: new Date("2026-05-10T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-10T09:00:00.000Z"),
+        status: "active",
+        coworker: {
+          id: "coworker-1",
+          name: "Elena",
+          slug: "elena",
+          description: "Test coworker",
+          useCase: "Testing",
+        },
+      },
+    ] satisfies Chat[];
+
+    render(
+      <MessageList
+        chats={chats}
+        conversationCoworkerFallback={{
+          id: "coworker-1",
+          name: "Elena",
+        }}
+        isCoworker={true}
+        isLoading={false}
+        messages={[]}
+        selectedChatId="conversation-1"
+        userImageUrl=""
+        warmupPending={true}
+        warmupCoworkerName="Elena"
+      />,
+    );
+
+    expect(screen.getByText("coworkerWarmupThinking")).toBeInTheDocument();
+  });
 });

@@ -1364,7 +1364,7 @@
         "responseAlreadyInProgress": "応答を生成中です。しばらくお待ちください。",
         "coworkerWarmupThinking": "{name} が考えています…",
         "coworkerWarmingUp": "{name} の準備中…",
-        "coworkerWarmupSlow": "まだ処理中です — 新しいチャットの初回は少し時間がかかることがあります。",
+        "coworkerWarmupSlow": "まだ処理中です — 少し時間がかかることがあります。",
         "coworkerNameFallback": "コワーカー",
         "resend": "再送信",
         "noResponseConnectionLost": "接続が切断されました。ブラウザを更新してもう一度お試しください。",
