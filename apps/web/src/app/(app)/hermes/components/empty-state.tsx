@@ -180,49 +180,97 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 
   return (
     <EmptyStateSeedContext.Provider value={seed}>
-      <FlowBackground>
-        <div className="mx-auto w-full max-w-6xl px-5 py-8 md:px-8 md:py-10">
+      <FlowBackground intensity="full">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-3 md:px-6 md:py-6">
           {/* ── Hero ──────────────────────────────────────────────── */}
-          <section className="grid min-h-[calc(100svh-8rem)] items-center gap-8 py-4 md:py-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
-            <div className="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
-              <PlaceholderOrb
-                size={176}
-                expression="idle"
-                className="size-36 md:size-40"
-                alt={tCommon("hermesAvatarAlt")}
-              />
+          <section className="relative isolate flex min-h-[calc(100svh-5.5rem)] overflow-hidden rounded-lg border border-border/40 bg-background shadow-2xl md:min-h-[calc(100svh-6rem)]">
+            <div
+              aria-hidden
+              className="hermes-landing-drift pointer-events-none absolute -inset-[10%] bg-[radial-gradient(ellipse_at_50%_44%,color-mix(in_oklch,var(--chart-5)_90%,transparent)_0%,color-mix(in_oklch,var(--semantic-critical)_78%,transparent)_24%,transparent_57%)] blur-2xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-[-12%] top-[-18%] h-[55%] bg-[radial-gradient(ellipse_at_50%_0%,color-mix(in_oklch,var(--chart-4)_54%,transparent)_0%,color-mix(in_oklch,var(--chart-5)_38%,transparent)_35%,transparent_70%)] blur-2xl"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-1/2 size-[min(76vw,48rem)] -translate-x-1/2 -translate-y-1/2"
+            >
+              <div className="hermes-landing-breathe size-full rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--background)_92%,var(--semantic-critical))_0%,color-mix(in_oklch,var(--background)_88%,transparent)_44%,transparent_69%)] blur-xl" />
+            </div>
+            <div
+              aria-hidden
+              className="hermes-landing-sweep pointer-events-none absolute top-[14%] left-[-25%] h-px w-[150%] bg-linear-to-r from-transparent via-primary/40 to-transparent opacity-50"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,transparent_48%,color-mix(in_oklch,var(--background)_82%,transparent)_100%)]"
+            />
 
-              <div className="mt-7">
-                <span className="text-primary text-xs font-semibold uppercase tracking-wider">
-                  {t("eyebrow")}
-                </span>
+            <div className="relative z-10 flex min-h-full w-full flex-col px-5 py-5 md:px-7 md:py-6">
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/70">
+                <span>{t("eyebrow")}</span>
+                <span>{t("integrationsEyebrow")}</span>
               </div>
 
-              <h1 className="text-foreground mt-4 max-w-2xl text-4xl font-light tracking-tight md:text-5xl lg:text-6xl">
-                {t("title")}
-              </h1>
-              <p className="text-foreground/80 mt-5 max-w-xl text-lg md:text-xl">
-                {t("subtitle")}
-              </p>
-              <p className="text-muted-foreground mt-4 max-w-xl text-sm leading-relaxed md:text-base">
-                {t("description")}
-              </p>
+              <div className="flex flex-1 flex-col items-center justify-center pt-10 pb-8 text-center md:pt-14 md:pb-12">
+                <div className="hermes-landing-float relative">
+                  <div
+                    aria-hidden
+                    className="absolute inset-[-22%] rounded-full bg-primary/20 blur-2xl"
+                  />
+                  <PlaceholderOrb
+                    size={224}
+                    expression="idle"
+                    className="relative size-36 drop-shadow-2xl md:size-48"
+                    alt={tCommon("hermesAvatarAlt")}
+                  />
+                </div>
 
-              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
-                <Button
-                  size="lg"
-                  variant="primary"
-                  className="h-12 gap-2 px-6 text-base shadow-sm"
-                  onClick={onActivate}
-                >
-                  <span>{t("primaryCta")}</span>
-                  <ArrowRight className="size-4" aria-hidden />
-                </Button>
+                <h1 className="mt-9 max-w-4xl text-balance text-4xl font-light tracking-tight text-foreground md:text-6xl lg:text-7xl">
+                  {t("title")}
+                </h1>
+                <p className="mt-5 max-w-2xl text-balance text-lg text-foreground/86 md:text-2xl">
+                  {t("subtitle")}
+                </p>
+                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground/64 md:text-base">
+                  {t("description")}
+                </p>
+
+                <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    className="h-12 gap-2 px-6 text-base shadow-lg shadow-primary/20"
+                    onClick={onActivate}
+                  >
+                    <span>{t("primaryCta")}</span>
+                    <ArrowRight className="size-4" aria-hidden />
+                  </Button>
+                  <div className="rounded-full border border-border/50 bg-background/35 px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-foreground/72 backdrop-blur-md">
+                    {t("servicesMoreLabel")}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-end justify-between gap-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-foreground/52">
+                <span>{t("journeyStep1Tag")}</span>
+                <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/30 px-2 py-1 backdrop-blur-md sm:flex">
+                  <span className="rounded-full bg-foreground px-3 py-1 text-background">
+                    {t("feature2Title")}
+                  </span>
+                  <span className="px-2 text-foreground/64">
+                    {t("feature6Title")}
+                  </span>
+                </div>
+                <span>{t("journeyStep5Tag")}</span>
               </div>
             </div>
-
-            <ActivationBrief />
           </section>
+
+          <div className="mt-6">
+            <ActivationBrief />
+          </div>
 
           {/* ── Services strip ─────────────────────────────────────── */}
           <Section

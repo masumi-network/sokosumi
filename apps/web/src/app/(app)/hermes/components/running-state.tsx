@@ -1040,7 +1040,12 @@ export default function RunningState({
   return (
     <AssistantSeedContext.Provider value={avatarSeed}>
       <AssistantMotionContext.Provider value={orbMotion}>
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
+        <div
+          className={cn(
+            "relative flex h-full w-full flex-col overflow-hidden rounded-lg",
+            isEmpty && "dark bg-background text-foreground",
+          )}
+        >
           {/* Floating live-presence orb (top-left) — the assistant's persistent
               animated "face" reflecting what it's doing right now. */}
           {!isEmpty ? (
@@ -1246,6 +1251,9 @@ export default function RunningState({
 
 function WelcomeBlock({ firstName }: { firstName: string | null }) {
   const t = useTranslations("App.Hermes.Running");
+  const tCommon = useTranslations("App.Hermes.Common");
+  const seed = useContext(AssistantSeedContext);
+  const motion = useContext(AssistantMotionContext);
   const greeting = firstName
     ? `${t("emptyTitle")}, ${firstName}`
     : t("emptyTitle");
@@ -1263,12 +1271,37 @@ function WelcomeBlock({ firstName }: { firstName: string | null }) {
   if (!show) return null;
 
   return (
-    <div className="mt-[-80px] flex h-full flex-col items-center justify-center px-6">
-      <div className="mx-auto w-full max-w-xl text-center">
-        <h1 className="text-foreground text-3xl font-semibold tracking-tight md:text-4xl">
+    <div className="relative mt-[-80px] flex h-full min-h-[28rem] flex-col items-center justify-center overflow-hidden px-6">
+      <div
+        aria-hidden
+        className="hermes-landing-drift pointer-events-none absolute inset-x-[-20%] top-[-10%] h-[80%] bg-[radial-gradient(ellipse_at_50%_35%,color-mix(in_oklch,var(--chart-5)_58%,transparent)_0%,color-mix(in_oklch,var(--semantic-critical)_44%,transparent)_30%,transparent_64%)] blur-2xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 size-[min(74vw,34rem)] -translate-x-1/2 -translate-y-1/2"
+      >
+        <div className="hermes-landing-breathe size-full rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--background)_92%,var(--semantic-critical))_0%,color-mix(in_oklch,var(--background)_88%,transparent)_44%,transparent_70%)] blur-xl" />
+      </div>
+      <div className="relative z-10 mx-auto w-full max-w-2xl text-center">
+        <div className="hermes-landing-float relative mx-auto mb-7 size-32">
+          <div
+            aria-hidden
+            className="absolute inset-[-24%] rounded-full bg-primary/20 blur-2xl"
+          />
+          <AuroraOrb
+            seed={seed}
+            animate
+            size={160}
+            speed={motion.speed}
+            expression="content"
+            alt={tCommon("hermesAvatarAlt")}
+            className="relative size-32"
+          />
+        </div>
+        <h1 className="text-foreground text-balance text-3xl font-light tracking-tight md:text-5xl">
           {greeting}
         </h1>
-        <p className="text-muted-foreground mt-4 text-base leading-relaxed">
+        <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-foreground/68">
           {t("emptyHint")}
         </p>
       </div>
