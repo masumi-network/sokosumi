@@ -37,6 +37,11 @@ import ThoughtSummaryBar from "./thought-summary-bar";
 
 export type MessageListHandle = Record<string, never>;
 
+const WARMUP_READY_DELAY_MS = 3_000;
+const WARMUP_SLOW_DELAY_MS = 8_000;
+
+type WarmupMessagePhase = "thinking" | "ready" | "slow";
+
 function groupMessagesIntoSection(messages: UIMessage[]): UIMessage[][] {
   if (messages.length === 0) return [];
   const sections: UIMessage[][] = [];
@@ -139,8 +144,31 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const roRef = useRef<ResizeObserver | null>(null);
     const [contentHeight, setContentHeight] = useState(0);
+    const [warmupMessagePhase, setWarmupMessagePhase] =
+      useState<WarmupMessagePhase>("thinking");
 
     useImperativeHandle(ref, () => ({}), []);
+
+    useEffect(() => {
+      if (!warmupPending) {
+        setWarmupMessagePhase("thinking");
+        return;
+      }
+
+      setWarmupMessagePhase("thinking");
+
+      const readyTimer = window.setTimeout(() => {
+        setWarmupMessagePhase("ready");
+      }, WARMUP_READY_DELAY_MS);
+      const slowTimer = window.setTimeout(() => {
+        setWarmupMessagePhase("slow");
+      }, WARMUP_SLOW_DELAY_MS);
+
+      return () => {
+        window.clearTimeout(readyTimer);
+        window.clearTimeout(slowTimer);
+      };
+    }, [selectedChatId, warmupPending]);
 
     const setWrapperRef = useCallback((el: HTMLDivElement | null) => {
       if (wrapperRef.current && roRef.current) {
@@ -172,6 +200,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       lastAssistantHasNoContent &&
       lastMessage != null &&
       extractReasoningStepMessages(lastMessage).length === 0 &&
+      !warmupPending &&
       hasLiveReasoning;
     const showPendingErrorForEmptyAssistant =
       lastMessage?.role === "assistant" &&
@@ -185,10 +214,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const showReasoningLoaders =
       showLoadingArea &&
       hasLiveReasoning &&
+      !warmupPending &&
       !showStreamReasoningInLastAssistantRow;
     const showPendingError = showPendingErrorForEmptyAssistant;
     const showLoadingIndicator =
-      showLoadingArea && !showReasoningLoaders && !showPendingError;
+      showLoadingArea &&
+      !warmupPending &&
+      !showReasoningLoaders &&
+      !showPendingError;
     const loadingIndicatorLabel = undefined;
 
     const sections = groupMessagesIntoSection(messages);
@@ -245,28 +278,14 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       warmupCoworkerName?.trim() ||
       coworkerName?.trim() ||
       t("coworkerNameFallback");
-    const warmupNoticeBlock = warmupPending && (
-      <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
-        <Avatar
-          className={cn(
-            "size-8 shrink-0 overflow-hidden rounded-full",
-            modelId && "bg-white dark:bg-black",
-          )}
-        >
-          <AssistantAvatarContent
-            coworkerId={coworkerId ?? undefined}
-            coworkerImageUrl={coworkerImageUrl}
-            coworkerName={coworkerName}
-            modelId={modelId ?? undefined}
-            modelName={modelName}
-          />
-        </Avatar>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <p className="text-muted-foreground text-sm">
-            {t("coworkerWarmingUp", { name: warmupNoticeName })}
-          </p>
-        </div>
-      </div>
+    const warmupLoaderLabel =
+      warmupMessagePhase === "thinking"
+        ? t("coworkerWarmupThinking", { name: warmupNoticeName })
+        : warmupMessagePhase === "slow"
+          ? t("coworkerWarmupSlow")
+          : t("coworkerWarmingUp", { name: warmupNoticeName });
+    const warmupLoaderBlock = warmupPending && (
+      <LoadingIndicator label={warmupLoaderLabel} />
     );
     const responseInProgressBlock = coworkerResponseInProgress &&
       !warmupPending &&
@@ -351,6 +370,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         isLastMessage &&
         reasoningFromParts.length === 0 &&
         hasLiveReasoning &&
+        !warmupPending &&
         (isLoading || content.trim().length > 0);
       const storedThoughtTiming =
         role === "assistant" && isCoworker
@@ -383,7 +403,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         role === "assistant" &&
         !content.trim() &&
         isLoading &&
-        (showReasoningLoaders || showLoadingIndicator) &&
+        (warmupPending || showReasoningLoaders || showLoadingIndicator) &&
         !showStreamOnlyThoughtBar;
       const hideEmptyAssistantShowError =
         isLastMessage &&
@@ -461,7 +481,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                   {showLoadingIndicator && (
                     <LoadingIndicator label={loadingIndicatorLabel} />
                   )}
-                  {warmupNoticeBlock}
+                  {warmupLoaderBlock}
                   {responseInProgressBlock}
                   {pendingOrTailErrorBlock}
                   <div
@@ -511,7 +531,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                         {showLoadingIndicator && (
                           <LoadingIndicator label={loadingIndicatorLabel} />
                         )}
-                        {warmupNoticeBlock}
+                        {warmupLoaderBlock}
                         {responseInProgressBlock}
                         {pendingOrTailErrorBlock}
                         {showLoadingArea && (

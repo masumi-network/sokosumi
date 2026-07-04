@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import type { UIMessage } from "ai";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Chat } from "@/app/chat/utils/types";
 
@@ -38,6 +38,10 @@ vi.mock("@/components/chat/chat-model-icon", () => ({
 }));
 
 describe("MessageList", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows streaming thought summary on the assistant row for model chats when live reasoning arrives before assistant content", () => {
     const messages = [
       {
@@ -172,8 +176,84 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
+    expect(screen.getByText("coworkerWarmupThinking")).toBeInTheDocument();
+    expect(screen.queryByText("reasoning.thinking")).toBeNull();
     expect(screen.queryByText("pendingResponseFailed")).toBeNull();
+  });
+
+  it("progresses the warmup row message while suppressing live reasoning", () => {
+    vi.useFakeTimers();
+
+    const messages = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "Hello" }],
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [],
+      },
+    ] satisfies UIMessage[];
+    const chats = [
+      {
+        id: "conversation-1",
+        title: "Elena",
+        createdAt: new Date("2026-05-10T09:00:00.000Z"),
+        updatedAt: new Date("2026-05-10T09:00:00.000Z"),
+        status: "active",
+        coworker: {
+          id: "coworker-1",
+          name: "Elena",
+          slug: "elena",
+          description: "Test coworker",
+          useCase: "Testing",
+        },
+      },
+    ] satisfies Chat[];
+
+    render(
+      <MessageList
+        chats={chats}
+        conversationCoworkerFallback={{
+          id: "coworker-1",
+          name: "Elena",
+        }}
+        isCoworker={true}
+        isLoading={true}
+        messages={messages}
+        reasoningMessages={[
+          { id: "reasoning-1", message: "Preparing coworker" },
+        ]}
+        selectedChatId="conversation-1"
+        userImageUrl=""
+        warmupPending={true}
+        warmupCoworkerName="Elena"
+      />,
+    );
+
+    expect(screen.getByText("coworkerWarmupThinking")).toBeInTheDocument();
+    expect(screen.queryByText("reasoning.thinking")).toBeNull();
+    expect(screen.queryByText("reasoning.expandSteps")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
+
+    expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
+    expect(screen.queryByText("coworkerWarmupThinking")).toBeNull();
+    expect(screen.queryByText("reasoning.thinking")).toBeNull();
+    expect(screen.queryByText("reasoning.expandSteps")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(screen.getByText("coworkerWarmupSlow")).toBeInTheDocument();
+    expect(screen.queryByText("coworkerWarmingUp")).toBeNull();
+    expect(screen.queryByText("reasoning.thinking")).toBeNull();
+    expect(screen.queryByText("reasoning.expandSteps")).toBeNull();
   });
 
   it("shows a translated wait notice when a coworker response is already in progress", () => {
