@@ -439,6 +439,11 @@ async function runCoworkerStreamPreamble(params: {
       }
 
       if (pollResult.status === "error") {
+        await clearPendingResponseId({
+          conversationId: params.conversationId,
+          userId: params.userId,
+        });
+        await clearPendingResponseMirror(params.conversationId);
         throw serviceUnavailable(
           "Coworker chat could not verify an in-flight response. Try again shortly.",
         );

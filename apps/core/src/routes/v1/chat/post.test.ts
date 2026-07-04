@@ -2218,7 +2218,7 @@ describe("POST /chat", () => {
       expect(streamTextMock).toHaveBeenCalledOnce();
     });
 
-    it("returns 503 when pending response polling fails", async () => {
+    it("returns 503 and clears stale pending when pending response polling fails", async () => {
       const cid = setupCoworkerChatConversation({
         coworker_slug: "ops-agent",
         pending_responses_api_response_id: "resp_pending",
@@ -2226,7 +2226,7 @@ describe("POST /chat", () => {
       pollCoworkerResponseStatusMock.mockResolvedValueOnce({
         status: "error",
         responseId: "resp_pending",
-        cause: new Error("upstream unavailable"),
+        cause: new Error("Coworker retrieve returned HTTP 404"),
       });
 
       const app = createApp();
@@ -2241,11 +2241,64 @@ describe("POST /chat", () => {
       });
 
       expect(response.status).toBe(503);
+      expect(clearPendingResponseIdMock).toHaveBeenCalledWith({
+        conversationId: cid,
+        userId: "user_123",
+      });
+      expect(clearPendingResponseMirrorMock).toHaveBeenCalledWith(cid);
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
         cid,
         "instance-test:lock-token",
       );
       expect(streamTextMock).not.toHaveBeenCalled();
+    });
+
+    it("proceeds on retry after stale pending poll error was cleared", async () => {
+      const cid = setupCoworkerChatConversation({
+        coworker_slug: "ops-agent",
+        pending_responses_api_response_id: "resp_pending",
+      });
+      pollCoworkerResponseStatusMock
+        .mockResolvedValueOnce({
+          status: "error",
+          responseId: "resp_pending",
+          cause: new Error("Coworker retrieve returned HTTP 404"),
+        })
+        .mockResolvedValueOnce({
+          status: "completed",
+          responseId: "resp_pending",
+        });
+
+      const app = createApp();
+      const firstResponse = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [{ role: "user", parts: [{ type: "text", text: "Hi" }] }],
+        }),
+      });
+      expect(firstResponse.status).toBe(503);
+
+      setupCoworkerChatConversation({
+        coworker_slug: "ops-agent",
+      });
+      const secondResponse = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: cid,
+          conversationId: cid,
+          messages: [
+            { role: "user", parts: [{ type: "text", text: "Hi again" }] },
+          ],
+        }),
+      });
+
+      expect(secondResponse.status).toBe(200);
+      expect(pollCoworkerResponseStatusMock).toHaveBeenCalledTimes(1);
+      expect(streamTextMock).toHaveBeenCalledOnce();
     });
 
     it("releases the stream lock on finish while retaining pending on disconnect", async () => {
