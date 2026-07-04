@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import {
   chatModelSupportsWebSearch,
   getChatModelImageGenerationOpenRouterId,
@@ -25,7 +26,19 @@ import {
 } from "@/helpers/active-ui-stream-metadata";
 import { conversationMessagesToUiMessages } from "@/helpers/conversation-messages-to-ui-messages";
 import {
+  clearPendingResponseMirror,
+  getPendingResponseMirror,
+  setPendingResponseMirror,
+} from "@/helpers/coworker-pending-response-mirror";
+import { pollCoworkerResponseStatus } from "@/helpers/coworker-response-poll";
+import {
+  acquireStreamLock,
+  releaseStreamLock,
+  startStreamLockHeartbeat,
+} from "@/helpers/coworker-stream-lock";
+import {
   badRequest,
+  conflict,
   forbidden,
   internalServerError,
   notFound,
@@ -44,7 +57,9 @@ import {
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { persistAssistantFromAiSdk } from "@/helpers/persist-assistant-from-ai-sdk";
 import {
+  clearCoworkerResponseChain,
   clearPendingAndSetPrevious,
+  clearPendingResponseId,
   persistPendingResponseId,
 } from "@/helpers/persist-pending-response-id";
 import { normalizeSafeRemoteUrl } from "@/helpers/safe-url";
@@ -71,7 +86,7 @@ import {
   aiSdkChatRequestSchema,
 } from "@/schemas/chat-request.schema.js";
 import {
-  createCoworkerConversation,
+  ensureCoworkerProviderConversation,
   throwCoworkerRemoteConversationHttpError,
 } from "./coworker-conversation";
 
@@ -372,6 +387,91 @@ async function persistUserOrSystemTurnForConversation(params: {
   }
 }
 
+interface CoworkerStreamPreambleResult {
+  releaseOwnedStreamLock: () => Promise<void>;
+}
+
+async function runCoworkerStreamPreamble(params: {
+  conversationId: string;
+  userId: string;
+  organizationId: string | null;
+  metadata: Record<string, unknown> | null;
+  coworker: { slug: string; baseURL: string };
+}): Promise<CoworkerStreamPreambleResult> {
+  const streamLock = await acquireStreamLock(params.conversationId);
+  if (streamLock.status === "held") {
+    throw conflict(
+      "A coworker response is already in progress for this conversation.",
+    );
+  }
+  const streamLockOwnerToken =
+    streamLock.status === "acquired" ? streamLock.ownerToken : null;
+
+  const releaseOwnedStreamLock = async () => {
+    if (streamLockOwnerToken) {
+      await releaseStreamLock(params.conversationId, streamLockOwnerToken);
+    }
+  };
+
+  try {
+    const metadataPending = params.metadata?.pending_responses_api_response_id;
+    const mirroredPending = await getPendingResponseMirror(
+      params.conversationId,
+    );
+    const pendingResponseId =
+      (typeof metadataPending === "string" && metadataPending.trim().length > 0
+        ? metadataPending.trim()
+        : null) ?? mirroredPending;
+
+    if (pendingResponseId) {
+      const pollResult = await pollCoworkerResponseStatus({
+        responsesApiBaseUrl: params.coworker.baseURL,
+        responseId: pendingResponseId,
+        userId: params.userId,
+        organizationId: params.organizationId,
+        coworkerSlug: params.coworker.slug,
+      });
+
+      if (pollResult.status === "in_progress") {
+        throw conflict(
+          "A coworker response is already in progress for this conversation.",
+        );
+      }
+
+      if (pollResult.status === "error") {
+        await clearPendingResponseId({
+          conversationId: params.conversationId,
+          userId: params.userId,
+        });
+        await clearPendingResponseMirror(params.conversationId);
+        throw serviceUnavailable(
+          "Coworker chat could not verify an in-flight response. Try again shortly.",
+        );
+      }
+
+      await clearPendingResponseId({
+        conversationId: params.conversationId,
+        userId: params.userId,
+      });
+      await clearPendingResponseMirror(params.conversationId);
+    }
+  } catch (error) {
+    await releaseOwnedStreamLock();
+    throw error;
+  }
+
+  const stopHeartbeat = streamLockOwnerToken
+    ? startStreamLockHeartbeat(params.conversationId, streamLockOwnerToken)
+    : null;
+
+  return {
+    releaseOwnedStreamLock: async () => {
+      stopHeartbeat?.();
+      await releaseOwnedStreamLock();
+    },
+  };
+}
+
 async function validateUiMessagesOrBadRequest(
   messages: UIMessage[],
 ): Promise<void> {
@@ -414,6 +514,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Conversation not found"),
+    409: jsonErrorResponse("Conflict"),
     503: jsonErrorResponse("Service Unavailable"),
     422: jsonErrorResponse("Unprocessable Entity"),
     500: jsonErrorResponse("Internal Server Error"),
@@ -426,6 +527,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let logConversationId: string | null = null;
     let logSelectedModel: string | null = null;
     let logImageGenerationModel: string | null = null;
+    let releaseOwnedCoworkerStreamLock: (() => Promise<void>) | null = null;
+    const finalizeCoworkerStreamLock = () => {
+      const release = releaseOwnedCoworkerStreamLock;
+      if (!release) {
+        return;
+      }
+      releaseOwnedCoworkerStreamLock = null;
+      waitUntil(release());
+    };
     try {
       const userContext = requireUserContext(c.var.authContext);
 
@@ -626,6 +736,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
+      if (useCoworker && internalConversationId && coworker?.baseURL?.trim()) {
+        const preamble = await runCoworkerStreamPreamble({
+          conversationId: internalConversationId,
+          userId: userContext.userId,
+          organizationId: userContext.organizationId ?? null,
+          metadata,
+          coworker: {
+            slug: coworker.slug,
+            baseURL: coworker.baseURL.trim(),
+          },
+        });
+        releaseOwnedCoworkerStreamLock = preamble.releaseOwnedStreamLock;
+      }
+
       let uiMessages;
       if (
         useServerMergedHistory &&
@@ -694,37 +818,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         internalConversationId &&
         !providerConversationId
       ) {
-        let created: { id: string };
         try {
-          created = await createCoworkerConversation({
-            responsesApiBaseUrl: coworker.baseURL!.trim(),
-            sokosumiUserId: userContext.userId,
-            sokosumiOrganizationId: userContext.organizationId ?? null,
+          const ensured = await ensureCoworkerProviderConversation({
+            internalConversationId,
+            userId: userContext.userId,
+            organizationId: userContext.organizationId ?? null,
             coworkerSlug: coworker.slug,
-            sokosumiConversationId: internalConversationId,
+            responsesApiBaseUrl: coworker.baseURL!.trim(),
           });
+          providerConversationId = ensured.providerConversationId;
         } catch (error) {
           throwCoworkerRemoteConversationHttpError(error);
-        }
-        const updated = await prisma.conversation.updateMany({
-          where: {
-            id: internalConversationId,
-            userId: userContext.userId,
-            providerConversationId: null,
-          },
-          data: { providerConversationId: created.id },
-        });
-        if (updated.count === 0) {
-          const refetched = await prisma.conversation.findFirst({
-            where: {
-              id: internalConversationId,
-              userId: userContext.userId,
-            },
-            select: { providerConversationId: true },
-          });
-          providerConversationId = refetched?.providerConversationId ?? null;
-        } else {
-          providerConversationId = created.id;
         }
       }
 
@@ -803,6 +907,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         if (!useCoworker) {
           return null;
         }
+        if (providerConversationId?.trim()) {
+          return null;
+        }
         const fromRequest = previousResponseIdFromRequest?.trim();
         if (fromRequest) {
           return fromRequest;
@@ -834,6 +941,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           try {
+            await setPendingResponseMirror(internalConversationId, responseId);
             await persistPendingResponseId({
               conversationId: internalConversationId,
               userId: userContext.userId,
@@ -850,11 +958,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           try {
-            await clearPendingAndSetPrevious({
-              conversationId: internalConversationId,
-              userId: userContext.userId,
-              responseId,
-            });
+            await clearPendingResponseMirror(internalConversationId);
+            if (coworkerConversationsMode) {
+              await clearPendingResponseId({
+                conversationId: internalConversationId,
+                userId: userContext.userId,
+              });
+            } else {
+              await clearPendingAndSetPrevious({
+                conversationId: internalConversationId,
+                userId: userContext.userId,
+                responseId,
+              });
+            }
           } catch (error) {
             console.error(
               "Failed to clear pending and set previous response id:",
@@ -899,6 +1015,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           if (!internalConversationId) {
             return;
           }
+          const shouldClearCoworkerChain =
+            useCoworker && coworkerTextLooksLikeAgentError(finishEvent.text);
           try {
             const hasReasoning =
               Array.isArray(finishEvent.reasoning) &&
@@ -953,12 +1071,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               "Failed to persist assistant message (POST /chat):",
               error,
             );
+          } finally {
+            if (shouldClearCoworkerChain) {
+              try {
+                await clearCoworkerResponseChain({
+                  conversationId: internalConversationId,
+                  userId: userContext.userId,
+                });
+              } catch (clearError) {
+                console.error(
+                  "Failed to clear coworker response chain (POST /chat):",
+                  clearError,
+                );
+              }
+            }
           }
         },
       });
 
       const enableResumableUiStream =
         Boolean(internalConversationId) && isUiStreamResumptionConfigured();
+
+      const coworkerStreamResponseOptions = releaseOwnedCoworkerStreamLock
+        ? {
+            onError: () => {
+              finalizeCoworkerStreamLock();
+              return "An error occurred.";
+            },
+          }
+        : {};
 
       return result.toUIMessageStreamResponse({
         originalMessages: uiMessages,
@@ -970,6 +1111,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? { "x-sokosumi-conversation-id": internalConversationId }
             : {}),
         },
+        ...coworkerStreamResponseOptions,
         ...(enableResumableUiStream && internalConversationId
           ? {
               consumeSseStream: async ({ stream }) => {
@@ -997,6 +1139,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 await registration;
               },
               onFinish: async () => {
+                finalizeCoworkerStreamLock();
                 if (uiStreamResumptionRegistration) {
                   await uiStreamResumptionRegistration;
                 }
@@ -1025,9 +1168,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 }
               },
             }
-          : {}),
+          : releaseOwnedCoworkerStreamLock
+            ? {
+                onFinish: async () => {
+                  finalizeCoworkerStreamLock();
+                },
+              }
+            : {}),
       });
     } catch (error) {
+      if (releaseOwnedCoworkerStreamLock) {
+        const release = releaseOwnedCoworkerStreamLock;
+        releaseOwnedCoworkerStreamLock = null;
+        try {
+          await release();
+        } catch (releaseError) {
+          console.error(
+            "Failed to release coworker stream lock (POST /chat):",
+            releaseError,
+          );
+        }
+      }
       if (logImageGenerationRequest) {
         console.error("Failed to stream OpenRouter image generation chat", {
           conversationId: logConversationId,

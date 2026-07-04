@@ -87,7 +87,31 @@ describe("HeaderProfileSectionClient", () => {
     });
   });
 
-  it("prefers the client session active organization over the server prop", () => {
+  it("prefers the client session active organization when it matches the server", () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: "org-b",
+        },
+      },
+    });
+
+    render(
+      <HeaderProfileSectionClient
+        sessionUser={sessionUser}
+        members={members}
+        activeOrganizationId="org-b"
+      />,
+    );
+
+    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeOrganizationId: "org-b",
+      }),
+    );
+  });
+
+  it("prefers the client session active organization when client and server differ", () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -107,6 +131,7 @@ describe("HeaderProfileSectionClient", () => {
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: "org-b",
+        isPending: false,
       }),
     );
   });
@@ -127,6 +152,31 @@ describe("HeaderProfileSectionClient", () => {
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeOrganizationId: "org-a",
+      }),
+    );
+  });
+
+  it("shows personal account from client session when active organization is null", () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: null,
+        },
+      },
+    });
+
+    render(
+      <HeaderProfileSectionClient
+        sessionUser={sessionUser}
+        members={members}
+        activeOrganizationId="org-a"
+      />,
+    );
+
+    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeOrganizationId: null,
+        isPending: false,
       }),
     );
   });

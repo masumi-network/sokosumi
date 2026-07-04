@@ -24,6 +24,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: conversationFindFirstMock,
       create: conversationCreateMock,
     },
+    coworker: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   },
 }));
 

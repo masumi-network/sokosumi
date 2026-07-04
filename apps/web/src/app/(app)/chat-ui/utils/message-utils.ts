@@ -239,6 +239,62 @@ export function getThoughtTimingMsFromMessage(message: unknown): {
   return { startedAtMs: started, endedAtMs: ended };
 }
 
+export const COWORKER_AGENT_ERROR_SNIPPET =
+  "Something went wrong while processing your task";
+
+export function shouldReplaceSlotMessagesWithDb(
+  slotMessages: UIMessage[],
+  dbMessages: UIMessage[],
+): boolean {
+  if (dbMessages.length === 0) {
+    return false;
+  }
+  if (slotMessages.length === 0) {
+    return true;
+  }
+  if (dbMessages.length > slotMessages.length) {
+    return true;
+  }
+
+  const slotTail = slotMessages[slotMessages.length - 1];
+  const dbTail = dbMessages[dbMessages.length - 1];
+  if (dbTail?.role !== "assistant" || slotTail?.role !== "assistant") {
+    return false;
+  }
+
+  const dbText = extractMessageContent(dbTail).trim();
+  const slotText = extractMessageContent(slotTail).trim();
+
+  if (!slotText && dbText) {
+    return true;
+  }
+  if (
+    slotText.includes(COWORKER_AGENT_ERROR_SNIPPET) &&
+    dbText.length > 0 &&
+    !dbText.includes(COWORKER_AGENT_ERROR_SNIPPET)
+  ) {
+    return true;
+  }
+  if (dbText.length > slotText.length + 10) {
+    return true;
+  }
+
+  return false;
+}
+
+export function reconcileSlotMessagesWithDb(
+  slotMessages: UIMessage[],
+  dbMessages: UIMessage[],
+): UIMessage[] {
+  if (shouldReplaceSlotMessagesWithDb(slotMessages, dbMessages)) {
+    return dbMessages;
+  }
+  if (dbMessages.length === 0) {
+    return slotMessages;
+  }
+  return mergeAssistantThoughtMetadataFromDb(slotMessages, dbMessages);
+}
+
 export function mergeAssistantThoughtMetadataFromDb(
   slotMessages: UIMessage[],
   dbMessages: UIMessage[],

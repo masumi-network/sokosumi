@@ -3,6 +3,7 @@ import {
   serviceUnavailable,
   tooManyRequests,
 } from "@/helpers/error";
+import prisma from "@/lib/db/prisma";
 
 const CREATE_CONVERSATION_TIMEOUT_MS = 25_000;
 
@@ -212,4 +213,65 @@ export async function createCoworkerConversation(
   }
 
   return { id };
+}
+
+export interface EnsureCoworkerProviderConversationOptions {
+  internalConversationId: string;
+  userId: string;
+  organizationId: string | null;
+  coworkerSlug: string;
+  responsesApiBaseUrl: string;
+}
+
+export async function ensureCoworkerProviderConversation(
+  options: EnsureCoworkerProviderConversationOptions,
+): Promise<{ providerConversationId: string; justCreated: boolean }> {
+  const existing = await prisma.conversation.findFirst({
+    where: {
+      id: options.internalConversationId,
+      userId: options.userId,
+    },
+    select: { providerConversationId: true },
+  });
+  const existingId = existing?.providerConversationId?.trim();
+  if (existingId) {
+    return { providerConversationId: existingId, justCreated: false };
+  }
+
+  const created = await createCoworkerConversation({
+    responsesApiBaseUrl: options.responsesApiBaseUrl,
+    sokosumiUserId: options.userId,
+    sokosumiOrganizationId: options.organizationId,
+    coworkerSlug: options.coworkerSlug,
+    sokosumiConversationId: options.internalConversationId,
+  });
+
+  const updated = await prisma.conversation.updateMany({
+    where: {
+      id: options.internalConversationId,
+      userId: options.userId,
+      providerConversationId: null,
+    },
+    data: { providerConversationId: created.id },
+  });
+
+  if (updated.count === 0) {
+    const refetched = await prisma.conversation.findFirst({
+      where: {
+        id: options.internalConversationId,
+        userId: options.userId,
+      },
+      select: { providerConversationId: true },
+    });
+    const refetchedId = refetched?.providerConversationId?.trim();
+    if (!refetchedId) {
+      throw new CoworkerConversationError(
+        "Could not persist coworker provider conversation id",
+        503,
+      );
+    }
+    return { providerConversationId: refetchedId, justCreated: false };
+  }
+
+  return { providerConversationId: created.id, justCreated: true };
 }

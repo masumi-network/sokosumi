@@ -2,7 +2,7 @@
 
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { updatePreferredOrganization } from "@/lib/actions/organization";
@@ -53,6 +53,19 @@ interface SwitchOrganizationWorkspaceOptions {
   successMessage?: string;
   router?: AppRouterInstance;
   pathname?: string;
+  startTransition?: (callback: () => void) => void;
+}
+
+function runRouterTransition(
+  callback: () => void,
+  startTransition?: (callback: () => void) => void,
+) {
+  if (startTransition) {
+    startTransition(callback);
+    return;
+  }
+
+  callback();
 }
 
 export async function switchOrganizationWorkspace(
@@ -70,8 +83,10 @@ export async function switchOrganizationWorkspace(
   if (shouldRedirectAgentJobsBasePath && options?.router && options?.pathname) {
     const jobsBasePath = getAgentJobsBasePath(options.pathname);
     if (jobsBasePath) {
-      options.router.replace(jobsBasePath);
-      options.router.refresh();
+      runRouterTransition(() => {
+        options.router?.replace(jobsBasePath);
+        options.router?.refresh();
+      }, options.startTransition);
       return;
     }
   }
@@ -81,19 +96,26 @@ export async function switchOrganizationWorkspace(
   if (shouldRedirectTaskDetailPath && options?.router && options?.pathname) {
     const taskDetailBasePath = getTaskDetailBasePath(options.pathname);
     if (taskDetailBasePath) {
-      options.router.replace(taskDetailBasePath);
-      options.router.refresh();
+      runRouterTransition(() => {
+        options.router?.replace(taskDetailBasePath);
+        options.router?.refresh();
+      }, options.startTransition);
       return;
     }
   }
 
-  options?.router?.refresh();
+  if (options?.router) {
+    runRouterTransition(() => {
+      options.router?.refresh();
+    }, options.startTransition);
+  }
 }
 
 export function useWorkspaceSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
-  const [isPending, setIsPending] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const [isRefreshing, startTransition] = useTransition();
 
   const handleSelectWorkspace = (
     organizationId: string | null,
@@ -103,24 +125,25 @@ export function useWorkspaceSwitcher() {
       successMessage?: string;
     },
   ): Promise<void> => {
-    setIsPending(true);
+    setIsActivating(true);
 
     return switchOrganizationWorkspace(organizationId, {
       ...options,
       router,
       pathname,
+      startTransition,
     })
       .catch((error) => {
         console.error("Failed to switch organization:", error);
         throw error;
       })
       .finally(() => {
-        setIsPending(false);
+        setIsActivating(false);
       });
   };
 
   return {
-    isPending,
+    isPending: isActivating || isRefreshing,
     handleSelectWorkspace,
   };
 }

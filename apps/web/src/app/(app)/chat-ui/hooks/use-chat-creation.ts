@@ -13,6 +13,10 @@ import {
 } from "@/app/chat-ui/utils/chat-route-base";
 import type { Conversation } from "@/lib/actions/conversation";
 
+interface ChatCreationOptions {
+  deferNavigation?: boolean;
+}
+
 interface UseChatCreationProps {
   createNewConversation: (
     metadata?: Record<string, unknown>,
@@ -36,6 +40,7 @@ interface UseChatCreationProps {
     conversation: Conversation,
     slug: string,
   ) => void | Promise<void>;
+  isRouteDriven?: boolean;
 }
 
 /**
@@ -58,6 +63,7 @@ export function useChatCreation({
   chats,
   conversations,
   navigateToConversation,
+  isRouteDriven = true,
 }: UseChatCreationProps) {
   const router = useRouter();
   const [isWelcomeTransitioning, setIsWelcomeTransitioning] = useState(false);
@@ -67,7 +73,7 @@ export function useChatCreation({
   const createModelChat = useCallback(
     async (
       model: { id: string; name: string },
-      options?: { imageGeneration?: boolean },
+      options?: { imageGeneration?: boolean } & ChatCreationOptions,
     ) => {
       const conversation = await createNewConversation(
         {
@@ -113,29 +119,35 @@ export function useChatCreation({
       currentChatIdRef.current = conversation.id;
       selectedModelRef.current = model;
       setSelectedModel(model);
-      pendingUrlConversationIdRef.current = conversation.id;
-      isUpdatingUrlRef.current = true;
-      try {
-        sessionStorage.setItem(
-          getPendingConversationStorageKey(),
-          conversation.id,
-        );
-      } catch {
-        // ignore
+      if (isRouteDriven) {
+        pendingUrlConversationIdRef.current = conversation.id;
+        isUpdatingUrlRef.current = true;
+        try {
+          sessionStorage.setItem(
+            getPendingConversationStorageKey(),
+            conversation.id,
+          );
+        } catch {
+          // ignore
+        }
       }
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
         `model-${model.id.replace(/\//g, "-")}`;
 
-      if (navigateToConversation) {
+      if (!options?.deferNavigation) {
+        if (navigateToConversation) {
+          void navigateToConversation(conversation, slug);
+        } else {
+          router.push(
+            `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
+            {
+              scroll: false,
+            },
+          );
+        }
+      } else if (navigateToConversation) {
         void navigateToConversation(conversation, slug);
-      } else {
-        router.push(
-          `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
-          {
-            scroll: false,
-          },
-        );
       }
 
       return conversation;
@@ -156,11 +168,12 @@ export function useChatCreation({
       selectedModelRef,
       isUpdatingUrlRef,
       pendingUrlConversationIdRef,
+      isRouteDriven,
     ],
   );
 
   const createCoworkerChat = useCallback(
-    async (coworker: Coworker) => {
+    async (coworker: Coworker, options?: ChatCreationOptions) => {
       setSelectedModel(null);
       selectedModelRef.current = null;
 
@@ -205,15 +218,17 @@ export function useChatCreation({
 
       setSelectedChatId(conversation.id);
       currentChatIdRef.current = conversation.id;
-      pendingUrlConversationIdRef.current = conversation.id;
-      isUpdatingUrlRef.current = true;
-      try {
-        sessionStorage.setItem(
-          getPendingConversationStorageKey(),
-          conversation.id,
-        );
-      } catch {
-        // ignore
+      if (isRouteDriven) {
+        pendingUrlConversationIdRef.current = conversation.id;
+        isUpdatingUrlRef.current = true;
+        try {
+          sessionStorage.setItem(
+            getPendingConversationStorageKey(),
+            conversation.id,
+          );
+        } catch {
+          // ignore
+        }
       }
       const slug =
         displaySlugFromMetadata(conversation.metadata ?? null) ||
@@ -221,15 +236,19 @@ export function useChatCreation({
         slugify(coworker.name) ||
         `coworker-${coworker.id}`;
 
-      if (navigateToConversation) {
+      if (!options?.deferNavigation) {
+        if (navigateToConversation) {
+          void navigateToConversation(conversation, slug);
+        } else {
+          router.push(
+            `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
+            {
+              scroll: false,
+            },
+          );
+        }
+      } else if (navigateToConversation) {
         void navigateToConversation(conversation, slug);
-      } else {
-        router.push(
-          `${CHAT_APP_ROUTE_PREFIX}/${slug}/conversation/${conversation.id}`,
-          {
-            scroll: false,
-          },
-        );
       }
 
       return conversation;
@@ -250,6 +269,7 @@ export function useChatCreation({
       selectedModelRef,
       isUpdatingUrlRef,
       pendingUrlConversationIdRef,
+      isRouteDriven,
     ],
   );
 
@@ -288,5 +308,6 @@ export function useChatCreation({
     isWelcomeTransitioning,
     setIsWelcomeTransitioning,
     showMessagesAfterTransition,
+    setShowMessagesAfterTransition,
   };
 }

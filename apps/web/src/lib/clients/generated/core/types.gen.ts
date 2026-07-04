@@ -760,6 +760,29 @@ export type CreateConversationRequest = {
     };
 };
 
+export type ConversationWarmupState = {
+    /**
+     * Internal conversation ID
+     */
+    conversationId: string;
+    /**
+     * Coworker container warmup state
+     */
+    state: 'pending' | 'ready' | 'failed';
+    /**
+     * ISO timestamp when warmup reached a terminal state (ready or failed)
+     */
+    completedAt: Date | null;
+    /**
+     * Number of warmup attempts made so far
+     */
+    attempts?: number | null;
+    /**
+     * Where the warmup state was resolved from
+     */
+    source: 'redis' | 'metadata' | 'none';
+};
+
 export type UpdateConversationRequest = {
     /**
      * Conversation title
@@ -7112,6 +7135,20 @@ export type PostChatErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unprocessable Entity
      */
     422: {
@@ -7826,6 +7863,109 @@ export type PatchConversationsByIdResponses = {
 };
 
 export type PatchConversationsByIdResponse = PatchConversationsByIdResponses[keyof PatchConversationsByIdResponses];
+
+export type GetConversationsByIdWarmupData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Internal database ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/conversations/{id}/warmup';
+};
+
+export type GetConversationsByIdWarmupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conversation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetConversationsByIdWarmupError = GetConversationsByIdWarmupErrors[keyof GetConversationsByIdWarmupErrors];
+
+export type GetConversationsByIdWarmupResponses = {
+    /**
+     * Warmup state retrieved successfully
+     */
+    200: {
+        data: ConversationWarmupState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetConversationsByIdWarmupResponse = GetConversationsByIdWarmupResponses[keyof GetConversationsByIdWarmupResponses];
 
 export type PatchConversationsByIdArchiveData = {
     body?: ArchiveConversationRequest;

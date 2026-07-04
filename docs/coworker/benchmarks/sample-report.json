@@ -1,0 +1,94 @@
+{
+  "benchmark": "bench-coworker-chat",
+  "version": 2,
+  "generatedAt": "2026-07-02T22:00:00.000Z",
+  "scenario": "realistic",
+  "coworkerSlug": "elena",
+  "iterations": 5,
+  "metrics": {
+    "firstToken": {
+      "p50": 1180,
+      "p95": 1542
+    },
+    "totalDuration": {
+      "p50": 8420,
+      "p95": 9100
+    },
+    "outputTokens": {
+      "mean": 443.75
+    },
+    "agentError": {
+      "rate": 0.2
+    }
+  },
+  "samples": [
+    {
+      "iteration": 1,
+      "ok": true,
+      "firstTokenMs": 1024,
+      "totalDurationMs": 7980,
+      "outputTokens": 398,
+      "responseId": "resp_real_001",
+      "agentError": false,
+      "error": null
+    },
+    {
+      "iteration": 2,
+      "ok": false,
+      "firstTokenMs": null,
+      "totalDurationMs": null,
+      "outputTokens": null,
+      "responseId": null,
+      "agentError": true,
+      "error": "Request timeout"
+    },
+    {
+      "iteration": 3,
+      "ok": true,
+      "firstTokenMs": 1180,
+      "totalDurationMs": 8420,
+      "outputTokens": 420,
+      "responseId": "resp_real_003",
+      "agentError": false,
+      "error": null
+    },
+    {
+      "iteration": 4,
+      "ok": true,
+      "firstTokenMs": 1310,
+      "totalDurationMs": 8650,
+      "outputTokens": 445,
+      "responseId": "resp_real_004",
+      "agentError": false,
+      "error": null
+    },
+    {
+      "iteration": 5,
+      "ok": true,
+      "firstTokenMs": 1542,
+      "totalDurationMs": 9100,
+      "outputTokens": 512,
+      "responseId": "resp_real_005",
+      "agentError": false,
+      "error": null
+    }
+  ],
+  "git": {
+    "commit": "abc123def456789",
+    "ref": "sok-626-bench-coworker-chat"
+  },
+  "config": {
+    "endpoint": "https://responses.example.com/v1/responses",
+    "coworkerSlug": "elena",
+    "baseUrlSource": "database",
+    "requestTimeoutMs": 25000
+  },
+  "thresholds": {
+    "firstTokenP50Ms": 1200,
+    "agentErrorRate": 0.05
+  },
+  "thresholdStatus": {
+    "firstTokenP50": "pass",
+    "agentErrorRate": "warn"
+  }
+}

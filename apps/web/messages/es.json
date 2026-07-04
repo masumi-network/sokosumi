@@ -1263,6 +1263,7 @@
         "sidebarNew": "Nuevo",
         "noChats": "Aún sin chats",
         "noCoworkersAvailable": "No hay Coworkers disponibles. Por favor, inténtalo más tarde.",
+        "welcomeSendFailed": "No se pudo enviar tu mensaje. Inténtalo de nuevo.",
         "emptyState": {
           "title": "Iniciar conversación",
           "titleWithName": "Iniciar conversación con {name}",
@@ -1387,6 +1388,11 @@
         "tryAgain": "Intentar de nuevo",
         "networkErrorAfterRetry": "No se pudo conectar con el servidor tras varios intentos. Por favor, comprueba tu conexión e inténtalo de nuevo.",
         "pendingResponseFailed": "Algo salió mal de nuestro lado. Por favor, intenta reenviar tu último mensaje.",
+        "responseAlreadyInProgress": "Ya se está generando una respuesta. Espera un momento.",
+        "coworkerWarmupThinking": "{name} está pensando…",
+        "coworkerWarmingUp": "{name} se está preparando…",
+        "coworkerWarmupSlow": "Seguimos trabajando — esto puede tardar un momento.",
+        "coworkerNameFallback": "Tu coworker",
         "resend": "Reenviar",
         "noResponseConnectionLost": "Se perdió la conexión. Por favor, actualiza el navegador e inténtalo de nuevo.",
         "authorize": "Autorizar"

@@ -10,6 +10,7 @@ import {
   getThoughtTimingMsFromMessage,
   hasMessageTextOrFileParts,
   mergeAssistantThoughtMetadataFromDb,
+  reconcileSlotMessagesWithDb,
 } from "../message-utils";
 
 describe("extractMessageContent", () => {
@@ -301,6 +302,66 @@ describe("getThoughtTimingMsFromMessage", () => {
       startedAtMs: 100,
       endedAtMs: 200,
     });
+  });
+});
+
+describe("reconcileSlotMessagesWithDb", () => {
+  it("replaces empty slot assistant tail with db content", () => {
+    const slot = [
+      {
+        id: "user-1",
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: "Hi" }],
+      },
+      {
+        id: "asst-1",
+        role: "assistant" as const,
+        parts: [{ type: "text" as const, text: "" }],
+      },
+    ];
+    const db = convertItemsToMessages([
+      {
+        id: "user-1",
+        role: "user",
+        createdAt: 1700000000,
+        content: [{ type: "input_text", text: "Hi" }],
+      },
+      {
+        id: "asst-1",
+        role: "assistant",
+        createdAt: 1700000001,
+        content: [{ type: "output_text", text: "Hello from DB" }],
+      },
+    ]);
+    const merged = reconcileSlotMessagesWithDb(slot, db);
+    expect(extractMessageContent(merged[1] ?? {})).toBe("Hello from DB");
+  });
+
+  it("replaces agent-error slot tail when db has a real reply", () => {
+    const slot = [
+      {
+        id: "asst-1",
+        role: "assistant" as const,
+        parts: [
+          {
+            type: "text" as const,
+            text: "Something went wrong while processing your task. Please try again.",
+          },
+        ],
+      },
+    ];
+    const db = convertItemsToMessages([
+      {
+        id: "asst-1",
+        role: "assistant",
+        createdAt: 1700000001,
+        content: [{ type: "output_text", text: "Task created successfully." }],
+      },
+    ]);
+    const merged = reconcileSlotMessagesWithDb(slot, db);
+    expect(extractMessageContent(merged[0] ?? {})).toBe(
+      "Task created successfully.",
+    );
   });
 });
 

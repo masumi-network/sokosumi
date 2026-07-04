@@ -18,6 +18,9 @@ interface UseChatMessagesProps {
   messagesChatIdRef: React.MutableRefObject<string | null>;
   chatMessagesRef: React.MutableRefObject<Map<string, unknown[]>>;
   streamingConversationIdsRef?: React.MutableRefObject<Set<string>>;
+  welcomeCreationInFlightRef?: React.MutableRefObject<boolean>;
+  pendingUrlConversationIdRef?: React.MutableRefObject<string | null>;
+  isRouteDriven?: boolean;
 }
 
 type SerializedConversationMessagesResult =
@@ -85,6 +88,9 @@ export function useChatMessages({
   messagesChatIdRef,
   chatMessagesRef,
   streamingConversationIdsRef,
+  welcomeCreationInFlightRef,
+  pendingUrlConversationIdRef,
+  isRouteDriven = true,
 }: UseChatMessagesProps) {
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -117,15 +123,55 @@ export function useChatMessages({
         setMessagesForConversation(currentSelectedChatId, dbMessages);
         chatMessagesRef.current.set(currentSelectedChatId, dbMessages);
       } else {
-        messagesChatIdRef.current = null;
-        setMessagesForConversation(currentSelectedChatId, []);
         previousChatIdRef.current = currentSelectedChatId;
+        const cachedMessages = chatMessagesRef.current.get(
+          currentSelectedChatId,
+        );
+        const hasCachedMessages =
+          cachedMessages !== undefined && cachedMessages.length > 0;
+        const isDeferredLoad =
+          welcomeCreationInFlightRef?.current ||
+          (isRouteDriven &&
+            pendingUrlConversationIdRef?.current === currentSelectedChatId);
+
+        if (hasCachedMessages) {
+          messagesChatIdRef.current = currentSelectedChatId;
+          setMessagesForConversation(
+            currentSelectedChatId,
+            cachedMessages as UIMessage[],
+          );
+        } else if (isDeferredLoad) {
+          messagesChatIdRef.current = currentSelectedChatId;
+        } else {
+          messagesChatIdRef.current = null;
+          setMessagesForConversation(currentSelectedChatId, []);
+        }
       }
+
+      const shouldForceRefreshOnLoad =
+        selectedConversationMessages !== null ||
+        (chatMessagesRef.current.get(currentSelectedChatId)?.length ?? 0) > 0;
 
       const loadMessagesFromDB = async (
         options: { forceRefresh?: boolean; retryAttempt?: number } = {},
       ) => {
         const { forceRefresh = false, retryAttempt = 0 } = options;
+        const isDeferredLoad =
+          welcomeCreationInFlightRef?.current ||
+          (isRouteDriven &&
+            pendingUrlConversationIdRef?.current === currentSelectedChatId);
+        if (isDeferredLoad) {
+          if (previousChatIdRef.current !== currentSelectedChatId) {
+            return;
+          }
+          retryTimeoutRef.current = setTimeout(() => {
+            void loadMessagesFromDB({
+              forceRefresh: true,
+              retryAttempt: retryAttempt + 1,
+            });
+          }, 300);
+          return;
+        }
         // Use ref-based check instead of closure values to detect chat changes
         if (
           previousChatIdRef.current !== currentSelectedChatId ||
@@ -239,7 +285,7 @@ export function useChatMessages({
 
       const timeoutId = setTimeout(() => {
         void loadMessagesFromDB({
-          forceRefresh: selectedConversationMessages !== null,
+          forceRefresh: shouldForceRefreshOnLoad,
         });
       }, 0);
 
@@ -265,6 +311,9 @@ export function useChatMessages({
     chatMessagesRef,
     retryTimeoutRef,
     streamingConversationIdsRef,
+    welcomeCreationInFlightRef,
+    pendingUrlConversationIdRef,
+    isRouteDriven,
   ]);
 
   useEffect(() => {

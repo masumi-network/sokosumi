@@ -37,6 +37,10 @@ import ThoughtSummaryBar from "./thought-summary-bar";
 
 export type MessageListHandle = Record<string, never>;
 
+const WARMUP_SLOW_DELAY_MS = 8_000;
+
+type WarmupMessagePhase = "ready" | "slow";
+
 function groupMessagesIntoSection(messages: UIMessage[]): UIMessage[][] {
   if (messages.length === 0) return [];
   const sections: UIMessage[][] = [];
@@ -100,6 +104,10 @@ interface MessageListProps {
   isCoworker?: boolean;
   onResendLastMessage?: (lastUserMessage: UIMessage) => void;
   userTailRecoveryFailed?: boolean;
+  coworkerResponseInProgress?: boolean;
+  listRevision?: number;
+  warmupPending?: boolean;
+  warmupCoworkerName?: string;
 }
 
 const MessageList = forwardRef<MessageListHandle, MessageListProps>(
@@ -119,6 +127,10 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       isCoworker = false,
       onResendLastMessage,
       userTailRecoveryFailed = false,
+      coworkerResponseInProgress = false,
+      listRevision = 0,
+      warmupPending = false,
+      warmupCoworkerName,
     },
     ref,
   ) {
@@ -131,8 +143,27 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const roRef = useRef<ResizeObserver | null>(null);
     const [contentHeight, setContentHeight] = useState(0);
+    const [warmupMessagePhase, setWarmupMessagePhase] =
+      useState<WarmupMessagePhase>("ready");
 
     useImperativeHandle(ref, () => ({}), []);
+
+    useEffect(() => {
+      if (!warmupPending) {
+        setWarmupMessagePhase("ready");
+        return;
+      }
+
+      setWarmupMessagePhase("ready");
+
+      const slowTimer = window.setTimeout(() => {
+        setWarmupMessagePhase("slow");
+      }, WARMUP_SLOW_DELAY_MS);
+
+      return () => {
+        window.clearTimeout(slowTimer);
+      };
+    }, [selectedChatId, warmupPending]);
 
     const setWrapperRef = useCallback((el: HTMLDivElement | null) => {
       if (wrapperRef.current && roRef.current) {
@@ -164,6 +195,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       lastAssistantHasNoContent &&
       lastMessage != null &&
       extractReasoningStepMessages(lastMessage).length === 0 &&
+      !warmupPending &&
       hasLiveReasoning;
     const showPendingErrorForEmptyAssistant =
       lastMessage?.role === "assistant" &&
@@ -177,13 +209,19 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const showReasoningLoaders =
       showLoadingArea &&
       hasLiveReasoning &&
+      !warmupPending &&
       !showStreamReasoningInLastAssistantRow;
     const showPendingError = showPendingErrorForEmptyAssistant;
     const showLoadingIndicator =
-      showLoadingArea && !showReasoningLoaders && !showPendingError;
+      showLoadingArea &&
+      !warmupPending &&
+      !showReasoningLoaders &&
+      !showPendingError;
     const loadingIndicatorLabel = undefined;
 
     const sections = groupMessagesIntoSection(messages);
+    const showEmptyStateLoaders =
+      sections.length === 0 && (showLoadingArea || warmupPending);
 
     const selectedChat = chats.find((c) => c.id === selectedChatId);
     const coworkerId =
@@ -222,7 +260,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       lastMessage?.role === "user" &&
       lastUserMessageHasContent;
     const showPendingOrTailError =
-      showPendingError || showUserTailRecoveryError;
+      !warmupPending &&
+      !coworkerResponseInProgress &&
+      (showPendingError || showUserTailRecoveryError);
     const canResendPendingOrTail = Boolean(
       showPendingOrTailError &&
         onResendLastMessage &&
@@ -230,6 +270,43 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     );
 
     const pendingErrorMessage = t("pendingResponseFailed");
+    const responseInProgressMessage = t("responseAlreadyInProgress");
+    const warmupNoticeName =
+      warmupCoworkerName?.trim() ||
+      coworkerName?.trim() ||
+      t("coworkerNameFallback");
+    const warmupLoaderLabel =
+      warmupMessagePhase === "slow"
+        ? t("coworkerWarmupSlow")
+        : t("coworkerWarmingUp", { name: warmupNoticeName });
+    const warmupLoaderBlock = warmupPending && (
+      <LoadingIndicator label={warmupLoaderLabel} />
+    );
+    const responseInProgressBlock = coworkerResponseInProgress &&
+      !warmupPending &&
+      !isLoading && (
+        <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
+          <Avatar
+            className={cn(
+              "size-8 shrink-0 overflow-hidden rounded-full",
+              modelId && "bg-white dark:bg-black",
+            )}
+          >
+            <AssistantAvatarContent
+              coworkerId={coworkerId ?? undefined}
+              coworkerImageUrl={coworkerImageUrl}
+              coworkerName={coworkerName}
+              modelId={modelId ?? undefined}
+              modelName={modelName}
+            />
+          </Avatar>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="text-muted-foreground text-sm">
+              {responseInProgressMessage}
+            </p>
+          </div>
+        </div>
+      );
     const pendingOrTailErrorBlock = showPendingOrTailError && (
       <div className="flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
         <Avatar
@@ -288,6 +365,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         isLastMessage &&
         reasoningFromParts.length === 0 &&
         hasLiveReasoning &&
+        !warmupPending &&
         (isLoading || content.trim().length > 0);
       const storedThoughtTiming =
         role === "assistant" && isCoworker
@@ -307,12 +385,20 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           ? null
           : (reasoningEndedAt ?? null);
       const isStreaming = isLoading && isLastMessage && role === "assistant";
+      if (
+        role === "assistant" &&
+        !content.trim() &&
+        !isStreaming &&
+        !isLastMessage
+      ) {
+        return null;
+      }
       const hideEmptyAssistantWhileLoading =
         isLastMessage &&
         role === "assistant" &&
         !content.trim() &&
         isLoading &&
-        (showReasoningLoaders || showLoadingIndicator) &&
+        (warmupPending || showReasoningLoaders || showLoadingIndicator) &&
         !showStreamOnlyThoughtBar;
       const hideEmptyAssistantShowError =
         isLastMessage &&
@@ -321,7 +407,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         showPendingErrorForEmptyAssistant;
       const stableKeyForLastAssistant = isLastMessage && role === "assistant";
       const messageKey = stableKeyForLastAssistant
-        ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant`
+        ? `${selectedChatId ?? "no-chat"}-${index}-last-assistant-${content.trim().length}-${listRevision}`
         : `${selectedChatId ?? "no-chat"}-${index}-${message.id ?? ""}`;
 
       return (
@@ -377,7 +463,7 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         >
           <div className="flex flex-col items-center pt-20 pb-40 md:pt-4">
             <div className="flex w-full max-w-4xl flex-col">
-              {sections.length === 0 && showLoadingArea && (
+              {showEmptyStateLoaders && (
                 <>
                   {showReasoningLoaders && (
                     <ReasoningLoaders
@@ -390,6 +476,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                   {showLoadingIndicator && (
                     <LoadingIndicator label={loadingIndicatorLabel} />
                   )}
+                  {warmupLoaderBlock}
+                  {responseInProgressBlock}
                   {pendingOrTailErrorBlock}
                   <div
                     className="min-h-[160px] shrink-0"
@@ -438,6 +526,8 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                         {showLoadingIndicator && (
                           <LoadingIndicator label={loadingIndicatorLabel} />
                         )}
+                        {warmupLoaderBlock}
+                        {responseInProgressBlock}
                         {pendingOrTailErrorBlock}
                         {showLoadingArea && (
                           <div
