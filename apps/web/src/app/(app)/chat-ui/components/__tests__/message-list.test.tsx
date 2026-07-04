@@ -176,7 +176,7 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("coworkerWarmupThinking")).toBeInTheDocument();
+    expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
     expect(screen.queryByText("reasoning.thinking")).toBeNull();
     expect(screen.queryByText("pendingResponseFailed")).toBeNull();
   });
@@ -233,21 +233,12 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("coworkerWarmupThinking")).toBeInTheDocument();
-    expect(screen.queryByText("reasoning.thinking")).toBeNull();
-    expect(screen.queryByText("reasoning.expandSteps")).toBeNull();
-
-    act(() => {
-      vi.advanceTimersByTime(3_000);
-    });
-
     expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
-    expect(screen.queryByText("coworkerWarmupThinking")).toBeNull();
     expect(screen.queryByText("reasoning.thinking")).toBeNull();
     expect(screen.queryByText("reasoning.expandSteps")).toBeNull();
 
     act(() => {
-      vi.advanceTimersByTime(5_000);
+      vi.advanceTimersByTime(8_000);
     });
 
     expect(screen.getByText("coworkerWarmupSlow")).toBeInTheDocument();
@@ -336,6 +327,6 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("coworkerWarmupThinking")).toBeInTheDocument();
+    expect(screen.getByText("coworkerWarmingUp")).toBeInTheDocument();
   });
 });

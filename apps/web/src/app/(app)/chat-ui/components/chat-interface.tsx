@@ -171,6 +171,34 @@ function toChatSendMessage(message: ChatComposeMessage): ChatSendMessage {
   return next as ChatSendMessage;
 }
 
+const PENDING_WELCOME_USER_MESSAGE_ID = "__pending-welcome-user__";
+
+function buildOptimisticUserUiMessage(payload: ChatSendMessage): UIMessage {
+  if (typeof payload === "object" && payload != null) {
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.parts)) {
+      return {
+        id: PENDING_WELCOME_USER_MESSAGE_ID,
+        role: "user",
+        parts: record.parts as UIMessage["parts"],
+      };
+    }
+    if (typeof record.text === "string") {
+      return {
+        id: PENDING_WELCOME_USER_MESSAGE_ID,
+        role: "user",
+        parts: [{ type: "text", text: record.text }],
+      };
+    }
+  }
+
+  return {
+    id: PENDING_WELCOME_USER_MESSAGE_ID,
+    role: "user",
+    parts: [{ type: "text", text: String(payload) }],
+  };
+}
+
 function buildResendMessage(message: UIMessage): ChatSendMessage | null {
   if (hasMessageTextOrFileParts(message)) {
     return { parts: message.parts } as ChatSendMessage;
@@ -1136,6 +1164,22 @@ export default function ChatInterface({
     slotMessages,
     cachedMessagesByConversation,
   ]);
+
+  const messagesForMessageList = useMemo(() => {
+    const pending = pendingWelcomeSendRef.current;
+    if (
+      !pending ||
+      pending.conversationId !== selectedChatId ||
+      displayedMessages.some((message) => (message.role as string) === "user")
+    ) {
+      return displayedMessages;
+    }
+
+    return [
+      ...displayedMessages,
+      buildOptimisticUserUiMessage(pending.payload),
+    ];
+  }, [displayedMessages, selectedChatId, welcomeSendRetryTick]);
 
   const isSelectedChatLoading =
     Boolean(selectedChatId) &&
@@ -2119,6 +2163,8 @@ export default function ChatInterface({
   const coworkerWarmupUiPending =
     isSelectedChatCoworker &&
     isCoworkerFirstTurn &&
+    !isLoading &&
+    !userTailRecoveryLoading &&
     (warmupPending ||
       isPendingWelcomeSendBlocked ||
       (warmupState === null && !warmupFailed));
@@ -2199,7 +2245,7 @@ export default function ChatInterface({
                     }
                     isLoading={isLoading || userTailRecoveryLoading}
                     isCoworker={isSelectedChatCoworker}
-                    messages={displayedMessages}
+                    messages={messagesForMessageList}
                     onResendLastMessage={handleResendLastMessage}
                     userTailRecoveryFailed={userTailRecoveryFailed}
                     coworkerResponseInProgress={Boolean(

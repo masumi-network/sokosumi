@@ -37,10 +37,9 @@ import ThoughtSummaryBar from "./thought-summary-bar";
 
 export type MessageListHandle = Record<string, never>;
 
-const WARMUP_READY_DELAY_MS = 3_000;
 const WARMUP_SLOW_DELAY_MS = 8_000;
 
-type WarmupMessagePhase = "thinking" | "ready" | "slow";
+type WarmupMessagePhase = "ready" | "slow";
 
 function groupMessagesIntoSection(messages: UIMessage[]): UIMessage[][] {
   if (messages.length === 0) return [];
@@ -145,27 +144,23 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const roRef = useRef<ResizeObserver | null>(null);
     const [contentHeight, setContentHeight] = useState(0);
     const [warmupMessagePhase, setWarmupMessagePhase] =
-      useState<WarmupMessagePhase>("thinking");
+      useState<WarmupMessagePhase>("ready");
 
     useImperativeHandle(ref, () => ({}), []);
 
     useEffect(() => {
       if (!warmupPending) {
-        setWarmupMessagePhase("thinking");
+        setWarmupMessagePhase("ready");
         return;
       }
 
-      setWarmupMessagePhase("thinking");
+      setWarmupMessagePhase("ready");
 
-      const readyTimer = window.setTimeout(() => {
-        setWarmupMessagePhase("ready");
-      }, WARMUP_READY_DELAY_MS);
       const slowTimer = window.setTimeout(() => {
         setWarmupMessagePhase("slow");
       }, WARMUP_SLOW_DELAY_MS);
 
       return () => {
-        window.clearTimeout(readyTimer);
         window.clearTimeout(slowTimer);
       };
     }, [selectedChatId, warmupPending]);
@@ -281,11 +276,9 @@ const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       coworkerName?.trim() ||
       t("coworkerNameFallback");
     const warmupLoaderLabel =
-      warmupMessagePhase === "thinking"
-        ? t("coworkerWarmupThinking", { name: warmupNoticeName })
-        : warmupMessagePhase === "slow"
-          ? t("coworkerWarmupSlow")
-          : t("coworkerWarmingUp", { name: warmupNoticeName });
+      warmupMessagePhase === "slow"
+        ? t("coworkerWarmupSlow")
+        : t("coworkerWarmingUp", { name: warmupNoticeName });
     const warmupLoaderBlock = warmupPending && (
       <LoadingIndicator label={warmupLoaderLabel} />
     );
