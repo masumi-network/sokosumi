@@ -32,6 +32,7 @@ interface ChatInputContainerProps {
   coworkers?: Coworker[];
   mobileKeyboardOptimized?: boolean;
   persistentImageGeneration?: boolean;
+  submitBlocked?: boolean;
 }
 
 export default function ChatInputContainer({
@@ -50,6 +51,7 @@ export default function ChatInputContainer({
   coworkers,
   mobileKeyboardOptimized = false,
   persistentImageGeneration = false,
+  submitBlocked = false,
 }: ChatInputContainerProps) {
   return (
     <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0">
@@ -72,6 +74,7 @@ export default function ChatInputContainer({
           coworker={selectedChatCoworker}
           coworkers={coworkers}
           persistentImageGeneration={persistentImageGeneration}
+          submitBlocked={submitBlocked}
         />
       </div>
     </div>

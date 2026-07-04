@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import ChatInputContainer from "@/app/chat/components/chat-input-container";
 import SelectCoworkerModal from "@/app/chat/components/select-coworker-modal";
@@ -27,7 +28,9 @@ import WelcomeScreen from "@/app/chat/components/welcome-screen";
 import { useChatMessages } from "@/app/chat/hooks/use-chat-messages";
 import { useChatPreview } from "@/app/chat/hooks/use-chat-preview";
 import { useChatSync } from "@/app/chat/hooks/use-chat-sync";
+import { useConversationWarmup } from "@/app/chat/hooks/use-conversation-warmup";
 import { useCoworkerPostRefreshAssistantPoll } from "@/app/chat/hooks/use-coworker-post-refresh-assistant-poll";
+import { displaySlugFromMetadata, slugify } from "@/app/chat/utils/bucket-slug";
 import {
   coworkerHasCapability,
   filterCoworkersForComposeKind,
@@ -50,7 +53,12 @@ import {
 import { useChatCreation } from "@/app/chat-ui/hooks/use-chat-creation";
 import { useChatSelection } from "@/app/chat-ui/hooks/use-chat-selection";
 import {
+  isCoworkerChatConflictError,
+  removeTrailingUserUiMessage,
+} from "@/app/chat-ui/utils/chat-api-error";
+import {
   CHAT_API_PATH,
+  CHAT_APP_ROUTE_PREFIX,
   getConversationIdFromChatPathname,
   getPendingConversationStorageKey,
   isChatShellPathname,
@@ -64,16 +72,31 @@ import {
   extractMessageContent,
   extractReasoningStepMessages,
   hasMessageTextOrFileParts,
-  mergeAssistantThoughtMetadataFromDb,
+  reconcileSlotMessagesWithDb,
 } from "@/app/chat-ui/utils/message-utils";
+import {
+  cancelCoworkerDbSync,
+  hasGoodCoworkerAssistantTail,
+  isStaleCoworkerAssistantTail,
+  shouldRejectCoworkerMessageRegression,
+  syncCoworkerSlotFromDbWithRetry,
+} from "@/app/chat-ui/utils/sync-coworker-slot-from-db";
 import { useConversationsContext } from "@/contexts/conversations-context";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import type { Conversation } from "@/lib/actions/conversation";
 import type { TaskDesignMdAttachmentSeed } from "@/lib/utils/task-attachments";
-
+import { isCoworkerWarmupReadyForWelcomeSend } from "../utils/welcome-send-warmup";
 import MessageList from "./message-list";
 
 const NUM_SLOTS = 3;
+
+const WELCOME_SEND_RETRY_DELAYS_MS = [
+  50, 150, 350, 700, 1500, 5000, 10_000,
+] as const;
+const WELCOME_SEND_MAX_AGE_MS =
+  WELCOME_SEND_RETRY_DELAYS_MS[WELCOME_SEND_RETRY_DELAYS_MS.length - 1] + 500;
+/** Match `useConversationWarmup` poll timeout plus buffer for the welcome send effect. */
+const WELCOME_SEND_COWORKER_MAX_AGE_MS = 35_000;
 
 const SLOT_PLACEHOLDER_CHAT_IDS: readonly [string, string, string] = [
   "__sokosumi_empty_slot_0__",
@@ -106,6 +129,16 @@ function hasSendMessageContent(message: ChatComposeMessage): boolean {
     : hasMessageTextOrFileParts(message);
 }
 
+function isPendingWelcomeSendForConversation(
+  pending: { conversationId: string } | null,
+  conversationId: string | null,
+): boolean {
+  return (
+    pending != null &&
+    (conversationId == null || pending.conversationId === conversationId)
+  );
+}
+
 function toChatSendMessage(message: ChatComposeMessage): ChatSendMessage {
   if (typeof message === "string") {
     return { text: message.trim() } as ChatSendMessage;
@@ -136,6 +169,34 @@ function toChatSendMessage(message: ChatComposeMessage): ChatSendMessage {
   }
 
   return next as ChatSendMessage;
+}
+
+const PENDING_WELCOME_USER_MESSAGE_ID = "__pending-welcome-user__";
+
+function buildOptimisticUserUiMessage(payload: ChatSendMessage): UIMessage {
+  if (typeof payload === "object" && payload != null) {
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.parts)) {
+      return {
+        id: PENDING_WELCOME_USER_MESSAGE_ID,
+        role: "user",
+        parts: record.parts as UIMessage["parts"],
+      };
+    }
+    if (typeof record.text === "string") {
+      return {
+        id: PENDING_WELCOME_USER_MESSAGE_ID,
+        role: "user",
+        parts: [{ type: "text", text: record.text }],
+      };
+    }
+  }
+
+  return {
+    id: PENDING_WELCOME_USER_MESSAGE_ID,
+    role: "user",
+    parts: [{ type: "text", text: String(payload) }],
+  };
 }
 
 function buildResendMessage(message: UIMessage): ChatSendMessage | null {
@@ -349,7 +410,17 @@ export default function ChatInterface({
   ]);
 
   const [isWelcomeSubmitting, setIsWelcomeSubmitting] = useState(false);
+  const [welcomeSendRetryTick, setWelcomeSendRetryTick] = useState(0);
   const welcomeCreationInFlightRef = useRef(false);
+  const pendingWelcomeSendRef = useRef<{
+    conversationId: string;
+    bucketSlug: string;
+    isCoworker: boolean;
+    payload: ChatSendMessage;
+    sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1];
+    createdAt: number;
+    navigationRequested: boolean;
+  } | null>(null);
 
   const welcomePrefsHydratedRef = useRef(false);
   const previousWelcomeCoworkerSlugRef = useRef<string | null>(
@@ -480,6 +551,9 @@ export default function ChatInterface({
     setSelectedChatId(controlledConversationId);
 
     if (controlledConversationId !== null) {
+      if (pendingUrlConversationIdRef.current === controlledConversationId) {
+        pendingUrlConversationIdRef.current = null;
+      }
       previousControlledConversationIdRef.current = controlledConversationId;
       return;
     }
@@ -816,13 +890,90 @@ export default function ChatInterface({
     };
   }, []);
 
+  const setMessagesForConversationRef = useRef<
+    (
+      convId: string,
+      messages: UIMessage[],
+      options?: { forceFromDb?: boolean },
+    ) => void
+  >(() => {});
+
+  const getLiveSlotMessagesForConversationRef = useRef<
+    (conversationId: string) => UIMessage[]
+  >(() => []);
+
+  const setMessagesSlotsRef = useRef<
+    Array<UseChatHelpers<UIMessage>["setMessages"] | undefined>
+  >([undefined, undefined, undefined]);
+
+  const [coworkerResponseInProgress, setCoworkerResponseInProgress] = useState<
+    Record<string, true>
+  >({});
+
   const onErrorForSlot = useCallback(
     (slotIndex: number) => (error: unknown) => {
       console.error(`Chat API error (slot ${slotIndex}):`, error);
       const convId = slotPayloadRef.current[slotIndex]?.conversationId ?? null;
-      if (convId) void selectConversation(convId);
+      if (convId) {
+        welcomeCreationInFlightRef.current = false;
+        const isCoworkerThread =
+          (
+            conversations.find((c) => c.id === convId)?.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined
+          )?.type === "coworker" ||
+          Boolean(chats.find((c) => c.id === convId)?.coworker);
+        if (isCoworkerThread) {
+          let slotMessagesSnapshot =
+            getLiveSlotMessagesForConversationRef.current(convId);
+          if (isCoworkerChatConflictError(error)) {
+            setCoworkerResponseInProgress((prev) => ({
+              ...prev,
+              [convId]: true,
+            }));
+            if (pendingWelcomeSendRef.current?.conversationId === convId) {
+              pendingWelcomeSendRef.current = null;
+            }
+            const setSlotMessages = setMessagesSlotsRef.current[slotIndex];
+            if (setSlotMessages) {
+              setSlotMessages((prev) =>
+                removeTrailingUserUiMessage((prev ?? []) as UIMessage[]),
+              );
+            }
+            slotMessagesSnapshot =
+              removeTrailingUserUiMessage(slotMessagesSnapshot);
+            setMessagesForConversationRef.current(convId, slotMessagesSnapshot);
+            chatMessagesRef.current.set(convId, slotMessagesSnapshot);
+          }
+          void syncCoworkerSlotFromDbWithRetry({
+            conversationId: convId,
+            slotMessages: slotMessagesSnapshot,
+            getLiveSlotMessages: () =>
+              getLiveSlotMessagesForConversationRef.current(convId),
+            onApply: (dbMessages) => {
+              setMessagesForConversationRef.current(convId, dbMessages, {
+                forceFromDb: true,
+              });
+              chatMessagesRef.current.set(convId, dbMessages);
+              if (hasGoodCoworkerAssistantTail(dbMessages)) {
+                setCoworkerResponseInProgress((prev) => {
+                  if (!prev[convId]) {
+                    return prev;
+                  }
+                  const next = { ...prev };
+                  delete next[convId];
+                  return next;
+                });
+              }
+            },
+          });
+          return;
+        }
+        void selectConversation(convId);
+      }
     },
-    [selectConversation],
+    [selectConversation, conversations, chats],
   );
 
   const onFinishForSlot = useCallback(
@@ -832,31 +983,96 @@ export default function ChatInterface({
         const conversationId = payload?.conversationId ?? null;
         if (!conversationId || finishedMessages.length === 0) return;
 
-        void refreshConversations();
-
-        const lastAssistantMessage = [...finishedMessages]
-          .reverse()
-          .find((msg) => msg.role === "assistant");
-        if (lastAssistantMessage) {
-          const content = extractMessageContent(lastAssistantMessage);
-          if (
-            content &&
-            previousChatIdRef.current === conversationId &&
-            messagesChatIdRef.current === conversationId &&
-            updateChatPreviewRef.current
-          ) {
-            const isFirstAssistantMessage =
-              finishedMessages.filter((m) => m.role === "assistant").length ===
-              1;
-            updateChatPreviewRef.current(
-              conversationId,
-              content,
-              isFirstAssistantMessage,
-            );
-          }
+        if (welcomeCreationInFlightRef.current) {
+          welcomeCreationInFlightRef.current = false;
         }
+
+        const isCoworkerThread =
+          (
+            conversations.find((c) => c.id === conversationId)?.metadata as
+              | Record<string, unknown>
+              | null
+              | undefined
+          )?.type === "coworker" ||
+          Boolean(chats.find((c) => c.id === conversationId)?.coworker);
+
+        void (async () => {
+          const lastAssistantMessage = [...finishedMessages]
+            .reverse()
+            .find((msg) => msg.role === "assistant");
+          const content = lastAssistantMessage
+            ? extractMessageContent(lastAssistantMessage).trim()
+            : "";
+
+          if (!isCoworkerThread) {
+            void refreshConversations();
+            if (
+              content &&
+              previousChatIdRef.current === conversationId &&
+              messagesChatIdRef.current === conversationId &&
+              updateChatPreviewRef.current
+            ) {
+              const isFirstAssistantMessage =
+                finishedMessages.filter((m) => m.role === "assistant")
+                  .length === 1;
+              updateChatPreviewRef.current(
+                conversationId,
+                content,
+                isFirstAssistantMessage,
+              );
+            }
+            return;
+          }
+
+          if (content.length > 0) {
+            setMessagesForConversationRef.current(
+              conversationId,
+              finishedMessages,
+              { forceFromDb: true },
+            );
+            chatMessagesRef.current.set(conversationId, finishedMessages);
+          }
+
+          await syncCoworkerSlotFromDbWithRetry({
+            conversationId,
+            slotMessages: finishedMessages,
+            getLiveSlotMessages: () =>
+              getLiveSlotMessagesForConversationRef.current(conversationId),
+            onApply: (dbMessages) => {
+              setMessagesForConversationRef.current(
+                conversationId,
+                dbMessages,
+                {
+                  forceFromDb: true,
+                },
+              );
+              chatMessagesRef.current.set(conversationId, dbMessages);
+
+              const dbTail = dbMessages[dbMessages.length - 1];
+              const dbContent =
+                dbTail?.role === "assistant"
+                  ? extractMessageContent(dbTail).trim()
+                  : "";
+              if (
+                dbContent &&
+                previousChatIdRef.current === conversationId &&
+                messagesChatIdRef.current === conversationId &&
+                updateChatPreviewRef.current
+              ) {
+                const isFirstAssistantMessage =
+                  dbMessages.filter((m) => m.role === "assistant").length === 1;
+                updateChatPreviewRef.current(
+                  conversationId,
+                  dbContent,
+                  isFirstAssistantMessage,
+                );
+              }
+            },
+          });
+          void refreshConversations();
+        })();
       },
-    [refreshConversations],
+    [refreshConversations, conversations, chats],
   );
 
   const chat0 = useChat({
@@ -918,6 +1134,10 @@ export default function ChatInterface({
     [chat0.sendMessage, chat1.sendMessage, chat2.sendMessage],
   );
 
+  useLayoutEffect(() => {
+    setMessagesSlotsRef.current = setMessagesSlots;
+  }, [setMessagesSlots]);
+
   const streamingConversationIdsRef = useRef<Set<string>>(new Set());
   const streamingIds = useMemo(() => {
     const set = new Set<string>();
@@ -945,6 +1165,22 @@ export default function ChatInterface({
     cachedMessagesByConversation,
   ]);
 
+  const messagesForMessageList = useMemo(() => {
+    const pending = pendingWelcomeSendRef.current;
+    if (
+      !pending ||
+      pending.conversationId !== selectedChatId ||
+      displayedMessages.some((message) => (message.role as string) === "user")
+    ) {
+      return displayedMessages;
+    }
+
+    return [
+      ...displayedMessages,
+      buildOptimisticUserUiMessage(pending.payload),
+    ];
+  }, [displayedMessages, selectedChatId, welcomeSendRetryTick]);
+
   const isSelectedChatLoading =
     Boolean(selectedChatId) &&
     (() => {
@@ -954,59 +1190,100 @@ export default function ChatInterface({
       return s === "streaming" || s === "submitted";
     })();
 
-  const refetchedForEmptyAssistantRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedChatId || isSelectedChatLoading) {
+    if (!selectedChatId || !isSelectedChatLoading) {
       return;
     }
-    const slot = conversationToSlot.get(selectedChatId);
-    if (slot === undefined) return;
-    const msgs = (slotMessages[slot] ?? []) as UIMessage[];
-    const last = msgs[msgs.length - 1];
-    const lastContent =
-      last?.role === "assistant" ? extractMessageContent(last).trim() : "";
-    const emptyAssistantEnd =
-      last?.role === "assistant" && lastContent === "" && msgs.length > 0;
-    if (!emptyAssistantEnd) {
-      refetchedForEmptyAssistantRef.current = null;
-      return;
-    }
-    if (refetchedForEmptyAssistantRef.current === selectedChatId) return;
-    refetchedForEmptyAssistantRef.current = selectedChatId;
-    void selectConversation(selectedChatId);
-  }, [
-    selectedChatId,
-    conversationToSlot,
-    slotMessages,
-    isSelectedChatLoading,
-    selectConversation,
-  ]);
+    setCoworkerResponseInProgress((prev) => {
+      if (!prev[selectedChatId]) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[selectedChatId];
+      return next;
+    });
+  }, [selectedChatId, isSelectedChatLoading]);
+
+  const slotMessagesRef = useRef<UIMessage[][]>([[], [], []]);
+  useLayoutEffect(() => {
+    slotMessagesRef.current = slotMessages as UIMessage[][];
+  }, [slotMessages]);
+
+  const getLiveSlotMessagesForConversation = useCallback(
+    (conversationId: string): UIMessage[] => {
+      const slot = conversationToSlot.get(conversationId);
+      if (slot !== undefined && slot >= 0 && slot < NUM_SLOTS) {
+        return (slotMessagesRef.current[slot] ?? []) as UIMessage[];
+      }
+      return cachedMessagesByConversation[conversationId] ?? [];
+    },
+    [conversationToSlot, cachedMessagesByConversation],
+  );
+  getLiveSlotMessagesForConversationRef.current =
+    getLiveSlotMessagesForConversation;
+
+  const [messageListRevision, setMessageListRevision] = useState(0);
+
+  const bumpMessageListRevision = useCallback(() => {
+    setMessageListRevision((revision) => revision + 1);
+  }, []);
 
   const setMessagesForConversation = useCallback(
-    (convId: string, messages: UIMessage[]) => {
-      if (streamingConversationIdsRef.current.has(convId)) return;
+    (
+      convId: string,
+      messages: UIMessage[],
+      options?: { forceFromDb?: boolean },
+    ) => {
+      if (
+        !options?.forceFromDb &&
+        streamingConversationIdsRef.current.has(convId)
+      ) {
+        return;
+      }
       const slot = conversationToSlot.get(convId);
+      const applySlotMessages = (apply: () => void) => {
+        if (options?.forceFromDb) {
+          flushSync(apply);
+          bumpMessageListRevision();
+        } else {
+          apply();
+        }
+      };
       if (slot !== undefined && slot >= 0 && slot < NUM_SLOTS) {
-        setMessagesSlots[slot]((prev) => {
-          const prevArr = (prev ?? []) as UIMessage[];
-          if (prevArr.length === 0 && messages.length > 0) {
-            return messages;
-          }
-          if (messages.length === 0) {
-            return prevArr;
-          }
-          return mergeAssistantThoughtMetadataFromDb(prevArr, messages);
+        applySlotMessages(() => {
+          setMessagesSlots[slot]((prev) => {
+            const prevArr = (prev ?? []) as UIMessage[];
+            if (
+              shouldRejectCoworkerMessageRegression(prevArr, messages) &&
+              !options?.forceFromDb
+            ) {
+              return prevArr;
+            }
+            if (options?.forceFromDb) {
+              return messages;
+            }
+            if (prevArr.length === 0 && messages.length > 0) {
+              return messages;
+            }
+            if (messages.length === 0) {
+              return prevArr;
+            }
+            return reconcileSlotMessagesWithDb(prevArr, messages);
+          });
         });
         return;
       }
-      setCachedMessagesByConversation((prev) => ({
-        ...prev,
-        [convId]: messages,
-      }));
-      chatMessagesRef.current.set(convId, messages);
+      applySlotMessages(() => {
+        setCachedMessagesByConversation((prev) => ({
+          ...prev,
+          [convId]: messages,
+        }));
+        chatMessagesRef.current.set(convId, messages);
+      });
     },
-    [conversationToSlot, setMessagesSlots],
+    [conversationToSlot, setMessagesSlots, bumpMessageListRevision],
   );
+  setMessagesForConversationRef.current = setMessagesForConversation;
 
   useEffect(() => {
     slotToConversation.forEach((convId, slot) => {
@@ -1140,6 +1417,7 @@ export default function ChatInterface({
       message: ChatSendMessage,
       sendOptions?: Parameters<UseChatHelpers<UIMessage>["sendMessage"]>[1],
     ): boolean => {
+      cancelCoworkerDbSync(conversationId);
       const payload = toChatSendMessage(message);
       let slot = conversationToSlot.get(conversationId);
       if (slot === undefined) {
@@ -1260,7 +1538,98 @@ export default function ChatInterface({
         Boolean(chats.find((c) => c.id === selectedChatId)?.coworker)),
   );
 
-  useChatSelection({
+  const refetchedForEmptyAssistantRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedChatId || isSelectedChatLoading) {
+      return;
+    }
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot === undefined) return;
+    const msgs = (slotMessages[slot] ?? []) as UIMessage[];
+    const last = msgs[msgs.length - 1];
+    const lastContent =
+      last?.role === "assistant" ? extractMessageContent(last).trim() : "";
+    const emptyAssistantEnd =
+      last?.role === "assistant" && lastContent === "" && msgs.length > 0;
+    if (!emptyAssistantEnd) {
+      refetchedForEmptyAssistantRef.current = null;
+      return;
+    }
+    if (refetchedForEmptyAssistantRef.current === selectedChatId) return;
+    refetchedForEmptyAssistantRef.current = selectedChatId;
+
+    if (isSelectedChatCoworker) {
+      void syncCoworkerSlotFromDbWithRetry({
+        conversationId: selectedChatId,
+        slotMessages: msgs,
+        getLiveSlotMessages: () =>
+          getLiveSlotMessagesForConversationRef.current(selectedChatId),
+        onApply: (dbMessages) => {
+          setMessagesForConversation(selectedChatId, dbMessages, {
+            forceFromDb: true,
+          });
+          chatMessagesRef.current.set(selectedChatId, dbMessages);
+        },
+      });
+      return;
+    }
+
+    void selectConversation(selectedChatId);
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotMessages,
+    isSelectedChatLoading,
+    isSelectedChatCoworker,
+    selectConversation,
+    setMessagesForConversation,
+  ]);
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      const conversationId = selectedChatId;
+      if (!conversationId || isSelectedChatLoading || !isSelectedChatCoworker) {
+        return;
+      }
+      const liveMessages =
+        getLiveSlotMessagesForConversationRef.current(conversationId);
+      if (
+        hasGoodCoworkerAssistantTail(liveMessages) &&
+        !isStaleCoworkerAssistantTail(liveMessages)
+      ) {
+        bumpMessageListRevision();
+        return;
+      }
+      void syncCoworkerSlotFromDbWithRetry({
+        conversationId,
+        slotMessages: liveMessages,
+        getLiveSlotMessages: () =>
+          getLiveSlotMessagesForConversationRef.current(conversationId),
+        onApply: (dbMessages) => {
+          setMessagesForConversation(conversationId, dbMessages, {
+            forceFromDb: true,
+          });
+          chatMessagesRef.current.set(conversationId, dbMessages);
+        },
+      });
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    selectedChatId,
+    isSelectedChatLoading,
+    isSelectedChatCoworker,
+    setMessagesForConversation,
+    bumpMessageListRevision,
+  ]);
+
+  const { selectChat: _selectChat } = useChatSelection({
     urlConversationId,
     pathname,
     conversations,
@@ -1280,6 +1649,9 @@ export default function ChatInterface({
     isUpdatingUrlRef,
     pendingUrlConversationIdRef,
     isConversationsLoading,
+    isSelectedChatStreaming: isSelectedChatLoading,
+    isConversationLoading:
+      Boolean(selectedChatId) && selectedConversation?.id !== selectedChatId,
     enabled: isRouteDriven,
   });
 
@@ -1288,6 +1660,44 @@ export default function ChatInterface({
   useEffect(() => {
     updateChatPreviewRef.current = updateChatPreview;
   }, [updateChatPreview]);
+
+  useEffect(() => {
+    if (!welcomeCreationInFlightRef.current || !selectedChatId) return;
+
+    const pendingWelcome = pendingWelcomeSendRef.current;
+    if (pendingWelcome?.conversationId === selectedChatId) {
+      return;
+    }
+    if (pendingUrlConversationIdRef.current === selectedChatId) {
+      return;
+    }
+
+    const slot = conversationToSlot.get(selectedChatId);
+    if (slot === undefined) {
+      return;
+    }
+
+    const status = slotStatuses[slot];
+    if (
+      status === "submitted" ||
+      status === "streaming" ||
+      status === "error"
+    ) {
+      welcomeCreationInFlightRef.current = false;
+      return;
+    }
+
+    const messages = slotMessages[slot] as UIMessage[] | undefined;
+    if (status === "ready" && (messages?.length ?? 0) > 0) {
+      welcomeCreationInFlightRef.current = false;
+    }
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotStatuses,
+    slotMessagesSignature,
+    welcomeSendRetryTick,
+  ]);
 
   const { cacheMessages: _cacheMessages, clearMessages: _clearMessages } =
     useChatMessages({
@@ -1298,6 +1708,9 @@ export default function ChatInterface({
       messagesChatIdRef,
       chatMessagesRef,
       streamingConversationIdsRef,
+      welcomeCreationInFlightRef,
+      pendingUrlConversationIdRef,
+      isRouteDriven,
     });
 
   const { userTailRecoveryLoading, userTailRecoveryFailed } =
@@ -1315,12 +1728,25 @@ export default function ChatInterface({
       refreshConversations,
     });
 
+  const isCoworkerFirstTurn = useMemo(
+    () => !hasGoodCoworkerAssistantTail(displayedMessages),
+    [displayedMessages],
+  );
+
+  const { warmupPending, warmupState, warmupFailed } = useConversationWarmup({
+    conversationId: selectedChatId,
+    enabled: Boolean(
+      selectedChatId && isSelectedChatCoworker && isCoworkerFirstTurn,
+    ),
+  });
+
   const {
     createModelChat,
     createCoworkerChat,
     isWelcomeTransitioning,
     setIsWelcomeTransitioning,
     showMessagesAfterTransition,
+    setShowMessagesAfterTransition,
   } = useChatCreation({
     createNewConversation,
     setChats,
@@ -1340,6 +1766,7 @@ export default function ChatInterface({
     pendingUrlConversationIdRef,
     chats,
     conversations,
+    isRouteDriven,
     navigateToConversation: isRouteDriven
       ? undefined
       : async (conversation: Conversation) => {
@@ -1356,6 +1783,98 @@ export default function ChatInterface({
     selectedModelRef,
     coworkers,
   });
+
+  const failPendingWelcomeSend = useCallback(
+    (
+      pending: NonNullable<(typeof pendingWelcomeSendRef)["current"]>,
+      options?: { restoreInput?: boolean },
+    ) => {
+      if (options?.restoreInput !== false) {
+        const text = getSendMessageText(pending.payload);
+        if (text) {
+          setInput(text);
+        }
+      }
+      if (pendingUrlConversationIdRef.current === pending.conversationId) {
+        pendingUrlConversationIdRef.current = null;
+      }
+      welcomeCreationInFlightRef.current = false;
+      pendingWelcomeSendRef.current = null;
+      toast.error(t("welcomeSendFailed"));
+    },
+    [setInput, t],
+  );
+
+  useEffect(() => {
+    const pending = pendingWelcomeSendRef.current;
+    if (!pending) return;
+
+    const maxAgeMs = pending.isCoworker
+      ? WELCOME_SEND_COWORKER_MAX_AGE_MS
+      : WELCOME_SEND_MAX_AGE_MS;
+    const elapsedMs = Date.now() - pending.createdAt;
+    if (elapsedMs > maxAgeMs) {
+      failPendingWelcomeSend(pending);
+      return;
+    }
+
+    const pathConversationId = pathname
+      ? getConversationIdFromChatPathname(pathname)
+      : null;
+    const routeReady =
+      isRouteDriven &&
+      (urlConversationId === pending.conversationId ||
+        pathConversationId === pending.conversationId);
+    const controlledReady =
+      !isRouteDriven && selectedChatId === pending.conversationId;
+
+    if (isRouteDriven && !routeReady) {
+      if (!pending.navigationRequested) {
+        pending.navigationRequested = true;
+        pendingUrlConversationIdRef.current = pending.conversationId;
+        isUpdatingUrlRef.current = true;
+        const targetPath = `${CHAT_APP_ROUTE_PREFIX}/${pending.bucketSlug}/conversation/${pending.conversationId}`;
+        router.push(targetPath, { scroll: false });
+      }
+      return;
+    }
+
+    if (!routeReady && !controlledReady) {
+      return;
+    }
+
+    if (
+      pending.isCoworker &&
+      selectedChatId === pending.conversationId &&
+      !isCoworkerWarmupReadyForWelcomeSend({ warmupState, warmupFailed })
+    ) {
+      return;
+    }
+
+    const sent = sendInConversation(
+      pending.conversationId,
+      pending.payload,
+      pending.sendOptions,
+    );
+    if (!sent) {
+      failPendingWelcomeSend(pending);
+      return;
+    }
+
+    setInput("");
+    pendingWelcomeSendRef.current = null;
+  }, [
+    urlConversationId,
+    pathname,
+    isRouteDriven,
+    selectedChatId,
+    sendInConversation,
+    welcomeSendRetryTick,
+    router,
+    failPendingWelcomeSend,
+    warmupState,
+    warmupFailed,
+  ]);
 
   const handleModelSelected = useCallback(
     async (
@@ -1414,6 +1933,10 @@ export default function ChatInterface({
       if (
         !hasSendMessageContent(message) ||
         isLoading ||
+        isPendingWelcomeSendForConversation(
+          pendingWelcomeSendRef.current,
+          selectedChatId,
+        ) ||
         (!selectedChatId &&
           (welcomeCreationInFlightRef.current || isWelcomeTransitioning))
       ) {
@@ -1440,15 +1963,25 @@ export default function ChatInterface({
           await new Promise((resolve) => setTimeout(resolve, 300));
 
           let conversationId: string | null = null;
+          let bucketSlug: string | null = null;
+          let isCoworkerWelcome = false;
 
           if (model || selectedModel) {
             const modelToUse = model || selectedModel;
             if (modelToUse) {
-              conversationId = await handleModelSelected(modelToUse, {
+              const conversation = await createModelChat(modelToUse, {
                 imageGeneration: imageGenerationForSend,
+                deferNavigation: true,
               });
+              if (conversation) {
+                conversationId = conversation.id;
+                bucketSlug =
+                  displaySlugFromMetadata(conversation.metadata ?? null) ||
+                  `model-${modelToUse.id.replace(/\//g, "-")}`;
+              }
             }
           } else {
+            isCoworkerWelcome = true;
             const selectedCoworker =
               (coworker && coworkerHasCapability(coworker, "chat")
                 ? coworker
@@ -1464,32 +1997,49 @@ export default function ChatInterface({
             if (!selectedCoworker) {
               toast.error(t("noCoworkersAvailable"));
               setIsWelcomeTransitioning(false);
+              welcomeCreationInFlightRef.current = false;
               return false;
             }
-            conversationId = await handleCoworkerSelected(selectedCoworker);
+            const conversation = await createCoworkerChat(selectedCoworker, {
+              deferNavigation: true,
+            });
+            if (conversation) {
+              conversationId = conversation.id;
+              bucketSlug =
+                displaySlugFromMetadata(conversation.metadata ?? null) ||
+                slugify(selectedCoworker.slug) ||
+                slugify(selectedCoworker.name) ||
+                `coworker-${selectedCoworker.id}`;
+            }
           }
 
-          if (!conversationId) {
+          if (!conversationId || !bucketSlug) {
             setIsWelcomeTransitioning(false);
+            welcomeCreationInFlightRef.current = false;
             return false;
           }
 
-          if (!currentChatIdRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            if (!currentChatIdRef.current) {
-              setIsWelcomeTransitioning(false);
-              return false;
-            }
+          setShowMessagesAfterTransition(true);
+          setIsWelcomeTransitioning(false);
+          pendingWelcomeSendRef.current = {
+            conversationId,
+            bucketSlug,
+            isCoworker: isCoworkerWelcome,
+            payload: sendPayload,
+            sendOptions,
+            createdAt: Date.now(),
+            navigationRequested: false,
+          };
+          queueMicrotask(() => {
+            setWelcomeSendRetryTick((tick) => tick + 1);
+          });
+          for (const delayMs of WELCOME_SEND_RETRY_DELAYS_MS) {
+            window.setTimeout(() => {
+              setWelcomeSendRetryTick((tick) => tick + 1);
+            }, delayMs);
           }
-
-          const cid = currentChatIdRef.current ?? conversationId;
-          const sent = cid
-            ? sendInConversation(cid, sendPayload, sendOptions)
-            : false;
-          if (sent) setInput("");
-          return sent;
+          return true;
         } finally {
-          welcomeCreationInFlightRef.current = false;
           setIsWelcomeSubmitting(false);
         }
       }
@@ -1515,21 +2065,21 @@ export default function ChatInterface({
     },
     [
       coworkers,
+      createCoworkerChat,
+      createModelChat,
       isLoading,
       isWelcomeTransitioning,
       selectedChatId,
       selectedConversationImageGeneration,
-      sendInConversation,
-      setInput,
-      handleCoworkerSelected,
-      handleModelSelected,
       selectedModel,
       effectiveWelcomeCoworker,
       t,
-      router,
       setIsWelcomeTransitioning,
-      currentChatIdRef,
+      setShowMessagesAfterTransition,
+      urlConversationId,
+      pathname,
       setChats,
+      setInput,
     ],
   );
 
@@ -1537,13 +2087,27 @@ export default function ChatInterface({
     if (!selectedChatId) return "ready" as const;
     const slot = conversationToSlot.get(selectedChatId);
     if (slot === undefined) return "ready" as const;
-    return slotStatuses[slot];
-  }, [selectedChatId, conversationToSlot, slotStatuses]);
+    const status = slotStatuses[slot];
+    if (status === "error" && coworkerResponseInProgress[selectedChatId]) {
+      return "ready" as const;
+    }
+    return status;
+  }, [
+    selectedChatId,
+    conversationToSlot,
+    slotStatuses,
+    coworkerResponseInProgress,
+  ]);
 
   const sendMessageForInput = useCallback(
     (message?: ChatSendMessage) => {
       const cid = selectedChatId ?? currentChatIdRef.current;
       if (!cid) return Promise.resolve();
+      if (
+        isPendingWelcomeSendForConversation(pendingWelcomeSendRef.current, cid)
+      ) {
+        return Promise.resolve();
+      }
       if (message && hasSendMessageContent(message)) {
         sendInConversation(cid, message);
       }
@@ -1590,6 +2154,20 @@ export default function ChatInterface({
     },
     [selectedChatId, sendInConversation, refreshConversations],
   );
+
+  const isPendingWelcomeSendBlocked = isPendingWelcomeSendForConversation(
+    pendingWelcomeSendRef.current,
+    selectedChatId,
+  );
+
+  const coworkerWarmupUiPending =
+    isSelectedChatCoworker &&
+    isCoworkerFirstTurn &&
+    !isLoading &&
+    !userTailRecoveryLoading &&
+    (warmupPending ||
+      isPendingWelcomeSendBlocked ||
+      (warmupState === null && !warmupFailed));
 
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedChatCoworker = useMemo(() => {
@@ -1667,9 +2245,16 @@ export default function ChatInterface({
                     }
                     isLoading={isLoading || userTailRecoveryLoading}
                     isCoworker={isSelectedChatCoworker}
-                    messages={displayedMessages}
+                    messages={messagesForMessageList}
                     onResendLastMessage={handleResendLastMessage}
                     userTailRecoveryFailed={userTailRecoveryFailed}
+                    coworkerResponseInProgress={Boolean(
+                      selectedChatId &&
+                        coworkerResponseInProgress[selectedChatId],
+                    )}
+                    listRevision={messageListRevision}
+                    warmupPending={coworkerWarmupUiPending}
+                    warmupCoworkerName={selectedChatCoworker?.name}
                     reasoningMessages={selectedChatReasoningMessages}
                     reasoningStartedAt={
                       selectedChatReasoningStartedAt ?? undefined
@@ -1682,7 +2267,7 @@ export default function ChatInterface({
                 )}
               </>
             )}
-            {!isConversationLoading && (
+            {!isConversationLoading || isWelcomeSubmitting ? (
               <>
                 <div
                   aria-hidden
@@ -1707,9 +2292,17 @@ export default function ChatInterface({
                   persistentImageGeneration={
                     selectedConversationImageGeneration
                   }
+                  submitBlocked={
+                    coworkerWarmupUiPending ||
+                    isPendingWelcomeSendBlocked ||
+                    Boolean(
+                      selectedChatId &&
+                        coworkerResponseInProgress[selectedChatId],
+                    )
+                  }
                 />
               </>
-            )}
+            ) : null}
           </>
         ) : (
           <WelcomeScreen

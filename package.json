@@ -58,6 +58,7 @@
     "ai-provider:lint:write": "pnpm --filter @sokosumi/ai-provider lint:write",
     "ai-provider:check": "pnpm --filter @sokosumi/ai-provider check",
     "ai-provider:check:write": "pnpm --filter @sokosumi/ai-provider check:write",
+    "bench:coworker-chat": "tsx --env-file=apps/core/.env apps/core/scripts/bench-coworker-chat.mts",
     "test": "pnpm -r test",
     "web:test": "pnpm --filter web test",
     "core:test": "pnpm --filter core test",
@@ -84,8 +85,9 @@
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.0",
     "chrome-launcher": "1.2.1",
     "lighthouse": "13.4.0",
-    "@biomejs/biome": "2.5.0"
+    "tsx": "4.22.4"
   }
 }

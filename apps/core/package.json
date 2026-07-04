@@ -28,7 +28,8 @@
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest",
-    "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts"
+    "write-openapi-snapshot-for-web": "tsx scripts/write-openapi-for-web.mts",
+    "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts"
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.19",
