@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import ConnectInterstitial from "@/app/hermes/components/connect-interstitial";
 import FlowBackground from "@/app/hermes/components/flow-background";
@@ -169,10 +169,10 @@ export default function OnboardingScreen({
   );
 
   // ── Orb animation driven by the chosen personality ───────────────────────
-  // Playful + warm → faster, livelier motion; formal + direct → calmer. High
-  // playfulness also tips the eyes into a smile. Applied from the combined
-  // look/personality step on, so dragging the sliders visibly changes how the
-  // orb animates. The chat reuses the same mapping so they match.
+  // Playful + warm → faster, livelier motion; detail makes the movement more
+  // deliberate. Applied from the combined look/personality step on, so dragging
+  // the sliders visibly changes how the orb animates. The chat reuses the same
+  // mapping so they match.
   const { speed: personalitySpeed, restExpression: personalityExpr } =
     personalityToOrbMotion(personality);
   const heroExpression =
@@ -184,6 +184,21 @@ export default function OnboardingScreen({
         ? "happy"
         : personalityExpr;
   const heroSpeed = step >= 2 ? personalitySpeed : 1.3;
+  const [heroEvent, setHeroEvent] = useState<{
+    expr: "happy";
+    nonce: number;
+    ms: number;
+  } | null>(null);
+  const heroEventNonce = useRef(0);
+  useEffect(() => {
+    if (step !== 5) return;
+    heroEventNonce.current += 1;
+    setHeroEvent({
+      expr: "happy",
+      nonce: heroEventNonce.current,
+      ms: 1400,
+    });
+  }, [step]);
 
   /**
    * Local status overlay per provider. Any entry here wins over the
@@ -310,6 +325,7 @@ export default function OnboardingScreen({
                 size={160}
                 speed={heroSpeed}
                 expression={heroExpression}
+                event={heroEvent}
                 className="size-20 md:size-24"
               />
             ) : (
@@ -319,6 +335,7 @@ export default function OnboardingScreen({
                 animate
                 speed={heroSpeed}
                 expression={heroExpression}
+                event={heroEvent}
                 className="size-20 md:size-24"
               />
             )}

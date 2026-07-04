@@ -10,6 +10,12 @@ import {
 } from "@/lib/aurora-orb";
 import { cn } from "@/lib/utils";
 
+export interface OrbEvent {
+  expr: OrbExpression;
+  nonce: number;
+  ms?: number;
+}
+
 interface AuroraOrbProps {
   /** Seed string — same seed always renders the identical orb. */
   seed: string;
@@ -35,7 +41,7 @@ interface AuroraOrbProps {
    * Fire a one-shot transient expression (e.g. a wink on task-done, surprise on
    * a new message) — bump `nonce` to trigger. Animated orbs only.
    */
-  event?: { expr: OrbExpression; nonce: number } | null;
+  event?: OrbEvent | null;
 }
 
 /**
@@ -96,7 +102,7 @@ export function AuroraOrb({
   useEffect(() => {
     if (event && event.nonce !== lastEventNonce.current) {
       lastEventNonce.current = event.nonce;
-      handleRef.current?.pulse(event.expr);
+      handleRef.current?.pulse(event.expr, event.ms);
     }
   }, [event]);
 
@@ -154,6 +160,10 @@ interface PlaceholderOrbProps {
    * starts naming their assistant).
    */
   expression?: OrbExpression | null;
+  /**
+   * Fire a one-shot transient expression — bump `nonce` to trigger.
+   */
+  event?: OrbEvent | null;
 }
 
 /**
@@ -171,6 +181,7 @@ export function PlaceholderOrb({
   className,
   alt = "",
   expression = null,
+  event = null,
 }: PlaceholderOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handleRef = useRef<MountHandle | null>(null);
@@ -200,6 +211,13 @@ export function PlaceholderOrb({
   useEffect(() => {
     handleRef.current?.setSpeed(speed);
   }, [speed]);
+  const lastEventNonce = useRef(0);
+  useEffect(() => {
+    if (event && event.nonce !== lastEventNonce.current) {
+      lastEventNonce.current = event.nonce;
+      handleRef.current?.pulse(event.expr, event.ms);
+    }
+  }, [event]);
 
   const labelled = alt !== "";
   return (
@@ -218,6 +236,8 @@ interface AssistantOrbProps {
   seed: string | null;
   /** Eyes expression. Null → no eyes. */
   expression?: OrbExpression | null;
+  /** Fire a one-shot transient expression — bump `nonce` to trigger. */
+  event?: OrbEvent | null;
   size?: number;
   speed?: number;
   className?: string;
@@ -233,6 +253,7 @@ interface AssistantOrbProps {
 export function AssistantOrb({
   seed,
   expression = null,
+  event = null,
   size = 64,
   speed = 1.2,
   className,
@@ -244,6 +265,7 @@ export function AssistantOrb({
         size={size}
         speed={speed}
         expression={expression}
+        event={event}
         className={className}
         alt={alt}
       />
@@ -256,6 +278,7 @@ export function AssistantOrb({
       size={size}
       speed={speed}
       expression={expression}
+      event={event}
       className={className}
       alt={alt}
     />

@@ -59,6 +59,16 @@ export interface MountOptions {
   expression?: OrbExpression | null;
 }
 
+interface OrbFaceTraits {
+  eyeSpacing: number;
+  eyeWidth: number;
+  eyeHeight: number;
+  eyeYOffset: number;
+  eyeTilt: number;
+  blinkScale: number;
+  gazeScale: number;
+}
+
 export interface MountHandle {
   stop(): void;
   params: OrbParams;
@@ -114,6 +124,19 @@ function mulberry32(a: number): () => number {
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function faceTraits(seed: string, placeholder: boolean): OrbFaceTraits {
+  const r = mulberry32(xmur3(`${placeholder ? "placeholder" : seed}:face`)());
+  return {
+    eyeSpacing: 0.9 + r() * 0.2,
+    eyeWidth: 0.9 + r() * 0.18,
+    eyeHeight: 0.9 + r() * 0.2,
+    eyeYOffset: -0.035 + r() * 0.07,
+    eyeTilt: -0.08 + r() * 0.16,
+    blinkScale: 0.86 + r() * 0.34,
+    gazeScale: 0.78 + r() * 0.44,
   };
 }
 
@@ -474,6 +497,7 @@ export function drawEyes(
   S: number,
   expr: OrbExpression,
   f: EyeFrame,
+  traits: OrbFaceTraits = faceTraits("orb", false),
 ): void {
   const o = Math.max(0, Math.min(1.4, f.open));
   if (o <= 0.001) return;
@@ -481,12 +505,12 @@ export function drawEyes(
   const cx = S / 2;
   const cy = S / 2;
   const R = S * 0.46;
-  const eyeDx = R * 0.33;
-  const eyeW = R * 0.24;
-  const eyeH = R * 0.46;
-  const baseY = cy - R * 0.05;
-  const lookX = f.gazeX * R;
-  const lookY = f.gazeY * R - f.lift * eyeH * 0.22;
+  const eyeDx = R * 0.33 * traits.eyeSpacing;
+  const eyeW = R * 0.24 * traits.eyeWidth;
+  const eyeH = R * 0.46 * traits.eyeHeight;
+  const baseY = cy - R * (0.05 - traits.eyeYOffset);
+  const lookX = f.gazeX * R * traits.gazeScale;
+  const lookY = f.gazeY * R * traits.gazeScale - f.lift * eyeH * 0.22;
   const minH = eyeW * 0.16;
 
   ctx.save();
@@ -497,6 +521,9 @@ export function drawEyes(
   ctx.fillStyle = ink;
   ctx.strokeStyle = ink;
   ctx.lineCap = "round";
+  ctx.translate(cx, cy);
+  ctx.rotate(traits.eyeTilt);
+  ctx.translate(-cx, -cy);
 
   const pill = (ex: number, ey: number, w: number, h: number): void => {
     const hh = Math.max(minH, h);
@@ -626,6 +653,7 @@ export function mount(
   };
   size();
   const placeholder = opts.placeholder === true;
+  const traits = faceTraits(seed, placeholder);
   let speedVal = speed;
 
   // ── Face (eyes) state — evolved each frame so the behaviour reads natural ──
@@ -635,10 +663,11 @@ export function mount(
   let curLift = faceExpr ? eyeLift(faceExpr) : 0; // eased upward gaze
   let wake = faceExpr ? 1 : 0; // 0..1 — fades eyes in on appear, out on hide
   let blinkP = -1; // -1 = open; 0..1 = mid-blink
-  let nextBlinkIn = 0.5 + Math.random() * 1.2;
+  let nextBlinkIn = (0.5 + Math.random() * 1.2) * traits.blinkScale;
   let lastTt = 0;
   const nextBlinkInterval = () =>
-    Math.random() < 0.1 ? 0.18 : 3.4 * (0.6 + Math.random() * 0.9);
+    (Math.random() < 0.1 ? 0.18 : 3.4 * (0.6 + Math.random() * 0.9)) *
+    traits.blinkScale;
 
   // ── Spontaneous variety — so a resting orb never sits frozen ──
   // Occasional unprompted micro-expressions while the host's expression is a
@@ -741,13 +770,19 @@ export function mount(
       const gazeX = gzX + Math.sin(tt * 0.9) * 0.006;
       const gazeY = gzY + Math.sin(tt * 0.6 + 1) * 0.004;
 
-      drawEyes(ctx, canvas.width, faceExpr, {
-        blink,
-        open: curOpen * wake,
-        lift: curLift,
-        gazeX,
-        gazeY,
-      });
+      drawEyes(
+        ctx,
+        canvas.width,
+        faceExpr,
+        {
+          blink,
+          open: curOpen * wake,
+          lift: curLift,
+          gazeX,
+          gazeY,
+        },
+        traits,
+      );
     }
   };
   let raf = 0;
@@ -818,13 +853,20 @@ export function toDataURL(
   if (!ctx) return "";
   draw(ctx, c.width, params(seed), 0.6);
   if (expression) {
-    drawEyes(ctx, c.width, expression, {
-      blink: 1,
-      open: eyeOpen(expression),
-      lift: eyeLift(expression),
-      gazeX: 0,
-      gazeY: 0,
-    });
+    const traits = faceTraits(seed, false);
+    drawEyes(
+      ctx,
+      c.width,
+      expression,
+      {
+        blink: 1,
+        open: eyeOpen(expression),
+        lift: eyeLift(expression),
+        gazeX: 0,
+        gazeY: 0,
+      },
+      traits,
+    );
   }
   const url = c.toDataURL("image/png");
   dataUrlCache.set(key, url);
