@@ -180,107 +180,116 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 
   return (
     <EmptyStateSeedContext.Provider value={seed}>
-      <FlowBackground intensity="full">
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-3 md:px-6 md:py-6">
+      <FlowBackground>
+        <div className="mx-auto w-full max-w-6xl px-2 pb-8">
           {/* ── Hero ──────────────────────────────────────────────── */}
-          <section className="relative isolate flex min-h-[calc(100svh-5.5rem)] overflow-hidden rounded-lg border border-border/40 bg-background shadow-2xl md:min-h-[calc(100svh-6rem)]">
-            <div
-              aria-hidden
-              className="hermes-landing-drift pointer-events-none absolute -inset-[10%] bg-[radial-gradient(ellipse_at_50%_44%,color-mix(in_oklch,var(--chart-5)_90%,transparent)_0%,color-mix(in_oklch,var(--semantic-critical)_78%,transparent)_24%,transparent_57%)] blur-2xl"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-[-12%] top-[-18%] h-[55%] bg-[radial-gradient(ellipse_at_50%_0%,color-mix(in_oklch,var(--chart-4)_54%,transparent)_0%,color-mix(in_oklch,var(--chart-5)_38%,transparent)_35%,transparent_70%)] blur-2xl"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute left-1/2 top-1/2 size-[min(76vw,48rem)] -translate-x-1/2 -translate-y-1/2"
-            >
-              <div className="hermes-landing-breathe size-full rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--background)_92%,var(--semantic-critical))_0%,color-mix(in_oklch,var(--background)_88%,transparent)_44%,transparent_69%)] blur-xl" />
-            </div>
-            <div
-              aria-hidden
-              className="hermes-landing-sweep pointer-events-none absolute top-[14%] left-[-25%] h-px w-[150%] bg-linear-to-r from-transparent via-primary/40 to-transparent opacity-50"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,transparent_48%,color-mix(in_oklch,var(--background)_82%,transparent)_100%)]"
-            />
-
-            <div className="relative z-10 flex min-h-full w-full flex-col px-5 py-5 md:px-7 md:py-6">
-              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground/70">
-                <span>{t("eyebrow")}</span>
-                <span>{t("integrationsEyebrow")}</span>
-              </div>
-
-              <div className="flex flex-1 flex-col items-center justify-center pt-10 pb-8 text-center md:pt-14 md:pb-12">
-                <div className="hermes-landing-float relative">
+          <section className="grid gap-4 py-4 md:py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="border-border/60 bg-card/80 overflow-hidden rounded-2xl border">
+              <div className="grid gap-6 p-6 md:grid-cols-[auto_minmax(0,1fr)] md:p-8">
+                <div className="relative flex size-28 shrink-0 items-center justify-center md:size-32">
                   <div
                     aria-hidden
-                    className="absolute inset-[-22%] rounded-full bg-primary/20 blur-2xl"
+                    className="bg-primary/10 absolute inset-0 rounded-full blur-2xl"
                   />
                   <PlaceholderOrb
-                    size={224}
+                    size={176}
                     expression="idle"
-                    className="relative size-36 drop-shadow-2xl md:size-48"
+                    className="relative size-24 md:size-28"
                     alt={tCommon("hermesAvatarAlt")}
                   />
                 </div>
 
-                <h1 className="mt-9 max-w-4xl text-balance text-4xl font-light tracking-tight text-foreground md:text-6xl lg:text-7xl">
-                  {t("title")}
-                </h1>
-                <p className="mt-5 max-w-2xl text-balance text-lg text-foreground/86 md:text-2xl">
-                  {t("subtitle")}
-                </p>
-                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground/64 md:text-base">
-                  {t("description")}
-                </p>
+                <div className="min-w-0">
+                  <div className="text-primary text-xs font-semibold uppercase tracking-wider">
+                    {t("eyebrow")}
+                  </div>
+                  <h1 className="text-foreground mt-3 max-w-3xl text-3xl font-light tracking-tight md:text-5xl">
+                    {t("title")}
+                  </h1>
+                  <p className="text-foreground/80 mt-4 max-w-2xl text-base leading-relaxed md:text-lg">
+                    {t("subtitle")}
+                  </p>
+                  <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed md:text-base">
+                    {t("description")}
+                  </p>
 
-                <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
-                  <Button
-                    size="lg"
-                    variant="primary"
-                    className="h-12 gap-2 px-6 text-base shadow-lg shadow-primary/20"
-                    onClick={onActivate}
-                  >
-                    <span>{t("primaryCta")}</span>
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Button>
-                  <div className="rounded-full border border-border/50 bg-background/35 px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] text-foreground/72 backdrop-blur-md">
-                    {t("servicesMoreLabel")}
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <Button
+                      size="lg"
+                      variant="primary"
+                      className="h-11 gap-2 px-5"
+                      onClick={onActivate}
+                    >
+                      <span>{t("primaryCta")}</span>
+                      <ArrowRight className="size-4" aria-hidden />
+                    </Button>
+                    <a
+                      href="#hermes-examples"
+                      className="border-border bg-background text-foreground hover:bg-muted/50 inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors"
+                    >
+                      {t("examplesEyebrow")}
+                    </a>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-end justify-between gap-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-foreground/52">
-                <span>{t("journeyStep1Tag")}</span>
-                <div className="hidden items-center gap-2 rounded-full border border-border/50 bg-background/30 px-2 py-1 backdrop-blur-md sm:flex">
-                  <span className="rounded-full bg-foreground px-3 py-1 text-background">
-                    {t("feature2Title")}
-                  </span>
-                  <span className="px-2 text-foreground/64">
-                    {t("feature6Title")}
-                  </span>
-                </div>
-                <span>{t("journeyStep5Tag")}</span>
+              <div className="border-border/60 bg-muted/20 grid gap-px border-t md:grid-cols-3">
+                {JOURNEY.map((step, index) => (
+                  <a
+                    key={step.titleKey}
+                    href={`#hermes-step-${index + 1}`}
+                    className="bg-card/70 hover:bg-card group flex items-center gap-3 px-5 py-4 transition-colors"
+                  >
+                    <span className="border-border bg-background text-muted-foreground group-hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold tabular-nums transition-colors">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="text-muted-foreground block text-[11px] font-semibold uppercase tracking-wider">
+                        {t(step.tagKey)}
+                      </span>
+                      <span className="text-foreground block truncate text-sm font-medium">
+                        {t(step.titleKey)}
+                      </span>
+                    </span>
+                  </a>
+                ))}
               </div>
             </div>
+
+            <ActivationBrief />
           </section>
 
-          <div className="mt-6">
-            <ActivationBrief />
-          </div>
+          <nav
+            aria-label={t("title")}
+            className="border-border/60 bg-card/70 sticky top-2 z-10 mb-8 flex gap-1 overflow-x-auto rounded-xl border p-1 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {[
+              { href: "#hermes-integrations", label: t("integrationsEyebrow") },
+              { href: "#hermes-journey", label: t("journeyEyebrow") },
+              { href: "#hermes-features", label: t("featuresEyebrow") },
+              { href: "#hermes-examples", label: t("examplesEyebrow") },
+              { href: "#hermes-safeguards", label: t("disclaimerHeading") },
+            ].map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-muted-foreground hover:bg-muted/50 hover:text-foreground whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
 
           {/* ── Services strip ─────────────────────────────────────── */}
           <Section
+            id="hermes-integrations"
             eyebrow={t("integrationsEyebrow")}
             eyebrowColor="text-primary"
             heading={t("servicesHeading")}
             description={t("servicesHelp")}
-            marginTop="mt-14 md:mt-20"
+            marginTop="mt-8"
           >
-            <div className="border-border/60 bg-card/60 rounded-2xl border p-6 md:p-8">
+            <div className="border-border/60 bg-card/80 rounded-2xl border p-5 md:p-6">
               <ul className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
                 {SERVICE_LOGOS.map(({ src, labelKey }) => (
                   <li
@@ -304,11 +313,12 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 
           {/* ── Journey — end-to-end step-by-step ─────────────────── */}
           <Section
+            id="hermes-journey"
             eyebrow={t("journeyEyebrow")}
             eyebrowColor="text-primary"
             heading={t("journeyHeading")}
             description={t("journeyDescription")}
-            marginTop="mt-16 md:mt-24"
+            marginTop="mt-12 md:mt-16"
           >
             <ol className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {JOURNEY.map((step, idx) => (
@@ -319,10 +329,11 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 
           {/* ── Features (vertical list) ──────────────────────────── */}
           <Section
+            id="hermes-features"
             eyebrow={t("featuresEyebrow")}
             eyebrowColor="text-muted-foreground"
             heading={t("featuresHeading")}
-            marginTop="mt-16 md:mt-24"
+            marginTop="mt-12 md:mt-16"
           >
             <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-2">
               {FEATURES.map(({ titleKey, bodyKey, Icon, accent }) => (
@@ -354,17 +365,18 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 
           {/* ── Things to try (click-through) ─────────────────────── */}
           <Section
+            id="hermes-examples"
             eyebrow={t("examplesEyebrow")}
             eyebrowColor="text-muted-foreground"
             heading={t("examplesHeading")}
             description={t("examplesPickHint")}
-            marginTop="mt-16 md:mt-24"
+            marginTop="mt-12 md:mt-16"
           >
             <ExamplesCarousel />
           </Section>
 
           {/* ── Bottom CTA ────────────────────────────────────────── */}
-          <div className="mt-16 flex flex-col items-center gap-4 md:mt-24">
+          <div className="mt-12 flex flex-col items-center gap-4 md:mt-16">
             <Button
               size="lg"
               variant="primary"
@@ -380,8 +392,8 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
           </div>
 
           {/* ── Honest disclaimer about agent risks ─────────────────── */}
-          <div className="mt-14 md:mt-20">
-            <div className="border-border/60 bg-card/50 rounded-2xl border p-6 backdrop-blur-sm md:p-8">
+          <div id="hermes-safeguards" className="mt-12 md:mt-16">
+            <div className="border-border/60 bg-card/80 rounded-2xl border p-6 md:p-8">
               <div className="flex items-center gap-3">
                 <div
                   aria-hidden
@@ -424,6 +436,7 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Section({
+  id,
   eyebrow,
   eyebrowColor,
   heading,
@@ -431,6 +444,7 @@ function Section({
   marginTop = "mt-28 md:mt-36",
   children,
 }: {
+  id?: string;
   eyebrow: string;
   eyebrowColor: string;
   heading: string;
@@ -439,8 +453,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={marginTop}>
-      <div className="mb-10 flex flex-col items-center text-center md:mb-12">
+    <section id={id} className={cn("scroll-mt-20", marginTop)}>
+      <div className="mb-6 flex flex-col md:mb-8">
         <div
           className={cn(
             "text-xs font-semibold uppercase tracking-wider",
@@ -449,11 +463,11 @@ function Section({
         >
           {eyebrow}
         </div>
-        <h2 className="text-foreground mt-3 max-w-2xl text-3xl font-light tracking-tight md:text-4xl">
+        <h2 className="text-foreground mt-2 max-w-2xl text-2xl font-light tracking-tight md:text-3xl">
           {heading}
         </h2>
         {description ? (
-          <p className="text-muted-foreground mt-4 max-w-xl text-sm leading-relaxed md:text-base">
+          <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed md:text-base">
             {description}
           </p>
         ) : null}
@@ -496,7 +510,7 @@ function ActivationBrief() {
   ];
 
   return (
-    <aside className="border-border/60 bg-card/70 hidden rounded-2xl border p-5 backdrop-blur-md lg:block">
+    <aside className="border-border/60 bg-card/80 rounded-2xl border p-5">
       <div>
         <p className="text-primary text-xs font-semibold uppercase tracking-wider">
           {t("featuresEyebrow")}
@@ -541,7 +555,10 @@ function JourneyRow({
   const t = useTranslations("App.Hermes.EmptyState");
 
   return (
-    <li className="border-border/60 bg-card/60 flex min-h-full flex-col overflow-hidden rounded-2xl border backdrop-blur-sm">
+    <li
+      id={`hermes-step-${index + 1}`}
+      className="border-border/60 bg-card/80 flex min-h-full scroll-mt-24 flex-col overflow-hidden rounded-2xl border"
+    >
       <div className="flex flex-1 flex-col p-6">
         <div className="flex items-center gap-3">
           <span
@@ -570,7 +587,7 @@ function JourneyRow({
         </p>
       </div>
 
-      <div className="border-border/60 bg-background/40 border-t p-4">
+      <div className="border-border/60 bg-background/60 border-t p-4">
         <step.Visual />
       </div>
     </li>
