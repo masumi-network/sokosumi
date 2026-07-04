@@ -38,7 +38,6 @@ import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import ChatRail from "./components/chat-rail";
 import Header from "./components/header";
-import HeaderGate from "./components/header-gate";
 import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
