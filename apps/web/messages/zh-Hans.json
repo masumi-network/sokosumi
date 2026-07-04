@@ -1987,7 +1987,7 @@
         "personalizing": "个性化"
       },
       "Loading": {
-        "message": "正在加载个人助手…"
+        "message": "正在加载 Hermes…"
       },
       "Experience": {
         "fetchFailed": "无法连接你的助手。",
@@ -1998,11 +1998,11 @@
         "onboardingStartFailed": "无法开始入门设置。"
       },
       "EmptyState": {
-        "eyebrow": "个人助手",
-        "title": "你的私人助手。",
+        "eyebrow": "个人 Hermes",
+        "title": "你的私人 Hermes 助手。",
         "subtitle": "托管、沙箱隔离、专属于你。",
         "description": "具备持久记忆、自定义技能并可访问 Sokosumi 数据的隔离式 AI 同事。在聊天、Telegram、终端等任何工作场景中使用。",
-        "primaryCta": "启用个人助手",
+        "primaryCta": "启用 Hermes",
         "secondaryCta": "了解更多",
         "integrationsEyebrow": "集成",
         "examplesEyebrow": "试试看",
@@ -2026,12 +2026,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "收件箱 + Research 智能体",
-          "example2": "Competitor Research + 回复",
-          "example3": "Brief 智能体，每日",
-          "example4": "GitHub + Linear + Slack",
-          "example5": "Reddit Research",
-          "example6": "监控 + 退款 + Linear"
+          "example1": "Inbox briefing",
+          "example2": "Company research + reply",
+          "example3": "Daily brief",
+          "example4": "PR and issue follow-up",
+          "example5": "Market scan",
+          "example6": "Failure watch"
         },
         "visuals": {
           "activated": "已激活",
@@ -2046,42 +2046,42 @@
           "memoryWritten": "记忆 · 已写入",
           "demoInbox": [
             {
-              "from": "Hannah",
-              "subject": "Q4 路线图评审"
+              "from": "Project lead",
+              "subject": "Launch checklist"
             },
             {
-              "from": "Alex",
-              "subject": "Cardano 交易 — 后续步骤"
+              "from": "Customer team",
+              "subject": "Contract questions"
             },
             {
-              "from": "CI bot",
-              "subject": "构建 #2438 失败"
+              "from": "Build bot",
+              "subject": "Deployment failed"
             }
           ],
           "demoMemory": [
-            "正在推进 Q4 发布",
-            "Hannah 是产品负责人",
-            "Cardano 交易将于 3 月 15 日截止"
+            "Launch plan is the current priority",
+            "Project lead owns approvals",
+            "Open questions need a reply"
           ],
-          "actUserMessage": "安排下周二上午 10 点与 Hannah 通话。",
+          "actUserMessage": "Find a time with the project lead next week.",
           "actWorking": "你的助手正在工作",
           "actSteps": [
-            "找到空闲时段",
-            "起草了邀请",
-            "聘请 Research 智能体获取背景信息"
+            "Found an open slot",
+            "Drafted the invite",
+            "Pulled project context"
           ],
-          "actHeld": "周二 · 上午 10:00 已预留",
-          "overnightTitle": "今晚 · 4 项任务",
+          "actHeld": "Time held for review",
+          "overnightTitle": "Morning brief",
           "overnightSchedule": [
-            "拉取夜间邮件",
-            "同步 Sokosumi 任务",
-            "起草你的晨间简报",
-            "推送到聊天 + Telegram"
+            "Review overnight messages",
+            "Sync Sokosumi jobs",
+            "Draft the morning brief",
+            "Post to chat and Slack"
           ]
         },
         "journeyEyebrow": "端到端",
         "journeyHeading": "个人助手如何工作，一步步来",
-        "journeyDescription": "从你激活智能体的那一刻，到明天早上手机上等待你的简报。",
+        "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
         "journeyStep1Tag": "00:00",
         "journeyStep1Title": "你激活个人助手",
         "journeyStep1Body": "从你的 Sokosumi 账户一键完成。无需安装，无需管理 API 密钥。从此刻起你的助手即绑定到你的账户。",
@@ -2116,22 +2116,22 @@
         "feature6Body": "搜索、浏览器自动化、视觉、图像生成、TTS、多模型推理。",
         "examplesHeading": "可以尝试的事",
         "examplesHelp": "打开聊天随便问。几个起点：",
-        "example1": "找出所有关于 Cardano 交易的邮件，聘请 Research 智能体分析对方团队，并在周五通话前向我简报。",
-        "example1Reply": "正在梳理 Cardano 线程。自 9 月以来 Alex、法务和财务共 14 封邮件。正在聘请 **Research**（12 积分）分析周五通话的四位参与者：背景、近期动态、共同联系人。\n\n预计约 15 分钟。我会在此发布一页简报，并在通话前 30 分钟邮件发给你。",
-        "example2": "就 Maya 邮件里提到的公司聘请 Competitor Research 智能体，完成后起草跟进回复。",
-        "example2Reply": "已找到 Maya 的邮件。主题：「你觉得 Nevermind Labs 怎么样？」。正在聘请 **Competitor Research**（18 积分），简报包括：产品、traction、融资、GTM、与我们路线图的重叠。\n\n完成后我会内联列出三个要点起草你的回复，并放入草稿供你审阅。",
-        "example3": "每个工作日上午 8 点，就昨日收件箱 + 今日日历聘请 Brief 智能体，并把摘要发到 Slack #me。",
-        "example3Reply": "已安排。每个工作日上午 08:00 我会：\n\n1. 拉取前一日 20:00 以来的所有邮件及今日日历\n2. 聘请 **Brief** 智能体（每次 3 积分）进行摘要、标记冲突并浮现阻塞项\n3. 将结果发到 #me，每个需要决策的事项单独开线程\n\n首次运行：明天 08:00。",
-        "example4": "检查我需要审查的 GitHub PR，为今天处理不了的创建 Linear 工单，其余发到 #engineering 请人接手。",
-        "example4Reply": "有 6 个 PR 需要你审查。其中 2 个已超过 24 小时：\n\n• **sok#2934**（Patrick）— 个人助手 Beta。约 2 小时审查。\n• **sok#2941**（Alex）— 账单修复。约 20 分钟。\n\n正在为你负责的 4 个较旧 PR 起草 Linear 工单，并在 #engineering 发帖请求支援两个较大的。批准后即可发送？",
-        "example5": "聘请 Reddit Research 智能体了解本周人们对 Masumi 的看法，然后发送主要情绪 + 可执行事项。",
-        "example5Reply": "正在聘请 **Reddit Research**（15 积分），简报：过去 7 天在 r/cardano、r/agentic、r/MachineLearning 提及 Masumi 的帖子和评论。\n\n完成后我会呈现：整体情绪、三条最相关引用线程，以及具体行动项（待提交 bug、待感谢开发者、待回应 FUD）。预计约 12 分钟。",
-        "example6": "当 Hannah 的交易任务变为 FAILED 时，申请退款并创建 Linear 工单——除非一周内发生两次，否则不要打扰我。",
-        "example6Reply": "正在监控你 NMKR 组织中分配给 **Hannah** 且变为 `FAILED` 的任务。发生时我会：\n\n1. 对失败运行调用 **sokosumi_refund_job**\n2. 在你的 Bugs 项目中用失败日志创建 Linear 工单\n3. 除非 7 天内发生两次——届时我会带着两份报告通知你\n\n持续监控中。",
+        "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
+        "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
+        "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
+        "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
+        "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
+        "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
+        "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
+        "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
+        "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
+        "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
+        "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
+        "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
         "examplesPickHint": "选择一个提示，查看你的助手会如何回复",
         "sokosumiTitle": "接入 Sokosumi",
         "sokosumiBody": "读取任务、通过已启用的智能体运行作业，在平台内协助你——全部在微虚拟机中完成。",
-        "footnote": "测试版访问。每个账户一个实例。启用即表示接受测试版条款——你的助手会在沙箱中代你执行代码。",
+        "footnote": "测试版访问。每个账户一个实例。启用即表示接受测试版条款——Hermes 会在沙箱中代你执行代码。",
         "disclaimerHeading": "开始前有几句实话",
         "disclaimer1": "你的助手代表你行动。它发送的邮件、打开的工单、花费的积分都是真实的。请谨慎选择自主级别。",
         "disclaimer2": "它可能出错。在信任之前，请审阅任何涉及客户、同事或金钱的内容。",
@@ -2152,7 +2152,16 @@
           "每天早上你的助手可以发送需要你关注事项的简报。",
           "读取收件箱、起草回复、安排会议——全部在聊天中完成。",
           "用自然语言让你的助手安排任务：「每周一上午 9 点，总结我接下来一周的安排。」"
-        ]
+        ],
+        "elapsedLabel": "{elapsed} elapsed",
+        "stageComputer": "Creating private computer",
+        "stageComputerBody": "Starting the isolated workspace for this account.",
+        "stageWorkspace": "Preparing assistant workspace",
+        "stageWorkspaceBody": "Loading the assistant runtime and saved settings.",
+        "stageReady": "Waiting for assistant",
+        "stageReadyBody": "Checking until the assistant reports that it is ready for setup.",
+        "longWaitTitle": "Still working",
+        "longWaitBody": "This can take longer when capacity is cold. You can leave and return to Personal Assistant; setup will continue in the background."
       },
       "Running": {
         "statusActive": "运行中",
@@ -2161,7 +2170,7 @@
         "regionLabel": "区域",
         "lastActiveLabel": "上次活动",
         "settingsCta": "设置",
-        "composerPlaceholder": "向你的助手发送消息…",
+        "composerPlaceholder": "向 Hermes 发送消息…",
         "composerHint": "Enter 发送，Shift+Enter 换行",
         "send": "发送",
         "stop": "停止",
@@ -2169,6 +2178,7 @@
         "removeFile": "移除",
         "emptyTitle": "随时待命",
         "emptyHint": "试试每日简报——「每个工作日早上 9 点，总结我的未完成任务」。",
+        "assistantFallback": "你的助手",
         "transitioning": "你的助手正在应用你的更改…",
         "transitioningHint": "（约需 30 秒）",
         "composerDisabledPlaceholder": "你的助手正在应用你的更改…",
@@ -2203,11 +2213,10 @@
           "快好了"
         ],
         "rotatingHints": [
-          "给你的助手发消息…",
-          "试试：每天上午 8 点安排收件箱简报",
-          "试试：总结我未完结的 Cardano 线程",
-          "试试：根据上次会议笔记起草跟进",
-          "试试：我的收件箱里有什么逾期了？"
+          "Try: schedule a daily inbox brief at 8am",
+          "Try: summarize my open customer threads",
+          "Try: draft a follow-up to my last meeting notes",
+          "Try: what's overdue in my inbox?"
         ],
         "outboxKinds": {
           "welcome": "欢迎",
@@ -2240,6 +2249,7 @@
           "organizationLabel": "创建于",
           "organizationPersonal": "个人",
           "costNotice": "无法提前计算费用。此工作使用的积分将在运行过程中从您的余额中扣除。",
+          "creatingInBackground": "The agent is creating your task in the background — it'll appear in the chat shortly.",
           "approvedStatus": "已批准",
           "rejectedStatus": "已拒绝",
           "tools": {
@@ -2271,14 +2281,56 @@
             "viewTask": "查看任务"
           }
         },
-        "assistantFallback": "你的助手"
+        "stillWorking": "Still working on it…",
+        "stillWorkingLong": "Still going — this one is taking a little longer…",
+        "answeredIn": "Answered in {seconds}s",
+        "copyAction": "Copy message",
+        "copiedAction": "Copied",
+        "jumpToLatest": "Latest",
+        "toolSteps": "{count} steps"
       },
       "Onboarding": {
         "eyebrow": "欢迎使用个人助手",
-        "title": "来设置你的智能体。",
-        "subtitle": "连接几个工具，让你的助手从第一分钟就有用。若想从零开始可以跳过。",
+        "title": "Let's set up your assistant.",
+        "subtitle": "Choose how it should look, how much initiative it can take, and which accounts it can use first.",
         "identityHeading": "你的信息",
         "identityHelp": "你的助手用这些信息作为上下文——以你的名字称呼你、优先处理与你的角色匹配的工作，并将研究基于你的公司。",
+        "assistantNameLabel": "助手",
+        "assistantNamePlaceholder": "给你的助手起个名字",
+        "orbPickerLabel": "Choose a look",
+        "orbOptionLabel": "Look option {index}",
+        "orbWhiteLabel": "Standard white",
+        "assistantHeading": "Your assistant",
+        "assistantHelp": "Choose its look and give it a name. You can change both later.",
+        "nameStepHeading": "Name your assistant",
+        "nameStepHelp": "What should we call it? You can rename it any time.",
+        "lookStepHeading": "Choose its look and personality",
+        "lookStepHelp": "Pick the assistant's face, then tune how it should sound in chat.",
+        "reviewHeading": "Review before creation",
+        "reviewHelp": "Confirm the assistant you are about to create.",
+        "reviewMeet": "Meet",
+        "reviewPersonality": "Personality",
+        "reviewAutonomy": "Initiative",
+        "reviewTools": "Tools",
+        "reviewToolsCount": "{count} connected",
+        "reviewToolsNone": "None yet",
+        "reviewOwnedBy": "{name}'s personal assistant",
+        "reviewGeneric": "Your personal assistant",
+        "reviewFocus": "focused on {role}",
+        "moreLaterShort": "Slack, Notion, GitHub and more can be connected later from Settings.",
+        "personalityBalanced": "Balanced",
+        "assistantFallbackName": "Your assistant",
+        "personalityHeading": "Personality",
+        "personalityStepHelp": "Shape how your assistant comes across. You can fine-tune this any time.",
+        "personalityToneLabel": "Tone",
+        "personalityToneLow": "Direct",
+        "personalityToneHigh": "Warm",
+        "personalityDetailLabel": "Detail",
+        "personalityDetailLow": "Concise",
+        "personalityDetailHigh": "Thorough",
+        "personalityStyleLabel": "Style",
+        "personalityStyleLow": "Formal",
+        "personalityStyleHigh": "Playful",
         "nameLabel": "姓名",
         "namePlaceholder": "Patrick Tobler",
         "emailLabel": "邮箱",
@@ -2291,7 +2343,7 @@
         "next": "下一步",
         "back": "上一步",
         "autonomyHeading": "你的助手应有多大主动性？",
-        "autonomyHelp": "你可随时在设置中更改。",
+        "autonomyHelp": "Set this before connecting accounts. You can change it any time from Settings.",
         "autonomyLowLabel": "只读",
         "autonomyLowBody": "你的助手可以读取收件箱、日历和任务，但从不行动。熟悉阶段最安全。",
         "autonomyMediumLabel": "先询问",
@@ -2301,7 +2353,7 @@
         "autonomyHighBody": "真正的智能体体验。你的助手自行行动：打开工单、发送邮件，并在认为值得时花费你的 Sokosumi 积分聘请其他智能体。受成本规则约束（余额将低于 10 积分时拒绝；单个任务超过余额 25% 时询问）。信任其工作方式后最适合。",
         "autonomyHighSpendBadge": "会花费积分",
         "integrationsHeading": "集成",
-        "integrationsHelp": "你的助手通过 Composio 连接。你在弹窗中授权每个提供商；令牌绝不会经过 Sokosumi。",
+        "integrationsHelp": "Connect the accounts you want available now. You can skip this and add more later from Settings.",
         "providers": {
           "gmail": "Gmail",
           "outlook": "Outlook Mail",
@@ -2330,7 +2382,7 @@
         "skipCtaHelp": "改用通用欢迎语。",
         "moreLaterHeading": "稍后还可连接",
         "moreLaterHelp": "你的助手设置完成后，可在设置中进行。",
-        "continueCta": "设置我的智能体",
+        "continueCta": "Create assistant",
         "continueWithCount": "继续，{count, plural, =0 {未连接任何集成} =1 {已连接 # 个集成} other {已连接 # 个集成}}",
         "footnote": "你可随时在设置中添加或移除集成。",
         "autonomyAriaLabel": "你的助手自主级别",
@@ -2360,8 +2412,8 @@
         "fullAccessBodyBold": "起草回复并代表你在账户中行动",
         "fullAccessBodySuffix": "仅在你希望它代发邮件/创建事件时启用。",
         "fullAccessCta": "连接（完全访问 — 读 + 发）",
-        "assistantNameLabel": "助手",
-        "assistantNamePlaceholder": "给你的助手起个名字"
+        "skillsHeading": "Add skills (optional)",
+        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
       },
       "OnboardingProgress": {
         "eyebrow": "正在准备你的智能体",
@@ -2390,8 +2442,14 @@
         }
       },
       "Settings": {
-        "title": "个人助手设置",
-        "subtitle": "配置按实例生效。保存工具密钥会重启你的助手。",
+        "title": "Hermes 设置",
+        "subtitle": "配置按实例生效。保存工具密钥会重启 Hermes。",
+        "nameSection": "名称",
+        "nameHelp": "你的助手在整个应用中显示的名称。",
+        "namePlaceholder": "给你的助手起个名字",
+        "nameSave": "保存",
+        "nameSavedToast": "名称已更新。",
+        "nameSaveFailed": "无法更新名称。请重试。",
         "modelSection": "模型",
         "modelLabel": "模型",
         "modelValue": "deepseek-4-flash",
@@ -2412,14 +2470,14 @@
         "disconnectIntegration": "断开",
         "retryIntegration": "重试",
         "secretsSection": "工具密钥",
-        "secretsHelp": "添加你的助手可调用工具的 API 密钥（Exa、Tavily、GitHub 等）。加密存储在隔离卷中。保留键名（API_SERVER_*、HERMES_HOME、OPENROUTER_API_KEY）由系统管理。",
+        "secretsHelp": "添加 Hermes 可调用工具的 API 密钥（Exa、Tavily、GitHub 等）。加密存储在隔离卷中。保留键名（API_SERVER_*、HERMES_HOME、OPENROUTER_API_KEY）由系统管理。",
         "secretKeyLabel": "键名",
         "secretKeyInvalid": "仅可使用大写字母、数字和下划线（例如 EXA_API_KEY）。",
         "secretValueLabel": "值",
         "secretValuePlaceholder": "粘贴密钥值",
         "saveSecret": "保存密钥",
         "savingSecret": "正在保存…",
-        "secretSavedToast": "已保存 {key}。你的助手正在重启。",
+        "secretSavedToast": "已保存 {key}。Hermes 正在重启。",
         "secretSaveFailed": "无法保存密钥。",
         "schedulesSection": "计划任务",
         "schedulesHelp": "你的助手代表你运行的周期性任务。工作区同步、每日简报、智能体安排的跟进等。",
@@ -2444,21 +2502,51 @@
         "syncInboxNever": "连接集成后每 6 小时刷新一次。",
         "syncLastRun": "{when}",
         "dangerSection": "危险操作",
-        "destroyTitle": "销毁此个人助手",
+        "destroyTitle": "销毁此 Hermes",
         "destroyBody": "将永久删除微虚拟机及其持久卷，技能、记忆与对话无法恢复。",
         "destroyCta": "销毁实例",
-        "cancel": "取消",
-        "nameSection": "名称",
-        "nameHelp": "你的助手在整个应用中显示的名称。",
-        "namePlaceholder": "给你的助手起个名字",
-        "nameSave": "保存",
-        "nameSavedToast": "名称已更新。",
-        "nameSaveFailed": "无法更新名称。请重试。"
+        "cancel": "取消"
       },
       "Error": {
-        "title": "无法启动个人助手",
+        "title": "无法启动 Hermes",
         "description": "编排器返回错误。请在一分钟后重试；若持续出现请联系支持。",
         "retry": "重试"
+      },
+      "Skills": {
+        "title": "Skills",
+        "subtitle": "Give Hermes new know-how. Skills add instructions only — never code it runs.",
+        "searchPlaceholder": "Search skills…",
+        "recommendedHeading": "Recommended",
+        "popularHeading": "Popular",
+        "marketingHeading": "Popular marketing skills",
+        "disclaimer": "These are the most popular skills on skills.sh, an open community catalog. We don't verify who created them — review a skill before adding it to your agent.",
+        "includedHeading": "Included",
+        "includedHelp": "These ship with every Hermes agent and can't be removed.",
+        "includedBadge": "Included",
+        "installedHeading": "Installed",
+        "resultsHeading": "Results",
+        "addAction": "Add",
+        "addingAction": "Adding…",
+        "installedBadge": "Installed",
+        "pendingBadge": "Pending",
+        "pendingHelp": "Will be added when your agent next starts.",
+        "removeAction": "Remove",
+        "bySource": "by {source}",
+        "curatedBadge": "Official",
+        "blockedBadge": "Blocked",
+        "blockedHelp": "Blocked for safety — this skill failed its security audit.",
+        "emptyCatalog": "The skills catalog is unavailable right now.",
+        "emptyInstalled": "No skills installed yet.",
+        "noResults": "No skills found.",
+        "reviewTitle": "Review before adding",
+        "reviewBody": "Automated audits flagged this skill (risk: {risk}). Add it only if you trust the source.",
+        "reviewConfirm": "Add anyway",
+        "reviewCancel": "Cancel",
+        "addedToast": "{name} added — Hermes can use it on your next message.",
+        "pendingToast": "{name} will be added when your agent next starts.",
+        "removedToast": "{name} removed.",
+        "addFailed": "Couldn't add the skill.",
+        "removeFailed": "Couldn't remove the skill."
       }
     },
     "Error": {

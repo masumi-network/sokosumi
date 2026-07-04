@@ -2037,12 +2037,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "Inbox + Research agent",
-          "example2": "Competitor Research + reply",
-          "example3": "Brief agent, daily",
-          "example4": "GitHub + Linear + Slack",
-          "example5": "Reddit Research",
-          "example6": "Watch + refund + Linear"
+          "example1": "Inbox briefing",
+          "example2": "Company research + reply",
+          "example3": "Daily brief",
+          "example4": "PR and issue follow-up",
+          "example5": "Market scan",
+          "example6": "Failure watch"
         },
         "visuals": {
           "activated": "Activated",
@@ -2057,42 +2057,42 @@
           "memoryWritten": "Memory · written",
           "demoInbox": {
             "0": {
-              "from": "Hannah",
-              "subject": "Q4 roadmap review"
+              "from": "Project lead",
+              "subject": "Launch checklist"
             },
             "1": {
-              "from": "Alex",
-              "subject": "Cardano deal — next steps"
+              "from": "Customer team",
+              "subject": "Contract questions"
             },
             "2": {
-              "from": "CI bot",
-              "subject": "Build #2438 failed"
+              "from": "Build bot",
+              "subject": "Deployment failed"
             }
           },
           "demoMemory": {
-            "0": "Working on the Q4 launch",
-            "1": "Hannah is the product lead",
-            "2": "Cardano deal closes Mar 15"
+            "0": "Launch plan is the current priority",
+            "1": "Project lead owns approvals",
+            "2": "Open questions need a reply"
           },
-          "actUserMessage": "Set a call with Hannah next Tuesday at 10am.",
+          "actUserMessage": "Find a time with the project lead next week.",
           "actWorking": "Your assistant is working",
           "actSteps": {
-            "0": "Found a free slot",
+            "0": "Found an open slot",
             "1": "Drafted the invite",
-            "2": "Hired Research agent for context"
+            "2": "Pulled project context"
           },
-          "actHeld": "Tuesday · 10:00 AM held",
-          "overnightTitle": "Tonight · 4 jobs",
+          "actHeld": "Time held for review",
+          "overnightTitle": "Morning brief",
           "overnightSchedule": {
-            "0": "Pull overnight email",
+            "0": "Review overnight messages",
             "1": "Sync Sokosumi jobs",
-            "2": "Draft your morning brief",
-            "3": "Push to chat + Telegram"
+            "2": "Draft the morning brief",
+            "3": "Post to chat and Slack"
           }
         },
         "journeyEyebrow": "End-to-end",
         "journeyHeading": "How your assistant works, step by step",
-        "journeyDescription": "From the moment you activate your agent to the brief waiting on your phone tomorrow morning.",
+        "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
         "journeyStep1Tag": "00:00",
         "journeyStep1Title": "You activate your assistant",
         "journeyStep1Body": "One click from your Sokosumi account. No installs, no API keys to manage. Your assistant is bound to your account from this moment on.",
@@ -2127,18 +2127,18 @@
         "feature6Body": "Mail, calendar, CRM, code, docs. All in one chat.",
         "examplesHeading": "Things to try",
         "examplesHelp": "Open the chat and ask anything. A few starting points:",
-        "example1": "Find every email about the Cardano deal, hire the Research agent to profile their team, and brief me before the Friday call.",
-        "example1Reply": "Pulling the Cardano thread now. 14 emails since Sept across Alex, legal, and finance. Hiring **Research** (12 credits) on the four people who'll be on Friday's call: backgrounds, recent moves, mutual contacts.\n\nETA ~15 min. I'll drop a one-page brief here + email it to you 30 min before the call.",
-        "example2": "Hire the Competitor Research agent on the company Maya emailed me about, then draft a follow-up reply once it's back.",
-        "example2Reply": "Found Maya's email. Subject: \"What do you make of Nevermind Labs?\". Hiring **Competitor Research** (18 credits) with the brief: product, traction, funding, GTM, overlap with our roadmap.\n\nWhen it's back I'll draft your reply with the top three takeaways inline and queue it in your drafts for review.",
-        "example3": "Every weekday at 8am, hire the Brief agent on yesterday's inbox + today's calendar and post the summary to Slack #me.",
-        "example3Reply": "Scheduled. Every weekday at 08:00 I'll:\n\n1. Pull every email since 20:00 the prior day and your calendar for today\n2. Hire the **Brief** agent (3 credits/run) to summarise, flag conflicts, and surface anything blocking\n3. Post the result to #me with a thread for each item that needs a decision\n\nFirst run: tomorrow at 08:00.",
-        "example4": "Check my GitHub PRs that need review, open Linear tickets for the ones I can't get to today, and post the rest in #engineering for a hand.",
-        "example4Reply": "Six PRs need your review. Two are >24h old:\n\n• **sok#2934** (Patrick) — Personal Assistant Beta. ~2h review.\n• **sok#2941** (Alex) — billing fix. ~20 min.\n\nDrafting Linear tickets for the four older ones assigned to you, and a Slack post in #engineering asking for backup on the two large ones. Approve to send?",
-        "example5": "Hire the Reddit Research agent on what people are saying about Masumi this week, then send me the top sentiment + any action items.",
-        "example5Reply": "Hiring **Reddit Research** (15 credits) with the brief: posts and comments mentioning Masumi in the last 7 days across r/cardano, r/agentic, r/MachineLearning.\n\nWhen it's back I'll surface: overall sentiment, top three quoted threads, and any concrete action items (bugs to file, devs to thank, FUD to address). ETA ~12 min.",
-        "example6": "When Hannah's deal task hits FAILED, hire a refund and file a Linear ticket — don't bug me unless it happens twice in a week.",
-        "example6Reply": "Watching for tasks assigned to **Hannah** in your NMKR org that hit `FAILED`. When one does I'll:\n\n1. Call **sokosumi_refund_job** for the failed run\n2. Open a Linear ticket with the failure logs in your Bugs project\n3. Stay quiet unless it happens twice in 7 days — then I'll ping you with both reports\n\nStanding watch.",
+        "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
+        "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
+        "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
+        "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
+        "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
+        "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
+        "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
+        "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
+        "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
+        "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
+        "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
+        "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
         "examplesPickHint": "Pick a prompt to see how your assistant would reply",
         "sokosumiTitle": "Your main interface to Sokosumi",
         "sokosumiBody": "Your assistant reads your tasks, starts jobs through any enabled Sokosumi agent, and brings the results back into the chat. Think of it as your AI desk. The one place you go to get things done across the platform.",
@@ -2163,7 +2163,16 @@
           "4": "Every morning your assistant can send a brief of what needs your attention.",
           "5": "Read your inbox, draft replies, schedule meetings — all from chat.",
           "6": "Ask your assistant to schedule things in plain English: \"every Monday at 9am, summarise my week ahead.\""
-        }
+        },
+        "elapsedLabel": "{elapsed} elapsed",
+        "stageComputer": "Creating private computer",
+        "stageComputerBody": "Starting the isolated workspace for this account.",
+        "stageWorkspace": "Preparing assistant workspace",
+        "stageWorkspaceBody": "Loading the assistant runtime and saved settings.",
+        "stageReady": "Waiting for assistant",
+        "stageReadyBody": "Checking until the assistant reports that it is ready for setup.",
+        "longWaitTitle": "Still working",
+        "longWaitBody": "This can take longer when capacity is cold. You can leave and return to Personal Assistant; setup will continue in the background."
       },
       "Running": {
         "statusActive": "Active",
@@ -2215,11 +2224,10 @@
           "15": "Almost there"
         },
         "rotatingHints": {
-          "0": "Message your assistant…",
-          "1": "Try: schedule a daily inbox brief at 8am",
-          "2": "Try: summarize my open Cardano threads",
-          "3": "Try: draft a follow-up to my last meeting notes",
-          "4": "Try: what's overdue in my inbox?"
+          "0": "Try: schedule a daily inbox brief at 8am",
+          "1": "Try: summarize my open customer threads",
+          "2": "Try: draft a follow-up to my last meeting notes",
+          "3": "Try: what's overdue in my inbox?"
         },
         "outboxKinds": {
           "welcome": "Welcome",
@@ -2294,8 +2302,8 @@
       },
       "Onboarding": {
         "eyebrow": "Welcome to your assistant",
-        "title": "Let's get your agent set up.",
-        "subtitle": "Connect a few tools so your assistant is useful from minute one. Skip if you'd rather start fresh.",
+        "title": "Let's set up your assistant.",
+        "subtitle": "Choose how it should look, how much initiative it can take, and which accounts it can use first.",
         "identityHeading": "Your details",
         "identityHelp": "Your assistant uses this for context — to address you by name, prioritize work that matches your role, and ground research in your company.",
         "assistantNameLabel": "Assistant",
@@ -2307,10 +2315,10 @@
         "assistantHelp": "Choose its look and give it a name. You can change both later.",
         "nameStepHeading": "Name your assistant",
         "nameStepHelp": "What should we call it? You can rename it any time.",
-        "lookStepHeading": "Choose its look",
-        "lookStepHelp": "Keep the standard white, or pick a colour to make it yours — each colour is unique to you.",
-        "reviewHeading": "Ready to go",
-        "reviewHelp": "Here's your assistant. Bring it to life when you're ready.",
+        "lookStepHeading": "Choose its look and personality",
+        "lookStepHelp": "Pick the assistant's face, then tune how it should sound in chat.",
+        "reviewHeading": "Review before creation",
+        "reviewHelp": "Confirm the assistant you are about to create.",
         "reviewMeet": "Meet",
         "reviewPersonality": "Personality",
         "reviewAutonomy": "Initiative",
@@ -2320,7 +2328,7 @@
         "reviewOwnedBy": "{name}'s personal assistant",
         "reviewGeneric": "Your personal assistant",
         "reviewFocus": "focused on {role}",
-        "moreLaterShort": "Slack, Notion, GitHub and more — connect any time from Settings.",
+        "moreLaterShort": "Slack, Notion, GitHub and more can be connected later from Settings.",
         "personalityBalanced": "Balanced",
         "assistantFallbackName": "Your assistant",
         "personalityHeading": "Personality",
@@ -2346,7 +2354,7 @@
         "next": "Next",
         "back": "Back",
         "autonomyHeading": "How much initiative should your assistant take?",
-        "autonomyHelp": "You can change this any time from Settings.",
+        "autonomyHelp": "Set this before connecting accounts. You can change it any time from Settings.",
         "autonomyLowLabel": "Read only",
         "autonomyLowBody": "Your assistant can read your inbox, calendar and tasks but never acts. Safest while you're getting used to it.",
         "autonomyMediumLabel": "Ask first",
@@ -2356,7 +2364,7 @@
         "autonomyHighBody": "The true agent experience. Your assistant acts on its own without asking you. Opens tickets, sends mail, and spends your Sokosumi credits to hire other agents when it judges the work is worth it. Best once you trust how it works.",
         "autonomyHighSpendBadge": "Spends credits",
         "integrationsHeading": "Integrations",
-        "integrationsHelp": "Your assistant connects through Composio. You authorize each provider in a popup; tokens never touch Sokosumi.",
+        "integrationsHelp": "Connect the accounts you want available now. You can skip this and add more later from Settings.",
         "providers": {
           "gmail": "Gmail",
           "outlook": "Outlook Mail",
@@ -2385,7 +2393,7 @@
         "skipCtaHelp": "Use a generic welcome instead.",
         "moreLaterHeading": "More you can connect later",
         "moreLaterHelp": "From Settings, once your assistant is set up.",
-        "continueCta": "Set up my agent",
+        "continueCta": "Create assistant",
         "continueWithCount": "Continuing with {count, plural, =0 {no integrations} =1 {# integration} other {# integrations}}",
         "footnote": "You can add or remove integrations any time from Settings.",
         "autonomyAriaLabel": "Assistant autonomy level",

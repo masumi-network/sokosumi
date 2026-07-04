@@ -54,9 +54,9 @@ The page is a state machine driven off `getHermesInstanceAction`:
 
 | State                   | Component             | What's happening                                                                                                                       |
 | ----------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `idle`                  | `EmptyState`          | No instance. Hero + Setup Hermes CTA, end-to-end journey, features, things-to-try carousel, disclaimer.                                |
-| `provisioning`          | `ProvisioningState`   | `POST /me/instance` fired. Fly machine is booting; UI shows an honest "Setting up your agent…" + rotating Hermes facts.                |
-| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Three-step wizard: **Details → Autonomy → Integrations**.                                                   |
+| `idle`                  | `EmptyState`          | No instance. Activation-first hero, capability summary, shortened journey, features, things-to-try carousel, disclaimer.               |
+| `provisioning`          | `ProvisioningState`   | `POST /me/instance` fired. Fly machine is booting; UI shows elapsed time, honest milestones, and rotating Hermes facts.                |
+| `infrastructure_ready`  | `OnboardingScreen`    | Machine up, awaiting user. Five-step wizard: **Name → Look + personality → Autonomy → Integrations → Review**.                         |
 | `onboarding`            | `OnboardingProgress`  | `POST /me/instance/onboard` fired. Polls `/onboarding-progress` every second; renders the orchestrator's step list with status icons.  |
 | `ready` / `running`     | `RunningState`        | Chat is open. Integrations chip in top-right routes into Settings.                                                                     |
 | `error`                 | `ErrorState`          | Orchestrator returned an error or instance is in a bad state. Retry button re-fires provision.                                         |
@@ -286,7 +286,7 @@ apps/web/src/app/(app)/hermes/
     ├── hermes-experience.tsx            ← state machine + polling
     ├── empty-state.tsx                  ← /hermes when no instance — hero + journey + features + examples + disclaimer
     ├── provisioning-state.tsx           ← honest "Setting up your agent…" view
-    ├── onboarding-screen.tsx            ← 3-step wizard: Details → Autonomy → Integrations
+    ├── onboarding-screen.tsx            ← 5-step wizard: Name → Look/personality → Autonomy → Integrations → Review
     ├── onboarding-progress.tsx          ← orchestrator step poll UI
     ├── running-state.tsx                ← chat UI; integrations chip in top-right
     ├── error-state.tsx                  ← retry from error

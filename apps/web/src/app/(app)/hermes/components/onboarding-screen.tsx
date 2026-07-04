@@ -3,17 +3,13 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Briefcase as BriefcaseIcon,
-  Building2,
   Check,
   Gauge,
   Loader2,
   Plug,
   Sparkles,
-  User as UserIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ComponentType } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import ConnectInterstitial from "@/app/hermes/components/connect-interstitial";
@@ -22,14 +18,6 @@ import { hermesOAuthConnectErrorMessage } from "@/app/hermes/components/hermes-o
 import ProgressPips from "@/app/hermes/components/progress-pips";
 import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { disconnectHermesIntegrationAction } from "@/lib/actions/hermes";
 import { orbCandidateSeeds } from "@/lib/aurora-orb";
@@ -41,11 +29,9 @@ import type {
   HermesIntegrationStatus,
   HermesPersonality,
 } from "@/lib/hermes/types";
-import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
 import AutonomySelector from "./autonomy-selector";
-import SkillsMarketplace from "./skills-marketplace";
 import { useComposioOAuth } from "./use-composio-oauth";
 
 interface OnboardingScreenProps {
@@ -75,12 +61,6 @@ interface OnboardingScreenProps {
   }) => void;
 }
 
-/**
- * Role options for the identity step. Plain strings (not enum-backed)
- * because the orchestrator only needs them as context for personalization —
- * Hermes doesn't switch behaviour by role, it just talks more like a peer
- * when it knows what the user does.
- */
 /**
  * Ordered v1 provider list. Each `slug` matches the orchestrator's expected
  * provider string for `POST /v1/instances/:userId/integrations`.
@@ -159,12 +139,8 @@ export default function OnboardingScreen({
   const t = useTranslations("App.Hermes.Onboarding");
   const tProviders = useTranslations("App.Hermes.Onboarding.providers");
   const tOAuth = useTranslations("App.Hermes.Common.oauth");
-  const roleOptions = orderedMessageList(
-    t.raw("roleOptions") as Record<string, string>,
-  );
   const composioOAuth = useComposioOAuth();
 
-  const [name, setName] = useState(defaultName);
   const [assistantName, setAssistantName] = useState<string>("");
   // null until the user explicitly picks a colour — until then the orb stays
   // the white placeholder everywhere (the "standard" look).
@@ -177,14 +153,12 @@ export default function OnboardingScreen({
     selectedOrbIndex !== null ? (orbSeeds[selectedOrbIndex] ?? null) : null;
   const [personality, setPersonality] =
     useState<HermesPersonality>(DEFAULT_PERSONALITY);
-  const [role, setRole] = useState<string>("");
-  const [company, setCompany] = useState<string>("");
   const [autonomyLevel, setAutonomyLevel] =
     useState<HermesAutonomyLevel>("medium");
-  /** 1 = name, 2 = look, 3 = personality, 4 = about you, 5 = autonomy, 6 = tools, 7 = skills, 8 = review. */
-  type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  /** 1 = name, 2 = look + personality, 3 = autonomy, 4 = tools, 5 = review. */
+  type Step = 1 | 2 | 3 | 4 | 5;
   const [step, setStep] = useState<Step>(1);
-  const TOTAL_STEPS = 8;
+  const TOTAL_STEPS = 5;
   const goNext = useCallback(
     () => setStep((s) => (s < TOTAL_STEPS ? ((s + 1) as Step) : s)),
     [],
@@ -196,9 +170,9 @@ export default function OnboardingScreen({
 
   // ── Orb animation driven by the chosen personality ───────────────────────
   // Playful + warm → faster, livelier motion; formal + direct → calmer. High
-  // playfulness also tips the eyes into a smile. Applied from the Personality
-  // step on, so dragging the sliders visibly changes how the orb animates. The
-  // chat reuses the exact same mapping (personalityToOrbMotion) so they match.
+  // playfulness also tips the eyes into a smile. Applied from the combined
+  // look/personality step on, so dragging the sliders visibly changes how the
+  // orb animates. The chat reuses the same mapping so they match.
   const { speed: personalitySpeed, restExpression: personalityExpr } =
     personalityToOrbMotion(personality);
   const heroExpression =
@@ -206,12 +180,10 @@ export default function OnboardingScreen({
       ? assistantName.trim()
         ? "idle"
         : null
-      : step === 2
-        ? "idle"
-        : step === 8
-          ? "happy"
-          : personalityExpr;
-  const heroSpeed = step >= 3 ? personalitySpeed : 1.3;
+      : step === 5
+        ? "happy"
+        : personalityExpr;
+  const heroSpeed = step >= 2 ? personalitySpeed : 1.3;
 
   /**
    * Local status overlay per provider. Any entry here wins over the
@@ -323,7 +295,12 @@ export default function OnboardingScreen({
             The white placeholder orb until the user picks a colour on the Look
             step, then it "takes form" into the chosen orb (keyed crossfade).
             Its speed + expression follow the chosen personality. */}
-        <div className="mb-4 flex flex-col items-center text-center md:mb-5">
+        <div
+          className={cn(
+            "mb-4 flex flex-col items-center text-center md:mb-5",
+            step === 2 && "max-md:hidden",
+          )}
+        >
           <div
             key={selectedSeed === null ? "placeholder" : "chosen"}
             className="animate-in fade-in zoom-in-95 duration-500"
@@ -393,122 +370,53 @@ export default function OnboardingScreen({
               heading={t("lookStepHeading")}
               description={t("lookStepHelp")}
             >
-              {/* ── Orb picker. The white placeholder is the standard option
-                  (selected = nothing committed yet); each colour candidate is
-                  unique to this user. The preview only changes once picked. ── */}
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrbIndex(null)}
-                  aria-pressed={selectedOrbIndex === null}
-                  aria-label={t("orbWhiteLabel")}
-                  className={cn(
-                    "rounded-full p-0.5 outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40",
-                    selectedOrbIndex === null
-                      ? "ring-primary ring-offset-background ring-2 ring-offset-2"
-                      : "ring-border/60 hover:ring-foreground/30 ring-1",
-                  )}
-                >
-                  <PlaceholderOrb size={144} className="size-16" />
-                </button>
-                {orbSeeds.map((s, i) => (
+              <div className="grid gap-6">
+                {/* ── Orb picker. The white placeholder is the standard option
+                    (selected = nothing committed yet); each colour candidate is
+                    unique to this user. The preview only changes once picked. ── */}
+                <div className="flex flex-wrap items-center justify-center gap-3">
                   <button
-                    key={s}
                     type="button"
-                    onClick={() => setSelectedOrbIndex(i)}
-                    aria-pressed={i === selectedOrbIndex}
-                    aria-label={t("orbOptionLabel", { index: i + 1 })}
+                    onClick={() => setSelectedOrbIndex(null)}
+                    aria-pressed={selectedOrbIndex === null}
+                    aria-label={t("orbWhiteLabel")}
                     className={cn(
                       "rounded-full p-0.5 outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40",
-                      i === selectedOrbIndex
+                      selectedOrbIndex === null
                         ? "ring-primary ring-offset-background ring-2 ring-offset-2"
                         : "ring-border/60 hover:ring-foreground/30 ring-1",
                     )}
                   >
-                    <AuroraOrb seed={s} size={144} className="size-16" />
+                    <PlaceholderOrb size={144} className="size-16" />
                   </button>
-                ))}
+                  {orbSeeds.map((s, i) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSelectedOrbIndex(i)}
+                      aria-pressed={i === selectedOrbIndex}
+                      aria-label={t("orbOptionLabel", { index: i + 1 })}
+                      className={cn(
+                        "rounded-full p-0.5 outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40",
+                        i === selectedOrbIndex
+                          ? "ring-primary ring-offset-background ring-2 ring-offset-2"
+                          : "ring-border/60 hover:ring-foreground/30 ring-1",
+                      )}
+                    >
+                      <AuroraOrb seed={s} size={144} className="size-16" />
+                    </button>
+                  ))}
+                </div>
+
+                <PersonalitySliders
+                  value={personality}
+                  onChange={setPersonality}
+                />
               </div>
             </Section>
           )}
 
           {step === 3 && (
-            <Section
-              heading={t("personalityHeading")}
-              description={t("personalityStepHelp")}
-            >
-              <PersonalitySliders
-                value={personality}
-                onChange={setPersonality}
-              />
-            </Section>
-          )}
-
-          {step === 4 && (
-            <Section
-              heading={t("identityHeading")}
-              description={t("identityHelp")}
-            >
-              <div className="border-border/60 bg-card/40 divide-border/60 overflow-hidden rounded-xl border divide-y">
-                <InlineRow
-                  htmlFor="hermes-onboarding-name"
-                  Icon={UserIcon}
-                  label={t("nameLabel")}
-                >
-                  <input
-                    id="hermes-onboarding-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={t("namePlaceholder")}
-                    autoComplete="off"
-                    spellCheck={false}
-                    autoFocus
-                    className="text-foreground placeholder:text-muted-foreground/60 h-9 w-full border-0 bg-transparent text-sm outline-none focus:outline-none focus:ring-0"
-                  />
-                </InlineRow>
-                <InlineRow
-                  htmlFor="hermes-onboarding-role"
-                  Icon={BriefcaseIcon}
-                  label={t("roleLabel")}
-                >
-                  <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger
-                      id="hermes-onboarding-role"
-                      className="text-foreground data-[placeholder]:text-muted-foreground/60 h-9 w-full border-0 bg-transparent px-0 text-sm shadow-none focus:ring-0 focus-visible:ring-0"
-                    >
-                      <SelectValue placeholder={t("rolePlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roleOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </InlineRow>
-                <InlineRow
-                  htmlFor="hermes-onboarding-company"
-                  Icon={Building2}
-                  label={t("companyLabel")}
-                >
-                  <input
-                    id="hermes-onboarding-company"
-                    type="text"
-                    value={company}
-                    onChange={(e) => setCompany(e.target.value)}
-                    placeholder={t("companyPlaceholder")}
-                    autoComplete="organization"
-                    spellCheck={false}
-                    className="text-foreground placeholder:text-muted-foreground/60 h-9 w-full border-0 bg-transparent text-sm outline-none focus:outline-none focus:ring-0"
-                  />
-                </InlineRow>
-              </div>
-            </Section>
-          )}
-
-          {step === 5 && (
             <Section
               heading={t("autonomyHeading")}
               description={t("autonomyHelp")}
@@ -520,7 +428,7 @@ export default function OnboardingScreen({
             </Section>
           )}
 
-          {step === 6 && (
+          {step === 4 && (
             <Section
               heading={t("integrationsHeading")}
               description={t("integrationsHelp")}
@@ -556,18 +464,12 @@ export default function OnboardingScreen({
             </Section>
           )}
 
-          {step === 7 && (
-            <Section heading={t("skillsHeading")} description={t("skillsHelp")}>
-              {previewMode ? null : <SkillsMarketplace variant="onboarding" />}
-            </Section>
-          )}
-
-          {step === 8 && (
+          {step === 5 && (
             <Section heading={t("reviewHeading")} description={t("reviewHelp")}>
               <AgentReviewCard
                 assistantName={assistantName.trim()}
-                userName={name.trim()}
-                role={role.trim()}
+                userName={defaultName.trim()}
+                role=""
                 personality={personality}
                 autonomyLevel={autonomyLevel}
                 connectedCount={connectedCount}
@@ -577,7 +479,7 @@ export default function OnboardingScreen({
         </div>
 
         {/* ── Wizard navigation ───────────────────────────────────── */}
-        <div className="mt-6 flex flex-col items-center gap-3 md:mt-8">
+        <div className="border-border/60 bg-background/95 sticky bottom-0 z-10 -mx-6 mt-6 flex flex-col items-center gap-3 border-t px-6 py-3 backdrop-blur-md md:static md:mx-0 md:mt-8 md:border-t-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
           {step < TOTAL_STEPS ? (
             <div className="flex w-full max-w-md items-center justify-between gap-3">
               <Button
@@ -626,13 +528,13 @@ export default function OnboardingScreen({
                 onClick={() =>
                   onContinue({
                     skipResearch: false,
-                    name: name.trim() || null,
+                    name: defaultName.trim() || null,
                     assistantName: assistantName.trim() || null,
                     avatarSeed: selectedSeed,
                     personality,
                     email: defaultEmail || null,
-                    role: role.trim() || null,
-                    company: company.trim() || null,
+                    role: null,
+                    company: null,
                     autonomyLevel,
                   })
                 }
@@ -868,45 +770,6 @@ function StepIndicator({
           );
         })}
       </div>
-    </div>
-  );
-}
-
-/**
- * Identity-step form row: borderless input/select inside a shared card so the
- * three fields read as one designed object instead of three stacked inputs.
- * Icon tile on the left, fixed-width label column, then the control fills the
- * rest. Focus state lives on the row's bg, not on the child input, so the
- * Select trigger and the bare <input> share the same hit treatment.
- */
-function InlineRow({
-  htmlFor,
-  Icon,
-  label,
-  children,
-}: {
-  htmlFor: string;
-  Icon?: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="focus-within:bg-muted/40 flex items-center gap-3 px-4 py-2 transition-colors">
-      {Icon ? (
-        <span
-          aria-hidden
-          className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md"
-        >
-          <Icon className="size-3.5" aria-hidden />
-        </span>
-      ) : null}
-      <Label
-        htmlFor={htmlFor}
-        className="text-muted-foreground w-20 shrink-0 cursor-pointer text-xs font-medium uppercase tracking-wider"
-      >
-        {label}
-      </Label>
-      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }

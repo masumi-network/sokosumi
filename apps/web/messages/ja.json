@@ -1987,7 +1987,7 @@
         "personalizing": "パーソナライズ中"
       },
       "Loading": {
-        "message": "アシスタントを読み込み中…"
+        "message": "Hermes を読み込み中…"
       },
       "Experience": {
         "fetchFailed": "アシスタントに接続できませんでした。",
@@ -1998,11 +1998,11 @@
         "onboardingStartFailed": "オンボーディングを開始できませんでした。"
       },
       "EmptyState": {
-        "eyebrow": "パーソナルアシスタント",
-        "title": "あなた専用のパーソナルアシスタント。",
+        "eyebrow": "パーソナル Hermes",
+        "title": "あなた専用の Hermes エージェント。",
         "subtitle": "ホスト型、サンドボックス内、あなたのもの。",
         "description": "永続メモリ、カスタムスキル、Sokosumi データへのアクセスを備えた隔離されたAIコワーカー。チャット、Telegram、ターミナルなど、作業している場所から利用できます。",
-        "primaryCta": "アシスタントを有効化",
+        "primaryCta": "Hermes を有効化",
         "secondaryCta": "詳しく見る",
         "integrationsEyebrow": "連携",
         "examplesEyebrow": "試してみる",
@@ -2026,12 +2026,12 @@
           "linkedin": "LinkedIn"
         },
         "exampleCategories": {
-          "example1": "受信トレイ + Research エージェント",
-          "example2": "競合調査 + 返信",
-          "example3": "Brief エージェント（毎日）",
-          "example4": "GitHub + Linear + Slack",
-          "example5": "Reddit 調査",
-          "example6": "監視 + 返金 + Linear"
+          "example1": "Inbox briefing",
+          "example2": "Company research + reply",
+          "example3": "Daily brief",
+          "example4": "PR and issue follow-up",
+          "example5": "Market scan",
+          "example6": "Failure watch"
         },
         "visuals": {
           "activated": "有効化済み",
@@ -2046,42 +2046,42 @@
           "memoryWritten": "メモリ · 記録済み",
           "demoInbox": [
             {
-              "from": "Hannah",
-              "subject": "Q4 ロードマップレビュー"
+              "from": "Project lead",
+              "subject": "Launch checklist"
             },
             {
-              "from": "Alex",
-              "subject": "Cardano 案件 — 次のステップ"
+              "from": "Customer team",
+              "subject": "Contract questions"
             },
             {
-              "from": "CI bot",
-              "subject": "ビルド #2438 が失敗"
+              "from": "Build bot",
+              "subject": "Deployment failed"
             }
           ],
           "demoMemory": [
-            "Q4 ローンチに取り組み中",
-            "Hannah はプロダクトリード",
-            "Cardano 案件は3月15日締切"
+            "Launch plan is the current priority",
+            "Project lead owns approvals",
+            "Open questions need a reply"
           ],
-          "actUserMessage": "来週火曜10時に Hannah と通話を設定して。",
+          "actUserMessage": "Find a time with the project lead next week.",
           "actWorking": "アシスタントが作業中",
           "actSteps": [
-            "空き枠を見つけました",
-            "招待を下書きしました",
-            "文脈のため Research エージェントを起用"
+            "Found an open slot",
+            "Drafted the invite",
+            "Pulled project context"
           ],
-          "actHeld": "火曜 · 10:00 確保済み",
-          "overnightTitle": "今夜 · 4 件のジョブ",
+          "actHeld": "Time held for review",
+          "overnightTitle": "Morning brief",
           "overnightSchedule": [
-            "夜間メールを取得",
-            "Sokosumi ジョブを同期",
-            "朝のブリーフを下書き",
-            "チャット + Telegram に送信"
+            "Review overnight messages",
+            "Sync Sokosumi jobs",
+            "Draft the morning brief",
+            "Post to chat and Slack"
           ]
         },
         "journeyEyebrow": "エンドツーエンド",
         "journeyHeading": "アシスタントの動き方（ステップごと）",
-        "journeyDescription": "エージェントを有効化した瞬間から、明日の朝スマホに届くブリーフまで。",
+        "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
         "journeyStep1Tag": "00:00",
         "journeyStep1Title": "アシスタントを有効化",
         "journeyStep1Body": "Sokosumi アカウントからワンクリック。インストール不要、API キーの管理も不要。この瞬間からアシスタントはあなたのアカウントに紐づきます。",
@@ -2116,22 +2116,22 @@
         "feature6Body": "検索、ブラウザ自動化、ビジョン、画像生成、TTS、マルチモデル推論。",
         "examplesHeading": "試してみること",
         "examplesHelp": "チャットを開いて何でも聞いてください。いくつかの例：",
-        "example1": "Cardano 案件に関するメールをすべて見つけ、Research エージェントに金曜の通話に出る4名のプロフィールを依頼し、通話前にブリーフして。",
-        "example1Reply": "Cardano のスレッドを取得中です。9月以降 Alex、法務、財務あわせ14通。金曜の通話に出る4名について **Research**（12 クレジット）を起用：経歴、最近の動き、共通の知人。\n\n所要約15分。通話30分前に1ページのブリーフをここに置き、メールでも送ります。",
-        "example2": "Maya がメールしてきた会社について Competitor Research エージェントを起用し、戻ったらフォローアップ返信を下書きして。",
-        "example2Reply": "Maya のメールを特定しました。件名：「What do you make of Nevermind Labs?」。**Competitor Research**（18 クレジット）を起用。ブリーフ：製品、トラクション、資金調達、GTM、ロードマップとの重なり。\n\n戻り次第、上位3点を本文に入れた返信を下書きし、確認用に下書きフォルダに入れます。",
-        "example3": "平日毎朝8時に、前日の受信トレイ + 今日のカレンダーで Brief エージェントを起用し、要約を Slack #me に投稿して。",
-        "example3Reply": "スケジュールしました。平日毎朝08:00に：\n\n1. 前日20:00以降のメールと今日のカレンダーを取得\n2. **Brief** エージェント（3 クレジット/回）で要約、競合のフラグ、ブロッカーの抽出\n3. 結果を #me に投稿。判断が必要な項目はスレッド付き\n\n初回実行：明日08:00。",
-        "example4": "レビューが必要な GitHub PR を確認し、今日対応できない分は Linear チケットを開き、残りは #engineering に手伝いを依頼して。",
-        "example4Reply": "レビューが必要な PR が6件。24時間超は2件：\n\n• **sok#2934**（Patrick）— アシスタント Beta。レビュー約2時間。\n• **sok#2941**（Alex）— 請求修正。約20分。\n\nあなたに割り当ての古い4件の Linear チケットを下書きし、大きい2件は #engineering にバックアップ依頼の Slack 投稿を下書きします。送信してよいですか？",
-        "example5": "今週 Masumi について Reddit で何が言われているか Reddit Research エージェントに調べ、上位のセンチメントとアクション項目を送って。",
-        "example5Reply": "**Reddit Research**（15 クレジット）を起用。ブリーフ：過去7日間 r/cardano、r/agentic、r/MachineLearning で Masumi に言及した投稿・コメント。\n\n戻り次第：全体のセンチメント、引用スレッド上位3、具体的なアクション項目（バグ起票、開発者への感謝、FUD への対応）。所要約12分。",
-        "example6": "Hannah の案件タスクが FAILED になったら返金を起用し Linear チケットを起票 — 1週間に2回起きない限り連絡しないで。",
-        "example6Reply": "NMKR 組織で **Hannah** 向けタスクが `FAILED` になるのを監視します。そのとき：\n\n1. 失敗した実行に **sokosumi_refund_job**\n2. Bugs プロジェクトに失敗ログ付きの Linear チケット\n3. 7日間に2回起きない限り静かに — 2回目で両方のレポートをお知らせします\n\n監視を開始しました。",
+        "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
+        "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
+        "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
+        "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
+        "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
+        "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
+        "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
+        "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
+        "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
+        "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
+        "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
+        "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
         "examplesPickHint": "プロンプトを選ぶとアシスタントの返答例が表示されます",
         "sokosumiTitle": "Sokosumi と連携",
         "sokosumiBody": "タスクを読み、有効なエージェント経由でジョブを実行し、プラットフォーム上でアシスト — すべてマイクロVM内で。",
-        "footnote": "ベータアクセス。アカウントごとに1インスタンス。有効化によりベータ条項に同意したものとします — アシスタントはサンドボックス内であなたに代わってコードを実行します。",
+        "footnote": "ベータアクセス。アカウントごとに1インスタンス。有効化によりベータ条項に同意したものとします — Hermes はサンドボックス内であなたに代わってコードを実行します。",
         "disclaimerHeading": "始める前に、いくつか正直にお伝えします",
         "disclaimer1": "アシスタントはあなたの代わりに行動します。送るメール、開くチケット、使うクレジットはすべて実物です。自律レベルは慎重に選んでください。",
         "disclaimer2": "間違えることもあります。顧客・同僚・お金に関わる操作は、信頼する前に必ず確認してください。",
@@ -2152,7 +2152,16 @@
           "毎朝、注意が必要なことをアシスタントがブリーフで送れます。",
           "受信トレイの確認、返信の下書き、会議の予約 — すべてチャットから。",
           "普段の言葉でスケジュールを依頼：「毎週月曜9時に、今週の予定を要約して」。"
-        ]
+        ],
+        "elapsedLabel": "{elapsed} elapsed",
+        "stageComputer": "Creating private computer",
+        "stageComputerBody": "Starting the isolated workspace for this account.",
+        "stageWorkspace": "Preparing assistant workspace",
+        "stageWorkspaceBody": "Loading the assistant runtime and saved settings.",
+        "stageReady": "Waiting for assistant",
+        "stageReadyBody": "Checking until the assistant reports that it is ready for setup.",
+        "longWaitTitle": "Still working",
+        "longWaitBody": "This can take longer when capacity is cold. You can leave and return to Personal Assistant; setup will continue in the background."
       },
       "Running": {
         "statusActive": "アクティブ",
@@ -2161,7 +2170,7 @@
         "regionLabel": "リージョン",
         "lastActiveLabel": "最終アクティブ",
         "settingsCta": "設定",
-        "composerPlaceholder": "アシスタントにメッセージ…",
+        "composerPlaceholder": "Hermes にメッセージ…",
         "composerHint": "Enter で送信、Shift+Enter で改行",
         "send": "送信",
         "stop": "停止",
@@ -2169,6 +2178,7 @@
         "removeFile": "削除",
         "emptyTitle": "準備はいつでもできています",
         "emptyHint": "毎日のブリーフィングを試す — 「平日毎朝9時に未完了タスクを要約して」",
+        "assistantFallback": "アシスタント",
         "transitioning": "アシスタントが変更を適用しています…",
         "transitioningHint": "（約30秒かかります）",
         "composerDisabledPlaceholder": "アシスタントが変更を適用しています…",
@@ -2203,11 +2213,10 @@
           "もうすぐです"
         ],
         "rotatingHints": [
-          "アシスタントにメッセージ…",
-          "試す：毎朝8時に受信トレイのブリーフをスケジュール",
-          "試す：未完了の Cardano スレッドを要約",
-          "試す：前回の議事録へのフォローアップを下書き",
-          "試す：受信トレイで期限切れは？"
+          "Try: schedule a daily inbox brief at 8am",
+          "Try: summarize my open customer threads",
+          "Try: draft a follow-up to my last meeting notes",
+          "Try: what's overdue in my inbox?"
         ],
         "outboxKinds": {
           "welcome": "ようこそ",
@@ -2240,6 +2249,7 @@
           "organizationLabel": "作成先",
           "organizationPersonal": "個人",
           "costNotice": "コストは事前に計算できません。この作業で使用されるクレジットは、実行に応じて残高から差し引かれます。",
+          "creatingInBackground": "The agent is creating your task in the background — it'll appear in the chat shortly.",
           "approvedStatus": "承認済み",
           "rejectedStatus": "却下済み",
           "tools": {
@@ -2271,14 +2281,56 @@
             "viewTask": "タスクを表示"
           }
         },
-        "assistantFallback": "アシスタント"
+        "stillWorking": "Still working on it…",
+        "stillWorkingLong": "Still going — this one is taking a little longer…",
+        "answeredIn": "Answered in {seconds}s",
+        "copyAction": "Copy message",
+        "copiedAction": "Copied",
+        "jumpToLatest": "Latest",
+        "toolSteps": "{count} steps"
       },
       "Onboarding": {
         "eyebrow": "パーソナルアシスタントへようこそ",
-        "title": "エージェントをセットアップしましょう。",
-        "subtitle": "最初から役立つよう、いくつかツールを接続してください。まっさらに始めたい場合はスキップできます。",
+        "title": "Let's set up your assistant.",
+        "subtitle": "Choose how it should look, how much initiative it can take, and which accounts it can use first.",
         "identityHeading": "あなたの情報",
         "identityHelp": "アシスタントはこれを文脈に使います — 名前で呼びかけ、役割に合った仕事を優先し、会社に根ざした調査を行います。",
+        "assistantNameLabel": "アシスタント",
+        "assistantNamePlaceholder": "アシスタントに名前を付けましょう",
+        "orbPickerLabel": "Choose a look",
+        "orbOptionLabel": "Look option {index}",
+        "orbWhiteLabel": "Standard white",
+        "assistantHeading": "Your assistant",
+        "assistantHelp": "Choose its look and give it a name. You can change both later.",
+        "nameStepHeading": "Name your assistant",
+        "nameStepHelp": "What should we call it? You can rename it any time.",
+        "lookStepHeading": "Choose its look and personality",
+        "lookStepHelp": "Pick the assistant's face, then tune how it should sound in chat.",
+        "reviewHeading": "Review before creation",
+        "reviewHelp": "Confirm the assistant you are about to create.",
+        "reviewMeet": "Meet",
+        "reviewPersonality": "Personality",
+        "reviewAutonomy": "Initiative",
+        "reviewTools": "Tools",
+        "reviewToolsCount": "{count} connected",
+        "reviewToolsNone": "None yet",
+        "reviewOwnedBy": "{name}'s personal assistant",
+        "reviewGeneric": "Your personal assistant",
+        "reviewFocus": "focused on {role}",
+        "moreLaterShort": "Slack, Notion, GitHub and more can be connected later from Settings.",
+        "personalityBalanced": "Balanced",
+        "assistantFallbackName": "Your assistant",
+        "personalityHeading": "Personality",
+        "personalityStepHelp": "Shape how your assistant comes across. You can fine-tune this any time.",
+        "personalityToneLabel": "Tone",
+        "personalityToneLow": "Direct",
+        "personalityToneHigh": "Warm",
+        "personalityDetailLabel": "Detail",
+        "personalityDetailLow": "Concise",
+        "personalityDetailHigh": "Thorough",
+        "personalityStyleLabel": "Style",
+        "personalityStyleLow": "Formal",
+        "personalityStyleHigh": "Playful",
         "nameLabel": "名前",
         "namePlaceholder": "Patrick Tobler",
         "emailLabel": "メール",
@@ -2291,7 +2343,7 @@
         "next": "次へ",
         "back": "戻る",
         "autonomyHeading": "アシスタントにどの程度の裁量を持たせますか？",
-        "autonomyHelp": "設定からいつでも変更できます。",
+        "autonomyHelp": "Set this before connecting accounts. You can change it any time from Settings.",
         "autonomyLowLabel": "読み取りのみ",
         "autonomyLowBody": "アシスタントは受信トレイ・カレンダー・タスクを読めますが、行動はしません。慣れるまで最も安全です。",
         "autonomyMediumLabel": "先に確認",
@@ -2301,7 +2353,7 @@
         "autonomyHighBody": "本格的なエージェント体験です。アシスタントは独自に行動します。チケットを開き、メールを送り、価値があると判断したら Sokosumi クレジットで他エージェントを起用します。コストルールで制限（残高が10クレジット未満になる操作は拒否、単一ジョブが残高の25%超なら確認）。仕組みを信頼できてからがおすすめです。",
         "autonomyHighSpendBadge": "クレジットを消費",
         "integrationsHeading": "連携",
-        "integrationsHelp": "アシスタントは Composio 経由で接続します。各プロバイダーをポップアップで認可します。トークンは Sokosumi に触れません。",
+        "integrationsHelp": "Connect the accounts you want available now. You can skip this and add more later from Settings.",
         "providers": {
           "gmail": "Gmail",
           "outlook": "Outlook Mail",
@@ -2330,7 +2382,7 @@
         "skipCtaHelp": "代わりに汎用のウェルカムを使用します。",
         "moreLaterHeading": "あとから接続できるもの",
         "moreLaterHelp": "アシスタントのセットアップ後、設定から行えます。",
-        "continueCta": "エージェントをセットアップ",
+        "continueCta": "Create assistant",
         "continueWithCount": "{count, plural, =0 {連携なし} =1 {# 件の連携} other {# 件の連携}}で続行",
         "footnote": "連携は設定からいつでも追加・削除できます。",
         "autonomyAriaLabel": "アシスタントの自律レベル",
@@ -2360,8 +2412,8 @@
         "fullAccessBodyBold": "返信の下書きと、あなたの代わりのアカウント内での操作",
         "fullAccessBodySuffix": "ができるようになります。メール送信や予定作成を任せたい場合のみ有効にしてください。",
         "fullAccessCta": "接続（フルアクセス — 読み取り + 送信）",
-        "assistantNameLabel": "アシスタント",
-        "assistantNamePlaceholder": "アシスタントに名前を付けましょう"
+        "skillsHeading": "Add skills (optional)",
+        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. You can add more anytime from Settings."
       },
       "OnboardingProgress": {
         "eyebrow": "エージェントを準備中",
@@ -2390,8 +2442,14 @@
         }
       },
       "Settings": {
-        "title": "アシスタント設定",
-        "subtitle": "設定はインスタンスごとです。ツールシークレットを保存するとアシスタントが再起動します。",
+        "title": "Hermes 設定",
+        "subtitle": "設定はインスタンスごとです。ツールシークレットを保存すると Hermes が再起動します。",
+        "nameSection": "名前",
+        "nameHelp": "アプリ全体でアシスタントを呼ぶ名前です。",
+        "namePlaceholder": "アシスタントに名前を付けましょう",
+        "nameSave": "保存",
+        "nameSavedToast": "名前を更新しました。",
+        "nameSaveFailed": "名前を更新できませんでした。もう一度お試しください。",
         "modelSection": "モデル",
         "modelLabel": "モデル",
         "modelValue": "deepseek-4-flash",
@@ -2412,14 +2470,14 @@
         "disconnectIntegration": "切断",
         "retryIntegration": "再試行",
         "secretsSection": "ツールシークレット",
-        "secretsHelp": "アシスタントが呼び出せるツールの API キーを追加（Exa、Tavily、GitHub など）。隔離ボリュームに暗号化保存。予約キー（API_SERVER_*、HERMES_HOME、OPENROUTER_API_KEY）は管理対象です。",
+        "secretsHelp": "Hermes が呼び出せるツールの API キーを追加（Exa、Tavily、GitHub など）。隔離ボリュームに暗号化保存。予約キー（API_SERVER_*、HERMES_HOME、OPENROUTER_API_KEY）は管理対象です。",
         "secretKeyLabel": "キー",
         "secretKeyInvalid": "大文字、数字、アンダースコアのみ（例: EXA_API_KEY）。",
         "secretValueLabel": "値",
         "secretValuePlaceholder": "シークレットの値を貼り付け",
         "saveSecret": "シークレットを保存",
         "savingSecret": "保存中…",
-        "secretSavedToast": "{key} を保存しました。アシスタントを再起動しています。",
+        "secretSavedToast": "{key} を保存しました。Hermes を再起動しています。",
         "secretSaveFailed": "シークレットを保存できませんでした。",
         "schedulesSection": "スケジュール済みタスク",
         "schedulesHelp": "アシスタントがあなたの代わりに実行する定期ジョブ。ワークスペース同期、デイリーブリーフ、エージェントが予約したフォローアップ。",
@@ -2444,21 +2502,51 @@
         "syncInboxNever": "連携接続後、6時間ごとに更新されます。",
         "syncLastRun": "{when}",
         "dangerSection": "危険ゾーン",
-        "destroyTitle": "このアシスタントを破棄",
+        "destroyTitle": "この Hermes を破棄",
         "destroyBody": "マイクロVM と永続ボリュームを完全に削除します。スキル、メモリ、会話は復元できません。",
         "destroyCta": "インスタンスを破棄",
-        "cancel": "キャンセル",
-        "nameSection": "名前",
-        "nameHelp": "アプリ全体でアシスタントを呼ぶ名前です。",
-        "namePlaceholder": "アシスタントに名前を付けましょう",
-        "nameSave": "保存",
-        "nameSavedToast": "名前を更新しました。",
-        "nameSaveFailed": "名前を更新できませんでした。もう一度お試しください。"
+        "cancel": "キャンセル"
       },
       "Error": {
-        "title": "アシスタントを起動できませんでした",
+        "title": "Hermes を起動できませんでした",
         "description": "オーケストレーターがエラーを返しました。1分後に再試行してください。繰り返す場合はサポートへご連絡ください。",
         "retry": "再試行"
+      },
+      "Skills": {
+        "title": "Skills",
+        "subtitle": "Give Hermes new know-how. Skills add instructions only — never code it runs.",
+        "searchPlaceholder": "Search skills…",
+        "recommendedHeading": "Recommended",
+        "popularHeading": "Popular",
+        "marketingHeading": "Popular marketing skills",
+        "disclaimer": "These are the most popular skills on skills.sh, an open community catalog. We don't verify who created them — review a skill before adding it to your agent.",
+        "includedHeading": "Included",
+        "includedHelp": "These ship with every Hermes agent and can't be removed.",
+        "includedBadge": "Included",
+        "installedHeading": "Installed",
+        "resultsHeading": "Results",
+        "addAction": "Add",
+        "addingAction": "Adding…",
+        "installedBadge": "Installed",
+        "pendingBadge": "Pending",
+        "pendingHelp": "Will be added when your agent next starts.",
+        "removeAction": "Remove",
+        "bySource": "by {source}",
+        "curatedBadge": "Official",
+        "blockedBadge": "Blocked",
+        "blockedHelp": "Blocked for safety — this skill failed its security audit.",
+        "emptyCatalog": "The skills catalog is unavailable right now.",
+        "emptyInstalled": "No skills installed yet.",
+        "noResults": "No skills found.",
+        "reviewTitle": "Review before adding",
+        "reviewBody": "Automated audits flagged this skill (risk: {risk}). Add it only if you trust the source.",
+        "reviewConfirm": "Add anyway",
+        "reviewCancel": "Cancel",
+        "addedToast": "{name} added — Hermes can use it on your next message.",
+        "pendingToast": "{name} will be added when your agent next starts.",
+        "removedToast": "{name} removed.",
+        "addFailed": "Couldn't add the skill.",
+        "removeFailed": "Couldn't remove the skill."
       }
     },
     "Error": {

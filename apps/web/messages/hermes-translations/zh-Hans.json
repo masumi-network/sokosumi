@@ -49,25 +49,25 @@
     "disclaimer3": "已连接账户通过 OAuth 授予你的助手限定访问权限。一旦不再信任，请立即断开任何集成。",
     "disclaimer4": "测试版软件。行为可能在版本之间变化。对话历史属于你，但能力会不断演进。",
     "disclaimerHeading": "开始前有几句实话",
-    "example1": "找出所有关于 Cardano 交易的邮件，聘请 Research 智能体分析对方团队，并在周五通话前向我简报。",
-    "example1Reply": "正在梳理 Cardano 线程。自 9 月以来 Alex、法务和财务共 14 封邮件。正在聘请 **Research**（12 积分）分析周五通话的四位参与者：背景、近期动态、共同联系人。\n\n预计约 15 分钟。我会在此发布一页简报，并在通话前 30 分钟邮件发给你。",
-    "example2": "就 Maya 邮件里提到的公司聘请 Competitor Research 智能体，完成后起草跟进回复。",
-    "example2Reply": "已找到 Maya 的邮件。主题：「你觉得 Nevermind Labs 怎么样？」。正在聘请 **Competitor Research**（18 积分），简报包括：产品、traction、融资、GTM、与我们路线图的重叠。\n\n完成后我会内联列出三个要点起草你的回复，并放入草稿供你审阅。",
-    "example3": "每个工作日上午 8 点，就昨日收件箱 + 今日日历聘请 Brief 智能体，并把摘要发到 Slack #me。",
-    "example3Reply": "已安排。每个工作日上午 08:00 我会：\n\n1. 拉取前一日 20:00 以来的所有邮件及今日日历\n2. 聘请 **Brief** 智能体（每次 3 积分）进行摘要、标记冲突并浮现阻塞项\n3. 将结果发到 #me，每个需要决策的事项单独开线程\n\n首次运行：明天 08:00。",
-    "example4": "检查我需要审查的 GitHub PR，为今天处理不了的创建 Linear 工单，其余发到 #engineering 请人接手。",
-    "example4Reply": "有 6 个 PR 需要你审查。其中 2 个已超过 24 小时：\n\n• **sok#2934**（Patrick）— 个人助手 Beta。约 2 小时审查。\n• **sok#2941**（Alex）— 账单修复。约 20 分钟。\n\n正在为你负责的 4 个较旧 PR 起草 Linear 工单，并在 #engineering 发帖请求支援两个较大的。批准后即可发送？",
-    "example5": "聘请 Reddit Research 智能体了解本周人们对 Masumi 的看法，然后发送主要情绪 + 可执行事项。",
-    "example5Reply": "正在聘请 **Reddit Research**（15 积分），简报：过去 7 天在 r/cardano、r/agentic、r/MachineLearning 提及 Masumi 的帖子和评论。\n\n完成后我会呈现：整体情绪、三条最相关引用线程，以及具体行动项（待提交 bug、待感谢开发者、待回应 FUD）。预计约 12 分钟。",
-    "example6": "当 Hannah 的交易任务变为 FAILED 时，申请退款并创建 Linear 工单——除非一周内发生两次，否则不要打扰我。",
-    "example6Reply": "正在监控你 NMKR 组织中分配给 **Hannah** 且变为 `FAILED` 的任务。发生时我会：\n\n1. 对失败运行调用 **sokosumi_refund_job**\n2. 在你的 Bugs 项目中用失败日志创建 Linear 工单\n3. 除非 7 天内发生两次——届时我会带着两份报告通知你\n\n持续监控中。",
+    "example1": "Summarize the launch emails from this week, hire the Research agent for missing context, and brief me before the next call.",
+    "example1Reply": "I found the launch thread and the open decisions. Hiring **Research** to fill in company and stakeholder context.\n\nI'll return a short brief with open questions, owner notes, and a draft agenda before your next call.",
+    "example2": "Research the company from the latest sales email and draft a concise follow-up once the report is ready.",
+    "example2Reply": "Found the thread and extracted the company name, use case, and open ask. Hiring **Company Research** with a brief covering product, traction, funding, and overlap with your current priorities.\n\nWhen it returns, I'll draft a reply with the three strongest reasons to continue or pass.",
+    "example3": "Every weekday morning, turn yesterday's inbox and today's calendar into a short brief and post it to Slack.",
+    "example3Reply": "Scheduled. Every weekday morning I'll:\n\n1. Review new mail since the prior evening and scan today's calendar\n2. Summarize decisions, conflicts, and anything blocked\n3. Post a short brief to Slack with follow-up threads for items that need your call\n\nFirst run is queued for the next weekday morning.",
+    "example4": "Check the GitHub PRs and Linear issues waiting on me, then draft the handoff notes I should send to engineering.",
+    "example4Reply": "I found the PRs and issues currently waiting on your review. Two need a decision today, and the rest can be delegated.\n\nDrafting a handoff note with owners, blockers, and suggested next actions. I'll ask before posting it to engineering.",
+    "example5": "Hire the Market Research agent on this week's public discussion around our category, then send me the sentiment and action items.",
+    "example5Reply": "Hiring **Market Research** with a brief covering recent public discussions, repeated complaints, buying triggers, and competitor mentions.\n\nWhen it returns, I'll summarize sentiment, extract the strongest quotes, and turn concrete findings into follow-up tasks.",
+    "example6": "If an assigned job fails twice in a week, request the refund, open an issue with the logs, and only notify me if it repeats.",
+    "example6Reply": "Standing watch. When a job assigned to you fails, I'll collect the failure details and request a refund where eligible.\n\nIf the same pattern repeats twice in seven days, I'll draft an issue with logs, likely cause, and suggested owner before notifying you.",
     "exampleCategories": {
-      "example1": "收件箱 + Research 智能体",
-      "example2": "Competitor Research + 回复",
-      "example3": "Brief 智能体，每日",
-      "example4": "GitHub + Linear + Slack",
-      "example5": "Reddit Research",
-      "example6": "监控 + 退款 + Linear"
+      "example1": "Inbox briefing",
+      "example2": "Company research + reply",
+      "example3": "Daily brief",
+      "example4": "PR and issue follow-up",
+      "example5": "Market scan",
+      "example6": "Failure watch"
     },
     "examplesEyebrow": "试试看",
     "examplesHeading": "可以尝试的事",
@@ -76,7 +76,7 @@
     "featuresEyebrow": "功能",
     "featuresHeading": "为日常严肃工作而打造",
     "integrationsEyebrow": "集成",
-    "journeyDescription": "从你激活智能体的那一刻，到明天早上手机上等待你的简报。",
+    "journeyDescription": "Activate it, connect the accounts it needs, then ask it to coordinate the work across Sokosumi and your tools.",
     "journeyEyebrow": "端到端",
     "journeyHeading": "个人助手如何工作，一步步来",
     "journeyStep1Body": "从你的 Sokosumi 账户一键完成。无需安装，无需管理 API 密钥。从此刻起你的助手即绑定到你的账户。",
@@ -117,33 +117,33 @@
     "servicesHelp": "在设置时连接一次即可。你的助手可以在你的账户中读取、搜索、起草并执行操作。我们会定期添加更多工具连接器。",
     "servicesMoreLabel": "以及更多",
     "visuals": {
-      "actHeld": "周二 · 上午 10:00 已预留",
+      "actHeld": "Time held for review",
       "actSteps": [
-        "找到空闲时段",
-        "起草了邀请",
-        "聘请 Research 智能体获取背景信息"
+        "Found an open slot",
+        "Drafted the invite",
+        "Pulled project context"
       ],
-      "actUserMessage": "安排下周二上午 10 点与 Hannah 通话。",
+      "actUserMessage": "Find a time with the project lead next week.",
       "actWorking": "你的助手正在工作",
       "activated": "已激活",
       "demoInbox": [
         {
-          "from": "Hannah",
-          "subject": "Q4 路线图评审"
+          "from": "Project lead",
+          "subject": "Launch checklist"
         },
         {
-          "from": "Alex",
-          "subject": "Cardano 交易 — 后续步骤"
+          "from": "Customer team",
+          "subject": "Contract questions"
         },
         {
-          "from": "CI bot",
-          "subject": "构建 #2438 失败"
+          "from": "Build bot",
+          "subject": "Deployment failed"
         }
       ],
       "demoMemory": [
-        "正在推进 Q4 发布",
-        "Hannah 是产品负责人",
-        "Cardano 交易将于 3 月 15 日截止"
+        "Launch plan is the current priority",
+        "Project lead owns approvals",
+        "Open questions need a reply"
       ],
       "encrypted": "已加密",
       "filesystem": "你的文件",
@@ -152,12 +152,12 @@
       "microVmLabel": "你的专属计算机",
       "never": "永不",
       "overnightSchedule": [
-        "拉取夜间邮件",
-        "同步 Sokosumi 任务",
-        "起草你的晨间简报",
-        "推送到聊天 + Telegram"
+        "Review overnight messages",
+        "Sync Sokosumi jobs",
+        "Draft the morning brief",
+        "Post to chat and Slack"
       ],
-      "overnightTitle": "今晚 · 4 项任务",
+      "overnightTitle": "Morning brief",
       "persistent": "持久",
       "secrets": "密钥",
       "sharedWithOthers": "与他人共享"
@@ -178,7 +178,7 @@
   "Onboarding": {
     "autonomyAriaLabel": "你的助手自主级别",
     "autonomyHeading": "你的助手应有多大主动性？",
-    "autonomyHelp": "你可随时在设置中更改。",
+    "autonomyHelp": "Set this before connecting accounts. You can change it any time from Settings.",
     "autonomyHighBody": "真正的智能体体验。你的助手自行行动：打开工单、发送邮件，并在认为值得时花费你的 Sokosumi 积分聘请其他智能体。受成本规则约束（余额将低于 10 积分时拒绝；单个任务超过余额 25% 时询问）。信任其工作方式后最适合。",
     "autonomyHighLabel": "自主",
     "autonomyHighSpendBadge": "会花费积分",
@@ -202,7 +202,7 @@
     "connectedFullAccess": "{label} · 完全访问",
     "connectedReadOnly": "{label} · 只读",
     "connecting": "连接中…",
-    "continueCta": "设置我的智能体",
+    "continueCta": "Create assistant",
     "continueWithCount": "继续，{count, plural, =0 {未连接任何集成} =1 {已连接 # 个集成} other {已连接 # 个集成}}",
     "disconnect": "断开",
     "emailLabel": "邮箱",
@@ -217,7 +217,7 @@
     "identityHeading": "你的信息",
     "identityHelp": "你的助手用这些信息作为上下文——以你的名字称呼你、优先处理与你的角色匹配的工作，并将研究基于你的公司。",
     "integrationsHeading": "集成",
-    "integrationsHelp": "你的助手通过 Composio 连接。你在弹窗中授权每个提供商；令牌绝不会经过 Sokosumi。",
+    "integrationsHelp": "Connect the accounts you want available now. You can skip this and add more later from Settings.",
     "moreLaterHeading": "稍后还可连接",
     "moreLaterHelp": "你的助手设置完成后，可在设置中进行。",
     "nameLabel": "姓名",
@@ -260,10 +260,15 @@
     "skipCta": "跳过",
     "skipCtaHelp": "改用通用欢迎语。",
     "stepLabel": "第 {step} 步，共 {total} 步",
-    "subtitle": "连接几个工具，让你的助手从第一分钟就有用。若想从零开始可以跳过。",
-    "title": "来设置你的智能体。",
+    "subtitle": "Choose how it should look, how much initiative it can take, and which accounts it can use first.",
+    "title": "Let's set up your assistant.",
     "assistantNameLabel": "助手",
-    "assistantNamePlaceholder": "给你的助手起个名字"
+    "assistantNamePlaceholder": "给你的助手起个名字",
+    "lookStepHeading": "Choose its look and personality",
+    "lookStepHelp": "Pick the assistant's face, then tune how it should sound in chat.",
+    "reviewHeading": "Review before creation",
+    "reviewHelp": "Confirm the assistant you are about to create.",
+    "moreLaterShort": "Slack, Notion, GitHub and more can be connected later from Settings."
   },
   "OnboardingProgress": {
     "etaLabel": "大约还剩 {seconds} 秒",
@@ -309,7 +314,16 @@
     "settingUp": "正在设置你的智能体…",
     "subtitle": "通常大约需要一分钟。你可以关闭此标签页 — 你的助手会在后台继续准备。",
     "title": "正在启动你的个人助手",
-    "whileYouWait": "等待期间"
+    "whileYouWait": "等待期间",
+    "elapsedLabel": "{elapsed} elapsed",
+    "stageComputer": "Creating private computer",
+    "stageComputerBody": "Starting the isolated workspace for this account.",
+    "stageWorkspace": "Preparing assistant workspace",
+    "stageWorkspaceBody": "Loading the assistant runtime and saved settings.",
+    "stageReady": "Waiting for assistant",
+    "stageReadyBody": "Checking until the assistant reports that it is ready for setup.",
+    "longWaitTitle": "Still working",
+    "longWaitBody": "This can take longer when capacity is cold. You can leave and return to Personal Assistant; setup will continue in the background."
   },
   "Running": {
     "composerDisabledPlaceholder": "你的助手正在应用你的更改…",
@@ -382,11 +396,10 @@
     },
     "removeFile": "移除",
     "rotatingHints": [
-      "给你的助手发消息…",
-      "试试：每天上午 8 点安排收件箱简报",
-      "试试：总结我未完结的 Cardano 线程",
-      "试试：根据上次会议笔记起草跟进",
-      "试试：我的收件箱里有什么逾期了？"
+      "Try: schedule a daily inbox brief at 8am",
+      "Try: summarize my open customer threads",
+      "Try: draft a follow-up to my last meeting notes",
+      "Try: what's overdue in my inbox?"
     ],
     "thinkingMessages": [
       "思考中",

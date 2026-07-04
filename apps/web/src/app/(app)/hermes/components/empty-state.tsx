@@ -2,15 +2,12 @@
 
 import {
   ArrowRight,
-  Brain,
-  Calendar,
   Check,
-  Inbox,
+  Gauge,
   ListTodo,
   Loader2,
   Lock,
   Mail,
-  MessageSquare,
   Moon,
   Plug,
   Repeat,
@@ -23,7 +20,6 @@ import { type ComponentType, createContext, useContext, useState } from "react";
 
 import FlowBackground from "@/app/hermes/components/flow-background";
 import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
-import { SokosumiIcon } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
@@ -73,11 +69,11 @@ const SERVICE_LOGOS: Array<{
 ];
 
 /**
- * The end-to-end journey shown on the empty state. Each step renders an
- * alternating two-column row: number + copy on one side, a composed
- * visualization on the other. The visualizations are intentionally
+ * The end-to-end journey shown on the empty state. Each step renders a
+ * compact card: number + copy above a composed visualization. The
+ * visualizations are intentionally
  * borders-dominant — color is reserved for status (active dot, success
- * check) so the rhythm stays calm even across six rows.
+ * check) so the rhythm stays calm across the page.
  */
 const JOURNEY: Array<{
   tagKey: string;
@@ -96,14 +92,6 @@ const JOURNEY: Array<{
     accentRing: "border-primary/40",
   },
   {
-    tagKey: "journeyStep2Tag",
-    titleKey: "journeyStep2Title",
-    bodyKey: "journeyStep2Body",
-    Visual: MicroVmVisual,
-    accentText: "text-primary",
-    accentRing: "border-primary/40",
-  },
-  {
     tagKey: "journeyStep3Tag",
     titleKey: "journeyStep3Title",
     bodyKey: "journeyStep3Body",
@@ -112,26 +100,10 @@ const JOURNEY: Array<{
     accentRing: "border-primary/40",
   },
   {
-    tagKey: "journeyStep4Tag",
-    titleKey: "journeyStep4Title",
-    bodyKey: "journeyStep4Body",
-    Visual: InboxMemoryVisual,
-    accentText: "text-primary",
-    accentRing: "border-primary/40",
-  },
-  {
     tagKey: "journeyStep5Tag",
     titleKey: "journeyStep5Title",
     bodyKey: "journeyStep5Body",
     Visual: ActVisual,
-    accentText: "text-primary",
-    accentRing: "border-primary/40",
-  },
-  {
-    tagKey: "journeyStep6Tag",
-    titleKey: "journeyStep6Title",
-    bodyKey: "journeyStep6Body",
-    Visual: OvernightVisual,
     accentText: "text-primary",
     accentRing: "border-primary/40",
   },
@@ -147,22 +119,9 @@ const FEATURES: Array<{
   hero?: boolean;
 }> = [
   {
-    titleKey: "feature1Title",
-    bodyKey: "feature1Body",
-    Icon: Brain,
-    accent: "bg-muted/40 text-muted-foreground",
-    hero: true,
-  },
-  {
     titleKey: "feature2Title",
     bodyKey: "feature2Body",
     Icon: Sparkles,
-    accent: "bg-muted/40 text-muted-foreground",
-  },
-  {
-    titleKey: "feature3Title",
-    bodyKey: "feature3Body",
-    Icon: MessageSquare,
     accent: "bg-muted/40 text-muted-foreground",
   },
   {
@@ -185,13 +144,7 @@ const FEATURES: Array<{
   },
 ];
 
-type ExampleKey =
-  | "example1"
-  | "example2"
-  | "example3"
-  | "example4"
-  | "example5"
-  | "example6";
+type ExampleKey = "example1" | "example3" | "example4";
 
 const EXAMPLES: Array<{
   key: ExampleKey;
@@ -207,12 +160,6 @@ const EXAMPLES: Array<{
     Icon: Mail,
   },
   {
-    key: "example2",
-    replyKey: "example2Reply",
-    categoryKey: "example2",
-    Icon: Sparkles,
-  },
-  {
     key: "example3",
     replyKey: "example3Reply",
     categoryKey: "example3",
@@ -224,18 +171,6 @@ const EXAMPLES: Array<{
     categoryKey: "example4",
     Icon: ListTodo,
   },
-  {
-    key: "example5",
-    replyKey: "example5Reply",
-    categoryKey: "example5",
-    Icon: Sparkles,
-  },
-  {
-    key: "example6",
-    replyKey: "example6Reply",
-    categoryKey: "example6",
-    Icon: Inbox,
-  },
 ];
 
 export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
@@ -246,44 +181,48 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
   return (
     <EmptyStateSeedContext.Provider value={seed}>
       <FlowBackground>
-        <div className="mx-auto w-full max-w-5xl px-6 py-16 md:py-24">
+        <div className="mx-auto w-full max-w-6xl px-5 py-8 md:px-8 md:py-10">
           {/* ── Hero ──────────────────────────────────────────────── */}
-          <div className="flex flex-col items-center text-center">
-            <PlaceholderOrb
-              size={224}
-              expression="idle"
-              className="size-44 md:size-52"
-              alt={tCommon("hermesAvatarAlt")}
-            />
+          <section className="grid min-h-[calc(100svh-8rem)] items-center gap-8 py-4 md:py-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
+            <div className="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
+              <PlaceholderOrb
+                size={176}
+                expression="idle"
+                className="size-36 md:size-40"
+                alt={tCommon("hermesAvatarAlt")}
+              />
 
-            <div className="mt-10">
-              <span className="text-primary text-xs font-semibold uppercase tracking-wider">
-                {t("eyebrow")}
-              </span>
+              <div className="mt-7">
+                <span className="text-primary text-xs font-semibold uppercase tracking-wider">
+                  {t("eyebrow")}
+                </span>
+              </div>
+
+              <h1 className="text-foreground mt-4 max-w-2xl text-4xl font-light tracking-tight md:text-5xl lg:text-6xl">
+                {t("title")}
+              </h1>
+              <p className="text-foreground/80 mt-5 max-w-xl text-lg md:text-xl">
+                {t("subtitle")}
+              </p>
+              <p className="text-muted-foreground mt-4 max-w-xl text-sm leading-relaxed md:text-base">
+                {t("description")}
+              </p>
+
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-start">
+                <Button
+                  size="lg"
+                  variant="primary"
+                  className="h-12 gap-2 px-6 text-base shadow-sm"
+                  onClick={onActivate}
+                >
+                  <span>{t("primaryCta")}</span>
+                  <ArrowRight className="size-4" aria-hidden />
+                </Button>
+              </div>
             </div>
 
-            <h1 className="text-foreground mt-5 max-w-3xl text-4xl font-light tracking-tight md:text-5xl lg:text-6xl">
-              {t("title")}
-            </h1>
-            <p className="text-foreground/80 mt-5 max-w-xl text-lg md:text-xl">
-              {t("subtitle")}
-            </p>
-            <p className="text-muted-foreground mt-6 max-w-xl text-sm leading-relaxed md:text-base">
-              {t("description")}
-            </p>
-
-            <div className="mt-10 flex flex-col items-center">
-              <Button
-                size="lg"
-                variant="primary"
-                className="h-12 gap-2 px-6 text-base shadow-sm"
-                onClick={onActivate}
-              >
-                <span>{t("primaryCta")}</span>
-                <ArrowRight className="size-4" aria-hidden />
-              </Button>
-            </div>
-          </div>
+            <ActivationBrief />
+          </section>
 
           {/* ── Services strip ─────────────────────────────────────── */}
           <Section
@@ -291,7 +230,7 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
             eyebrowColor="text-primary"
             heading={t("servicesHeading")}
             description={t("servicesHelp")}
-            marginTop="mt-28 md:mt-36"
+            marginTop="mt-14 md:mt-20"
           >
             <div className="border-border/60 bg-card/60 rounded-2xl border p-6 md:p-8">
               <ul className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
@@ -321,9 +260,9 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
             eyebrowColor="text-primary"
             heading={t("journeyHeading")}
             description={t("journeyDescription")}
-            marginTop="mt-32 md:mt-40"
+            marginTop="mt-16 md:mt-24"
           >
-            <ol className="flex flex-col gap-16 md:gap-24">
+            <ol className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {JOURNEY.map((step, idx) => (
                 <JourneyRow key={step.titleKey} step={step} index={idx} />
               ))}
@@ -335,13 +274,13 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
             eyebrow={t("featuresEyebrow")}
             eyebrowColor="text-muted-foreground"
             heading={t("featuresHeading")}
-            marginTop="mt-32 md:mt-40"
+            marginTop="mt-16 md:mt-24"
           >
-            <ul className="border-border/60 bg-card/60 divide-border/60 flex flex-col divide-y overflow-hidden rounded-2xl border backdrop-blur-sm">
+            <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-2">
               {FEATURES.map(({ titleKey, bodyKey, Icon, accent }) => (
                 <li
                   key={titleKey}
-                  className="hover:bg-muted/20 flex items-start gap-4 px-6 py-5 transition-colors md:gap-5 md:px-8 md:py-6"
+                  className="bg-card/80 hover:bg-card flex items-start gap-4 px-6 py-5 transition-colors md:gap-5 md:px-8 md:py-6"
                 >
                   <div
                     aria-hidden
@@ -371,51 +310,13 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
             eyebrowColor="text-muted-foreground"
             heading={t("examplesHeading")}
             description={t("examplesPickHint")}
-            marginTop="mt-32 md:mt-40"
+            marginTop="mt-16 md:mt-24"
           >
             <ExamplesCarousel />
           </Section>
 
-          {/* ── Sokosumi gateway — accent hero ─────────────────────── */}
-          <div className="relative mt-32 md:mt-40">
-            {/* Outer gradient ring */}
-            <div
-              aria-hidden
-              className="bg-primary/20 absolute -inset-px rounded-2xl"
-            />
-            <div className="border-border/60 bg-card/80 relative overflow-hidden rounded-2xl border p-8 backdrop-blur-md md:p-12">
-              {/* Decorative blurred circle */}
-              <div
-                aria-hidden
-                className="bg-primary/20 absolute -right-20 -top-20 size-56 rounded-full blur-3xl"
-              />
-              <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
-                <div
-                  aria-hidden
-                  className="bg-primary/10 text-primary flex size-16 shrink-0 items-center justify-center rounded-2xl"
-                >
-                  <SokosumiIcon
-                    animated={false}
-                    className="size-9 text-primary"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-primary text-xs font-semibold uppercase tracking-wider">
-                    Built for Sokosumi
-                  </div>
-                  <h2 className="text-foreground mt-2 text-2xl font-light tracking-tight md:text-3xl">
-                    {t("sokosumiTitle")}
-                  </h2>
-                  <p className="text-muted-foreground mt-3 max-w-3xl text-base leading-relaxed">
-                    {t("sokosumiBody")}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* ── Bottom CTA ────────────────────────────────────────── */}
-          <div className="mt-24 flex flex-col items-center gap-4 md:mt-32">
+          <div className="mt-16 flex flex-col items-center gap-4 md:mt-24">
             <Button
               size="lg"
               variant="primary"
@@ -431,8 +332,8 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
           </div>
 
           {/* ── Honest disclaimer about agent risks ─────────────────── */}
-          <div className="mt-20 md:mt-24">
-            <div className="border-border/60 bg-card/50 rounded-2xl border p-8 backdrop-blur-sm md:p-10">
+          <div className="mt-14 md:mt-20">
+            <div className="border-border/60 bg-card/50 rounded-2xl border p-6 backdrop-blur-sm md:p-8">
               <div className="flex items-center gap-3">
                 <div
                   aria-hidden
@@ -515,8 +416,72 @@ function Section({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Journey row — alternating two-column layout. Visual goes opposite the copy
-// so the page reads like a zig-zag instead of a stack of identical cards.
+
+function ActivationBrief() {
+  const t = useTranslations("App.Hermes.EmptyState");
+  const tOnboarding = useTranslations("App.Hermes.Onboarding");
+  const rows: Array<{
+    Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+    title: string;
+    body: string;
+  }> = [
+    {
+      Icon: Lock,
+      title: t("feature4Title"),
+      body: t("feature4Body"),
+    },
+    {
+      Icon: Plug,
+      title: t("feature6Title"),
+      body: t("feature6Body"),
+    },
+    {
+      Icon: Gauge,
+      title: tOnboarding("autonomyMediumLabel"),
+      body: tOnboarding("autonomyMediumBody"),
+    },
+    {
+      Icon: Sparkles,
+      title: t("feature2Title"),
+      body: t("feature2Body"),
+    },
+  ];
+
+  return (
+    <aside className="border-border/60 bg-card/70 hidden rounded-2xl border p-5 backdrop-blur-md lg:block">
+      <div>
+        <p className="text-primary text-xs font-semibold uppercase tracking-wider">
+          {t("featuresEyebrow")}
+        </p>
+        <h2 className="text-foreground mt-2 text-xl font-light tracking-tight">
+          {t("sokosumiTitle")}
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+          {t("sokosumiBody")}
+        </p>
+      </div>
+
+      <dl className="border-border/60 mt-5 divide-y border-t">
+        {rows.map(({ Icon, title, body }) => (
+          <div key={title} className="flex gap-3 py-4">
+            <div
+              aria-hidden
+              className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg"
+            >
+              <Icon className="size-4" />
+            </div>
+            <div>
+              <dt className="text-foreground text-sm font-medium">{title}</dt>
+              <dd className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                {body}
+              </dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </aside>
+  );
+}
 
 function JourneyRow({
   step,
@@ -526,17 +491,10 @@ function JourneyRow({
   index: number;
 }) {
   const t = useTranslations("App.Hermes.EmptyState");
-  const isReversed = index % 2 === 1;
 
   return (
-    <li className="grid grid-cols-1 items-center gap-8 md:grid-cols-12 md:gap-12">
-      {/* Copy column */}
-      <div
-        className={cn(
-          "md:col-span-5",
-          isReversed && "md:order-2 md:col-start-8",
-        )}
-      >
+    <li className="border-border/60 bg-card/60 flex min-h-full flex-col overflow-hidden rounded-2xl border backdrop-blur-sm">
+      <div className="flex flex-1 flex-col p-6">
         <div className="flex items-center gap-3">
           <span
             aria-hidden
@@ -556,24 +514,16 @@ function JourneyRow({
             {t(step.tagKey)}
           </span>
         </div>
-        <h3 className="text-foreground mt-5 text-2xl font-light tracking-tight md:text-3xl">
+        <h3 className="text-foreground mt-5 text-xl font-light tracking-tight md:text-2xl">
           {t(step.titleKey)}
         </h3>
-        <p className="text-muted-foreground mt-3 max-w-md text-base leading-relaxed">
+        <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
           {t(step.bodyKey)}
         </p>
       </div>
 
-      {/* Visualization column */}
-      <div
-        className={cn(
-          "md:col-span-7",
-          isReversed && "md:order-1 md:col-start-1",
-        )}
-      >
-        <div className="border-border/60 bg-card/60 relative overflow-hidden rounded-2xl border p-6 backdrop-blur-sm md:p-8">
-          <step.Visual />
-        </div>
+      <div className="border-border/60 bg-background/40 border-t p-4">
+        <step.Visual />
       </div>
     </li>
   );
@@ -613,59 +563,6 @@ function ActivationVisual() {
           />
           <span>{t("activated")}</span>
         </div>
-        <div className="text-tertiary-foreground font-mono text-xs tabular-nums">
-          bound · patrick@yellowhouse.gmbh
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MicroVmVisual() {
-  const t = useTranslations("App.Hermes.EmptyState.visuals");
-
-  return (
-    <div className="relative flex h-56 items-center justify-center">
-      <div className="border-border bg-background/80 relative w-full max-w-xs rounded-2xl border p-5">
-        {/* Label tab — "Your own computer" */}
-        <div className="bg-card border-border absolute -top-3 left-4 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5">
-          <Lock className="text-muted-foreground size-3" aria-hidden />
-          <span className="text-foreground text-xs font-medium tracking-wide">
-            {t("microVmLabel")}
-          </span>
-        </div>
-
-        {/* Hermes process pill */}
-        <div className="border-border bg-card flex items-center gap-2 rounded-lg border px-3 py-2 font-mono text-xs">
-          <span
-            aria-hidden
-            className="size-1.5 animate-pulse rounded-full bg-emerald-500"
-          />
-          <span className="text-foreground">hermes</span>
-          <span className="text-muted-foreground">running</span>
-        </div>
-
-        {/* Two clean key-value rows */}
-        <dl className="mt-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground text-xs">{t("filesystem")}</dt>
-            <dd className="text-foreground font-mono text-xs">
-              {t("persistent")}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground text-xs">{t("secrets")}</dt>
-            <dd className="text-foreground font-mono text-xs">
-              {t("encrypted")}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground text-xs">
-              {t("sharedWithOthers")}
-            </dt>
-            <dd className="text-foreground font-mono text-xs">{t("never")}</dd>
-          </div>
-        </dl>
       </div>
     </div>
   );
@@ -736,75 +633,6 @@ function ConnectionVisual() {
   );
 }
 
-function InboxMemoryVisual() {
-  const t = useTranslations("App.Hermes.EmptyState.visuals");
-  const demoInbox = orderedMessageList(
-    t.raw("demoInbox") as Record<string, { from: string; subject: string }>,
-  );
-  const inbox = demoInbox.map((row, index) => ({
-    ...row,
-    status:
-      index === demoInbox.length - 1 ? ("warn" as const) : ("read" as const),
-  }));
-  const memory = orderedMessageList(
-    t.raw("demoMemory") as Record<string, string>,
-  );
-
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <div className="border-border/60 bg-background/60 rounded-xl border p-4">
-        <div className="text-tertiary-foreground mb-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
-          <Inbox className="size-3" aria-hidden />
-          <span>{t("inboxScanned")}</span>
-        </div>
-        <ul className="flex flex-col gap-2">
-          {inbox.map((m) => (
-            <li
-              key={m.subject}
-              className="border-border/40 flex items-center gap-2 border-b pb-2 last:border-b-0 last:pb-0"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="text-foreground truncate text-xs font-medium">
-                  {m.from}
-                </div>
-                <div className="text-muted-foreground truncate text-xs">
-                  {m.subject}
-                </div>
-              </div>
-              {m.status === "warn" ? (
-                <span
-                  aria-hidden
-                  className="text-amber-600 dark:text-amber-400 font-mono text-xs font-semibold uppercase"
-                >
-                  !
-                </span>
-              ) : (
-                <Check className="size-3 text-emerald-500" aria-hidden />
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="border-border/60 bg-background/60 rounded-xl border p-4">
-        <div className="text-tertiary-foreground mb-3 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
-          <Brain className="size-3" aria-hidden />
-          <span>{t("memoryWritten")}</span>
-        </div>
-        <ul className="flex flex-col gap-1.5">
-          {memory.map((m) => (
-            <li
-              key={m}
-              className="border-border/60 bg-card text-foreground rounded-md border px-2 py-1.5 text-xs leading-snug"
-            >
-              {m}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 function ActVisual() {
   const t = useTranslations("App.Hermes.EmptyState.visuals");
   const actSteps = orderedMessageList(
@@ -863,72 +691,6 @@ function ActVisual() {
           <span>{t("actHeld")}</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-function OvernightVisual() {
-  const t = useTranslations("App.Hermes.EmptyState.visuals");
-  const scheduleLabels = orderedMessageList(
-    t.raw("overnightSchedule") as Record<string, string>,
-  );
-  const schedule: Array<{
-    time: string;
-    label: string;
-    state: "done" | "active";
-  }> = [
-    { time: "03:00", label: scheduleLabels[0] ?? "", state: "done" },
-    { time: "05:30", label: scheduleLabels[1] ?? "", state: "done" },
-    { time: "06:45", label: scheduleLabels[2] ?? "", state: "active" },
-    { time: "08:00", label: scheduleLabels[3] ?? "", state: "active" },
-  ];
-
-  return (
-    <div className="border-border/60 bg-background/60 mx-auto max-w-md rounded-2xl border p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="inline-flex items-center gap-2">
-          <Moon className="text-primary size-4" aria-hidden />
-          <span className="text-foreground text-sm font-semibold tracking-tight">
-            {t("overnightTitle")}
-          </span>
-        </div>
-        <span className="text-tertiary-foreground font-mono text-xs tabular-nums">
-          UTC · Mar 22
-        </span>
-      </div>
-      <ol className="flex flex-col gap-2.5">
-        {schedule.map((row, idx) => (
-          <li key={row.time} className="flex items-center gap-3">
-            <span className="text-muted-foreground w-12 shrink-0 font-mono text-xs tabular-nums">
-              {row.time}
-            </span>
-            <span
-              aria-hidden
-              className={cn(
-                "border-border/60 inline-flex size-5 shrink-0 items-center justify-center rounded-full border",
-                row.state === "done"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "bg-primary/10 text-primary",
-              )}
-            >
-              {row.state === "done" ? (
-                <Check className="size-3" />
-              ) : (
-                <Loader2 className="size-3 animate-spin" />
-              )}
-            </span>
-            <span className="text-foreground flex-1 text-xs leading-snug">
-              {row.label}
-            </span>
-            {idx === schedule.length - 1 ? (
-              <Calendar
-                className="text-tertiary-foreground size-3 shrink-0"
-                aria-hidden
-              />
-            ) : null}
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
