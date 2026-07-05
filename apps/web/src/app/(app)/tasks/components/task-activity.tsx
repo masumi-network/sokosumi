@@ -236,8 +236,8 @@ function HeldCommentActions({
               className="h-7 gap-1.5 px-2.5 text-xs"
               onClick={() => void resolve("show")}
             >
-              <Check className="size-3" aria-hidden />
-              <span>{t("show")}</span>
+              <Check className="text-primary-foreground size-3" aria-hidden />
+              <span>{t("approve")}</span>
             </Button>
             <Button
               size="sm"

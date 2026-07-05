@@ -39,6 +39,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAgentContext,
+  isCoworkerAuthContext,
   isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
@@ -413,6 +414,65 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
       "Task changed by a concurrent request. Please retry.",
     );
+
+    // Every held comment notifies the task owner — the COWORKER_ACCESS
+    // request notification fires only once per grant, so without this,
+    // follow-up held comments would arrive silently.
+    if (!event.status && event.held) {
+      const heldEventId = event.id;
+      const commenterCoworkerId = isCoworkerAuthContext(authContext)
+        ? authContext.coworkerId
+        : null;
+
+      waitUntil(
+        (async () => {
+          try {
+            const [task, commenter] = await Promise.all([
+              prisma.task.findUnique({
+                where: { id: taskId },
+                select: {
+                  name: true,
+                  userId: true,
+                  workspaceId: true,
+                  user: { select: { notificationsOptIn: true } },
+                },
+              }),
+              commenterCoworkerId
+                ? prisma.coworker.findUnique({
+                    where: { id: commenterCoworkerId },
+                    select: { name: true, slug: true, image: true },
+                  })
+                : null,
+            ]);
+            if (!task?.user.notificationsOptIn) return;
+            await createNotification({
+              userId: task.userId,
+              kind: NotificationKind.TASK,
+              referenceId: taskId,
+              eventId: heldEventId,
+              messageKey: "Notifications.Task.heldComment",
+              messageParams: {
+                coworkerName: commenter?.name ?? "A coworker",
+                taskName: task.name ?? "Untitled task",
+                ...(commenter?.image ? { coworkerImage: commenter.image } : {}),
+                ...(commenter?.slug ? { coworkerSlug: commenter.slug } : {}),
+              },
+              metadata: {
+                ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
+              },
+            });
+          } catch (error) {
+            Sentry.captureException(error, {
+              extra: {
+                taskId,
+                eventId: heldEventId,
+                notificationType: "held-comment-notification",
+              },
+            });
+          }
+        })(),
+      );
+    }
 
     if (event.status) {
       const taskEventId = event.id;

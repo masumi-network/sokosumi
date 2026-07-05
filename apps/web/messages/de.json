@@ -1519,7 +1519,7 @@
         "heldComment": "Wartet auf deine Freigabe",
         "heldActions": {
           "explainer": "Nur du kannst diesen Kommentar sehen. {coworkerName} braucht deine Freigabe, um deine Aufgaben zu kommentieren.",
-          "show": "Kommentar anzeigen",
+          "approve": "Kommentar freigeben",
           "always": "{coworkerName} immer erlauben",
           "remove": "Entfernen",
           "shownToast": "Der Kommentar ist jetzt für alle in dieser Aufgabe sichtbar.",
@@ -3869,6 +3869,7 @@
         "inputRequired": "{coworkerName} benötigt deinen Input für {taskName}",
         "approvalRequired": "{coworkerName} benötigt deine Freigabe für {taskName}",
         "awaitingAcceptance": "{coworkerName} hat \"{taskName}\" erstellt — die Aufgabe wartet auf deine Annahme",
+        "heldComment": "{coworkerName} hat einen Kommentar zu \"{taskName}\" hinterlassen, der deine Freigabe braucht",
         "authenticationRequired": "{coworkerName} benötigt eine Authentifizierung für {taskName}",
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",

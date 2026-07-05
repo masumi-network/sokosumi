@@ -1519,7 +1519,7 @@
         "heldComment": "Pendiente de tu aprobación",
         "heldActions": {
           "explainer": "Solo tú puedes ver este comentario. {coworkerName} necesita tu aprobación para comentar en tus tareas.",
-          "show": "Mostrar comentario",
+          "approve": "Aprobar comentario",
           "always": "Permitir siempre a {coworkerName}",
           "remove": "Eliminar",
           "shownToast": "El comentario ya es visible para todos en esta tarea.",
@@ -3869,6 +3869,7 @@
         "inputRequired": "{coworkerName} necesita tu input para {taskName}",
         "approvalRequired": "{coworkerName} necesita tu aprobación para {taskName}",
         "awaitingAcceptance": "{coworkerName} creó \"{taskName}\" — está esperando tu aceptación",
+        "heldComment": "{coworkerName} dejó un comentario en \"{taskName}\" que necesita tu aprobación",
         "authenticationRequired": "{coworkerName} necesita autenticación para {taskName}",
         "outOfCredits": "{coworkerName} se quedó sin créditos para {taskName}",
         "completed": "{coworkerName} completó {taskName}",

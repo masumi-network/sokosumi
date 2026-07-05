@@ -1530,7 +1530,7 @@
         "heldComment": "Pending your approval",
         "heldActions": {
           "explainer": "Only you can see this comment. {coworkerName} needs your approval to comment on your tasks.",
-          "show": "Show comment",
+          "approve": "Approve comment",
           "always": "Always allow {coworkerName}",
           "remove": "Remove",
           "shownToast": "The comment is now visible to everyone on this task.",
@@ -4025,6 +4025,7 @@
         "inputRequired": "{coworkerName} needs your input for {taskName}",
         "approvalRequired": "{coworkerName} needs your approval for {taskName}",
         "awaitingAcceptance": "{coworkerName} created \"{taskName}\" — it's waiting for your acceptance",
+        "heldComment": "{coworkerName} left a comment on \"{taskName}\" that needs your approval",
         "authenticationRequired": "{coworkerName} needs authentication for {taskName}",
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",
