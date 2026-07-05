@@ -826,6 +826,61 @@ describe("POST /{id}/events", () => {
         }),
       }),
     );
+    // Comment-only events open the gate for unassigned delegated coordinators
+    // (Hermes commenting on a task it filed for another coworker).
+    expect(requireTaskCollaborationMock).toHaveBeenCalledWith(
+      expect.anything(),
+      TASK_ID,
+      expect.anything(),
+      { allowUnassignedDelegate: true },
+    );
+  });
+
+  it("keeps the strict assignment gate for status transitions", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.READY, coworkerId: null }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            comment: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    // Any status-bearing event must NOT open the unassigned-delegate gate —
+    // transitions and billing stay assignment-scoped.
+    expect(requireTaskCollaborationMock).toHaveBeenCalledWith(
+      expect.anything(),
+      TASK_ID,
+      expect.anything(),
+      { allowUnassignedDelegate: false },
+    );
   });
 
   it("rejects an agent-only transition for a delegated coworker", async () => {

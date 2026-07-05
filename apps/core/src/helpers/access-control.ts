@@ -203,12 +203,31 @@ export async function requireCoworkerTaskCollaboration(
 }
 
 /**
+ * Opt-in relaxations for delegated-coworker task access.
+ */
+export interface TaskAccessOptions {
+  /**
+   * Allow a delegated coworker (a coordinator like Hermes acting for a user
+   * via delegation headers) to access tasks the delegated user owns even
+   * when the task is assigned to a different coworker.
+   *
+   * Reserved for low-risk surfaces — reads and comment-only events — so the
+   * coordinator can follow up on tasks it filed for other coworkers (it is
+   * never the assignee by design). Status transitions and billing must
+   * never pass this; they stay assignment-gated. Non-delegated coworker
+   * callers (the executing agents themselves) are unaffected.
+   */
+  allowUnassignedDelegate?: boolean;
+}
+
+/**
  * Collaboration access: the authenticated user must own the task, or the authenticated coworker must be allowed on the task (tasks capability + assignment).
  */
 export async function requireTaskCollaboration(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  options: TaskAccessOptions = {},
 ): Promise<Task> {
   if (isUserAuthContext(authContext)) {
     return await requireTaskOwnership(
@@ -233,8 +252,12 @@ export async function requireTaskCollaboration(
     );
 
     // Delegation only authorizes collaboration on tasks assigned to this
-    // coworker — not every task the delegated user owns.
-    if (task.coworkerId !== coworker.coworkerId) {
+    // coworker — not every task the delegated user owns — unless the route
+    // explicitly opted into unassigned access (comment-only surfaces).
+    if (
+      !options.allowUnassignedDelegate &&
+      task.coworkerId !== coworker.coworkerId
+    ) {
       throw forbidden("You can only act on tasks assigned to your coworker");
     }
 
@@ -282,6 +305,7 @@ export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  options: TaskAccessOptions = {},
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
@@ -303,8 +327,12 @@ export async function requireTaskReadForRouteVars(
       tx,
     );
 
-    // Delegation only authorizes reads of tasks assigned to this coworker.
-    if (task.coworkerId !== coworker.coworkerId) {
+    // Delegation only authorizes reads of tasks assigned to this coworker,
+    // unless the route explicitly opted into unassigned access.
+    if (
+      !options.allowUnassignedDelegate &&
+      task.coworkerId !== coworker.coworkerId
+    ) {
       throw forbidden("You can only access tasks assigned to your coworker");
     }
 

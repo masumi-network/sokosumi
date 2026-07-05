@@ -43,7 +43,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { authContext, workspaceContext } = c.var;
 
-    await requireTaskReadForRouteVars(c.var, id);
+    // Delegated coordinators (Hermes) may read any task the delegated user
+    // owns, not only tasks assigned to them — they file tasks for other
+    // coworkers and need to follow up on them.
+    await requireTaskReadForRouteVars(c.var, id, undefined, {
+      allowUnassignedDelegate: true,
+    });
 
     let task;
     if (

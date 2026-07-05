@@ -211,7 +211,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId, masumiPayment } = await serializableTransaction(
       async (tx) => {
-        const task = await requireTaskCollaboration(authContext, taskId, tx);
+        // Comment-only events (no status transition, hence no billing — the
+        // credits/masumi paths are only reachable through the status branch)
+        // are open to delegated coordinators like Hermes on tasks the
+        // delegated user owns, even when assigned to another coworker.
+        // Status changes keep the strict assignment gate.
+        const task = await requireTaskCollaboration(authContext, taskId, tx, {
+          allowUnassignedDelegate: body.status === undefined,
+        });
         const {
           status,
           comment,

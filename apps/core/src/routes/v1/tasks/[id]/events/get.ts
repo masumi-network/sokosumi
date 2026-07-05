@@ -35,7 +35,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {
-      await requireTaskReadForRouteVars(c.var, id, tx);
+      // Delegated coordinators (Hermes) may read the thread of any task the
+      // delegated user owns — commenting is useless without reading.
+      await requireTaskReadForRouteVars(c.var, id, tx, {
+        allowUnassignedDelegate: true,
+      });
 
       return tx.taskEvent.findMany({
         where: { taskId: id },
