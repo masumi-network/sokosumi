@@ -52,6 +52,9 @@ export function CoworkerAccessNotificationActions({
     // (and Radix closes the menu on item select) — deciding must do neither.
     return (
       <div className="flex items-center gap-1.5 pl-9">
+        {/* Explicit text-* on the icons: DropdownMenuItem forces svgs
+            without one to text-muted-foreground, which would render the
+            check dark on the primary background inside the dropdown. */}
         <Button
           size="sm"
           variant="primary"
@@ -61,7 +64,7 @@ export function CoworkerAccessNotificationActions({
             onResolve("GRANTED");
           }}
         >
-          <Check className="size-3.5" aria-hidden />
+          <Check className="text-primary-foreground size-3.5" aria-hidden />
           <span>{t("approve")}</span>
         </Button>
         <Button
@@ -73,7 +76,7 @@ export function CoworkerAccessNotificationActions({
             onResolve("DENIED");
           }}
         >
-          <X className="size-3.5" aria-hidden />
+          <X className="text-current size-3.5" aria-hidden />
           <span>{t("deny")}</span>
         </Button>
       </div>
