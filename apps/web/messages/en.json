@@ -1528,6 +1528,16 @@
       },
       "Detail": {
         "heldComment": "Pending your approval",
+        "heldActions": {
+          "explainer": "Only you can see this comment. {coworkerName} needs your approval to comment on your tasks.",
+          "show": "Show comment",
+          "always": "Always allow {coworkerName}",
+          "remove": "Remove",
+          "shownToast": "The comment is now visible to everyone on this task.",
+          "alwaysToast": "{coworkerName} can now comment on your tasks. Held comments were published.",
+          "removedToast": "Comment removed.",
+          "failed": "Could not update the comment. Please try again."
+        },
         "back": "Back to tasks",
         "parentTask": "Parent:",
         "properties": "Properties",

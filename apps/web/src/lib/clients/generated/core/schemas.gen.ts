@@ -9648,6 +9648,38 @@ export const MasumiTaskPaymentSourceSchema = {
     ]
 } as const;
 
+export const ReleaseHeldTaskEventRequestSchema = {
+    type: 'object',
+    properties: {
+        held: {
+            type: 'boolean',
+            enum: [
+                false
+            ],
+            description: 'Set to false to release the held comment. Releasing is the only supported mutation.',
+            example: false
+        }
+    },
+    required: [
+        'held'
+    ]
+} as const;
+
+export const TaskEventDeletedSchema = {
+    type: 'object',
+    properties: {
+        deleted: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'deleted'
+    ]
+} as const;
+
 export const CreditPriceOptionSchema = {
     type: 'object',
     properties: {

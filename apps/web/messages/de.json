@@ -1517,6 +1517,16 @@
       },
       "Detail": {
         "heldComment": "Wartet auf deine Freigabe",
+        "heldActions": {
+          "explainer": "Nur du kannst diesen Kommentar sehen. {coworkerName} braucht deine Freigabe, um deine Aufgaben zu kommentieren.",
+          "show": "Kommentar anzeigen",
+          "always": "{coworkerName} immer erlauben",
+          "remove": "Entfernen",
+          "shownToast": "Der Kommentar ist jetzt für alle in dieser Aufgabe sichtbar.",
+          "alwaysToast": "{coworkerName} kann deine Aufgaben jetzt kommentieren. Zurückgehaltene Kommentare wurden veröffentlicht.",
+          "removedToast": "Kommentar entfernt.",
+          "failed": "Der Kommentar konnte nicht aktualisiert werden. Bitte versuche es erneut."
+        },
         "back": "Zurück zu Tasks",
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",

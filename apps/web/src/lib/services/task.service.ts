@@ -149,6 +149,30 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function releaseHeldTaskEvent(
+    taskId: string,
+    eventId: string,
+  ): Promise<TaskEvent> {
+    const result = await coreClient.releaseHeldTaskEvent(taskId, eventId);
+
+    if (!result.data) {
+      throw new Error("Failed to release held comment");
+    }
+
+    return result.data;
+  }
+
+  async function discardHeldTaskEvent(
+    taskId: string,
+    eventId: string,
+  ): Promise<void> {
+    const result = await coreClient.discardHeldTaskEvent(taskId, eventId);
+
+    if (!result.data) {
+      throw new Error("Failed to discard held comment");
+    }
+  }
+
   async function patchTask(
     taskId: string,
     input: PatchTaskInput,
@@ -226,6 +250,8 @@ export const taskService = (() => {
     createTask,
     createTaskLink,
     createTaskEvent,
+    releaseHeldTaskEvent,
+    discardHeldTaskEvent,
     deleteTaskLink,
     moveTaskToWorkspace,
     patchTask,

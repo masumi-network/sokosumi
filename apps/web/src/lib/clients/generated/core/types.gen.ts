@@ -2693,6 +2693,17 @@ export type MasumiTaskPaymentSource = {
     policyId: string;
 };
 
+export type ReleaseHeldTaskEventRequest = {
+    /**
+     * Set to false to release the held comment. Releasing is the only supported mutation.
+     */
+    held: false;
+};
+
+export type TaskEventDeleted = {
+    deleted: true;
+};
+
 export type CreditPriceOption = {
     id: string;
     amountPerCredit: number;
@@ -21271,6 +21282,180 @@ export type PostTasksByIdEventsResponses = {
 };
 
 export type PostTasksByIdEventsResponse = PostTasksByIdEventsResponses[keyof PostTasksByIdEventsResponses];
+
+export type DeleteTasksByIdEventsByEventIdData = {
+    body?: never;
+    path: {
+        id: string;
+        eventId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/events/{eventId}';
+};
+
+export type DeleteTasksByIdEventsByEventIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdEventsByEventIdError = DeleteTasksByIdEventsByEventIdErrors[keyof DeleteTasksByIdEventsByEventIdErrors];
+
+export type DeleteTasksByIdEventsByEventIdResponses = {
+    /**
+     * Held comment discarded
+     */
+    200: {
+        data: TaskEventDeleted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdEventsByEventIdResponse = DeleteTasksByIdEventsByEventIdResponses[keyof DeleteTasksByIdEventsByEventIdResponses];
+
+export type PatchTasksByIdEventsByEventIdData = {
+    body?: ReleaseHeldTaskEventRequest;
+    path: {
+        id: string;
+        eventId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/events/{eventId}';
+};
+
+export type PatchTasksByIdEventsByEventIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksByIdEventsByEventIdError = PatchTasksByIdEventsByEventIdErrors[keyof PatchTasksByIdEventsByEventIdErrors];
+
+export type PatchTasksByIdEventsByEventIdResponses = {
+    /**
+     * Held comment released
+     */
+    200: {
+        data: TaskEvent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksByIdEventsByEventIdResponse = PatchTasksByIdEventsByEventIdResponses[keyof PatchTasksByIdEventsByEventIdResponses];
 
 export type GetTasksByIdJobsData = {
     body?: never;

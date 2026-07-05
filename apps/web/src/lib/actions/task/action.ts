@@ -573,6 +573,37 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
   },
 );
 
+interface HeldTaskCommentParameters extends AuthenticatedRequest {
+  taskId: string;
+  eventId: string;
+}
+
+export const releaseHeldTaskComment = withSession<
+  HeldTaskCommentParameters,
+  void
+>(async ({ taskId, eventId }) => {
+  try {
+    await taskService.releaseHeldTaskEvent(taskId, eventId);
+    revalidatePath(`/tasks/${taskId}`);
+  } catch (error) {
+    console.error("Failed to release held comment", error);
+    throw new Error("Failed to release held comment");
+  }
+});
+
+export const discardHeldTaskComment = withSession<
+  HeldTaskCommentParameters,
+  void
+>(async ({ taskId, eventId }) => {
+  try {
+    await taskService.discardHeldTaskEvent(taskId, eventId);
+    revalidatePath(`/tasks/${taskId}`);
+  } catch (error) {
+    console.error("Failed to discard held comment", error);
+    throw new Error("Failed to discard held comment");
+  }
+});
+
 export const createTaskLink = withSession<
   CreateTaskLinkParameters,
   { taskId: string; linkId: string; relatedTaskId: string }

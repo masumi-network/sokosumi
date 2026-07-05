@@ -1,6 +1,8 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountDeleteTask from "./[id]/delete.js";
+import mountDeleteHeldTaskEvent from "./[id]/events/[eventId]/delete.js";
+import mountPatchHeldTaskEvent from "./[id]/events/[eventId]/patch.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
 import mountGetTaskById from "./[id]/get.js";
@@ -41,6 +43,8 @@ mountPutTaskWorkspace(app);
 mountDeleteTask(app);
 mountGetTaskEvents(app);
 mountPostTaskEvents(app);
+mountPatchHeldTaskEvent(app);
+mountDeleteHeldTaskEvent(app);
 mountGetTaskJobs(app);
 mountPostTaskJob(app);
 

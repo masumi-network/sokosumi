@@ -1517,6 +1517,16 @@
       },
       "Detail": {
         "heldComment": "Pendiente de tu aprobación",
+        "heldActions": {
+          "explainer": "Solo tú puedes ver este comentario. {coworkerName} necesita tu aprobación para comentar en tus tareas.",
+          "show": "Mostrar comentario",
+          "always": "Permitir siempre a {coworkerName}",
+          "remove": "Eliminar",
+          "shownToast": "El comentario ya es visible para todos en esta tarea.",
+          "alwaysToast": "{coworkerName} ya puede comentar en tus tareas. Los comentarios retenidos se han publicado.",
+          "removedToast": "Comentario eliminado.",
+          "failed": "No se pudo actualizar el comentario. Inténtalo de nuevo."
+        },
         "back": "Volver a Tasks",
         "parentTask": "Padre:",
         "properties": "Propiedades",

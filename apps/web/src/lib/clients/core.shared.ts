@@ -70,6 +70,7 @@ import {
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
   deleteTasksById as coreDeleteTasksById,
+  deleteTasksByIdEventsByEventId as coreDeleteTasksByIdEventsByEventId,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
@@ -162,6 +163,7 @@ import {
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  patchTasksByIdEventsByEventId as corePatchTasksByIdEventsByEventId,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -1693,6 +1695,31 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function releaseHeldTaskEvent(taskId: string, eventId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchTasksByIdEventsByEventId({
+          client,
+          path: { id: taskId, eventId },
+          body: { held: false },
+        }),
+      "Failed to release held comment",
+    );
+  }
+
+  async function discardHeldTaskEvent(taskId: string, eventId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteTasksByIdEventsByEventId({
+          client,
+          path: { id: taskId, eventId },
+        }),
+      "Failed to discard held comment",
+    );
+  }
+
   async function patchTask(
     id: string,
     body: {
@@ -2821,6 +2848,8 @@ export function createCoreClient(getClient: GetClient) {
     getCoworkerGrants,
     getPendingNotices,
     resolveCoworkerGrant,
+    releaseHeldTaskEvent,
+    discardHeldTaskEvent,
     getProjects,
     getProjectsById,
     getProjectsStats,

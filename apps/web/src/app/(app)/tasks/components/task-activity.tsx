@@ -8,7 +8,15 @@ import {
   TaskEventOrigin,
   TaskStatus,
 } from "@sokosumi/utils";
-import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
+import {
+  ArrowUp,
+  Check,
+  CheckCheck,
+  Command,
+  CornerDownLeft,
+  Loader2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -38,7 +46,12 @@ import {
 } from "@/components/ui/file-upload";
 import { Separator } from "@/components/ui/separator";
 import { useOSDetection } from "@/hooks/use-os-detection";
-import { createTaskComment } from "@/lib/actions/task/action";
+import { grantCoworkerScopeAction } from "@/lib/actions/coworker-grant/action";
+import {
+  createTaskComment,
+  discardHeldTaskComment,
+  releaseHeldTaskComment,
+} from "@/lib/actions/task/action";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 import {
   ORIGIN_APP_NAME_KEY_MAP,
@@ -130,6 +143,125 @@ function getEventTimestamp(event: TaskEvent): number {
 
 function isNewOptimisticEventId(id: string): boolean {
   return id.startsWith("optimistic:");
+}
+
+type HeldDecision = "show" | "always" | "remove";
+
+/**
+ * Owner-facing controls on a comment held pending the writing coworker's
+ * access approval (core only returns held events to the task owner):
+ * - Show comment: releases this comment only; the coworker's next comment
+ *   is held again.
+ * - Always allow: approves the coworker's comment access — this and any
+ *   other held comments appear, and future ones post immediately.
+ * - Remove: discards the held comment without deciding on access.
+ */
+function HeldCommentActions({
+  taskId,
+  eventId,
+  coworkerId,
+  coworkerName,
+  onReleased,
+  onDiscarded,
+}: {
+  taskId: string;
+  eventId: string;
+  coworkerId: string;
+  coworkerName: string;
+  onReleased: (releasedAll: boolean) => void;
+  onDiscarded: () => void;
+}) {
+  const t = useTranslations("App.Tasks.Detail.heldActions");
+  const [busy, setBusy] = useState<HeldDecision | null>(null);
+
+  const resolve = async (decision: HeldDecision) => {
+    if (busy) return;
+    setBusy(decision);
+    try {
+      if (decision === "always") {
+        const granted = await grantCoworkerScopeAction(
+          coworkerId,
+          "TASK_COMMENT",
+        );
+        if (!granted.ok) {
+          toast.error(t("failed"));
+          return;
+        }
+        // Approving the grant releases everything held under it, but this
+        // comment may be stranded held under an already-GRANTED grant (or
+        // there is no grant row at all) — release it explicitly; releasing
+        // is idempotent.
+        await releaseHeldTaskComment({ taskId, eventId });
+        if (!granted.data) {
+          toast.success(t("shownToast"));
+          onReleased(false);
+          return;
+        }
+        toast.success(t("alwaysToast", { coworkerName }));
+        onReleased(true);
+        return;
+      }
+      if (decision === "show") {
+        await releaseHeldTaskComment({ taskId, eventId });
+        toast.success(t("shownToast"));
+        onReleased(false);
+        return;
+      }
+      await discardHeldTaskComment({ taskId, eventId });
+      toast.success(t("removedToast"));
+      onDiscarded();
+    } catch {
+      toast.error(t("failed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="border-border/50 mt-1 border-t pt-2">
+      <p className="text-muted-foreground text-xs">
+        {t("explainer", { coworkerName })}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {busy ? (
+          <Loader2
+            className="text-muted-foreground size-4 animate-spin"
+            aria-hidden
+          />
+        ) : (
+          <>
+            <Button
+              size="sm"
+              variant="primary"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              onClick={() => void resolve("show")}
+            >
+              <Check className="size-3" aria-hidden />
+              <span>{t("show")}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              onClick={() => void resolve("always")}
+            >
+              <CheckCheck className="size-3" aria-hidden />
+              <span>{t("always", { coworkerName })}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              onClick={() => void resolve("remove")}
+            >
+              <X className="size-3" aria-hidden />
+              <span>{t("remove")}</span>
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function AnimatedNewRow({ children }: { children: ReactNode }) {
@@ -606,6 +738,33 @@ export function TaskActivitySection({
                         expandLabel={expandLabel}
                         collapseLabel={collapseLabel}
                         fadeClassName="to-transparent"
+                      />
+                    ) : null}
+                    {event.held && event.coworkerId ? (
+                      <HeldCommentActions
+                        taskId={taskId}
+                        eventId={event.id}
+                        coworkerId={event.coworkerId}
+                        coworkerName={actorName}
+                        onReleased={(releasedAll) => {
+                          setLocalEvents((prev) =>
+                            prev.map((entry) =>
+                              entry.id === event.id ||
+                              (releasedAll &&
+                                entry.coworkerId === event.coworkerId &&
+                                entry.held)
+                                ? { ...entry, held: false }
+                                : entry,
+                            ),
+                          );
+                          router.refresh();
+                        }}
+                        onDiscarded={() => {
+                          setLocalEvents((prev) =>
+                            prev.filter((entry) => entry.id !== event.id),
+                          );
+                          router.refresh();
+                        }}
                       />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
