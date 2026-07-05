@@ -145,10 +145,9 @@ export default function OnboardingScreen({
   // null until the user explicitly picks a colour — until then the orb stays
   // the white placeholder everywhere (the "standard" look).
   const [selectedOrbIndex, setSelectedOrbIndex] = useState<number | null>(null);
-  const orbSeeds = useMemo(
-    () => orbCandidateSeeds(orbBaseSeed, 6),
-    [orbBaseSeed],
-  );
+  // The full curated palette (anchors + pastel + jewel tiers), salted with
+  // the user's id so the face traits stay unique to them.
+  const orbSeeds = useMemo(() => orbCandidateSeeds(orbBaseSeed), [orbBaseSeed]);
   const selectedSeed =
     selectedOrbIndex !== null ? (orbSeeds[selectedOrbIndex] ?? null) : null;
   const [personality, setPersonality] =
@@ -388,10 +387,11 @@ export default function OnboardingScreen({
               description={t("lookStepHelp")}
             >
               <div className="grid gap-6">
-                {/* ── Orb picker. The white placeholder is the standard option
-                    (selected = nothing committed yet); each colour candidate is
-                    unique to this user. The preview only changes once picked. ── */}
-                <div className="flex flex-wrap items-center justify-center gap-3">
+                {/* ── Colour picker. The porcelain placeholder is the standard
+                    option (selected = nothing committed yet); the swatches are
+                    the full curated palette, salted per user so the face stays
+                    unique. The preview only changes once picked. ── */}
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => setSelectedOrbIndex(null)}
@@ -404,7 +404,7 @@ export default function OnboardingScreen({
                         : "ring-border/60 hover:ring-foreground/30 ring-1",
                     )}
                   >
-                    <PlaceholderOrb size={144} className="size-16" />
+                    <PlaceholderOrb size={96} className="size-11" />
                   </button>
                   {orbSeeds.map((s, i) => (
                     <button
@@ -420,7 +420,7 @@ export default function OnboardingScreen({
                           : "ring-border/60 hover:ring-foreground/30 ring-1",
                       )}
                     >
-                      <AuroraOrb seed={s} size={144} className="size-16" />
+                      <AuroraOrb seed={s} size={96} className="size-11" />
                     </button>
                   ))}
                 </div>
@@ -618,9 +618,11 @@ function Section({
 }
 
 /**
- * Three personality spectrums (tone · detail · style) as 0–100 sliders. The
- * values are sent to the orchestrator, which folds them into the assistant's
- * system prompt. End labels make each spectrum self-explanatory; 50 = balanced.
+ * Three personality spectrums (tone · detail · style) as 0–100 sliders,
+ * quantized to five stops (0/25/50/75/100) — coarse enough to feel like a
+ * choice, not a dial. The values are sent to the orchestrator, which folds
+ * them into the assistant's system prompt. End labels make each spectrum
+ * self-explanatory; 50 = balanced.
  */
 function PersonalitySliders({
   value,
@@ -632,6 +634,14 @@ function PersonalitySliders({
   const t = useTranslations("App.Hermes.Onboarding");
   return (
     <div className="border-border/60 bg-card/40 flex flex-col gap-6 rounded-xl border p-5">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-foreground text-sm font-semibold">
+          {t("personalityHeading")}
+        </h3>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {t("personalityStepHelp")}
+        </p>
+      </div>
       {PERSONALITY_DIMENSIONS.map((dim) => (
         <div key={dim.key} className="flex flex-col gap-2.5">
           <span className="text-foreground text-sm font-medium">
@@ -641,7 +651,7 @@ function PersonalitySliders({
             value={[value[dim.key]]}
             min={0}
             max={100}
-            step={5}
+            step={25}
             aria-label={t(dim.labelKey)}
             onValueChange={(next) =>
               onChange({ ...value, [dim.key]: next[0] ?? 50 })

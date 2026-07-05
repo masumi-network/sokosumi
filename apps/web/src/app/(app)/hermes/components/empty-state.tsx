@@ -3,13 +3,9 @@
 import {
   ArrowRight,
   Check,
-  Gauge,
   ListTodo,
   Loader2,
-  Lock,
   Mail,
-  Moon,
-  Plug,
   Repeat,
   ShieldAlert,
   Sparkles,
@@ -21,17 +17,24 @@ import { type ComponentType, createContext, useContext, useState } from "react";
 import FlowBackground from "@/app/hermes/components/flow-background";
 import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
+import { orbSeedFor } from "@/lib/aurora-orb";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";
 
-/** The assistant's orb seed, shared with the journey-visual sub-components
+/**
+ * Fixed orb seed for the landing-page demo visuals. The hero shows the
+ * porcelain placeholder ("not yours yet"); the mocks show an example
+ * activated assistant in jewel sky — friendly, confident, and distinct from
+ * the page's purple accent. The user picks their own colour in setup.
+ */
+const DEMO_ORB_SEED = orbSeedFor("jewel-sky", "hermes-demo");
+
+/** The demo orb seed, shared with the journey-visual sub-components
  * (referenced via a data array, so prop-threading would be awkward). */
-const EmptyStateSeedContext = createContext<string>("personal-assistant");
+const EmptyStateSeedContext = createContext<string>(DEMO_ORB_SEED);
 
 interface EmptyStateProps {
   onActivate: () => void;
-  /** Orb seed for the assistant avatar. */
-  seed: string;
 }
 
 const SERVICE_LOGOS: Array<{
@@ -71,77 +74,44 @@ const SERVICE_LOGOS: Array<{
 /**
  * The end-to-end journey shown on the empty state. Each step renders a
  * compact card: number + copy above a composed visualization. The
- * visualizations are intentionally
- * borders-dominant — color is reserved for status (active dot, success
- * check) so the rhythm stays calm across the page.
+ * visualizations lean on borders + type — color is reserved for status
+ * (active dot, success check) so the rhythm stays calm; the connecting
+ * timeline spine carries the single brand-purple accent.
  */
 const JOURNEY: Array<{
   tagKey: string;
   titleKey: string;
   bodyKey: string;
   Visual: ComponentType;
-  accentText: string;
-  accentRing: string;
 }> = [
   {
     tagKey: "journeyStep1Tag",
     titleKey: "journeyStep1Title",
     bodyKey: "journeyStep1Body",
     Visual: ActivationVisual,
-    accentText: "text-primary",
-    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep3Tag",
     titleKey: "journeyStep3Title",
     bodyKey: "journeyStep3Body",
     Visual: ConnectionVisual,
-    accentText: "text-primary",
-    accentRing: "border-primary/40",
   },
   {
     tagKey: "journeyStep5Tag",
     titleKey: "journeyStep5Title",
     bodyKey: "journeyStep5Body",
     Visual: ActVisual,
-    accentText: "text-primary",
-    accentRing: "border-primary/40",
   },
 ];
 
 const FEATURES: Array<{
   titleKey: string;
   bodyKey: string;
-  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  /** Tailwind classes for the icon tile — varied per feature for texture. */
-  accent: string;
-  /** Span 2 columns on lg+ — used to break the monotonous grid. */
-  hero?: boolean;
 }> = [
-  {
-    titleKey: "feature2Title",
-    bodyKey: "feature2Body",
-    Icon: Sparkles,
-    accent: "bg-muted/40 text-muted-foreground",
-  },
-  {
-    titleKey: "feature4Title",
-    bodyKey: "feature4Body",
-    Icon: Lock,
-    accent: "bg-muted/40 text-muted-foreground",
-  },
-  {
-    titleKey: "feature5Title",
-    bodyKey: "feature5Body",
-    Icon: Moon,
-    accent: "bg-muted/40 text-muted-foreground",
-  },
-  {
-    titleKey: "feature6Title",
-    bodyKey: "feature6Body",
-    Icon: Plug,
-    accent: "bg-muted/40 text-muted-foreground",
-  },
+  { titleKey: "feature2Title", bodyKey: "feature2Body" },
+  { titleKey: "feature4Title", bodyKey: "feature4Body" },
+  { titleKey: "feature5Title", bodyKey: "feature5Body" },
+  { titleKey: "feature6Title", bodyKey: "feature6Body" },
 ];
 
 type ExampleKey = "example1" | "example3" | "example4";
@@ -173,259 +143,269 @@ const EXAMPLES: Array<{
   },
 ];
 
-export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
+/** A subset of connectors surfaced as an icon-only proof rail in the hero.
+ * The full labelled grid lives in the Integrations section below. */
+const HERO_RAIL = SERVICE_LOGOS.slice(0, 9);
+
+export default function EmptyState({ onActivate }: EmptyStateProps) {
   const t = useTranslations("App.Hermes.EmptyState");
   const tCommon = useTranslations("App.Hermes.Common");
   const tServices = useTranslations("App.Hermes.EmptyState.serviceLabels");
 
   return (
-    <EmptyStateSeedContext.Provider value={seed}>
+    <EmptyStateSeedContext.Provider value={DEMO_ORB_SEED}>
       <FlowBackground>
-        <div className="mx-auto w-full max-w-6xl px-2 pb-8">
-          {/* ── Hero ──────────────────────────────────────────────── */}
-          <section className="grid gap-4 py-4 md:py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="border-border/60 bg-card/80 overflow-hidden rounded-2xl border">
-              <div className="grid gap-6 p-6 md:grid-cols-[auto_minmax(0,1fr)] md:p-8">
-                <div className="relative flex size-28 shrink-0 items-center justify-center md:size-32">
-                  <div
+        <div className="relative isolate w-full overflow-hidden">
+          {/* ── Atmosphere — one soft wisteria bloom behind the hero,
+               dying out well before the CTA row so the button owns the
+               accent. Kept deliberately quiet: the app is white/black/
+               gray first, purple only where it communicates. ── */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] [mask-image:linear-gradient(to_bottom,black,transparent_80%)]"
+          >
+            <div className="bg-primary/10 dark:bg-primary/15 absolute left-1/2 top-[-140px] size-[440px] -translate-x-1/2 rounded-full blur-[100px]" />
+          </div>
+
+          <div className="mx-auto w-full max-w-6xl px-2 pb-12">
+            {/* ── Hero — open (no card) so it reads as a moment, not a box.
+                 One-time staggered entrance; motion-safe only, transform +
+                 opacity, ≤500ms, [animation-fill-mode:both] so nothing
+                 flashes before its delay. ── */}
+            <section className="flex flex-col items-center pb-12 pt-8 text-center md:pb-16 md:pt-14">
+              {/* Orb staging: a wisteria bloom that hugs the orb plus two
+                  concentric hairline rings — one breathing, one fading out —
+                  so the page's brand moment reads staged, not adrift. */}
+              <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 relative flex items-center justify-center duration-500 [animation-fill-mode:both]">
+                <div
+                  aria-hidden
+                  className="bg-primary/10 absolute size-80 rounded-full blur-3xl"
+                />
+                <div
+                  aria-hidden
+                  className="bg-primary/15 dark:bg-primary/25 absolute size-52 rounded-full blur-2xl"
+                />
+                <div
+                  aria-hidden
+                  className="border-border/60 absolute size-72 rounded-full border [mask-image:linear-gradient(to_bottom,black,transparent)]"
+                />
+                <div
+                  aria-hidden
+                  className="border-primary/20 motion-safe:animate-pulse absolute size-52 rounded-full border"
+                />
+                <PlaceholderOrb
+                  size={280}
+                  expression="happy"
+                  className="relative size-32 md:size-40"
+                  alt={tCommon("hermesAvatarAlt")}
+                />
+              </div>
+
+              <h1 className="text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 mt-8 max-w-3xl text-balance text-4xl font-light tracking-tight duration-500 [animation-delay:100ms] [animation-fill-mode:both] md:text-5xl">
+                {t("title")}
+              </h1>
+              <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 mt-5 max-w-xl text-pretty text-base leading-relaxed duration-500 [animation-delay:180ms] [animation-fill-mode:both] md:text-lg">
+                {t("subtitle")}
+              </p>
+
+              <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 mt-8 duration-500 [animation-delay:260ms] [animation-fill-mode:both]">
+                <Button
+                  size="lg"
+                  variant="primary"
+                  className="group shadow-primary/20 hover:shadow-primary/30 h-12 gap-2 px-6 text-base shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+                  onClick={onActivate}
+                >
+                  <span>{t("primaryCta")}</span>
+                  <ArrowRight
+                    className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
                     aria-hidden
-                    className="bg-primary/10 absolute inset-0 rounded-full blur-2xl"
                   />
-                  <PlaceholderOrb
-                    size={176}
-                    expression="idle"
-                    className="relative size-24 md:size-28"
-                    alt={tCommon("hermesAvatarAlt")}
-                  />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="text-primary text-xs font-semibold uppercase tracking-wider">
-                    {t("eyebrow")}
-                  </div>
-                  <h1 className="text-foreground mt-3 max-w-3xl text-3xl font-light tracking-tight md:text-5xl">
-                    {t("title")}
-                  </h1>
-                  <p className="text-foreground/80 mt-4 max-w-2xl text-base leading-relaxed md:text-lg">
-                    {t("subtitle")}
-                  </p>
-                  <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed md:text-base">
-                    {t("description")}
-                  </p>
-
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                    <Button
-                      size="lg"
-                      variant="primary"
-                      className="h-11 gap-2 px-5"
-                      onClick={onActivate}
-                    >
-                      <span>{t("primaryCta")}</span>
-                      <ArrowRight className="size-4" aria-hidden />
-                    </Button>
-                    <a
-                      href="#hermes-examples"
-                      className="border-border bg-background text-foreground hover:bg-muted/50 inline-flex h-11 items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors"
-                    >
-                      {t("examplesEyebrow")}
-                    </a>
-                  </div>
-                </div>
+                </Button>
+                <p className="text-muted-foreground/70 mx-auto mt-3 max-w-md text-pretty text-xs leading-relaxed">
+                  {t("description")}
+                </p>
               </div>
 
-              <div className="border-border/60 bg-muted/20 grid gap-px border-t md:grid-cols-3">
-                {JOURNEY.map((step, index) => (
-                  <a
-                    key={step.titleKey}
-                    href={`#hermes-step-${index + 1}`}
-                    className="bg-card/70 hover:bg-card group flex items-center gap-3 px-5 py-4 transition-colors"
+              {/* Proof rail — icon-only teaser; the labelled grid below owns
+                  the heading, so nine recognizable logos need no caption. */}
+              <ul className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 mt-10 flex flex-wrap items-center justify-center gap-2 duration-500 [animation-delay:340ms] [animation-fill-mode:both]">
+                {HERO_RAIL.map(({ src, labelKey }) => (
+                  <li
+                    key={labelKey}
+                    title={tServices(labelKey)}
+                    className="border-border/50 bg-background/80 hover:border-border flex size-10 items-center justify-center rounded-lg border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"
                   >
-                    <span className="border-border bg-background text-muted-foreground group-hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold tabular-nums transition-colors">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="text-muted-foreground block text-[11px] font-semibold uppercase tracking-wider">
-                        {t(step.tagKey)}
-                      </span>
-                      <span className="text-foreground block truncate text-sm font-medium">
-                        {t(step.titleKey)}
-                      </span>
-                    </span>
-                  </a>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" className="size-5" />
+                  </li>
                 ))}
-              </div>
-            </div>
+                <li className="border-border/50 text-muted-foreground flex h-10 items-center rounded-lg border border-dashed px-3 text-xs">
+                  {t("servicesMoreLabel")}
+                </li>
+              </ul>
+            </section>
 
-            <ActivationBrief />
-          </section>
+            {/* ── Features ──────────────────────────────────────────── */}
+            <Section
+              eyebrow={t("featuresEyebrow")}
+              heading={t("featuresHeading")}
+              marginTop="mt-6 md:mt-8"
+            >
+              {/* One segmented band — hairline gaps instead of icon tiles,
+                  echoing the brand's segmented-lines principle. Quiet type
+                  does the work: title leads, muted body supports. */}
+              <ul className="border-border/50 bg-border/50 grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-4">
+                {FEATURES.map(({ titleKey, bodyKey }) => (
+                  <li key={titleKey} className="bg-background p-5">
+                    <h3 className="text-foreground text-sm font-medium">
+                      {t(titleKey)}
+                    </h3>
+                    <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                      {t(bodyKey)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
 
-          <nav
-            aria-label={t("title")}
-            className="border-border/60 bg-card/70 sticky top-2 z-10 mb-8 flex gap-1 overflow-x-auto rounded-xl border p-1 backdrop-blur-md [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {[
-              { href: "#hermes-integrations", label: t("integrationsEyebrow") },
-              { href: "#hermes-journey", label: t("journeyEyebrow") },
-              { href: "#hermes-features", label: t("featuresEyebrow") },
-              { href: "#hermes-examples", label: t("examplesEyebrow") },
-              { href: "#hermes-safeguards", label: t("disclaimerHeading") },
-            ].map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-muted-foreground hover:bg-muted/50 hover:text-foreground whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
+            {/* ── Journey — connected timeline ──────────────────────── */}
+            <Section
+              eyebrow={t("journeyEyebrow")}
+              heading={t("journeyHeading")}
+              description={t("journeyDescription")}
+              marginTop="mt-12 md:mt-16"
+            >
+              <ol className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {JOURNEY.map((step, idx) => (
+                  <JourneyRow key={step.titleKey} step={step} index={idx} />
+                ))}
+              </ol>
+            </Section>
 
-          {/* ── Services strip ─────────────────────────────────────── */}
-          <Section
-            id="hermes-integrations"
-            eyebrow={t("integrationsEyebrow")}
-            eyebrowColor="text-primary"
-            heading={t("servicesHeading")}
-            description={t("servicesHelp")}
-            marginTop="mt-8"
-          >
-            <div className="border-border/60 bg-card/80 rounded-2xl border p-5 md:p-6">
-              <ul className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+            {/* ── Things to try (click-through) ─────────────────────── */}
+            <Section
+              eyebrow={t("examplesEyebrow")}
+              heading={t("examplesHeading")}
+              description={t("examplesPickHint")}
+              marginTop="mt-12 md:mt-16"
+            >
+              <ExamplesCarousel onActivate={onActivate} />
+            </Section>
+
+            {/* ── Integrations — full labelled grid ─────────────────── */}
+            <Section
+              eyebrow={t("integrationsEyebrow")}
+              heading={t("servicesHeading")}
+              description={t("servicesHelp")}
+              marginTop="mt-12 md:mt-16"
+            >
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {SERVICE_LOGOS.map(({ src, labelKey }) => (
                   <li
                     key={labelKey}
-                    className="border-border/60 bg-background group flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 transition-colors hover:border-foreground/30 hover:bg-muted/30"
+                    className="bg-muted/40 border-border/50 hover:bg-muted/60 flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition-colors"
                     title={tServices(labelKey)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="size-5 shrink-0" />
-                    <span className="text-foreground text-sm font-medium">
+                    <img src={src} alt="" className="size-4 shrink-0" />
+                    <span className="text-foreground truncate text-sm">
                       {tServices(labelKey)}
                     </span>
                   </li>
                 ))}
-                <li className="border-border/40 text-muted-foreground flex items-center rounded-xl border border-dashed px-3.5 py-2.5 text-sm">
+                {/* Dashed cell absorbs the grid remainder (14 logos + span-2
+                    = 16 cells) so the 4-col lattice closes flush. */}
+                <li className="border-border/50 text-muted-foreground flex items-center justify-center rounded-lg border border-dashed px-3 py-2.5 text-sm lg:col-span-2">
                   {t("servicesMoreLabel")}
                 </li>
               </ul>
-            </div>
-          </Section>
+            </Section>
 
-          {/* ── Journey — end-to-end step-by-step ─────────────────── */}
-          <Section
-            id="hermes-journey"
-            eyebrow={t("journeyEyebrow")}
-            eyebrowColor="text-primary"
-            heading={t("journeyHeading")}
-            description={t("journeyDescription")}
-            marginTop="mt-12 md:mt-16"
-          >
-            <ol className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {JOURNEY.map((step, idx) => (
-                <JourneyRow key={step.titleKey} step={step} index={idx} />
-              ))}
-            </ol>
-          </Section>
-
-          {/* ── Features (vertical list) ──────────────────────────── */}
-          <Section
-            id="hermes-features"
-            eyebrow={t("featuresEyebrow")}
-            eyebrowColor="text-muted-foreground"
-            heading={t("featuresHeading")}
-            marginTop="mt-12 md:mt-16"
-          >
-            <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-2">
-              {FEATURES.map(({ titleKey, bodyKey, Icon, accent }) => (
-                <li
-                  key={titleKey}
-                  className="bg-card/80 hover:bg-card flex items-start gap-4 px-6 py-5 transition-colors md:gap-5 md:px-8 md:py-6"
-                >
+            {/* ── Honest disclaimer about agent risks — placed before the
+                 final ask so "before you start" literally precedes the
+                 start button, and the page ends on activation. ── */}
+            <div className="mt-12 md:mt-16">
+              <div className="border-border/50 bg-muted/30 rounded-xl border p-5 md:p-6">
+                <div className="flex items-center gap-3">
                   <div
                     aria-hidden
-                    className={cn(
-                      "flex size-10 shrink-0 items-center justify-center rounded-xl",
-                      accent,
-                    )}
+                    className="bg-semantic-warning/10 text-semantic-warning flex size-9 shrink-0 items-center justify-center rounded-lg"
                   >
-                    <Icon className="size-5" />
+                    <ShieldAlert className="size-4" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-foreground text-base font-semibold tracking-tight md:text-lg">
-                      {t(titleKey)}
-                    </h3>
-                    <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                      {t(bodyKey)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Section>
-
-          {/* ── Things to try (click-through) ─────────────────────── */}
-          <Section
-            id="hermes-examples"
-            eyebrow={t("examplesEyebrow")}
-            eyebrowColor="text-muted-foreground"
-            heading={t("examplesHeading")}
-            description={t("examplesPickHint")}
-            marginTop="mt-12 md:mt-16"
-          >
-            <ExamplesCarousel />
-          </Section>
-
-          {/* ── Bottom CTA ────────────────────────────────────────── */}
-          <div className="mt-12 flex flex-col items-center gap-4 md:mt-16">
-            <Button
-              size="lg"
-              variant="primary"
-              className="h-12 gap-2 px-8 text-base shadow-sm"
-              onClick={onActivate}
-            >
-              <span>{t("primaryCta")}</span>
-              <ArrowRight className="size-4" aria-hidden />
-            </Button>
-            <p className="text-muted-foreground/80 max-w-xl text-center text-xs leading-relaxed">
-              {t("footnote")}
-            </p>
-          </div>
-
-          {/* ── Honest disclaimer about agent risks ─────────────────── */}
-          <div id="hermes-safeguards" className="mt-12 md:mt-16">
-            <div className="border-border/60 bg-card/80 rounded-2xl border p-6 md:p-8">
-              <div className="flex items-center gap-3">
-                <div
-                  aria-hidden
-                  className="bg-amber-500/10 text-amber-700 dark:text-amber-400 flex size-10 shrink-0 items-center justify-center rounded-xl"
-                >
-                  <ShieldAlert className="size-5" />
+                  <span className="text-foreground text-base font-medium">
+                    {t("disclaimerHeading")}
+                  </span>
                 </div>
-                <span className="text-foreground text-lg font-light tracking-tight md:text-xl">
-                  {t("disclaimerHeading")}
-                </span>
+                <ul className="mt-5 grid gap-3 md:grid-cols-2 md:gap-x-8">
+                  {(
+                    [
+                      "disclaimer1",
+                      "disclaimer2",
+                      "disclaimer3",
+                      "disclaimer4",
+                    ] as const
+                  ).map((key) => (
+                    <li key={key} className="flex items-start gap-3">
+                      <span
+                        aria-hidden
+                        className="bg-muted-foreground/40 mt-2 size-1.5 shrink-0 rounded-full"
+                      />
+                      <span className="text-foreground/90 text-sm leading-relaxed">
+                        {t(key)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="mt-6 grid gap-3.5 md:grid-cols-2 md:gap-x-10 md:gap-y-4">
-                {(
-                  [
-                    "disclaimer1",
-                    "disclaimer2",
-                    "disclaimer3",
-                    "disclaimer4",
-                  ] as const
-                ).map((key) => (
-                  <li key={key} className="flex items-start gap-3">
-                    <span
-                      aria-hidden
-                      className="bg-amber-500/60 mt-2 size-1.5 shrink-0 rounded-full"
-                    />
-                    <span className="text-foreground/90 text-sm leading-relaxed">
-                      {t(key)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
+
+            {/* ── Closing CTA — the escalating close: not "meet it" again,
+                 but "this is your front door to Sokosumi". Orb returns with
+                 the hero's bloom + breathing ring, bookending the page. ── */}
+            <section className="relative mt-8 md:mt-10">
+              <div className="border-border/50 bg-muted/30 relative flex flex-col items-center overflow-hidden rounded-xl border px-6 py-12 text-center md:py-16">
+                <div className="relative flex items-center justify-center">
+                  <div
+                    aria-hidden
+                    className="bg-primary/10 dark:bg-primary/20 absolute size-44 rounded-full blur-2xl"
+                  />
+                  <div
+                    aria-hidden
+                    className="border-primary/20 motion-safe:animate-pulse absolute size-28 rounded-full border"
+                  />
+                  <PlaceholderOrb
+                    size={200}
+                    expression="happy"
+                    className="relative size-20"
+                    alt={tCommon("hermesAvatarAlt")}
+                  />
+                </div>
+                <h2 className="text-foreground relative mt-6 max-w-2xl text-balance text-2xl font-light tracking-tight md:text-3xl">
+                  {t("sokosumiTitle")}
+                </h2>
+                <p className="text-muted-foreground relative mt-3 max-w-xl text-pretty text-sm leading-relaxed">
+                  {t("sokosumiBody")}
+                </p>
+                <div className="relative mt-7">
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    className="group shadow-primary/20 hover:shadow-primary/30 h-12 gap-2 px-6 text-base shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+                    onClick={onActivate}
+                  >
+                    <span>{t("primaryCta")}</span>
+                    <ArrowRight
+                      className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                      aria-hidden
+                    />
+                  </Button>
+                </div>
+                <p className="text-muted-foreground/80 relative mt-5 max-w-xl text-pretty text-xs leading-relaxed">
+                  {t("footnote")}
+                </p>
+              </div>
+            </section>
           </div>
         </div>
       </FlowBackground>
@@ -436,38 +416,29 @@ export default function EmptyState({ onActivate, seed }: EmptyStateProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Section({
-  id,
   eyebrow,
-  eyebrowColor,
   heading,
   description,
   marginTop = "mt-28 md:mt-36",
   children,
 }: {
-  id?: string;
   eyebrow: string;
-  eyebrowColor: string;
   heading: string;
   description?: string;
   marginTop?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className={cn("scroll-mt-20", marginTop)}>
-      <div className="mb-6 flex flex-col md:mb-8">
-        <div
-          className={cn(
-            "text-xs font-semibold uppercase tracking-wider",
-            eyebrowColor,
-          )}
-        >
+    <section className={marginTop}>
+      <div className="mb-6 flex flex-col">
+        <div className="text-muted-foreground text-xs font-medium uppercase tracking-widest">
           {eyebrow}
         </div>
-        <h2 className="text-foreground mt-2 max-w-2xl text-2xl font-light tracking-tight md:text-3xl">
+        <h2 className="text-foreground mt-2 max-w-2xl text-balance text-xl font-light tracking-tight md:text-2xl">
           {heading}
         </h2>
         {description ? (
-          <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed md:text-base">
+          <p className="text-muted-foreground mt-2 max-w-2xl text-pretty text-sm leading-relaxed">
             {description}
           </p>
         ) : null}
@@ -479,72 +450,6 @@ function Section({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ActivationBrief() {
-  const t = useTranslations("App.Hermes.EmptyState");
-  const tOnboarding = useTranslations("App.Hermes.Onboarding");
-  const rows: Array<{
-    Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-    title: string;
-    body: string;
-  }> = [
-    {
-      Icon: Lock,
-      title: t("feature4Title"),
-      body: t("feature4Body"),
-    },
-    {
-      Icon: Plug,
-      title: t("feature6Title"),
-      body: t("feature6Body"),
-    },
-    {
-      Icon: Gauge,
-      title: tOnboarding("autonomyMediumLabel"),
-      body: tOnboarding("autonomyMediumBody"),
-    },
-    {
-      Icon: Sparkles,
-      title: t("feature2Title"),
-      body: t("feature2Body"),
-    },
-  ];
-
-  return (
-    <aside className="border-border/60 bg-card/80 rounded-2xl border p-5">
-      <div>
-        <p className="text-primary text-xs font-semibold uppercase tracking-wider">
-          {t("featuresEyebrow")}
-        </p>
-        <h2 className="text-foreground mt-2 text-xl font-light tracking-tight">
-          {t("sokosumiTitle")}
-        </h2>
-        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          {t("sokosumiBody")}
-        </p>
-      </div>
-
-      <dl className="border-border/60 mt-5 divide-y border-t">
-        {rows.map(({ Icon, title, body }) => (
-          <div key={title} className="flex gap-3 py-4">
-            <div
-              aria-hidden
-              className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg"
-            >
-              <Icon className="size-4" />
-            </div>
-            <div>
-              <dt className="text-foreground text-sm font-medium">{title}</dt>
-              <dd className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                {body}
-              </dd>
-            </div>
-          </div>
-        ))}
-      </dl>
-    </aside>
-  );
-}
-
 function JourneyRow({
   step,
   index,
@@ -554,41 +459,49 @@ function JourneyRow({
 }) {
   const t = useTranslations("App.Hermes.EmptyState");
 
-  return (
-    <li
-      id={`hermes-step-${index + 1}`}
-      className="border-border/60 bg-card/80 flex min-h-full scroll-mt-24 flex-col overflow-hidden rounded-2xl border"
-    >
-      <div className="flex flex-1 flex-col p-6">
-        <div className="flex items-center gap-3">
-          <span
-            aria-hidden
-            className={cn(
-              "bg-card text-foreground inline-flex size-10 items-center justify-center rounded-full border font-mono text-sm font-semibold tabular-nums",
-              step.accentRing,
-            )}
-          >
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <span
-            className={cn(
-              "text-xs font-semibold uppercase tracking-wider",
-              step.accentText,
-            )}
-          >
-            {t(step.tagKey)}
-          </span>
-        </div>
-        <h3 className="text-foreground mt-5 text-xl font-light tracking-tight md:text-2xl">
-          {t(step.titleKey)}
-        </h3>
-        <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-          {t(step.bodyKey)}
-        </p>
-      </div>
+  const isLast = index === JOURNEY.length - 1;
 
-      <div className="border-border/60 bg-background/60 border-t p-4">
-        <step.Visual />
+  return (
+    // The purple thread lives on the card itself as an ::after connector
+    // that bridges the 16px gutter to the next card (md+), aligned to the
+    // node centers (pt-6 + half of size-7 = 38px). Purple appears only
+    // between the steps — never inside the cards.
+    <li
+      className={cn(
+        "relative flex min-h-full",
+        !isLast &&
+          "md:after:bg-primary/40 md:after:absolute md:after:-right-4 md:after:top-[38px] md:after:h-px md:after:w-4 md:after:content-['']",
+      )}
+    >
+      <div className="bg-muted/30 border-border/50 flex min-h-full w-full flex-col overflow-hidden rounded-xl border">
+        <div className="flex flex-col p-5 pt-6">
+          {/* Numbered node — neutral, so the step title leads; the spine
+            between the cards is the section's only accent. */}
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="border-border bg-background text-foreground relative inline-flex size-7 items-center justify-center rounded-full border text-xs font-semibold tabular-nums"
+            >
+              {index + 1}
+            </span>
+            <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider tabular-nums">
+              {t(step.tagKey)}
+            </span>
+          </div>
+          <h3 className="text-foreground mt-4 text-sm font-semibold">
+            {t(step.titleKey)}
+          </h3>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            {t(step.bodyKey)}
+          </p>
+        </div>
+
+        {/* The visual band takes the flexible space and centers its content,
+          so unequal copy lengths pool here as intentional framing instead
+          of as a hole between text and visual. */}
+        <div className="border-border/50 bg-background/40 flex flex-1 items-center justify-center border-t p-3">
+          <step.Visual />
+        </div>
       </div>
     </li>
   );
@@ -606,25 +519,25 @@ function ActivationVisual() {
   const tCommon = useTranslations("App.Hermes.Common");
 
   return (
-    <div className="relative flex h-56 items-center justify-center">
+    <div className="relative flex h-36 items-center justify-center">
       <div
         aria-hidden
-        className="bg-primary/10 absolute size-40 rounded-full blur-3xl"
+        className="bg-foreground/5 absolute size-28 rounded-full blur-2xl"
       />
-      <div className="border-border/60 bg-background/80 relative flex flex-col items-center gap-4 rounded-2xl border px-8 py-6">
+      <div className="border-border/60 bg-background/80 relative flex flex-col items-center gap-3 rounded-xl border px-5 py-4">
         <AuroraOrb
           seed={seed}
           size={96}
           expression="happy"
-          className="size-16"
+          className="size-12"
         />
-        <div className="text-foreground text-sm font-semibold tracking-tight">
+        <div className="text-foreground text-sm font-medium tracking-tight">
           {tCommon("hermesAvatarAlt")}
         </div>
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+        <div className="border-semantic-success/30 bg-semantic-success/10 text-semantic-success inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium">
           <span
             aria-hidden
-            className="size-1.5 animate-pulse rounded-full bg-emerald-500"
+            className="bg-semantic-success size-1.5 animate-pulse rounded-full"
           />
           <span>{t("activated")}</span>
         </div>
@@ -650,11 +563,11 @@ function ConnectionVisual() {
     },
   ];
   return (
-    <div className="relative mx-auto h-56 w-full max-w-md">
+    <div className="relative mx-auto h-36 w-full max-w-xs">
       {/* Faint dashed connectors */}
       <svg
         aria-hidden
-        viewBox="0 0 400 220"
+        viewBox="0 0 320 160"
         preserveAspectRatio="none"
         className="text-border absolute inset-0 size-full"
       >
@@ -664,12 +577,12 @@ function ConnectionVisual() {
           strokeDasharray="3 4"
           fill="none"
         >
-          <line x1="200" y1="110" x2="80" y2="30" />
-          <line x1="200" y1="110" x2="320" y2="30" />
-          <line x1="200" y1="110" x2="80" y2="190" />
-          <line x1="200" y1="110" x2="320" y2="190" />
-          <line x1="200" y1="110" x2="40" y2="110" />
-          <line x1="200" y1="110" x2="360" y2="110" />
+          <line x1="160" y1="80" x2="64" y2="24" />
+          <line x1="160" y1="80" x2="256" y2="24" />
+          <line x1="160" y1="80" x2="64" y2="136" />
+          <line x1="160" y1="80" x2="256" y2="136" />
+          <line x1="160" y1="80" x2="32" y2="80" />
+          <line x1="160" y1="80" x2="288" y2="80" />
         </g>
       </svg>
       {/* Center: Hermes */}
@@ -678,7 +591,7 @@ function ConnectionVisual() {
           seed={seed}
           size={96}
           expression="idle"
-          className="size-16"
+          className="size-12"
         />
       </div>
       {/* Satellites */}
@@ -686,12 +599,12 @@ function ConnectionVisual() {
         <div
           key={src}
           className={cn(
-            "border-border/60 bg-background absolute flex size-10 items-center justify-center rounded-xl border",
+            "border-border/60 bg-background absolute flex size-8 items-center justify-center rounded-lg border",
             pos,
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" className="size-5" />
+          <img src={src} alt="" className="size-4" />
         </div>
       ))}
     </div>
@@ -705,18 +618,18 @@ function ActVisual() {
   );
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-2">
+    <div className="mx-auto flex max-w-sm flex-col gap-2">
       {/* User message */}
-      <div className="bg-primary text-primary-foreground self-end rounded-2xl rounded-tr-md px-3.5 py-2 text-xs leading-snug shadow-sm">
+      <div className="bg-primary text-primary-foreground self-end rounded-xl rounded-tr-md px-3.5 py-2 text-xs leading-snug shadow-sm">
         {t("actUserMessage")}
       </div>
       {/* Hermes acting */}
-      <div className="border-border/60 bg-background/80 self-start rounded-2xl rounded-tl-md border px-3.5 py-2.5">
-        <div className="text-tertiary-foreground inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
+      <div className="border-border/60 bg-background/80 self-start rounded-xl rounded-tl-md border px-3.5 py-2.5">
+        <div className="text-tertiary-foreground inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider">
           <Wand2 className="size-3" aria-hidden />
           <span>{t("actWorking")}</span>
         </div>
-        <ul className="mt-2 flex flex-col gap-1.5">
+        <ul className="mt-2 flex flex-col gap-1">
           {[
             { src: "/icons/google-calendar.svg", label: actSteps[0] },
             { src: "/icons/gmail.svg", label: actSteps[1] },
@@ -728,14 +641,14 @@ function ActVisual() {
           ].map((row, i) => (
             <li
               key={i}
-              className="border-border/40 bg-card flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs"
+              className="border-border/40 bg-card flex items-center gap-2 rounded-md border px-2 py-1 text-xs"
             >
               {row.src ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={row.src} alt="" className="size-3.5 shrink-0" />
               ) : (
                 <Sparkles
-                  className="text-primary size-3.5 shrink-0"
+                  className="text-muted-foreground size-3.5 shrink-0"
                   aria-hidden
                 />
               )}
@@ -746,12 +659,14 @@ function ActVisual() {
                   aria-hidden
                 />
               ) : (
-                <Check className="size-3 text-emerald-500" aria-hidden />
+                // Per-row checks stay neutral; the held-for-review line
+                // below is the visual's single green signal.
+                <Check className="text-muted-foreground size-3" aria-hidden />
               )}
             </li>
           ))}
         </ul>
-        <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+        <div className="text-semantic-success mt-2 inline-flex items-center gap-1.5 text-xs font-medium">
           <Check className="size-3" aria-hidden />
           <span>{t("actHeld")}</span>
         </div>
@@ -769,7 +684,7 @@ function ActVisual() {
 // replies live in en.json and use a tiny markdown subset (**bold** + bullet
 // lines starting with `• ` or `1.`).
 
-function ExamplesCarousel() {
+function ExamplesCarousel({ onActivate }: { onActivate: () => void }) {
   const seed = useContext(EmptyStateSeedContext);
   const t = useTranslations("App.Hermes.EmptyState");
   const tCommon = useTranslations("App.Hermes.Common");
@@ -777,7 +692,7 @@ function ExamplesCarousel() {
   const active = EXAMPLES.find((e) => e.key === activeKey) ?? EXAMPLES[0]!;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Pills — horizontally scrollable on narrow viewports */}
       <div className="-mx-2 overflow-x-auto px-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex min-w-max items-center gap-2">
@@ -789,11 +704,11 @@ function ExamplesCarousel() {
                 type="button"
                 onClick={() => setActiveKey(key)}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.98]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
                   isActive
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-card text-foreground hover:border-foreground/30 hover:bg-muted/30",
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-foreground hover:border-foreground/25 hover:bg-muted/40",
                 )}
                 aria-pressed={isActive}
               >
@@ -808,11 +723,12 @@ function ExamplesCarousel() {
       {/* Canvas */}
       <div
         key={active.key}
-        className="border-border/60 bg-card/60 animate-in fade-in-0 slide-in-from-bottom-1 flex flex-col gap-4 rounded-2xl border p-6 backdrop-blur-sm duration-200 md:p-8"
+        className="bg-muted/30 border-border/50 animate-in fade-in-0 slide-in-from-bottom-1 flex flex-col gap-4 rounded-xl border p-5 duration-200 md:p-6"
       >
-        {/* User prompt */}
+        {/* User prompt — capped at a chat-plausible measure so it reads as
+            a message, not a purple banner out-shouting the CTA. */}
         <div className="flex justify-end">
-          <div className="bg-primary text-primary-foreground max-w-[88%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm font-medium leading-snug md:text-base">
+          <div className="bg-primary text-primary-foreground max-w-[75%] rounded-xl rounded-tr-md px-4 py-2.5 text-sm font-medium leading-snug md:max-w-xl">
             {t(active.key)}
           </div>
         </div>
@@ -830,14 +746,27 @@ function ExamplesCarousel() {
               className="size-full"
             />
           </span>
-          <div className="border-border bg-background min-w-0 flex-1 rounded-2xl rounded-tl-md border px-4 py-3">
-            <div className="text-tertiary-foreground mb-2 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider">
+          <div className="border-border/60 bg-background/60 min-w-0 flex-1 rounded-xl rounded-tl-md border px-4 py-3">
+            <div className="text-tertiary-foreground mb-2 inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider">
               <Sparkles className="size-3" aria-hidden />
               <span>{tCommon("hermesAvatarAlt")}</span>
             </div>
             <MockMarkdown text={t(active.replyKey)} />
           </div>
         </div>
+      </div>
+
+      {/* Quiet mid-page action — catches users at the moment the mock
+          reply convinces them; outline keeps the filled purple reserved
+          for the hero and the close. */}
+      <div className="mt-1 flex justify-center">
+        <Button variant="outline" className="group gap-2" onClick={onActivate}>
+          <span>{t("primaryCta")}</span>
+          <ArrowRight
+            className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+            aria-hidden
+          />
+        </Button>
       </div>
     </div>
   );
@@ -883,7 +812,7 @@ function MockMarkdown({ text }: { text: string }) {
                 if (!match) return null;
                 return (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-muted-foreground/70 font-mono tabular-nums">
+                    <span className="text-muted-foreground/70 tabular-nums">
                       {match[1]}.
                     </span>
                     <span className="flex-1">

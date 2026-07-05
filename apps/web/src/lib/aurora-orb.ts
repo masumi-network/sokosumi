@@ -1,14 +1,19 @@
 /**
- * aurora-orb — deterministic generative "aurora orb" avatars.
+ * aurora-orb — deterministic matte-disc avatars ("porcelain" orbs).
  *
- * Same seed string → identical orb, forever, with no storage. A glowing
- * gradient sphere with slow-drifting color clouds; reads premium at large
- * sizes and stays legible down to ~24px because the "detail" is large soft
- * gradients, not fine particles.
+ * Same seed string → identical orb, forever, with no storage. A clean matte
+ * sphere in one colour from a curated palette (13 hues × pastel/jewel tiers
+ * plus porcelain-white and sumi-ink anchors), with a soft top-light, hairline
+ * rim, and a faint tinted halo. The colour carries identity; the seeded face
+ * traits keep two coworkers with the same colour from looking identical.
  *
- * Ported verbatim from the reference `aurora-orb.js` (same math → identical
- * output) into a typed, tree-shakeable module. Browser-only: `draw`/`mount`/
- * `toDataURL` need a `<canvas>` 2D context (and `document` for `toDataURL`).
+ * Seed format: `orb:<paletteId>` or `orb:<paletteId>:<salt>` — the palette id
+ * picks the colour, the full seed string drives the face traits. Any other
+ * (legacy/arbitrary) seed hashes deterministically onto a tinted palette
+ * entry, so pre-palette seeds keep a stable look forever.
+ *
+ * Browser-only: `draw`/`mount`/`toDataURL` need a `<canvas>` 2D context (and
+ * `document` for `toDataURL`).
  *
  * Performance: `mount()` runs ONE rAF loop per canvas — use it only for the
  * few orbs actually shown large (the user's hero avatar). For lists/feeds use
@@ -16,26 +21,115 @@
  * at 3.
  */
 
-export interface OrbLobe {
-  hue: number;
-  ang: number;
-  dist: number;
-  rad: number;
-  sp: number;
-  dir: number;
-  al: number;
-  bsp: number;
-  bph: number;
+// ── curated palette ──────────────────────────────────────────────────────────
+
+export interface OrbPaletteEntry {
+  /** Stable id, persisted inside seeds — never rename. */
+  id: string;
+  name: string;
+  tier: "anchor" | "pastel" | "jewel";
+  /** Base hue; null for the neutral anchors. */
+  hue: number | null;
+}
+
+const HUES: Array<[string, number]> = [
+  ["rose", 350],
+  ["coral", 18],
+  ["amber", 42],
+  ["emerald", 152],
+  ["teal", 172],
+  ["cyan", 190],
+  ["sky", 207],
+  ["blue", 225],
+  ["indigo", 248],
+  ["wisteria", 264],
+  ["purple", 283],
+  ["magenta", 308],
+  ["pink", 330],
+];
+
+/**
+ * The choosable palette, in display order: anchors first, then the pastel
+ * tier, then the jewel tier. ~28 colours = plenty of variety between
+ * coworkers while one shading recipe keeps them a family.
+ */
+export const ORB_PALETTE: OrbPaletteEntry[] = [
+  { id: "porcelain", name: "Porcelain", tier: "anchor", hue: null },
+  { id: "ink", name: "Ink", tier: "anchor", hue: null },
+  ...HUES.map(
+    ([name, hue]): OrbPaletteEntry => ({
+      id: `pastel-${name}`,
+      name: `Pastel ${name}`,
+      tier: "pastel",
+      hue,
+    }),
+  ),
+  ...HUES.map(
+    ([name, hue]): OrbPaletteEntry => ({
+      id: `jewel-${name}`,
+      name: `Jewel ${name}`,
+      tier: "jewel",
+      hue,
+    }),
+  ),
+];
+
+const PALETTE_BY_ID = new Map(ORB_PALETTE.map((e) => [e.id, e]));
+/** Tinted entries only — the pool legacy/arbitrary seeds hash onto. */
+const TINTED = ORB_PALETTE.filter((e) => e.tier !== "anchor");
+
+/** Resolved paint recipe for one palette entry. */
+interface OrbPaint {
+  /** Radial body gradient, light → mid → edge. */
+  stops: [string, string, string];
+  /** Hairline rim stroke. */
+  rim: string;
+  /** Soft halo colour (alpha baked in). */
+  halo: string;
+  /** Face/eyes ink on this body. */
+  ink: string;
+}
+
+function paintFor(entry: OrbPaletteEntry): OrbPaint {
+  const darkInk = "rgba(10,8,16,0.95)";
+  if (entry.id === "ink") {
+    return {
+      stops: ["#3a3a3e", "#1c1c1f", "#101013"],
+      rim: "rgba(250,250,250,0.14)",
+      halo: "rgba(250,250,250,0.07)",
+      ink: "rgba(250,250,250,0.95)",
+    };
+  }
+  if (entry.id === "porcelain" || entry.hue === null) {
+    return {
+      stops: ["#ffffff", "#f2f2f4", "#e2e2e8"],
+      rim: "rgba(10,10,10,0.10)",
+      halo: "rgba(130,130,150,0.10)",
+      ink: darkInk,
+    };
+  }
+  const h = entry.hue;
+  const [l0, l1, l2, s] =
+    entry.tier === "pastel" ? [86, 76, 68, 70] : [74, 62, 52, 72];
+  return {
+    stops: [
+      `hsl(${h} ${s}% ${l0}%)`,
+      `hsl(${h} ${s}% ${l1}%)`,
+      `hsl(${h} ${s - 6}% ${l2}%)`,
+    ],
+    rim: `hsla(${h}, 55%, 30%, 0.18)`,
+    halo: `hsla(${h}, 80%, 60%, 0.15)`,
+    ink: darkInk,
+  };
 }
 
 export interface OrbParams {
-  h0: number;
-  h1: number;
-  h2: number;
-  hues: number[];
-  lobes: OrbLobe[];
+  /** The resolved palette entry this seed maps to. */
+  paletteId: string;
+  paint: OrbPaint;
+  /** Seeded initial light angle — tiny per-orb variation in the sheen. */
   light: number;
-  rot: number;
+  /** Seeded sheen breathing rate. */
   pulse: number;
 }
 
@@ -140,49 +234,26 @@ function faceTraits(seed: string, placeholder: boolean): OrbFaceTraits {
   };
 }
 
-export function params(seed: string): OrbParams {
-  const r = mulberry32(xmur3(String(seed))());
-  // Curated cool / jewel hue bands (teal → rose, brand-adjacent around violet).
-  // Skips the muddy yellow-green-olive-brown range so every seed reads premium
-  // rather than ugly, while still giving each user a distinct colour.
-  const BANDS: Array<[number, number]> = [
-    [168, 198], // teal → cyan
-    [200, 232], // sky → blue
-    [232, 264], // indigo → violet (Wisteria-adjacent)
-    [264, 296], // violet → purple
-    [296, 330], // magenta → fuchsia
-    [330, 352], // rose
-  ];
-  const band = BANDS[Math.floor(r() * BANDS.length)] ?? BANDS[2]!;
-  const h0 = band[0] + r() * (band[1] - band[0]);
-  // Gentle analogous companions (a small forward drift) so the orb stays a
-  // cohesive jewel instead of clashing with a hard complement.
-  const h1 = (h0 + 16 + r() * 24) % 360;
-  const h2 = (h0 + 34 + r() * 34) % 360;
-  const hues = [h0, h1, h2];
-  const lobes: OrbLobe[] = [];
-  const n = 3 + Math.floor(r() * 3);
-  for (let i = 0; i < n; i++) {
-    lobes.push({
-      hue: hues[Math.floor(r() * hues.length)]!,
-      ang: r() * 6.2832,
-      dist: 0.1 + r() * 0.42,
-      rad: 0.45 + r() * 0.5,
-      sp: 0.3 + r() * 0.7,
-      dir: r() < 0.5 ? 1 : -1,
-      al: 0.42 + r() * 0.34,
-      bsp: 0.45 + r() * 0.8,
-      bph: r() * 6.2832,
-    });
+/** Resolve a seed to its palette entry (see the seed format in the header). */
+function paletteEntryForSeed(seed: string): OrbPaletteEntry {
+  if (seed.startsWith("orb:")) {
+    const id = seed.split(":")[1] ?? "";
+    const entry = PALETTE_BY_ID.get(id);
+    if (entry) return entry;
   }
+  // Legacy/arbitrary seed — hash deterministically onto a tinted entry so
+  // pre-palette avatars keep a stable colour forever.
+  const r = mulberry32(xmur3(String(seed))());
+  return TINTED[Math.floor(r() * TINTED.length)] ?? TINTED[0]!;
+}
+
+export function params(seed: string): OrbParams {
+  const entry = paletteEntryForSeed(seed);
+  const r = mulberry32(xmur3(`${seed}:paint`)());
   return {
-    h0,
-    h1,
-    h2,
-    hues,
-    lobes,
+    paletteId: entry.id,
+    paint: paintFor(entry),
     light: r() * 6.2832,
-    rot: (0.04 + r() * 0.14) * (r() < 0.5 ? 1 : -1),
     pulse: 0.8 + r() * 1.2,
   };
 }
@@ -196,232 +267,75 @@ export function draw(
   const cx = S / 2;
   const cy = S / 2;
   const R = S * 0.46;
-  const la = p.light + t * p.rot * 1.1;
-  const lx = cx + Math.cos(la) * R * 0.3;
-  const ly = cy + Math.sin(la) * R * 0.3;
+  const TAU = 6.2832;
   ctx.globalCompositeOperation = "source-over";
   ctx.clearRect(0, 0, S, S);
 
-  const halo = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R * 1.5);
-  halo.addColorStop(0, `hsla(${p.h0},80%,55%,0.28)`);
-  halo.addColorStop(1, `hsla(${p.h0},80%,55%,0)`);
+  // Soft tinted halo — the "glow on dark" from the approved recipe; on light
+  // surfaces it reads as a faint tint shadow. Alpha lives in the colour.
+  const halo = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, R * 1.4);
+  halo.addColorStop(0, p.paint.halo);
+  halo.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = halo;
   ctx.fillRect(0, 0, S, S);
 
   ctx.save();
   ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, 6.2832);
+  ctx.arc(cx, cy, R, 0, TAU);
   ctx.clip();
 
-  const base = ctx.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
-  base.addColorStop(0, `hsl(${p.h0},72%,50%)`);
-  base.addColorStop(1, `hsl(${p.h2},68%,40%)`);
-  ctx.fillStyle = base;
+  // Matte body — one radial top-light (the CSS `circle at 38% 30%` recipe).
+  const bx = cx - R * 0.24;
+  const by = cy - R * 0.4;
+  const body = ctx.createRadialGradient(bx, by, 0, bx, by, R * 1.7);
+  body.addColorStop(0, p.paint.stops[0]);
+  body.addColorStop(0.55, p.paint.stops[1]);
+  body.addColorStop(1, p.paint.stops[2]);
+  ctx.fillStyle = body;
   ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
 
-  ctx.globalCompositeOperation = "screen";
-  for (const b of p.lobes) {
-    const a = b.ang + t * b.sp * b.dir;
-    const dd = b.dist * (1 + 0.34 * Math.sin(t * b.bsp + b.bph));
-    const bx = cx + Math.cos(a) * R * dd;
-    const by = cy + Math.sin(a) * R * dd;
-    const g = ctx.createRadialGradient(bx, by, 0, bx, by, R * b.rad);
-    g.addColorStop(0, `hsla(${Math.round(b.hue)},82%,68%,${b.al})`);
-    g.addColorStop(1, `hsla(${Math.round(b.hue)},82%,68%,0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-  }
-
-  ctx.globalCompositeOperation = "source-over";
-  const shade = ctx.createRadialGradient(lx, ly, R * 0.1, cx, cy, R * 1.05);
-  shade.addColorStop(0, "rgba(0,0,0,0)");
-  shade.addColorStop(0.7, "rgba(10,4,24,0)");
-  shade.addColorStop(1, "rgba(8,3,20,0.66)");
-  ctx.fillStyle = shade;
-  ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-
-  ctx.globalCompositeOperation = "screen";
-  const pulse = 0.5 + 0.22 * Math.sin(t * p.pulse);
-  const hl = ctx.createRadialGradient(lx, ly, 0, lx, ly, R * 0.6);
-  hl.addColorStop(0, `hsla(${p.h0},100%,92%,${0.5 * pulse + 0.25})`);
-  hl.addColorStop(1, `hsla(${p.h0},100%,92%,0)`);
-  ctx.fillStyle = hl;
+  // Whisper of life: a slow-breathing specular sheen near the light point.
+  // Subtle enough that a static frame still reads as a flat matte disc.
+  const la = p.light + t * 0.15;
+  const sx = bx + Math.cos(la) * R * 0.08;
+  const sy = by + Math.sin(la) * R * 0.08;
+  const sa = 0.1 + 0.04 * Math.sin(t * p.pulse);
+  const sheen = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 0.75);
+  sheen.addColorStop(0, `rgba(255,255,255,${sa})`);
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = sheen;
   ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
   ctx.restore();
 
-  ctx.globalCompositeOperation = "source-over";
+  // Hairline rim.
   ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, 6.2832);
-  ctx.lineWidth = Math.max(1, S * 0.012);
-  const rim = ctx.createLinearGradient(lx - R, ly - R, cx + R, cy + R);
-  rim.addColorStop(0, `hsla(${p.h0},90%,90%,0.5)`);
-  rim.addColorStop(0.5, `hsla(${p.h0},80%,80%,0.05)`);
-  rim.addColorStop(1, `hsla(${p.h2},70%,60%,0.15)`);
-  ctx.strokeStyle = rim;
+  ctx.arc(cx, cy, R, 0, TAU);
+  ctx.lineWidth = Math.max(1, S * 0.01);
+  ctx.strokeStyle = p.paint.rim;
   ctx.stroke();
 }
 
+/** Fixed params for the pre-setup porcelain placeholder. */
+const PLACEHOLDER_PARAMS: OrbParams = {
+  paletteId: "porcelain",
+  paint: paintFor(PALETTE_BY_ID.get("porcelain")!),
+  light: 0.8,
+  pulse: 1.1,
+};
+
 /**
- * The pre-setup "placeholder" orb: a luminous mother-of-pearl sphere whose
- * full-spectrum iridescence sweeps continuously — it never settles on one
- * colour, so it reads as "unset / searching" until the user picks their
- * committed orb. Heavily animated: a drifting pearl tint, six orbiting spectral
- * flecks, two counter-rotating nacre sheen bands, a travelling refracted
- * spectrum arc-ring, plus a pulsing specular highlight and an iridescent rim.
+ * The pre-setup "placeholder" orb: the porcelain-white matte disc — the
+ * neutral "unset" state until the user picks their committed colour. Same
+ * renderer as the committed orbs, so the whole family matches.
  *
- * Pure function of (ctx, S, t) — no seed, no module state. From the
- * design-panel winner ("opal-nacre") with the arc-ring grafted from the
- * runner-up ("prism-energy-core") for an extra motion layer legible at ~20px.
+ * Pure function of (ctx, S, t) — no seed, no module state.
  */
 export function drawPlaceholder(
   ctx: CanvasRenderingContext2D,
   S: number,
   t: number,
 ): void {
-  const cx = S / 2;
-  const cy = S / 2;
-  const R = S * 0.46;
-  const TAU = 6.2832;
-
-  // Master light point — orbits slowly, drives shading, highlight and rim.
-  const la = t * 0.5;
-  const lx = cx + Math.cos(la) * R * 0.34;
-  const ly = cy + Math.sin(la) * R * 0.34;
-
-  // Spectrum travel: the whole hue wheel sweeps continuously so the orb never
-  // settles on one colour → reads as "unset / searching", not a committed orb.
-  const spectrum = (t * 30) % 360;
-
-  ctx.globalCompositeOperation = "source-over";
-  ctx.clearRect(0, 0, S, S);
-
-  // ── soft outer halo / glow — pale iridescent, hue slowly breathing ──────────
-  const haloHue = (spectrum + 40 * Math.sin(t * 0.6)) % 360;
-  const halo = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R * 1.5);
-  halo.addColorStop(0, `hsla(${haloHue},75%,80%,0.34)`);
-  halo.addColorStop(0.5, `hsla(${(haloHue + 120) % 360},70%,78%,0.14)`);
-  halo.addColorStop(1, `hsla(${haloHue},75%,80%,0)`);
-  ctx.fillStyle = halo;
-  ctx.fillRect(0, 0, S, S);
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, TAU);
-  ctx.clip();
-
-  // ── pale pearl body — luminous off-white, faint cool→warm tint that drifts ──
-  const tilt = la * 0.6;
-  const gx = Math.cos(tilt) * R * 0.7;
-  const gy = Math.sin(tilt) * R * 0.7;
-  const base = ctx.createLinearGradient(cx - gx, cy - gy, cx + gx, cy + gy);
-  base.addColorStop(0, `hsl(${(spectrum + 200) % 360},50%,88%)`);
-  base.addColorStop(0.5, `hsl(${(spectrum + 60) % 360},32%,94%)`);
-  base.addColorStop(1, `hsl(${(spectrum + 330) % 360},48%,86%)`);
-  ctx.fillStyle = base;
-  ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-
-  // ── iridescent flecks: screen-blended spectral lobes orbiting the centre ────
-  ctx.globalCompositeOperation = "screen";
-  const N = 6;
-  for (let i = 0; i < N; i++) {
-    const phase = (i / N) * TAU;
-    const dir = i % 2 === 0 ? 1 : -1;
-    const a = phase + t * (0.4 + 0.09 * i) * dir;
-    const dd =
-      (0.18 + 0.3 * (i % 3) * 0.5) *
-      (1 + 0.36 * Math.sin(t * (0.75 + 0.16 * i) + phase));
-    const bx = cx + Math.cos(a) * R * dd;
-    const by = cy + Math.sin(a) * R * dd;
-    const hue = (spectrum + (i / N) * 360) % 360;
-    const al = 0.42 + 0.16 * Math.sin(t * 1.4 + phase);
-    const rad = 0.58 + 0.18 * Math.sin(t * 0.55 + phase);
-    const g = ctx.createRadialGradient(bx, by, 0, bx, by, R * rad);
-    g.addColorStop(0, `hsla(${Math.round(hue)},98%,70%,${al})`);
-    g.addColorStop(
-      0.6,
-      `hsla(${Math.round((hue + 30) % 360)},95%,68%,${al * 0.45})`,
-    );
-    g.addColorStop(1, `hsla(${Math.round(hue)},98%,70%,0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-  }
-
-  // ── nacre sheen bands: two wide rotating spectral bands sweep across body ───
-  for (let k = 0; k < 2; k++) {
-    const ba = t * (0.65 + 0.28 * k) * (k === 0 ? 1 : -1) + k * 1.7;
-    const dx = Math.cos(ba) * R;
-    const dy = Math.sin(ba) * R;
-    const bandHue = (spectrum + 180 * k + 90 * Math.sin(t * 0.4 + k)) % 360;
-    const band = ctx.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy);
-    const ba0 = 0.13 + 0.07 * Math.sin(t * 1.1 + k * 2);
-    band.addColorStop(0, `hsla(${bandHue},92%,75%,0)`);
-    band.addColorStop(0.4, `hsla(${bandHue},94%,76%,${ba0})`);
-    band.addColorStop(
-      0.5,
-      `hsla(${(bandHue + 55) % 360},97%,82%,${ba0 + 0.13})`,
-    );
-    band.addColorStop(0.6, `hsla(${(bandHue + 110) % 360},94%,76%,${ba0})`);
-    band.addColorStop(1, `hsla(${bandHue},92%,75%,0)`);
-    ctx.fillStyle = band;
-    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-  }
-
-  // ── grafted from "prism-energy-core": one travelling refracted spectrum
-  //    arc-ring. A screen-blended stroked circle whose rainbow sweeps and whose
-  //    centre gently orbits — a distinct extra motion layer that stays legible
-  //    even at ~20px (thicker stroke than prism's pair of thin rings). ─────────
-  {
-    const rr = R * 0.7 * (1 + 0.05 * Math.sin(t * 1.6));
-    const ax = cx + Math.cos(t * 0.9) * R * 0.07;
-    const ay = cy + Math.sin(t * 0.9) * R * 0.07;
-    const ah = (t * 55 + 120) % 360;
-    const arc = ctx.createLinearGradient(ax - rr, ay - rr, ax + rr, ay + rr);
-    arc.addColorStop(0, `hsla(${ah},95%,72%,0)`);
-    arc.addColorStop(0.35, `hsla(${(ah + 40) % 360},95%,74%,0.42)`);
-    arc.addColorStop(0.5, `hsla(${(ah + 80) % 360},98%,84%,0.6)`);
-    arc.addColorStop(0.65, `hsla(${(ah + 120) % 360},95%,74%,0.42)`);
-    arc.addColorStop(1, `hsla(${ah},95%,72%,0)`);
-    ctx.strokeStyle = arc;
-    ctx.lineWidth = Math.max(2, S * 0.018);
-    ctx.beginPath();
-    ctx.arc(ax, ay, rr, 0, TAU);
-    ctx.stroke();
-  }
-
-  // ── sphere shading: darken toward the rim away from the light ───────────────
-  ctx.globalCompositeOperation = "source-over";
-  const shade = ctx.createRadialGradient(lx, ly, R * 0.1, cx, cy, R * 1.05);
-  shade.addColorStop(0, "rgba(20,16,40,0)");
-  shade.addColorStop(0.62, "rgba(18,14,38,0)");
-  shade.addColorStop(1, "rgba(24,16,46,0.42)");
-  ctx.fillStyle = shade;
-  ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-
-  // ── bright specular highlight, pulsing, faintly tinted by the spectrum ──────
-  ctx.globalCompositeOperation = "screen";
-  const pulse = 0.5 + 0.3 * Math.sin(t * 1.8);
-  const hlHue = (spectrum + 60) % 360;
-  const hl = ctx.createRadialGradient(lx, ly, 0, lx, ly, R * 0.62);
-  hl.addColorStop(0, `hsla(${hlHue},65%,99%,${0.55 * pulse + 0.3})`);
-  hl.addColorStop(0.5, `hsla(${(hlHue + 40) % 360},85%,90%,${0.2 * pulse})`);
-  hl.addColorStop(1, `hsla(${hlHue},65%,99%,0)`);
-  ctx.fillStyle = hl;
-  ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-  ctx.restore();
-
-  // ── iridescent rim: thin stroke, bright where the light is, hue travelling ──
-  ctx.globalCompositeOperation = "source-over";
-  ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, TAU);
-  ctx.lineWidth = Math.max(1, S * 0.012);
-  const rim = ctx.createLinearGradient(lx - R, ly - R, cx + R, cy + R);
-  rim.addColorStop(0, `hsla(${(spectrum + 30) % 360},92%,90%,0.7)`);
-  rim.addColorStop(0.5, `hsla(${(spectrum + 180) % 360},88%,85%,0.1)`);
-  rim.addColorStop(1, `hsla(${(spectrum + 300) % 360},85%,80%,0.38)`);
-  ctx.strokeStyle = rim;
-  ctx.stroke();
-
-  ctx.globalCompositeOperation = "source-over";
+  draw(ctx, S, PLACEHOLDER_PARAMS, t);
 }
 
 /** The orb's emotional state, expressed through its eyes. */
@@ -498,6 +412,8 @@ export function drawEyes(
   expr: OrbExpression,
   f: EyeFrame,
   traits: OrbFaceTraits = faceTraits("orb", false),
+  /** Face colour for the current body — dark on light discs, light on ink. */
+  ink = "rgba(10,8,16,0.95)",
 ): void {
   const o = Math.max(0, Math.min(1.4, f.open));
   if (o <= 0.001) return;
@@ -517,7 +433,6 @@ export function drawEyes(
   ctx.globalCompositeOperation = "source-over";
   ctx.shadowColor = "rgba(0,0,0,0.28)";
   ctx.shadowBlur = S * 0.018;
-  const ink = "rgba(10,8,16,0.95)";
   ctx.fillStyle = ink;
   ctx.strokeStyle = ink;
   ctx.lineCap = "round";
@@ -782,6 +697,7 @@ export function mount(
           gazeY,
         },
         traits,
+        placeholder ? PLACEHOLDER_PARAMS.paint.ink : p.paint.ink,
       );
     }
   };
@@ -851,7 +767,8 @@ export function toDataURL(
   c.height = size * ratio;
   const ctx = c.getContext("2d");
   if (!ctx) return "";
-  draw(ctx, c.width, params(seed), 0.6);
+  const p = params(seed);
+  draw(ctx, c.width, p, 0.6);
   if (expression) {
     const traits = faceTraits(seed, false);
     drawEyes(
@@ -866,6 +783,7 @@ export function toDataURL(
         gazeY: 0,
       },
       traits,
+      p.paint.ink,
     );
   }
   const url = c.toDataURL("image/png");
@@ -873,14 +791,32 @@ export function toDataURL(
   return url;
 }
 
-// ── seed helpers (uniqueness comes from the per-user `userId` in the seed) ────
+// ── seed helpers ──────────────────────────────────────────────────────────────
+// Colour comes from the palette id; the per-user salt keeps face traits
+// unique, so two coworkers with the same colour still don't look the same.
 
-/** The default orb seed for a user — deterministic + unique per user. */
-export function defaultOrbSeed(userId: string): string {
-  return `${userId}:0`;
+/** Seed for a specific palette colour, salted for per-user face traits. */
+export function orbSeedFor(paletteId: string, salt?: string): string {
+  return salt ? `orb:${paletteId}:${salt}` : `orb:${paletteId}`;
 }
 
-/** Candidate seeds for the "pick your orb" selector (all unique to the user). */
-export function orbCandidateSeeds(userId: string, count = 6): string[] {
-  return Array.from({ length: count }, (_, i) => `${userId}:${i}`);
+/** The default orb seed for a user — a deterministic tinted palette pick. */
+export function defaultOrbSeed(userId: string): string {
+  const r = mulberry32(xmur3(`${userId}:default`)());
+  const entry = TINTED[Math.floor(r() * TINTED.length)] ?? TINTED[0]!;
+  return orbSeedFor(entry.id, userId);
+}
+
+/**
+ * Candidate seeds for the "pick your colour" selector — a tight, curated
+ * set: the ink anchor plus the jewel tier (porcelain is offered separately
+ * by the picker as the "standard" placeholder option), salted per user.
+ * The pastel tier stays in the palette for variety elsewhere without
+ * overwhelming the picker.
+ */
+export function orbCandidateSeeds(userId: string, count?: number): string[] {
+  const pool = ORB_PALETTE.filter((e) => e.id === "ink" || e.tier === "jewel");
+  return pool
+    .slice(0, count ?? pool.length)
+    .map((e) => orbSeedFor(e.id, userId));
 }

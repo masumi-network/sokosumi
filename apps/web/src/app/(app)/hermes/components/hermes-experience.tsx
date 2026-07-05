@@ -471,7 +471,7 @@ export default function HermesExperience({
   }
 
   if (uiState === "idle") {
-    return <EmptyState onActivate={handleActivate} seed={effectiveOrbSeed} />;
+    return <EmptyState onActivate={handleActivate} />;
   }
   if (uiState === "provisioning") {
     return <ProvisioningState seed={committedOrbSeed} />;
