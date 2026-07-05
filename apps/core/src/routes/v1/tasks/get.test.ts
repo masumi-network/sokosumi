@@ -9,15 +9,24 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasks from "./get";
 
-const { requireCoworkerCapabilityMock, taskCountMock, taskFindManyMock } =
-  vi.hoisted(() => ({
-    requireCoworkerCapabilityMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    taskFindManyMock: vi.fn(),
-  }));
+const {
+  hasCoworkerGrantMock,
+  requireCoworkerCapabilityMock,
+  taskCountMock,
+  taskFindManyMock,
+} = vi.hoisted(() => ({
+  hasCoworkerGrantMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+}));
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
+
+vi.mock("@/helpers/coworker-grants", () => ({
+  hasCoworkerGrant: hasCoworkerGrantMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -124,8 +133,26 @@ describe("GET /tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
+    hasCoworkerGrantMock.mockResolvedValue(true);
     taskFindManyMock.mockResolvedValue([]);
     taskCountMock.mockResolvedValue(0);
+  });
+
+  it("soft-degrades an ungranted delegated coworker to assigned tasks only", async () => {
+    hasCoworkerGrantMock.mockResolvedValue(false);
+
+    const app = createApp(DELEGATED_COWORKER_AUTH_CONTEXT);
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          coworkerId: "cow_123",
+          NOT: { status: { in: [TaskStatus.DRAFT] } },
+        }),
+      }),
+    );
   });
 
   it("parses multiple statuses into an IN filter", async () => {

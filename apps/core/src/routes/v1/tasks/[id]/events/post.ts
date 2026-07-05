@@ -8,7 +8,10 @@ import { waitUntil } from "@vercel/functions";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { requireTaskCollaboration } from "@/helpers/access-control";
+import {
+  requireTaskCollaboration,
+  requireTaskCommentAccess,
+} from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
   getCreditCostsOrThrow,
@@ -213,12 +216,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       async (tx) => {
         // Comment-only events (no status transition, hence no billing — the
         // credits/masumi paths are only reachable through the status branch)
-        // are open to delegated coordinators like Hermes on tasks the
-        // delegated user owns, even when assigned to another coworker.
-        // Status changes keep the strict assignment gate.
-        const task = await requireTaskCollaboration(authContext, taskId, tx, {
-          allowUnassignedDelegate: body.status === undefined,
-        });
+        // use the wider comment gate: workspace members may comment on
+        // colleagues' tasks, and delegated coordinators like Hermes may
+        // comment on unassigned tasks the delegated user owns when granted
+        // TASK_COMMENT. Status changes keep the strict ownership/assignment
+        // gate.
+        const task =
+          body.status === undefined
+            ? await requireTaskCommentAccess(c.var, taskId, tx)
+            : await requireTaskCollaboration(authContext, taskId, tx);
         const {
           status,
           comment,

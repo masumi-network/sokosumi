@@ -2308,7 +2308,8 @@ export const NotificationKind = {
     TASK: 'TASK',
     CONVERSATION: 'CONVERSATION',
     BILLING: 'BILLING',
-    SYSTEM: 'SYSTEM'
+    SYSTEM: 'SYSTEM',
+    COWORKER_ACCESS: 'COWORKER_ACCESS'
 } as const;
 
 /**
@@ -2408,6 +2409,43 @@ export type PublicSharedTaskMilestone = {
     credits: number | null;
     actorName: string | null;
     actorImage: string | null;
+};
+
+export type CoworkerGrantList = Array<CoworkerGrant>;
+
+export type CoworkerGrant = {
+    id: string;
+    scope: CoworkerGrantScope;
+    status: CoworkerGrantStatus;
+    createdAt: Date;
+    resolvedAt: Date | null;
+    coworker: {
+        id: string;
+        slug: string;
+        name: string;
+        image: string | null;
+    };
+};
+
+export const CoworkerGrantScope = {
+    TASK_READ: 'TASK_READ',
+    TASK_COMMENT: 'TASK_COMMENT',
+    TASK_CREATE: 'TASK_CREATE'
+} as const;
+
+export type CoworkerGrantScope = typeof CoworkerGrantScope[keyof typeof CoworkerGrantScope];
+
+export const CoworkerGrantStatus = {
+    PENDING: 'PENDING',
+    GRANTED: 'GRANTED',
+    DENIED: 'DENIED',
+    REVOKED: 'REVOKED'
+} as const;
+
+export type CoworkerGrantStatus = typeof CoworkerGrantStatus[keyof typeof CoworkerGrantStatus];
+
+export type ResolveCoworkerGrantRequest = {
+    status: 'GRANTED' | 'DENIED' | 'REVOKED';
 };
 
 export type Coworker = {
@@ -2690,12 +2728,12 @@ export type WorkspaceOrganization = {
 export type OrganizationSlug = string;
 
 /**
- * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+ * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
  */
 export type DelegationUserId = string;
 
 /**
- * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+ * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
  */
 export type DelegationOrganizationId = string;
 
@@ -4070,11 +4108,11 @@ export type GetAgentsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4153,11 +4191,11 @@ export type GetAgentsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4225,11 +4263,11 @@ export type GetAgentsByIdReviewsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4306,11 +4344,11 @@ export type GetAgentsByIdReviewsMeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4378,11 +4416,11 @@ export type GetAgentsByIdRatingsEligibilityData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4450,11 +4488,11 @@ export type PostAgentsByIdRatingsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4550,11 +4588,11 @@ export type GetAgentsByIdInputSchemaData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -5571,11 +5609,11 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6630,11 +6668,11 @@ export type PostAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6772,11 +6810,11 @@ export type GetCategoriesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6828,11 +6866,11 @@ export type GetChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7049,11 +7087,11 @@ export type PostChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7196,11 +7234,11 @@ export type GetChatStreamByConversationIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7469,11 +7507,11 @@ export type GetConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7553,11 +7591,11 @@ export type PostConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7651,11 +7689,11 @@ export type GetConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7754,11 +7792,11 @@ export type PatchConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7857,11 +7895,11 @@ export type GetConversationsByIdWarmupData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7960,11 +7998,11 @@ export type PatchConversationsByIdArchiveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8063,11 +8101,11 @@ export type GetConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8175,11 +8213,11 @@ export type PostConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -9422,11 +9460,11 @@ export type PostHermesChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -9545,11 +9583,11 @@ export type DeleteHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -9629,11 +9667,11 @@ export type GetHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -9713,11 +9751,11 @@ export type PatchHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -9825,11 +9863,11 @@ export type PostHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -9923,11 +9961,11 @@ export type GetHermesMeMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10002,11 +10040,11 @@ export type GetHermesMeUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10072,11 +10110,11 @@ export type PostHermesMeInboxSeenData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10156,11 +10194,11 @@ export type PostHermesMeSecretsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10268,11 +10306,11 @@ export type PostHermesMeInstanceOnboardData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10366,11 +10404,11 @@ export type GetHermesMeInstanceOnboardingProgressData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10450,11 +10488,11 @@ export type GetHermesMeInstanceIntegrationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10534,11 +10572,11 @@ export type GetHermesMeInstanceSchedulesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10618,11 +10656,11 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10732,11 +10770,11 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10832,11 +10870,11 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10932,11 +10970,11 @@ export type DeleteHermesMeInstanceIntegrationsByProviderData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11018,11 +11056,11 @@ export type PostHermesMeInstanceIntegrationsInitiateData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11116,11 +11154,11 @@ export type PostHermesMeInstanceIntegrationsFinalizeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11214,11 +11252,11 @@ export type GetHermesMeInstanceSkillsCatalogData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11288,11 +11326,11 @@ export type GetHermesMeInstanceSkillsCatalogSearchData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11361,11 +11399,11 @@ export type GetHermesMeInstanceSkillsCatalogCuratedData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11431,11 +11469,11 @@ export type GetHermesMeInstanceSkillsCatalogDetailData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11518,11 +11556,11 @@ export type GetHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11588,11 +11626,11 @@ export type PostHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11714,11 +11752,11 @@ export type GetHermesMeInstanceSkillsPreinstalledData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11784,11 +11822,11 @@ export type DeleteHermesMeInstanceSkillsBySlugData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11884,11 +11922,11 @@ export type GetHistoryData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12095,11 +12133,11 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14044,11 +14082,11 @@ export type GetUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14147,11 +14185,11 @@ export type PostUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14250,11 +14288,11 @@ export type GetUsersByIdSubscriptionData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -15944,11 +15982,11 @@ export type GetProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16037,11 +16075,11 @@ export type PostProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16107,11 +16145,11 @@ export type GetProjectsStatsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16196,11 +16234,11 @@ export type PostProjectsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16296,11 +16334,11 @@ export type DeleteProjectsByIdJobsByJobIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16383,11 +16421,11 @@ export type PostProjectsByIdTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16483,11 +16521,11 @@ export type DeleteProjectsByIdTasksByTaskIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16570,11 +16608,11 @@ export type DeleteProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16656,11 +16694,11 @@ export type GetProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16742,11 +16780,11 @@ export type PatchProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16842,11 +16880,11 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -16951,11 +16989,11 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17053,11 +17091,11 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17167,11 +17205,11 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17281,11 +17319,11 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17381,11 +17419,11 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17481,11 +17519,11 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17596,11 +17634,11 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17738,11 +17776,11 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17838,11 +17876,11 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17928,11 +17966,11 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18016,11 +18054,11 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18130,11 +18168,11 @@ export type GetNotificationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18231,11 +18269,11 @@ export type GetNotificationsUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18301,11 +18339,11 @@ export type PatchNotificationsByIdReadData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18404,11 +18442,11 @@ export type PatchNotificationsReadAllData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18556,6 +18594,148 @@ export type GetShareByTokenResponses = {
 };
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
+
+export type GetCoworkerGrantsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coworker-grants';
+};
+
+export type GetCoworkerGrantsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCoworkerGrantsError = GetCoworkerGrantsErrors[keyof GetCoworkerGrantsErrors];
+
+export type GetCoworkerGrantsResponses = {
+    /**
+     * List coworker grants
+     */
+    200: {
+        data: CoworkerGrantList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCoworkerGrantsResponse = GetCoworkerGrantsResponses[keyof GetCoworkerGrantsResponses];
+
+export type PatchCoworkerGrantsByIdData = {
+    body?: ResolveCoworkerGrantRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworker-grants/{id}';
+};
+
+export type PatchCoworkerGrantsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchCoworkerGrantsByIdError = PatchCoworkerGrantsByIdErrors[keyof PatchCoworkerGrantsByIdErrors];
+
+export type PatchCoworkerGrantsByIdResponses = {
+    /**
+     * Resolve coworker grant
+     */
+    200: {
+        data: CoworkerGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchCoworkerGrantsByIdResponse = PatchCoworkerGrantsByIdResponses[keyof PatchCoworkerGrantsByIdResponses];
 
 export type GetCoworkersData = {
     body?: never;
@@ -19578,11 +19758,11 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19705,11 +19885,11 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.
          */
         'X-Delegation-Organization-Id'?: string;
     };

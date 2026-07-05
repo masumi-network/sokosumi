@@ -3008,7 +3008,33 @@
       "tabs": {
         "connectedApps": "Apps conectadas",
         "apiKeys": "API Keys",
-        "mcp": "MCP"
+        "mcp": "MCP",
+        "coworkerAccess": "Acceso de coworkers"
+      },
+      "CoworkerAccess": {
+        "heading": "Acceso de coworkers",
+        "description": "Controla qué pueden hacer los coworkers de IA con tus tareas cuando actúan en tu nombre. Las solicitudes pendientes esperan aquí (y en tus notificaciones) hasta que decidas.",
+        "empty": "Ningún coworker ha solicitado acceso todavía.",
+        "pendingHeading": "Esperando tu aprobación",
+        "resolvedHeading": "Decididas",
+        "approve": "Aprobar",
+        "deny": "Denegar",
+        "revoke": "Revocar",
+        "resolveFailed": "No se pudo actualizar el acceso del coworker",
+        "approvedToast": "Acceso concedido correctamente",
+        "updatedToast": "Acceso actualizado correctamente",
+        "loadError": "No se pudo cargar el acceso de coworkers. Inténtalo de nuevo.",
+        "scopes": {
+          "taskRead": "Ver tus tareas y su actividad",
+          "taskComment": "Comentar en tus tareas",
+          "taskCreate": "Crear tareas que empiezan sin tu revisión"
+        },
+        "status": {
+          "PENDING": "Pendiente",
+          "GRANTED": "Concedido",
+          "DENIED": "Denegado",
+          "REVOKED": "Revocado"
+        }
       }
     },
     "MCP": {
@@ -3804,6 +3830,9 @@
       }
     },
     "Notifications": {
+      "CoworkerAccess": {
+        "requested": "{coworkerName} pide permiso para {scope, select, TASK_READ {ver tus tareas} TASK_COMMENT {comentar en tus tareas} TASK_CREATE {crear tareas por ti} other {acceder a tus tareas}}"
+      },
       "Job": {
         "completed": "{agentName} completó {jobName}",
         "failed": "{agentName} no pudo completar {jobName}",
@@ -3815,6 +3844,7 @@
       "Task": {
         "inputRequired": "{coworkerName} necesita tu input para {taskName}",
         "approvalRequired": "{coworkerName} necesita tu aprobación para {taskName}",
+        "awaitingAcceptance": "{coworkerName} creó \"{taskName}\" — está esperando tu aceptación",
         "authenticationRequired": "{coworkerName} necesita autenticación para {taskName}",
         "outOfCredits": "{coworkerName} se quedó sin créditos para {taskName}",
         "completed": "{coworkerName} completó {taskName}",

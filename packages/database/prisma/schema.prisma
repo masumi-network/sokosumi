@@ -63,8 +63,9 @@ model User {
   onboardingCompleted Boolean @default(false)
 
   // Coworkers
-  coworkers Coworker[]
-  workspace Workspace?
+  coworkers      Coworker[]
+  coworkerGrants CoworkerGrant[]
+  workspace      Workspace?
 
   tasks          Task[]
   taskEvents     TaskEvent[]
@@ -267,6 +268,7 @@ enum NotificationKind {
   CONVERSATION
   BILLING
   SYSTEM
+  COWORKER_ACCESS
 }
 
 model Notification {
@@ -1157,9 +1159,53 @@ model Coworker {
   tasks          Task[]
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
+  grants         CoworkerGrant[]
 
   @@index([archivedAt])
   @@map("coworker")
+}
+
+/// Scope of what a coworker may do with a specific user's data via API-key
+/// delegation. Extend here as more delegated surfaces get gated.
+enum CoworkerGrantScope {
+  TASK_READ
+  TASK_COMMENT
+  TASK_CREATE
+}
+
+enum CoworkerGrantStatus {
+  PENDING
+  GRANTED
+  DENIED
+  REVOKED
+}
+
+/// Per-(coworker, user, scope) consent record behind coworker API-key
+/// delegation — the "acceptance" a user gives a coworker to act on their
+/// data. Requested automatically when a delegated call lacks access (the
+/// call fails with kind=grant_required and a PENDING row + notification
+/// appear); resolved by the user in the Coworker access portal or via the
+/// notification deep-link. Hermes is auto-granted at instance provisioning.
+model CoworkerGrant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scope  CoworkerGrantScope
+  status CoworkerGrantStatus @default(PENDING)
+
+  /// When the user resolved the request (approved / denied / revoked).
+  resolvedAt DateTime?
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coworkerId, userId, scope])
+  @@index([userId, status])
+  @@map("coworker_grant")
 }
 
 model CoworkerApiKey {

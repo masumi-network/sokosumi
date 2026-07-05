@@ -11,6 +11,7 @@ import chatRouter from "./chat/index.js";
 import checkoutRouter from "./checkout/index.js";
 import conversationsRouter from "./conversations/index.js";
 import couponsRouter from "./coupons/index.js";
+import coworkerGrantsRouter from "./coworker-grants/index.js";
 import coworkersRouter from "./coworkers/index.js";
 import creditCostsRouter from "./credit-costs/index.js";
 import enterpriseRouter from "./enterprise/index.js";
@@ -52,7 +53,7 @@ app.openAPIRegistry.registerComponent("parameters", "DelegationUserId", {
   name: "X-Delegation-User-Id",
   in: "header",
   description:
-    "Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.",
+    "Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Access beyond tasks assigned to the coworker is governed by per-user coworker grants (kind=grant_required errors ask the user for approval).",
   required: false,
   schema: {
     type: "string",
@@ -67,7 +68,7 @@ app.openAPIRegistry.registerComponent(
     name: "X-Delegation-Organization-Id",
     in: "header",
     description:
-      "Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.",
+      "Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Access beyond tasks assigned to the coworker is governed by per-user coworker grants.",
     required: false,
     schema: {
       type: "string",
@@ -128,6 +129,7 @@ app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
+app.route("/coworker-grants", coworkerGrantsRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);
 app.route("/products", productsRouter);

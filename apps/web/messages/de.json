@@ -3008,7 +3008,33 @@
       "tabs": {
         "connectedApps": "Verbundene Apps",
         "apiKeys": "API-Keys",
-        "mcp": "MCP"
+        "mcp": "MCP",
+        "coworkerAccess": "Coworker-Zugriff"
+      },
+      "CoworkerAccess": {
+        "heading": "Coworker-Zugriff",
+        "description": "Lege fest, was KI-Coworker mit deinen Aufgaben tun dürfen, wenn sie in deinem Namen handeln. Offene Anfragen warten hier (und in deinen Benachrichtigungen) auf deine Entscheidung.",
+        "empty": "Bisher hat kein Coworker Zugriff angefragt.",
+        "pendingHeading": "Wartet auf deine Freigabe",
+        "resolvedHeading": "Entschieden",
+        "approve": "Freigeben",
+        "deny": "Ablehnen",
+        "revoke": "Widerrufen",
+        "resolveFailed": "Coworker-Zugriff konnte nicht aktualisiert werden",
+        "approvedToast": "Zugriff erfolgreich freigegeben",
+        "updatedToast": "Zugriff erfolgreich aktualisiert",
+        "loadError": "Coworker-Zugriff konnte nicht geladen werden. Bitte erneut versuchen.",
+        "scopes": {
+          "taskRead": "Deine Aufgaben und deren Aktivität ansehen",
+          "taskComment": "Deine Aufgaben kommentieren",
+          "taskCreate": "Aufgaben erstellen, die ohne deine Prüfung starten"
+        },
+        "status": {
+          "PENDING": "Ausstehend",
+          "GRANTED": "Freigegeben",
+          "DENIED": "Abgelehnt",
+          "REVOKED": "Widerrufen"
+        }
       }
     },
     "MCP": {
@@ -3804,6 +3830,9 @@
       }
     },
     "Notifications": {
+      "CoworkerAccess": {
+        "requested": "{coworkerName} bittet um Erlaubnis, {scope, select, TASK_READ {deine Aufgaben zu sehen} TASK_COMMENT {deine Aufgaben zu kommentieren} TASK_CREATE {Aufgaben für dich zu erstellen} other {auf deine Aufgaben zuzugreifen}}"
+      },
       "Job": {
         "completed": "{agentName} hat {jobName} abgeschlossen",
         "failed": "{agentName} konnte {jobName} nicht abschließen",
@@ -3815,6 +3844,7 @@
       "Task": {
         "inputRequired": "{coworkerName} benötigt deinen Input für {taskName}",
         "approvalRequired": "{coworkerName} benötigt deine Freigabe für {taskName}",
+        "awaitingAcceptance": "{coworkerName} hat \"{taskName}\" erstellt — die Aufgabe wartet auf deine Annahme",
         "authenticationRequired": "{coworkerName} benötigt eine Authentifizierung für {taskName}",
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",

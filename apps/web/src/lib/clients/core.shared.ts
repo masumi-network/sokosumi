@@ -91,6 +91,7 @@ import {
   getConversationsByIdMessages as coreGetConversationsByIdMessages,
   getConversationsByIdWarmup as coreGetConversationsByIdWarmup,
   getCouponDetails as coreGetCouponDetails,
+  getCoworkerGrants as coreGetCoworkerGrants,
   getCoworkers as coreGetCoworkers,
   getCreditTopUpPriceCatalog as coreGetCreditTopUpPriceCatalog,
   getEnterpriseContracts as coreGetEnterpriseContracts,
@@ -151,6 +152,7 @@ import {
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
+  patchCoworkerGrantsById as corePatchCoworkerGrantsById,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
   patchHermesMeInstance as corePatchHermesMeInstance,
   patchHermesMeInstanceSchedulesByScheduleId as corePatchHermesMeInstanceSchedulesByScheduleId,
@@ -1811,6 +1813,36 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getCoworkerGrants() {
+    const response = await executeOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkerGrants({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch coworker grants",
+    );
+    return response.data;
+  }
+
+  async function resolveCoworkerGrant(
+    id: string,
+    status: "GRANTED" | "DENIED" | "REVOKED",
+  ) {
+    const response = await executeOperation(
+      getClient,
+      (client) =>
+        corePatchCoworkerGrantsById({
+          client,
+          path: { id },
+          body: { status },
+        }),
+      "Failed to resolve coworker grant",
+    );
+    return response.data;
+  }
+
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
     const response = await executeOperation(
       getClient,
@@ -2786,7 +2818,9 @@ export function createCoreClient(getClient: GetClient) {
     setMyDesignMd,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
+    getCoworkerGrants,
     getPendingNotices,
+    resolveCoworkerGrant,
     getProjects,
     getProjectsById,
     getProjectsStats,

@@ -21,6 +21,7 @@ const {
   prismaTransactionMock,
   publishTaskEventDataMock,
   requireTaskCollaborationMock,
+  requireTaskCommentAccessMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -41,11 +42,13 @@ const {
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
+  requireTaskCommentAccessMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskCommentAccess: requireTaskCommentAccessMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -269,6 +272,7 @@ describe("POST /{id}/events", () => {
       user: { notificationsOptIn: true },
     });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
+    requireTaskCommentAccessMock.mockResolvedValue(createTask());
   });
 
   it("allows coworkers to create OUT_OF_CREDITS events", async () => {
@@ -826,14 +830,15 @@ describe("POST /{id}/events", () => {
         }),
       }),
     );
-    // Comment-only events open the gate for unassigned delegated coordinators
-    // (Hermes commenting on a task it filed for another coworker).
-    expect(requireTaskCollaborationMock).toHaveBeenCalledWith(
+    // Comment-only events route through the wider comment gate (workspace
+    // members + grant-gated delegated coordinators), never the strict
+    // ownership/assignment gate.
+    expect(requireTaskCommentAccessMock).toHaveBeenCalledWith(
       expect.anything(),
       TASK_ID,
       expect.anything(),
-      { allowUnassignedDelegate: true },
     );
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
   });
 
   it("keeps the strict assignment gate for status transitions", async () => {
@@ -873,14 +878,14 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    // Any status-bearing event must NOT open the unassigned-delegate gate —
-    // transitions and billing stay assignment-scoped.
+    // Any status-bearing event must use the strict ownership/assignment
+    // gate — transitions and billing never route through the comment gate.
     expect(requireTaskCollaborationMock).toHaveBeenCalledWith(
       expect.anything(),
       TASK_ID,
       expect.anything(),
-      { allowUnassignedDelegate: false },
     );
+    expect(requireTaskCommentAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects an agent-only transition for a delegated coworker", async () => {

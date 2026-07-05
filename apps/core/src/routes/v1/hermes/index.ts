@@ -65,6 +65,7 @@ import {
   getWebAppBaseUrl,
   resolveSokosumiEnvForOrchestrator,
 } from "@/config/env";
+import { ensureHermesCoworkerGrants } from "@/helpers/coworker-grants";
 import {
   badRequest,
   conflict,
@@ -596,12 +597,28 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
   throw internalServerError(fallback);
 }
 
+/** Per-process memo so the per-poll GET path doesn't re-run the grant
+ * upsert on every tick; `skipDuplicates` makes re-runs harmless anyway. */
+const hermesGrantsEnsuredForUser = new Set<string>();
+
 async function upsertHermesInstanceForUser(userId: string): Promise<void> {
   await prisma.hermesInstance.upsert({
     where: { userId },
     create: { userId },
     update: {},
   });
+  // The user's own Hermes is auto-granted task access at setup (and lazily
+  // backfilled for instances that predate the grant system). Create-if-
+  // missing only — an explicit user revocation is never overridden.
+  if (!hermesGrantsEnsuredForUser.has(userId)) {
+    hermesGrantsEnsuredForUser.add(userId);
+    await ensureHermesCoworkerGrants(userId).catch((error) => {
+      Sentry.captureException(error, {
+        tags: { context: "hermes_auto_grant" },
+        extra: { userId },
+      });
+    });
+  }
 }
 
 /**

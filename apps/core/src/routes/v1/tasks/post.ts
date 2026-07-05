@@ -1,10 +1,20 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import * as Sentry from "@sentry/node";
+import {
+  CoworkerGrantScope,
+  NotificationKind,
+  TaskEventOrigin,
+} from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
+import {
+  hasCoworkerGrant,
+  requestCoworkerGrant,
+} from "@/helpers/coworker-grants";
 import { notFound } from "@/helpers/error";
+import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
@@ -14,7 +24,7 @@ import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
@@ -91,9 +101,38 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const { authContext } = c.var;
+    const userContext = requireUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
+
+    // A delegated coworker needs the user's TASK_CREATE grant for the task
+    // to start immediately. Without it the creation still succeeds but is
+    // forced to DRAFT ("awaiting acceptance") — invisible and inert to
+    // agents — a pending grant request is recorded, and the user is
+    // notified. Accepting is the existing DRAFT→READY flip.
+    const delegatedCoworkerId =
+      isCoworkerAuthContext(authContext) && authContext.delegation
+        ? authContext.coworkerId
+        : null;
+    let effectiveStatus = body.status;
+    let awaitingAcceptance = false;
+    if (delegatedCoworkerId) {
+      const granted = await hasCoworkerGrant(
+        delegatedCoworkerId,
+        userContext.userId,
+        CoworkerGrantScope.TASK_CREATE,
+      );
+      if (!granted) {
+        awaitingAcceptance = effectiveStatus !== TaskStatus.DRAFT;
+        effectiveStatus = TaskStatus.DRAFT;
+        await requestCoworkerGrant(
+          delegatedCoworkerId,
+          userContext.userId,
+          CoworkerGrantScope.TASK_CREATE,
+        );
+      }
+    }
 
     const resolvedName = await resolveTaskName({
       name: body.name,
@@ -102,7 +141,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const task = await prisma.$transaction(async (tx) => {
       validateTaskCoworkerAssignment({
-        status: body.status,
+        status: effectiveStatus,
         coworkerId: body.coworkerId,
       });
 
@@ -133,22 +172,49 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: resolvedName,
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,
-          status: body.status,
+          status: effectiveStatus,
           metadata: null,
           nextRunAt: null,
           events: {
             create: {
-              status: body.status,
+              status: effectiveStatus,
               comment: null,
               origin: body.origin,
               userId: userContext.userId,
-              coworkerId: null,
+              // Attribute delegated creations to the acting coworker so the
+              // activity trail shows "created by Hermes on behalf of you".
+              coworkerId: delegatedCoworkerId,
             },
           },
         },
         include: taskInclude,
       });
     });
+
+    if (awaitingAcceptance) {
+      try {
+        const creator = await prisma.coworker.findUnique({
+          where: { id: delegatedCoworkerId ?? "" },
+          select: { name: true },
+        });
+        await createNotification({
+          userId: userContext.userId,
+          kind: NotificationKind.TASK,
+          referenceId: task.id,
+          eventId: task.id,
+          messageKey: "Notifications.Task.awaitingAcceptance",
+          messageParams: {
+            coworkerName: creator?.name ?? "A coworker",
+            taskName: task.name ?? "Untitled task",
+          },
+          metadata: { workspaceId: task.workspaceId },
+        });
+      } catch (error) {
+        Sentry.captureException(error, {
+          extra: { taskId: task.id, notificationType: "task-notification" },
+        });
+      }
+    }
 
     return created(c, taskSchema.parse(mapTask(task)));
   });

@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { CoworkerGrantScope } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
@@ -43,11 +44,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { authContext, workspaceContext } = c.var;
 
-    // Delegated coordinators (Hermes) may read any task the delegated user
-    // owns, not only tasks assigned to them — they file tasks for other
-    // coworkers and need to follow up on them.
+    // Delegated coordinators (Hermes) may read unassigned tasks the
+    // delegated user owns when granted TASK_READ — they file tasks for
+    // other coworkers and need to follow up on them.
     await requireTaskReadForRouteVars(c.var, id, undefined, {
-      allowUnassignedDelegate: true,
+      unassignedDelegateGrant: CoworkerGrantScope.TASK_READ,
     });
 
     let task;

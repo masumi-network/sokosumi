@@ -1,8 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
+import { CoworkerGrantScope, Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
+import { hasCoworkerGrant } from "@/helpers/coworker-grants";
 import { badRequest } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -155,17 +156,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const workspaceContext = requireWorkspaceContext(
           c.var.workspaceContext,
         );
-        where = {
-          archivedAt: null,
-          workspaceId: workspaceContext.workspaceId,
-          ...(scope === "owned"
-            ? { userId: authContext.delegation.userId }
-            : {}),
-          ...(statuses ? { status: { in: statuses } } : {}),
-          ...(coworkerId ? { coworkerId } : {}),
-          ...projectFilter,
-          ...searchFilter,
-        };
+        // Workspace-wide visibility for a delegated coworker requires the
+        // user's TASK_READ grant. Without it the list soft-degrades to the
+        // executor baseline (assigned tasks, no DRAFTs) instead of failing —
+        // listing must not spam grant requests; per-task reads do that.
+        const canReadWorkspace = await hasCoworkerGrant(
+          authContext.coworkerId,
+          authContext.delegation.userId,
+          CoworkerGrantScope.TASK_READ,
+        );
+        where = canReadWorkspace
+          ? {
+              archivedAt: null,
+              workspaceId: workspaceContext.workspaceId,
+              ...(scope === "owned"
+                ? { userId: authContext.delegation.userId }
+                : {}),
+              ...(statuses ? { status: { in: statuses } } : {}),
+              ...(coworkerId ? { coworkerId } : {}),
+              ...projectFilter,
+              ...searchFilter,
+            }
+          : {
+              archivedAt: null,
+              workspaceId: workspaceContext.workspaceId,
+              coworkerId: authContext.coworkerId,
+              ...(statuses
+                ? {
+                    status: {
+                      in: statuses.filter((s) => s !== TaskStatus.DRAFT),
+                    },
+                  }
+                : {}),
+              ...projectFilter,
+              ...searchFilter,
+              NOT: { status: { in: [TaskStatus.DRAFT] } },
+            };
       } else {
         if (statuses?.includes(TaskStatus.DRAFT)) {
           throw badRequest(

@@ -36,6 +36,9 @@ export function getNotificationHref(
       return `${CHAT_APP_ROUTE_PREFIX}/${encodeURIComponent(bucketSegment)}/conversation/${encodeURIComponent(notification.referenceId)}?open=1`;
     }
 
+    case "COWORKER_ACCESS":
+      return "/connections?tab=coworker-access";
+
     default:
       return `/`;
   }

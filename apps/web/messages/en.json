@@ -3139,7 +3139,33 @@
       "tabs": {
         "connectedApps": "Connected Apps",
         "apiKeys": "API Keys",
-        "mcp": "MCP"
+        "mcp": "MCP",
+        "coworkerAccess": "Coworker access"
+      },
+      "CoworkerAccess": {
+        "heading": "Coworker access",
+        "description": "Control what AI coworkers may do with your tasks when acting on your behalf. Pending requests wait here (and in your notifications) until you decide.",
+        "empty": "No coworker has requested access yet.",
+        "pendingHeading": "Waiting for your approval",
+        "resolvedHeading": "Decided",
+        "approve": "Approve",
+        "deny": "Deny",
+        "revoke": "Revoke",
+        "resolveFailed": "Failed to update coworker access",
+        "approvedToast": "Access granted successfully",
+        "updatedToast": "Access updated successfully",
+        "loadError": "Failed to load coworker access. Please try again.",
+        "scopes": {
+          "taskRead": "View your tasks and their activity",
+          "taskComment": "Comment on your tasks",
+          "taskCreate": "Create tasks that start without your review"
+        },
+        "status": {
+          "PENDING": "Pending",
+          "GRANTED": "Granted",
+          "DENIED": "Denied",
+          "REVOKED": "Revoked"
+        }
       }
     },
     "MCP": {
@@ -3960,6 +3986,9 @@
       }
     },
     "Notifications": {
+      "CoworkerAccess": {
+        "requested": "{coworkerName} wants permission to {scope, select, TASK_READ {view your tasks} TASK_COMMENT {comment on your tasks} TASK_CREATE {create tasks for you} other {access your tasks}}"
+      },
       "Job": {
         "completed": "{agentName} completed {jobName}",
         "failed": "{agentName} failed to complete {jobName}",
@@ -3971,6 +4000,7 @@
       "Task": {
         "inputRequired": "{coworkerName} needs your input for {taskName}",
         "approvalRequired": "{coworkerName} needs your approval for {taskName}",
+        "awaitingAcceptance": "{coworkerName} created \"{taskName}\" — it's waiting for your acceptance",
         "authenticationRequired": "{coworkerName} needs authentication for {taskName}",
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",

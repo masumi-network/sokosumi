@@ -7,6 +7,7 @@ import { AccountProvider } from "@/lib/auth/types";
 import { ApiKeysSection } from "./api-keys";
 import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
+import { CoworkerAccessSection } from "./coworker-access/coworker-access-section";
 import { McpActiveKeyView } from "./mcp-active-key-view";
 import { SocialAccounts } from "./social-accounts";
 
@@ -42,6 +43,7 @@ export async function ConnectionsPage() {
           <ConnectionsTabs
             connectedAppsContent={<OAuthAuthorizedClients />}
             apiKeysContent={<ApiKeysSection />}
+            coworkerAccessContent={<CoworkerAccessSection />}
             mcpContent={
               <Suspense fallback={null}>
                 <McpActiveKeyView />

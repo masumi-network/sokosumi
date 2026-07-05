@@ -453,12 +453,10 @@ async function TaskActivitySectionContent({
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
   const isFreePlan = currentPlan === "free";
-  const isReadOnlyWorkspaceView = isReadOnlyForViewer({
-    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskUserId: task.userId,
-    sessionUserId: session?.user.id,
-    forceReadOnly,
-  });
+  // Editing stays owner-only (isReadOnlyForViewer), but commenting is open
+  // to every workspace member — Core authorizes comment-only events by
+  // workspace membership. Admin views (forceReadOnly) still cannot comment.
+  const canComment = !forceReadOnly && Boolean(session?.user.id);
 
   return (
     <TaskActivitySection
@@ -480,7 +478,7 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       isFreePlan={isFreePlan}
-      canComment={!isReadOnlyWorkspaceView}
+      canComment={canComment}
     />
   );
 }

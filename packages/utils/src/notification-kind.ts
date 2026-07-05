@@ -12,6 +12,7 @@ export const NotificationKind = {
   CONVERSATION: "CONVERSATION",
   BILLING: "BILLING",
   SYSTEM: "SYSTEM",
+  COWORKER_ACCESS: "COWORKER_ACCESS",
 } as const;
 
 export type NotificationKind =

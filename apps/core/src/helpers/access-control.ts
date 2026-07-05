@@ -1,4 +1,9 @@
-import { type Job, type Prisma, type Task } from "@sokosumi/database";
+import {
+  CoworkerGrantScope,
+  type Job,
+  type Prisma,
+  type Task,
+} from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
@@ -17,6 +22,7 @@ import {
 } from "@/middleware/workspace";
 
 import type { CoworkerCapability } from "./coworker-capability";
+import { requireCoworkerGrant } from "./coworker-grants";
 import { forbidden, notFound } from "./error";
 
 // -----------------------------------------------------------------------------
@@ -209,7 +215,10 @@ export interface TaskAccessOptions {
   /**
    * Allow a delegated coworker (a coordinator like Hermes acting for a user
    * via delegation headers) to access tasks the delegated user owns even
-   * when the task is assigned to a different coworker.
+   * when the task is assigned to a different coworker — IF the user has
+   * granted the coworker this scope (see `CoworkerGrant`). Without the
+   * grant the call fails with kind `grant_required` and a pending request
+   * + notification are recorded for the user to approve.
    *
    * Reserved for low-risk surfaces — reads and comment-only events — so the
    * coordinator can follow up on tasks it filed for other coworkers (it is
@@ -217,7 +226,7 @@ export interface TaskAccessOptions {
    * never pass this; they stay assignment-gated. Non-delegated coworker
    * callers (the executing agents themselves) are unaffected.
    */
-  allowUnassignedDelegate?: boolean;
+  unassignedDelegateGrant?: CoworkerGrantScope;
 }
 
 /**
@@ -227,7 +236,6 @@ export async function requireTaskCollaboration(
   authContext: AuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-  options: TaskAccessOptions = {},
 ): Promise<Task> {
   if (isUserAuthContext(authContext)) {
     return await requireTaskOwnership(
@@ -252,13 +260,60 @@ export async function requireTaskCollaboration(
     );
 
     // Delegation only authorizes collaboration on tasks assigned to this
-    // coworker — not every task the delegated user owns — unless the route
-    // explicitly opted into unassigned access (comment-only surfaces).
-    if (
-      !options.allowUnassignedDelegate &&
-      task.coworkerId !== coworker.coworkerId
-    ) {
+    // coworker — not every task the delegated user owns.
+    if (task.coworkerId !== coworker.coworkerId) {
       throw forbidden("You can only act on tasks assigned to your coworker");
+    }
+
+    return task;
+  }
+
+  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+}
+
+/**
+ * Comment access on a task (comment-only events — never status/billing):
+ * - session users: any member of the task's workspace may comment;
+ * - delegated coworkers: tasks owned by the delegated user — assigned to
+ *   the coworker, or covered by a TASK_COMMENT grant;
+ * - bare coworker agents: assigned tasks only (unchanged executor path).
+ */
+export async function requireTaskCommentAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext, workspaceContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    return await requireTaskReadForWorkspace(
+      requireWorkspaceContext(workspaceContext),
+      taskId,
+      tx,
+    );
+  }
+
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+
+    const task = await requireTaskOwnership(
+      {
+        source: "delegation",
+        userId: coworker.delegation.userId,
+        organizationId: coworker.delegation.organizationId,
+      },
+      taskId,
+      tx,
+    );
+
+    if (task.coworkerId !== coworker.coworkerId) {
+      await requireCoworkerGrant(
+        coworker.coworkerId,
+        coworker.delegation.userId,
+        CoworkerGrantScope.TASK_COMMENT,
+        tx,
+      );
     }
 
     return task;
@@ -328,12 +383,17 @@ export async function requireTaskReadForRouteVars(
     );
 
     // Delegation only authorizes reads of tasks assigned to this coworker,
-    // unless the route explicitly opted into unassigned access.
-    if (
-      !options.allowUnassignedDelegate &&
-      task.coworkerId !== coworker.coworkerId
-    ) {
-      throw forbidden("You can only access tasks assigned to your coworker");
+    // unless the route opted into grant-gated unassigned access.
+    if (task.coworkerId !== coworker.coworkerId) {
+      if (!options.unassignedDelegateGrant) {
+        throw forbidden("You can only access tasks assigned to your coworker");
+      }
+      await requireCoworkerGrant(
+        coworker.coworkerId,
+        coworker.delegation.userId,
+        options.unassignedDelegateGrant,
+        tx,
+      );
     }
 
     return task;

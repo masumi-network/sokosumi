@@ -8132,7 +8132,8 @@ export const NotificationKindSchema = {
         'TASK',
         'CONVERSATION',
         'BILLING',
-        'SYSTEM'
+        'SYSTEM',
+        'COWORKER_ACCESS'
     ],
     description: 'Notification source domain',
     example: 'JOB'
@@ -8623,6 +8624,116 @@ export const PublicSharedTaskMilestoneSchema = {
         'credits',
         'actorName',
         'actorImage'
+    ]
+} as const;
+
+export const CoworkerGrantListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/CoworkerGrant'
+    }
+} as const;
+
+export const CoworkerGrantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'grant_123'
+        },
+        scope: {
+            $ref: '#/components/schemas/CoworkerGrantScope'
+        },
+        status: {
+            $ref: '#/components/schemas/CoworkerGrantStatus'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        coworker: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'hermes'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Hermes'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/hermes.png'
+                }
+            },
+            required: [
+                'id',
+                'slug',
+                'name',
+                'image'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'scope',
+        'status',
+        'createdAt',
+        'resolvedAt',
+        'coworker'
+    ]
+} as const;
+
+export const CoworkerGrantScopeSchema = {
+    type: 'string',
+    enum: [
+        'TASK_READ',
+        'TASK_COMMENT',
+        'TASK_CREATE'
+    ]
+} as const;
+
+export const CoworkerGrantStatusSchema = {
+    type: 'string',
+    enum: [
+        'PENDING',
+        'GRANTED',
+        'DENIED',
+        'REVOKED'
+    ]
+} as const;
+
+export const ResolveCoworkerGrantRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'status'
     ]
 } as const;
 

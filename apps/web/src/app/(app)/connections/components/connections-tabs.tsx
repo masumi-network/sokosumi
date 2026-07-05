@@ -6,23 +6,30 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ConnectionsTabValue = "connected-apps" | "api-keys" | "mcp";
+type ConnectionsTabValue =
+  | "connected-apps"
+  | "api-keys"
+  | "coworker-access"
+  | "mcp";
 
 interface ConnectionsTabsProps {
   apiKeysContent: ReactNode;
   connectedAppsContent: ReactNode;
+  coworkerAccessContent: ReactNode;
   mcpContent: ReactNode;
 }
 
 const ENABLED_TABS: ConnectionsTabValue[] = [
   "connected-apps",
   "api-keys",
+  "coworker-access",
   "mcp",
 ];
 
 export function ConnectionsTabs({
   apiKeysContent,
   connectedAppsContent,
+  coworkerAccessContent,
   mcpContent,
 }: ConnectionsTabsProps) {
   const t = useTranslations("App.Connections");
@@ -62,6 +69,12 @@ export function ConnectionsTabs({
           {t("tabs.apiKeys")}
         </TabsTrigger>
         <TabsTrigger
+          value="coworker-access"
+          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+        >
+          {t("tabs.coworkerAccess")}
+        </TabsTrigger>
+        <TabsTrigger
           value="mcp"
           className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
         >
@@ -71,6 +84,7 @@ export function ConnectionsTabs({
 
       <TabsContent value="connected-apps">{connectedAppsContent}</TabsContent>
       <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
+      <TabsContent value="coworker-access">{coworkerAccessContent}</TabsContent>
       <TabsContent value="mcp">{mcpContent}</TabsContent>
     </Tabs>
   );

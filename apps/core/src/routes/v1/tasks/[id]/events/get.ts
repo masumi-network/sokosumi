@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { CoworkerGrantScope } from "@sokosumi/database";
 
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -35,10 +36,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const events = await prisma.$transaction(async (tx) => {
-      // Delegated coordinators (Hermes) may read the thread of any task the
-      // delegated user owns — commenting is useless without reading.
+      // Delegated coordinators (Hermes) may read the thread of unassigned
+      // tasks the delegated user owns when granted TASK_READ — commenting
+      // is useless without reading.
       await requireTaskReadForRouteVars(c.var, id, tx, {
-        allowUnassignedDelegate: true,
+        unassignedDelegateGrant: CoworkerGrantScope.TASK_READ,
       });
 
       return tx.taskEvent.findMany({
