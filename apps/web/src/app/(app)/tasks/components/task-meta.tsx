@@ -16,6 +16,8 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 interface TaskMetaDetailsProps {
   owner: TaskWithCoworker["user"];
   coworker: TaskWithCoworker["coworker"];
+  /** Coworker that created the task via delegation (e.g. Hermes/Alex). */
+  createdByCoworker?: TaskWithCoworker["createdByCoworker"];
   commentsCount: TaskWithCoworker["commentsCount"];
   createdAt: TaskWithCoworker["createdAt"];
   variant?: "card" | "list";
@@ -55,6 +57,7 @@ function CoworkerAvatar({
 export function TaskMetaDetails({
   owner,
   coworker,
+  createdByCoworker,
   commentsCount,
   createdAt,
   variant = "card",
@@ -62,9 +65,19 @@ export function TaskMetaDetails({
   const { formatShortDate } = useLocalizedDateTime();
   const ownerName = owner.name.trim() || "—";
   const coworkerName = coworker?.name?.trim() || "—";
-  const participantNames = coworker?.name?.trim()
-    ? `${coworkerName}, ${ownerName}`
-    : ownerName;
+  // The creating coworker participates too, unless it is also the assignee.
+  const creator =
+    createdByCoworker && createdByCoworker.id !== coworker?.id
+      ? createdByCoworker
+      : null;
+  const creatorName = creator?.name?.trim() || "—";
+  const participantNames = [
+    creator?.name?.trim(),
+    coworker?.name?.trim(),
+    ownerName,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   if (variant === "list") {
     return (
@@ -94,6 +107,18 @@ export function TaskMetaDetails({
         aria-label={participantNames}
         role="img"
       >
+        {creator ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="z-0 inline-flex">
+                <CoworkerAvatar coworker={creator} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              {creatorName}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
         {coworker ? (
           <Tooltip>
             <TooltipTrigger asChild>

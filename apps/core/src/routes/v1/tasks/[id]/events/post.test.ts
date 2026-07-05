@@ -21,7 +21,7 @@ const {
   prismaTransactionMock,
   publishTaskEventDataMock,
   requireTaskCollaborationMock,
-  requireTaskCommentAccessMock,
+  resolveTaskCommentAccessMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -42,13 +42,13 @@ const {
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
-  requireTaskCommentAccessMock: vi.fn(),
+  resolveTaskCommentAccessMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
-  requireTaskCommentAccess: requireTaskCommentAccessMock,
+  resolveTaskCommentAccess: resolveTaskCommentAccessMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -272,7 +272,10 @@ describe("POST /{id}/events", () => {
       user: { notificationsOptIn: true },
     });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
-    requireTaskCommentAccessMock.mockResolvedValue(createTask());
+    resolveTaskCommentAccessMock.mockResolvedValue({
+      task: createTask(),
+      heldByGrantId: null,
+    });
   });
 
   it("allows coworkers to create OUT_OF_CREDITS events", async () => {
@@ -833,10 +836,9 @@ describe("POST /{id}/events", () => {
     // Comment-only events route through the wider comment gate (workspace
     // members + grant-gated delegated coordinators), never the strict
     // ownership/assignment gate.
-    expect(requireTaskCommentAccessMock).toHaveBeenCalledWith(
+    expect(resolveTaskCommentAccessMock).toHaveBeenCalledWith(
       expect.anything(),
       TASK_ID,
-      expect.anything(),
     );
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
   });
@@ -885,7 +887,7 @@ describe("POST /{id}/events", () => {
       TASK_ID,
       expect.anything(),
     );
-    expect(requireTaskCommentAccessMock).not.toHaveBeenCalled();
+    expect(resolveTaskCommentAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects an agent-only transition for a delegated coworker", async () => {

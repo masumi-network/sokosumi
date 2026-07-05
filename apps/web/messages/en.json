@@ -1410,6 +1410,17 @@
       }
     },
     "Tasks": {
+      "acceptance": {
+        "badge": "Needs your acceptance",
+        "bannerTitle": "{creatorName} created this task for you",
+        "bannerBody": "Accept it so {assigneeName} can start working, or decline to cancel it.",
+        "bannerBodyUnassigned": "Accept it to let work start, or decline to cancel it.",
+        "accept": "Accept",
+        "decline": "Decline",
+        "acceptedToast": "Task accepted successfully",
+        "declinedToast": "Task declined successfully",
+        "resolveFailed": "Failed to update task"
+      },
       "Page": {
         "title": "Task Manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
@@ -1514,6 +1525,7 @@
         "unknownAgent": "Unknown agent"
       },
       "Detail": {
+        "heldComment": "Pending your approval",
         "back": "Back to tasks",
         "parentTask": "Parent:",
         "properties": "Properties",

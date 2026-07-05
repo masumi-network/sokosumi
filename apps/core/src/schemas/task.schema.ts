@@ -42,6 +42,11 @@ export const taskEventSchema = z
       .enum(TaskStatus)
       .nullish()
       .openapi({ example: TaskStatus.RUNNING }),
+    held: z.boolean().optional().openapi({
+      description:
+        "True while this comment awaits the owner's approval of the writing coworker's access (visible to the owner only)",
+      example: false,
+    }),
   })
   .openapi("TaskEvent");
 
@@ -72,6 +77,15 @@ const taskBaseSchema = z.object({
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  awaitingAcceptance: z.boolean().default(false).openapi({
+    description:
+      "True while a coworker-created task waits for the owner's acceptance (held in DRAFT)",
+    example: false,
+  }),
+  createdByCoworker: coworkerSummarySchema.nullish().default(null).openapi({
+    description:
+      "Coworker that created this task via delegation, null for user-created tasks",
+  }),
   metadata: z.string().nullable().openapi({
     description: "Serialized task schedule metadata JSON",
     example: null,

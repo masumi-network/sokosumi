@@ -9,11 +9,20 @@ import type {
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 
-const { requireCoworkerGrantMock } = vi.hoisted(() => ({
+const {
+  hasCoworkerGrantMock,
+  requestCoworkerGrantMock,
+  requireCoworkerGrantMock,
+} = vi.hoisted(() => ({
+  hasCoworkerGrantMock: vi.fn(),
+  requestCoworkerGrantMock: vi.fn(),
   requireCoworkerGrantMock: vi.fn(),
 }));
 
 vi.mock("./coworker-grants", () => ({
+  GRANT_REQUIRED_ERROR_KIND: "grant_required",
+  hasCoworkerGrant: hasCoworkerGrantMock,
+  requestCoworkerGrant: requestCoworkerGrantMock,
   requireCoworkerGrant: requireCoworkerGrantMock,
 }));
 
@@ -28,11 +37,11 @@ import {
   requireJobReadForRouteVars,
   requireTaskAssignableCoworker,
   requireTaskCollaboration,
-  requireTaskCommentAccess,
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
   resolveConversationCoworkerId,
+  resolveTaskCommentAccess,
 } from "./access-control";
 
 function createTransactionClient() {
@@ -51,8 +60,10 @@ function createTransactionClient() {
 }
 
 beforeEach(() => {
-  requireCoworkerGrantMock.mockReset();
+  vi.clearAllMocks();
   requireCoworkerGrantMock.mockResolvedValue(undefined);
+  hasCoworkerGrantMock.mockResolvedValue(false);
+  requestCoworkerGrantMock.mockResolvedValue("grant_1");
 });
 
 const userAuthContext: UserAuthenticationContext = {
@@ -202,7 +213,7 @@ describe("requireTaskCollaboration", () => {
   });
 });
 
-describe("requireTaskCommentAccess", () => {
+describe("resolveTaskCommentAccess", () => {
   const delegatedContext: CoworkerAuthenticationContext = {
     actor: "coworker",
     coworkerId: "cow_123",
@@ -211,6 +222,29 @@ describe("requireTaskCommentAccess", () => {
       organizationId: "org_123",
     },
   };
+
+  function delegatedVars(): EnvVariables["Variables"] {
+    return {
+      isAuthenticated: true,
+      authContext: delegatedContext,
+      workspaceContext: null,
+    };
+  }
+
+  function mockDelegatedCoworkerAndTask(
+    tx: Prisma.TransactionClient,
+    coworkerId = "cow_other",
+  ) {
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId,
+    } as never);
+  }
 
   it("lets a workspace member comment via the workspace read gate", async () => {
     const tx = createTransactionClient();
@@ -225,10 +259,11 @@ describe("requireTaskCommentAccess", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    const task = await requireTaskCommentAccess(vars, "tsk_123", tx);
+    const access = await resolveTaskCommentAccess(vars, "tsk_123", tx);
 
     // Workspace scoping, not ownership: the colleague's task resolves.
-    expect(task).toMatchObject({ id: "tsk_123" });
+    expect(access.task).toMatchObject({ id: "tsk_123" });
+    expect(access.heldByGrantId).toBeNull();
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
@@ -238,89 +273,69 @@ describe("requireTaskCommentAccess", () => {
     });
   });
 
-  it("requires the TASK_COMMENT grant for a delegated coworker on an unassigned task", async () => {
+  it("passes a granted delegated coworker through unheld", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-      slug: "ops-agent",
-      baseURL: null,
-    } as never);
-    // Owned by the delegated user but assigned to a different coworker.
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_other",
-    } as never);
+    mockDelegatedCoworkerAndTask(tx);
+    hasCoworkerGrantMock.mockResolvedValueOnce(true);
 
-    const vars: EnvVariables["Variables"] = {
-      isAuthenticated: true,
-      authContext: delegatedContext,
-      workspaceContext: null,
-    };
+    const access = await resolveTaskCommentAccess(
+      delegatedVars(),
+      "tsk_123",
+      tx,
+    );
 
-    const task = await requireTaskCommentAccess(vars, "tsk_123", tx);
-
-    expect(task).toMatchObject({ id: "tsk_123", coworkerId: "cow_other" });
-    expect(requireCoworkerGrantMock).toHaveBeenCalledWith(
+    expect(access.heldByGrantId).toBeNull();
+    expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
+    expect(hasCoworkerGrantMock).toHaveBeenCalledWith(
       "cow_123",
       "user_delegate",
       CoworkerGrantScope.TASK_COMMENT,
       tx,
     );
-    // Ownership by the delegated user is still enforced via the task query.
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        userId: "user_delegate",
-        archivedAt: null,
-      },
-    });
   });
 
-  it("skips the grant check when the task is assigned to the delegated coworker", async () => {
+  it("holds an ungranted delegated comment under the pending grant", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-      slug: "ops-agent",
-      baseURL: null,
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_123",
-    } as never);
+    mockDelegatedCoworkerAndTask(tx);
+    requestCoworkerGrantMock.mockResolvedValueOnce("grant_9");
 
-    const vars: EnvVariables["Variables"] = {
-      isAuthenticated: true,
-      authContext: delegatedContext,
-      workspaceContext: null,
-    };
-
-    await requireTaskCommentAccess(vars, "tsk_123", tx);
-
-    expect(requireCoworkerGrantMock).not.toHaveBeenCalled();
-  });
-
-  it("propagates a grant_required rejection from the grant gate", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-      slug: "ops-agent",
-      baseURL: null,
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_other",
-    } as never);
-    requireCoworkerGrantMock.mockRejectedValueOnce(new Error("grant_required"));
-
-    const vars: EnvVariables["Variables"] = {
-      isAuthenticated: true,
-      authContext: delegatedContext,
-      workspaceContext: null,
-    };
-
-    await expect(requireTaskCommentAccess(vars, "tsk_123", tx)).rejects.toThrow(
-      "grant_required",
+    const access = await resolveTaskCommentAccess(
+      delegatedVars(),
+      "tsk_123",
+      tx,
     );
+
+    expect(access.heldByGrantId).toBe("grant_9");
+    expect(requestCoworkerGrantMock).toHaveBeenCalledWith(
+      "cow_123",
+      "user_delegate",
+      CoworkerGrantScope.TASK_COMMENT,
+    );
+  });
+
+  it("throws grant_required when the user already denied the coworker", async () => {
+    const tx = createTransactionClient();
+    mockDelegatedCoworkerAndTask(tx);
+    requestCoworkerGrantMock.mockResolvedValueOnce(null);
+
+    await expect(
+      resolveTaskCommentAccess(delegatedVars(), "tsk_123", tx),
+    ).rejects.toThrow("needs your approval");
+  });
+
+  it("skips the grant machinery when the task is assigned to the delegated coworker", async () => {
+    const tx = createTransactionClient();
+    mockDelegatedCoworkerAndTask(tx, "cow_123");
+
+    const access = await resolveTaskCommentAccess(
+      delegatedVars(),
+      "tsk_123",
+      tx,
+    );
+
+    expect(access.heldByGrantId).toBeNull();
+    expect(hasCoworkerGrantMock).not.toHaveBeenCalled();
+    expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
   });
 
   it("still requires delegated-user ownership before any grant check", async () => {
@@ -333,16 +348,10 @@ describe("requireTaskCommentAccess", () => {
     // No task owned by the delegated user under this id.
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
-    const vars: EnvVariables["Variables"] = {
-      isAuthenticated: true,
-      authContext: delegatedContext,
-      workspaceContext: null,
-    };
-
-    await expect(requireTaskCommentAccess(vars, "tsk_123", tx)).rejects.toThrow(
-      "Task not found",
-    );
-    expect(requireCoworkerGrantMock).not.toHaveBeenCalled();
+    await expect(
+      resolveTaskCommentAccess(delegatedVars(), "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
+    expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
   });
 });
 

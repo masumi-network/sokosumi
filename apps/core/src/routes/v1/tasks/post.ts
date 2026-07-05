@@ -172,6 +172,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: resolvedName,
           description: body.description ?? null,
           coworkerId: body.coworkerId ?? null,
+          createdByCoworkerId: delegatedCoworkerId,
+          awaitingAcceptance,
           status: effectiveStatus,
           metadata: null,
           nextRunAt: null,

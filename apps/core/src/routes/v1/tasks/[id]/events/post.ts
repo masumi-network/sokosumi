@@ -10,7 +10,7 @@ import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
   requireTaskCollaboration,
-  requireTaskCommentAccess,
+  resolveTaskCommentAccess,
 } from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
@@ -221,10 +221,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // comment on unassigned tasks the delegated user owns when granted
         // TASK_COMMENT. Status changes keep the strict ownership/assignment
         // gate.
-        const task =
-          body.status === undefined
-            ? await requireTaskCommentAccess(c.var, taskId, tx)
-            : await requireTaskCollaboration(authContext, taskId, tx);
+        let heldByGrantId: string | null = null;
+        let task: Awaited<ReturnType<typeof requireTaskCollaboration>>;
+        if (body.status === undefined) {
+          // Deliberately NOT on `tx`: the hold-grant row is committed on the
+          // global client, and this serializable transaction's snapshot is
+          // taken at its first statement — running the gate on `tx` would
+          // pin a snapshot that predates the grant commit and fail the
+          // heldByGrantId FK check on the event insert.
+          const access = await resolveTaskCommentAccess(c.var, taskId);
+          task = access.task;
+          heldByGrantId = access.heldByGrantId;
+        } else {
+          task = await requireTaskCollaboration(authContext, taskId, tx);
+        }
         const {
           status,
           comment,
@@ -319,7 +329,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
           const updateResult = await tx.task.updateMany({
             where: { id: taskId, status: task.status },
-            data: { status },
+            data: {
+              status,
+              // The owner's (or their delegate's) first status decision on a
+              // coworker-created task resolves the acceptance state — accept
+              // (READY) and cancel both clear the badge.
+              ...(task.awaitingAcceptance && !isAgent
+                ? { awaitingAcceptance: false }
+                : {}),
+            },
           });
           if (updateResult.count !== 1) {
             throw conflict("Task status was changed by another request");
@@ -347,6 +365,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             status: null,
             comment,
             origin,
+            // Ungranted delegated comments are stored held: only the task
+            // owner sees them until they approve the coworker's access
+            // (releases them) or deny it (deletes them).
+            heldByGrantId,
             ...getActorData(authContext),
           },
         });

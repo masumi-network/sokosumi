@@ -211,6 +211,9 @@ export function mapTaskEvent(event: TaskEventForMapping) {
 
   return {
     ...rest,
+    // Held = a delegated coworker's comment waiting for the owner to
+    // approve the TASK_COMMENT grant; only ever serialized for the owner.
+    held: (event as { heldByGrantId?: string | null }).heldByGrantId != null,
     credits: cents != null ? convertCentsToCredits(cents) : null,
     ...(event.userId != null && user != null
       ? {
@@ -288,6 +291,9 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    awaitingAcceptance: task.awaitingAcceptance,
+    createdByCoworker:
+      (task as { createdByCoworker?: unknown }).createdByCoworker ?? null,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
     events: task.events.map(mapTaskEvent),

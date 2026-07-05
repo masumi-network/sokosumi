@@ -71,6 +71,7 @@ export function TaskListItem({
           <TaskMetaDetails
             owner={task.user}
             coworker={task.coworker}
+            createdByCoworker={task.createdByCoworker}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
             variant="list"

@@ -1399,6 +1399,17 @@
       }
     },
     "Tasks": {
+      "acceptance": {
+        "badge": "Wartet auf deine Annahme",
+        "bannerTitle": "{creatorName} hat diese Aufgabe für dich erstellt",
+        "bannerBody": "Nimm sie an, damit {assigneeName} loslegen kann, oder lehne ab, um sie abzubrechen.",
+        "bannerBodyUnassigned": "Nimm sie an, damit die Arbeit starten kann, oder lehne ab, um sie abzubrechen.",
+        "accept": "Annehmen",
+        "decline": "Ablehnen",
+        "acceptedToast": "Aufgabe erfolgreich angenommen",
+        "declinedToast": "Aufgabe erfolgreich abgelehnt",
+        "resolveFailed": "Aufgabe konnte nicht aktualisiert werden"
+      },
       "Page": {
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
@@ -1503,6 +1514,7 @@
         "unknownAgent": "Unbekannter Agent"
       },
       "Detail": {
+        "heldComment": "Wartet auf deine Freigabe",
         "back": "Zurück zu Tasks",
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",

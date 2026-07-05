@@ -555,6 +555,11 @@ export function TaskActivitySection({
                         <span className="text-sm font-medium">{actorName}</span>
                         <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
                           <span>{action}</span>
+                          {event.held ? (
+                            <span className="border-semantic-warning/30 bg-semantic-warning/10 text-semantic-warning inline-flex items-center rounded-full border px-1.5 py-0.5 font-medium">
+                              {t("heldComment")}
+                            </span>
+                          ) : null}
                           {!event.status ? (
                             <>
                               <span>{originFromLabel}</span>

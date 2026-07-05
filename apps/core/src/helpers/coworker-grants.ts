@@ -49,7 +49,9 @@ export async function hasCoworkerGrant(
  * Records that a coworker asked for access it does not have: ensures a
  * PENDING grant row exists (never downgrades an existing resolution — a
  * DENIED/REVOKED grant stays resolved until the user changes it in the
- * portal) and emits an idempotent notification to the user.
+ * portal) and emits an idempotent notification to the user. Returns the
+ * pending grant id, or null when the user already denied/revoked (no new
+ * request is surfaced).
  *
  * Deliberately uses the GLOBAL prisma client: callers throw right after
  * this from inside serializable transactions, and the request + its
@@ -59,7 +61,7 @@ export async function requestCoworkerGrant(
   coworkerId: string,
   userId: string,
   scope: CoworkerGrantScope,
-): Promise<void> {
+): Promise<string | null> {
   const existing = await prisma.coworkerGrant.findUnique({
     where: { coworkerId_userId_scope: { coworkerId, userId, scope } },
     select: { id: true, status: true },
@@ -70,7 +72,7 @@ export async function requestCoworkerGrant(
     // Leave PENDING as-is; leave DENIED/REVOKED resolved (anti-nag: the
     // user said no — the coworker retrying must not resurface the request).
     grantId = existing.id;
-    if (existing.status !== CoworkerGrantStatus.PENDING) return;
+    if (existing.status !== CoworkerGrantStatus.PENDING) return null;
   } else {
     const created = await prisma.coworkerGrant.create({
       data: { coworkerId, userId, scope },
@@ -98,6 +100,8 @@ export async function requestCoworkerGrant(
     },
     metadata: { coworkerId, scope },
   });
+
+  return grantId;
 }
 
 /**

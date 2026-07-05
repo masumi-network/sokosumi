@@ -7,6 +7,7 @@ import { ok } from "@/helpers/response";
 import { mapTaskEvent, taskEventApiInclude } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isUserAuthContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
 const paramsSchema = z.object({
@@ -39,12 +40,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // Delegated coordinators (Hermes) may read the thread of unassigned
       // tasks the delegated user owns when granted TASK_READ — commenting
       // is useless without reading.
-      await requireTaskReadForRouteVars(c.var, id, tx, {
+      const task = await requireTaskReadForRouteVars(c.var, id, tx, {
         unassignedDelegateGrant: CoworkerGrantScope.TASK_READ,
       });
 
+      // Held comments (pending the owner's approval of the writing
+      // coworker's access) are visible to the task owner only.
+      const { authContext } = c.var;
+      const viewerIsOwner =
+        isUserAuthContext(authContext) && authContext.userId === task.userId;
+
       return tx.taskEvent.findMany({
-        where: { taskId: id },
+        where: {
+          taskId: id,
+          ...(viewerIsOwner ? {} : { heldByGrantId: null }),
+        },
         orderBy: { createdAt: "asc" },
         include: taskEventApiInclude,
       });

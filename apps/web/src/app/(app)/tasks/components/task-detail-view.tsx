@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
+import { TaskAcceptanceBanner } from "@/app/tasks/components/task-acceptance-banner";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -135,6 +136,15 @@ export async function TaskDetailView({
         />
 
         <div className="mt-6 space-y-8">
+          {task.awaitingAcceptance &&
+          task.status === "DRAFT" &&
+          !forceReadOnly ? (
+            <TaskAcceptanceBanner
+              taskId={taskId}
+              creatorName={task.createdByCoworker?.name ?? "A coworker"}
+              assigneeName={task.coworker?.name ?? null}
+            />
+          ) : null}
           <Suspense
             fallback={
               <TaskOverviewFallback

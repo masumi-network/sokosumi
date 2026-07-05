@@ -261,6 +261,19 @@ export type Task = {
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
+     * True while a coworker-created task waits for the owner's acceptance (held in DRAFT)
+     */
+    awaitingAcceptance?: boolean;
+    /**
+     * Coworker that created this task via delegation, null for user-created tasks
+     */
+    createdByCoworker?: {
+        id: string;
+        name: string;
+        image?: string | null;
+        slug: string;
+    } | null;
+    /**
      * Serialized task schedule metadata JSON
      */
     metadata: string | null;
@@ -325,6 +338,10 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     origin: 'SLACK' | 'TEAMS' | 'EMAIL' | 'LINEAR' | 'GITHUB' | 'WHATSAPP' | 'TELEGRAM' | 'SIGNAL' | 'DISCORD' | 'CHAT' | 'MESSENGER' | 'SOKOSUMI' | 'UNKNOWN';
     status?: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED' | null;
+    /**
+     * True while this comment awaits the owner's approval of the writing coworker's access (visible to the owner only)
+     */
+    held?: boolean;
 };
 
 export type JobSummary = {
@@ -2569,6 +2586,19 @@ export type TaskListItem = {
     name: string;
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * True while a coworker-created task waits for the owner's acceptance (held in DRAFT)
+     */
+    awaitingAcceptance?: boolean;
+    /**
+     * Coworker that created this task via delegation, null for user-created tasks
+     */
+    createdByCoworker?: {
+        id: string;
+        name: string;
+        image?: string | null;
+        slug: string;
+    } | null;
     /**
      * Serialized task schedule metadata JSON
      */

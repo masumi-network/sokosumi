@@ -13,11 +13,15 @@ const {
   grantFindManyMock,
   grantFindUniqueOrThrowMock,
   grantUpdateMock,
+  taskEventDeleteManyMock,
+  taskEventUpdateManyMock,
 } = vi.hoisted(() => ({
   grantFindFirstMock: vi.fn(),
   grantFindManyMock: vi.fn(),
   grantFindUniqueOrThrowMock: vi.fn(),
   grantUpdateMock: vi.fn(),
+  taskEventDeleteManyMock: vi.fn(),
+  taskEventUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -27,6 +31,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: grantFindManyMock,
       findUniqueOrThrow: grantFindUniqueOrThrowMock,
       update: grantUpdateMock,
+    },
+    taskEvent: {
+      updateMany: taskEventUpdateManyMock,
+      deleteMany: taskEventDeleteManyMock,
     },
   },
 }));
@@ -137,6 +145,38 @@ describe("PATCH /coworker-grants/{id}", () => {
         }),
       }),
     );
+    // Approval releases comments held under this grant into the thread.
+    expect(taskEventUpdateManyMock).toHaveBeenCalledWith({
+      where: { heldByGrantId: "grant_1" },
+      data: { heldByGrantId: null },
+    });
+    expect(taskEventDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("denying a pending grant discards comments held under it", async () => {
+    grantFindFirstMock.mockResolvedValueOnce({
+      id: "grant_1",
+      status: CoworkerGrantStatus.PENDING,
+    });
+    grantUpdateMock.mockResolvedValueOnce(
+      grantRow({
+        status: CoworkerGrantStatus.DENIED,
+        resolvedAt: new Date("2026-07-05T12:00:00.000Z"),
+      }),
+    );
+
+    const app = createApp(USER_CONTEXT);
+    const response = await app.request("http://localhost/grant_1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: CoworkerGrantStatus.DENIED }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskEventDeleteManyMock).toHaveBeenCalledWith({
+      where: { heldByGrantId: "grant_1" },
+    });
+    expect(taskEventUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("is idempotent when the grant already has the target status", async () => {

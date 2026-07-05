@@ -1,4 +1,5 @@
 import { TaskStatus } from "@sokosumi/utils";
+import { useTranslations } from "next-intl";
 
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
@@ -23,6 +24,9 @@ export function TaskCard({
   compact = false,
   statusLabels,
 }: TaskCardProps) {
+  const t = useTranslations("App.Tasks");
+  const acceptanceLabel = t("acceptance.badge");
+
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -52,12 +56,19 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="space-y-2">
-              <TaskStatusBadge
-                status={task.status}
-                label={statusLabels?.[task.status]}
-                showDot={task.columnId === "in-progress"}
-                className="w-fit rounded-sm"
-              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <TaskStatusBadge
+                  status={task.status}
+                  label={statusLabels?.[task.status]}
+                  showDot={task.columnId === "in-progress"}
+                  className="w-fit rounded-sm"
+                />
+                {task.awaitingAcceptance ? (
+                  <span className="border-semantic-warning/30 bg-semantic-warning/10 text-semantic-warning inline-flex w-fit items-center rounded-sm border px-1.5 py-0.5 text-xs font-medium">
+                    {acceptanceLabel}
+                  </span>
+                ) : null}
+              </div>
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>
@@ -86,6 +97,7 @@ export function TaskCard({
             <TaskMetaDetails
               owner={task.user}
               coworker={task.coworker}
+              createdByCoworker={task.createdByCoworker}
               commentsCount={task.commentsCount}
               createdAt={task.createdAt}
               variant="card"

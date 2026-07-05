@@ -25,6 +25,8 @@ export interface TaskWithCoworker {
   updatedAt: string;
   jobsCount: number;
   coworker?: Coworker | null;
+  createdByCoworker?: Coworker | null;
+  awaitingAcceptance?: boolean;
   share?: TaskShare | null;
   commentsCount: number;
   columnId: KanbanColumnId;

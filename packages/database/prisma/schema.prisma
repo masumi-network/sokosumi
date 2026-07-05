@@ -1157,6 +1157,7 @@ model Coworker {
   coworkerApiKeys CoworkerApiKey[]
 
   tasks          Task[]
+  tasksCreated   Task[]          @relation("TaskCreatedByCoworker")
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
   grants         CoworkerGrant[]
@@ -1203,6 +1204,8 @@ model CoworkerGrant {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  heldTaskEvents TaskEvent[]
+
   @@unique([coworkerId, userId, scope])
   @@index([userId, status])
   @@map("coworker_grant")
@@ -1247,6 +1250,16 @@ model Task {
 
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
+
+  /// Coworker that created this task via API-key delegation (null for
+  /// user-created tasks). Drives "created by" attribution in the UI.
+  createdByCoworkerId String?
+  createdByCoworker   Coworker? @relation("TaskCreatedByCoworker", fields: [createdByCoworkerId], references: [id], onDelete: SetNull)
+
+  /// True while a delegated-coworker creation waits for the owner's
+  /// acceptance (task is held in DRAFT). Cleared on the owner's first
+  /// status decision (accept → READY, or cancel).
+  awaitingAcceptance Boolean @default(false)
 
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -1360,7 +1373,15 @@ model TaskEvent {
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
+  /// Non-null while this comment is held pending the owner's approval of
+  /// the writing coworker's TASK_COMMENT grant. Held events are visible
+  /// only to the task owner; approving the grant releases them, denying
+  /// it deletes them.
+  heldByGrantId String?
+  heldByGrant   CoworkerGrant? @relation(fields: [heldByGrantId], references: [id], onDelete: SetNull)
+
   @@index([transactionId])
+  @@index([heldByGrantId])
   @@map("taskEvent")
 }
 

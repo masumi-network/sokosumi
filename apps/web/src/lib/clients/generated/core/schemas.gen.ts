@@ -1095,6 +1095,46 @@ export const TaskSchema = {
             ],
             example: 'READY'
         },
+        awaitingAcceptance: {
+            type: 'boolean',
+            default: false,
+            description: 'True while a coworker-created task waits for the owner\'s acceptance (held in DRAFT)',
+            example: false
+        },
+        createdByCoworker: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ops Agent'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/logo'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'ops-agent'
+                }
+            },
+            default: null,
+            required: [
+                'id',
+                'name',
+                'slug'
+            ],
+            description: 'Coworker that created this task via delegation, null for user-created tasks'
+        },
         metadata: {
             type: [
                 'string',
@@ -1427,6 +1467,11 @@ export const TaskEventSchema = {
                 null
             ],
             example: 'RUNNING'
+        },
+        held: {
+            type: 'boolean',
+            description: 'True while this comment awaits the owner\'s approval of the writing coworker\'s access (visible to the owner only)',
+            example: false
         }
     },
     required: [
@@ -9248,6 +9293,46 @@ export const TaskListItemSchema = {
                 'CANCELED'
             ],
             example: 'READY'
+        },
+        awaitingAcceptance: {
+            type: 'boolean',
+            default: false,
+            description: 'True while a coworker-created task waits for the owner\'s acceptance (held in DRAFT)',
+            example: false
+        },
+        createdByCoworker: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    example: 'cow_123'
+                },
+                name: {
+                    type: 'string',
+                    example: 'Ops Agent'
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://example.com/logo'
+                },
+                slug: {
+                    type: 'string',
+                    example: 'ops-agent'
+                }
+            },
+            default: null,
+            required: [
+                'id',
+                'name',
+                'slug'
+            ],
+            description: 'Coworker that created this task via delegation, null for user-created tasks'
         },
         metadata: {
             type: [

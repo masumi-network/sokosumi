@@ -22,7 +22,12 @@ import {
 } from "@/middleware/workspace";
 
 import type { CoworkerCapability } from "./coworker-capability";
-import { requireCoworkerGrant } from "./coworker-grants";
+import {
+  GRANT_REQUIRED_ERROR_KIND,
+  hasCoworkerGrant,
+  requestCoworkerGrant,
+  requireCoworkerGrant,
+} from "./coworker-grants";
 import { forbidden, notFound } from "./error";
 
 // -----------------------------------------------------------------------------
@@ -271,26 +276,43 @@ export async function requireTaskCollaboration(
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
 }
 
+/** Result of {@link resolveTaskCommentAccess}. */
+export interface TaskCommentAccess {
+  task: Task;
+  /**
+   * Non-null when the caller is a delegated coworker without a TASK_COMMENT
+   * grant and the request is (now) pending: the comment must be persisted
+   * held under this grant id — visible only to the task owner until they
+   * approve the grant (which releases it) or deny it (which deletes it).
+   */
+  heldByGrantId: string | null;
+}
+
 /**
  * Comment access on a task (comment-only events — never status/billing):
  * - session users: any member of the task's workspace may comment;
  * - delegated coworkers: tasks owned by the delegated user — assigned to
- *   the coworker, or covered by a TASK_COMMENT grant;
+ *   the coworker, granted TASK_COMMENT, or (while the grant request is
+ *   pending) held for the owner's approval;
  * - bare coworker agents: assigned tasks only (unchanged executor path).
+ *
+ * Throws 403 kind=grant_required only when the user already denied or
+ * revoked the coworker's TASK_COMMENT access.
  */
-export async function requireTaskCommentAccess(
+export async function resolveTaskCommentAccess(
   vars: EnvVariables["Variables"],
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Task> {
+): Promise<TaskCommentAccess> {
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    return await requireTaskReadForWorkspace(
+    const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
     );
+    return { task, heldByGrantId: null };
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -307,19 +329,43 @@ export async function requireTaskCommentAccess(
       tx,
     );
 
-    if (task.coworkerId !== coworker.coworkerId) {
-      await requireCoworkerGrant(
+    if (task.coworkerId === coworker.coworkerId) {
+      return { task, heldByGrantId: null };
+    }
+
+    if (
+      await hasCoworkerGrant(
         coworker.coworkerId,
         coworker.delegation.userId,
         CoworkerGrantScope.TASK_COMMENT,
         tx,
-      );
+      )
+    ) {
+      return { task, heldByGrantId: null };
     }
 
-    return task;
+    // No grant yet: request it (outside the caller's transaction) and hold
+    // the comment under the pending grant instead of rejecting the call.
+    const grantId = await requestCoworkerGrant(
+      coworker.coworkerId,
+      coworker.delegation.userId,
+      CoworkerGrantScope.TASK_COMMENT,
+    );
+    if (grantId === null) {
+      // The user already said no — denied/revoked never auto-resurface.
+      throw forbidden(
+        "This coworker needs your approval for this action. Review the request under Connections → Coworker access.",
+        {
+          kind: GRANT_REQUIRED_ERROR_KIND,
+          extensions: { scope: CoworkerGrantScope.TASK_COMMENT },
+        },
+      );
+    }
+    return { task, heldByGrantId: grantId };
   }
 
-  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+  const task = await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+  return { task, heldByGrantId: null };
 }
 
 // -----------------------------------------------------------------------------

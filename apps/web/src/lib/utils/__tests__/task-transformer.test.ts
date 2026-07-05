@@ -25,6 +25,8 @@ function buildTask(
     organization: null,
     coworkerId: null,
     coworker: null,
+    createdByCoworker: null,
+    awaitingAcceptance: false,
     name: "Test task",
     description: null,
     status,

@@ -22,6 +22,7 @@ const taskUserOrganizationInclude = {
   user: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
   coworker: taskEventApiInclude.coworker,
+  createdByCoworker: taskEventApiInclude.coworker,
 } as const;
 
 const taskBaseInclude = {

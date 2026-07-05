@@ -58,6 +58,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Grant not found");
     }
 
+    // Resolving a TASK_COMMENT grant settles any comments held under it:
+    // approval releases them into the thread (original timestamps intact),
+    // denial/revocation discards them — the user said no to the content.
+    if (existing.status !== status) {
+      if (status === CoworkerGrantStatus.GRANTED) {
+        await prisma.taskEvent.updateMany({
+          where: { heldByGrantId: id },
+          data: { heldByGrantId: null },
+        });
+      } else {
+        await prisma.taskEvent.deleteMany({
+          where: { heldByGrantId: id },
+        });
+      }
+    }
+
     const grant =
       existing.status === status
         ? await prisma.coworkerGrant.findUniqueOrThrow({

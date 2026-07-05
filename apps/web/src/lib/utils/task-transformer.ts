@@ -82,6 +82,12 @@ export function mapTaskToTaskWithCoworker(
   const coworker = task.coworkerId
     ? (coworkersById.get(task.coworkerId) ?? null)
     : null;
+  // Resolve the creating coworker through the same directory so downstream
+  // consumers get the full Coworker shape; unknown creators (e.g. Hermes,
+  // hidden from the picker directory) simply don't render an extra avatar.
+  const createdByCoworker = task.createdByCoworker
+    ? (coworkersById.get(task.createdByCoworker.id) ?? null)
+    : null;
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds
     .map((id) => agentsById.get(id))
@@ -105,6 +111,8 @@ export function mapTaskToTaskWithCoworker(
     metadata: task.metadata ?? null,
     jobsCount: task.jobs.length,
     coworker,
+    createdByCoworker,
+    awaitingAcceptance: task.awaitingAcceptance ?? false,
     share: "share" in task ? (task.share ?? null) : null,
     agents,
     commentsCount: getCommentsCount(task.events),

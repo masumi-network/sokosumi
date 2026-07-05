@@ -90,6 +90,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Task not found");
     }
 
-    return ok(c, taskSchema.parse(mapTask(task)));
+    // Held comments (pending the owner's approval of the writing
+    // coworker's access) are visible to the task owner only.
+    const viewerIsOwner =
+      isUserAuthContext(authContext) && authContext.userId === task.userId;
+    const visibleTask = viewerIsOwner
+      ? task
+      : {
+          ...task,
+          events: task.events.filter(
+            (event) =>
+              (event as { heldByGrantId?: string | null }).heldByGrantId ==
+              null,
+          ),
+        };
+
+    return ok(c, taskSchema.parse(mapTask(visibleTask)));
   });
 }
