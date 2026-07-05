@@ -83,11 +83,13 @@ export async function requestCoworkerGrant(
 
   const coworker = await prisma.coworker.findUnique({
     where: { id: coworkerId },
-    select: { name: true },
+    select: { name: true, slug: true, image: true },
   });
 
   // Idempotent on (userId, kind, referenceId, eventId, messageKey) — a
   // coworker retrying the same blocked call never spams the feed.
+  // coworkerImage/coworkerSlug are not referenced by the message — they let
+  // notification UIs show the requesting coworker's avatar.
   await createNotification({
     userId,
     kind: NotificationKind.COWORKER_ACCESS,
@@ -97,6 +99,8 @@ export async function requestCoworkerGrant(
     messageParams: {
       coworkerName: coworker?.name ?? "A coworker",
       scope,
+      ...(coworker?.image ? { coworkerImage: coworker.image } : {}),
+      ...(coworker?.slug ? { coworkerSlug: coworker.slug } : {}),
     },
     metadata: { coworkerId, scope },
   });

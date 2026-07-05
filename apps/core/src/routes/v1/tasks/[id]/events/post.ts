@@ -97,7 +97,11 @@ async function dispatchTaskNotification(
     id: string;
     userId: string;
     name: string | null;
-    coworker: { name: string } | null;
+    coworker: {
+      name: string;
+      slug: string | null;
+      image: string | null;
+    } | null;
     project: { name: string } | null;
     projectId: string | null;
     workspaceId: string | null;
@@ -146,6 +150,18 @@ async function dispatchTaskNotification(
       coworkerName,
       taskName,
     };
+
+    // Avatar hints for notification UIs. Skipped for CANCELED — its message
+    // ("{taskName} was canceled") names no actor, and the cancel is usually
+    // the user's own; a coworker avatar there would misattribute it.
+    if (status !== "CANCELED") {
+      if (task.coworker?.image) {
+        messageParams.coworkerImage = task.coworker.image;
+      }
+      if (task.coworker?.slug) {
+        messageParams.coworkerSlug = task.coworker.slug;
+      }
+    }
 
     if (projectName) {
       messageParams.projectName = projectName;
@@ -416,6 +432,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 coworker: {
                   select: {
                     name: true,
+                    slug: true,
+                    image: true,
                   },
                 },
                 project: {

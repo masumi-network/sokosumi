@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { useCoworkerGrantResolution } from "@/app/notifications/use-coworker-grant-resolution";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenuLabel,
@@ -33,10 +34,18 @@ export function NotificationDropdownContent({
   const { notice } = useAccountNotice();
   const { notifications, markRead, isLoading, hasFetchError, refetch } =
     useNotifications();
+  const { grantsById, busyGrantId, resolveGrant } = useCoworkerGrantResolution({
+    notifications,
+    markRead,
+  });
 
   const handleNotificationClick = async (notificationId: string) => {
     const notification = notifications.find((n) => n.id === notificationId);
     if (!notification) return;
+
+    // Close immediately — Radix itself closed synchronously on select before
+    // rows with inline actions started preventing the default select.
+    onClose();
 
     if (!notification.isRead) {
       try {
@@ -53,7 +62,6 @@ export function NotificationDropdownContent({
       handleSelectWorkspace,
       tDetail,
     );
-    onClose();
   };
 
   const handleSeeMoreClick = () => {
@@ -127,6 +135,13 @@ export function NotificationDropdownContent({
             notification={notification}
             onClick={() => void handleNotificationClick(notification.id)}
             formatTime={formatTime}
+            grant={grantsById?.[notification.referenceId] ?? null}
+            grantBusy={busyGrantId === notification.referenceId}
+            onResolveGrant={
+              notification.kind === "COWORKER_ACCESS"
+                ? (status) => void resolveGrant(notification, status)
+                : undefined
+            }
           />
         ))}
       </div>

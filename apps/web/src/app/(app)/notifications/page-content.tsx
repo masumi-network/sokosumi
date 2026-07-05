@@ -1,31 +1,25 @@
 "use client";
 
-import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
+import { NotificationActorAvatar } from "@/app/components/notification-actor-avatar";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
-import {
-  listCoworkerGrantsAction,
-  resolveCoworkerGrantAction,
-} from "@/lib/actions/coworker-grant/action";
 import { useSession } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type {
-  CoworkerGrant,
-  NotificationItem,
-} from "@/lib/clients/generated/core";
+import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 
 import { CoworkerAccessNotificationActions } from "./coworker-access-notification-actions";
+import { useCoworkerGrantResolution } from "./use-coworker-grant-resolution";
 
 interface NotificationsPageContentProps {
   userId: string;
@@ -36,7 +30,6 @@ export function NotificationsPageContent({
 }: NotificationsPageContentProps) {
   const tCenter = useTranslations("Components.NotificationCenter");
   const tDetail = useTranslations("App.Tasks.Detail");
-  const tGrants = useTranslations("App.Connections.CoworkerAccess");
   const formatMessage = useNotificationMessage();
   const formatTime = useNotificationTimeFormatter();
   const { data: session } = useSession();
@@ -56,14 +49,6 @@ export function NotificationsPageContent({
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasFetchError, setHasFetchError] = useState(false);
-  // Grant rows referenced by COWORKER_ACCESS notifications, keyed by grant
-  // id (= the notification's referenceId). Loaded lazily once such a
-  // notification is on screen; null = not loaded yet.
-  const [grantsById, setGrantsById] = useState<Record<
-    string,
-    CoworkerGrant
-  > | null>(null);
-  const [busyGrantId, setBusyGrantId] = useState<string | null>(null);
   const fetchInFlightRef = useRef(false);
   const fetchGenerationRef = useRef(0);
 
@@ -157,53 +142,15 @@ export function NotificationsPageContent({
     });
   }, [providerNotifications]);
 
-  useEffect(() => {
-    if (grantsById !== null) return;
-    if (!notifications.some((n) => n.kind === "COWORKER_ACCESS")) return;
-    void (async () => {
-      const result = await listCoworkerGrantsAction();
-      if (!result.ok) return; // rows fall back to deep-linking to the portal
-      setGrantsById(
-        Object.fromEntries(result.data.map((grant) => [grant.id, grant])),
+  const { grantsById, busyGrantId, resolveGrant } = useCoworkerGrantResolution({
+    notifications,
+    markRead,
+    onMarkedRead: (notificationId) => {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
       );
-    })();
-  }, [grantsById, notifications]);
-
-  const handleResolveGrant = async (
-    notification: NotificationItem,
-    status: "GRANTED" | "DENIED",
-  ) => {
-    if (busyGrantId !== null) return;
-    setBusyGrantId(notification.referenceId);
-    const result = await resolveCoworkerGrantAction(
-      notification.referenceId,
-      status,
-    );
-    setBusyGrantId(null);
-    if (!result.ok) {
-      toast.error(result.error.message ?? tGrants("resolveFailed"));
-      return;
-    }
-    setGrantsById((prev) => ({
-      ...(prev ?? {}),
-      [result.data.id]: result.data,
-    }));
-    toast.success(
-      status === "GRANTED" ? tGrants("approvedToast") : tGrants("updatedToast"),
-    );
-    if (!notification.isRead) {
-      try {
-        await markRead(notification.id);
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n.id === notification.id ? { ...n, isRead: true } : n,
-          ),
-        );
-      } catch {
-        // read-state failure is cosmetic here; the grant is resolved.
-      }
-    }
-  };
+    },
+  });
 
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (!notification.isRead) {
@@ -328,13 +275,9 @@ export function NotificationsPageContent({
                         className="flex w-full cursor-pointer items-start gap-3 text-left"
                         onClick={() => handleNotificationClick(notification)}
                       >
-                        <Bell
-                          className={cn(
-                            "mt-0.5 size-4 shrink-0",
-                            notification.isRead
-                              ? "text-muted-foreground"
-                              : "text-primary",
-                          )}
+                        <NotificationActorAvatar
+                          notification={notification}
+                          grant={grantsById?.[notification.referenceId] ?? null}
                         />
                         <div className="flex min-w-0 flex-1 flex-col gap-1">
                           <p
@@ -354,7 +297,7 @@ export function NotificationsPageContent({
                         grant={grantsById?.[notification.referenceId] ?? null}
                         busy={busyGrantId === notification.referenceId}
                         onResolve={(status) =>
-                          void handleResolveGrant(notification, status)
+                          void resolveGrant(notification, status)
                         }
                       />
                     </div>
@@ -372,14 +315,7 @@ export function NotificationsPageContent({
                     onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex w-full items-start gap-3">
-                      <Bell
-                        className={cn(
-                          "mt-0.5 size-4 shrink-0",
-                          notification.isRead
-                            ? "text-muted-foreground"
-                            : "text-primary",
-                        )}
-                      />
+                      <NotificationActorAvatar notification={notification} />
                       <div className="flex min-w-0 flex-1 flex-col gap-1">
                         <p
                           className={cn(

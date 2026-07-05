@@ -199,8 +199,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       try {
         const creator = await prisma.coworker.findUnique({
           where: { id: delegatedCoworkerId ?? "" },
-          select: { name: true },
+          select: { name: true, slug: true, image: true },
         });
+        // coworkerImage/coworkerSlug are not referenced by the message —
+        // they let notification UIs show the creating coworker's avatar.
         await createNotification({
           userId: userContext.userId,
           kind: NotificationKind.TASK,
@@ -210,6 +212,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           messageParams: {
             coworkerName: creator?.name ?? "A coworker",
             taskName: task.name ?? "Untitled task",
+            ...(creator?.image ? { coworkerImage: creator.image } : {}),
+            ...(creator?.slug ? { coworkerSlug: creator.slug } : {}),
           },
           metadata: { workspaceId: task.workspaceId },
         });
