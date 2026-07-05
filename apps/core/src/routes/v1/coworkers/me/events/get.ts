@@ -76,6 +76,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       task: {
         coworkerId: authContext.coworkerId,
         status: { not: TaskStatus.DRAFT },
+        // Tasks awaiting the owner's acceptance are invisible to agents.
+        awaitingAcceptance: false,
       },
     };
 

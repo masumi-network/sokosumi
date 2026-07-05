@@ -1400,6 +1400,8 @@
     },
     "Tasks": {
       "acceptance": {
+        "acceptAlways": "Permitir siempre a {creatorName}",
+        "alwaysToast": "Aceptada — {creatorName} ya puede crear tareas sin preguntar",
         "badge": "Espera tu aceptación",
         "bannerTitle": "{creatorName} creó esta tarea para ti",
         "bannerBody": "Acéptala para que {assigneeName} pueda empezar, o recházala para cancelarla.",

@@ -108,24 +108,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // A delegated coworker needs the user's TASK_CREATE grant for the task
     // to start immediately. Without it the creation still succeeds but is
-    // forced to DRAFT ("awaiting acceptance") — invisible and inert to
-    // agents — a pending grant request is recorded, and the user is
-    // notified. Accepting is the existing DRAFT→READY flip.
+    // parked in INPUT_REQUIRED with `awaitingAcceptance` ("needs your
+    // acceptance" — the attention column). Agents cannot see or act on
+    // awaiting tasks (all agent gates filter `awaitingAcceptance`), so the
+    // status is safe despite being non-DRAFT. A pending grant request is
+    // recorded and the user notified; accepting flips the task to READY.
     const delegatedCoworkerId =
       isCoworkerAuthContext(authContext) && authContext.delegation
         ? authContext.coworkerId
         : null;
-    let effectiveStatus = body.status;
+    let effectiveStatus: TaskStatus = body.status;
     let awaitingAcceptance = false;
-    if (delegatedCoworkerId) {
+    if (delegatedCoworkerId && body.status !== TaskStatus.DRAFT) {
       const granted = await hasCoworkerGrant(
         delegatedCoworkerId,
         userContext.userId,
         CoworkerGrantScope.TASK_CREATE,
       );
       if (!granted) {
-        awaitingAcceptance = effectiveStatus !== TaskStatus.DRAFT;
-        effectiveStatus = TaskStatus.DRAFT;
+        awaitingAcceptance = true;
+        effectiveStatus = TaskStatus.INPUT_REQUIRED;
         await requestCoworkerGrant(
           delegatedCoworkerId,
           userContext.userId,

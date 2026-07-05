@@ -181,6 +181,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               archivedAt: null,
               workspaceId: workspaceContext.workspaceId,
               coworkerId: authContext.coworkerId,
+              awaitingAcceptance: false,
               ...(statuses
                 ? {
                     status: {
@@ -201,6 +202,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where = {
           coworkerId: authContext.coworkerId,
           archivedAt: null,
+          awaitingAcceptance: false,
           ...(statuses ? { status: { in: statuses } } : {}),
           ...projectFilter,
           ...searchFilter,

@@ -31,3 +31,32 @@ export async function resolveCoworkerGrantAction(
     return { ok: false, error: toCoreApiActionError(error) };
   }
 }
+
+/**
+ * Grants a coworker a scope by resolving the user's matching grant row —
+ * used by "always allow" affordances that reference a coworker rather than
+ * a grant id (e.g. the task acceptance banner).
+ */
+export async function grantCoworkerScopeAction(
+  coworkerId: string,
+  scope: CoworkerGrant["scope"],
+): Promise<
+  { ok: true; data: CoworkerGrant | null } | { ok: false; error: ActionError }
+> {
+  try {
+    const grants = await coreClient.getCoworkerGrants();
+    const grant = grants.find(
+      (g) => g.coworker.id === coworkerId && g.scope === scope,
+    );
+    if (!grant) {
+      return { ok: true, data: null };
+    }
+    if (grant.status === "GRANTED") {
+      return { ok: true, data: grant };
+    }
+    const resolved = await coreClient.resolveCoworkerGrant(grant.id, "GRANTED");
+    return { ok: true, data: resolved };
+  } catch (error) {
+    return { ok: false, error: toCoreApiActionError(error) };
+  }
+}

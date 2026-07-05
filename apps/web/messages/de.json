@@ -1400,6 +1400,8 @@
     },
     "Tasks": {
       "acceptance": {
+        "acceptAlways": "{creatorName} immer erlauben",
+        "alwaysToast": "Angenommen — {creatorName} kann jetzt Aufgaben ohne Nachfrage erstellen",
         "badge": "Wartet auf deine Annahme",
         "bannerTitle": "{creatorName} hat diese Aufgabe für dich erstellt",
         "bannerBody": "Nimm sie an, damit {assigneeName} loslegen kann, oder lehne ab, um sie abzubrechen.",

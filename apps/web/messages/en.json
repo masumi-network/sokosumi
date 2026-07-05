@@ -1411,6 +1411,8 @@
     },
     "Tasks": {
       "acceptance": {
+        "acceptAlways": "Always allow {creatorName}",
+        "alwaysToast": "Accepted — {creatorName} can now create tasks without asking",
         "badge": "Needs your acceptance",
         "bannerTitle": "{creatorName} created this task for you",
         "bannerBody": "Accept it so {assigneeName} can start working, or decline to cancel it.",

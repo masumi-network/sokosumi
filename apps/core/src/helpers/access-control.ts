@@ -201,6 +201,10 @@ export async function requireCoworkerTaskCollaboration(
     where: {
       id: taskId,
       status: { not: TaskStatus.DRAFT },
+      // A task awaiting the owner's acceptance is inert for agents: no
+      // reads, no events, and crucially no job attachment (= no spend)
+      // until the owner accepts it.
+      awaitingAcceptance: false,
       archivedAt: null,
     },
   });

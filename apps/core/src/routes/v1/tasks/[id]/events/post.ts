@@ -1,7 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { NotificationKind, Prisma } from "@sokosumi/database";
-import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  TaskStatus,
+} from "@sokosumi/utils";
 
 import { waitUntil } from "@vercel/functions";
 
@@ -245,7 +249,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         } = body;
 
         if (status !== undefined) {
-          validateStatusTransition(authContext, task.status, status);
+          // Accepting/declining a coworker-created task is a session-user
+          // decision outside the normal transition tables: INPUT_REQUIRED
+          // normally only allows CANCEL_REQUESTED for users, but an
+          // awaiting task has no running agent — accept goes straight to
+          // READY, decline straight to CANCELED. Session-only on purpose:
+          // a delegated coworker must never accept its own creation.
+          const isAcceptanceDecision =
+            task.awaitingAcceptance &&
+            isUserAuthContext(authContext) &&
+            (status === TaskStatus.READY || status === TaskStatus.CANCELED);
+          if (!isAcceptanceDecision) {
+            validateStatusTransition(authContext, task.status, status);
+          }
           validateTaskCoworkerAssignment({
             status,
             coworkerId: task.coworkerId,
@@ -331,10 +347,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             where: { id: taskId, status: task.status },
             data: {
               status,
-              // The owner's (or their delegate's) first status decision on a
-              // coworker-created task resolves the acceptance state — accept
-              // (READY) and cancel both clear the badge.
-              ...(task.awaitingAcceptance && !isAgent
+              // The owner's first status decision on a coworker-created
+              // task resolves the acceptance state — accept (READY) and
+              // decline (CANCELED) both clear the badge.
+              ...(task.awaitingAcceptance && isUserAuthContext(authContext)
                 ? { awaitingAcceptance: false }
                 : {}),
             },

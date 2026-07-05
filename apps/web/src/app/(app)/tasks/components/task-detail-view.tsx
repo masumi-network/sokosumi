@@ -136,11 +136,10 @@ export async function TaskDetailView({
         />
 
         <div className="mt-6 space-y-8">
-          {task.awaitingAcceptance &&
-          task.status === "DRAFT" &&
-          !forceReadOnly ? (
+          {task.awaitingAcceptance && !forceReadOnly ? (
             <TaskAcceptanceBanner
               taskId={taskId}
+              creatorId={task.createdByCoworker?.id ?? null}
               creatorName={task.createdByCoworker?.name ?? "A coworker"}
               assigneeName={task.coworker?.name ?? null}
             />

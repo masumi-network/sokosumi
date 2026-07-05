@@ -144,6 +144,7 @@ describe("requireTaskCollaboration", () => {
       where: {
         id: "tsk_123",
         status: { not: TaskStatus.DRAFT },
+        awaitingAcceptance: false,
         archivedAt: null,
       },
     });
@@ -465,6 +466,7 @@ describe("requireTaskReadForRouteVars", () => {
       where: {
         id: "tsk_123",
         status: { not: TaskStatus.DRAFT },
+        awaitingAcceptance: false,
         archivedAt: null,
       },
     });
@@ -652,6 +654,7 @@ describe("requireCoworkerTaskCollaboration", () => {
       where: {
         id: "tsk_123",
         status: { not: TaskStatus.DRAFT },
+        awaitingAcceptance: false,
         archivedAt: null,
       },
     });

@@ -304,6 +304,7 @@ describe("GET /tasks", () => {
         where: {
           coworkerId: "cow_123",
           archivedAt: null,
+          awaitingAcceptance: false,
           status: {
             in: [TaskStatus.QUEUED],
           },
