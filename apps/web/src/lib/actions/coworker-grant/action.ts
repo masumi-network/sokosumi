@@ -7,8 +7,6 @@ import type {
   CoworkerGrantStatus,
 } from "@/lib/clients/generated/core";
 
-export type { CoworkerGrant };
-
 export async function listCoworkerGrantsAction(): Promise<
   { ok: true; data: CoworkerGrant[] } | { ok: false; error: ActionError }
 > {

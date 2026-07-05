@@ -8,10 +8,10 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  type CoworkerGrant,
   listCoworkerGrantsAction,
   resolveCoworkerGrantAction,
 } from "@/lib/actions/coworker-grant/action";
+import type { CoworkerGrant } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 type GrantScope = CoworkerGrant["scope"];
