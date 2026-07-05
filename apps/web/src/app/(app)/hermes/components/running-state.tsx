@@ -922,14 +922,12 @@ export default function RunningState({
     })),
     ...resolvedCards.map((entry) => ({
       kind: "resolved" as const,
-      // Sort by the gate's SERVER createdAt, not the client-clock `resolvedAt`
-      // (Date.now() at approval). Mixing the two clocks lets client/server skew
-      // push the orchestrator's `confirmation_resolved` reply (server time)
-      // *above* the just-approved card — the card and its result then appear
-      // out of order. The gate is always created before its result, so anchoring
-      // on `confirmation.createdAt` keeps the card before the reply. Fall back to
-      // `resolvedAt` only if the timestamp is missing/unparseable.
-      ts: new Date(entry.confirmation.createdAt).getTime() || entry.resolvedAt,
+      // `timelineTs` was snapshotted at approval as "just past everything
+      // visible right now", so the card sits after the message that raised
+      // it and before the orchestrator's `confirmation_resolved` reply —
+      // regardless of client/server clock skew or the optimistic→persisted
+      // timestamp rewrite of surrounding messages.
+      ts: entry.timelineTs,
       key: `resolved-${entry.confirmation.id}`,
       entry,
     })),
@@ -1135,6 +1133,22 @@ export default function RunningState({
                       activeOrganizationId={activeOrganizationId}
                       resolution={null}
                       onResolved={(id, resolution, resolvedConfirmation) => {
+                        // Anchor the card just past the newest thing on screen
+                        // at this moment — after the message that raised the
+                        // gate, before the orchestrator's reply that follows.
+                        // Never trust a single clock: message timestamps mix
+                        // optimistic client stamps with server ISO strings.
+                        const latestVisibleTs = Math.max(
+                          new Date(resolvedConfirmation.createdAt).getTime() ||
+                            0,
+                          ...messages.map(
+                            (m) => new Date(m.createdAt).getTime() || 0,
+                          ),
+                          ...Array.from(
+                            resolvedConfirmations.values(),
+                            (e) => e.timelineTs,
+                          ),
+                        );
                         setResolvedConfirmations((prev) => {
                           if (prev.has(id)) return prev;
                           const next = new Map(prev);
@@ -1145,7 +1159,7 @@ export default function RunningState({
                             // mid-approval, storing stale metadata otherwise.
                             confirmation: resolvedConfirmation,
                             resolution,
-                            resolvedAt: Date.now(),
+                            timelineTs: latestVisibleTs + 1,
                           });
                           return next;
                         });
@@ -2308,8 +2322,16 @@ interface ConfirmationResolution {
 interface ResolvedConfirmationEntry {
   confirmation: HermesPendingConfirmation;
   resolution: ConfirmationResolution;
-  /** When the user resolved it — drives chronological placement in the timeline. */
-  resolvedAt: number;
+  /**
+   * Fixed timeline position: just past the newest message visible at the
+   * moment the user resolved the card. Snapshotted once so the card stays
+   * exactly where the user acted — mixing the gate's server `createdAt`
+   * with client-clock message timestamps let the card teleport above the
+   * user's own (optimistically-stamped) message on approval, then strand
+   * far up in the scrollback once the post-turn re-sync rewrote message
+   * ids/timestamps to server time.
+   */
+  timelineTs: number;
 }
 
 function ConfirmationCard({
