@@ -158,5 +158,12 @@ interface SettingsPanelHeaderProps {
 }
 
 export function SettingsPanelHeader({ planLabel }: SettingsPanelHeaderProps) {
-  return <span className="truncate text-sm font-medium">{planLabel}</span>;
+  return (
+    <span
+      className="block min-w-0 w-full truncate text-sm font-medium"
+      title={planLabel}
+    >
+      {planLabel}
+    </span>
+  );
 }
