@@ -984,6 +984,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const result = streamText({
         model: getSokosumiProvider()(selectedModel),
         messages: modelMessages,
+        // Chat persists and replays `role: "system"` turns (coworker context, etc.).
+        allowSystemInMessages: true,
         maxRetries: 0,
         providerOptions: {
           sokosumi: sokosumiProviderOptions,
