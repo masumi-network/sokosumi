@@ -28,7 +28,7 @@ interface GenerateOpenRouterTextOptions {
 }
 
 async function generateOpenRouterText(
-  openrouter: NonNullable<ReturnType<typeof createOpenRouter>>,
+  openrouter: ReturnType<typeof createOpenRouter>,
   options: GenerateOpenRouterTextOptions,
 ): Promise<string | null> {
   try {
