@@ -720,7 +720,7 @@ export function createCoreClient(getClient: GetClient) {
           body,
           cache: "no-store",
         }),
-      "Failed to grant support credits",
+      "Failed to grant free credits",
     );
   }
 

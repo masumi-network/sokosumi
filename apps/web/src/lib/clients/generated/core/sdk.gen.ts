@@ -163,7 +163,7 @@ export const getAdminInvoice = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Grant support credits directly to a user or organization (admin only). Credits are created immediately without a Stripe invoice. Missing or invalid targets return 400 (not 404), matching admin invoice grants.
+ * Grant free credits directly to a user or organization (admin only). Credits are created immediately without a Stripe invoice. Missing or invalid targets return 400 (not 404), matching admin invoice grants.
  */
 export const createAdminSupportCreditGrant = <ThrowOnError extends boolean = false>(options?: Options<CreateAdminSupportCreditGrantData, ThrowOnError>): RequestResult<CreateAdminSupportCreditGrantResponses, CreateAdminSupportCreditGrantErrors, ThrowOnError> => (options?.client ?? client).post<CreateAdminSupportCreditGrantResponses, CreateAdminSupportCreditGrantErrors, ThrowOnError>({
     responseTransformer: createAdminSupportCreditGrantResponseTransformer,

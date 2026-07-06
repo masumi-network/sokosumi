@@ -2761,9 +2761,9 @@
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre usuários e organizações."
           },
-          "supportCredits": {
-            "title": "Créditos de suporte",
-            "description": "Conceda créditos de suporte diretamente a um usuário ou organização sem fatura Stripe."
+          "freeCredits": {
+            "title": "Créditos gratuitos",
+            "description": "Conceda créditos gratuitos diretamente a um usuário ou organização sem fatura Stripe."
           }
         }
       },
@@ -2928,9 +2928,9 @@
           "personalWorkspace": "Espaço de trabalho pessoal"
         }
       },
-      "SupportCredits": {
-        "title": "Créditos de suporte",
-        "description": "Conceda créditos de suporte diretamente a um usuário ou organização. Os créditos são aplicados imediatamente com o tipo de referência Support.",
+      "FreeCredits": {
+        "title": "Créditos gratuitos",
+        "description": "Conceda créditos gratuitos diretamente a um usuário ou organização. Os créditos são aplicados imediatamente.",
         "backToAdmin": "Voltar ao admin",
         "Form": {
           "Fields": {
@@ -2953,8 +2953,8 @@
           "referenceNotePlaceholder": "ex.: Problema de cobrança, gesto de cortesia",
           "submit": "Conceder créditos",
           "submitting": "Concedendo créditos…",
-          "grantSuccess": "Créditos de suporte concedidos",
-          "grantError": "Falha ao conceder créditos de suporte"
+          "grantSuccess": "Créditos gratuitos concedidos",
+          "grantError": "Falha ao conceder créditos gratuitos"
         }
       }
     },

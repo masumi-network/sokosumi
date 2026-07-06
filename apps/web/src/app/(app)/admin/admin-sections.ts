@@ -32,8 +32,8 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     Icon: Coins,
   },
   {
-    key: "supportCredits",
-    href: "/admin/support-credits",
+    key: "freeCredits",
+    href: "/admin/free-credits",
     Icon: LifeBuoy,
   },
   {

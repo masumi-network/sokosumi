@@ -33,8 +33,8 @@ function parseOptionalPositiveInteger(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function SupportCreditForm() {
-  const t = useTranslations("App.Admin.SupportCredits");
+export function FreeCreditForm() {
+  const t = useTranslations("App.Admin.FreeCredits");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
   const router = useRouter();

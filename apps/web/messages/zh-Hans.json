@@ -2761,9 +2761,9 @@
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
           },
-          "supportCredits": {
-            "title": "支持积分",
-            "description": "无需 Stripe 发票，直接向用户或组织发放支持积分。"
+          "freeCredits": {
+            "title": "免费积分",
+            "description": "无需 Stripe 发票，直接向用户或组织发放免费积分。"
           }
         }
       },
@@ -2928,9 +2928,9 @@
           "personalWorkspace": "个人工作区"
         }
       },
-      "SupportCredits": {
-        "title": "支持积分",
-        "description": "直接向用户或组织发放支持积分。积分会立即入账，引用类型为 Support。",
+      "FreeCredits": {
+        "title": "免费积分",
+        "description": "直接向用户或组织发放免费积分。积分会立即入账。",
         "backToAdmin": "返回管理后台",
         "Form": {
           "Fields": {
@@ -2953,8 +2953,8 @@
           "referenceNotePlaceholder": "例如：账单问题、善意补偿",
           "submit": "发放积分",
           "submitting": "正在发放积分…",
-          "grantSuccess": "支持积分已发放",
-          "grantError": "发放支持积分失败"
+          "grantSuccess": "免费积分已发放",
+          "grantError": "发放免费积分失败"
         }
       }
     },

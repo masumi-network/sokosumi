@@ -35,9 +35,7 @@ function mapError(error: unknown): ActionError {
   return {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     message:
-      error instanceof Error
-        ? error.message
-        : "Failed to grant support credits",
+      error instanceof Error ? error.message : "Failed to grant free credits",
   };
 }
 
@@ -69,7 +67,7 @@ export const grantSupportCreditsAction = withSession<
         ttlDays,
         referenceNote,
       });
-      revalidatePath("/admin/support-credits");
+      revalidatePath("/admin/free-credits");
       revalidatePath("/admin/users");
       revalidatePath("/admin/organizations", "layout");
       return Ok(grant);

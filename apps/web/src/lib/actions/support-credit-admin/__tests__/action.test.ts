@@ -91,7 +91,7 @@ describe("grantSupportCreditsAction", () => {
       ttlDays: null,
       referenceNote: "Help",
     });
-    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/support-credits");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/free-credits");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/users");
     expect(revalidatePathMock).toHaveBeenCalledWith(
       "/admin/organizations",

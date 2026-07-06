@@ -2730,9 +2730,9 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
-          "supportCredits": {
-            "title": "Support-Credits",
-            "description": "Support-Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
+          "freeCredits": {
+            "title": "Kostenlose Credits",
+            "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
           }
         }
       },
@@ -2897,9 +2897,9 @@
           "personalWorkspace": "Persönlicher Workspace"
         }
       },
-      "SupportCredits": {
-        "title": "Support-Credits",
-        "description": "Support-Credits direkt an einen Benutzer oder eine Organisation gewähren. Credits werden sofort mit Referenztyp Support gutgeschrieben.",
+      "FreeCredits": {
+        "title": "Kostenlose Credits",
+        "description": "Kostenlose Credits direkt an einen Benutzer oder eine Organisation gewähren. Credits werden sofort gutgeschrieben.",
         "backToAdmin": "Zurück zur Administration",
         "Form": {
           "Fields": {
@@ -2922,8 +2922,8 @@
           "referenceNotePlaceholder": "z. B. Abrechnungsproblem, Kulanz",
           "submit": "Credits gewähren",
           "submitting": "Credits werden gewährt…",
-          "grantSuccess": "Support-Credits gewährt",
-          "grantError": "Support-Credits konnten nicht gewährt werden"
+          "grantSuccess": "Kostenlose Credits gewährt",
+          "grantError": "Kostenlose Credits konnten nicht gewährt werden"
         }
       }
     },

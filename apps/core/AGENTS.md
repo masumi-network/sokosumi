@@ -196,9 +196,9 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 
 - Alert on Sentry events tagged `context:signup_bonus_grant`. Grant failures are swallowed so signup is not blocked; there is no batch backfill job.
 
-**Support credits** (Core admin — granted via `POST /v1/admin/credits`, not via Stripe):
+**Free credits** (Core admin — granted via `POST /v1/admin/credits`, not via Stripe):
 
-- Admin-only direct grants to a user or organization from the web UI at `/admin/support-credits`.
+- Admin-only direct grants to a user or organization from the web UI at `/admin/free-credits`.
 - Buckets use `referenceType: SUPPORT`, `referenceId: support:{user|org}:{targetId}:{grantId}`, and optional `referenceNote` (free-text audit note from the admin form).
 - Each grant uses a new `grantId` (UUID); repeat grants are allowed (not idempotent like signup bonus).
 - Organization grants attach credits to the org bucket and record the transaction against the organization's earliest-created owner.

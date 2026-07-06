@@ -2761,9 +2761,9 @@
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
           },
-          "supportCredits": {
-            "title": "サポートクレジット",
-            "description": "Stripe の請求書なしで、ユーザーまたは組織にサポートクレジットを直接付与します。"
+          "freeCredits": {
+            "title": "無料クレジット",
+            "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
           }
         }
       },
@@ -2928,9 +2928,9 @@
           "personalWorkspace": "個人ワークスペース"
         }
       },
-      "SupportCredits": {
-        "title": "サポートクレジット",
-        "description": "ユーザーまたは組織にサポートクレジットを直接付与します。クレジットは参照タイプ Support で即時に反映されます。",
+      "FreeCredits": {
+        "title": "無料クレジット",
+        "description": "ユーザーまたは組織に無料クレジットを直接付与します。クレジットは即時に反映されます。",
         "backToAdmin": "管理画面に戻る",
         "Form": {
           "Fields": {
@@ -2953,8 +2953,8 @@
           "referenceNotePlaceholder": "例: 請求の問題、 goodwill 措置",
           "submit": "クレジットを付与",
           "submitting": "クレジットを付与中…",
-          "grantSuccess": "サポートクレジットを付与しました",
-          "grantError": "サポートクレジットの付与に失敗しました"
+          "grantSuccess": "無料クレジットを付与しました",
+          "grantError": "無料クレジットの付与に失敗しました"
         }
       }
     },

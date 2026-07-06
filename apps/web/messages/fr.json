@@ -2761,9 +2761,9 @@
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
           },
-          "supportCredits": {
-            "title": "Crédits de support",
-            "description": "Accordez des crédits de support directement à un utilisateur ou une organisation sans facture Stripe."
+          "freeCredits": {
+            "title": "Crédits gratuits",
+            "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation sans facture Stripe."
           }
         }
       },
@@ -2928,9 +2928,9 @@
           "personalWorkspace": "Espace de travail personnel"
         }
       },
-      "SupportCredits": {
-        "title": "Crédits de support",
-        "description": "Accordez des crédits de support directement à un utilisateur ou une organisation. Les crédits sont appliqués immédiatement avec le type de référence Support.",
+      "FreeCredits": {
+        "title": "Crédits gratuits",
+        "description": "Accordez des crédits gratuits directement à un utilisateur ou une organisation. Les crédits sont appliqués immédiatement.",
         "backToAdmin": "Retour à l'administration",
         "Form": {
           "Fields": {
@@ -2953,8 +2953,8 @@
           "referenceNotePlaceholder": "p. ex. Problème de facturation, geste commercial",
           "submit": "Accorder des crédits",
           "submitting": "Attribution des crédits…",
-          "grantSuccess": "Crédits de support accordés",
-          "grantError": "Impossible d'accorder les crédits de support"
+          "grantSuccess": "Crédits gratuits accordés",
+          "grantError": "Impossible d'accorder les crédits gratuits"
         }
       }
     },

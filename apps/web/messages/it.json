@@ -2761,9 +2761,9 @@
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
           },
-          "supportCredits": {
-            "title": "Crediti di supporto",
-            "description": "Concedi crediti di supporto direttamente a un utente o un'organizzazione senza fattura Stripe."
+          "freeCredits": {
+            "title": "Crediti gratuiti",
+            "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
           }
         }
       },
@@ -2928,9 +2928,9 @@
           "personalWorkspace": "Spazio di lavoro personale"
         }
       },
-      "SupportCredits": {
-        "title": "Crediti di supporto",
-        "description": "Concedi crediti di supporto direttamente a un utente o un'organizzazione. I crediti vengono applicati subito con tipo di riferimento Support.",
+      "FreeCredits": {
+        "title": "Crediti gratuiti",
+        "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione. I crediti vengono applicati subito.",
         "backToAdmin": "Torna all'amministrazione",
         "Form": {
           "Fields": {
@@ -2953,8 +2953,8 @@
           "referenceNotePlaceholder": "es. Problema di fatturazione, gesto di cortesia",
           "submit": "Concedi crediti",
           "submitting": "Concessione crediti…",
-          "grantSuccess": "Crediti di supporto concessi",
-          "grantError": "Impossibile concedere i crediti di supporto"
+          "grantSuccess": "Crediti gratuiti concessi",
+          "grantError": "Impossibile concedere i crediti gratuiti"
         }
       }
     },

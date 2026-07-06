@@ -2,17 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { SupportCreditForm } from "@/components/admin/support-credits/support-credit-form";
+import { FreeCreditForm } from "@/components/admin/free-credits/free-credit-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Support credits",
-  description: "Grant support credits to a user or organization",
+  title: "Free credits",
+  description: "Grant free credits to a user or organization",
 };
 
-export default async function SupportCreditsPage() {
-  const t = await getTranslations("App.Admin.SupportCredits");
+export default async function FreeCreditsPage() {
+  const t = await getTranslations("App.Admin.FreeCredits");
 
   return (
     <div className="min-h-full w-full">
@@ -31,7 +31,7 @@ export default async function SupportCreditsPage() {
 
         <Card>
           <CardContent>
-            <SupportCreditForm />
+            <FreeCreditForm />
           </CardContent>
         </Card>
       </div>

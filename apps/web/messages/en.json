@@ -2880,9 +2880,9 @@
           }
         }
       },
-      "SupportCredits": {
-        "title": "Support credits",
-        "description": "Grant support credits directly to a user or organization. Credits are applied immediately with reference type Support.",
+      "FreeCredits": {
+        "title": "Free credits",
+        "description": "Grant free credits directly to a user or organization. Credits are applied immediately.",
         "backToAdmin": "Back to admin",
         "Form": {
           "Fields": {
@@ -2905,8 +2905,8 @@
           "referenceNotePlaceholder": "e.g. Billing issue, goodwill gesture",
           "submit": "Grant credits",
           "submitting": "Granting credits…",
-          "grantSuccess": "Support credits granted",
-          "grantError": "Failed to grant support credits"
+          "grantSuccess": "Free credits granted",
+          "grantError": "Failed to grant free credits"
         }
       },
       "Overview": {
@@ -2921,9 +2921,9 @@
             "title": "Invoices",
             "description": "View admin invoices and grant one-time credits to a user or organization."
           },
-          "supportCredits": {
-            "title": "Support credits",
-            "description": "Grant support credits directly to a user or organization without a Stripe invoice."
+          "freeCredits": {
+            "title": "Free credits",
+            "description": "Grant free credits directly to a user or organization without a Stripe invoice."
           },
           "users": {
             "title": "Users",
