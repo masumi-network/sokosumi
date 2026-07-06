@@ -70,6 +70,8 @@ export const grantSupportCreditsAction = withSession<
         referenceNote,
       });
       revalidatePath("/admin/support-credits");
+      revalidatePath("/admin/users");
+      revalidatePath("/admin/organizations", "layout");
       return Ok(grant);
     } catch (error) {
       return Err(mapError(error));

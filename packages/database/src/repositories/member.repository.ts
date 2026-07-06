@@ -190,6 +190,26 @@ export const memberRepository = (() => {
     });
   }
 
+  /**
+   * Returns the user id of the organization's earliest-created owner, or null
+   * when the organization has no owner.
+   */
+  async function getOrganizationOwnerUserId(
+    organizationId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<string | null> {
+    const owner = await tx.member.findFirst({
+      where: {
+        organizationId,
+        role: MemberRole.OWNER,
+      },
+      orderBy: { createdAt: "asc" },
+      select: { userId: true },
+    });
+
+    return owner?.userId ?? null;
+  }
+
   async function getAssignedMemberCount(
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -424,6 +444,7 @@ export const memberRepository = (() => {
     getMembersWithUser,
     getMembersWithUserAndLastSeen,
     getMembersByOrganizationId,
+    getOrganizationOwnerUserId,
     listMembersForAdminOverview,
     removeMember,
     unassignSeat,

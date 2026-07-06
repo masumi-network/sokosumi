@@ -196,6 +196,17 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 
 - Alert on Sentry events tagged `context:signup_bonus_grant`. Grant failures are swallowed so signup is not blocked; there is no batch backfill job.
 
+**Support credits** (Core admin — granted via `POST /v1/admin/credits`, not via Stripe):
+
+- Admin-only direct grants to a user or organization from the web UI at `/admin/support-credits`.
+- Buckets use `referenceType: SUPPORT`, `referenceId: support:{user|org}:{targetId}:{grantId}`, and optional `referenceNote` (free-text audit note from the admin form).
+- Each grant uses a new `grantId` (UUID); repeat grants are allowed (not idempotent like signup bonus).
+- Organization grants attach credits to the org bucket and record the transaction against the organization's earliest-created owner.
+
+**Operations:**
+
+- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_support_credit_reference_type`) **before** deploying Core — the `SUPPORT` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
+
 ### CORS and Better Auth origins
 
 - **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.

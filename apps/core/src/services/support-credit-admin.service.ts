@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { MemberRole } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 import {
   getCreditExpiryDate,
   grantSupportCredits,
@@ -55,9 +55,10 @@ function normalizeReferenceNote(referenceNote: string | null): string | null {
 
 async function resolveTarget(
   target: SupportCreditTarget,
+  tx: Prisma.TransactionClient,
 ): Promise<{ id: string; name: string; transactionUserId: string }> {
   if (target.targetType === "user") {
-    const user = await userRepository.getUserById(target.targetId, prisma);
+    const user = await userRepository.getUserById(target.targetId, tx);
     if (!user) {
       throw new SupportCreditValidationError("User not found");
     }
@@ -72,27 +73,24 @@ async function resolveTarget(
   const organization =
     await organizationRepository.getOrganizationWithRelationsById(
       target.targetId,
-      prisma,
+      tx,
     );
   if (!organization) {
     throw new SupportCreditValidationError("Organization not found");
   }
 
-  const members = await memberRepository.getMembersByOrganizationId(
+  const ownerUserId = await memberRepository.getOrganizationOwnerUserId(
     organization.id,
-    prisma,
+    tx,
   );
-  const ownerMember = members.find(
-    (member) => member.role === MemberRole.OWNER,
-  );
-  if (!ownerMember) {
+  if (!ownerUserId) {
     throw new SupportCreditValidationError("Organization has no owner");
   }
 
   return {
     id: organization.id,
     name: organization.name,
-    transactionUserId: ownerMember.userId,
+    transactionUserId: ownerUserId,
   };
 }
 
@@ -121,7 +119,6 @@ export const supportCreditAdminService = {
       }
     }
 
-    const target = await resolveTarget(params.target);
     const referenceNote = normalizeReferenceNote(params.referenceNote);
     const grantedAt = new Date();
     const expiresAt =
@@ -129,11 +126,13 @@ export const supportCreditAdminService = {
         ? null
         : getCreditExpiryDate(grantedAt, params.ttlDays);
     const grantId = randomUUID();
-    const organizationId =
-      params.target.targetType === "organization" ? target.id : null;
 
-    const { bucketId } = await prisma.$transaction(async (tx) => {
-      const grant = await grantSupportCredits(
+    return await prisma.$transaction(async (tx) => {
+      const target = await resolveTarget(params.target, tx);
+      const organizationId =
+        params.target.targetType === "organization" ? target.id : null;
+
+      const { bucketId } = await grantSupportCredits(
         {
           credits: params.credits,
           expiresAt,
@@ -153,17 +152,15 @@ export const supportCreditAdminService = {
         userId: target.transactionUserId,
       });
 
-      return grant;
+      return {
+        bucketId,
+        targetType: params.target.targetType,
+        targetId: target.id,
+        targetName: target.name,
+        credits: params.credits,
+        ttlDays: params.ttlDays,
+        referenceNote,
+      };
     });
-
-    return {
-      bucketId,
-      targetType: params.target.targetType,
-      targetId: target.id,
-      targetName: target.name,
-      credits: params.credits,
-      ttlDays: params.ttlDays,
-      referenceNote,
-    };
   },
 };
