@@ -110,35 +110,44 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive}>
+            <SidebarMenuButton asChild isActive={isActive} size="lg">
               <SheetClose asChild>
                 <Link
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex min-h-auto w-full items-center gap-2 px-3",
+                    "flex min-h-auto w-full items-center gap-2.5 rounded-lg border px-3",
+                    "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:px-0",
                     isActive
-                      ? "text-primary-foreground"
-                      : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      ? "border-transparent text-primary-foreground"
+                      : "border-sidebar-border text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   {/* The live agent: chosen orb once a colour is committed,
-                      else the white placeholder — always with its eyes. Sized
-                      to match the 16px nav icons so the label aligns with the
-                      rest of the menu (the orb is a canvas, so the button's
-                      `[&>svg]:size-4` rule doesn't reach it). */}
+                      else the white placeholder — always with its eyes.
+                      Deliberately larger than the 16px nav icons and ringed
+                      like the avatars elsewhere in the app — this is an
+                      identity, not another icon glyph, and the row (bordered
+                      card, taller, bold label) is styled to match. Collapses
+                      back to the compact icon-sized treatment in icon mode,
+                      where there's no room for the bigger card (the orb is a
+                      canvas, so the button's `[&>svg]:size-4` rule doesn't
+                      reach it). */}
                   <AssistantOrb
                     seed={avatarSeed}
                     size={48}
                     expression="idle"
-                    className="size-4 shrink-0"
+                    className="ring-border size-7 shrink-0 ring-2 group-data-[collapsible=icon]:size-4 group-data-[collapsible=icon]:ring-1"
                   />
-                  <span className="flex-1 truncate">{label}</span>
+                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:hidden">
+                    {label}
+                  </span>
                   {showUnread ? (
                     <span
                       aria-label={`${unreadDisplay} unread`}
                       className={cn(
                         "inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-xs font-semibold leading-4 tabular-nums",
+                        "group-data-[collapsible=icon]:hidden",
                         isActive
                           ? "bg-primary-foreground text-primary"
                           : "bg-primary text-primary-foreground",
