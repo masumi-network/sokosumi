@@ -1,6 +1,6 @@
 # Hermes (Beta)
 
-Hermes is a per-user, microVM-isolated AI agent that lives at `/hermes`. It's
+Hermes is a per-user, microVM-isolated AI agent that lives at `/personal-assistant`. It's
 the user's personal interface into Sokosumi: it reads their inbox + calendar,
 hires Sokosumi agents on their behalf, remembers context across sessions,
 and runs scheduled tasks while they sleep.

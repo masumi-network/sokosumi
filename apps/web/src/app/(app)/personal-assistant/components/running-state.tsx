@@ -15,7 +15,6 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -38,10 +37,10 @@ import {
   isConfirmationOrgAwareTool,
   mergeConfirmationOrgPickerOptions,
   resolveConfirmationOrgPickerValue,
-} from "@/app/hermes/components/confirmation-org-picker";
-import RotatingMessages from "@/app/hermes/components/rotating-messages";
-import SettingsPanel from "@/app/hermes/components/settings-panel";
-import { AuroraOrb, type OrbEvent } from "@/components/aurora-orb";
+} from "@/app/personal-assistant/components/confirmation-org-picker";
+import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
+import SettingsPanel from "@/app/personal-assistant/components/settings-panel";
+import { AuroraOrb } from "@/components/aurora-orb";
 import { ArrowUpIcon, StopIcon } from "@/components/chat/icons";
 import {
   PromptInput,
@@ -193,59 +192,6 @@ interface ProgressStep {
   detail?: string;
   /** Set once the tool's `tool_done` frame arrives (chip completes). */
   done?: boolean;
-}
-
-type PresenceStatus =
-  | "resting"
-  | "listening"
-  | "thinking"
-  | "acting"
-  | "waiting"
-  | "sleeping";
-
-interface ToolPresenceIcon {
-  src: string;
-  label: string;
-}
-
-function toolIconForLabel(label: string): ToolPresenceIcon | null {
-  const normalized = label.toLowerCase();
-  if (normalized.includes("gmail") || normalized.includes("inbox")) {
-    return { src: "/icons/gmail.svg", label: "Gmail" };
-  }
-  if (normalized.includes("mail") || normalized.includes("outlook")) {
-    return { src: "/icons/outlook.svg", label: "Outlook" };
-  }
-  if (normalized.includes("calendar") || normalized.includes("meeting")) {
-    return { src: "/icons/google-calendar.svg", label: "Calendar" };
-  }
-  if (normalized.includes("linear") || normalized.includes("ticket")) {
-    return { src: "/icons/linear.svg", label: "Linear" };
-  }
-  if (normalized.includes("github") || normalized.includes("pull request")) {
-    return { src: "/icons/github.svg", label: "GitHub" };
-  }
-  if (normalized.includes("slack")) {
-    return { src: "/icons/slack.svg", label: "Slack" };
-  }
-  if (normalized.includes("notion")) {
-    return { src: "/icons/notion.svg", label: "Notion" };
-  }
-  return null;
-}
-
-function activeToolIconsFromSteps(steps: ProgressStep[]): ToolPresenceIcon[] {
-  const seen = new Set<string>();
-  const icons: ToolPresenceIcon[] = [];
-  for (const step of steps) {
-    if (step.kind === "reasoning" || step.done) continue;
-    const icon = toolIconForLabel(step.label);
-    if (!icon || seen.has(icon.src)) continue;
-    seen.add(icon.src);
-    icons.push(icon);
-    if (icons.length === 3) break;
-  }
-  return icons;
 }
 
 interface ChatApiResponse {
@@ -555,7 +501,7 @@ export default function RunningState({
             }),
           );
 
-          const res = await fetch("/api/hermes/chat", {
+          const res = await fetch("/api/personal-assistant/chat", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -940,118 +886,10 @@ export default function RunningState({
   // playful/warm), using the exact mapping the onboarding hero uses.
   const orbMotion = personalityToOrbMotion(instance?.personality);
 
-  // ── Live presence ─────────────────────────────────────────────────────────
-  // A single animated orb whose eyes track what's happening: listening while you
-  // type, thinking / focused while it replies, drowsy after a long idle, else the
-  // personality's resting face. Plus one-shot pulses on events — a wink when a
-  // gated action is approved, surprise when an unprompted message lands.
-  const [idle, setIdle] = useState(false);
-  const lastActivityRef = useRef(0);
-  const [orbEvent, setOrbEvent] = useState<OrbEvent | null>(null);
-  const orbEventNonce = useRef(0);
-  const fireOrbEvent = useCallback(
-    (expr: OrbExpression, ms = orbMotion.pulseMs) => {
-      orbEventNonce.current += 1;
-      setOrbEvent({ expr, nonce: orbEventNonce.current, ms });
-    },
-    [orbMotion.pulseMs],
-  );
-
-  useEffect(() => {
-    lastActivityRef.current = Date.now();
-    setIdle(false);
-  }, [messages, input, isReplying]);
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      if (
-        !isReplyingRef.current &&
-        Date.now() - lastActivityRef.current > 75_000
-      ) {
-        setIdle(true);
-      }
-    }, 5_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  const approvedCountRef = useRef(0);
-  useEffect(() => {
-    let approved = 0;
-    resolvedConfirmations.forEach((e) => {
-      if (e.resolution.status === "approved") approved += 1;
-    });
-    if (approved > approvedCountRef.current) fireOrbEvent("wink");
-    approvedCountRef.current = approved;
-  }, [resolvedConfirmations, fireOrbEvent]);
-
-  const lastMsgIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    const last = messages[messages.length - 1];
-    const lastId = last?.id ?? null;
-    // Only an UNPROMPTED, agent-initiated message (kind != null — an inbox push
-    // such as a reminder or cron result) should surprise the orb. A normal
-    // reply has kind === null, so the routine post-turn optimistic→persisted id
-    // swap (same content, new id) can never trigger a false surprise.
-    if (
-      lastId &&
-      lastMsgIdRef.current !== null &&
-      lastId !== lastMsgIdRef.current &&
-      !isReplyingRef.current &&
-      last?.role === "assistant" &&
-      last.kind !== null
-    ) {
-      fireOrbEvent("surprised");
-    }
-    lastMsgIdRef.current = lastId;
-  }, [messages, fireOrbEvent]);
-
-  const isTyping = input.trim().length > 0;
-  const presenceExpression: OrbExpression =
-    isReplying && progressChips.length > 0 && !streamingId
-      ? "focused"
-      : isReplying
-        ? "thinking"
-        : isTyping
-          ? "listening"
-          : idle
-            ? "sleeping"
-            : orbMotion.restExpression;
-  const presenceSpeed =
-    presenceExpression === "sleeping"
-      ? 0.6
-      : presenceExpression === "thinking" || presenceExpression === "focused"
-        ? orbMotion.activeSpeed
-        : orbMotion.speed;
-  const activeToolIcons = activeToolIconsFromSteps(progressChips);
-  const presenceStatus: PresenceStatus =
-    pendingCards.length > 0
-      ? "waiting"
-      : activeToolIcons.length > 0 || presenceExpression === "focused"
-        ? "acting"
-        : presenceExpression === "thinking"
-          ? "thinking"
-          : presenceExpression === "listening"
-            ? "listening"
-            : presenceExpression === "sleeping"
-              ? "sleeping"
-              : "resting";
-
   return (
     <AssistantSeedContext.Provider value={avatarSeed}>
       <AssistantMotionContext.Provider value={orbMotion}>
         <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
-          {/* Floating live-presence orb (top-left) — the assistant's persistent
-              animated "face" reflecting what it's doing right now. */}
-          {!isEmpty ? (
-            <div className="absolute left-3 top-3 z-20">
-              <PresenceOrb
-                expression={presenceExpression}
-                speed={presenceSpeed}
-                event={orbEvent}
-                status={presenceStatus}
-                toolIcons={activeToolIcons}
-              />
-            </div>
-          ) : null}
           {/* Floating top-right control — the integrations chip doubles as the
           entry point into Settings (covers autonomy, schedules, danger zone)
           so we don't need a separate gear button competing for attention. */}
@@ -1746,95 +1584,6 @@ function AssistantTyping({ startedAt }: { startedAt?: number | null }) {
         </span>
         {startedAt ? <ElapsedTimer startedAt={startedAt} /> : null}
       </div>
-    </div>
-  );
-}
-
-/**
- * The persistent live-presence orb (top-left of the chat). Always animated; its
- * expression is driven by RunningState and it fires event pulses (wink on a
- * gated action, surprise on an unprompted message) via the `event` prop.
- */
-function PresenceOrb({
-  expression,
-  speed,
-  event,
-  status,
-  toolIcons,
-}: {
-  expression: OrbExpression;
-  speed: number;
-  event: OrbEvent | null;
-  status: PresenceStatus;
-  toolIcons: ToolPresenceIcon[];
-}) {
-  const tCommon = useTranslations("App.Hermes.Common");
-  const seed = useContext(AssistantSeedContext);
-  const ringClass =
-    status === "waiting"
-      ? "border-amber-500/60 bg-amber-500/10"
-      : status === "sleeping"
-        ? "border-muted-foreground/30 bg-muted/70"
-        : status === "resting"
-          ? "border-border/50 bg-background/85"
-          : "border-primary/55 bg-primary/10";
-  const pulseClass =
-    status === "acting"
-      ? "border-primary/50"
-      : status === "thinking"
-        ? "border-primary/35"
-        : status === "listening"
-          ? "border-primary/30"
-          : status === "waiting"
-            ? "border-amber-500/45"
-            : "";
-  return (
-    <div className="relative size-11">
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-0 rounded-full border shadow-sm backdrop-blur-sm transition-colors",
-          ringClass,
-        )}
-      />
-      {pulseClass ? (
-        <span
-          aria-hidden
-          className={cn(
-            "absolute inset-[-3px] animate-ping rounded-full border opacity-60",
-            pulseClass,
-          )}
-        />
-      ) : null}
-      <AuroraOrb
-        seed={seed}
-        animate
-        size={72}
-        speed={speed}
-        expression={expression}
-        event={event}
-        alt={tCommon("hermesAvatarAlt")}
-        className="ring-border/40 absolute inset-1 size-9 ring-1"
-      />
-      {toolIcons.map((icon, index) => (
-        <span
-          key={icon.src}
-          aria-hidden
-          className="absolute inset-0 animate-spin [animation-duration:4.8s]"
-          style={{ animationDelay: `${index * -1.6}s` }}
-        >
-          <span className="bg-background absolute -right-1 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 shadow-sm">
-            <Image
-              src={icon.src}
-              alt=""
-              width={14}
-              height={14}
-              className="size-3"
-              unoptimized
-            />
-          </span>
-        </span>
-      ))}
     </div>
   );
 }

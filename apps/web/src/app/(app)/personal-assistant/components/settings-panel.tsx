@@ -10,7 +10,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { hermesOAuthConnectErrorMessage } from "@/app/hermes/components/hermes-oauth-messages";
+import { hermesOAuthConnectErrorMessage } from "@/app/personal-assistant/components/hermes-oauth-messages";
 
 import {
   AlertDialog,

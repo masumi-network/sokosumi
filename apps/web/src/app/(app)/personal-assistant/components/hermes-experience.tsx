@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import EmptyState from "@/app/hermes/components/empty-state";
-import ErrorState from "@/app/hermes/components/error-state";
-import LoadingState from "@/app/hermes/components/loading-state";
-import OnboardingProgress from "@/app/hermes/components/onboarding-progress";
-import OnboardingScreen from "@/app/hermes/components/onboarding-screen";
-import ProvisioningState from "@/app/hermes/components/provisioning-state";
-import RunningState from "@/app/hermes/components/running-state";
+import EmptyState from "@/app/personal-assistant/components/empty-state";
+import ErrorState from "@/app/personal-assistant/components/error-state";
+import LoadingState from "@/app/personal-assistant/components/loading-state";
+import OnboardingProgress from "@/app/personal-assistant/components/onboarding-progress";
+import OnboardingScreen from "@/app/personal-assistant/components/onboarding-screen";
+import ProvisioningState from "@/app/personal-assistant/components/provisioning-state";
+import RunningState from "@/app/personal-assistant/components/running-state";
 import {
   destroyHermesAction,
   getHermesInstanceAction,

@@ -4,9 +4,9 @@ import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
-import FlowBackground from "@/app/hermes/components/flow-background";
-import ProgressPips from "@/app/hermes/components/progress-pips";
-import RotatingMessages from "@/app/hermes/components/rotating-messages";
+import FlowBackground from "@/app/personal-assistant/components/flow-background";
+import ProgressPips from "@/app/personal-assistant/components/progress-pips";
+import RotatingMessages from "@/app/personal-assistant/components/rotating-messages";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { orderedMessageList } from "@/lib/intl/ordered-message-list";
 import { cn } from "@/lib/utils";

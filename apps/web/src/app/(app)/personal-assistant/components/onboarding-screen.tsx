@@ -12,10 +12,10 @@ import {
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import ConnectInterstitial from "@/app/hermes/components/connect-interstitial";
-import FlowBackground from "@/app/hermes/components/flow-background";
-import { hermesOAuthConnectErrorMessage } from "@/app/hermes/components/hermes-oauth-messages";
-import ProgressPips from "@/app/hermes/components/progress-pips";
+import ConnectInterstitial from "@/app/personal-assistant/components/connect-interstitial";
+import FlowBackground from "@/app/personal-assistant/components/flow-background";
+import { hermesOAuthConnectErrorMessage } from "@/app/personal-assistant/components/hermes-oauth-messages";
+import ProgressPips from "@/app/personal-assistant/components/progress-pips";
 import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";

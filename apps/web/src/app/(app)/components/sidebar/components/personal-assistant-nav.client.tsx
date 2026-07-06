@@ -97,7 +97,7 @@ export default function PersonalAssistantNav({
 
   if (!enabled) return null;
 
-  const href = "/hermes";
+  const href = "/personal-assistant";
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
   const showUnread = unread > 0;
   const unreadDisplay = unread > 99 ? "99+" : String(unread);

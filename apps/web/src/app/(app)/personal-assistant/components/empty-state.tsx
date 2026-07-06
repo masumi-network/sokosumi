@@ -14,7 +14,7 @@ import {
 import { useTranslations } from "next-intl";
 import { type ComponentType, createContext, useContext, useState } from "react";
 
-import FlowBackground from "@/app/hermes/components/flow-background";
+import FlowBackground from "@/app/personal-assistant/components/flow-background";
 import { AuroraOrb, PlaceholderOrb } from "@/components/aurora-orb";
 import { Button } from "@/components/ui/button";
 import { orbSeedFor } from "@/lib/aurora-orb";

@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import FlowBackground from "@/app/hermes/components/flow-background";
+import FlowBackground from "@/app/personal-assistant/components/flow-background";
 import { AuroraOrb } from "@/components/aurora-orb";
 
 /**
