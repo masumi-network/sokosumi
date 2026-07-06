@@ -44,7 +44,7 @@ interface SidebarSubmenuProps {
 const SLIDE_TRANSITION_CLASS =
   "transition-transform duration-200 ease-out motion-reduce:transition-none";
 const TRACK_PANEL_CLASS = "min-w-0 shrink-0 grow-0 basis-full";
-const SLIDE_DURATION_MS = 200;
+export const SIDEBAR_SUBMENU_SLIDE_DURATION_MS = 200;
 
 function computePanelPath(
   panels: SidebarSubmenuPanel[],
@@ -113,7 +113,7 @@ function SubmenuPanelView({
     <div
       ref={panelRef}
       tabIndex={isActive ? -1 : undefined}
-      className={cn(TRACK_PANEL_CLASS, "outline-hidden")}
+      className={cn(TRACK_PANEL_CLASS, "outline-hidden overflow-hidden")}
       aria-hidden={!isActive}
       {...(!isActive ? { inert: true } : {})}
     >
@@ -124,7 +124,7 @@ function SubmenuPanelView({
         )}
       >
         <SidebarSubmenuBackButton />
-        <div className="min-w-0 flex-1">{panel.header}</div>
+        <div className="min-w-0 flex-1 overflow-hidden">{panel.header}</div>
       </div>
       <div className={cn(!isActive && "pointer-events-none")}>
         {panel.content}
@@ -199,7 +199,7 @@ export function SidebarSubmenu({
 
     const timeout = window.setTimeout(() => {
       setTrackPanels(pathPanels);
-    }, SLIDE_DURATION_MS);
+    }, SIDEBAR_SUBMENU_SLIDE_DURATION_MS);
 
     return () => {
       window.clearTimeout(timeout);

@@ -74,7 +74,24 @@ vi.mock("@/app/components/sidebar/components/sidebar-submenu", () => ({
   }),
 }));
 
-import { SettingsSubmenuContent } from "@/app/components/sidebar/components/settings-submenu-content";
+import {
+  SettingsPanelHeader,
+  SettingsSubmenuContent,
+} from "@/app/components/sidebar/components/settings-submenu-content";
+
+describe("SettingsPanelHeader", () => {
+  it("truncates long labels within the panel header", () => {
+    const longLabel =
+      "Enterprise (Very Long Organization Name That Should Not Overflow)";
+
+    render(<SettingsPanelHeader planLabel={longLabel} />);
+
+    const label = screen.getByText(longLabel);
+    expect(label).toHaveClass("truncate");
+    expect(label).toHaveClass("min-w-0");
+    expect(label).toHaveAttribute("title", longLabel);
+  });
+});
 
 describe("SettingsSubmenuContent", () => {
   beforeEach(() => {
