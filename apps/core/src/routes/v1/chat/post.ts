@@ -984,6 +984,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const result = streamText({
         model: getSokosumiProvider()(selectedModel),
         messages: modelMessages,
+        allowSystemInMessages: true,
         maxRetries: 0,
         providerOptions: {
           sokosumi: sokosumiProviderOptions,

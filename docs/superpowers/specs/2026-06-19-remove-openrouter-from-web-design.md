@@ -31,9 +31,10 @@ data access and LLM secrets; shared pure helpers live in `@sokosumi/utils`.
   **only** for these two name generators. Its raw `openrouter` provider export
   is unused. `@openrouter/ai-sdk-provider` is imported in web at exactly this
   one file.
-- Core `clients/openrouter.client.ts` already has `generateJobName`,
-  `generateChatTitle`, `generateAgentSummary`, `streamChatResponse` — but **no
-  `generateTaskName`**. It is null-safe (returns `null` when the key is unset).
+- Core `clients/openrouter.client.ts` has `generateJobName`, `generateTaskName`,
+  `generateChatTitle`, and `generateAgentSummary`. Chat streaming uses
+  `@sokosumi/ai-provider` (not this client). It is null-safe (returns `null`
+  when the key is unset).
 - There is **one** task-create route: `apps/core/src/routes/v1/tasks/post.ts`.
   `projects/[id]/tasks/post.ts` only *assigns* an existing task to a project.
 - `removeDesignMdAttachmentLinks` (web `lib/utils/task-attachments.ts`) is a
