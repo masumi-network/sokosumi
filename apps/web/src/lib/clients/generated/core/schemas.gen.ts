@@ -4350,21 +4350,14 @@ export const HermesUploadedFileSchema = {
 } as const;
 
 export const HermesGetInstanceEnvelopeSchema = {
-    oneOf: [
+    anyOf: [
         {
             $ref: '#/components/schemas/HermesGetInstanceNone'
         },
         {
             $ref: '#/components/schemas/HermesGetInstanceSome'
         }
-    ],
-    discriminator: {
-        propertyName: 'hasInstance',
-        mapping: {
-            false: '#/components/schemas/HermesGetInstanceNone',
-            true: '#/components/schemas/HermesGetInstanceSome'
-        }
-    }
+    ]
 } as const;
 
 export const HermesGetInstanceNoneSchema = {

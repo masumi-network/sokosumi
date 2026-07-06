@@ -320,7 +320,7 @@ export const hermesFinalizeIntegrationRequestSchema = z
  * + `dates: true`).
  */
 export const hermesGetInstanceEnvelopeSchema = z
-  .discriminatedUnion("hasInstance", [
+  .union([
     z
       .object({
         hasInstance: z.literal(false),

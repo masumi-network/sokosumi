@@ -1122,11 +1122,7 @@ export type HermesUploadedFile = {
     dataUrl: string;
 };
 
-export type HermesGetInstanceEnvelope = ({
-    hasInstance: 'false';
-} & HermesGetInstanceNone) | ({
-    hasInstance: 'true';
-} & HermesGetInstanceSome);
+export type HermesGetInstanceEnvelope = HermesGetInstanceNone | HermesGetInstanceSome;
 
 export type HermesGetInstanceNone = {
     hasInstance: false;

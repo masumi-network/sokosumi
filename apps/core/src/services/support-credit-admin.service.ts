@@ -69,10 +69,11 @@ async function resolveTarget(
     };
   }
 
-  const organization = await organizationRepository.getOrganizationById(
-    target.targetId,
-    prisma,
-  );
+  const organization =
+    await organizationRepository.getOrganizationWithRelationsById(
+      target.targetId,
+      prisma,
+    );
   if (!organization) {
     throw new SupportCreditValidationError("Organization not found");
   }
