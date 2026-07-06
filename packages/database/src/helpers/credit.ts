@@ -23,6 +23,7 @@ export function creditBucketActivatesAtOrBeforeSql(now: Date): Prisma.Sql {
 export const ORGANIZATION_MEMBER_SUBSCRIPTION_REFERENCE_PREFIX = "member:";
 export const USER_CREDIT_REFERENCE_PREFIX = "user:";
 export const ORGANIZATION_CREDIT_REFERENCE_PREFIX = "org:";
+export const FREE_CREDIT_REFERENCE_SEGMENT = "free";
 
 interface SplitAmountEvenlyWithRemainderRotationParams {
   memberIds: string[];
@@ -133,9 +134,11 @@ export function buildSignupBonusCreditReferenceId(userId: string): string {
 }
 
 export function buildFreeCreditReferenceId(params: {
+  grantId: string;
   targetId: string;
   targetType: "user" | "organization";
 }): string {
+  validateReferenceSegment(params.grantId, "grantId");
   validateReferenceSegment(params.targetId, "targetId");
 
   const targetPrefix =
@@ -143,7 +146,7 @@ export function buildFreeCreditReferenceId(params: {
       ? USER_CREDIT_REFERENCE_PREFIX
       : ORGANIZATION_CREDIT_REFERENCE_PREFIX;
 
-  return `${targetPrefix}${params.targetId}`;
+  return `${targetPrefix}${params.targetId}:${FREE_CREDIT_REFERENCE_SEGMENT}:${params.grantId}`;
 }
 
 export function buildUserInvoiceCreditReferenceId(

@@ -6,23 +6,25 @@ import { buildFreeCreditReferenceId } from "../credit.js";
 import { grantFreeCredits } from "../free-credits.js";
 
 describe("buildFreeCreditReferenceId", () => {
-  it("returns user:{userId}", () => {
+  it("returns user:{userId}:free:{grantId}", () => {
     assert.equal(
       buildFreeCreditReferenceId({
+        grantId: "grant-1",
         targetId: "user-1",
         targetType: "user",
       }),
-      "user:user-1",
+      "user:user-1:free:grant-1",
     );
   });
 
-  it("returns org:{orgId}", () => {
+  it("returns org:{orgId}:free:{grantId}", () => {
     assert.equal(
       buildFreeCreditReferenceId({
+        grantId: "grant-2",
         targetId: "org-1",
         targetType: "organization",
       }),
-      "org:org-1",
+      "org:org-1:free:grant-2",
     );
   });
 });
@@ -41,6 +43,7 @@ describe("grantFreeCredits", () => {
       {
         credits: 500,
         expiresAt,
+        grantId: "grant-1",
         organizationId: null,
         referenceNote: "Goodwill gesture",
         targetId: "user-1",
@@ -53,7 +56,7 @@ describe("grantFreeCredits", () => {
     assert.deepEqual(result, { bucketId: "bucket-1" });
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
-      "user:user-1",
+      "user:user-1:free:grant-1",
     );
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
@@ -88,6 +91,7 @@ describe("grantFreeCredits", () => {
       {
         credits: 1000,
         expiresAt: null,
+        grantId: "grant-org",
         organizationId: "org-1",
         referenceNote: null,
         targetId: "org-1",
@@ -100,7 +104,7 @@ describe("grantFreeCredits", () => {
     assert.deepEqual(result, { bucketId: "bucket-org" });
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
-      "org:org-1",
+      "org:org-1:free:grant-org",
     );
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.userId,
@@ -125,6 +129,7 @@ describe("grantFreeCredits", () => {
           {
             credits: 0,
             expiresAt: null,
+            grantId: "grant-1",
             organizationId: null,
             referenceNote: null,
             targetId: "user-1",

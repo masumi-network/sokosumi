@@ -6,6 +6,11 @@ const getOrganizationOwnerUserIdMock = vi.fn();
 const grantFreeCreditsMock = vi.fn();
 const getCreditExpiryDateMock = vi.fn();
 const markOutOfCreditsTasksAsToppedUpMock = vi.fn();
+const randomUUIDMock = vi.fn();
+
+vi.mock("node:crypto", () => ({
+  randomUUID: () => randomUUIDMock(),
+}));
 
 vi.mock("@sokosumi/database/helpers", () => ({
   grantFreeCredits: (...args: unknown[]) => grantFreeCreditsMock(...args),
@@ -47,6 +52,7 @@ import { freeCreditAdminService } from "./free-credit-admin.service";
 describe("freeCreditAdminService.grantFreeCredits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    randomUUIDMock.mockReturnValue("grant-uuid-1");
     grantFreeCreditsMock.mockResolvedValue({ bucketId: "bucket-1" });
     getCreditExpiryDateMock.mockReturnValue(
       new Date("2026-08-01T00:00:00.000Z"),
@@ -80,6 +86,7 @@ describe("freeCreditAdminService.grantFreeCredits", () => {
     expect(grantFreeCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         credits: 500,
+        grantId: "grant-uuid-1",
         organizationId: null,
         referenceNote: "Help",
         targetId: "user-1",

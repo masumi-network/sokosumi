@@ -199,7 +199,8 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 **Free credits** (Core admin — granted via `POST /v1/admin/credits`, not via Stripe):
 
 - Admin-only direct grants to a user or organization from the web UI at `/admin/free-credits`.
-- Buckets use `referenceType: FREE`, `referenceId: user:{userId}` or `org:{orgId}`, and optional `referenceNote` (free-text audit note from the admin form).
+- Buckets use `referenceType: FREE`, `referenceId: user:{userId}:free:{grantId}` or `org:{orgId}:free:{grantId}`, and optional `referenceNote` (free-text audit note from the admin form).
+- Each grant uses a new `grantId` (UUID); repeat grants to the same target are allowed.
 - Organization grants attach credits to the org bucket and record the transaction against the organization's earliest-created owner.
 
 **Operations:**

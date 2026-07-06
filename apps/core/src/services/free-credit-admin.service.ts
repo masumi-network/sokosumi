@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { Prisma } from "@sokosumi/database";
 import {
   getCreditExpiryDate,
@@ -111,6 +113,7 @@ export const freeCreditAdminService = {
       params.ttlDays === null
         ? null
         : getCreditExpiryDate(grantedAt, params.ttlDays);
+    const grantId = randomUUID();
 
     return await prisma.$transaction(async (tx) => {
       const target = await resolveTarget(params.target, tx);
@@ -122,6 +125,7 @@ export const freeCreditAdminService = {
         {
           credits: params.credits,
           expiresAt,
+          grantId,
           organizationId,
           referenceNote,
           targetId: target.id,
