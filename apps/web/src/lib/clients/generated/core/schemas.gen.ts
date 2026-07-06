@@ -934,11 +934,14 @@ export const CreateSupportCreditGrantSchema = {
             example: 30
         },
         referenceNote: {
-            type: [
-                'string',
-                'null'
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
             ],
-            maxLength: 500,
             example: 'Billing issue'
         }
     },

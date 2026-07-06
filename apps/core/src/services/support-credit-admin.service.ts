@@ -44,15 +44,6 @@ function isPositiveIntegerCredits(credits: number): boolean {
   return Number.isFinite(credits) && Number.isInteger(credits) && credits > 0;
 }
 
-function normalizeReferenceNote(referenceNote: string | null): string | null {
-  if (referenceNote === null) {
-    return null;
-  }
-
-  const trimmed = referenceNote.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 async function resolveTarget(
   target: SupportCreditTarget,
   tx: Prisma.TransactionClient,
@@ -119,7 +110,6 @@ export const supportCreditAdminService = {
       }
     }
 
-    const referenceNote = normalizeReferenceNote(params.referenceNote);
     const grantedAt = new Date();
     const expiresAt =
       params.ttlDays === null
@@ -131,6 +121,7 @@ export const supportCreditAdminService = {
       const target = await resolveTarget(params.target, tx);
       const organizationId =
         params.target.targetType === "organization" ? target.id : null;
+      const referenceNote = params.referenceNote;
 
       const { bucketId } = await grantSupportCredits(
         {

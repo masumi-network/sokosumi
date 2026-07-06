@@ -21,10 +21,15 @@ export const createSupportCreditGrantSchema = z
     credits: z.number().int().positive().openapi({ example: 500 }),
     ttlDays: z.number().int().nullable().openapi({ example: 30 }),
     referenceNote: z
-      .string()
-      .trim()
-      .max(500)
-      .nullable()
+      .union([z.string(), z.null()])
+      .transform((value) => {
+        if (value === null) {
+          return null;
+        }
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : null;
+      })
+      .pipe(z.union([z.string().max(500), z.null()]))
       .openapi({ example: "Billing issue" }),
   })
   .openapi("CreateSupportCreditGrant");
