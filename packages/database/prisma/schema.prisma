@@ -670,7 +670,6 @@ model CreditBucket {
 
   referenceId   String?
   referenceType CreditBucketReferenceType?
-  referenceNote String?
 
   // Link to the transaction that created this bucket (topup)
   sourceTransactionId String      @unique
