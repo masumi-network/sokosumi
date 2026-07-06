@@ -55,4 +55,29 @@ describe("openrouter.client", () => {
     expect(call.model).toBe("mock-haiku-model");
     expect(call).not.toHaveProperty("system");
   });
+
+  it("truncates generated chat titles to 50 characters", async () => {
+    generateTextMock.mockResolvedValue({ text: "A".repeat(60) });
+
+    const { openrouterClient } = await import("./openrouter.client");
+
+    const title = await openrouterClient.generateChatTitle("hello");
+
+    expect(title).toBe("A".repeat(50));
+    expect(generateTextMock).toHaveBeenCalledOnce();
+  });
+
+  it("returns null without calling generateText when OpenRouter is not configured", async () => {
+    vi.doMock("@/config/env", () => ({
+      getEnv: () => ({}),
+    }));
+
+    const { openrouterClient } = await import("./openrouter.client");
+
+    await expect(
+      openrouterClient.generateChatTitle("hello"),
+    ).resolves.toBeNull();
+    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(createOpenRouterMock).not.toHaveBeenCalled();
+  });
 });

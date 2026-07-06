@@ -72,11 +72,11 @@ export const openrouterClient = (() => {
         .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)
         .join(", ");
 
-      const instructions = `Generate a descriptive agent summary following these rules:
+      const instructions = `Generate a short job name following these rules:
         - Length: 90-110 characters (including spaces and punctuation)
         - Language: Match the input
         - Format: Single sentence, no agent name
-        - Output: Summary only, no other text
+        - Output: Job name only, no other text
       `;
       const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
