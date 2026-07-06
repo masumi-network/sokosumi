@@ -69,7 +69,8 @@ const {
   );
   const prismaMock = {
     __prisma: true,
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    $transaction: (callback: (tx: unknown) => unknown) =>
+      prismaTransactionMock(callback),
   };
 
   return {
