@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -85,9 +85,9 @@
     "perf:report:auth": "node scripts/perf-report-authenticated.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.0",
+    "@biomejs/biome": "2.5.2",
     "chrome-launcher": "1.2.1",
     "lighthouse": "13.4.0",
-    "tsx": "4.22.4"
+    "tsx": "4.23.0"
   }
 }

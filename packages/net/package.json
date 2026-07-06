@@ -34,12 +34,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "request-filtering-agent": "3.2.0"
+    "request-filtering-agent": "3.2.1"
   },
   "devDependencies": {
     "@types/node": "24.13.2",
-    "tsx": "4.22.4",
+    "tsx": "4.23.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "vitest": "4.1.10"
   }
 }
