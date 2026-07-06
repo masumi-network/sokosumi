@@ -40,7 +40,6 @@ const envDefaults: Record<string, string> = {
   STRIPE_CREDIT_PRODUCT_ID: "prod_credit_test",
   SIGNUP_BONUS_CREDITS: "3000",
   SIGNUP_BONUS_TTL_DAYS: "30",
-  STRIPE_SUPPORT_COUPON: "coupon_support_test",
   STRIPE_WEBHOOK_SECRET: "whsec_test_example",
   LOCK_TIMEOUT: "900000",
   LOCK_TIMEOUT_BUFFER: "25000",

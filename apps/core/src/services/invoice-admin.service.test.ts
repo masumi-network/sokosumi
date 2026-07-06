@@ -81,10 +81,6 @@ vi.mock("@/services/stripe-invoice-credit.service", () => ({
     handleInvoicePaidEventMock(...args),
 }));
 
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({ STRIPE_SUPPORT_COUPON: "coupon_support" }),
-}));
-
 import {
   InvoiceValidationError,
   invoiceAdminService,
