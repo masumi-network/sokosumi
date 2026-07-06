@@ -55,7 +55,7 @@ export const openrouterClient = (() => {
         .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)
         .join(", ");
 
-      const systemPrompt = `Generate a descriptive agent summary following these rules:
+      const instructions = `Generate a descriptive agent summary following these rules:
         - Length: 90-110 characters (including spaces and punctuation)
         - Language: Match the input
         - Format: Single sentence, no agent name
@@ -67,7 +67,7 @@ export const openrouterClient = (() => {
         const { text } = await generateText({
           abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
-          system: systemPrompt,
+          instructions,
           prompt: userPrompt,
           temperature: 0.9,
           maxOutputTokens: 80,
@@ -85,7 +85,7 @@ export const openrouterClient = (() => {
         return null;
       }
 
-      const systemPrompt = `Generate a concise task name following these rules:
+      const instructions = `Generate a concise task name following these rules:
         - Length: 30-60 characters (including spaces and punctuation)
         - Language: Match the input
         - Format: Single sentence
@@ -98,7 +98,7 @@ export const openrouterClient = (() => {
         const { text } = await generateText({
           abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
-          system: systemPrompt,
+          instructions,
           prompt: userPrompt,
           temperature: 0.9,
           maxOutputTokens: 40,
@@ -121,7 +121,7 @@ export const openrouterClient = (() => {
         return null;
       }
 
-      const systemPrompt = `Generate a very short chat title from the user's first message. Rules:
+      const instructions = `Generate a very short chat title from the user's first message. Rules:
         - Maximum 50 characters (including spaces and punctuation)
         - Language: Match the input
         - Format: Single phrase or sentence fragment, no quotes
@@ -132,7 +132,7 @@ export const openrouterClient = (() => {
       try {
         const { text } = await generateText({
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
-          system: systemPrompt,
+          instructions,
           prompt: userPrompt,
           temperature: 0.5,
           maxOutputTokens: 40,
@@ -155,7 +155,7 @@ export const openrouterClient = (() => {
         return null;
       }
 
-      const systemPrompt = `You are a summary generator. Output ONLY the summary text—no questions, no explanations, no preamble.
+      const instructions = `You are a summary generator. Output ONLY the summary text—no questions, no explanations, no preamble.
 
         Task: Write a one-sentence agent summary (11-14 words maximum).
         
@@ -178,7 +178,7 @@ export const openrouterClient = (() => {
         const { text } = await generateText({
           abortSignal: options?.abortSignal,
           model: defaultOpenrouter("anthropic/claude-haiku-4.5"),
-          system: systemPrompt,
+          instructions,
           prompt: userPrompt,
           temperature: 0.3,
         });
