@@ -691,7 +691,6 @@ export function createCoreClient(getClient: GetClient) {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    markFree: boolean;
   }) {
     return executeOperation(
       getClient,

@@ -121,7 +121,6 @@ describe("invoiceAdminService.createInvoice", () => {
       credits: 10,
       ttlDays: null,
       priceId: null,
-      markFree: false,
     });
 
     expect(createAdminInvoiceMock).toHaveBeenCalledWith(
@@ -151,7 +150,6 @@ describe("invoiceAdminService.createInvoice", () => {
       credits: 5,
       ttlDays: null,
       priceId: null,
-      markFree: false,
     });
 
     expect(createAdminInvoiceMock).toHaveBeenCalledWith(
@@ -180,7 +178,6 @@ describe("invoiceAdminService.createInvoice", () => {
       credits: 5,
       ttlDays: null,
       priceId: null,
-      markFree: false,
     });
 
     expect(createUserCustomerMock).toHaveBeenCalledWith({
@@ -197,65 +194,7 @@ describe("invoiceAdminService.createInvoice", () => {
     );
   });
 
-  it("applies the support coupon when the grant is marked free", async () => {
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org_1",
-      name: "Acme",
-      slug: "acme",
-      stripeCustomerId: "cus_org",
-      metadata: null,
-    });
-    createAdminInvoiceMock.mockResolvedValue({
-      id: "in_free",
-      currency: "usd",
-      amount_due: 0,
-      status: "paid",
-    });
-    creditBucketFindFirstMock.mockResolvedValue({ id: "cb_free" });
-
-    await invoiceAdminService.createInvoice({
-      target: { targetType: "organization", targetId: "org_1" },
-      credits: 10,
-      ttlDays: null,
-      priceId: null,
-      markFree: true,
-    });
-
-    expect(createAdminInvoiceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ couponId: "coupon_support" }),
-    );
-  });
-
-  it("grants credits immediately when the invoice finalizes as paid (free grant)", async () => {
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org_1",
-      name: "Acme",
-      slug: "acme",
-      stripeCustomerId: "cus_org",
-      metadata: null,
-    });
-    createAdminInvoiceMock.mockResolvedValue({
-      id: "in_free",
-      currency: "usd",
-      amount_due: 0,
-      status: "paid",
-    });
-    creditBucketFindFirstMock.mockResolvedValue({ id: "cb_free" });
-
-    const summary = await invoiceAdminService.createInvoice({
-      target: { targetType: "organization", targetId: "org_1" },
-      credits: 10,
-      ttlDays: null,
-      priceId: null,
-      markFree: true,
-    });
-
-    expect(handleInvoicePaidEventMock).toHaveBeenCalledTimes(1);
-    expect(creditBucketFindFirstMock).toHaveBeenCalled();
-    expect(summary.targetType).toBe("organization");
-  });
-
-  it("does NOT grant immediately for a non-free invoice that stays open", async () => {
+  it("does NOT grant immediately for an invoice that stays open", async () => {
     getOrganizationWithRelationsByIdMock.mockResolvedValue({
       id: "org_1",
       name: "Acme",
@@ -269,70 +208,13 @@ describe("invoiceAdminService.createInvoice", () => {
       credits: 10,
       ttlDays: null,
       priceId: null,
-      markFree: false,
     });
 
     expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
     expect(creditBucketFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("throws when a free grant finalizes paid but no credits land", async () => {
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org_1",
-      name: "Acme",
-      slug: "acme",
-      stripeCustomerId: "cus_org",
-      metadata: null,
-    });
-    createAdminInvoiceMock.mockResolvedValue({
-      id: "in_free",
-      currency: "usd",
-      amount_due: 0,
-      status: "paid",
-    });
-    creditBucketFindFirstMock.mockResolvedValue(null);
-
-    await expect(
-      invoiceAdminService.createInvoice({
-        target: { targetType: "organization", targetId: "org_1" },
-        credits: 10,
-        ttlDays: null,
-        priceId: null,
-        markFree: true,
-      }),
-    ).rejects.toThrow(InvoiceValidationError);
-  });
-
-  it("throws when a free grant is not fully discounted to $0 (coupon misconfigured)", async () => {
-    getOrganizationWithRelationsByIdMock.mockResolvedValue({
-      id: "org_1",
-      name: "Acme",
-      slug: "acme",
-      stripeCustomerId: "cus_org",
-      metadata: null,
-    });
-    // Coupon didn't zero the invoice: it stays open with a balance due.
-    createAdminInvoiceMock.mockResolvedValue({
-      id: "in_partial",
-      currency: "usd",
-      amount_due: 500,
-      status: "open",
-    });
-
-    await expect(
-      invoiceAdminService.createInvoice({
-        target: { targetType: "organization", targetId: "org_1" },
-        credits: 10,
-        ttlDays: null,
-        priceId: null,
-        markFree: true,
-      }),
-    ).rejects.toThrow(InvoiceValidationError);
-    // No credits should be granted for a non-free "free" invoice.
-    expect(handleInvoicePaidEventMock).not.toHaveBeenCalled();
-  });
-
-  it("throws when a non-free grant rounds to a $0 total", async () => {
+  it("throws when a grant rounds to a $0 total", async () => {
     getOrganizationWithRelationsByIdMock.mockResolvedValue({
       id: "org_1",
       name: "Acme",
@@ -354,7 +236,6 @@ describe("invoiceAdminService.createInvoice", () => {
         credits: 1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow(InvoiceValidationError);
     // Must not silently grant free credits for a paid grant.
@@ -368,7 +249,6 @@ describe("invoiceAdminService.createInvoice", () => {
         credits: 1.5,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow("Credits must be a positive integer");
   });
@@ -380,7 +260,6 @@ describe("invoiceAdminService.createInvoice", () => {
         credits: 10,
         ttlDays: 4000,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow("Expiry must be a positive integer of at most 3650 days");
   });

@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   searchOrganizationsClient,
@@ -79,7 +78,6 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
   const [creditsInput, setCreditsInput] = useState("");
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
   const [priceId, setPriceId] = useState(defaultPriceId);
-  const [markFree, setMarkFree] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const orgLabels = buildComboboxLabels(tOrg);
@@ -120,7 +118,6 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
         credits,
         ttlDays,
         priceId: priceId || null,
-        markFree,
       });
       if (!result.ok) {
         toast.error(result.error.message ?? t("Form.createError"));
@@ -216,20 +213,6 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <Label htmlFor="markFree">{t("Form.Fields.markFree")}</Label>
-          <p className="text-muted-foreground text-xs">
-            {t("Form.markFreeHelper")}
-          </p>
-        </div>
-        <Switch
-          id="markFree"
-          checked={markFree}
-          onCheckedChange={setMarkFree}
-        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

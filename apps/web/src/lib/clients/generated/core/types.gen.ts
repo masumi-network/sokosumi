@@ -212,7 +212,6 @@ export type CreateInvoice = {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    markFree: boolean;
 };
 
 export type AdminTaskListItem = {
@@ -1105,9 +1104,9 @@ export type HermesUploadedFile = {
 };
 
 export type HermesGetInstanceEnvelope = ({
-    hasInstance: false;
+    hasInstance: 'false';
 } & HermesGetInstanceNone) | ({
-    hasInstance: true;
+    hasInstance: 'true';
 } & HermesGetInstanceSome);
 
 export type HermesGetInstanceNone = {

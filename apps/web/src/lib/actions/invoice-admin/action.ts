@@ -62,38 +62,26 @@ interface CreateAdminInvoiceParameters extends AuthenticatedRequest {
   credits: number;
   ttlDays: number | null;
   priceId: string | null;
-  markFree: boolean;
 }
 
 export const createAdminInvoiceAction = withSession<
   CreateAdminInvoiceParameters,
   Result<InvoiceSummary, ActionError>
->(
-  async ({
-    session,
-    targetType,
-    targetId,
-    credits,
-    ttlDays,
-    priceId,
-    markFree,
-  }) => {
-    try {
-      assertAdminSession(session);
-      const summary = await invoiceAdminService.createInvoice({
-        target: { targetType, targetId },
-        credits,
-        ttlDays,
-        priceId,
-        markFree,
-      });
-      revalidatePath("/admin/invoices");
-      return Ok(summary);
-    } catch (error) {
-      return Err(mapError(error));
-    }
-  },
-);
+>(async ({ session, targetType, targetId, credits, ttlDays, priceId }) => {
+  try {
+    assertAdminSession(session);
+    const summary = await invoiceAdminService.createInvoice({
+      target: { targetType, targetId },
+      credits,
+      ttlDays,
+      priceId,
+    });
+    revalidatePath("/admin/invoices");
+    return Ok(summary);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
 
 interface ListAdminInvoicesParameters extends AuthenticatedRequest {
   status: InvoiceStatusFilter;

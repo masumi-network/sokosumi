@@ -152,7 +152,6 @@ describe("admin invoices routes", () => {
         credits: 1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     });
 

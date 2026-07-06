@@ -16,7 +16,7 @@ const route = createRoute({
   path: "/",
   operationId: "createAdminInvoice",
   description:
-    "Create (and finalize) a one-time admin invoice for a user or organization (admin only). A free grant applies the support coupon, finalizes paid, and grants the credits immediately.",
+    "Create (and finalize) a one-time admin invoice for a user or organization (admin only).",
   tags: ["Admin"],
   request: {
     body: {
@@ -59,7 +59,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { targetType, targetId, credits, ttlDays, priceId, markFree } =
+    const { targetType, targetId, credits, ttlDays, priceId } =
       c.req.valid("json");
 
     const summary = await invoiceAdminService
@@ -68,7 +68,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         credits,
         ttlDays,
         priceId,
-        markFree,
       })
       .catch(mapInvoiceError);
 
