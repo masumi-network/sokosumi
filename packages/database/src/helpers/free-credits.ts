@@ -9,7 +9,6 @@ import { buildFreeCreditReferenceId } from "./credit.js";
 export interface GrantFreeCreditsParams {
   credits: number;
   expiresAt: Date | null;
-  grantId: string;
   organizationId: string | null;
   referenceNote: string | null;
   targetId: string;
@@ -42,7 +41,6 @@ export async function grantFreeCredits(
   }
 
   const referenceId = buildFreeCreditReferenceId({
-    grantId: params.grantId,
     targetId: params.targetId,
     targetType: params.targetType,
   });
