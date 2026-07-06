@@ -2880,6 +2880,35 @@
           }
         }
       },
+      "FreeCredits": {
+        "title": "Free credits",
+        "description": "Grant free credits directly to a user or organization. Credits are applied immediately.",
+        "backToAdmin": "Back to admin",
+        "Form": {
+          "Fields": {
+            "target": "Recipient",
+            "credits": "Credits",
+            "expiryDays": "Expiry (days)",
+            "referenceNote": "Reference note"
+          },
+          "Tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "targetRequired": "Select a recipient",
+          "creditsRequired": "Enter a positive number of credits",
+          "creditsHelper": "Number of credits to grant to the recipient.",
+          "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
+          "expiryPlaceholder": "No expiry",
+          "expiryInvalid": "Expiry must be a positive whole number of days",
+          "referenceNoteHelper": "Optional note stored on the credit bucket for internal reference.",
+          "referenceNotePlaceholder": "e.g. Billing issue, goodwill gesture",
+          "submit": "Grant credits",
+          "submitting": "Granting credits…",
+          "grantSuccess": "Free credits granted",
+          "grantError": "Failed to grant free credits"
+        }
+      },
       "Overview": {
         "title": "Admin",
         "description": "Internal tools for managing organizations and billing.",
@@ -2891,6 +2920,10 @@
           "invoices": {
             "title": "Invoices",
             "description": "View admin invoices and grant one-time credits to a user or organization."
+          },
+          "freeCredits": {
+            "title": "Free credits",
+            "description": "Grant free credits directly to a user or organization without a Stripe invoice."
           },
           "users": {
             "title": "Users",

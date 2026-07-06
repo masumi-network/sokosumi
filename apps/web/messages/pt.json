@@ -2760,6 +2760,10 @@
           "tasks": {
             "title": "Tarefas",
             "description": "Lista pesquisável de todas as tarefas entre utilizadores e organizações."
+          },
+          "freeCredits": {
+            "title": "Créditos gratuitos",
+            "description": "Conceda créditos gratuitos diretamente a um utilizador ou organização sem fatura Stripe."
           }
         }
       },
@@ -2922,6 +2926,35 @@
         "TaskDetail": {
           "backToList": "Voltar às tarefas",
           "personalWorkspace": "Espaço de trabalho pessoal"
+        }
+      },
+      "FreeCredits": {
+        "title": "Créditos gratuitos",
+        "description": "Conceda créditos gratuitos diretamente a um utilizador ou organização. Os créditos são aplicados de imediato.",
+        "backToAdmin": "Voltar à administração",
+        "Form": {
+          "Fields": {
+            "target": "Destinatário",
+            "credits": "Créditos",
+            "expiryDays": "Validade (dias)",
+            "referenceNote": "Nota de referência"
+          },
+          "Tabs": {
+            "organization": "Organização",
+            "user": "Utilizador"
+          },
+          "targetRequired": "Selecione um destinatário",
+          "creditsRequired": "Introduza um número positivo de créditos",
+          "creditsHelper": "Número de créditos a conceder ao destinatário.",
+          "expiryHelper": "Opcional. Dias até os créditos expirarem. Deixe em branco para sem validade.",
+          "expiryPlaceholder": "Sem validade",
+          "expiryInvalid": "A validade deve ser um número inteiro positivo de dias",
+          "referenceNoteHelper": "Nota opcional guardada no bucket de créditos para referência interna.",
+          "referenceNotePlaceholder": "p. ex. Problema de faturação, gesto de cortesia",
+          "submit": "Conceder créditos",
+          "submitting": "A conceder créditos…",
+          "grantSuccess": "Créditos gratuitos concedidos",
+          "grantError": "Falha ao conceder créditos gratuitos"
         }
       }
     },

@@ -10,6 +10,7 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
+import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
 import prisma from "@/lib/db/prisma";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
@@ -21,7 +22,6 @@ import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service
  */
 
 const ADMIN_INVOICE_SOURCE = "admin_one_time_credit";
-const MAX_TTL_DAYS = 3650;
 
 export type InvoiceTargetType = "user" | "organization";
 
@@ -550,10 +550,10 @@ export const invoiceAdminService = (() => {
         if (
           !Number.isInteger(params.ttlDays) ||
           params.ttlDays <= 0 ||
-          params.ttlDays > MAX_TTL_DAYS
+          params.ttlDays > MAX_ADMIN_CREDIT_TTL_DAYS
         ) {
           throw new InvoiceValidationError(
-            `Expiry must be a positive integer of at most ${MAX_TTL_DAYS} days`,
+            `Expiry must be a positive integer of at most ${MAX_ADMIN_CREDIT_TTL_DAYS} days`,
           );
         }
       }

@@ -852,6 +852,110 @@ export const CreateInvoiceSchema = {
     ]
 } as const;
 
+export const FreeCreditGrantSchema = {
+    type: 'object',
+    properties: {
+        bucketId: {
+            type: 'string',
+            example: 'bucket_123'
+        },
+        targetType: {
+            type: 'string',
+            enum: [
+                'user',
+                'organization'
+            ],
+            example: 'organization'
+        },
+        targetId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        targetName: {
+            type: 'string',
+            example: 'Ada Lovelace'
+        },
+        credits: {
+            type: 'number',
+            example: 500
+        },
+        ttlDays: {
+            type: [
+                'number',
+                'null'
+            ],
+            example: 30
+        },
+        referenceNote: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Billing issue'
+        }
+    },
+    required: [
+        'bucketId',
+        'targetType',
+        'targetId',
+        'targetName',
+        'credits',
+        'ttlDays',
+        'referenceNote'
+    ]
+} as const;
+
+export const CreateFreeCreditGrantSchema = {
+    type: 'object',
+    properties: {
+        targetType: {
+            type: 'string',
+            enum: [
+                'user',
+                'organization'
+            ],
+            example: 'organization'
+        },
+        targetId: {
+            type: 'string',
+            minLength: 1,
+            example: 'user_123'
+        },
+        credits: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 500
+        },
+        ttlDays: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            maximum: 3650,
+            example: 30
+        },
+        referenceNote: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: 'Billing issue'
+        }
+    },
+    required: [
+        'targetType',
+        'targetId',
+        'credits',
+        'ttlDays',
+        'referenceNote'
+    ]
+} as const;
+
 export const AdminTaskListItemSchema = {
     type: 'object',
     properties: {
@@ -4246,21 +4350,14 @@ export const HermesUploadedFileSchema = {
 } as const;
 
 export const HermesGetInstanceEnvelopeSchema = {
-    oneOf: [
+    anyOf: [
         {
             $ref: '#/components/schemas/HermesGetInstanceNone'
         },
         {
             $ref: '#/components/schemas/HermesGetInstanceSome'
         }
-    ],
-    discriminator: {
-        propertyName: 'hasInstance',
-        mapping: {
-            false: '#/components/schemas/HermesGetInstanceNone',
-            true: '#/components/schemas/HermesGetInstanceSome'
-        }
-    }
+    ]
 } as const;
 
 export const HermesGetInstanceNoneSchema = {

@@ -2760,6 +2760,10 @@
           "tasks": {
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
+          },
+          "freeCredits": {
+            "title": "免费积分",
+            "description": "无需 Stripe 发票，直接向用户或组织发放免费积分。"
           }
         }
       },
@@ -2922,6 +2926,35 @@
         "TaskDetail": {
           "backToList": "返回任务列表",
           "personalWorkspace": "个人工作区"
+        }
+      },
+      "FreeCredits": {
+        "title": "免费积分",
+        "description": "直接向用户或组织发放免费积分。积分会立即入账。",
+        "backToAdmin": "返回管理后台",
+        "Form": {
+          "Fields": {
+            "target": "接收方",
+            "credits": "积分",
+            "expiryDays": "有效期（天）",
+            "referenceNote": "引用备注"
+          },
+          "Tabs": {
+            "organization": "组织",
+            "user": "用户"
+          },
+          "targetRequired": "请选择接收方",
+          "creditsRequired": "请输入正数积分",
+          "creditsHelper": "将发放给接收方的积分数量。",
+          "expiryHelper": "可选。积分到期前的天数。留空表示永不过期。",
+          "expiryPlaceholder": "永不过期",
+          "expiryInvalid": "有效期必须是正整数天数",
+          "referenceNoteHelper": "可选备注，会保存在积分桶中供内部参考。",
+          "referenceNotePlaceholder": "例如：账单问题、善意补偿",
+          "submit": "发放积分",
+          "submitting": "正在发放积分…",
+          "grantSuccess": "免费积分已发放",
+          "grantError": "发放免费积分失败"
         }
       }
     },

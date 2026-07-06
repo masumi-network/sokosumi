@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const getUserByStripeCustomerIdMock = vi.fn();
 const getOrganizationByStripeCustomerIdMock = vi.fn();
 const getMembersByOrganizationIdMock = vi.fn();
+const getOrganizationOwnerUserIdMock = vi.fn();
 const getAssignedMemberUserIdsMock = vi.fn();
 const getUnassignedMemberUserIdsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
@@ -66,6 +67,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
       getUnassignedMemberUserIdsMock(...args),
     getMembersByOrganizationId: (...args: unknown[]) =>
       getMembersByOrganizationIdMock(...args),
+    getOrganizationOwnerUserId: (...args: unknown[]) =>
+      getOrganizationOwnerUserIdMock(...args),
   },
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
@@ -170,6 +173,9 @@ function mockOrganizationInvoiceContext(
     id: organizationId,
   });
   getMembersByOrganizationIdMock.mockResolvedValue(members);
+  getOrganizationOwnerUserIdMock.mockResolvedValue(
+    members.find((member) => member.role === "owner")?.userId ?? null,
+  );
   const assigned =
     assignedMemberUserIds ?? members.map((member) => member.userId).toSorted();
   getAssignedMemberUserIdsMock.mockResolvedValue(assigned);
@@ -263,6 +269,7 @@ describe("handleInvoicePaidEvent", () => {
     getMembersByOrganizationIdMock.mockResolvedValue([
       { role: "owner", userId: "user-1" },
     ]);
+    getOrganizationOwnerUserIdMock.mockResolvedValue("user-1");
     getUnassignedMemberUserIdsMock.mockResolvedValue([]);
     findExistingBucketMock.mockResolvedValue(null);
     findExistingLocalFreeBucketMock.mockResolvedValue(null);
