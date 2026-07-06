@@ -3943,7 +3943,7 @@ export type CreateAdminSupportCreditGrantData = {
     body?: CreateSupportCreditGrant;
     path?: never;
     query?: never;
-    url: '/admin/support-credits';
+    url: '/admin/credits';
 };
 
 export type CreateAdminSupportCreditGrantErrors = {

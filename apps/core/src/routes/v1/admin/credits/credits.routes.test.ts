@@ -80,7 +80,7 @@ function createApp(options: AppOptions = {}) {
   return app;
 }
 
-describe("admin support credits routes", () => {
+describe("admin credits routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     grantSupportCreditsMock.mockResolvedValue(GRANT);
