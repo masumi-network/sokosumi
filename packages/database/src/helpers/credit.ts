@@ -126,6 +126,12 @@ function validateReferenceSegment(segment: string, name: string): void {
   }
 }
 
+export function buildSignupBonusCreditReferenceId(userId: string): string {
+  validateReferenceSegment(userId, "userId");
+
+  return `${USER_CREDIT_REFERENCE_PREFIX}${userId}`;
+}
+
 export function buildUserInvoiceCreditReferenceId(
   userId: string,
   invoiceId: string,

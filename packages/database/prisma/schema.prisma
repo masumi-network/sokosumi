@@ -699,6 +699,7 @@ enum CreditBucketReferenceType {
   REFUND
   ENTERPRISE_PERIOD
   ENTERPRISE_TOP_UP
+  SIGNUP_BONUS
 }
 
 model CreditConsumption {

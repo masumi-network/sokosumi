@@ -116,8 +116,9 @@ const envSchema = z.object({
   // Stripe one-time credit top-up product (invoice.paid credit engine)
   STRIPE_CREDIT_PRODUCT_ID: z.string().min(1),
 
-  // Welcome coupon granted to new user customers (customer.created handler)
-  STRIPE_WELCOME_COUPON: z.string().min(1),
+  // Credits granted to new users on signup (direct DB bucket, not Stripe)
+  SIGNUP_BONUS_CREDITS: z.coerce.number().int().positive().default(3000),
+  SIGNUP_BONUS_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
   // 100%-off coupon used to issue admin credit grants free of charge
   STRIPE_SUPPORT_COUPON: z.string().min(1),

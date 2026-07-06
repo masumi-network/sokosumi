@@ -21,6 +21,7 @@ const {
   getBetterAuthProductionUrlMock,
   getBetterAuthSubscriptionPlansMock,
   getWebAppBaseUrlMock,
+  grantSignupBonusCreditsMock,
   hasConsumableEnterpriseContractMock,
   handleSubscriptionDeletedEventMock,
   i18nPluginMock,
@@ -31,11 +32,14 @@ const {
   openAPIPluginMock,
   organizationPluginMock,
   magicLinkPluginMock,
+  markOutOfCreditsTasksAsToppedUpMock,
   getMemberByUserIdAndOrganizationIdMock,
   getMembersByOrganizationIdMock,
   passkeyPluginMock,
   postmarkSendEmailMock,
   prismaAdapterMock,
+  prismaMock,
+  prismaTransactionMock,
   reconcileActiveStripeBackedSubscriptionMock,
   renderMagicLinkEmailMock,
   resolveActiveOrganizationIdForSessionMock,
@@ -52,49 +56,76 @@ const {
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
+  waitUntilCapturedPromises,
+  waitUntilMock,
   workspaceUpsertMock,
-} = vi.hoisted(() => ({
-  adminPluginMock: vi.fn(),
-  apiKeyPluginMock: vi.fn(),
-  betterAuthMock: vi.fn(),
-  getBetterAuthPublicBaseUrlMock: vi.fn(),
-  getEnvMock: vi.fn(),
-  getBetterAuthProductionUrlMock: vi.fn(),
-  getBetterAuthSubscriptionPlansMock: vi.fn(),
-  getWebAppBaseUrlMock: vi.fn(),
-  hasConsumableEnterpriseContractMock: vi.fn(),
-  handleSubscriptionDeletedEventMock: vi.fn(),
-  i18nPluginMock: vi.fn(),
-  jwtPluginMock: vi.fn(),
-  lastLoginMethodPluginMock: vi.fn(),
-  oauthProviderPluginMock: vi.fn(),
-  oAuthProxyPluginMock: vi.fn(),
-  openAPIPluginMock: vi.fn(),
-  organizationPluginMock: vi.fn(),
-  magicLinkPluginMock: vi.fn(),
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
-  getMembersByOrganizationIdMock: vi.fn(),
-  passkeyPluginMock: vi.fn(),
-  postmarkSendEmailMock: vi.fn(),
-  prismaAdapterMock: vi.fn(),
-  reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
-  renderMagicLinkEmailMock: vi.fn(),
-  resolveActiveOrganizationIdForSessionMock: vi.fn(),
-  sentryCaptureExceptionMock: vi.fn(),
-  stripeCreateUserCustomerMock: vi.fn(),
-  stripeCreateOrganizationCustomerMock: vi.fn(),
-  stripePluginMock: vi.fn(),
-  uploadProfileImageMock: vi.fn(),
-  webhookCallAccountCreatedMock: vi.fn(),
-  webhookCallUserCreatedMock: vi.fn(),
-  webhookCallUserUpdatedMock: vi.fn(),
-  ensureCanAcceptOrganizationInvitationMock: vi.fn(),
-  syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
-  prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
-  handleUserUpdateStripeEmailSyncMock: vi.fn(),
-  syncUserEmailWithStripeMock: vi.fn(),
-  workspaceUpsertMock: vi.fn(),
-}));
+} = vi.hoisted(() => {
+  const waitUntilCapturedPromises: Promise<unknown>[] = [];
+  const waitUntilMock = vi.fn((promise: Promise<unknown>) => {
+    waitUntilCapturedPromises.push(promise);
+  });
+  const prismaTransactionMock = vi.fn(
+    async (callback: (tx: unknown) => unknown) => callback({}),
+  );
+  const prismaMock = {
+    __prisma: true,
+    $transaction: (callback: (tx: unknown) => unknown) =>
+      prismaTransactionMock(callback),
+  };
+
+  return {
+    adminPluginMock: vi.fn(),
+    apiKeyPluginMock: vi.fn(),
+    betterAuthMock: vi.fn(),
+    getBetterAuthPublicBaseUrlMock: vi.fn(),
+    getEnvMock: vi.fn(),
+    getBetterAuthProductionUrlMock: vi.fn(),
+    getBetterAuthSubscriptionPlansMock: vi.fn(),
+    getWebAppBaseUrlMock: vi.fn(),
+    grantSignupBonusCreditsMock: vi.fn(),
+    hasConsumableEnterpriseContractMock: vi.fn(),
+    handleSubscriptionDeletedEventMock: vi.fn(),
+    i18nPluginMock: vi.fn(),
+    jwtPluginMock: vi.fn(),
+    lastLoginMethodPluginMock: vi.fn(),
+    oauthProviderPluginMock: vi.fn(),
+    oAuthProxyPluginMock: vi.fn(),
+    openAPIPluginMock: vi.fn(),
+    organizationPluginMock: vi.fn(),
+    magicLinkPluginMock: vi.fn(),
+    markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
+    getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+    getMembersByOrganizationIdMock: vi.fn(),
+    passkeyPluginMock: vi.fn(),
+    postmarkSendEmailMock: vi.fn(),
+    prismaAdapterMock: vi.fn(),
+    prismaMock,
+    prismaTransactionMock,
+    reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
+    renderMagicLinkEmailMock: vi.fn(),
+    resolveActiveOrganizationIdForSessionMock: vi.fn(),
+    sentryCaptureExceptionMock: vi.fn(),
+    stripeCreateUserCustomerMock: vi.fn(),
+    stripeCreateOrganizationCustomerMock: vi.fn(),
+    stripePluginMock: vi.fn(),
+    uploadProfileImageMock: vi.fn(),
+    webhookCallAccountCreatedMock: vi.fn(),
+    webhookCallUserCreatedMock: vi.fn(),
+    webhookCallUserUpdatedMock: vi.fn(),
+    ensureCanAcceptOrganizationInvitationMock: vi.fn(),
+    syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
+    prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
+    handleUserUpdateStripeEmailSyncMock: vi.fn(),
+    syncUserEmailWithStripeMock: vi.fn(),
+    waitUntilCapturedPromises,
+    waitUntilMock,
+    workspaceUpsertMock: vi.fn(),
+  };
+});
+
+async function flushWaitUntil(): Promise<void> {
+  await Promise.all(waitUntilCapturedPromises);
+}
 
 function getDefaultEnv() {
   return {
@@ -113,6 +144,8 @@ function getDefaultEnv() {
     POSTMARK_SERVER_ID: "postmark-server-id",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_test_123",
+    SIGNUP_BONUS_CREDITS: 3000,
+    SIGNUP_BONUS_TTL_DAYS: 30,
     VERCEL_ENV: undefined,
     VERCEL_GIT_COMMIT_REF: "",
   };
@@ -171,11 +204,17 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
 }));
 
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => waitUntilMock(promise),
+}));
+
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
+    grantSignupBonusCredits: (...args: unknown[]) =>
+      grantSignupBonusCreditsMock(...args),
     hasConsumableEnterpriseContract: (...args: unknown[]) =>
       hasConsumableEnterpriseContractMock(...args),
   };
@@ -222,7 +261,7 @@ vi.mock("@/config/better-auth-production-url", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { __prisma: true },
+  default: prismaMock,
 }));
 
 vi.mock("@/lib/blob", () => ({
@@ -243,6 +282,11 @@ vi.mock("@/services/webhook.service", () => ({
 vi.mock("@/services/subscription-catalog.service", () => ({
   getBetterAuthSubscriptionPlans: (...args: unknown[]) =>
     getBetterAuthSubscriptionPlansMock(...args),
+}));
+
+vi.mock("@/services/task-topup.service", () => ({
+  markOutOfCreditsTasksAsToppedUp: (...args: unknown[]) =>
+    markOutOfCreditsTasksAsToppedUpMock(...args),
 }));
 
 vi.mock("@/services/stripe-backed-subscription.service", () => ({
@@ -327,6 +371,9 @@ describe("core auth config", () => {
     prepareStripeEmailSyncForUserUpdateMock.mockResolvedValue(undefined);
     handleUserUpdateStripeEmailSyncMock.mockResolvedValue(undefined);
     syncUserEmailWithStripeMock.mockResolvedValue(undefined);
+    grantSignupBonusCreditsMock.mockResolvedValue({ created: true });
+    waitUntilCapturedPromises.length = 0;
+    waitUntilMock.mockClear();
   });
 
   it("configures Google and Microsoft social providers for auth parity", async () => {
@@ -683,7 +730,7 @@ describe("core auth config", () => {
     expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
-      { __prisma: true },
+      prismaMock,
     );
     expect(hasConsumableEnterpriseContractMock).not.toHaveBeenCalled();
   });
@@ -732,7 +779,7 @@ describe("core auth config", () => {
 
     expect(hasConsumableEnterpriseContractMock).toHaveBeenCalledWith(
       "org_123",
-      { __prisma: true },
+      prismaMock,
     );
   });
 
@@ -1287,12 +1334,27 @@ describe("core auth config", () => {
     await config.databaseHooks.user.create.after(normalizedCreate.data);
 
     expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: { __prisma: true },
+      tx: prismaMock,
       userId: "user_123",
     });
+    expect(waitUntilMock).toHaveBeenCalledTimes(3);
+    await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: " magic@example.com ",
       name: "magic",
+      userId: "user_123",
+    });
+    expect(prismaTransactionMock).toHaveBeenCalled();
+    expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credits: 3000,
+        userId: "user_123",
+      }),
+      {},
+    );
+    expect(markOutOfCreditsTasksAsToppedUpMock).toHaveBeenCalledWith({
+      organizationId: null,
+      tx: {},
       userId: "user_123",
     });
   });
@@ -1367,13 +1429,154 @@ describe("core auth config", () => {
     });
 
     expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: { __prisma: true },
+      tx: prismaMock,
       userId: "user_123",
     });
+    expect(waitUntilMock).toHaveBeenCalledTimes(3);
+    await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: "andreas@example.com",
       name: "Andreas",
       userId: "user_123",
+    });
+    expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        credits: 3000,
+        userId: "user_123",
+      }),
+      {},
+    );
+  });
+
+  it("registers signup side effects with waitUntil without awaiting them in the after hook", async () => {
+    let releaseTransaction!: () => void;
+    const transactionGate = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+    prismaTransactionMock.mockImplementationOnce(async (callback) => {
+      await transactionGate;
+      return callback({});
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    expect(waitUntilMock).toHaveBeenCalledTimes(3);
+    expect(grantSignupBonusCreditsMock).not.toHaveBeenCalled();
+
+    releaseTransaction();
+    await flushWaitUntil();
+
+    expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalled();
+    expect(webhookCallUserCreatedMock).toHaveBeenCalled();
+  });
+
+  it("does not mark tasks as topped up when the signup bonus already exists", async () => {
+    grantSignupBonusCreditsMock.mockResolvedValueOnce({
+      bucketId: "bucket-existing",
+      created: false,
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    await flushWaitUntil();
+    expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
+    expect(markOutOfCreditsTasksAsToppedUpMock).not.toHaveBeenCalled();
+  });
+
+  it("reports signup bonus grant failures to Sentry without blocking user creation", async () => {
+    grantSignupBonusCreditsMock.mockRejectedValueOnce(
+      new Error("bonus failed"),
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (user: {
+                  email: string;
+                  id: string;
+                  name: string;
+                }) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after({
+      email: "andreas@example.com",
+      id: "user_123",
+      name: "Andreas",
+    });
+
+    expect(waitUntilMock).toHaveBeenCalledTimes(3);
+    await flushWaitUntil();
+    expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
+      email: "andreas@example.com",
+      name: "Andreas",
+      userId: "user_123",
+    });
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
+      extra: {
+        userId: "user_123",
+      },
+      tags: {
+        context: "signup_bonus_grant",
+      },
     });
   });
 
@@ -1416,6 +1619,7 @@ describe("core auth config", () => {
         context: "workspace_user_creation",
       },
     });
+    await flushWaitUntil();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalledWith({
       email: "andreas@example.com",
       name: "Andreas",
@@ -1453,12 +1657,12 @@ describe("core auth config", () => {
       id: "user_123",
       name: "Andreas",
     });
-    await Promise.resolve();
 
     expect(workspaceUpsertMock).toHaveBeenCalledWith({
-      tx: { __prisma: true },
+      tx: prismaMock,
       userId: "user_123",
     });
+    await flushWaitUntil();
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
       extra: {
@@ -1544,9 +1748,10 @@ describe("core auth config", () => {
       },
     });
 
-    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith("org-1", {
-      __prisma: true,
-    });
+    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith(
+      "org-1",
+      prismaMock,
+    );
   });
 
   it("sets activeOrganizationId from preferred organization on session create", async () => {
@@ -1607,6 +1812,7 @@ describe("core auth config", () => {
       name: "Test",
     });
 
+    await flushWaitUntil();
     expect(webhookCallUserCreatedMock).toHaveBeenCalledWith({
       id: "user_123",
       email: "test@example.com",
@@ -1900,7 +2106,7 @@ describe("core auth config", () => {
     expect(prepareStripeEmailSyncForUserUpdateMock).toHaveBeenCalledWith(
       updateData,
       ctx,
-      { __prisma: true },
+      prismaMock,
     );
     expect(result).toEqual({ data: updateData });
   });

@@ -185,6 +185,17 @@ Environment variables are accessed via `process.env`, validated at startup with 
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 
+**Signup bonus** (Core only — granted on `user.create.after`, not via Stripe):
+
+- `SIGNUP_BONUS_CREDITS` — credits per new user (default `3000`)
+- `SIGNUP_BONUS_TTL_DAYS` — bucket expiry in days from grant time (default `30`)
+
+Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Grants are idempotent per user via the `(referenceId, referenceType)` unique key.
+
+**Operations:**
+
+- Alert on Sentry events tagged `context:signup_bonus_grant`. Grant failures are swallowed so signup is not blocked; there is no batch backfill job.
+
 ### CORS and Better Auth origins
 
 - **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.
