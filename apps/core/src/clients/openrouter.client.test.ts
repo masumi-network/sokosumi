@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { generateTextMock, openRouterModelMock, createOpenRouterMock } =
-  vi.hoisted(() => ({
-    generateTextMock: vi.fn(),
-    openRouterModelMock: vi.fn(),
-    createOpenRouterMock: vi.fn(),
-  }));
+const {
+  generateTextMock,
+  openRouterModelMock,
+  createOpenRouterMock,
+  getEnvMock,
+} = vi.hoisted(() => ({
+  generateTextMock: vi.fn(),
+  openRouterModelMock: vi.fn(),
+  createOpenRouterMock: vi.fn(),
+  getEnvMock: vi.fn(),
+}));
 
 vi.mock("ai", () => ({
   generateText: generateTextMock,
@@ -16,9 +21,7 @@ vi.mock("@openrouter/ai-sdk-provider", () => ({
 }));
 
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    OPENROUTER_DEFAULT_API_KEY: "sk-or-test-openrouter-key",
-  }),
+  getEnv: getEnvMock,
 }));
 
 describe("openrouter.client", () => {
@@ -27,6 +30,9 @@ describe("openrouter.client", () => {
     vi.clearAllMocks();
     openRouterModelMock.mockReturnValue("mock-haiku-model");
     createOpenRouterMock.mockReturnValue(openRouterModelMock);
+    getEnvMock.mockReturnValue({
+      OPENROUTER_DEFAULT_API_KEY: "sk-or-test-openrouter-key",
+    });
     generateTextMock.mockResolvedValue({ text: "Generated chat title" });
   });
 
@@ -68,9 +74,7 @@ describe("openrouter.client", () => {
   });
 
   it("returns null without calling generateText when OpenRouter is not configured", async () => {
-    vi.doMock("@/config/env", () => ({
-      getEnv: () => ({}),
-    }));
+    getEnvMock.mockReturnValue({});
 
     const { openrouterClient } = await import("./openrouter.client");
 
