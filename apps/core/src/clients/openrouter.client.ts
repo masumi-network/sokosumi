@@ -133,6 +133,7 @@ export const openrouterClient = (() => {
       const userPrompt = `First message: ${trimmed}`;
 
       const text = await generateOpenRouterText(defaultOpenrouter, {
+        abortSignal: AbortSignal.timeout(NAME_GENERATION_TIMEOUT_MS),
         instructions,
         prompt: userPrompt,
         temperature: 0.5,

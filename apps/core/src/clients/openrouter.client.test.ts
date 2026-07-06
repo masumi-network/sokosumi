@@ -51,6 +51,7 @@ describe("openrouter.client", () => {
     expect(call.prompt).toBe("First message: Hello world");
     expect(call.temperature).toBe(0.5);
     expect(call.maxOutputTokens).toBe(40);
+    expect(call.abortSignal).toBeInstanceOf(AbortSignal);
     expect(call.model).toBe("mock-haiku-model");
     expect(call).not.toHaveProperty("system");
   });
