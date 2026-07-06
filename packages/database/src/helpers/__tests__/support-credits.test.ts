@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
 
 import { CreditBucketReferenceType } from "../../generated/prisma/client.js";
-import {
-  buildSignupBonusCreditReferenceId,
-  buildSupportCreditReferenceId,
-} from "../credit.js";
+import { buildSupportCreditReferenceId } from "../credit.js";
 import { grantSupportCredits } from "../support-credits.js";
 
 describe("buildSupportCreditReferenceId", () => {
@@ -29,12 +26,6 @@ describe("buildSupportCreditReferenceId", () => {
       }),
       "support:org:org-1:grant-2",
     );
-  });
-});
-
-describe("buildSignupBonusCreditReferenceId", () => {
-  it("returns user:{userId}", () => {
-    assert.equal(buildSignupBonusCreditReferenceId("user-1"), "user:user-1");
   });
 });
 

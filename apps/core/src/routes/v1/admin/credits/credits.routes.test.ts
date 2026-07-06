@@ -29,6 +29,9 @@ vi.mock("@/services/support-credit-admin.service", () => {
 });
 
 const { default: mountCreateSupportCreditGrant } = await import("./post.js");
+const { SupportCreditValidationError } = await import(
+  "@/services/support-credit-admin.service.js"
+);
 
 const GRANT = {
   bucketId: "bucket_1",
@@ -127,5 +130,29 @@ describe("admin credits routes", () => {
       ttlDays: null,
       referenceNote: "Help",
     });
+  });
+
+  it("carries the support_credit_invalid kind on validation failures", async () => {
+    grantSupportCreditsMock.mockRejectedValue(
+      new SupportCreditValidationError("User not found"),
+    );
+    const app = createApp();
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "user",
+        targetId: "user_missing",
+        credits: 500,
+        ttlDays: null,
+        referenceNote: null,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.kind).toBe("support_credit_invalid");
+    expect(body.message).toBe("User not found");
   });
 });

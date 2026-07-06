@@ -16,7 +16,7 @@ const route = createRoute({
   path: "/",
   operationId: "createAdminSupportCreditGrant",
   description:
-    "Grant support credits directly to a user or organization (admin only). Credits are created immediately without a Stripe invoice.",
+    "Grant support credits directly to a user or organization (admin only). Credits are created immediately without a Stripe invoice. Missing or invalid targets return 400 (not 404), matching admin invoice grants.",
   tags: ["Admin"],
   request: {
     body: {

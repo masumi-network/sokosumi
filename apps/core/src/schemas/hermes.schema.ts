@@ -315,9 +315,9 @@ export const hermesFinalizeIntegrationRequestSchema = z
   .openapi("HermesFinalizeIntegrationRequest");
 
 /**
- * GET /hermes/me/instance payload. Discriminated union so OpenAPI clients never
- * run instance date transforms on JSON null (codegen bug with nullable object
- * + `dates: true`).
+ * GET /hermes/me/instance payload. Plain union (not discriminatedUnion) so
+ * OpenAPI clients never run instance date transforms on JSON null and codegen
+ * does not collapse response types to `never` (boolean discriminator + dates).
  */
 export const hermesGetInstanceEnvelopeSchema = z
   .union([

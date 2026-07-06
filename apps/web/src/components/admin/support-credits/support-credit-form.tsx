@@ -109,9 +109,11 @@ export function SupportCreditForm() {
         <Label htmlFor="target">{t("Form.Fields.target")}</Label>
         <Tabs
           value={targetType}
-          onValueChange={(value) =>
-            setTargetType(value as SupportCreditTargetType)
-          }
+          onValueChange={(value) => {
+            setTargetType(value as SupportCreditTargetType);
+            setSelectedOrg(null);
+            setSelectedUser(null);
+          }}
         >
           <TabsList>
             <TabsTrigger value="organization">
