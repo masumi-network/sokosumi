@@ -2,35 +2,35 @@ import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
 
 import { CreditBucketReferenceType } from "../../generated/prisma/client.js";
-import { buildSupportCreditReferenceId } from "../credit.js";
-import { grantSupportCredits } from "../support-credits.js";
+import { buildFreeCreditReferenceId } from "../credit.js";
+import { grantFreeCredits } from "../free-credits.js";
 
-describe("buildSupportCreditReferenceId", () => {
-  it("returns support:user:{userId}:{grantId}", () => {
+describe("buildFreeCreditReferenceId", () => {
+  it("returns free:user:{userId}:{grantId}", () => {
     assert.equal(
-      buildSupportCreditReferenceId({
+      buildFreeCreditReferenceId({
         grantId: "grant-1",
         targetId: "user-1",
         targetType: "user",
       }),
-      "support:user:user-1:grant-1",
+      "free:user:user-1:grant-1",
     );
   });
 
-  it("returns support:org:{orgId}:{grantId}", () => {
+  it("returns free:org:{orgId}:{grantId}", () => {
     assert.equal(
-      buildSupportCreditReferenceId({
+      buildFreeCreditReferenceId({
         grantId: "grant-2",
         targetId: "org-1",
         targetType: "organization",
       }),
-      "support:org:org-1:grant-2",
+      "free:org:org-1:grant-2",
     );
   });
 });
 
-describe("grantSupportCredits", () => {
-  it("creates a user-scoped support credit bucket", async () => {
+describe("grantFreeCredits", () => {
+  it("creates a user-scoped free credit bucket", async () => {
     const createMock = vi.fn().mockResolvedValue({
       sourceCreditBucket: { id: "bucket-1" },
     });
@@ -39,7 +39,7 @@ describe("grantSupportCredits", () => {
     };
 
     const expiresAt = new Date("2026-08-05T00:00:00.000Z");
-    const result = await grantSupportCredits(
+    const result = await grantFreeCredits(
       {
         credits: 500,
         expiresAt,
@@ -56,12 +56,12 @@ describe("grantSupportCredits", () => {
     assert.deepEqual(result, { bucketId: "bucket-1" });
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
-      "support:user:user-1:grant-1",
+      "free:user:user-1:grant-1",
     );
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
         .referenceType,
-      CreditBucketReferenceType.SUPPORT,
+      CreditBucketReferenceType.FREE,
     );
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
@@ -79,7 +79,7 @@ describe("grantSupportCredits", () => {
     );
   });
 
-  it("creates an organization-scoped support credit bucket", async () => {
+  it("creates an organization-scoped free credit bucket", async () => {
     const createMock = vi.fn().mockResolvedValue({
       sourceCreditBucket: { id: "bucket-org" },
     });
@@ -87,7 +87,7 @@ describe("grantSupportCredits", () => {
       transaction: { create: createMock },
     };
 
-    const result = await grantSupportCredits(
+    const result = await grantFreeCredits(
       {
         credits: 1000,
         expiresAt: null,
@@ -104,7 +104,7 @@ describe("grantSupportCredits", () => {
     assert.deepEqual(result, { bucketId: "bucket-org" });
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
-      "support:org:org-1:grant-org",
+      "free:org:org-1:grant-org",
     );
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.userId,
@@ -125,7 +125,7 @@ describe("grantSupportCredits", () => {
 
     await assert.rejects(
       () =>
-        grantSupportCredits(
+        grantFreeCredits(
           {
             credits: 0,
             expiresAt: null,
@@ -138,7 +138,7 @@ describe("grantSupportCredits", () => {
           },
           tx as never,
         ),
-      /Support credits must be a positive integer/,
+      /Free credits must be a positive integer/,
     );
   });
 });

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
   getCreditExpiryDate,
-  grantSupportCredits,
+  grantFreeCredits as grantFreeCreditsInDatabase,
 } from "@sokosumi/database/helpers";
 import {
   memberRepository,
@@ -16,16 +16,16 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 const MAX_TTL_DAYS = 3650;
 
-export type SupportCreditTargetType = "user" | "organization";
+export type FreeCreditTargetType = "user" | "organization";
 
-export interface SupportCreditTarget {
-  targetType: SupportCreditTargetType;
+export interface FreeCreditTarget {
+  targetType: FreeCreditTargetType;
   targetId: string;
 }
 
-export interface SupportCreditGrant {
+export interface FreeCreditGrant {
   bucketId: string;
-  targetType: SupportCreditTargetType;
+  targetType: FreeCreditTargetType;
   targetId: string;
   targetName: string;
   credits: number;
@@ -33,10 +33,10 @@ export interface SupportCreditGrant {
   referenceNote: string | null;
 }
 
-export class SupportCreditValidationError extends Error {
+export class FreeCreditValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "SupportCreditValidationError";
+    this.name = "FreeCreditValidationError";
   }
 }
 
@@ -45,13 +45,13 @@ function isPositiveIntegerCredits(credits: number): boolean {
 }
 
 async function resolveTarget(
-  target: SupportCreditTarget,
+  target: FreeCreditTarget,
   tx: Prisma.TransactionClient,
 ): Promise<{ id: string; name: string; transactionUserId: string }> {
   if (target.targetType === "user") {
     const user = await userRepository.getUserById(target.targetId, tx);
     if (!user) {
-      throw new SupportCreditValidationError("User not found");
+      throw new FreeCreditValidationError("User not found");
     }
 
     return {
@@ -67,7 +67,7 @@ async function resolveTarget(
       tx,
     );
   if (!organization) {
-    throw new SupportCreditValidationError("Organization not found");
+    throw new FreeCreditValidationError("Organization not found");
   }
 
   const ownerUserId = await memberRepository.getOrganizationOwnerUserId(
@@ -75,7 +75,7 @@ async function resolveTarget(
     tx,
   );
   if (!ownerUserId) {
-    throw new SupportCreditValidationError("Organization has no owner");
+    throw new FreeCreditValidationError("Organization has no owner");
   }
 
   return {
@@ -85,17 +85,15 @@ async function resolveTarget(
   };
 }
 
-export const supportCreditAdminService = {
-  async grantSupportCredits(params: {
-    target: SupportCreditTarget;
+export const freeCreditAdminService = {
+  async grantFreeCredits(params: {
+    target: FreeCreditTarget;
     credits: number;
     ttlDays: number | null;
     referenceNote: string | null;
-  }): Promise<SupportCreditGrant> {
+  }): Promise<FreeCreditGrant> {
     if (!isPositiveIntegerCredits(params.credits)) {
-      throw new SupportCreditValidationError(
-        "Credits must be a positive integer",
-      );
+      throw new FreeCreditValidationError("Credits must be a positive integer");
     }
 
     if (params.ttlDays !== null) {
@@ -104,7 +102,7 @@ export const supportCreditAdminService = {
         params.ttlDays <= 0 ||
         params.ttlDays > MAX_TTL_DAYS
       ) {
-        throw new SupportCreditValidationError(
+        throw new FreeCreditValidationError(
           `Expiry must be a positive integer of at most ${MAX_TTL_DAYS} days`,
         );
       }
@@ -123,7 +121,7 @@ export const supportCreditAdminService = {
         params.target.targetType === "organization" ? target.id : null;
       const referenceNote = params.referenceNote;
 
-      const { bucketId } = await grantSupportCredits(
+      const { bucketId } = await grantFreeCreditsInDatabase(
         {
           credits: params.credits,
           expiresAt,

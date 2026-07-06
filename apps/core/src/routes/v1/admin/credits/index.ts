@@ -1,9 +1,9 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import mountCreateAdminSupportCreditGrant from "./post.js";
+import mountCreateAdminFreeCreditGrant from "./post.js";
 
 const app = new OpenAPIHonoWithAuth();
 
-mountCreateAdminSupportCreditGrant(app);
+mountCreateAdminFreeCreditGrant(app);
 
 export default app;

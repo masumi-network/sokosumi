@@ -4,9 +4,9 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
-import { buildSupportCreditReferenceId } from "./credit.js";
+import { buildFreeCreditReferenceId } from "./credit.js";
 
-export interface GrantSupportCreditsParams {
+export interface GrantFreeCreditsParams {
   credits: number;
   expiresAt: Date | null;
   grantId: string;
@@ -17,31 +17,31 @@ export interface GrantSupportCreditsParams {
   transactionUserId: string;
 }
 
-export interface GrantSupportCreditsResult {
+export interface GrantFreeCreditsResult {
   bucketId: string;
 }
 
-export async function grantSupportCredits(
-  params: GrantSupportCreditsParams,
+export async function grantFreeCredits(
+  params: GrantFreeCreditsParams,
   tx: Prisma.TransactionClient,
-): Promise<GrantSupportCreditsResult> {
+): Promise<GrantFreeCreditsResult> {
   if (
     !Number.isFinite(params.credits) ||
     !Number.isInteger(params.credits) ||
     params.credits <= 0
   ) {
-    throw new Error("Support credits must be a positive integer");
+    throw new Error("Free credits must be a positive integer");
   }
 
   if (params.targetType === "user" && params.organizationId !== null) {
-    throw new Error("User support credits cannot be scoped to an organization");
+    throw new Error("User free credits cannot be scoped to an organization");
   }
 
   if (params.targetType === "organization" && params.organizationId === null) {
-    throw new Error("Organization support credits require an organization id");
+    throw new Error("Organization free credits require an organization id");
   }
 
-  const referenceId = buildSupportCreditReferenceId({
+  const referenceId = buildFreeCreditReferenceId({
     grantId: params.grantId,
     targetId: params.targetId,
     targetType: params.targetType,
@@ -66,7 +66,7 @@ export async function grantSupportCredits(
           organizationId: params.organizationId,
           referenceId,
           referenceNote: params.referenceNote,
-          referenceType: CreditBucketReferenceType.SUPPORT,
+          referenceType: CreditBucketReferenceType.FREE,
           userId: bucketUserId,
         },
       },
@@ -85,7 +85,7 @@ export async function grantSupportCredits(
 
   const bucketId = transaction.sourceCreditBucket?.id;
   if (!bucketId) {
-    throw new Error("Failed to create support credit bucket");
+    throw new Error("Failed to create free credit bucket");
   }
 
   return { bucketId };

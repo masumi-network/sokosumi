@@ -852,7 +852,7 @@ export const CreateInvoiceSchema = {
     ]
 } as const;
 
-export const SupportCreditGrantSchema = {
+export const FreeCreditGrantSchema = {
     type: 'object',
     properties: {
         bucketId: {
@@ -905,7 +905,7 @@ export const SupportCreditGrantSchema = {
     ]
 } as const;
 
-export const CreateSupportCreditGrantSchema = {
+export const CreateFreeCreditGrantSchema = {
     type: 'object',
     properties: {
         targetType: {

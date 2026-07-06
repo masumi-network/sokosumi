@@ -199,13 +199,13 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 **Free credits** (Core admin — granted via `POST /v1/admin/credits`, not via Stripe):
 
 - Admin-only direct grants to a user or organization from the web UI at `/admin/free-credits`.
-- Buckets use `referenceType: SUPPORT`, `referenceId: support:{user|org}:{targetId}:{grantId}`, and optional `referenceNote` (free-text audit note from the admin form).
+- Buckets use `referenceType: FREE`, `referenceId: free:{user|org}:{targetId}:{grantId}`, and optional `referenceNote` (free-text audit note from the admin form).
 - Each grant uses a new `grantId` (UUID); repeat grants are allowed (not idempotent like signup bonus).
 - Organization grants attach credits to the org bucket and record the transaction against the organization's earliest-created owner.
 
 **Operations:**
 
-- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_support_credit_reference_type`) **before** deploying Core — the `SUPPORT` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
+- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_support_credit_reference_type`) **before** deploying Core — the `FREE` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
 
 ### CORS and Better Auth origins
 

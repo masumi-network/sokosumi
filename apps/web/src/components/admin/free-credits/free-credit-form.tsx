@@ -19,10 +19,10 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import { grantSupportCreditsAction } from "@/lib/actions/support-credit-admin/action";
+import { grantFreeCreditsAction } from "@/lib/actions/free-credit-admin/action";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
-import type { SupportCreditTargetType } from "@/lib/services/support-credit-admin.service";
+import type { FreeCreditTargetType } from "@/lib/services/free-credit-admin.service";
 
 function parseOptionalPositiveInteger(value: string): number | null {
   const trimmed = value.trim();
@@ -39,7 +39,7 @@ export function FreeCreditForm() {
   const tUser = useTranslations("Components.UserCombobox");
   const router = useRouter();
   const [targetType, setTargetType] =
-    useState<SupportCreditTargetType>("organization");
+    useState<FreeCreditTargetType>("organization");
   const [selectedOrg, setSelectedOrg] =
     useState<AdminOrganizationOption | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
@@ -80,7 +80,7 @@ export function FreeCreditForm() {
 
     setIsSubmitting(true);
     try {
-      const result = await grantSupportCreditsAction({
+      const result = await grantFreeCreditsAction({
         targetType,
         targetId,
         credits,
@@ -110,7 +110,7 @@ export function FreeCreditForm() {
         <Tabs
           value={targetType}
           onValueChange={(value) => {
-            setTargetType(value as SupportCreditTargetType);
+            setTargetType(value as FreeCreditTargetType);
             setSelectedOrg(null);
             setSelectedUser(null);
           }}

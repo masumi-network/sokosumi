@@ -59,8 +59,8 @@ import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   claimCoupon as coreClaimCoupon,
+  createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
-  createAdminSupportCreditGrant as coreCreateAdminSupportCreditGrant,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
@@ -705,7 +705,7 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function createAdminSupportCreditGrant(body: {
+  async function createAdminFreeCreditGrant(body: {
     targetType: "user" | "organization";
     targetId: string;
     credits: number;
@@ -715,7 +715,7 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        coreCreateAdminSupportCreditGrant({
+        coreCreateAdminFreeCreditGrant({
           client,
           body,
           cache: "no-store",
@@ -2770,7 +2770,7 @@ export function createCoreClient(getClient: GetClient) {
     unassignAdminOrganizationMemberSeat,
     listAdminInvoices,
     createAdminInvoice,
-    createAdminSupportCreditGrant,
+    createAdminFreeCreditGrant,
     getAdminInvoice,
     markAdminInvoicePaid,
     listCreditPrices,

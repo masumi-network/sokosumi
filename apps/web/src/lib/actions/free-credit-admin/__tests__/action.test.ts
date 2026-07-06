@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const grantSupportCreditsMock = vi.fn();
+const grantFreeCreditsMock = vi.fn();
 const revalidatePathMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -23,28 +23,27 @@ vi.mock("@/middleware/auth-middleware", () => ({
       await handler(params),
 }));
 
-vi.mock("@/lib/services/support-credit-admin.service", () => {
-  class SupportCreditValidationError extends Error {
+vi.mock("@/lib/services/free-credit-admin.service", () => {
+  class FreeCreditValidationError extends Error {
     constructor(message: string) {
       super(message);
-      this.name = "SupportCreditValidationError";
+      this.name = "FreeCreditValidationError";
     }
   }
 
   return {
-    SupportCreditValidationError,
-    supportCreditAdminService: {
-      grantSupportCredits: (...args: unknown[]) =>
-        grantSupportCreditsMock(...args),
+    FreeCreditValidationError,
+    freeCreditAdminService: {
+      grantFreeCredits: (...args: unknown[]) => grantFreeCreditsMock(...args),
     },
   };
 });
 
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
-import { SupportCreditValidationError } from "@/lib/services/support-credit-admin.service";
+import { FreeCreditValidationError } from "@/lib/services/free-credit-admin.service";
 
-import { grantSupportCreditsAction } from "../action";
+import { grantFreeCreditsAction } from "../action";
 
 const GRANT = {
   bucketId: "bucket_1",
@@ -63,15 +62,15 @@ const adminSession = {
   },
 } as never;
 
-describe("grantSupportCreditsAction", () => {
+describe("grantFreeCreditsAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns the grant and revalidates admin pages on success", async () => {
-    grantSupportCreditsMock.mockResolvedValue(GRANT);
+    grantFreeCreditsMock.mockResolvedValue(GRANT);
 
-    const result = await grantSupportCreditsAction({
+    const result = await grantFreeCreditsAction({
       session: adminSession,
       targetType: "user",
       targetId: "user_1",
@@ -85,7 +84,7 @@ describe("grantSupportCreditsAction", () => {
       throw new Error("Expected success result");
     }
     expect(result.data).toEqual(GRANT);
-    expect(grantSupportCreditsMock).toHaveBeenCalledWith({
+    expect(grantFreeCreditsMock).toHaveBeenCalledWith({
       target: { targetType: "user", targetId: "user_1" },
       credits: 500,
       ttlDays: null,
@@ -99,12 +98,12 @@ describe("grantSupportCreditsAction", () => {
     );
   });
 
-  it("maps a SupportCreditValidationError to BAD_INPUT", async () => {
-    grantSupportCreditsMock.mockRejectedValue(
-      new SupportCreditValidationError("Credits must be a positive integer"),
+  it("maps a FreeCreditValidationError to BAD_INPUT", async () => {
+    grantFreeCreditsMock.mockRejectedValue(
+      new FreeCreditValidationError("Credits must be a positive integer"),
     );
 
-    const result = await grantSupportCreditsAction({
+    const result = await grantFreeCreditsAction({
       session: adminSession,
       targetType: "user",
       targetId: "user_1",
@@ -123,11 +122,11 @@ describe("grantSupportCreditsAction", () => {
   });
 
   it("maps other core errors to INTERNAL_SERVER_ERROR", async () => {
-    grantSupportCreditsMock.mockRejectedValue(
+    grantFreeCreditsMock.mockRejectedValue(
       new CoreApiRequestError("boom", { status: 500 }),
     );
 
-    const result = await grantSupportCreditsAction({
+    const result = await grantFreeCreditsAction({
       session: adminSession,
       targetType: "user",
       targetId: "user_1",
@@ -151,7 +150,7 @@ describe("grantSupportCreditsAction", () => {
       },
     } as never;
 
-    const result = await grantSupportCreditsAction({
+    const result = await grantFreeCreditsAction({
       session: memberSession,
       targetType: "user",
       targetId: "user_1",
@@ -165,6 +164,6 @@ describe("grantSupportCreditsAction", () => {
       throw new Error("Expected error result");
     }
     expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
-    expect(grantSupportCreditsMock).not.toHaveBeenCalled();
+    expect(grantFreeCreditsMock).not.toHaveBeenCalled();
   });
 });

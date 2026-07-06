@@ -5,16 +5,16 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { coreClient } from "@/lib/clients/core.client";
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
 
-export type SupportCreditTargetType = "user" | "organization";
+export type FreeCreditTargetType = "user" | "organization";
 
-export interface SupportCreditTarget {
-  targetType: SupportCreditTargetType;
+export interface FreeCreditTarget {
+  targetType: FreeCreditTargetType;
   targetId: string;
 }
 
-export interface SupportCreditGrant {
+export interface FreeCreditGrant {
   bucketId: string;
-  targetType: SupportCreditTargetType;
+  targetType: FreeCreditTargetType;
   targetId: string;
   targetName: string;
   credits: number;
@@ -22,37 +22,37 @@ export interface SupportCreditGrant {
   referenceNote: string | null;
 }
 
-export class SupportCreditValidationError extends Error {
+export class FreeCreditValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "SupportCreditValidationError";
+    this.name = "FreeCreditValidationError";
   }
 }
 
 function mapCoreError(error: unknown): never {
   if (
     error instanceof CoreApiRequestError &&
-    error.kind === CORE_API_ERROR_KINDS.SUPPORT_CREDIT_INVALID
+    error.kind === CORE_API_ERROR_KINDS.FREE_CREDIT_INVALID
   ) {
-    throw new SupportCreditValidationError(error.message);
+    throw new FreeCreditValidationError(error.message);
   }
 
   throw error;
 }
 
 /**
- * Admin support credit grants. Credits are created directly in Core without
+ * Admin free credit grants. Credits are created directly in Core without
  * going through Stripe.
  */
-export const supportCreditAdminService = {
-  async grantSupportCredits(params: {
-    target: SupportCreditTarget;
+export const freeCreditAdminService = {
+  async grantFreeCredits(params: {
+    target: FreeCreditTarget;
     credits: number;
     ttlDays: number | null;
     referenceNote: string | null;
-  }): Promise<SupportCreditGrant> {
+  }): Promise<FreeCreditGrant> {
     const response = await coreClient
-      .createAdminSupportCreditGrant({
+      .createAdminFreeCreditGrant({
         targetType: params.target.targetType,
         targetId: params.target.targetId,
         credits: params.credits,

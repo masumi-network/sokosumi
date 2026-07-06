@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { invoiceTargetTypeSchema } from "./invoice.schema.js";
 
-export const supportCreditGrantSchema = z
+export const freeCreditGrantSchema = z
   .object({
     bucketId: z.string().openapi({ example: "bucket_123" }),
     targetType: invoiceTargetTypeSchema,
@@ -12,9 +12,9 @@ export const supportCreditGrantSchema = z
     ttlDays: z.number().nullable().openapi({ example: 30 }),
     referenceNote: z.string().nullable().openapi({ example: "Billing issue" }),
   })
-  .openapi("SupportCreditGrant");
+  .openapi("FreeCreditGrant");
 
-export const createSupportCreditGrantSchema = z
+export const createFreeCreditGrantSchema = z
   .object({
     targetType: invoiceTargetTypeSchema,
     targetId: z.string().min(1).openapi({ example: "user_123" }),
@@ -32,4 +32,4 @@ export const createSupportCreditGrantSchema = z
       .pipe(z.union([z.string().max(500), z.null()]))
       .openapi({ example: "Billing issue" }),
   })
-  .openapi("CreateSupportCreditGrant");
+  .openapi("CreateFreeCreditGrant");

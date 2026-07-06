@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getUserByIdMock = vi.fn();
 const getOrganizationWithRelationsByIdMock = vi.fn();
 const getOrganizationOwnerUserIdMock = vi.fn();
-const grantSupportCreditsMock = vi.fn();
+const grantFreeCreditsMock = vi.fn();
 const getCreditExpiryDateMock = vi.fn();
 const markOutOfCreditsTasksAsToppedUpMock = vi.fn();
 const randomUUIDMock = vi.fn();
@@ -13,7 +13,7 @@ vi.mock("node:crypto", () => ({
 }));
 
 vi.mock("@sokosumi/database/helpers", () => ({
-  grantSupportCredits: (...args: unknown[]) => grantSupportCreditsMock(...args),
+  grantFreeCredits: (...args: unknown[]) => grantFreeCreditsMock(...args),
   getCreditExpiryDate: (...args: unknown[]) => getCreditExpiryDateMock(...args),
 }));
 
@@ -47,26 +47,26 @@ vi.mock("@/services/task-topup.service", () => ({
     markOutOfCreditsTasksAsToppedUpMock(...args),
 }));
 
-import { supportCreditAdminService } from "./support-credit-admin.service";
+import { freeCreditAdminService } from "./free-credit-admin.service";
 
-describe("supportCreditAdminService.grantSupportCredits", () => {
+describe("freeCreditAdminService.grantFreeCredits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     randomUUIDMock.mockReturnValue("grant-uuid-1");
-    grantSupportCreditsMock.mockResolvedValue({ bucketId: "bucket-1" });
+    grantFreeCreditsMock.mockResolvedValue({ bucketId: "bucket-1" });
     getCreditExpiryDateMock.mockReturnValue(
       new Date("2026-08-01T00:00:00.000Z"),
     );
     markOutOfCreditsTasksAsToppedUpMock.mockResolvedValue(undefined);
   });
 
-  it("grants user support credits inside a transaction", async () => {
+  it("grants user free credits inside a transaction", async () => {
     getUserByIdMock.mockResolvedValue({
       id: "user-1",
       name: "Ada",
     });
 
-    const grant = await supportCreditAdminService.grantSupportCredits({
+    const grant = await freeCreditAdminService.grantFreeCredits({
       target: { targetType: "user", targetId: "user-1" },
       credits: 500,
       ttlDays: 30,
@@ -83,7 +83,7 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
       referenceNote: "Help",
     });
     expect(transactionMock).toHaveBeenCalledOnce();
-    expect(grantSupportCreditsMock).toHaveBeenCalledWith(
+    expect(grantFreeCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         credits: 500,
         grantId: "grant-uuid-1",
@@ -102,14 +102,14 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
     });
   });
 
-  it("grants organization support credits against the owner user", async () => {
+  it("grants organization free credits against the owner user", async () => {
     getOrganizationWithRelationsByIdMock.mockResolvedValue({
       id: "org-1",
       name: "Acme",
     });
     getOrganizationOwnerUserIdMock.mockResolvedValue("owner-1");
 
-    const grant = await supportCreditAdminService.grantSupportCredits({
+    const grant = await freeCreditAdminService.grantFreeCredits({
       target: { targetType: "organization", targetId: "org-1" },
       credits: 250,
       ttlDays: null,
@@ -118,7 +118,7 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
 
     expect(grant.targetType).toBe("organization");
     expect(grant.targetId).toBe("org-1");
-    expect(grantSupportCreditsMock).toHaveBeenCalledWith(
+    expect(grantFreeCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org-1",
         targetType: "organization",
@@ -137,14 +137,14 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
     getUserByIdMock.mockResolvedValue(null);
 
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "user", targetId: "missing" },
         credits: 100,
         ttlDays: null,
         referenceNote: null,
       }),
     ).rejects.toMatchObject({
-      name: "SupportCreditValidationError",
+      name: "FreeCreditValidationError",
       message: "User not found",
     });
   });
@@ -153,7 +153,7 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
     getOrganizationWithRelationsByIdMock.mockResolvedValue(null);
 
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "organization", targetId: "missing" },
         credits: 100,
         ttlDays: null,
@@ -170,7 +170,7 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
     getOrganizationOwnerUserIdMock.mockResolvedValue(null);
 
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "organization", targetId: "org-1" },
         credits: 100,
         ttlDays: null,
@@ -181,7 +181,7 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
 
   it("throws for invalid credits before opening a transaction", async () => {
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "user", targetId: "user-1" },
         credits: 0,
         ttlDays: null,
@@ -194,7 +194,7 @@ describe("supportCreditAdminService.grantSupportCredits", () => {
 
   it("throws when ttlDays exceeds the maximum", async () => {
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "user", targetId: "user-1" },
         credits: 100,
         ttlDays: 3651,

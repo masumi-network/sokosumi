@@ -214,7 +214,7 @@ export type CreateInvoice = {
     priceId: string | null;
 };
 
-export type SupportCreditGrant = {
+export type FreeCreditGrant = {
     bucketId: string;
     targetType: 'user' | 'organization';
     targetId: string;
@@ -224,7 +224,7 @@ export type SupportCreditGrant = {
     referenceNote: string | null;
 };
 
-export type CreateSupportCreditGrant = {
+export type CreateFreeCreditGrant = {
     targetType: 'user' | 'organization';
     targetId: string;
     credits: number;
@@ -3934,14 +3934,14 @@ export type GetAdminInvoiceResponses = {
 
 export type GetAdminInvoiceResponse = GetAdminInvoiceResponses[keyof GetAdminInvoiceResponses];
 
-export type CreateAdminSupportCreditGrantData = {
-    body?: CreateSupportCreditGrant;
+export type CreateAdminFreeCreditGrantData = {
+    body?: CreateFreeCreditGrant;
     path?: never;
     query?: never;
     url: '/admin/credits';
 };
 
-export type CreateAdminSupportCreditGrantErrors = {
+export type CreateAdminFreeCreditGrantErrors = {
     /**
      * Bad Request - validation failed
      */
@@ -4000,14 +4000,14 @@ export type CreateAdminSupportCreditGrantErrors = {
     };
 };
 
-export type CreateAdminSupportCreditGrantError = CreateAdminSupportCreditGrantErrors[keyof CreateAdminSupportCreditGrantErrors];
+export type CreateAdminFreeCreditGrantError = CreateAdminFreeCreditGrantErrors[keyof CreateAdminFreeCreditGrantErrors];
 
-export type CreateAdminSupportCreditGrantResponses = {
+export type CreateAdminFreeCreditGrantResponses = {
     /**
-     * The created support credit grant
+     * The created free credit grant
      */
     200: {
-        data: SupportCreditGrant;
+        data: FreeCreditGrant;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -4016,7 +4016,7 @@ export type CreateAdminSupportCreditGrantResponses = {
     };
 };
 
-export type CreateAdminSupportCreditGrantResponse = CreateAdminSupportCreditGrantResponses[keyof CreateAdminSupportCreditGrantResponses];
+export type CreateAdminFreeCreditGrantResponse = CreateAdminFreeCreditGrantResponses[keyof CreateAdminFreeCreditGrantResponses];
 
 export type ListAdminTasksData = {
     body?: never;

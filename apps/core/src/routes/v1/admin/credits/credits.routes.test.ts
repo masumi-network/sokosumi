@@ -8,29 +8,29 @@ import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import type { AuthVariables } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
 
-const { grantSupportCreditsMock } = vi.hoisted(() => ({
-  grantSupportCreditsMock: vi.fn(),
+const { grantFreeCreditsMock } = vi.hoisted(() => ({
+  grantFreeCreditsMock: vi.fn(),
 }));
 
-vi.mock("@/services/support-credit-admin.service", () => {
-  class SupportCreditValidationError extends Error {
+vi.mock("@/services/free-credit-admin.service", () => {
+  class FreeCreditValidationError extends Error {
     constructor(message: string) {
       super(message);
-      this.name = "SupportCreditValidationError";
+      this.name = "FreeCreditValidationError";
     }
   }
 
   return {
-    SupportCreditValidationError,
-    supportCreditAdminService: {
-      grantSupportCredits: grantSupportCreditsMock,
+    FreeCreditValidationError,
+    freeCreditAdminService: {
+      grantFreeCredits: grantFreeCreditsMock,
     },
   };
 });
 
-const { default: mountCreateSupportCreditGrant } = await import("./post.js");
-const { SupportCreditValidationError } = await import(
-  "@/services/support-credit-admin.service.js"
+const { default: mountCreateFreeCreditGrant } = await import("./post.js");
+const { FreeCreditValidationError } = await import(
+  "@/services/free-credit-admin.service.js"
 );
 
 const GRANT = {
@@ -56,7 +56,7 @@ function createApp(options: AppOptions = {}) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_support_credits_test");
+    c.set("requestId", "req_free_credits_test");
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "user",
@@ -78,7 +78,7 @@ function createApp(options: AppOptions = {}) {
 
   app.onError(errorHandler);
   const authApp = app as unknown as OpenAPIHonoWithAuth;
-  mountCreateSupportCreditGrant(authApp);
+  mountCreateFreeCreditGrant(authApp);
 
   return app;
 }
@@ -86,7 +86,7 @@ function createApp(options: AppOptions = {}) {
 describe("admin credits routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    grantSupportCreditsMock.mockResolvedValue(GRANT);
+    grantFreeCreditsMock.mockResolvedValue(GRANT);
   });
 
   it("returns 403 for non-admin users", async () => {
@@ -105,10 +105,10 @@ describe("admin credits routes", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(grantSupportCreditsMock).not.toHaveBeenCalled();
+    expect(grantFreeCreditsMock).not.toHaveBeenCalled();
   });
 
-  it("creates a support credit grant for an admin", async () => {
+  it("creates a free credit grant for an admin", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/", {
@@ -124,7 +124,7 @@ describe("admin credits routes", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(grantSupportCreditsMock).toHaveBeenCalledWith({
+    expect(grantFreeCreditsMock).toHaveBeenCalledWith({
       target: { targetType: "user", targetId: "user_1" },
       credits: 500,
       ttlDays: null,
@@ -132,9 +132,9 @@ describe("admin credits routes", () => {
     });
   });
 
-  it("carries the support_credit_invalid kind on validation failures", async () => {
-    grantSupportCreditsMock.mockRejectedValue(
-      new SupportCreditValidationError("User not found"),
+  it("carries the free_credit_invalid kind on validation failures", async () => {
+    grantFreeCreditsMock.mockRejectedValue(
+      new FreeCreditValidationError("User not found"),
     );
     const app = createApp();
 
@@ -152,7 +152,7 @@ describe("admin credits routes", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.kind).toBe("support_credit_invalid");
+    expect(body.kind).toBe("free_credit_invalid");
     expect(body.message).toBe("User not found");
   });
 });

@@ -4,17 +4,17 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
-  createSupportCreditGrantSchema,
-  supportCreditGrantSchema,
-} from "@/schemas/support-credit.schema";
-import { supportCreditAdminService } from "@/services/support-credit-admin.service";
+  createFreeCreditGrantSchema,
+  freeCreditGrantSchema,
+} from "@/schemas/free-credit.schema";
+import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 
-import { mapSupportCreditError } from "./helpers.js";
+import { mapFreeCreditError } from "./helpers.js";
 
 const route = createRoute({
   method: "post",
   path: "/",
-  operationId: "createAdminSupportCreditGrant",
+  operationId: "createAdminFreeCreditGrant",
   description:
     "Grant free credits directly to a user or organization (admin only). Credits are created immediately without a Stripe invoice. Missing or invalid targets return 400 (not 404), matching admin invoice grants.",
   tags: ["Admin"],
@@ -22,15 +22,15 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: createSupportCreditGrantSchema,
+          schema: createFreeCreditGrantSchema,
         },
       },
     },
   },
   responses: {
     200: jsonSuccessResponse(
-      supportCreditGrantSchema,
-      "The created support credit grant",
+      freeCreditGrantSchema,
+      "The created free credit grant",
       {
         data: {
           bucketId: "bucket_123",
@@ -59,15 +59,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { targetType, targetId, credits, ttlDays, referenceNote } =
       c.req.valid("json");
 
-    const grant = await supportCreditAdminService
-      .grantSupportCredits({
+    const grant = await freeCreditAdminService
+      .grantFreeCredits({
         target: { targetType, targetId },
         credits,
         ttlDays,
         referenceNote,
       })
-      .catch(mapSupportCreditError);
+      .catch(mapFreeCreditError);
 
-    return ok(c, supportCreditGrantSchema.parse(grant));
+    return ok(c, freeCreditGrantSchema.parse(grant));
   });
 }

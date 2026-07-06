@@ -701,7 +701,7 @@ enum CreditBucketReferenceType {
   ENTERPRISE_PERIOD
   ENTERPRISE_TOP_UP
   SIGNUP_BONUS
-  SUPPORT
+  FREE
 }
 
 model CreditConsumption {

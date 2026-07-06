@@ -6,11 +6,11 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import {
-  type SupportCreditGrant,
-  type SupportCreditTargetType,
-  SupportCreditValidationError,
-  supportCreditAdminService,
-} from "@/lib/services/support-credit-admin.service";
+  type FreeCreditGrant,
+  type FreeCreditTargetType,
+  FreeCreditValidationError,
+  freeCreditAdminService,
+} from "@/lib/services/free-credit-admin.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
@@ -25,7 +25,7 @@ function mapError(error: unknown): ActionError {
     };
   }
 
-  if (error instanceof SupportCreditValidationError) {
+  if (error instanceof FreeCreditValidationError) {
     return {
       code: CommonErrorCode.BAD_INPUT,
       message: error.message,
@@ -39,17 +39,17 @@ function mapError(error: unknown): ActionError {
   };
 }
 
-interface GrantSupportCreditsParameters extends AuthenticatedRequest {
-  targetType: SupportCreditTargetType;
+interface GrantFreeCreditsParameters extends AuthenticatedRequest {
+  targetType: FreeCreditTargetType;
   targetId: string;
   credits: number;
   ttlDays: number | null;
   referenceNote: string | null;
 }
 
-export const grantSupportCreditsAction = withSession<
-  GrantSupportCreditsParameters,
-  Result<SupportCreditGrant, ActionError>
+export const grantFreeCreditsAction = withSession<
+  GrantFreeCreditsParameters,
+  Result<FreeCreditGrant, ActionError>
 >(
   async ({
     session,
@@ -61,7 +61,7 @@ export const grantSupportCreditsAction = withSession<
   }) => {
     try {
       assertAdminSession(session);
-      const grant = await supportCreditAdminService.grantSupportCredits({
+      const grant = await freeCreditAdminService.grantFreeCredits({
         target: { targetType, targetId },
         credits,
         ttlDays,

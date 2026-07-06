@@ -2,18 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const createAdminSupportCreditGrantMock = vi.fn();
+const createAdminFreeCreditGrantMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
-    createAdminSupportCreditGrant: (...args: unknown[]) =>
-      createAdminSupportCreditGrantMock(...args),
+    createAdminFreeCreditGrant: (...args: unknown[]) =>
+      createAdminFreeCreditGrantMock(...args),
   },
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
 
-import { supportCreditAdminService } from "../support-credit-admin.service";
+import { freeCreditAdminService } from "../free-credit-admin.service";
 
 const GRANT = {
   bucketId: "bucket_1",
@@ -25,15 +25,15 @@ const GRANT = {
   referenceNote: "Help",
 };
 
-describe("supportCreditAdminService (core client wrapper)", () => {
+describe("freeCreditAdminService (core client wrapper)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("grants support credits through the core client", async () => {
-    createAdminSupportCreditGrantMock.mockResolvedValue({ data: GRANT });
+  it("grants free credits through the core client", async () => {
+    createAdminFreeCreditGrantMock.mockResolvedValue({ data: GRANT });
 
-    const grant = await supportCreditAdminService.grantSupportCredits({
+    const grant = await freeCreditAdminService.grantFreeCredits({
       target: { targetType: "user", targetId: "user_1" },
       credits: 500,
       ttlDays: null,
@@ -41,7 +41,7 @@ describe("supportCreditAdminService (core client wrapper)", () => {
     });
 
     expect(grant).toEqual(GRANT);
-    expect(createAdminSupportCreditGrantMock).toHaveBeenCalledWith({
+    expect(createAdminFreeCreditGrantMock).toHaveBeenCalledWith({
       targetType: "user",
       targetId: "user_1",
       credits: 500,
@@ -50,34 +50,34 @@ describe("supportCreditAdminService (core client wrapper)", () => {
     });
   });
 
-  it("maps a core support_credit_invalid error to SupportCreditValidationError", async () => {
-    createAdminSupportCreditGrantMock.mockRejectedValue(
+  it("maps a core free_credit_invalid error to FreeCreditValidationError", async () => {
+    createAdminFreeCreditGrantMock.mockRejectedValue(
       new CoreApiRequestError("User not found", {
         status: 400,
-        kind: "support_credit_invalid",
+        kind: "free_credit_invalid",
       }),
     );
 
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "user", targetId: "user_missing" },
         credits: 500,
         ttlDays: null,
         referenceNote: null,
       }),
     ).rejects.toMatchObject({
-      name: "SupportCreditValidationError",
+      name: "FreeCreditValidationError",
       message: "User not found",
     });
   });
 
   it("rethrows other core errors", async () => {
-    createAdminSupportCreditGrantMock.mockRejectedValue(
+    createAdminFreeCreditGrantMock.mockRejectedValue(
       new CoreApiRequestError("boom", { status: 500 }),
     );
 
     await expect(
-      supportCreditAdminService.grantSupportCredits({
+      freeCreditAdminService.grantFreeCredits({
         target: { targetType: "user", targetId: "user_1" },
         credits: 500,
         ttlDays: null,
