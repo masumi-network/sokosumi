@@ -841,10 +841,6 @@ export const CreateInvoiceSchema = {
                 'null'
             ],
             example: 'price_123'
-        },
-        markFree: {
-            type: 'boolean',
-            example: false
         }
     },
     required: [
@@ -852,8 +848,7 @@ export const CreateInvoiceSchema = {
         'targetId',
         'credits',
         'ttlDays',
-        'priceId',
-        'markFree'
+        'priceId'
     ]
 } as const;
 

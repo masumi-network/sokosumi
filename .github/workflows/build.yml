@@ -20,7 +20,6 @@ env:
   STRIPE_WEBHOOK_SECRET: "whsec_ci_build_placeholder"
   SIGNUP_BONUS_CREDITS: "3000"
   SIGNUP_BONUS_TTL_DAYS: "30"
-  STRIPE_SUPPORT_COUPON: "ci-stripe-support-coupon"
   STRIPE_CREDIT_PRODUCT_ID: "ci-stripe-credit-product-id"
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-starter-subscription-product-id"
   STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-standard-subscription-product-id"

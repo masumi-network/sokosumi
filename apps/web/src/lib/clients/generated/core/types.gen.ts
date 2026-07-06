@@ -212,7 +212,6 @@ export type CreateInvoice = {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    markFree: boolean;
 };
 
 export type SupportCreditGrant = {

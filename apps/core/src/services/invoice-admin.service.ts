@@ -10,7 +10,6 @@ import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
-import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
@@ -542,8 +541,6 @@ export const invoiceAdminService = (() => {
       credits: number;
       ttlDays: number | null;
       priceId: string | null;
-      /** When true, applies the support coupon so the invoice is free ($0). */
-      markFree: boolean;
     }): Promise<InvoiceSummary> {
       if (!isPositiveIntegerCredits(params.credits)) {
         throw new InvoiceValidationError("Credits must be a positive integer");
@@ -575,29 +572,16 @@ export const invoiceAdminService = (() => {
         priceId: price.id,
         currency: price.currency,
         ttlDays: params.ttlDays ?? undefined,
-        ...(params.markFree
-          ? { couponId: getEnv().STRIPE_SUPPORT_COUPON }
-          : {}),
       });
-
-      // A free grant must be fully discounted to $0 by the support coupon. If
-      // it isn't (e.g. the coupon is misconfigured as fixed-amount or <100%),
-      // the invoice stays payable and would silently become a normal open
-      // invoice — fail loudly instead so the misconfiguration is obvious.
-      if (params.markFree && (invoice.amount_due ?? 0) !== 0) {
-        throw new InvoiceValidationError(
-          "Free grant invoice was not fully discounted to $0. Check that STRIPE_SUPPORT_COUPON is a 100%-off coupon that applies to the credit product.",
-        );
-      }
 
       // A non-free grant must cost something. Billing `quantity × price` lets
       // Stripe round a tiny fractional total down to $0, which would finalize
       // as paid and silently grant credits for free. Reject it so the admin
-      // raises the credit amount, picks a higher price, or marks it free —
-      // this preserves the old `getCreditTopUpTotalMinorUnits` >= 1 invariant.
-      if (!params.markFree && (invoice.amount_due ?? 0) === 0) {
+      // raises the credit amount or picks a higher price — this preserves the
+      // old `getCreditTopUpTotalMinorUnits` >= 1 invariant.
+      if ((invoice.amount_due ?? 0) === 0) {
         throw new InvoiceValidationError(
-          "Grant total rounded to $0. Increase the credit amount, choose a higher price, or mark the grant as free.",
+          "Grant total rounded to $0. Increase the credit amount or choose a higher price.",
         );
       }
 

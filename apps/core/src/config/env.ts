@@ -120,9 +120,6 @@ const envSchema = z.object({
   SIGNUP_BONUS_CREDITS: z.coerce.number().int().positive().default(3000),
   SIGNUP_BONUS_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
-  // 100%-off coupon used to issue admin credit grants free of charge
-  STRIPE_SUPPORT_COUPON: z.string().min(1),
-
   // Signing secret for Stripe webhooks (POST /auth/stripe/webhook). Stripe Dashboard
   // should send all events here; billing events are handled from auth onEvent.
   STRIPE_WEBHOOK_SECRET: z.string().min(1),

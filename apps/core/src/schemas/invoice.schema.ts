@@ -73,7 +73,6 @@ export const createInvoiceSchema = z
     credits: z.number().int().positive().openapi({ example: 100 }),
     ttlDays: z.number().int().nullable().openapi({ example: 30 }),
     priceId: z.string().nullable().openapi({ example: "price_123" }),
-    markFree: z.boolean().openapi({ example: false }),
   })
   .openapi("CreateInvoice");
 

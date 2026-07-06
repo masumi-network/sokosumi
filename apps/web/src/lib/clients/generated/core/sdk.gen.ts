@@ -132,7 +132,7 @@ export const listAdminInvoices = <ThrowOnError extends boolean = false>(options?
 });
 
 /**
- * Create (and finalize) a one-time admin invoice for a user or organization (admin only). A free grant applies the support coupon, finalizes paid, and grants the credits immediately.
+ * Create (and finalize) a one-time admin invoice for a user or organization (admin only).
  */
 export const createAdminInvoice = <ThrowOnError extends boolean = false>(options?: Options<CreateAdminInvoiceData, ThrowOnError>): RequestResult<CreateAdminInvoiceResponses, CreateAdminInvoiceErrors, ThrowOnError> => (options?.client ?? client).post<CreateAdminInvoiceResponses, CreateAdminInvoiceErrors, ThrowOnError>({
     responseTransformer: createAdminInvoiceResponseTransformer,
