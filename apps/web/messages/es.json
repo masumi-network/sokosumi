@@ -2729,6 +2729,10 @@
           "tasks": {
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
+          },
+          "supportCredits": {
+            "title": "Créditos de soporte",
+            "description": "Otorga créditos de soporte directamente a un usuario u organización sin factura de Stripe."
           }
         }
       },
@@ -2891,6 +2895,35 @@
         "TaskDetail": {
           "backToList": "Volver a tareas",
           "personalWorkspace": "Espacio de trabajo personal"
+        }
+      },
+      "SupportCredits": {
+        "title": "Créditos de soporte",
+        "description": "Otorga créditos de soporte directamente a un usuario u organización. Los créditos se aplican de inmediato con el tipo de referencia Support.",
+        "backToAdmin": "Volver al administrador",
+        "Form": {
+          "Fields": {
+            "target": "Destinatario",
+            "credits": "Créditos",
+            "expiryDays": "Caducidad (días)",
+            "referenceNote": "Nota de referencia"
+          },
+          "Tabs": {
+            "organization": "Organización",
+            "user": "Usuario"
+          },
+          "targetRequired": "Selecciona un destinatario",
+          "creditsRequired": "Introduce un número positivo de créditos",
+          "creditsHelper": "Número de créditos que se otorgarán al destinatario.",
+          "expiryHelper": "Opcional. Días hasta que caduquen los créditos. Déjalo en blanco para que no caduquen.",
+          "expiryPlaceholder": "Sin caducidad",
+          "expiryInvalid": "La caducidad debe ser un número entero positivo de días",
+          "referenceNoteHelper": "Nota opcional almacenada en el bucket de créditos para referencia interna.",
+          "referenceNotePlaceholder": "p. ej. Problema de facturación, gesto de cortesía",
+          "submit": "Otorgar créditos",
+          "submitting": "Otorgando créditos…",
+          "grantSuccess": "Créditos de soporte otorgados",
+          "grantError": "No se pudieron otorgar los créditos de soporte"
         }
       }
     },

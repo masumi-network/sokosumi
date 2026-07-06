@@ -215,6 +215,24 @@ export type CreateInvoice = {
     markFree: boolean;
 };
 
+export type SupportCreditGrant = {
+    bucketId: string;
+    targetType: 'user' | 'organization';
+    targetId: string;
+    targetName: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+};
+
+export type CreateSupportCreditGrant = {
+    targetType: 'user' | 'organization';
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+};
+
 export type AdminTaskListItem = {
     id: string;
     name: string;
@@ -1105,9 +1123,9 @@ export type HermesUploadedFile = {
 };
 
 export type HermesGetInstanceEnvelope = ({
-    hasInstance: false;
+    hasInstance: 'false';
 } & HermesGetInstanceNone) | ({
-    hasInstance: true;
+    hasInstance: 'true';
 } & HermesGetInstanceSome);
 
 export type HermesGetInstanceNone = {
@@ -3920,6 +3938,90 @@ export type GetAdminInvoiceResponses = {
 };
 
 export type GetAdminInvoiceResponse = GetAdminInvoiceResponses[keyof GetAdminInvoiceResponses];
+
+export type CreateAdminSupportCreditGrantData = {
+    body?: CreateSupportCreditGrant;
+    path?: never;
+    query?: never;
+    url: '/admin/support-credits';
+};
+
+export type CreateAdminSupportCreditGrantErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminSupportCreditGrantError = CreateAdminSupportCreditGrantErrors[keyof CreateAdminSupportCreditGrantErrors];
+
+export type CreateAdminSupportCreditGrantResponses = {
+    /**
+     * The created support credit grant
+     */
+    200: {
+        data: SupportCreditGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminSupportCreditGrantResponse = CreateAdminSupportCreditGrantResponses[keyof CreateAdminSupportCreditGrantResponses];
 
 export type ListAdminTasksData = {
     body?: never;

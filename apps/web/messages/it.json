@@ -2760,6 +2760,10 @@
           "tasks": {
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
+          },
+          "supportCredits": {
+            "title": "Crediti di supporto",
+            "description": "Concedi crediti di supporto direttamente a un utente o un'organizzazione senza fattura Stripe."
           }
         }
       },
@@ -2922,6 +2926,35 @@
         "TaskDetail": {
           "backToList": "Torna alle attività",
           "personalWorkspace": "Spazio di lavoro personale"
+        }
+      },
+      "SupportCredits": {
+        "title": "Crediti di supporto",
+        "description": "Concedi crediti di supporto direttamente a un utente o un'organizzazione. I crediti vengono applicati subito con tipo di riferimento Support.",
+        "backToAdmin": "Torna all'amministrazione",
+        "Form": {
+          "Fields": {
+            "target": "Destinatario",
+            "credits": "Crediti",
+            "expiryDays": "Scadenza (giorni)",
+            "referenceNote": "Nota di riferimento"
+          },
+          "Tabs": {
+            "organization": "Organizzazione",
+            "user": "Utente"
+          },
+          "targetRequired": "Seleziona un destinatario",
+          "creditsRequired": "Inserisci un numero positivo di crediti",
+          "creditsHelper": "Numero di crediti da concedere al destinatario.",
+          "expiryHelper": "Opzionale. Giorni fino alla scadenza dei crediti. Lascia vuoto per nessuna scadenza.",
+          "expiryPlaceholder": "Nessuna scadenza",
+          "expiryInvalid": "La scadenza deve essere un numero intero positivo di giorni",
+          "referenceNoteHelper": "Nota opzionale salvata sul bucket di crediti per riferimento interno.",
+          "referenceNotePlaceholder": "es. Problema di fatturazione, gesto di cortesia",
+          "submit": "Concedi crediti",
+          "submitting": "Concessione crediti…",
+          "grantSuccess": "Crediti di supporto concessi",
+          "grantError": "Impossibile concedere i crediti di supporto"
         }
       }
     },

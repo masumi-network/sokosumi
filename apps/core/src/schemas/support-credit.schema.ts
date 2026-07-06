@@ -1,0 +1,30 @@
+import { z } from "@hono/zod-openapi";
+
+import { invoiceTargetTypeSchema } from "./invoice.schema.js";
+
+export const supportCreditGrantSchema = z
+  .object({
+    bucketId: z.string().openapi({ example: "bucket_123" }),
+    targetType: invoiceTargetTypeSchema,
+    targetId: z.string().openapi({ example: "user_123" }),
+    targetName: z.string().openapi({ example: "Ada Lovelace" }),
+    credits: z.number().openapi({ example: 500 }),
+    ttlDays: z.number().nullable().openapi({ example: 30 }),
+    referenceNote: z.string().nullable().openapi({ example: "Billing issue" }),
+  })
+  .openapi("SupportCreditGrant");
+
+export const createSupportCreditGrantSchema = z
+  .object({
+    targetType: invoiceTargetTypeSchema,
+    targetId: z.string().min(1).openapi({ example: "user_123" }),
+    credits: z.number().int().positive().openapi({ example: 500 }),
+    ttlDays: z.number().int().nullable().openapi({ example: 30 }),
+    referenceNote: z
+      .string()
+      .trim()
+      .max(500)
+      .nullable()
+      .openapi({ example: "Billing issue" }),
+  })
+  .openapi("CreateSupportCreditGrant");

@@ -46,3 +46,4 @@ export * from "./organization-subscription-credit-audience.js";
 export * from "./organization-subscription-exclusivity.js";
 export * from "./signup-bonus-credits.js";
 export * from "./subscription.js";
+export * from "./support-credits.js";

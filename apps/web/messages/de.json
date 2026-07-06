@@ -2729,6 +2729,10 @@
           "tasks": {
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
+          },
+          "supportCredits": {
+            "title": "Support-Credits",
+            "description": "Support-Credits direkt an einen Benutzer oder eine Organisation gewähren, ohne Stripe-Rechnung."
           }
         }
       },
@@ -2891,6 +2895,35 @@
         "TaskDetail": {
           "backToList": "Zurück zu Aufgaben",
           "personalWorkspace": "Persönlicher Workspace"
+        }
+      },
+      "SupportCredits": {
+        "title": "Support-Credits",
+        "description": "Support-Credits direkt an einen Benutzer oder eine Organisation gewähren. Credits werden sofort mit Referenztyp Support gutgeschrieben.",
+        "backToAdmin": "Zurück zur Administration",
+        "Form": {
+          "Fields": {
+            "target": "Empfänger",
+            "credits": "Credits",
+            "expiryDays": "Ablauf (Tage)",
+            "referenceNote": "Referenznotiz"
+          },
+          "Tabs": {
+            "organization": "Organisation",
+            "user": "Benutzer"
+          },
+          "targetRequired": "Empfänger auswählen",
+          "creditsRequired": "Positive Anzahl von Credits eingeben",
+          "creditsHelper": "Anzahl der Credits, die dem Empfänger gewährt werden.",
+          "expiryHelper": "Optional. Tage bis zum Ablauf der Credits. Leer lassen für kein Ablaufdatum.",
+          "expiryPlaceholder": "Kein Ablauf",
+          "expiryInvalid": "Der Ablauf muss eine positive ganze Zahl von Tagen sein",
+          "referenceNoteHelper": "Optionale Notiz, die am Credit-Bucket zur internen Referenz gespeichert wird.",
+          "referenceNotePlaceholder": "z. B. Abrechnungsproblem, Kulanz",
+          "submit": "Credits gewähren",
+          "submitting": "Credits werden gewährt…",
+          "grantSuccess": "Support-Credits gewährt",
+          "grantError": "Support-Credits konnten nicht gewährt werden"
         }
       }
     },

@@ -2,6 +2,7 @@ import {
   Building,
   Building2,
   Coins,
+  LifeBuoy,
   ListTodo,
   type LucideIcon,
   Users,
@@ -29,6 +30,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "invoices",
     href: "/admin/invoices",
     Icon: Coins,
+  },
+  {
+    key: "supportCredits",
+    href: "/admin/support-credits",
+    Icon: LifeBuoy,
   },
   {
     key: "organizations",

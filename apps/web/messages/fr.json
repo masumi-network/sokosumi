@@ -2760,6 +2760,10 @@
           "tasks": {
             "title": "Tâches",
             "description": "Liste consultable de toutes les tâches, tous utilisateurs et organisations confondus."
+          },
+          "supportCredits": {
+            "title": "Crédits de support",
+            "description": "Accordez des crédits de support directement à un utilisateur ou une organisation sans facture Stripe."
           }
         }
       },
@@ -2922,6 +2926,35 @@
         "TaskDetail": {
           "backToList": "Retour aux tâches",
           "personalWorkspace": "Espace de travail personnel"
+        }
+      },
+      "SupportCredits": {
+        "title": "Crédits de support",
+        "description": "Accordez des crédits de support directement à un utilisateur ou une organisation. Les crédits sont appliqués immédiatement avec le type de référence Support.",
+        "backToAdmin": "Retour à l'administration",
+        "Form": {
+          "Fields": {
+            "target": "Destinataire",
+            "credits": "Crédits",
+            "expiryDays": "Expiration (jours)",
+            "referenceNote": "Note de référence"
+          },
+          "Tabs": {
+            "organization": "Organisation",
+            "user": "Utilisateur"
+          },
+          "targetRequired": "Sélectionnez un destinataire",
+          "creditsRequired": "Saisissez un nombre positif de crédits",
+          "creditsHelper": "Nombre de crédits à accorder au destinataire.",
+          "expiryHelper": "Facultatif. Jours avant l'expiration des crédits. Laissez vide pour aucune expiration.",
+          "expiryPlaceholder": "Pas d'expiration",
+          "expiryInvalid": "L'expiration doit être un nombre entier positif de jours",
+          "referenceNoteHelper": "Note facultative stockée sur le bucket de crédits pour référence interne.",
+          "referenceNotePlaceholder": "p. ex. Problème de facturation, geste commercial",
+          "submit": "Accorder des crédits",
+          "submitting": "Attribution des crédits…",
+          "grantSuccess": "Crédits de support accordés",
+          "grantError": "Impossible d'accorder les crédits de support"
         }
       }
     },

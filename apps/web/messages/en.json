@@ -2882,6 +2882,35 @@
           }
         }
       },
+      "SupportCredits": {
+        "title": "Support credits",
+        "description": "Grant support credits directly to a user or organization. Credits are applied immediately with reference type Support.",
+        "backToAdmin": "Back to admin",
+        "Form": {
+          "Fields": {
+            "target": "Recipient",
+            "credits": "Credits",
+            "expiryDays": "Expiry (days)",
+            "referenceNote": "Reference note"
+          },
+          "Tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "targetRequired": "Select a recipient",
+          "creditsRequired": "Enter a positive number of credits",
+          "creditsHelper": "Number of credits to grant to the recipient.",
+          "expiryHelper": "Optional. Days until the credits expire. Leave blank for no expiry.",
+          "expiryPlaceholder": "No expiry",
+          "expiryInvalid": "Expiry must be a positive whole number of days",
+          "referenceNoteHelper": "Optional note stored on the credit bucket for internal reference.",
+          "referenceNotePlaceholder": "e.g. Billing issue, goodwill gesture",
+          "submit": "Grant credits",
+          "submitting": "Granting credits…",
+          "grantSuccess": "Support credits granted",
+          "grantError": "Failed to grant support credits"
+        }
+      },
       "Overview": {
         "title": "Admin",
         "description": "Internal tools for managing organizations and billing.",
@@ -2893,6 +2922,10 @@
           "invoices": {
             "title": "Invoices",
             "description": "View admin invoices and grant one-time credits to a user or organization."
+          },
+          "supportCredits": {
+            "title": "Support credits",
+            "description": "Grant support credits directly to a user or organization without a Stripe invoice."
           },
           "users": {
             "title": "Users",

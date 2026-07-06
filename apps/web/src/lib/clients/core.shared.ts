@@ -60,6 +60,7 @@ import {
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   claimCoupon as coreClaimCoupon,
   createAdminInvoice as coreCreateAdminInvoice,
+  createAdminSupportCreditGrant as coreCreateAdminSupportCreditGrant,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
@@ -702,6 +703,25 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to create admin invoice",
+    );
+  }
+
+  async function createAdminSupportCreditGrant(body: {
+    targetType: "user" | "organization";
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminSupportCreditGrant({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to grant support credits",
     );
   }
 
@@ -2751,6 +2771,7 @@ export function createCoreClient(getClient: GetClient) {
     unassignAdminOrganizationMemberSeat,
     listAdminInvoices,
     createAdminInvoice,
+    createAdminSupportCreditGrant,
     getAdminInvoice,
     markAdminInvoicePaid,
     listCreditPrices,

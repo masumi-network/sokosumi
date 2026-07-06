@@ -670,6 +670,7 @@ model CreditBucket {
 
   referenceId   String?
   referenceType CreditBucketReferenceType?
+  referenceNote String?
 
   // Link to the transaction that created this bucket (topup)
   sourceTransactionId String      @unique
@@ -700,6 +701,7 @@ enum CreditBucketReferenceType {
   ENTERPRISE_PERIOD
   ENTERPRISE_TOP_UP
   SIGNUP_BONUS
+  SUPPORT
 }
 
 model CreditConsumption {
