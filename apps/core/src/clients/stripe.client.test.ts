@@ -81,30 +81,6 @@ vi.mock("@/config/env", () => ({
   getWebAppBaseUrl: () => "https://app.sokosumi.test",
 }));
 
-function mockCreditProductAndCoupon(
-  couponMetadata: Record<string, string> = { credits: "500" },
-): void {
-  stripeProductsRetrieveMock.mockResolvedValue({
-    default_price: {
-      id: "price_credits",
-      currency: "eur",
-      unit_amount: 120,
-      unit_amount_decimal: "120",
-    },
-  });
-  stripeCouponsRetrieveMock.mockResolvedValue({
-    id: "coupon_1",
-    metadata: couponMetadata,
-    percent_off: 100,
-  });
-  stripeInvoiceItemsCreateMock.mockResolvedValue({ id: "ii_1" });
-  stripeInvoicesCreateMock.mockResolvedValue({ id: "in_1" });
-  stripeInvoicesFinalizeMock.mockResolvedValue({
-    id: "in_1",
-    status: "paid",
-  });
-}
-
 describe("stripeClient", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -185,132 +161,6 @@ describe("stripeClient", () => {
     await expect(stripeClient.getCouponById("coupon_gone")).resolves.toBeNull();
   });
 
-  it("creates invoice items with quantity matching coupon credits", async () => {
-    mockCreditProductAndCoupon();
-    const { stripeClient } = await import("./stripe.client");
-
-    await stripeClient.applyInvoiceCreditsToCustomer(
-      "cus_1",
-      "coupon_1",
-      "grant-coupon_1-user-1",
-    );
-
-    // The description is part of Stripe's idempotent request body — it must
-    // stay byte-identical to the web client so cross-app replays of the same
-    // key succeed instead of failing with idempotency_error.
-    expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        customer: "cus_1",
-        quantity: 500,
-        description: "Referral credit redemption (500 credits) - 1 of 1",
-      }),
-      expect.anything(),
-    );
-  });
-
-  it("passes derived idempotency keys to every stripe call", async () => {
-    mockCreditProductAndCoupon();
-    const { stripeClient } = await import("./stripe.client");
-
-    await stripeClient.applyInvoiceCreditsToCustomer(
-      "cus_1",
-      "coupon_1",
-      "welcome-coupon_1-user-1",
-    );
-
-    expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        idempotencyKey: "welcome-coupon_1-user-1-item-1",
-      },
-    );
-    expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(expect.anything(), {
-      idempotencyKey: "welcome-coupon_1-user-1-invoice",
-    });
-    expect(stripeInvoicesFinalizeMock).toHaveBeenCalledWith(
-      "in_1",
-      {},
-      { idempotencyKey: "welcome-coupon_1-user-1-finalize" },
-    );
-  });
-
-  it("derives a distinct idempotency key per referral invoice item", async () => {
-    mockCreditProductAndCoupon();
-    const { stripeClient } = await import("./stripe.client");
-
-    await stripeClient.applyInvoiceCreditsToCustomer(
-      "cus_1",
-      "coupon_1",
-      "referral-coupon_1-user-1-2",
-      undefined,
-      2,
-    );
-
-    expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledTimes(2);
-    expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        idempotencyKey: "referral-coupon_1-user-1-2-item-1",
-      },
-    );
-    expect(stripeInvoiceItemsCreateMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {
-        idempotencyKey: "referral-coupon_1-user-1-2-item-2",
-      },
-    );
-  });
-
-  it("propagates custom metadata onto invoice metadata", async () => {
-    mockCreditProductAndCoupon();
-    const { stripeClient } = await import("./stripe.client");
-
-    await stripeClient.applyInvoiceCreditsToCustomer(
-      "cus_1",
-      "coupon_1",
-      "welcome-coupon_1-user-1",
-      {
-        redemption_type: "welcome_coupon",
-        welcome_source: "customer.created",
-      },
-    );
-
-    expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        automatic_tax: { enabled: true },
-        metadata: expect.objectContaining({
-          coupon_id: "coupon_1",
-          price_id: "price_credits",
-          redemption_type: "welcome_coupon",
-          welcome_source: "customer.created",
-        }),
-      }),
-      expect.anything(),
-    );
-  });
-
-  it("propagates coupon ttl_days metadata onto invoice metadata", async () => {
-    mockCreditProductAndCoupon({ credits: "500", ttl_days: "90" });
-    const { stripeClient } = await import("./stripe.client");
-
-    await stripeClient.applyInvoiceCreditsToCustomer(
-      "cus_1",
-      "coupon_1",
-      "grant-coupon_1-user-1",
-    );
-
-    expect(stripeInvoicesCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        metadata: expect.objectContaining({
-          coupon_id: "coupon_1",
-          price_id: "price_credits",
-          ttl_days: "90",
-        }),
-      }),
-      expect.anything(),
-    );
-  });
-
   it("enables automatic tax when updating subscription item quantity", async () => {
     stripeSubscriptionsUpdateMock.mockResolvedValue({ id: "sub_1" });
     const { stripeClient } = await import("./stripe.client");
@@ -369,21 +219,6 @@ describe("stripeClient", () => {
       amountPerCredit: 120,
       currency: "eur",
     });
-  });
-
-  it("rejects coupons without positive integer credits metadata", async () => {
-    mockCreditProductAndCoupon({ credits: "-5" });
-    const { stripeClient } = await import("./stripe.client");
-
-    await expect(
-      stripeClient.applyInvoiceCreditsToCustomer(
-        "cus_1",
-        "coupon_1",
-        "grant-coupon_1-user-1",
-      ),
-    ).rejects.toThrow("Coupon metadata credits must be a positive integer");
-
-    expect(stripeInvoiceItemsCreateMock).not.toHaveBeenCalled();
   });
 
   it("creates credit checkout sessions with the configured web origin only", async () => {

@@ -185,6 +185,18 @@ Environment variables are accessed via `process.env`, validated at startup with 
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 
+**Signup bonus** (granted on `user.create.after`, not via Stripe):
+
+- `SIGNUP_BONUS_CREDITS` — credits per new user (default `3000`)
+- `SIGNUP_BONUS_TTL_DAYS` — bucket expiry in days from grant time (default `30`)
+
+Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}` (same `user:` prefix as invoice top-ups). Grants are idempotent per user.
+
+**Operations:**
+
+- Alert on Sentry events tagged `context:signup_bonus_grant` (failures are swallowed so signup is not blocked).
+- Manual backfill for a user: call `grantSignupBonusCredits` from `@sokosumi/database/helpers` inside a Prisma transaction with the same `userId`, `credits`, `expiresAt`, and optional `referenceNote`. Safe to re-run — existing `(referenceId, referenceType)` returns `created: false`.
+
 ### CORS and Better Auth origins
 
 - **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.

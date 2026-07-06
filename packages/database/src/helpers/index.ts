@@ -44,4 +44,5 @@ export * from "./organization-seat-credits.js";
 export * from "./organization-seats.js";
 export * from "./organization-subscription-credit-audience.js";
 export * from "./organization-subscription-exclusivity.js";
+export * from "./signup-bonus-credits.js";
 export * from "./subscription.js";
