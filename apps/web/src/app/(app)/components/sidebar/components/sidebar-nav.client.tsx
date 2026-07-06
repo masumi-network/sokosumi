@@ -117,7 +117,7 @@ function SidebarNavInner({
         id: "help",
         parentId: "settings",
         header: (
-          <span className="truncate text-sm font-medium">
+          <span className="block min-w-0 w-full truncate text-sm font-medium">
             {tUserAvatar("help")}
           </span>
         ),
@@ -134,7 +134,7 @@ function SidebarNavInner({
         id: "legal",
         parentId: "settings",
         header: (
-          <span className="truncate text-sm font-medium">
+          <span className="block min-w-0 w-full truncate text-sm font-medium">
             {tUserAvatar("legal")}
           </span>
         ),
