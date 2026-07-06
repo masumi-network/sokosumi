@@ -18,7 +18,6 @@ function isPrismaUniqueConstraintError(error: unknown): boolean {
 export interface GrantSignupBonusCreditsParams {
   credits: number;
   expiresAt: Date | null;
-  referenceNote?: string | null;
   userId: string;
 }
 
@@ -73,7 +72,6 @@ export async function grantSignupBonusCredits(
             expiresAt: params.expiresAt,
             organizationId: null,
             referenceId,
-            referenceNote: params.referenceNote ?? null,
             referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
             userId: params.userId,
           },

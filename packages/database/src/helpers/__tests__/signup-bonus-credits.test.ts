@@ -34,7 +34,6 @@ describe("grantSignupBonusCredits", () => {
       {
         credits: 3000,
         expiresAt,
-        referenceNote: "Signup bonus",
         userId: "user-1",
       },
       tx as never,
@@ -59,11 +58,6 @@ describe("grantSignupBonusCredits", () => {
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
         .referenceType,
       CreditBucketReferenceType.SIGNUP_BONUS,
-    );
-    assert.equal(
-      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
-        .referenceNote,
-      "Signup bonus",
     );
     assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.expiresAt,

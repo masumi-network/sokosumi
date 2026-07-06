@@ -195,7 +195,7 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}` (same
 **Operations:**
 
 - Alert on Sentry events tagged `context:signup_bonus_grant` (failures are swallowed so signup is not blocked).
-- Manual backfill for a user: call `grantSignupBonusCredits` from `@sokosumi/database/helpers` inside a Prisma transaction with the same `userId`, `credits`, `expiresAt`, and optional `referenceNote`. Safe to re-run — existing `(referenceId, referenceType)` returns `created: false`.
+- Manual backfill for a user: call `grantSignupBonusCredits` from `@sokosumi/database/helpers` inside a Prisma transaction with the same `userId`, `credits`, and `expiresAt`. Safe to re-run — existing `(referenceId, referenceType)` returns `created: false`.
 
 ### CORS and Better Auth origins
 

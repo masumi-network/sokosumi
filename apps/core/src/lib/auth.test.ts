@@ -1348,7 +1348,6 @@ describe("core auth config", () => {
     expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         credits: 3000,
-        referenceNote: "Signup bonus",
         userId: "user_123",
       }),
       {},
@@ -1443,7 +1442,6 @@ describe("core auth config", () => {
     expect(grantSignupBonusCreditsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         credits: 3000,
-        referenceNote: "Signup bonus",
         userId: "user_123",
       }),
       {},

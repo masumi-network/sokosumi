@@ -103,7 +103,6 @@ async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
         {
           credits: SIGNUP_BONUS_CREDITS,
           expiresAt,
-          referenceNote: "Signup bonus",
           userId,
         },
         tx,
