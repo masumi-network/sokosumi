@@ -96,6 +96,7 @@ describe("grantFreeCreditsAction", () => {
       "/admin/organizations",
       "layout",
     );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/tasks");
   });
 
   it("maps a FreeCreditValidationError to BAD_INPUT", async () => {

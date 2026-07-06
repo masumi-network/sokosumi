@@ -205,7 +205,7 @@ Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Gran
 
 **Operations:**
 
-- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_support_credit_reference_type`) **before** deploying Core — the `FREE` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
+- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_free_credit_reference_type`) **before** deploying Core — the `FREE` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
 
 ### CORS and Better Auth origins
 

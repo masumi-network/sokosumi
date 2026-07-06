@@ -155,4 +155,38 @@ describe("admin credits routes", () => {
     expect(body.kind).toBe("free_credit_invalid");
     expect(body.message).toBe("User not found");
   });
+
+  it("returns 400 for invalid request bodies without calling the service", async () => {
+    const app = createApp();
+
+    const zeroCreditsResponse = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "user",
+        targetId: "user_1",
+        credits: 0,
+        ttlDays: null,
+        referenceNote: null,
+      }),
+    });
+
+    expect(zeroCreditsResponse.status).toBe(422);
+    expect(grantFreeCreditsMock).not.toHaveBeenCalled();
+
+    const excessiveTtlResponse = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "user",
+        targetId: "user_1",
+        credits: 500,
+        ttlDays: 3651,
+        referenceNote: null,
+      }),
+    });
+
+    expect(excessiveTtlResponse.status).toBe(422);
+    expect(grantFreeCreditsMock).not.toHaveBeenCalled();
+  });
 });

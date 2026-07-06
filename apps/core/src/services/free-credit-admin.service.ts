@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 import {
+  GrantFreeCreditsError,
   getCreditExpiryDate,
   grantFreeCredits as grantFreeCreditsInDatabase,
 } from "@sokosumi/database/helpers";
@@ -10,11 +11,9 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-
+import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
-
-const MAX_TTL_DAYS = 3650;
 
 export type FreeCreditTargetType = "user" | "organization";
 
@@ -100,10 +99,10 @@ export const freeCreditAdminService = {
       if (
         !Number.isInteger(params.ttlDays) ||
         params.ttlDays <= 0 ||
-        params.ttlDays > MAX_TTL_DAYS
+        params.ttlDays > MAX_ADMIN_CREDIT_TTL_DAYS
       ) {
         throw new FreeCreditValidationError(
-          `Expiry must be a positive integer of at most ${MAX_TTL_DAYS} days`,
+          `Expiry must be a positive integer of at most ${MAX_ADMIN_CREDIT_TTL_DAYS} days`,
         );
       }
     }
@@ -121,19 +120,27 @@ export const freeCreditAdminService = {
         params.target.targetType === "organization" ? target.id : null;
       const referenceNote = params.referenceNote;
 
-      const { bucketId } = await grantFreeCreditsInDatabase(
-        {
-          credits: params.credits,
-          expiresAt,
-          grantId,
-          organizationId,
-          referenceNote,
-          targetId: target.id,
-          targetType: params.target.targetType,
-          transactionUserId: target.transactionUserId,
-        },
-        tx,
-      );
+      let bucketId: string;
+      try {
+        ({ bucketId } = await grantFreeCreditsInDatabase(
+          {
+            credits: params.credits,
+            expiresAt,
+            grantId,
+            organizationId,
+            referenceNote,
+            targetId: target.id,
+            targetType: params.target.targetType,
+            transactionUserId: target.transactionUserId,
+          },
+          tx,
+        ));
+      } catch (error) {
+        if (error instanceof GrantFreeCreditsError) {
+          throw new FreeCreditValidationError(error.message);
+        }
+        throw error;
+      }
 
       await markOutOfCreditsTasksAsToppedUp({
         organizationId,

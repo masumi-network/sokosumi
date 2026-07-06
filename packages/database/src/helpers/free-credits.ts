@@ -6,6 +6,13 @@ import {
 } from "../generated/prisma/client.js";
 import { buildFreeCreditReferenceId } from "./credit.js";
 
+export class GrantFreeCreditsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GrantFreeCreditsError";
+  }
+}
+
 export interface GrantFreeCreditsParams {
   credits: number;
   expiresAt: Date | null;
@@ -30,15 +37,19 @@ export async function grantFreeCredits(
     !Number.isInteger(params.credits) ||
     params.credits <= 0
   ) {
-    throw new Error("Free credits must be a positive integer");
+    throw new GrantFreeCreditsError("Free credits must be a positive integer");
   }
 
   if (params.targetType === "user" && params.organizationId !== null) {
-    throw new Error("User free credits cannot be scoped to an organization");
+    throw new GrantFreeCreditsError(
+      "User free credits cannot be scoped to an organization",
+    );
   }
 
   if (params.targetType === "organization" && params.organizationId === null) {
-    throw new Error("Organization free credits require an organization id");
+    throw new GrantFreeCreditsError(
+      "Organization free credits require an organization id",
+    );
   }
 
   const referenceId = buildFreeCreditReferenceId({

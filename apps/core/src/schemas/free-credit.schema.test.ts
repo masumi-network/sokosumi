@@ -38,4 +38,16 @@ describe("createFreeCreditGrantSchema", () => {
       }),
     ).toThrow();
   });
+
+  it("rejects ttlDays above the admin maximum", () => {
+    expect(() =>
+      createFreeCreditGrantSchema.parse({
+        targetType: "user",
+        targetId: "user_123",
+        credits: 500,
+        ttlDays: 3651,
+        referenceNote: null,
+      }),
+    ).toThrow();
+  });
 });

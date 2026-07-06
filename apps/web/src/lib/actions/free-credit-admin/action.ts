@@ -70,6 +70,7 @@ export const grantFreeCreditsAction = withSession<
       revalidatePath("/admin/free-credits");
       revalidatePath("/admin/users");
       revalidatePath("/admin/organizations", "layout");
+      revalidatePath("/admin/tasks");
       return Ok(grant);
     } catch (error) {
       return Err(mapError(error));

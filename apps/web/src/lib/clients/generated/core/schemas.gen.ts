@@ -931,6 +931,8 @@ export const CreateFreeCreditGrantSchema = {
                 'integer',
                 'null'
             ],
+            exclusiveMinimum: 0,
+            maximum: 3650,
             example: 30
         },
         referenceNote: {

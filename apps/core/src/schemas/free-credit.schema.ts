@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
+import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
 import { invoiceTargetTypeSchema } from "./invoice.schema.js";
 
 export const freeCreditGrantSchema = z
@@ -19,7 +20,13 @@ export const createFreeCreditGrantSchema = z
     targetType: invoiceTargetTypeSchema,
     targetId: z.string().min(1).openapi({ example: "user_123" }),
     credits: z.number().int().positive().openapi({ example: 500 }),
-    ttlDays: z.number().int().nullable().openapi({ example: 30 }),
+    ttlDays: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_ADMIN_CREDIT_TTL_DAYS)
+      .nullable()
+      .openapi({ example: 30 }),
     referenceNote: z
       .union([z.string(), z.null()])
       .transform((value) => {
