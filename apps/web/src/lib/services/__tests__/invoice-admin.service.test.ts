@@ -89,7 +89,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
       credits: 10,
       ttlDays: 30,
       priceId: "price_1",
-      markFree: false,
     });
 
     expect(createAdminInvoiceMock).toHaveBeenCalledWith({
@@ -98,7 +97,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
       credits: 10,
       ttlDays: 30,
       priceId: "price_1",
-      markFree: false,
     });
     expect(summary).toEqual(SUMMARY);
   });
@@ -117,7 +115,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
         credits: -1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow(InvoiceValidationError);
     await expect(
@@ -126,7 +123,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
         credits: -1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow("Credits must be a positive integer");
   });
@@ -142,7 +138,6 @@ describe("invoiceAdminService (core client wrapper)", () => {
         credits: 10,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     ).rejects.toThrow(CoreApiRequestError);
   });

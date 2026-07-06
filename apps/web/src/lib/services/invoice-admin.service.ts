@@ -131,8 +131,6 @@ export const invoiceAdminService = {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    /** When true, applies the support coupon so the invoice is free ($0). */
-    markFree: boolean;
   }): Promise<InvoiceSummary> {
     const response = await coreClient
       .createAdminInvoice({
@@ -141,7 +139,6 @@ export const invoiceAdminService = {
         credits: params.credits,
         ttlDays: params.ttlDays,
         priceId: params.priceId,
-        markFree: params.markFree,
       })
       .catch(mapCoreError);
     return response.data;

@@ -10,6 +10,10 @@ import {
 } from "@/lib/clients/core.client";
 import type { HermesInstance } from "@/lib/clients/generated/core";
 import type {
+  HermesGetInstanceNone,
+  HermesGetInstanceSome,
+} from "@/lib/clients/generated/core/types.gen";
+import type {
   HermesAutonomyLevel,
   HermesConfirmationResolveResult,
   HermesConfirmationStatus,
@@ -145,7 +149,10 @@ export const getHermesInstanceAction = withSession<
 >(async () => {
   try {
     const response = await coreClient.getHermesInstance();
-    const body = response.data;
+    // openapi-ts types boolean discriminators as string literals on the
+    // envelope, collapsing HermesGetInstanceEnvelope to `never`. Member types
+    // are correct — narrow via the union instead of the envelope.
+    const body = response.data as HermesGetInstanceNone | HermesGetInstanceSome;
     if (!body.hasInstance) return Ok(null);
     return Ok(mapHermesInstance(body.instance));
   } catch (error) {

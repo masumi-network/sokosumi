@@ -2806,14 +2806,12 @@
             "organization": "Organization",
             "credits": "Credits",
             "expiryDays": "Expiry (days)",
-            "price": "Price per credit",
-            "markFree": "Mark as free"
+            "price": "Price per credit"
           },
           "Tabs": {
             "organization": "Organization",
             "user": "User"
           },
-          "markFreeHelper": "Applies the support coupon so the invoice is $0. The recipient still receives the full credits.",
           "targetRequired": "Select a recipient",
           "organizationRequired": "Select an organization",
           "creditsRequired": "Enter a positive number of credits",
