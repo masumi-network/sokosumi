@@ -17,6 +17,7 @@ const {
   createPurchaseFromMasumiTaskPaymentMock,
   createTaskEventTransactionMock,
   getCreditCostsOrThrowMock,
+  prismaCoworkerFindUniqueMock,
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
@@ -29,6 +30,7 @@ const {
   createPurchaseFromMasumiTaskPaymentMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
+  prismaCoworkerFindUniqueMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn().mockResolvedValue({
     id: "tsk_123",
     userId: "user_123",
@@ -74,6 +76,9 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     task: {
       findUnique: prismaTaskFindUniqueMock,
+    },
+    coworker: {
+      findUnique: prismaCoworkerFindUniqueMock,
     },
   },
 }));
@@ -130,6 +135,7 @@ interface TaskEventRecord {
   coworkerId: string | null;
   transactionId: string | null;
   cents: bigint | null;
+  heldByGrantId: string | null;
 }
 
 interface TransactionMock {
@@ -148,6 +154,7 @@ function createTask(
     coworkerId: string | null;
     status: TaskStatus;
     userId: string;
+    awaitingAcceptance: boolean;
   }> = {},
 ) {
   return {
@@ -156,6 +163,7 @@ function createTask(
     coworkerId: COWORKER_ID,
     userId: USER_ID,
     organizationId: null,
+    awaitingAcceptance: false,
     ...overrides,
   };
 }
@@ -176,6 +184,7 @@ function createTaskEvent(
     coworkerId: COWORKER_ID,
     transactionId: null,
     cents: null,
+    heldByGrantId: null,
     ...overrides,
   };
 }
@@ -1098,5 +1107,282 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("lets a session user accept an awaiting task and clears the acceptance flag", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.INPUT_REQUIRED,
+        awaitingAcceptance: true,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.READY,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+      }),
+    });
+
+    // The user transition table forbids INPUT_REQUIRED -> READY, but the
+    // acceptance decision bypasses it: accept goes straight to READY.
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body.data.status).toBe(TaskStatus.READY);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          userId: USER_ID,
+          coworkerId: null,
+        }),
+      }),
+    );
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: TaskStatus.INPUT_REQUIRED },
+      data: { status: TaskStatus.READY, awaitingAcceptance: false },
+    });
+  });
+
+  it("lets a session user decline an awaiting task and clears the acceptance flag", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.INPUT_REQUIRED,
+        awaitingAcceptance: true,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: TaskStatus.CANCELED,
+            userId: USER_ID,
+            coworkerId: null,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: TaskStatus.INPUT_REQUIRED },
+      data: { status: TaskStatus.CANCELED, awaitingAcceptance: false },
+    });
+  });
+
+  it("rejects non-acceptance statuses on a task awaiting acceptance", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.INPUT_REQUIRED,
+        awaitingAcceptance: true,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        // Normally a valid user move from INPUT_REQUIRED, but an awaiting
+        // task only accepts the accept/decline decision.
+        status: TaskStatus.CANCEL_REQUESTED,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain("waiting for your acceptance");
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not grant the acceptance bypass to a delegated coworker", async () => {
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.INPUT_REQUIRED,
+        awaitingAcceptance: true,
+      }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn(),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.READY,
+      }),
+    });
+
+    // Accepting a coworker-created task is a session-user decision; a
+    // delegated coworker must never accept its own creation.
+    expect(response.status).toBe(422);
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("stores a delegated comment as held and notifies the task owner", async () => {
+    resolveTaskCommentAccessMock.mockResolvedValue({
+      task: createTask(),
+      heldByGrantId: "grant_1",
+    });
+    prismaCoworkerFindUniqueMock.mockResolvedValue({
+      name: "Held coworker",
+      slug: "held-coworker",
+      image: null,
+    });
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_held",
+            status: null,
+            comment: "Held until approved",
+            userId: USER_ID,
+            coworkerId: COWORKER_ID,
+            heldByGrantId: "grant_1",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      delegation: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Held until approved",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body.data.held).toBe(true);
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          comment: "Held until approved",
+          heldByGrantId: "grant_1",
+        }),
+      }),
+    );
+
+    // Every held comment notifies the owner via the fire-and-forget block.
+    expect(waitUntilCapturedPromises).toHaveLength(1);
+    await Promise.all(waitUntilCapturedPromises);
+
+    expect(prismaCoworkerFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: COWORKER_ID },
+      select: { name: true, slug: true, image: true },
+    });
+    expect(createNotificationMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      kind: NotificationKind.TASK,
+      referenceId: TASK_ID,
+      eventId: "evt_held",
+      messageKey: "Notifications.Task.heldComment",
+      messageParams: {
+        coworkerName: "Held coworker",
+        taskName: "Test task",
+        coworkerSlug: "held-coworker",
+      },
+      metadata: { workspaceId: "ws_123" },
+    });
   });
 });

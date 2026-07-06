@@ -43,6 +43,9 @@ const publicTaskInclude = {
     orderBy: { createdAt: "asc" },
   },
   events: {
+    // Held comments (pending the owner's approval) must never reach an
+    // anonymous share-link viewer.
+    where: { heldByGrantId: null },
     include: {
       user: {
         select: {

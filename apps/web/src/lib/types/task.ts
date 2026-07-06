@@ -15,6 +15,18 @@ export type KanbanColumnId =
   | "input-required"
   | "done";
 
+/**
+ * Minimal coworker identity for participant rows. The full directory
+ * Coworker is assignable, but so is core's serialized creator summary —
+ * needed because directory listings hide reserved coworkers like Hermes.
+ */
+export interface TaskParticipantCoworker {
+  id: string;
+  name: string;
+  image?: string | null;
+  slug?: string | null;
+}
+
 export interface TaskWithCoworker {
   id: string;
   name: string;
@@ -25,7 +37,7 @@ export interface TaskWithCoworker {
   updatedAt: string;
   jobsCount: number;
   coworker?: Coworker | null;
-  createdByCoworker?: Coworker | null;
+  createdByCoworker?: TaskParticipantCoworker | null;
   awaitingAcceptance?: boolean;
   share?: TaskShare | null;
   commentsCount: number;

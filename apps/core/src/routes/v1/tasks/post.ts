@@ -8,7 +8,10 @@ import {
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { requireTaskAssignableCoworker } from "@/helpers/access-control";
+import {
+  requireCoworkerCapability,
+  requireTaskAssignableCoworker,
+} from "@/helpers/access-control";
 import {
   hasCoworkerGrant,
   requestCoworkerGrant,
@@ -117,6 +120,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       isCoworkerAuthContext(authContext) && authContext.delegation
         ? authContext.coworkerId
         : null;
+    if (delegatedCoworkerId) {
+      // Same caller gate as every other delegated task surface: the CALLING
+      // coworker must be usable (whitelisted, tasks capability) — otherwise
+      // any minted API key could park tasks and mint consent requests.
+      await requireCoworkerCapability(delegatedCoworkerId, "tasks");
+    }
     let effectiveStatus: TaskStatus = body.status;
     let awaitingAcceptance = false;
     if (delegatedCoworkerId && body.status !== TaskStatus.DRAFT) {

@@ -1403,6 +1403,7 @@
         "acceptAlways": "Permitir siempre a {creatorName}",
         "alwaysToast": "Aceptada — {creatorName} ya puede crear tareas sin preguntar",
         "badge": "Espera tu aceptación",
+        "creatorFallback": "Un compañero",
         "bannerTitle": "{creatorName} creó esta tarea para ti",
         "bannerBody": "Acéptala para que {assigneeName} pueda empezar, o recházala para cancelarla.",
         "bannerBodyUnassigned": "Acéptala para que empiece el trabajo, o recházala para cancelarla.",

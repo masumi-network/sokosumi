@@ -1892,7 +1892,7 @@ export const deleteTasksByIdEventsByEventId = <ThrowOnError extends boolean = fa
 });
 
 /**
- * Release a single held comment so everyone on the task can see it. The writing coworker's access request stays pending, so its next comment is held again. Task owner only.
+ * Release a single held comment so everyone on the task can see it. The writing coworker's access request stays pending, so its next comment is held again. Task owner only. Idempotent.
  */
 export const patchTasksByIdEventsByEventId = <ThrowOnError extends boolean = false>(options: Options<PatchTasksByIdEventsByEventIdData, ThrowOnError>): RequestResult<PatchTasksByIdEventsByEventIdResponses, PatchTasksByIdEventsByEventIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchTasksByIdEventsByEventIdResponses, PatchTasksByIdEventsByEventIdErrors, ThrowOnError>({
     responseTransformer: patchTasksByIdEventsByEventIdResponseTransformer,

@@ -239,6 +239,22 @@ export interface TaskAccessOptions {
 }
 
 /**
+ * Tasks awaiting the owner's acceptance are inert for EVERY coworker
+ * context — bare agents and delegated coworkers alike (a delegated
+ * coworker may be the very creator whose task is pending). Only the
+ * owner's session sees or acts on them until accepted. 404 on purpose:
+ * to agents the task does not exist yet.
+ */
+function requireNotAwaitingAcceptanceForCoworker<
+  T extends { awaitingAcceptance: boolean },
+>(task: T): T {
+  if (task.awaitingAcceptance) {
+    throw notFound("Task not found");
+  }
+  return task;
+}
+
+/**
  * Collaboration access: the authenticated user must own the task, or the authenticated coworker must be allowed on the task (tasks capability + assignment).
  */
 export async function requireTaskCollaboration(
@@ -274,7 +290,7 @@ export async function requireTaskCollaboration(
       throw forbidden("You can only act on tasks assigned to your coworker");
     }
 
-    return task;
+    return requireNotAwaitingAcceptanceForCoworker(task);
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
@@ -295,9 +311,10 @@ export interface TaskCommentAccess {
 /**
  * Comment access on a task (comment-only events — never status/billing):
  * - session users: any member of the task's workspace may comment;
- * - delegated coworkers: tasks owned by the delegated user — assigned to
- *   the coworker, granted TASK_COMMENT, or (while the grant request is
- *   pending) held for the owner's approval;
+ * - delegated coworkers: any workspace task once the delegating user
+ *   granted TASK_COMMENT (or the task is assigned to the coworker); while
+ *   the grant request is pending, comments on the delegating user's OWN
+ *   tasks are stored held for their approval, others are rejected;
  * - bare coworker agents: assigned tasks only (unchanged executor path).
  *
  * Throws 403 kind=grant_required only when the user already denied or
@@ -323,14 +340,14 @@ export async function resolveTaskCommentAccess(
   if (coworker.delegation) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
-    const task = await requireTaskOwnership(
-      {
-        source: "delegation",
-        userId: coworker.delegation.userId,
-        organizationId: coworker.delegation.organizationId,
-      },
-      taskId,
-      tx,
+    // Granted commenting mirrors what the delegating user could do themself:
+    // any task in the active workspace, not only tasks the user owns.
+    const task = requireNotAwaitingAcceptanceForCoworker(
+      await requireTaskReadForWorkspace(
+        requireWorkspaceContext(workspaceContext),
+        taskId,
+        tx,
+      ),
     );
 
     if (task.coworkerId === coworker.coworkerId) {
@@ -348,15 +365,19 @@ export async function resolveTaskCommentAccess(
       return { task, heldByGrantId: null };
     }
 
-    // No grant yet: request it (outside the caller's transaction) and hold
-    // the comment under the pending grant instead of rejecting the call.
+    // No grant yet: request it (outside the caller's transaction). On tasks
+    // the delegating user OWNS the comment is stored held under the pending
+    // grant — the owner is exactly who resolves it. On a colleague's task a
+    // hold would dangle (that owner cannot resolve this user's grant), so
+    // the call is rejected until the delegating user grants the scope.
     const grantId = await requestCoworkerGrant(
       coworker.coworkerId,
       coworker.delegation.userId,
       CoworkerGrantScope.TASK_COMMENT,
     );
-    if (grantId === null) {
-      // The user already said no — denied/revoked never auto-resurface.
+    if (grantId === null || task.userId !== coworker.delegation.userId) {
+      // grantId null = the user already said no (denied/revoked never
+      // auto-resurface).
       throw forbidden(
         "This coworker needs your approval for this action. Review the request under Connections → Coworker access.",
         {
@@ -446,7 +467,7 @@ export async function requireTaskReadForRouteVars(
       );
     }
 
-    return task;
+    return requireNotAwaitingAcceptanceForCoworker(task);
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);

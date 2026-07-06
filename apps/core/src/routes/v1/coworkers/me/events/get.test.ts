@@ -76,4 +76,30 @@ describe("GET /coworkers/me/events", () => {
     expect(taskEventFindManyMock).not.toHaveBeenCalled();
     expect(taskEventCountMock).not.toHaveBeenCalled();
   });
+
+  it("excludes held comments and awaiting-acceptance tasks from agent reads", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/me/events");
+
+    expect(response.status).toBe(200);
+    expect(taskEventFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          heldByGrantId: null,
+          task: expect.objectContaining({
+            coworkerId: "cow_123",
+            awaitingAcceptance: false,
+          }),
+        }),
+      }),
+    );
+    expect(taskEventCountMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          heldByGrantId: null,
+          task: expect.objectContaining({ awaitingAcceptance: false }),
+        }),
+      }),
+    );
+  });
 });

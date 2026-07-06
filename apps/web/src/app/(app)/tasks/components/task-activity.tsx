@@ -740,7 +740,7 @@ export function TaskActivitySection({
                         fadeClassName="to-transparent"
                       />
                     ) : null}
-                    {event.held && event.coworkerId ? (
+                    {event.held && event.coworkerId && canComment ? (
                       <HeldCommentActions
                         taskId={taskId}
                         eventId={event.id}

@@ -82,11 +82,11 @@ export function mapTaskToTaskWithCoworker(
   const coworker = task.coworkerId
     ? (coworkersById.get(task.coworkerId) ?? null)
     : null;
-  // Resolve the creating coworker through the same directory so downstream
-  // consumers get the full Coworker shape; unknown creators (e.g. Hermes,
-  // hidden from the picker directory) simply don't render an extra avatar.
+  // Prefer the directory row (full Coworker shape) but fall back to core's
+  // serialized creator summary — creators hidden from the directory (e.g.
+  // the reserved Hermes coordinator) must still show as participants.
   const createdByCoworker = task.createdByCoworker
-    ? (coworkersById.get(task.createdByCoworker.id) ?? null)
+    ? (coworkersById.get(task.createdByCoworker.id) ?? task.createdByCoworker)
     : null;
   const agentIds = parseAgentMentions(task.description, agentsById);
   const agents = agentIds

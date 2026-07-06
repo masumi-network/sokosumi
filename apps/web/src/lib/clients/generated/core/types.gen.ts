@@ -21382,20 +21382,6 @@ export type PatchTasksByIdEventsByEventIdData = {
 
 export type PatchTasksByIdEventsByEventIdErrors = {
     /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Unauthorized
      */
     401: {

@@ -6,7 +6,10 @@ import {
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
 
-import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isUserAuthContext,
+} from "@/middleware/auth";
 import {
   buildVisibleTaskLinksInclude,
   taskLinksInclude,
@@ -25,13 +28,18 @@ const taskUserOrganizationInclude = {
   createdByCoworker: taskEventApiInclude.coworker,
 } as const;
 
+// Held comments (heldByGrantId set) are visible ONLY to the task owner.
+// Every include that loads events must filter them; the owner exception is
+// granted exclusively through buildTaskIncludeForViewer below, so a new
+// route reusing these includes is leak-safe by default.
 const taskBaseInclude = {
   ...workspaceRelationInclude,
   ...taskUserOrganizationInclude,
   events: {
+    where: { heldByGrantId: null },
     include: taskEventApiInclude,
     orderBy: {
-      createdAt: "asc",
+      createdAt: "asc" as const,
     },
   },
   jobs: {
@@ -62,6 +70,20 @@ export function buildTaskIncludeForViewer(
 ) {
   return {
     ...taskBaseInclude,
+    // Session users additionally see events held on tasks THEY own — the
+    // relation filter proves ownership row-by-row, so a colleague reading
+    // the same task still gets held comments stripped.
+    events: {
+      ...taskBaseInclude.events,
+      where: isUserAuthContext(authContext)
+        ? {
+            OR: [
+              { heldByGrantId: null },
+              { task: { userId: authContext.userId } },
+            ],
+          }
+        : { heldByGrantId: null },
+    },
     share: true,
     ...buildVisibleTaskLinksInclude(authContext, workspaceId),
   } satisfies Prisma.TaskInclude;

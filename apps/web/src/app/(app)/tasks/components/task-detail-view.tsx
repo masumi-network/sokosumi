@@ -137,12 +137,13 @@ export async function TaskDetailView({
 
         <div className="mt-6 space-y-8">
           {task.awaitingAcceptance && !forceReadOnly ? (
-            <TaskAcceptanceBanner
-              taskId={taskId}
-              creatorId={task.createdByCoworker?.id ?? null}
-              creatorName={task.createdByCoworker?.name ?? "A coworker"}
-              assigneeName={task.coworker?.name ?? null}
-            />
+            <Suspense fallback={null}>
+              <TaskAcceptanceBannerSlot
+                taskId={taskId}
+                task={task}
+                sessionPromise={sessionPromise}
+              />
+            </Suspense>
           ) : null}
           <Suspense
             fallback={
@@ -315,6 +316,37 @@ async function TaskOverviewSection({
   );
 }
 
+/**
+ * Owner-gated: accept/decline (and "always allow") are the owner's calls —
+ * core rejects anyone else, so colleagues opening the task via the shared
+ * workspace board must not be shown buttons that can only fail.
+ */
+async function TaskAcceptanceBannerSlot({
+  taskId,
+  task,
+  sessionPromise,
+}: {
+  taskId: string;
+  task: Task;
+  sessionPromise: Promise<SessionResult>;
+}) {
+  const [session, t] = await Promise.all([
+    sessionPromise,
+    getTranslations("App.Tasks.acceptance"),
+  ]);
+  if (!session?.user.id || session.user.id !== task.userId) {
+    return null;
+  }
+  return (
+    <TaskAcceptanceBanner
+      taskId={taskId}
+      creatorId={task.createdByCoworker?.id ?? null}
+      creatorName={task.createdByCoworker?.name ?? t("creatorFallback")}
+      assigneeName={task.coworker?.name ?? null}
+    />
+  );
+}
+
 async function TaskDetailActionsSlot({
   taskId,
   task,
@@ -371,6 +403,7 @@ async function TaskDetailActionsSlot({
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
+      awaitingAcceptance={taskWithCoworker.awaitingAcceptance}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

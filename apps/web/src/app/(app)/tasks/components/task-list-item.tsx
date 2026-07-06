@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 import type { TaskWithCoworker } from "@/lib/types/task";
@@ -22,6 +24,7 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
+  const t = useTranslations("App.Tasks");
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -62,6 +65,11 @@ export function TaskListItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
+          {task.awaitingAcceptance ? (
+            <span className="border-semantic-warning/30 bg-semantic-warning/10 text-semantic-warning inline-flex w-fit shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-xs font-medium">
+              {t("acceptance.badge")}
+            </span>
+          ) : null}
           <TaskStatusBadge
             status={task.status}
             label={statusLabels?.[task.status]}

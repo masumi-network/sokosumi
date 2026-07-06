@@ -89,7 +89,7 @@ import { conflictWithData, ok } from "@/helpers/response";
 
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth, withGlobalHeaderParameters } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { isUserAuthContext, requireUserContext } from "@/middleware/auth";
 import {
   hermesApproveConfirmationRequestSchema,
   hermesChatRequestSchema,
@@ -601,7 +601,10 @@ function mapOrchestratorError(error: unknown, fallback: string): never {
  * upsert on every tick; `skipDuplicates` makes re-runs harmless anyway. */
 const hermesGrantsEnsuredForUser = new Set<string>();
 
-async function upsertHermesInstanceForUser(userId: string): Promise<void> {
+async function upsertHermesInstanceForUser(
+  userId: string,
+  options: { ensureGrants: boolean },
+): Promise<void> {
   await prisma.hermesInstance.upsert({
     where: { userId },
     create: { userId },
@@ -609,15 +612,22 @@ async function upsertHermesInstanceForUser(userId: string): Promise<void> {
   });
   // The user's own Hermes is auto-granted task access at setup (and lazily
   // backfilled for instances that predate the grant system). Create-if-
-  // missing only — an explicit user revocation is never overridden.
-  if (!hermesGrantsEnsuredForUser.has(userId)) {
-    hermesGrantsEnsuredForUser.add(userId);
-    await ensureHermesCoworkerGrants(userId).catch((error) => {
+  // missing only — an explicit user revocation is never overridden. Gated
+  // to the user's own session by the caller: consent rows must never be
+  // mintable through a coworker key's delegation headers.
+  if (options.ensureGrants && !hermesGrantsEnsuredForUser.has(userId)) {
+    try {
+      // Memoize only after success — a transient error or a not-yet-seeded
+      // hermes coworker must be retried on a later call.
+      if (await ensureHermesCoworkerGrants(userId)) {
+        hermesGrantsEnsuredForUser.add(userId);
+      }
+    } catch (error) {
       Sentry.captureException(error, {
         tags: { context: "hermes_auto_grant" },
         extra: { userId },
       });
-    });
+    }
   }
 }
 
@@ -1738,7 +1748,9 @@ app.openapi(getInstanceRoute, async (c) => {
   try {
     const instance = await getInstance(userContext.userId);
     if (instance) {
-      await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
+      await upsertHermesInstanceForUser(userContext.userId, {
+        ensureGrants: isUserAuthContext(c.var.authContext),
+      }).catch((error) => {
         Sentry.captureException(error, {
           tags: { context: "hermes_instance_backfill" },
         });
@@ -1816,7 +1828,9 @@ app.openapi(provisionInstanceRoute, async (c) => {
       );
     }
 
-    await upsertHermesInstanceForUser(userContext.userId).catch((error) => {
+    await upsertHermesInstanceForUser(userContext.userId, {
+      ensureGrants: isUserAuthContext(c.var.authContext),
+    }).catch((error) => {
       Sentry.captureException(error, {
         tags: { context: "hermes_instance_upsert" },
       });

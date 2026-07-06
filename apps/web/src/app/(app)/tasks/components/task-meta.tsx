@@ -27,7 +27,9 @@ function CoworkerAvatar({
   coworker,
   size = "sm",
 }: {
-  coworker: TaskWithCoworker["coworker"];
+  coworker:
+    | TaskWithCoworker["coworker"]
+    | TaskWithCoworker["createdByCoworker"];
   size?: "sm" | "md";
 }) {
   const image = getCoworkerImage(coworker);
@@ -83,6 +85,11 @@ export function TaskMetaDetails({
     return (
       <>
         <div className="text-muted-foreground xs:w-auto flex w-24 items-center gap-1.5 truncate text-xs">
+          {creator ? (
+            <span className="-mr-2.5 inline-flex" title={creatorName}>
+              <CoworkerAvatar coworker={creator} />
+            </span>
+          ) : null}
           <CoworkerAvatar coworker={coworker} />
           <span className="truncate">{coworker?.name ?? "—"}</span>
         </div>

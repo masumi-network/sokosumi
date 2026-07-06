@@ -109,6 +109,10 @@ interface TaskDetailActionsProps {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
+  /** Awaiting-acceptance tasks decide via the banner only — the generic
+   * status actions (e.g. "Cancel request") would strand the task in a
+   * status no agent can ever process. */
+  awaitingAcceptance?: boolean;
 }
 
 export function TaskDetailActions({
@@ -126,6 +130,7 @@ export function TaskDetailActions({
   organizations,
   personalWorkspaceLabel,
   isReadOnly = false,
+  awaitingAcceptance = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -165,7 +170,10 @@ export function TaskDetailActions({
     null,
   );
 
-  const statusActions = isReadOnly ? [] : getTaskStatusActions(status, labels);
+  const statusActions =
+    isReadOnly || awaitingAcceptance
+      ? []
+      : getTaskStatusActions(status, labels);
 
   const canEdit = !isReadOnly && isTaskEditableStatus(status);
   const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);

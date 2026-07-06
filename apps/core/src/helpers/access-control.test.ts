@@ -228,13 +228,14 @@ describe("resolveTaskCommentAccess", () => {
     return {
       isAuthenticated: true,
       authContext: delegatedContext,
-      workspaceContext: null,
+      workspaceContext: jobReadWorkspaceContext,
     };
   }
 
   function mockDelegatedCoworkerAndTask(
     tx: Prisma.TransactionClient,
     coworkerId = "cow_other",
+    task: Record<string, unknown> = {},
   ) {
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
@@ -243,7 +244,10 @@ describe("resolveTaskCommentAccess", () => {
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      userId: "user_delegate",
+      awaitingAcceptance: false,
       coworkerId,
+      ...task,
     } as never);
   }
 
@@ -339,20 +343,61 @@ describe("resolveTaskCommentAccess", () => {
     expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
   });
 
-  it("still requires delegated-user ownership before any grant check", async () => {
+  it("404s when the task is not in the active workspace", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    // No task owned by the delegated user under this id.
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
     await expect(
       resolveTaskCommentAccess(delegatedVars(), "tsk_123", tx),
     ).rejects.toThrow("Task not found");
     expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
+  });
+
+  it("404s awaiting-acceptance tasks for delegated coworkers", async () => {
+    const tx = createTransactionClient();
+    mockDelegatedCoworkerAndTask(tx, "cow_123", { awaitingAcceptance: true });
+
+    await expect(
+      resolveTaskCommentAccess(delegatedVars(), "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
+    expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a granted delegated coworker comment on a colleague's task", async () => {
+    const tx = createTransactionClient();
+    mockDelegatedCoworkerAndTask(tx, "cow_other", {
+      userId: "user_colleague",
+    });
+    hasCoworkerGrantMock.mockResolvedValueOnce(true);
+
+    const access = await resolveTaskCommentAccess(
+      delegatedVars(),
+      "tsk_123",
+      tx,
+    );
+
+    expect(access.heldByGrantId).toBeNull();
+  });
+
+  it("rejects ungranted comments on colleague-owned tasks without holding", async () => {
+    const tx = createTransactionClient();
+    mockDelegatedCoworkerAndTask(tx, "cow_other", {
+      userId: "user_colleague",
+    });
+    // The request is still recorded for the delegating user to approve,
+    // but the comment cannot be held: only the task owner could release
+    // it, and they cannot resolve this coworker's grant.
+    requestCoworkerGrantMock.mockResolvedValueOnce("grant_9");
+
+    await expect(
+      resolveTaskCommentAccess(delegatedVars(), "tsk_123", tx),
+    ).rejects.toThrow("needs your approval");
+    expect(requestCoworkerGrantMock).toHaveBeenCalled();
   });
 });
 

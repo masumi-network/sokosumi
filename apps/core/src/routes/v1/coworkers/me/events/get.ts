@@ -73,6 +73,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
 
     const where = {
+      // Held comments (pending the owner's approval) never reach agents.
+      heldByGrantId: null,
       task: {
         coworkerId: authContext.coworkerId,
         status: { not: TaskStatus.DRAFT },

@@ -1378,7 +1378,10 @@ model TaskEvent {
   /// only to the task owner; approving the grant releases them, denying
   /// it deletes them.
   heldByGrantId String?
-  heldByGrant   CoworkerGrant? @relation(fields: [heldByGrantId], references: [id], onDelete: SetNull)
+  // Cascade, NOT SetNull: null heldByGrantId IS the released/public state,
+  // so losing the grant row (e.g. its coworker was deleted) must discard the
+  // never-approved comments rather than silently publish them.
+  heldByGrant   CoworkerGrant? @relation(fields: [heldByGrantId], references: [id], onDelete: Cascade)
 
   @@index([transactionId])
   @@index([heldByGrantId])

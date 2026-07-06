@@ -8,6 +8,7 @@ import {
   listCoworkerGrantsAction,
   resolveCoworkerGrantAction,
 } from "@/lib/actions/coworker-grant/action";
+import { useSession } from "@/lib/auth/auth.client";
 import type {
   CoworkerGrant,
   NotificationItem,
@@ -25,6 +26,9 @@ interface GrantResolutionState {
 let grantState: GrantResolutionState = { grantsById: null, busyGrantId: null };
 let grantsFetchInFlight = false;
 let grantsLastFetchedAt = 0;
+// Whose grants the store holds — a client-side logout/login on the same tab
+// must not answer the next user's rows with the previous user's grants.
+let grantStateForUserId: string | null = null;
 // Floor between refetches when an on-screen request references a grant the
 // store doesn't know (new request arrived live, or the row was deleted —
 // the latter must not turn into a fetch loop).
@@ -66,6 +70,8 @@ export function useCoworkerGrantResolution({
   onMarkedRead?: (notificationId: string) => void;
 }) {
   const tGrants = useTranslations("App.Connections.CoworkerAccess");
+  const { data: session } = useSession();
+  const sessionUserId = session?.user.id ?? null;
   const { grantsById, busyGrantId } = useSyncExternalStore(
     subscribeGrantState,
     () => grantState,
@@ -73,6 +79,20 @@ export function useCoworkerGrantResolution({
   );
 
   useEffect(() => {
+    if (
+      sessionUserId &&
+      grantStateForUserId &&
+      grantStateForUserId !== sessionUserId
+    ) {
+      // Session switched on this tab: drop the previous user's grants and
+      // refetch immediately (setGrantState updates the module state
+      // synchronously, so the reads below see the reset).
+      grantsLastFetchedAt = 0;
+      setGrantState({ grantsById: null, busyGrantId: null });
+    }
+    if (sessionUserId) {
+      grantStateForUserId = sessionUserId;
+    }
     if (grantsFetchInFlight) return;
     const accessRows = notifications.filter(
       (n) => n.kind === "COWORKER_ACCESS",
@@ -103,7 +123,7 @@ export function useCoworkerGrantResolution({
         grantsFetchInFlight = false;
       }
     })();
-  }, [notifications]);
+  }, [notifications, sessionUserId]);
 
   const resolveGrant = async (
     notification: NotificationItem,

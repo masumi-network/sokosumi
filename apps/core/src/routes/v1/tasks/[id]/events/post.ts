@@ -276,6 +276,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             task.awaitingAcceptance &&
             isUserAuthContext(authContext) &&
             (status === TaskStatus.READY || status === TaskStatus.CANCELED);
+          // Accept/decline are the ONLY moves on an awaiting task. Anything
+          // else (e.g. the generic "Cancel request" -> CANCEL_REQUESTED)
+          // would strand it: no agent can see the task to ever process the
+          // request. Coworker contexts never get here — their gates 404
+          // awaiting tasks.
+          if (task.awaitingAcceptance && !isAcceptanceDecision) {
+            throw unprocessableEntity(
+              "This task is waiting for your acceptance. Accept or decline it first.",
+            );
+          }
           if (!isAcceptanceDecision) {
             validateStatusTransition(authContext, task.status, status);
           }

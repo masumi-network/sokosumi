@@ -1414,6 +1414,7 @@
         "acceptAlways": "Always allow {creatorName}",
         "alwaysToast": "Accepted — {creatorName} can now create tasks without asking",
         "badge": "Needs your acceptance",
+        "creatorFallback": "A coworker",
         "bannerTitle": "{creatorName} created this task for you",
         "bannerBody": "Accept it so {assigneeName} can start working, or decline to cancel it.",
         "bannerBodyUnassigned": "Accept it to let work start, or decline to cancel it.",

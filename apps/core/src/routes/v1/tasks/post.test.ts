@@ -1,32 +1,52 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import { CoworkerGrantScope, TaskEventOrigin } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountPostTask, { createTaskRequestSchema } from "./post";
 
 const {
+  coworkerFindUniqueMock,
+  createNotificationMock,
   generateTaskNameMock,
+  hasCoworkerGrantMock,
   mapTaskMock,
   projectFindFirstMock,
   prismaTransactionMock,
+  requestCoworkerGrantMock,
+  requireCoworkerCapabilityMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
 } = vi.hoisted(() => ({
+  coworkerFindUniqueMock: vi.fn(),
+  createNotificationMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
+  hasCoworkerGrantMock: vi.fn(),
   mapTaskMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  requestCoworkerGrantMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   taskCreateMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+}));
+
+vi.mock("@/helpers/coworker-grants", () => ({
+  hasCoworkerGrant: hasCoworkerGrantMock,
+  requestCoworkerGrant: requestCoworkerGrantMock,
+}));
+
+vi.mock("@/helpers/notifications", () => ({
+  createNotification: createNotificationMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -41,6 +61,9 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    coworker: {
+      findUnique: coworkerFindUniqueMock,
+    },
   },
 }));
 
@@ -146,19 +169,30 @@ describe("createTaskRequestSchema", () => {
 });
 
 describe("POST /tasks", () => {
-  function createApp() {
+  const USER_AUTH_CONTEXT: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: "org_123",
+    role: "user",
+  };
+
+  const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+    actor: "coworker",
+    coworkerId: "cow_123",
+    delegation: {
+      userId: "user_delegate",
+      organizationId: "org_delegate",
+    },
+  };
+
+  function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
     const app = new OpenAPIHono<{
       Variables: AuthVariables & WorkspaceVariables;
     }>();
 
     app.use("*", async (c, next) => {
       c.set("isAuthenticated", true);
-      c.set("authContext", {
-        actor: "user",
-        userId: "user_123",
-        organizationId: "org_123",
-        role: "user",
-      });
+      c.set("authContext", authContext);
       c.set("workspaceContext", {
         workspaceId: "11111111-1111-7111-8111-111111111111",
         userId: null,
@@ -176,7 +210,20 @@ describe("POST /tasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     generateTaskNameMock.mockResolvedValue("Generated name");
-    taskCreateMock.mockResolvedValue({ id: "tsk_123" });
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
+    hasCoworkerGrantMock.mockResolvedValue(true);
+    requestCoworkerGrantMock.mockResolvedValue("grant_1");
+    createNotificationMock.mockResolvedValue(undefined);
+    coworkerFindUniqueMock.mockResolvedValue({
+      name: "Hermes",
+      slug: "hermes",
+      image: null,
+    });
+    taskCreateMock.mockResolvedValue({
+      id: "tsk_123",
+      name: "New Task",
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+    });
     mapTaskMock.mockReturnValue({
       id: "tsk_123",
       createdAt: "2026-04-02T08:00:00.000Z",
@@ -364,6 +411,108 @@ describe("POST /tasks", () => {
       expect.objectContaining({
         data: expect.objectContaining({ name: "My task" }),
       }),
+    );
+  });
+
+  it("parks a delegated READY creation without a TASK_CREATE grant", async () => {
+    hasCoworkerGrantMock.mockResolvedValue(false);
+
+    const app = createApp(DELEGATED_COWORKER_AUTH_CONTEXT);
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Delegated task",
+        description: null,
+        coworkerId: "cow_assignee",
+        status: TaskStatus.READY,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(hasCoworkerGrantMock).toHaveBeenCalledWith(
+      "cow_123",
+      "user_delegate",
+      CoworkerGrantScope.TASK_CREATE,
+    );
+    expect(requestCoworkerGrantMock).toHaveBeenCalledWith(
+      "cow_123",
+      "user_delegate",
+      CoworkerGrantScope.TASK_CREATE,
+    );
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user_delegate",
+          status: TaskStatus.INPUT_REQUIRED,
+          awaitingAcceptance: true,
+          createdByCoworkerId: "cow_123",
+          events: {
+            create: expect.objectContaining({
+              status: TaskStatus.INPUT_REQUIRED,
+              coworkerId: "cow_123",
+            }),
+          },
+        }),
+      }),
+    );
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_delegate",
+        messageKey: "Notifications.Task.awaitingAcceptance",
+      }),
+    );
+  });
+
+  it("keeps a delegated READY creation READY when the grant exists", async () => {
+    hasCoworkerGrantMock.mockResolvedValue(true);
+
+    const app = createApp(DELEGATED_COWORKER_AUTH_CONTEXT);
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Delegated task",
+        description: null,
+        coworkerId: "cow_assignee",
+        status: TaskStatus.READY,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          awaitingAcceptance: false,
+          createdByCoworkerId: "cow_123",
+        }),
+      }),
+    );
+    expect(requestCoworkerGrantMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("gates delegated creations on the calling coworker's tasks capability", async () => {
+    const app = createApp(DELEGATED_COWORKER_AUTH_CONTEXT);
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Delegated draft",
+        description: null,
+        coworkerId: null,
+        status: TaskStatus.DRAFT,
+        origin: TaskEventOrigin.SOKOSUMI,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireCoworkerCapabilityMock).toHaveBeenCalledWith(
+      "cow_123",
+      "tasks",
     );
   });
 });

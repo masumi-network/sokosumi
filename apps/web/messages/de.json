@@ -1403,6 +1403,7 @@
         "acceptAlways": "{creatorName} immer erlauben",
         "alwaysToast": "Angenommen — {creatorName} kann jetzt Aufgaben ohne Nachfrage erstellen",
         "badge": "Wartet auf deine Annahme",
+        "creatorFallback": "Ein Coworker",
         "bannerTitle": "{creatorName} hat diese Aufgabe für dich erstellt",
         "bannerBody": "Nimm sie an, damit {assigneeName} loslegen kann, oder lehne ab, um sie abzubrechen.",
         "bannerBodyUnassigned": "Nimm sie an, damit die Arbeit starten kann, oder lehne ab, um sie abzubrechen.",

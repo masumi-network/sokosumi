@@ -141,12 +141,14 @@ export async function requireCoworkerGrant(
  */
 export async function ensureHermesCoworkerGrants(
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   const hermes = await prisma.coworker.findFirst({
     where: { slug: HERMES_COWORKER_SLUG, archivedAt: null },
     select: { id: true },
   });
-  if (!hermes) return;
+  // False = nothing ensured (e.g. the reserved coworker is not seeded yet)
+  // so callers must not memoize this user as done.
+  if (!hermes) return false;
 
   await prisma.coworkerGrant.createMany({
     data: COWORKER_GRANT_SCOPES.map((scope) => ({
@@ -158,4 +160,5 @@ export async function ensureHermesCoworkerGrants(
     })),
     skipDuplicates: true,
   });
+  return true;
 }

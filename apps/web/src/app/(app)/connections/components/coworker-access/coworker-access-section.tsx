@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -179,8 +180,11 @@ function GrantRow({
   return (
     <li className="border-border/50 bg-muted/30 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5">
       <Avatar className="size-8">
-        {grant.coworker.image ? (
-          <AvatarImage src={grant.coworker.image} alt="" />
+        {getCoworkerImage(grant.coworker) ? (
+          <AvatarImage
+            src={getCoworkerImage(grant.coworker) ?? undefined}
+            alt=""
+          />
         ) : null}
         <AvatarFallback>
           {grant.coworker.name.slice(0, 1).toUpperCase()}
