@@ -18,9 +18,6 @@ export default async function OrganizationBillingDetails({
   organizationId,
   organizationSlug,
 }: OrganizationBillingDetailsProps) {
-  const t = await getTranslations(
-    "App.Organizations.OrganizationDetail.BillingDetails",
-  );
   const tBilling = await getTranslations("App.Billing");
 
   if (billingDetailsLoadError) {
@@ -36,14 +33,9 @@ export default async function OrganizationBillingDetails({
   const portalLink = billingDetails.stripeCustomerId ? (
     <BalanceBillingPortalLink
       description={tBilling("billingPortalDescription")}
-      generalErrorMessage={t("Errors.general")}
       label={tBilling("manageYourBilling")}
-      openingLabel={tBilling("openingBillingPortal")}
       organizationId={organizationId}
       returnPath={returnPath}
-      unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-      unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-      unauthorizedErrorMessage={t("Errors.unauthorized")}
     />
   ) : null;
 

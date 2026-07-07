@@ -11,18 +11,13 @@ interface AccountBillingDetailsProps {
 export async function AccountBillingDetails({
   billingDetails,
 }: AccountBillingDetailsProps) {
-  const t = await getTranslations("App.Account.BillingDetails");
   const tBilling = await getTranslations("App.Billing");
 
   const portalLink = billingDetails.stripeCustomerId ? (
     <BalanceBillingPortalLink
       description={tBilling("billingPortalDescription")}
-      generalErrorMessage={t("Errors.general")}
       label={tBilling("manageYourBilling")}
-      openingLabel={tBilling("openingBillingPortal")}
       returnPath="/account"
-      unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-      unauthenticatedErrorMessage={t("Errors.unauthenticated")}
     />
   ) : null;
 

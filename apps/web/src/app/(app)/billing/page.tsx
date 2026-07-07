@@ -62,6 +62,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     userService.getActiveOrganization(),
   ]);
   const activeTab = parseBillingTab(query.tab);
+  const billingPortalReturnPath = `/billing?tab=${activeTab}`;
 
   if (!session) {
     return null;
@@ -170,16 +171,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const organizationBillingPortal =
       organizationStripeCustomerId && showOrganizationBillingPortal ? (
         <BalanceBillingPortalLink
-          baseReturnPath="/billing"
           description={t("billingPortalDescription")}
-          generalErrorMessage={t("Errors.general")}
           label={t("manageYourBilling")}
-          openingLabel={t("openingBillingPortal")}
           organizationId={activeOrganization.id}
-          returnPath="/billing"
-          unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-          unauthenticatedErrorMessage={t("Errors.unauthenticated")}
-          unauthorizedErrorMessage={t("Errors.unauthorized")}
+          returnPath={billingPortalReturnPath}
         />
       ) : null;
 
@@ -314,14 +309,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           billingPortal={
             stripeCustomerId ? (
               <BalanceBillingPortalLink
-                baseReturnPath="/billing"
                 description={t("billingPortalDescription")}
-                generalErrorMessage={t("Errors.general")}
                 label={t("manageYourBilling")}
-                openingLabel={t("openingBillingPortal")}
-                returnPath="/billing"
-                unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
-                unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+                returnPath={billingPortalReturnPath}
               />
             ) : null
           }

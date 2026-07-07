@@ -6,8 +6,6 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toSubscriptionSeatsActionError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
 import type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
 import {
-  openOrganizationBillingPortalServer,
-  openPersonalBillingPortalServer,
   upgradeOrganizationSubscriptionServer,
   upgradePersonalSubscriptionServer,
 } from "@/lib/auth/subscription.server";
@@ -47,24 +45,6 @@ export async function upgradeOrganizationSubscription({
     returnPath,
     seats,
   });
-}
-
-export async function openPersonalBillingPortal({
-  returnPath,
-}: {
-  returnPath?: string;
-}): Promise<Result<{ url: string }, ActionError>> {
-  return openPersonalBillingPortalServer({ returnPath });
-}
-
-export async function openOrganizationBillingPortal({
-  organizationId,
-  returnPath,
-}: {
-  organizationId: string;
-  returnPath: string;
-}): Promise<Result<{ url: string }, ActionError>> {
-  return openOrganizationBillingPortalServer({ organizationId, returnPath });
 }
 
 const updateOrganizationSubscriptionSeatsSchema = z.object({
