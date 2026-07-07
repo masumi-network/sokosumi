@@ -1082,7 +1082,7 @@ export const getUsersByIdStripeCustomer = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Ensure a Stripe customer exists for a user (path `me` for the session user, or a user id the caller may access). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer and returns the new id. Local persistence of the id happens asynchronously via the Stripe `customer.created` webhook.
+ * Ensure a Stripe customer exists for a user (path `me` for the session user, or a user id the caller may access). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.
  */
 export const postUsersByIdStripeCustomer = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdStripeCustomerData, ThrowOnError>): RequestResult<PostUsersByIdStripeCustomerResponses, PostUsersByIdStripeCustomerErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdStripeCustomerResponses, PostUsersByIdStripeCustomerErrors, ThrowOnError>({
     responseTransformer: postUsersByIdStripeCustomerResponseTransformer,
@@ -1208,7 +1208,7 @@ export const getOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean 
 });
 
 /**
- * Ensure a Stripe customer exists for an organization. Any member of the organization may call it. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer and returns the new id. Local persistence of the id happens asynchronously via the Stripe `customer.created` webhook.
+ * Ensure a Stripe customer exists for an organization. Any member of the organization may call it. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.
  */
 export const postOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdStripeCustomerData, ThrowOnError>): RequestResult<PostOrganizationsByIdStripeCustomerResponses, PostOrganizationsByIdStripeCustomerErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdStripeCustomerResponses, PostOrganizationsByIdStripeCustomerErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdStripeCustomerResponseTransformer,

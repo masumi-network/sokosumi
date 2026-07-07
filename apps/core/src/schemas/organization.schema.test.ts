@@ -12,7 +12,6 @@ describe("organizationWithRoleSchema", () => {
       logo: "https://example.com/logo.png",
       metadata: {
         url: "https://example.com",
-        invoiceEmail: "test@example.com",
       },
       role: "member",
     });
@@ -21,7 +20,25 @@ describe("organizationWithRoleSchema", () => {
     expect(result.logo).toBe("https://example.com/logo.png");
     expect(result.metadata).toEqual({
       url: "https://example.com",
-      invoiceEmail: "test@example.com",
+    });
+  });
+
+  it("strips legacy invoiceEmail from metadata", () => {
+    const result = organizationWithRoleSchema.parse({
+      id: "org_123",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      name: "My Organization",
+      slug: "my-org",
+      logo: null,
+      metadata: {
+        url: "https://example.com",
+        invoiceEmail: "legacy@example.com",
+      },
+      role: "member",
+    });
+
+    expect(result.metadata).toEqual({
+      url: "https://example.com",
     });
   });
 

@@ -6175,12 +6175,6 @@ export const OrganizationSchema = {
                         'null'
                     ],
                     format: 'uri'
-                },
-                invoiceEmail: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
                 }
             },
             additionalProperties: {},

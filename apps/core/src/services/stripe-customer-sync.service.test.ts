@@ -138,6 +138,15 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
         timeout: expect.any(Number),
       },
     );
+    expect(userUpdateMock).toHaveBeenCalledTimes(2);
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { stripeCustomerId: "cus_user" },
+    });
+    expect(organizationUpdateMock).toHaveBeenCalledWith({
+      where: { id: "org-1" },
+      data: { stripeCustomerId: "cus_org" },
+    });
   });
 
   it("stops scheduling additional sync tasks after cancellation", async () => {

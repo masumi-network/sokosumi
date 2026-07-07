@@ -1732,7 +1732,6 @@ export type Organization = {
     logo?: string | '' | null;
     metadata: {
         url?: string | null;
-        invoiceEmail?: string | null;
         [key: string]: unknown;
     } | null;
     /**

@@ -14,7 +14,6 @@ export const organizationInformationFormSchema = (
     metadata: z
       .object({
         url: z.string().nullable().optional(),
-        invoiceEmail: z.string().nullable().optional(),
         designMdUrl: z.string().nullable().optional(),
         designMdExtractionId: z.string().nullable().optional(),
       })

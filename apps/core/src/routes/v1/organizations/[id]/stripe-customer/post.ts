@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { stripeClient } from "@/clients/stripe.client";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -8,6 +7,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
 import { provisionedStripeCustomerSchema } from "@/schemas/stripe.schema";
+import { provisionOrganizationStripeCustomer } from "@/services/stripe-customer-provision.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -21,7 +21,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/stripe-customer",
   description:
-    "Ensure a Stripe customer exists for an organization. Any member of the organization may call it. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer and returns the new id. Local persistence of the id happens asynchronously via the Stripe `customer.created` webhook.",
+    "Ensure a Stripe customer exists for an organization. Any member of the organization may call it. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.",
   tags: ["Organizations"],
   request: {
     params,
@@ -67,15 +67,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const customer = await stripeClient.createOrganizationCustomer({
-      name: organization.name,
-      organizationId: organization.id,
+    const stripeCustomerId = await provisionOrganizationStripeCustomer({
+      id: organization.id,
       slug: organization.slug,
+      name: organization.name,
     });
 
-    return ok(
-      c,
-      provisionedStripeCustomerSchema.parse({ stripeCustomerId: customer.id }),
-    );
+    return ok(c, provisionedStripeCustomerSchema.parse({ stripeCustomerId }));
   });
 }

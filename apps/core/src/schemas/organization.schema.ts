@@ -9,6 +9,16 @@ const organizationLogoSchema = z.preprocess(
   z.union([z.httpUrl(), z.literal(""), z.null()]),
 );
 
+const organizationMetadataSchema = z
+  .object({
+    url: z.httpUrl().nullable().optional(),
+  })
+  .catchall(z.unknown())
+  .transform((metadata) => {
+    const { invoiceEmail: _invoiceEmail, ...rest } = metadata;
+    return rest;
+  });
+
 export const organizationSchema = z.object({
   id: z.string().openapi({ example: "org_123" }),
   createdAt: dateTimeSchema,
@@ -17,12 +27,7 @@ export const organizationSchema = z.object({
   logo: organizationLogoSchema.openapi({
     example: "https://example.com/logo.png",
   }),
-  metadata: z
-    .object({
-      url: z.httpUrl().nullable().optional(),
-      invoiceEmail: z.string().nullable().optional(),
-    })
-    .catchall(z.unknown())
+  metadata: organizationMetadataSchema
     .nullable()
     .openapi({ example: { url: "https://example.com" } }),
 });
