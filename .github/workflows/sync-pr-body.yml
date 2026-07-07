@@ -1,0 +1,32 @@
+name: Sync PR body
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  sync-dependency-pr-body:
+    if: github.event.pull_request.head.ref == 'cursor/dependency-update-process-2c26'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v7.1.0
+        with:
+          script: |
+            const fs = require("node:fs");
+            const body = fs.readFileSync(
+              ".github/pr-bodies/dependency-update-process-2c26.md",
+              "utf8",
+            );
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              title: "chore(deps): patch bumps, undici override, and openrouter v3",
+              body,
+            });
