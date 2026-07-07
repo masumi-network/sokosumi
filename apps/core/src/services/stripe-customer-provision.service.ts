@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
@@ -20,10 +21,21 @@ export async function provisionUserStripeCustomer(
     requestOptions,
   );
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { stripeCustomerId: customer.id },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { stripeCustomerId: customer.id },
+    });
+  } catch (error) {
+    // The Stripe customer exists but its id was not persisted, leaving an
+    // orphan until the sync job or customer.created webhook reconciles it.
+    // Capture it so the orphan is observable for reconciliation, then rethrow.
+    Sentry.captureException(error, {
+      tags: { context: "stripe_customer_provision", ownerType: "user" },
+      extra: { userId: user.id, stripeCustomerId: customer.id },
+    });
+    throw error;
+  }
 
   return customer.id;
 }
@@ -46,10 +58,21 @@ export async function provisionOrganizationStripeCustomer(
     requestOptions,
   );
 
-  await prisma.organization.update({
-    where: { id: organization.id },
-    data: { stripeCustomerId: customer.id },
-  });
+  try {
+    await prisma.organization.update({
+      where: { id: organization.id },
+      data: { stripeCustomerId: customer.id },
+    });
+  } catch (error) {
+    // The Stripe customer exists but its id was not persisted, leaving an
+    // orphan until the sync job or customer.created webhook reconciles it.
+    // Capture it so the orphan is observable for reconciliation, then rethrow.
+    Sentry.captureException(error, {
+      tags: { context: "stripe_customer_provision", ownerType: "organization" },
+      extra: { organizationId: organization.id, stripeCustomerId: customer.id },
+    });
+    throw error;
+  }
 
   return customer.id;
 }
