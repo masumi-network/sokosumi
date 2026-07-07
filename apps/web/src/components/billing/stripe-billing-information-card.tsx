@@ -1,7 +1,5 @@
-"use client";
-
 import { MapPin } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import {
@@ -11,8 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatStripeBillingAddress } from "@/lib/billing/format-stripe-billing-address";
+import { formatStripeTaxIdVerificationStatus } from "@/lib/billing/format-stripe-tax-id-verification-status";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
-import { getBillingCountryLabel } from "@/lib/constants/billing-countries";
 
 export interface StripeBillingInformationCardProps {
   billingDetails: StripeCustomerBillingDetails;
@@ -22,42 +21,16 @@ export interface StripeBillingInformationCardProps {
     | "App.Organizations.OrganizationDetail.BillingDetails";
 }
 
-function formatAddressLine(
-  billingDetails: StripeCustomerBillingDetails,
-  locale: string,
-): string | null {
-  const { address } = billingDetails;
-  if (!address) {
-    return null;
-  }
-
-  const countryLabel =
-    address.country.length === 2
-      ? getBillingCountryLabel(address.country, locale)
-      : address.country;
-  const locality = [address.postalCode, address.city].filter(Boolean).join(" ");
-  const region = address.state ? `${address.state}, ` : "";
-  const localityLine =
-    `${locality}${locality ? ", " : ""}${region}${countryLabel}`.trim();
-
-  return [
-    address.line1,
-    address.line2,
-    localityLine.length > 0 ? localityLine : null,
-  ]
-    .filter((line) => line && line.trim().length > 0)
-    .join("\n");
-}
-
-export function StripeBillingInformationCard({
+export async function StripeBillingInformationCard({
   billingDetails,
   portalLink,
   translationNamespace,
 }: StripeBillingInformationCardProps) {
-  const t = useTranslations(translationNamespace);
-  const locale = useLocale();
-  const formattedAddress = formatAddressLine(billingDetails, locale);
-  const primaryTaxId = billingDetails.taxIds[0];
+  const t = await getTranslations(translationNamespace);
+  const locale = await getLocale();
+  const formattedAddress = billingDetails.address
+    ? formatStripeBillingAddress(billingDetails.address, locale)
+    : null;
 
   return (
     <Card>
@@ -78,17 +51,22 @@ export function StripeBillingInformationCard({
           )}
         </div>
 
-        {primaryTaxId ? (
-          <div className="space-y-1 text-sm">
-            <p className="text-muted-foreground">{t("taxIdLabel")}</p>
-            <p>{primaryTaxId.value}</p>
-            {primaryTaxId.verificationStatus ? (
-              <p className="text-muted-foreground text-xs">
-                {t("taxIdVerification", {
-                  status: primaryTaxId.verificationStatus,
-                })}
-              </p>
-            ) : null}
+        {billingDetails.taxIds.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-muted-foreground text-sm">{t("taxIdLabel")}</p>
+            {billingDetails.taxIds.map((taxId) => (
+              <div key={taxId.id} className="space-y-1 text-sm">
+                <p>{taxId.value}</p>
+                {taxId.verificationStatus ? (
+                  <p className="text-muted-foreground text-xs">
+                    {formatStripeTaxIdVerificationStatus(
+                      t,
+                      taxId.verificationStatus,
+                    )}
+                  </p>
+                ) : null}
+              </div>
+            ))}
           </div>
         ) : null}
 

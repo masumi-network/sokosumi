@@ -3173,6 +3173,13 @@
         "addressLabel": "Dirección de facturación",
         "taxIdLabel": "IVA / identificación fiscal",
         "taxIdVerification": "Estado de verificación: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificado",
+          "pending": "Pendiente",
+          "unverified": "No verificado",
+          "unavailable": "No disponible",
+          "verification_failed": "Verificación fallida"
+        },
         "invoiceEmailLabel": "Email de facturación",
         "invoiceEmailEmpty": "No hay email de facturación registrado",
         "empty": "No hay dirección de facturación registrada",
@@ -3432,6 +3439,13 @@
           "addressLabel": "Dirección de facturación",
           "taxIdLabel": "IVA / identificación fiscal",
           "taxIdVerification": "Estado de verificación: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificado",
+            "pending": "Pendiente",
+            "unverified": "No verificado",
+            "unavailable": "No disponible",
+            "verification_failed": "Verificación fallida"
+          },
           "invoiceEmailLabel": "Email de facturación",
           "invoiceEmailEmpty": "No hay email de facturación registrado",
           "empty": "No hay dirección de facturación registrada",

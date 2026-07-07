@@ -104,3 +104,10 @@ export const stripeCustomerBillingDetailsSchema = z
 export type StripeCustomerBillingDetails = z.infer<
   typeof stripeCustomerBillingDetailsSchema
 >;
+
+export const emptyStripeCustomerBillingDetails: StripeCustomerBillingDetails = {
+  stripeCustomerId: null,
+  email: null,
+  address: null,
+  taxIds: [],
+};

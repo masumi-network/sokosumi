@@ -7,6 +7,12 @@ import {
 import Stripe from "stripe";
 
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import {
+  emptyStripeCustomerBillingDetails,
+  type StripeCustomerBillingAddress,
+  type StripeCustomerBillingDetails,
+  type StripeCustomerBillingTaxId,
+} from "@/schemas/stripe.schema";
 
 interface CreateOrganizationCustomerInput {
   invoiceEmail?: null | string;
@@ -20,37 +26,6 @@ interface CreateUserCustomerInput {
   name: string;
   userId: string;
 }
-
-export interface StripeCustomerBillingAddress {
-  line1: string;
-  line2: string | null;
-  city: string;
-  state: string | null;
-  postalCode: string;
-  country: string;
-}
-
-export interface StripeCustomerBillingTaxId {
-  id: string;
-  type: string;
-  value: string;
-  country: string | null;
-  verificationStatus: string | null;
-}
-
-export interface StripeCustomerBillingDetails {
-  stripeCustomerId: string | null;
-  email: string | null;
-  address: StripeCustomerBillingAddress | null;
-  taxIds: StripeCustomerBillingTaxId[];
-}
-
-export const emptyStripeCustomerBillingDetails: StripeCustomerBillingDetails = {
-  stripeCustomerId: null,
-  email: null,
-  address: null,
-  taxIds: [],
-};
 
 export interface CreditPrice {
   id: string;

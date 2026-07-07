@@ -3173,6 +3173,13 @@
         "addressLabel": "Rechnungsadresse",
         "taxIdLabel": "USt-IdNr. / Steuer-ID",
         "taxIdVerification": "Verifizierungsstatus: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verifiziert",
+          "pending": "Ausstehend",
+          "unverified": "Nicht verifiziert",
+          "unavailable": "Nicht verfügbar",
+          "verification_failed": "Verifizierung fehlgeschlagen"
+        },
         "invoiceEmailLabel": "Rechnungs-E-Mail",
         "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
         "empty": "Keine Rechnungsadresse hinterlegt",
@@ -3432,6 +3439,13 @@
           "addressLabel": "Rechnungsadresse",
           "taxIdLabel": "USt-IdNr. / Steuer-ID",
           "taxIdVerification": "Verifizierungsstatus: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verifiziert",
+            "pending": "Ausstehend",
+            "unverified": "Nicht verifiziert",
+            "unavailable": "Nicht verfügbar",
+            "verification_failed": "Verifizierung fehlgeschlagen"
+          },
           "invoiceEmailLabel": "Rechnungs-E-Mail",
           "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
           "empty": "Keine Rechnungsadresse hinterlegt",

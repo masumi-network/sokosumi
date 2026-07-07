@@ -3204,6 +3204,13 @@
         "addressLabel": "账单地址",
         "taxIdLabel": "增值税 / 税号",
         "taxIdVerification": "验证状态：{status}",
+        "taxIdVerificationStatus": {
+          "verified": "已验证",
+          "pending": "待处理",
+          "unverified": "未验证",
+          "unavailable": "不可用",
+          "verification_failed": "验证失败"
+        },
         "invoiceEmailLabel": "发票邮箱",
         "invoiceEmailEmpty": "尚未设置发票邮箱",
         "empty": "尚未保存账单地址",
@@ -3463,6 +3470,13 @@
           "addressLabel": "账单地址",
           "taxIdLabel": "增值税 / 税号",
           "taxIdVerification": "验证状态：{status}",
+          "taxIdVerificationStatus": {
+            "verified": "已验证",
+            "pending": "待处理",
+            "unverified": "未验证",
+            "unavailable": "不可用",
+            "verification_failed": "验证失败"
+          },
           "invoiceEmailLabel": "发票邮箱",
           "invoiceEmailEmpty": "尚未设置发票邮箱",
           "empty": "尚未保存账单地址",

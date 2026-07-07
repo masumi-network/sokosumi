@@ -3204,6 +3204,13 @@
         "addressLabel": "Morada de faturação",
         "taxIdLabel": "IVA / NIF",
         "taxIdVerification": "Estado de verificação: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificado",
+          "pending": "Pendente",
+          "unverified": "Não verificado",
+          "unavailable": "Indisponível",
+          "verification_failed": "Verificação falhada"
+        },
         "invoiceEmailLabel": "E-mail de faturação",
         "invoiceEmailEmpty": "Nenhum e-mail de faturação registado",
         "empty": "Nenhuma morada de faturação registada",
@@ -3463,6 +3470,13 @@
           "addressLabel": "Morada de faturação",
           "taxIdLabel": "IVA / NIF",
           "taxIdVerification": "Estado de verificação: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificado",
+            "pending": "Pendente",
+            "unverified": "Não verificado",
+            "unavailable": "Indisponível",
+            "verification_failed": "Verificação falhada"
+          },
           "invoiceEmailLabel": "E-mail de faturação",
           "invoiceEmailEmpty": "Nenhum e-mail de faturação registado",
           "empty": "Nenhuma morada de faturação registada",

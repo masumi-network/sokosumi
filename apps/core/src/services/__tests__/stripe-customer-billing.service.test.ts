@@ -8,12 +8,6 @@ const { retrieveCustomerBillingDetailsMock } = vi.hoisted(() => ({
 const resolveMemberOrganizationByIdMock = vi.fn();
 
 vi.mock("@/clients/stripe.client", () => ({
-  emptyStripeCustomerBillingDetails: {
-    stripeCustomerId: null,
-    email: null,
-    address: null,
-    taxIds: [],
-  },
   stripeClient: {
     retrieveCustomerBillingDetails: (...args: unknown[]) =>
       retrieveCustomerBillingDetailsMock(...args),

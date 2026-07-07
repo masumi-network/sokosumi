@@ -3302,6 +3302,13 @@
         "addressLabel": "Billing address",
         "taxIdLabel": "VAT / tax ID",
         "taxIdVerification": "Verification status: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verified",
+          "pending": "Pending",
+          "unverified": "Unverified",
+          "unavailable": "Unavailable",
+          "verification_failed": "Verification failed"
+        },
         "invoiceEmailLabel": "Invoice email",
         "invoiceEmailEmpty": "No invoice email on file",
         "empty": "No billing address on file",
@@ -3561,6 +3568,13 @@
           "addressLabel": "Billing address",
           "taxIdLabel": "VAT / tax ID",
           "taxIdVerification": "Verification status: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verified",
+            "pending": "Pending",
+            "unverified": "Unverified",
+            "unavailable": "Unavailable",
+            "verification_failed": "Verification failed"
+          },
           "invoiceEmailLabel": "Invoice email",
           "invoiceEmailEmpty": "No invoice email on file",
           "empty": "No billing address on file",

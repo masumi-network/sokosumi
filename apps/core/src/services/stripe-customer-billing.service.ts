@@ -1,13 +1,13 @@
 import { MemberRole } from "@sokosumi/database";
 
-import {
-  emptyStripeCustomerBillingDetails,
-  stripeClient,
-} from "@/clients/stripe.client";
+import { stripeClient } from "@/clients/stripe.client";
 import { notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import prisma from "@/lib/db/prisma";
-import type { StripeCustomerBillingDetails } from "@/schemas/stripe.schema";
+import {
+  emptyStripeCustomerBillingDetails,
+  type StripeCustomerBillingDetails,
+} from "@/schemas/stripe.schema";
 
 async function getBillingDetailsForCustomer(
   stripeCustomerId: string | null,

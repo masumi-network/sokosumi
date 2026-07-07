@@ -1,6 +1,4 @@
-"use client";
-
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
@@ -14,16 +12,16 @@ interface OrganizationBillingDetailsProps {
   organizationSlug: string;
 }
 
-export default function OrganizationBillingDetails({
+export default async function OrganizationBillingDetails({
   billingDetails,
   billingDetailsLoadError,
   organizationId,
   organizationSlug,
 }: OrganizationBillingDetailsProps) {
-  const t = useTranslations(
+  const t = await getTranslations(
     "App.Organizations.OrganizationDetail.BillingDetails",
   );
-  const tBilling = useTranslations("App.Billing");
+  const tBilling = await getTranslations("App.Billing");
 
   if (billingDetailsLoadError) {
     return billingDetailsLoadError;

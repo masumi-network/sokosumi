@@ -1,6 +1,4 @@
-"use client";
-
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { StripeBillingInformationCard } from "@/components/billing/stripe-billing-information-card";
@@ -10,11 +8,11 @@ interface AccountBillingDetailsProps {
   billingDetails: StripeCustomerBillingDetails;
 }
 
-export function AccountBillingDetails({
+export async function AccountBillingDetails({
   billingDetails,
 }: AccountBillingDetailsProps) {
-  const t = useTranslations("App.Account.BillingDetails");
-  const tBilling = useTranslations("App.Billing");
+  const t = await getTranslations("App.Account.BillingDetails");
+  const tBilling = await getTranslations("App.Billing");
 
   const portalLink = billingDetails.stripeCustomerId ? (
     <BalanceBillingPortalLink
