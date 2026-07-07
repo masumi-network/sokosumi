@@ -166,6 +166,10 @@ export {
 } from "./organization-metadata.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export {
+  hasStripeBillingAddressWithCountry,
+  type StripeBillingAddressLike,
+} from "./stripe-billing-address.js";
+export {
   getTaskCannotArchiveMessage,
   isTaskArchivableStatus,
   TASK_ARCHIVABLE_STATUSES,

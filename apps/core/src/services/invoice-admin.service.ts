@@ -6,11 +6,13 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
+import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
 import prisma from "@/lib/db/prisma";
+import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
 
 /**
@@ -562,6 +564,19 @@ export const invoiceAdminService = (() => {
         resolvePrice(params.priceId),
         stripeClient.getAccountId(),
       ]);
+
+      const billingDetails =
+        params.target.targetType === "user"
+          ? await stripeCustomerBillingService.getUserBillingDetails(target.id)
+          : await stripeCustomerBillingService.getOrganizationBillingDetailsById(
+              target.id,
+            );
+
+      if (!hasStripeBillingAddressWithCountry(billingDetails.address)) {
+        throw new InvoiceValidationError(
+          "Recipient billing address with country is required for invoicing",
+        );
+      }
 
       const invoice = await stripeClient.createAdminInvoice({
         customerId: target.stripeCustomerId,

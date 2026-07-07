@@ -8,8 +8,12 @@ import { errorHandler } from "@/helpers/error-handler.js";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
-const { getOrganizationBillingDetailsMock } = vi.hoisted(() => ({
+const {
+  getOrganizationBillingDetailsMock,
+  getOrganizationBillingDetailsByIdMock,
+} = vi.hoisted(() => ({
   getOrganizationBillingDetailsMock: vi.fn(),
+  getOrganizationBillingDetailsByIdMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -21,12 +25,15 @@ vi.mock("@/middleware/auth", () => ({
     }
     return { source: "session" as const, ...authContext };
   },
+  hasAdminRole: (role: string | null | undefined) => role === "admin",
 }));
 
 vi.mock("@/services/stripe-customer-billing.service", () => ({
   stripeCustomerBillingService: {
     getOrganizationBillingDetails: (...args: unknown[]) =>
       getOrganizationBillingDetailsMock(...args),
+    getOrganizationBillingDetailsById: (...args: unknown[]) =>
+      getOrganizationBillingDetailsByIdMock(...args),
   },
 }));
 
@@ -127,6 +134,28 @@ describe("GET /organizations/{id}/billing-details", () => {
       "org_123",
       "user_123",
     );
+  });
+
+  it("returns billing details for a platform admin without org membership", async () => {
+    const adminAuthContext: AuthenticationContext = {
+      actor: "user",
+      userId: "admin_123",
+      organizationId: null,
+      role: "admin",
+    };
+    getOrganizationBillingDetailsByIdMock.mockResolvedValue(billingDetails);
+
+    const response = await createApp(adminAuthContext).request(
+      "http://localhost/org_123/billing-details",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual(billingDetails);
+    expect(getOrganizationBillingDetailsByIdMock).toHaveBeenCalledWith(
+      "org_123",
+    );
+    expect(getOrganizationBillingDetailsMock).not.toHaveBeenCalled();
   });
 
   it("returns empty billing details when no stripe customer is provisioned", async () => {

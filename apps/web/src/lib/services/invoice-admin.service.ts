@@ -4,6 +4,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { coreClient } from "@/lib/clients/core.client";
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
 export type InvoiceTargetType = "user" | "organization";
 
@@ -174,6 +175,16 @@ export const invoiceAdminService = {
     const response = await coreClient
       .markAdminInvoicePaid(invoiceId)
       .catch(mapCoreError);
+    return response.data;
+  },
+
+  async getRecipientBillingDetails(
+    target: InvoiceTarget,
+  ): Promise<StripeCustomerBillingDetails> {
+    const response =
+      target.targetType === "user"
+        ? await coreClient.getUserBillingDetails(target.targetId)
+        : await coreClient.getOrganizationBillingDetails(target.targetId);
     return response.data;
   },
 };

@@ -1,5 +1,7 @@
 "use client";
 
+import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
+import { AlertCircle, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -9,6 +11,8 @@ import {
   AsyncSearchCombobox,
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
+import { StripeBillingInformationContent } from "@/components/billing/stripe-billing-information-content";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,12 +24,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import { createAdminInvoiceAction } from "@/lib/actions/invoice-admin/action";
+import {
+  createAdminInvoiceAction,
+  getAdminRecipientBillingDetailsAction,
+} from "@/lib/actions/invoice-admin/action";
+import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
@@ -62,8 +71,6 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
   const router = useRouter();
   const formatter = useFormatter();
   const defaultPriceId = prices[0]?.id ?? "";
-  // Pad every price to the same number of decimals so the values line up in
-  // the dropdown (combined with tabular-nums on render).
   const priceFractionDigits = Math.max(
     2,
     ...prices.map((price) => countDecimals(price.amountPerCredit) + 2),
@@ -79,9 +86,84 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
   const [expiryDaysInput, setExpiryDaysInput] = useState("");
   const [priceId, setPriceId] = useState(defaultPriceId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [billingDetails, setBillingDetails] =
+    useState<StripeCustomerBillingDetails | null>(null);
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [billingLoadError, setBillingLoadError] = useState<string | null>(null);
 
   const orgLabels = buildComboboxLabels(tOrg);
   const userLabels = buildComboboxLabels(tUser);
+
+  const selectedTargetId =
+    targetType === "user" ? selectedUser?.id : selectedOrg?.id;
+  const hasCompleteBilling =
+    billingDetails !== null &&
+    hasStripeBillingAddressWithCountry(billingDetails.address);
+  const canCreateInvoice =
+    Boolean(selectedTargetId) &&
+    !isBillingLoading &&
+    billingLoadError === null &&
+    hasCompleteBilling &&
+    !isSubmitting;
+
+  function clearBillingState() {
+    setBillingDetails(null);
+    setBillingLoadError(null);
+    setIsBillingLoading(false);
+  }
+
+  async function loadRecipientBillingDetails(
+    nextTargetType: InvoiceTargetType,
+    targetId: string,
+  ) {
+    setIsBillingLoading(true);
+    setBillingLoadError(null);
+    setBillingDetails(null);
+
+    try {
+      const result = await getAdminRecipientBillingDetailsAction({
+        targetType: nextTargetType,
+        targetId,
+      });
+      if (!result.ok) {
+        setBillingLoadError(result.error.message ?? t("Form.billingLoadError"));
+        return;
+      }
+      setBillingDetails(result.data);
+    } finally {
+      setIsBillingLoading(false);
+    }
+  }
+
+  function handleTargetTypeChange(value: string) {
+    const nextTargetType = value as InvoiceTargetType;
+    setTargetType(nextTargetType);
+    clearBillingState();
+
+    const targetId =
+      nextTargetType === "user" ? selectedUser?.id : selectedOrg?.id;
+    if (targetId) {
+      void loadRecipientBillingDetails(nextTargetType, targetId);
+    }
+  }
+
+  function handleOrganizationChange(org: AdminOrganizationOption | null) {
+    setSelectedOrg(org);
+    if (!org) {
+      clearBillingState();
+      return;
+    }
+    void loadRecipientBillingDetails("organization", org.id);
+  }
+
+  function handleUserChange(user: AdminUserOption | null) {
+    setSelectedUser(user);
+    if (!user) {
+      clearBillingState();
+      return;
+    }
+    void loadRecipientBillingDetails("user", user.id);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,6 +171,11 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     const targetId = targetType === "user" ? selectedUser?.id : selectedOrg?.id;
     if (!targetId) {
       toast.error(t("Form.targetRequired"));
+      return;
+    }
+
+    if (!hasCompleteBilling) {
+      toast.error(t("Form.billingIncomplete"));
       return;
     }
 
@@ -124,7 +211,6 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
         return;
       }
       toast.success(t("Form.createSuccess"));
-      // The invoice detail page doubles as the post-creation summary view.
       router.push(`/admin/invoices/${result.data.invoiceId}`);
     } finally {
       setIsSubmitting(false);
@@ -135,10 +221,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="target">{t("Form.Fields.target")}</Label>
-        <Tabs
-          value={targetType}
-          onValueChange={(value) => setTargetType(value as InvoiceTargetType)}
-        >
+        <Tabs value={targetType} onValueChange={handleTargetTypeChange}>
           <TabsList>
             <TabsTrigger value="organization">
               {t("Form.Tabs.organization")}
@@ -150,7 +233,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
           <AsyncSearchCombobox<AdminOrganizationOption>
             id="target"
             value={selectedOrg}
-            onChange={setSelectedOrg}
+            onChange={handleOrganizationChange}
             search={searchOrganizationsClient}
             getKey={(org) => org.id}
             getTriggerLabel={(org) => org.name}
@@ -168,7 +251,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
           <AsyncSearchCombobox<AdminUserOption>
             id="target"
             value={selectedUser}
-            onChange={setSelectedUser}
+            onChange={handleUserChange}
             search={searchUsersClient}
             getKey={(user) => user.id}
             getTriggerLabel={(user) => user.name}
@@ -184,6 +267,56 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
           />
         )}
       </div>
+
+      {selectedTargetId ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="size-5" />
+            <div className="space-y-0.5">
+              <p className="font-medium">{t("Form.BillingDetails.title")}</p>
+              <p className="text-muted-foreground text-sm">
+                {t("Form.BillingDetails.description")}
+              </p>
+            </div>
+          </div>
+
+          {isBillingLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          ) : null}
+
+          {!isBillingLoading && billingLoadError ? (
+            <Alert variant="destructive">
+              <AlertCircle />
+              <AlertTitle>{t("Form.billingLoadErrorTitle")}</AlertTitle>
+              <AlertDescription>{billingLoadError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {!isBillingLoading && !billingLoadError && billingDetails ? (
+            <div className="space-y-3">
+              <StripeBillingInformationContent
+                billingDetails={billingDetails}
+                translationNamespace="App.Admin.Invoices.Form.BillingDetails"
+              />
+              {!hasCompleteBilling ? (
+                <Alert variant="destructive">
+                  <AlertCircle />
+                  <AlertTitle>{t("Form.billingIncompleteTitle")}</AlertTitle>
+                  <AlertDescription>
+                    {targetType === "organization"
+                      ? t("Form.billingIncompleteOrganization")
+                      : t("Form.billingIncompleteUser")}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <Separator />
 
@@ -250,7 +383,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
 
       <Separator />
 
-      <Button type="submit" disabled={isSubmitting}>
+      <Button type="submit" disabled={!canCreateInvoice}>
         {isSubmitting ? t("Form.submitting") : t("Form.submit")}
       </Button>
     </form>

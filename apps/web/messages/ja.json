@@ -2886,7 +2886,30 @@
           "createError": "請求書の作成に失敗しました",
           "pricePlaceholder": "価格を選択",
           "priceHelper": "請求金額に使用するクレジットあたりの価格。",
-          "priceRequired": "価格を選択してください"
+          "priceRequired": "価格を選択してください",
+          "billingLoadErrorTitle": "請求情報を読み込めませんでした",
+          "billingLoadError": "受取人の請求情報を読み込めませんでした",
+          "billingIncomplete": "国を含む請求先住所が必要です",
+          "billingIncompleteTitle": "請求情報が不完全です",
+          "billingIncompleteUser": "請求書を作成する前に、このユーザーはアカウント設定で国を含む請求先住所を追加する必要があります。",
+          "billingIncompleteOrganization": "請求書を作成する前に、この組織は組織設定で国を含む請求先住所を追加する必要があります。",
+          "BillingDetails": {
+            "title": "請求情報",
+            "description": "受取人の Stripe 顧客に保存されている請求先住所と税務情報。",
+            "addressLabel": "請求先住所",
+            "taxIdLabel": "VAT / 税 ID",
+            "taxIdVerification": "確認ステータス: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "確認済み",
+              "pending": "保留中",
+              "unverified": "未確認",
+              "unavailable": "利用不可",
+              "verification_failed": "確認に失敗"
+            },
+            "invoiceEmailLabel": "請求書メール",
+            "invoiceEmailEmpty": "請求書メールが登録されていません",
+            "empty": "請求先住所が登録されていません"
+          }
         },
         "Result": {
           "heading": "請求書",

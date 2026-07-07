@@ -50,4 +50,17 @@ export const stripeCustomerBillingService = {
 
     return await getBillingDetailsForCustomer(organization.stripeCustomerId);
   },
+
+  async getOrganizationBillingDetailsById(organizationId: string) {
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { stripeCustomerId: true },
+    });
+
+    if (!organization) {
+      throw notFound("Organization not found");
+    }
+
+    return await getBillingDetailsForCustomer(organization.stripeCustomerId);
+  },
 };
