@@ -2889,6 +2889,7 @@
           "priceRequired": "Selecione um preço",
           "billingLoadErrorTitle": "Não foi possível carregar os dados de faturação",
           "billingLoadError": "Não foi possível carregar os dados de faturação do destinatário",
+          "billingRefresh": "Atualizar",
           "billingIncomplete": "É necessária uma morada de faturação com país",
           "billingIncompleteTitle": "Dados de faturação incompletos",
           "billingIncompleteUser": "Este utilizador tem de adicionar uma morada de faturação com país nas definições da conta antes de poder criar uma fatura.",

@@ -106,6 +106,9 @@ vi.mock("next-intl", () => ({
       if (key === "Form.billingLoadErrorTitle") {
         return "Billing load failed";
       }
+      if (key === "Form.billingRefresh") {
+        return "Refresh";
+      }
       if (key === "Form.submit") {
         return "Create invoice";
       }
@@ -304,5 +307,36 @@ describe("InvoiceForm billing preview", () => {
       expect(screen.queryByText(/Stale Acme Street 1/)).not.toBeInTheDocument();
     });
     expect(screen.getByText(/Beta Street 2/)).toBeVisible();
+  });
+
+  it("reloads billing when refresh is clicked", async () => {
+    getBillingMock
+      .mockResolvedValueOnce({
+        ok: true,
+        data: incompleteBillingDetails,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: completeBillingDetails,
+      });
+
+    const user = userEvent.setup();
+    render(<InvoiceForm prices={prices} />);
+
+    await user.click(screen.getByTestId("select-org-1"));
+    expect(
+      await screen.findByText("Organization billing incomplete"),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(await screen.findByText(/123 Main St/)).toBeVisible();
+    expect(getBillingMock).toHaveBeenCalledTimes(2);
+    expect(
+      screen.queryByText("Organization billing incomplete"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create invoice" }),
+    ).toBeEnabled();
   });
 });

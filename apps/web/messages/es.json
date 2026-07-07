@@ -2858,6 +2858,7 @@
           "priceRequired": "Selecciona un precio",
           "billingLoadErrorTitle": "No se pudieron cargar los datos de facturación",
           "billingLoadError": "No se pudieron cargar los datos de facturación del destinatario",
+          "billingRefresh": "Actualizar",
           "billingIncomplete": "Se requiere una dirección de facturación con país",
           "billingIncompleteTitle": "Datos de facturación incompletos",
           "billingIncompleteUser": "Este usuario debe añadir una dirección de facturación con país en la configuración de su cuenta antes de que puedas crear una factura.",

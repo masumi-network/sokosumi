@@ -2889,6 +2889,7 @@
           "priceRequired": "Seleziona un prezzo",
           "billingLoadErrorTitle": "Impossibile caricare i dati di fatturazione",
           "billingLoadError": "Impossibile caricare i dati di fatturazione del destinatario",
+          "billingRefresh": "Aggiorna",
           "billingIncomplete": "È richiesto un indirizzo di fatturazione con paese",
           "billingIncompleteTitle": "Dati di fatturazione incompleti",
           "billingIncompleteUser": "Questo utente deve aggiungere un indirizzo di fatturazione con paese nelle impostazioni dell'account prima che tu possa creare una fattura.",

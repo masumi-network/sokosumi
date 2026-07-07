@@ -557,20 +557,20 @@ export const invoiceAdminService = (() => {
         }
       }
 
-      // These are independent reads (target lookup, price lookup, Stripe
-      // account id) — run them concurrently rather than serially.
-      const [target, price, accountId] = await Promise.all([
+      // Target lookup, price lookup, Stripe account id, and billing details are
+      // independent reads — run them concurrently rather than serially.
+      const [target, price, accountId, billingDetails] = await Promise.all([
         resolveTarget(params.target),
         resolvePrice(params.priceId),
         stripeClient.getAccountId(),
-      ]);
-
-      const billingDetails =
         params.target.targetType === "user"
-          ? await stripeCustomerBillingService.getUserBillingDetails(target.id)
-          : await stripeCustomerBillingService.getOrganizationBillingDetailsById(
-              target.id,
-            );
+          ? stripeCustomerBillingService.getUserBillingDetails(
+              params.target.targetId,
+            )
+          : stripeCustomerBillingService.getOrganizationBillingDetailsById(
+              params.target.targetId,
+            ),
+      ]);
 
       if (!hasStripeBillingAddressWithCountry(billingDetails.address)) {
         throw new InvoiceValidationError(

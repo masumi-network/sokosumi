@@ -2827,6 +2827,7 @@
           "priceRequired": "Select a price",
           "billingLoadErrorTitle": "Could not load billing details",
           "billingLoadError": "Failed to load recipient billing details",
+          "billingRefresh": "Refresh",
           "billingIncomplete": "Recipient billing address with country is required",
           "billingIncompleteTitle": "Billing details incomplete",
           "billingIncompleteUser": "This user must add a billing address with country in their account settings before you can create an invoice.",

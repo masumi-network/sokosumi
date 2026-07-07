@@ -1,7 +1,7 @@
 "use client";
 
 import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
@@ -114,11 +114,14 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
   async function loadRecipientBillingDetails(
     nextTargetType: InvoiceTargetType,
     targetId: string,
+    options?: { preserveExisting?: boolean },
   ) {
     const loadId = ++billingLoadIdRef.current;
     setIsBillingLoading(true);
     setBillingLoadError(null);
-    setBillingDetails(null);
+    if (!options?.preserveExisting) {
+      setBillingDetails(null);
+    }
 
     try {
       const result = await getAdminRecipientBillingDetailsAction({
@@ -168,6 +171,15 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
       return;
     }
     void loadRecipientBillingDetails("user", user.id);
+  }
+
+  function handleRefreshBilling() {
+    if (!selectedTargetId) {
+      return;
+    }
+    void loadRecipientBillingDetails(targetType, selectedTargetId, {
+      preserveExisting: true,
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -278,13 +290,31 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
           aria-labelledby="invoice-recipient-billing"
           className="bg-muted/30 space-y-4 rounded-lg border p-4"
         >
-          <div className="space-y-1">
-            <h3 className="text-sm font-medium" id="invoice-recipient-billing">
-              {t("Form.BillingDetails.title")}
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              {t("Form.BillingDetails.description")}
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h3
+                className="text-sm font-medium"
+                id="invoice-recipient-billing"
+              >
+                {t("Form.BillingDetails.title")}
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                {t("Form.BillingDetails.description")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshBilling}
+              disabled={isBillingLoading}
+              aria-label={t("Form.billingRefresh")}
+            >
+              <RefreshCw
+                className={`size-4 ${isBillingLoading ? "animate-spin" : ""}`}
+              />
+              {t("Form.billingRefresh")}
+            </Button>
           </div>
 
           {isBillingLoading ? (
