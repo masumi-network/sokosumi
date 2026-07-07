@@ -272,7 +272,7 @@ export const stripeClient = {
   ): Promise<StripeCustomerBillingDetails> {
     const customer = await stripe.customers.retrieve(
       customerId,
-      { expand: ["tax_ids.data"] },
+      { expand: ["tax_ids"] },
       requestOptions,
     );
 

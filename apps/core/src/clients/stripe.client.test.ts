@@ -398,6 +398,11 @@ describe("stripeClient.createAdminInvoice", () => {
         },
       ],
     });
+    expect(stripeCustomersRetrieveMock).toHaveBeenCalledWith(
+      "cus_1",
+      { expand: ["tax_ids"] },
+      undefined,
+    );
   });
 
   it("returns partial billing address when stripe address is incomplete", async () => {
