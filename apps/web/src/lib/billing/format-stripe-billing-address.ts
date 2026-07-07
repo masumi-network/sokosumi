@@ -2,7 +2,7 @@ import type { StripeCustomerBillingAddress } from "@/lib/clients/generated/core"
 import { getBillingCountryLabel } from "@/lib/constants/billing-countries";
 
 export function formatStripeBillingAddress(
-  address: StripeCustomerBillingAddress,
+  address: NonNullable<StripeCustomerBillingAddress>,
   locale: string,
 ): string {
   const countryLabel =
