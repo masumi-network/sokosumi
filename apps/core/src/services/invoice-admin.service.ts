@@ -240,6 +240,19 @@ function toInvoiceListItem(
   };
 }
 
+function matchesListStatusFilter(
+  itemStatus: Stripe.Invoice.Status | null,
+  filter: InvoiceStatusFilter,
+): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "unfinished") {
+    return itemStatus === "draft" || itemStatus === "open";
+  }
+  return itemStatus === filter;
+}
+
 export const invoiceAdminService = (() => {
   async function ensureOrganizationStripeCustomerId(
     organizationId: string,
@@ -519,6 +532,10 @@ export const invoiceAdminService = (() => {
           )
           .map((invoice) => toInvoiceListItem(invoice, accountId))
           .filter((item): item is InvoiceListItem => item !== null)
+          // Stripe search is eventually consistent — an invoice voided moments
+          // ago can still match an earlier status:"open" query. Re-check the
+          // live status on each result so filters stay accurate.
+          .filter((item) => matchesListStatusFilter(item.status, status))
           // De-dupe across per-status queries (statuses are disjoint, so this
           // is belt-and-suspenders) before sorting newest-first.
           .filter((item) => {

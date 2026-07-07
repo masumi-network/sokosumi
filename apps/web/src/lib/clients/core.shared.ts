@@ -366,7 +366,7 @@ async function executeOperation<TData, TError>(
     );
   }
 
-  if (result.error || !result.data) {
+  if (result.error) {
     const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
@@ -375,7 +375,20 @@ async function executeOperation<TData, TError>(
     });
   }
 
-  return result.data;
+  const isNoContentSuccess =
+    result.response?.ok === true &&
+    (result.response.status === 204 || result.response.status === 205);
+
+  if (result.data == null && !isNoContentSuccess) {
+    const message = extractErrorMessage(result.error, result.response?.status);
+    throw new CoreApiRequestError(message, {
+      details: result.error,
+      kind: extractErrorKind(result.error),
+      status: result.response?.status,
+    });
+  }
+
+  return result.data as TData;
 }
 
 export function mapCoreApiStatusToCommonErrorCode(

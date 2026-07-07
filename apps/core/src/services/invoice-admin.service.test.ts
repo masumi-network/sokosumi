@@ -438,6 +438,39 @@ describe("invoiceAdminService.listInvoices", () => {
     });
   });
 
+  it("drops stale search hits whose live status no longer matches unfinished", async () => {
+    searchInvoicesMock.mockResolvedValue([
+      {
+        id: "in_void",
+        status: "void",
+        currency: "eur",
+        amount_due: 2380,
+        created: 400,
+        metadata: { grant_source: "admin_one_time_credit", credits: "2000" },
+        customer: {
+          name: "Andreas Osberghaus",
+          metadata: { customerType: "organization" },
+        },
+      },
+      {
+        id: "in_open",
+        status: "open",
+        currency: "eur",
+        amount_due: 1000,
+        created: 300,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: {
+          name: "Acme",
+          metadata: { customerType: "organization" },
+        },
+      },
+    ]);
+
+    const items = await invoiceAdminService.listInvoices();
+
+    expect(items.map((item) => item.invoiceId)).toEqual(["in_open"]);
+  });
+
   it("handles unexpanded or deleted customers without throwing", async () => {
     searchInvoicesMock.mockResolvedValue([
       {

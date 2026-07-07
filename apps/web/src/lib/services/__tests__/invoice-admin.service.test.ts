@@ -238,7 +238,10 @@ describe("invoiceAdminService (core client wrapper)", () => {
   });
 
   it("calls delete through the core client", async () => {
-    deleteAdminInvoiceMock.mockResolvedValue({ data: {} });
+    deleteAdminInvoiceMock.mockResolvedValue({
+      data: undefined,
+      response: { ok: true, status: 204 },
+    });
 
     await invoiceAdminService.deleteInvoice("in_1");
 
