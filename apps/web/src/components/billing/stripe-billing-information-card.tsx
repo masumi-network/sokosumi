@@ -1,6 +1,7 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
+import { StripeBillingInformationFields } from "@/components/billing/stripe-billing-information-fields";
 import {
   Card,
   CardContent,
@@ -8,12 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { buildStripeBillingInformationFieldsProps } from "@/lib/billing/build-stripe-billing-information-fields-props";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
-import {
-  StripeBillingInformationContent,
-  type StripeBillingInformationTranslationNamespace,
-} from "./stripe-billing-information-content";
+export type StripeBillingInformationTranslationNamespace =
+  | "App.Account.BillingDetails"
+  | "App.Organizations.OrganizationDetail.BillingDetails";
 
 export interface StripeBillingInformationCardProps {
   billingDetails: StripeCustomerBillingDetails;
@@ -26,7 +27,10 @@ export async function StripeBillingInformationCard({
   portalLink,
   translationNamespace,
 }: StripeBillingInformationCardProps) {
-  const t = await getTranslations(translationNamespace);
+  const [t, locale] = await Promise.all([
+    getTranslations(translationNamespace),
+    getLocale(),
+  ]);
 
   return (
     <Card>
@@ -35,10 +39,13 @@ export async function StripeBillingInformationCard({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <StripeBillingInformationContent
-          billingDetails={billingDetails}
+        <StripeBillingInformationFields
+          {...buildStripeBillingInformationFieldsProps(
+            billingDetails,
+            t,
+            locale,
+          )}
           portalLink={portalLink}
-          translationNamespace={translationNamespace}
         />
       </CardContent>
     </Card>

@@ -4,7 +4,7 @@ import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
 import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -88,6 +88,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     useState<StripeCustomerBillingDetails | null>(null);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   const [billingLoadError, setBillingLoadError] = useState<string | null>(null);
+  const billingLoadIdRef = useRef(0);
 
   const orgLabels = buildComboboxLabels(tOrg);
   const userLabels = buildComboboxLabels(tUser);
@@ -114,6 +115,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     nextTargetType: InvoiceTargetType,
     targetId: string,
   ) {
+    const loadId = ++billingLoadIdRef.current;
     setIsBillingLoading(true);
     setBillingLoadError(null);
     setBillingDetails(null);
@@ -123,13 +125,18 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
         targetType: nextTargetType,
         targetId,
       });
+      if (loadId !== billingLoadIdRef.current) {
+        return;
+      }
       if (!result.ok) {
         setBillingLoadError(result.error.message ?? t("Form.billingLoadError"));
         return;
       }
       setBillingDetails(result.data);
     } finally {
-      setIsBillingLoading(false);
+      if (loadId === billingLoadIdRef.current) {
+        setIsBillingLoading(false);
+      }
     }
   }
 
@@ -271,9 +278,14 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
           aria-labelledby="invoice-recipient-billing"
           className="bg-muted/30 space-y-4 rounded-lg border p-4"
         >
-          <h3 className="text-sm font-medium" id="invoice-recipient-billing">
-            {t("Form.BillingDetails.title")}
-          </h3>
+          <div className="space-y-1">
+            <h3 className="text-sm font-medium" id="invoice-recipient-billing">
+              {t("Form.BillingDetails.title")}
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {t("Form.BillingDetails.description")}
+            </p>
+          </div>
 
           {isBillingLoading ? (
             <div className="grid gap-4 sm:grid-cols-2">

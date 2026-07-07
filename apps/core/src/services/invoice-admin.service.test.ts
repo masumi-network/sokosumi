@@ -316,6 +316,33 @@ describe("invoiceAdminService.createInvoice", () => {
     );
     expect(createAdminInvoiceMock).not.toHaveBeenCalled();
   });
+
+  it("rejects a user target when billing address has no country", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user_1",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      stripeCustomerId: "cus_user",
+    });
+    getUserBillingDetailsMock.mockResolvedValue({
+      stripeCustomerId: "cus_user",
+      email: "ada@example.com",
+      address: null,
+      taxIds: [],
+    });
+
+    await expect(
+      invoiceAdminService.createInvoice({
+        target: { targetType: "user", targetId: "user_1" },
+        credits: 10,
+        ttlDays: null,
+        priceId: null,
+      }),
+    ).rejects.toThrow(
+      "Recipient billing address with country is required for invoicing",
+    );
+    expect(createAdminInvoiceMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("invoiceAdminService.listInvoices", () => {

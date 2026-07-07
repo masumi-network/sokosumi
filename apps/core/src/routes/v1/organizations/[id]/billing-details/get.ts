@@ -19,7 +19,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/billing-details",
   description:
-    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins only.",
+    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins, or platform admins with a session, may access this route.",
   tags: ["Organizations"],
   request: {
     params,
@@ -55,6 +55,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
+    // Platform-admin bypass is session-only: admin invoice UI uses Better Auth
+    // sessions, not API keys. Org members still use membership checks below.
     const isPlatformAdmin =
       userContext.source === "session" && hasAdminRole(userContext.role);
 
