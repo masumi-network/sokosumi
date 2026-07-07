@@ -2917,6 +2917,8 @@
             },
             "invoiceEmailLabel": "发票邮箱",
             "invoiceEmailEmpty": "未设置发票邮箱",
+            "stripeCustomerIdLabel": "Stripe 客户 ID",
+            "stripeCustomerIdEmpty": "暂无 Stripe 客户",
             "empty": "未设置账单地址"
           }
         },

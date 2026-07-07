@@ -96,6 +96,18 @@ vi.mock("next-intl", () => ({
       }
       if (
         namespace === "App.Admin.Invoices.Form.BillingDetails" &&
+        key === "stripeCustomerIdLabel"
+      ) {
+        return "Stripe customer ID";
+      }
+      if (
+        namespace === "App.Admin.Invoices.Form.BillingDetails" &&
+        key === "stripeCustomerIdEmpty"
+      ) {
+        return "No Stripe customer";
+      }
+      if (
+        namespace === "App.Admin.Invoices.Form.BillingDetails" &&
         key === "taxIdLabel"
       ) {
         return "VAT / tax ID";
@@ -136,6 +148,10 @@ vi.mock("sonner", () => ({
     error: vi.fn(),
     success: vi.fn(),
   },
+}));
+
+vi.mock("@/components/copyable-value", () => ({
+  CopyableValue: ({ value }: { value: string }) => <span>{value}</span>,
 }));
 
 vi.mock("@/lib/actions/invoice-admin/action", () => ({
@@ -228,6 +244,7 @@ describe("InvoiceForm billing preview", () => {
       await screen.findByText("Recipient billing description"),
     ).toBeVisible();
     expect(await screen.findByText(/123 Main St/)).toBeVisible();
+    expect(await screen.findByText("cus_complete")).toBeVisible();
     expect(getBillingMock).toHaveBeenCalledWith({
       targetType: "organization",
       targetId: "org_1",
