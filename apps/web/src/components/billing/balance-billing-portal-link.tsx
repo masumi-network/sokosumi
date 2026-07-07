@@ -53,7 +53,9 @@ export function BalanceBillingPortalLink({
 
   async function handleOpenBillingPortal() {
     setIsPending(true);
-    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+    // Keep opener reference so we can set location after the async portal call.
+    // `noopener` makes window.open return null while still opening about:blank.
+    const popup = window.open("about:blank", "_blank");
 
     try {
       const resolvedReturnPath = resolveReturnPath();
@@ -89,11 +91,17 @@ export function BalanceBillingPortalLink({
       }
 
       if (popup) {
-        popup.location.href = result.data.url;
+        try {
+          popup.location.href = result.data.url;
+        } catch {
+          popup.location.replace(result.data.url);
+        }
+        popup.opener = null;
+        popup.focus();
         return;
       }
 
-      window.open(result.data.url, "_blank", "noopener,noreferrer");
+      window.location.assign(result.data.url);
     } catch {
       popup?.close();
       toast.error(generalErrorMessage);
