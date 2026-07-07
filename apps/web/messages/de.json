@@ -2855,7 +2855,30 @@
           "createError": "Rechnung konnte nicht erstellt werden",
           "pricePlaceholder": "Preis auswählen",
           "priceHelper": "Preis pro Credit für den Rechnungsbetrag.",
-          "priceRequired": "Wählen Sie einen Preis aus"
+          "priceRequired": "Wählen Sie einen Preis aus",
+          "billingLoadErrorTitle": "Rechnungsdaten konnten nicht geladen werden",
+          "billingLoadError": "Rechnungsdaten des Empfängers konnten nicht geladen werden",
+          "billingRefresh": "Aktualisieren",
+          "billingIncomplete": "Rechnungsadresse mit Land ist erforderlich",
+          "billingIncompleteUser": "Dieser Benutzer muss in den Kontoeinstellungen eine Rechnungsadresse mit Land hinterlegen, bevor Sie eine Rechnung erstellen können.",
+          "billingIncompleteOrganization": "Diese Organisation muss in den Organisationseinstellungen eine Rechnungsadresse mit Land hinterlegen, bevor Sie eine Rechnung erstellen können.",
+          "BillingDetails": {
+            "title": "Rechnungsinformationen",
+            "description": "Rechnungsadresse und Steuerdaten des Stripe-Kunden des Empfängers.",
+            "addressLabel": "Rechnungsadresse",
+            "taxIdLabel": "USt-IdNr. / Steuernummer",
+            "taxIdVerification": "Verifizierungsstatus: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verifiziert",
+              "pending": "Ausstehend",
+              "unverified": "Nicht verifiziert",
+              "unavailable": "Nicht verfügbar",
+              "verification_failed": "Verifizierung fehlgeschlagen"
+            },
+            "invoiceEmailLabel": "Rechnungs-E-Mail",
+            "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+            "empty": "Keine Rechnungsadresse hinterlegt"
+          }
         },
         "Result": {
           "heading": "Rechnung",

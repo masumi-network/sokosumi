@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { hasAdminRole, requireUserContext } from "@/middleware/auth";
 import { stripeCustomerBillingDetailsSchema } from "@/schemas/stripe.schema";
 import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 
@@ -19,7 +19,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/billing-details",
   description:
-    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins only.",
+    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins, or platform admins with a session, may access this route.",
   tags: ["Organizations"],
   request: {
     params,
@@ -55,11 +55,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const billingDetails =
-      await stripeCustomerBillingService.getOrganizationBillingDetails(
-        id,
-        userContext.userId,
-      );
+    // Platform admins with user auth (session or API key) can read org billing
+    // without membership. Org members still use membership checks below.
+    const isPlatformAdmin =
+      userContext.source === "session" && hasAdminRole(userContext.role);
+
+    const billingDetails = isPlatformAdmin
+      ? await stripeCustomerBillingService.getOrganizationBillingDetailsById(id)
+      : await stripeCustomerBillingService.getOrganizationBillingDetails(
+          id,
+          userContext.userId,
+        );
 
     return ok(c, stripeCustomerBillingDetailsSchema.parse(billingDetails));
   });

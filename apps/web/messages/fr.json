@@ -2886,7 +2886,30 @@
           "createError": "Échec de la création de la facture",
           "pricePlaceholder": "Sélectionner un prix",
           "priceHelper": "Prix par crédit utilisé pour le montant de la facture.",
-          "priceRequired": "Sélectionnez un prix"
+          "priceRequired": "Sélectionnez un prix",
+          "billingLoadErrorTitle": "Impossible de charger les informations de facturation",
+          "billingLoadError": "Impossible de charger les informations de facturation du destinataire",
+          "billingRefresh": "Actualiser",
+          "billingIncomplete": "Une adresse de facturation avec pays est requise",
+          "billingIncompleteUser": "Cet utilisateur doit ajouter une adresse de facturation avec pays dans les paramètres de son compte avant que vous puissiez créer une facture.",
+          "billingIncompleteOrganization": "Cette organisation doit ajouter une adresse de facturation avec pays dans les paramètres de l'organisation avant que vous puissiez créer une facture.",
+          "BillingDetails": {
+            "title": "Informations de facturation",
+            "description": "Adresse de facturation et informations fiscales enregistrées sur le client Stripe du destinataire.",
+            "addressLabel": "Adresse de facturation",
+            "taxIdLabel": "TVA / identifiant fiscal",
+            "taxIdVerification": "Statut de vérification : {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Vérifié",
+              "pending": "En attente",
+              "unverified": "Non vérifié",
+              "unavailable": "Indisponible",
+              "verification_failed": "Échec de la vérification"
+            },
+            "invoiceEmailLabel": "E-mail de facturation",
+            "invoiceEmailEmpty": "Aucun e-mail de facturation enregistré",
+            "empty": "Aucune adresse de facturation enregistrée"
+          }
         },
         "Result": {
           "heading": "Facture",

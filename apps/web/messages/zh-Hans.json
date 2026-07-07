@@ -2886,7 +2886,30 @@
           "createError": "创建发票失败",
           "pricePlaceholder": "选择价格",
           "priceHelper": "用于发票金额的每积分价格。",
-          "priceRequired": "请选择价格"
+          "priceRequired": "请选择价格",
+          "billingLoadErrorTitle": "无法加载账单信息",
+          "billingLoadError": "无法加载收件人的账单信息",
+          "billingRefresh": "刷新",
+          "billingIncomplete": "需要包含国家的账单地址",
+          "billingIncompleteUser": "创建发票前，该用户必须在其账户设置中添加包含国家的账单地址。",
+          "billingIncompleteOrganization": "创建发票前，该组织必须在其组织设置中添加包含国家的账单地址。",
+          "BillingDetails": {
+            "title": "账单信息",
+            "description": "存储在收件人 Stripe 客户上的账单地址和税务信息。",
+            "addressLabel": "账单地址",
+            "taxIdLabel": "增值税 / 税号",
+            "taxIdVerification": "验证状态：{status}",
+            "taxIdVerificationStatus": {
+              "verified": "已验证",
+              "pending": "待处理",
+              "unverified": "未验证",
+              "unavailable": "不可用",
+              "verification_failed": "验证失败"
+            },
+            "invoiceEmailLabel": "发票邮箱",
+            "invoiceEmailEmpty": "未设置发票邮箱",
+            "empty": "未设置账单地址"
+          }
         },
         "Result": {
           "heading": "发票",

@@ -19,6 +19,22 @@ const handleInvoicePaidEventMock = vi.fn();
 const creditBucketFindFirstMock = vi.fn();
 const organizationUpdateMock = vi.fn();
 const userUpdateMock = vi.fn();
+const getUserBillingDetailsMock = vi.fn();
+const getOrganizationBillingDetailsByIdMock = vi.fn();
+
+const completeBillingDetails = {
+  stripeCustomerId: "cus_test",
+  email: "billing@example.com",
+  address: {
+    line1: "123 Main St",
+    line2: null,
+    city: "Berlin",
+    state: null,
+    postalCode: "10115",
+    country: "DE",
+  },
+  taxIds: [],
+};
 
 const buildUserInvoiceCreditReferenceIdMock = vi.fn();
 const buildOrganizationInvoiceCreditReferenceIdMock = vi.fn();
@@ -81,6 +97,15 @@ vi.mock("@/services/stripe-invoice-credit.service", () => ({
     handleInvoicePaidEventMock(...args),
 }));
 
+vi.mock("@/services/stripe-customer-billing.service", () => ({
+  stripeCustomerBillingService: {
+    getUserBillingDetails: (...args: unknown[]) =>
+      getUserBillingDetailsMock(...args),
+    getOrganizationBillingDetailsById: (...args: unknown[]) =>
+      getOrganizationBillingDetailsByIdMock(...args),
+  },
+}));
+
 import {
   InvoiceValidationError,
   invoiceAdminService,
@@ -101,6 +126,10 @@ describe("invoiceAdminService.createInvoice", () => {
       status: "open",
     });
     getAccountIdMock.mockResolvedValue("acct_1");
+    getUserBillingDetailsMock.mockResolvedValue(completeBillingDetails);
+    getOrganizationBillingDetailsByIdMock.mockResolvedValue(
+      completeBillingDetails,
+    );
   });
 
   it("invoices the organization's Stripe customer for an organization target", async () => {
@@ -258,6 +287,61 @@ describe("invoiceAdminService.createInvoice", () => {
         priceId: null,
       }),
     ).rejects.toThrow("Expiry must be a positive integer of at most 3650 days");
+  });
+
+  it("rejects when the recipient has no billing address with country", async () => {
+    getOrganizationWithRelationsByIdMock.mockResolvedValue({
+      id: "org_1",
+      name: "Acme",
+      slug: "acme",
+      stripeCustomerId: "cus_org",
+      metadata: null,
+    });
+    getOrganizationBillingDetailsByIdMock.mockResolvedValue({
+      stripeCustomerId: "cus_org",
+      email: null,
+      address: null,
+      taxIds: [],
+    });
+
+    await expect(
+      invoiceAdminService.createInvoice({
+        target: { targetType: "organization", targetId: "org_1" },
+        credits: 10,
+        ttlDays: null,
+        priceId: null,
+      }),
+    ).rejects.toThrow(
+      "Recipient billing address with country is required for invoicing",
+    );
+    expect(createAdminInvoiceMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a user target when billing address has no country", async () => {
+    getUserByIdMock.mockResolvedValue({
+      id: "user_1",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      stripeCustomerId: "cus_user",
+    });
+    getUserBillingDetailsMock.mockResolvedValue({
+      stripeCustomerId: "cus_user",
+      email: "ada@example.com",
+      address: null,
+      taxIds: [],
+    });
+
+    await expect(
+      invoiceAdminService.createInvoice({
+        target: { targetType: "user", targetId: "user_1" },
+        credits: 10,
+        ttlDays: null,
+        priceId: null,
+      }),
+    ).rejects.toThrow(
+      "Recipient billing address with country is required for invoicing",
+    );
+    expect(createAdminInvoiceMock).not.toHaveBeenCalled();
   });
 });
 

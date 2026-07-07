@@ -2886,7 +2886,30 @@
           "createError": "Falha ao criar a fatura",
           "pricePlaceholder": "Selecione um preço",
           "priceHelper": "Preço por crédito usado para o valor da fatura.",
-          "priceRequired": "Selecione um preço"
+          "priceRequired": "Selecione um preço",
+          "billingLoadErrorTitle": "Não foi possível carregar os dados de faturação",
+          "billingLoadError": "Não foi possível carregar os dados de faturação do destinatário",
+          "billingRefresh": "Atualizar",
+          "billingIncomplete": "É necessária uma morada de faturação com país",
+          "billingIncompleteUser": "Este utilizador tem de adicionar uma morada de faturação com país nas definições da conta antes de poder criar uma fatura.",
+          "billingIncompleteOrganization": "Esta organização tem de adicionar uma morada de faturação com país nas definições da organização antes de poder criar uma fatura.",
+          "BillingDetails": {
+            "title": "Informações de faturação",
+            "description": "Morada de faturação e dados fiscais guardados no cliente Stripe do destinatário.",
+            "addressLabel": "Morada de faturação",
+            "taxIdLabel": "IVA / NIF",
+            "taxIdVerification": "Estado de verificação: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verificado",
+              "pending": "Pendente",
+              "unverified": "Não verificado",
+              "unavailable": "Indisponível",
+              "verification_failed": "Verificação falhou"
+            },
+            "invoiceEmailLabel": "E-mail de faturação",
+            "invoiceEmailEmpty": "Sem e-mail de faturação registado",
+            "empty": "Sem morada de faturação registada"
+          }
         },
         "Result": {
           "heading": "Fatura",

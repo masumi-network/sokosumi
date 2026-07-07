@@ -24,6 +24,9 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       findUnique: vi.fn(),
     },
+    organization: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -131,6 +134,49 @@ describe("stripeCustomerBillingService", () => {
         allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
       }),
     );
+    expect(retrieveCustomerBillingDetailsMock).toHaveBeenCalledWith(
+      "cus_org_1",
+    );
+  });
+
+  it("returns empty billing details when organization has no stripe customer", async () => {
+    vi.mocked(prisma.organization.findUnique).mockResolvedValue({
+      stripeCustomerId: null,
+    } as never);
+
+    await expect(
+      stripeCustomerBillingService.getOrganizationBillingDetailsById("org_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: null,
+      email: null,
+      address: null,
+      taxIds: [],
+    });
+  });
+
+  it("throws when organization is not found", async () => {
+    vi.mocked(prisma.organization.findUnique).mockResolvedValue(null);
+
+    await expect(
+      stripeCustomerBillingService.getOrganizationBillingDetailsById(
+        "org_missing",
+      ),
+    ).rejects.toThrow("Organization not found");
+  });
+
+  it("returns stripe billing details for an organization by id", async () => {
+    vi.mocked(prisma.organization.findUnique).mockResolvedValue({
+      stripeCustomerId: "cus_org_1",
+    } as never);
+
+    await expect(
+      stripeCustomerBillingService.getOrganizationBillingDetailsById("org_1"),
+    ).resolves.toEqual(billingDetails);
+
+    expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+      where: { id: "org_1" },
+      select: { stripeCustomerId: true },
+    });
     expect(retrieveCustomerBillingDetailsMock).toHaveBeenCalledWith(
       "cus_org_1",
     );
