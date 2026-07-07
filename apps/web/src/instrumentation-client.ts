@@ -6,6 +6,7 @@ import {
   thirdPartyAnalyticsDenyUrls,
   thirdPartyAnalyticsIgnoreErrors,
 } from "@/lib/sentry/third-party-fetch-errors";
+import { thirdPartyWalletIgnoreErrors } from "@/lib/sentry/third-party-wallet-errors";
 
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
@@ -21,6 +22,7 @@ Sentry.init({
   ignoreErrors: [
     ...thirdPartyDomMutationIgnoreErrors,
     ...thirdPartyAnalyticsIgnoreErrors,
+    ...thirdPartyWalletIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,

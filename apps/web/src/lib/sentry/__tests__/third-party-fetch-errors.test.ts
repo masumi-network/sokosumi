@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   beforeSendClientEvent,
+  isBareTransientNetworkFailure,
   isThirdPartyAnalyticsFetchFailure,
+  isThirdPartyDynamicImportFailure,
   isTransientFirstPartyApiFetchFailure,
   thirdPartyAnalyticsIgnoreErrors,
 } from "@/lib/sentry/third-party-fetch-errors";
@@ -69,6 +71,35 @@ describe("isTransientFirstPartyApiFetchFailure", () => {
         "TypeError: Load failed (example.com)",
       ),
     ).toBe(false);
+  });
+});
+
+describe("isBareTransientNetworkFailure", () => {
+  it("returns true for bare Safari Load failed messages", () => {
+    expect(isBareTransientNetworkFailure("TypeError: Load failed")).toBe(true);
+    expect(isBareTransientNetworkFailure("Load failed")).toBe(true);
+  });
+
+  it("returns true for bare Failed to fetch messages", () => {
+    expect(isBareTransientNetworkFailure("Failed to fetch")).toBe(true);
+  });
+
+  it("returns false when a hostname is present", () => {
+    expect(
+      isBareTransientNetworkFailure(
+        "TypeError: Load failed (api.sokosumi.com)",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isThirdPartyDynamicImportFailure", () => {
+  it("returns true for Usercentrics chunk import failures", () => {
+    expect(
+      isThirdPartyDynamicImportFailure(
+        "TypeError: Failed to fetch dynamically imported module: https://web.cmp.usercentrics.eu/ui/v/4.3.0/WebSdk.lib.44b003b5.js. Error: undefined",
+      ),
+    ).toBe(true);
   });
 });
 
@@ -158,6 +189,79 @@ describe("beforeSendClientEvent", () => {
             values: [
               {
                 value: "TypeError: Load failed (api.sokosumi.com)",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops bare Safari network failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [{ value: "TypeError: Load failed" }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Next.js router hook mismatch noise", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                value: "Rendered more hooks than during the previous render.",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops masked production RSC render rejections", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                value:
+                  "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details.",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Cardano wallet extension failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                value:
+                  "Cannot read properties of undefined (reading 'REQUEST_ID')",
+                stacktrace: {
+                  frames: [{ filename: "app:///js/cardano.bundle.js" }],
+                },
               },
             ],
           },
