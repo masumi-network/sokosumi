@@ -27,14 +27,18 @@ describe("buildBillingPortalRedirectPath", () => {
 });
 
 describe("isAllowedBillingPortalNavigation", () => {
-  it("allows same-origin and direct navigation", () => {
+  it("allows same-origin, same-site, and direct navigation", () => {
     expect(isAllowedBillingPortalNavigation("same-origin")).toBe(true);
     expect(isAllowedBillingPortalNavigation("same-site")).toBe(true);
     expect(isAllowedBillingPortalNavigation("none")).toBe(true);
-    expect(isAllowedBillingPortalNavigation(null)).toBe(true);
   });
 
   it("blocks cross-site navigation", () => {
     expect(isAllowedBillingPortalNavigation("cross-site")).toBe(false);
+  });
+
+  it("blocks requests without a Sec-Fetch-Site header", () => {
+    expect(isAllowedBillingPortalNavigation(null)).toBe(false);
+    expect(isAllowedBillingPortalNavigation("")).toBe(false);
   });
 });

@@ -16,11 +16,19 @@ vi.mock("@/lib/auth/subscription.server", () => ({
     openOrganizationBillingPortalServerMock(...args),
 }));
 
+// `Sec-Fetch-*` is a forbidden request header the fetch runtime refuses to set
+// programmatically, so the portal navigation guard cannot be exercised through
+// real request headers in tests. Default requests to a same-origin navigation
+// by stubbing the header getter; individual tests can override the value.
 function createPortalRequest(
   url: string,
-  headers: Record<string, string> = {},
+  secFetchSite: string | null = "same-origin",
 ): NextRequest {
-  return new NextRequest(url, { headers });
+  const request = new NextRequest(url);
+  vi.spyOn(request.headers, "get").mockImplementation((name) =>
+    name.toLowerCase() === "sec-fetch-site" ? secFetchSite : null,
+  );
+  return request;
 }
 
 describe("GET /api/billing/portal", () => {
@@ -73,7 +81,6 @@ describe("GET /api/billing/portal", () => {
     const response = await GET(
       createPortalRequest(
         "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
-        { "Sec-Fetch-Site": "same-origin" },
       ),
     );
 
@@ -236,18 +243,13 @@ describe("GET /api/billing/portal", () => {
   it("rejects cross-site navigation without creating a portal session", async () => {
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
 
-    // `Sec-Fetch-*` is a forbidden request header the fetch runtime refuses to
-    // set programmatically, so stub the header getter to simulate a cross-site
-    // browser navigation.
-    const request = createPortalRequest(
-      "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
-    );
-    vi.spyOn(request.headers, "get").mockImplementation((name) =>
-      name.toLowerCase() === "sec-fetch-site" ? "cross-site" : null,
-    );
-
     const { GET } = await import("../route");
-    const response = await GET(request);
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
+        "cross-site",
+      ),
+    );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
@@ -256,5 +258,24 @@ describe("GET /api/billing/portal", () => {
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(openPersonalBillingPortalServerMock).not.toHaveBeenCalled();
     expect(openOrganizationBillingPortalServerMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects navigation without a Sec-Fetch-Site header", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
+        null,
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/account?billingPortalError=general",
+    );
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(openPersonalBillingPortalServerMock).not.toHaveBeenCalled();
   });
 });
