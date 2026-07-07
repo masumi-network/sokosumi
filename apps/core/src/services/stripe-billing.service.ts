@@ -2,7 +2,6 @@ import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   type CreditTopUpLookupKey,
-  getOrganizationMetadata,
   STANDARD_CREDIT_TOPUP_TIERS,
 } from "@sokosumi/utils";
 import type Stripe from "stripe";
@@ -205,7 +204,6 @@ async function ensureStripeCustomerId(
         name: true,
         slug: true,
         stripeCustomerId: true,
-        metadata: true,
       },
     });
 
@@ -221,7 +219,6 @@ async function ensureStripeCustomerId(
       organizationId: organization.id,
       slug: organization.slug,
       name: organization.name,
-      invoiceEmail: getOrganizationMetadata(organization.metadata).invoiceEmail,
     });
 
     // Persist the id immediately (write-through) rather than waiting for the

@@ -79,7 +79,7 @@ function setMembership(role: string | null, stripeCustomerId: string | null) {
     id: "org_123",
     slug: "acme",
     name: "Acme",
-    metadata: JSON.stringify({ invoiceEmail: "billing@acme.test" }),
+    metadata: JSON.stringify({ url: "https://acme.test" }),
     stripeCustomerId,
   });
   memberFindUniqueMock.mockResolvedValue(role ? { role } : null);
@@ -155,7 +155,6 @@ describe("POST /organizations/{id}/stripe-customer", () => {
     const body = await response.json();
     expect(body.data).toEqual({ stripeCustomerId: "cus_new" });
     expect(createOrganizationCustomerMock).toHaveBeenCalledWith({
-      invoiceEmail: "billing@acme.test",
       name: "Acme",
       organizationId: "org_123",
       slug: "acme",

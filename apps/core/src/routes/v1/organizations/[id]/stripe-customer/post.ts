@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { getOrganizationMetadata } from "@sokosumi/utils";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -68,9 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
     const customer = await stripeClient.createOrganizationCustomer({
-      invoiceEmail,
       name: organization.name,
       organizationId: organization.id,
       slug: organization.slug,

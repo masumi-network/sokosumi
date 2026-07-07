@@ -15,7 +15,6 @@ import {
 } from "@/schemas/stripe.schema";
 
 interface CreateOrganizationCustomerInput {
-  invoiceEmail?: null | string;
   name: string;
   organizationId: string;
   slug: string;
@@ -232,9 +231,6 @@ export const stripeClient = {
   ): Promise<Stripe.Customer> {
     return await stripe.customers.create(
       {
-        ...(organization.invoiceEmail
-          ? { email: organization.invoiceEmail }
-          : {}),
         metadata: {
           customerType: "organization",
           organizationId: organization.organizationId,

@@ -129,7 +129,6 @@ describe("stripeClient", () => {
 
     await stripeClient.createOrganizationCustomer(
       {
-        invoiceEmail: "billing@example.com",
         name: "Sokosumi Org",
         organizationId: "org_123",
         slug: "sokosumi-org",
@@ -141,7 +140,6 @@ describe("stripeClient", () => {
 
     expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
       {
-        email: "billing@example.com",
         metadata: {
           customerType: "organization",
           organizationId: "org_123",

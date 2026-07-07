@@ -1,4 +1,3 @@
-import { getOrganizationMetadata } from "@sokosumi/utils";
 import pLimit from "p-limit";
 
 import { stripeClient } from "@/clients/stripe.client";
@@ -83,7 +82,6 @@ async function createStripeCustomerForOrganization(
     where: { id: organizationId },
     select: {
       id: true,
-      metadata: true,
       name: true,
       slug: true,
     },
@@ -93,11 +91,9 @@ async function createStripeCustomerForOrganization(
     return;
   }
 
-  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
   await stripeClient.createOrganizationCustomer(
     {
-      invoiceEmail,
       name: organization.name,
       organizationId: organization.id,
       slug: organization.slug,

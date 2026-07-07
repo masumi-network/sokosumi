@@ -130,7 +130,6 @@ describe("stripeCustomerSyncService.syncAllStripeCustomers", () => {
     expect(createOrganizationCustomerMock).toHaveBeenCalledTimes(1);
     expect(createOrganizationCustomerMock).toHaveBeenCalledWith(
       {
-        invoiceEmail: null,
         name: "Organization org-1",
         organizationId: "org-1",
         slug: "org-1-slug",
