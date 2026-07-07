@@ -2886,6 +2886,8 @@
             },
             "invoiceEmailLabel": "Correo de facturación",
             "invoiceEmailEmpty": "No hay correo de facturación registrado",
+            "stripeCustomerIdLabel": "ID de cliente de Stripe",
+            "stripeCustomerIdEmpty": "No hay cliente de Stripe registrado",
             "empty": "No hay dirección de facturación registrada"
           }
         },

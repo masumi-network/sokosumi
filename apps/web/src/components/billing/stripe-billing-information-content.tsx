@@ -13,12 +13,14 @@ import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core"
 export interface StripeBillingInformationContentProps {
   billingDetails: StripeCustomerBillingDetails;
   portalLink?: ReactNode;
+  showStripeCustomerId?: boolean;
   translationNamespace: StripeBillingInformationTranslationNamespace;
 }
 
 export function StripeBillingInformationContent({
   billingDetails,
   portalLink,
+  showStripeCustomerId = false,
   translationNamespace,
 }: StripeBillingInformationContentProps) {
   const t = useTranslations(translationNamespace);
@@ -26,7 +28,9 @@ export function StripeBillingInformationContent({
 
   return (
     <StripeBillingInformationFields
-      {...buildStripeBillingInformationFieldsProps(billingDetails, t, locale)}
+      {...buildStripeBillingInformationFieldsProps(billingDetails, t, locale, {
+        showStripeCustomerId,
+      })}
       portalLink={portalLink}
     />
   );
