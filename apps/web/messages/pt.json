@@ -2917,6 +2917,8 @@
             },
             "invoiceEmailLabel": "E-mail de faturação",
             "invoiceEmailEmpty": "Sem e-mail de faturação registado",
+            "stripeCustomerIdLabel": "ID de cliente Stripe",
+            "stripeCustomerIdEmpty": "Nenhum cliente Stripe registado",
             "empty": "Sem morada de faturação registada"
           }
         },

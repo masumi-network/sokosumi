@@ -2878,6 +2878,8 @@
             },
             "invoiceEmailLabel": "Invoice email",
             "invoiceEmailEmpty": "No invoice email on file",
+            "stripeCustomerIdLabel": "Stripe customer ID",
+            "stripeCustomerIdEmpty": "No Stripe customer on file",
             "empty": "No billing address on file"
           }
         },

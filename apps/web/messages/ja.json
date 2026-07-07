@@ -2917,6 +2917,8 @@
             },
             "invoiceEmailLabel": "請求書メール",
             "invoiceEmailEmpty": "請求書メールが登録されていません",
+            "stripeCustomerIdLabel": "Stripe 顧客 ID",
+            "stripeCustomerIdEmpty": "Stripe顧客が登録されていません",
             "empty": "請求先住所が登録されていません"
           }
         },
