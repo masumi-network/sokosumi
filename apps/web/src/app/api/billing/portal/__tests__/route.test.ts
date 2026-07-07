@@ -40,9 +40,26 @@ describe("GET /api/billing/portal", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://app.sokosumi.test/signin?returnUrl=%2Faccount",
+      "https://app.sokosumi.test/signin?returnUrl=%2Fapi%2Fbilling%2Fportal%3FreturnPath%3D%252Faccount",
     );
     expect(openPersonalBillingPortalServerMock).not.toHaveBeenCalled();
+  });
+
+  it("returns to the org portal route after sign in for organization portals", async () => {
+    getSessionMock.mockResolvedValue(null);
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Forganizations%2Facme&organizationId=org-1",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/signin?returnUrl=%2Fapi%2Fbilling%2Fportal%3FreturnPath%3D%252Forganizations%252Facme%26organizationId%3Dorg-1",
+    );
+    expect(openOrganizationBillingPortalServerMock).not.toHaveBeenCalled();
   });
 
   it("redirects authenticated users to the Stripe billing portal", async () => {
