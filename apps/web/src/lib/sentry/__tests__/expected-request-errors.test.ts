@@ -112,4 +112,34 @@ describe("isExpectedClientNoiseErrorMessage", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches masked production RSC render noise", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Cardano wallet extension REQUEST_ID noise", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        "Cannot read properties of undefined (reading 'REQUEST_ID')",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches MetaMask connection noise", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage("Failed to connect to MetaMask"),
+    ).toBe(true);
+  });
+
+  it("matches history.replaceState rate limit noise", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        "Attempt to use history.replaceState() more than 100 times per 10 seconds",
+      ),
+    ).toBe(true);
+  });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   beforeSendClientEvent,
+  isBareTransientNetworkFailure,
   isThirdPartyAnalyticsFetchFailure,
   isTransientFirstPartyApiFetchFailure,
   thirdPartyAnalyticsIgnoreErrors,
@@ -67,6 +68,33 @@ describe("isTransientFirstPartyApiFetchFailure", () => {
     expect(
       isTransientFirstPartyApiFetchFailure(
         "TypeError: Load failed (example.com)",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isBareTransientNetworkFailure", () => {
+  it("returns true for bare WebKit Load failed", () => {
+    expect(isBareTransientNetworkFailure("TypeError: Load failed")).toBe(true);
+    expect(isBareTransientNetworkFailure("Load failed")).toBe(true);
+  });
+
+  it("returns true for bare Failed to fetch", () => {
+    expect(isBareTransientNetworkFailure("Failed to fetch")).toBe(true);
+  });
+
+  it("returns true for Firefox network errors", () => {
+    expect(
+      isBareTransientNetworkFailure(
+        "NetworkError when attempting to fetch resource.",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false when a hostname suffix is present", () => {
+    expect(
+      isBareTransientNetworkFailure(
+        "TypeError: Load failed (api.sokosumi.com)",
       ),
     ).toBe(false);
   });
@@ -158,6 +186,43 @@ describe("beforeSendClientEvent", () => {
             values: [
               {
                 value: "TypeError: Load failed (api.sokosumi.com)",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops bare transient network failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Load failed",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Next.js router hook mismatch via beforeSend", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                value: "Rendered more hooks than during the previous render.",
               },
             ],
           },

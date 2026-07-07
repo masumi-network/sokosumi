@@ -1,5 +1,7 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
+import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
+
 /** Hostnames for marketing/analytics scripts loaded via GTM or similar. */
 const THIRD_PARTY_ANALYTICS_HOSTS = [
   "plausible.io",
@@ -38,6 +40,13 @@ const thirdPartyFetchFailurePattern =
 /** WebKit reports blocked or offline network calls as `Load failed (hostname)`. */
 const transientFetchFailurePattern =
   /^(?:TypeError: )?(?:Failed to fetch|Load failed) \(([^)]+)\)$/;
+
+/**
+ * Safari/WebKit often omits the hostname for same-origin fetches (chat streams,
+ * RSC soft-nav payloads). SOKOSUMI-18 on `/chat` reports bare `Load failed`.
+ */
+const bareTransientNetworkFailurePattern =
+  /^(?:TypeError: )?(?:Load failed|Failed to fetch|NetworkError when attempting to fetch resource\.?)$/;
 
 /** Core API hosts where client-side connectivity blips are user/network noise. */
 const FIRST_PARTY_API_HOSTS = [
@@ -102,15 +111,25 @@ export function isTransientFirstPartyApiFetchFailure(message: string): boolean {
   return isKnownFirstPartyApiHost(match[1]);
 }
 
+/** Bare fetch/network errors without a hostname — transient browser noise. */
+export function isBareTransientNetworkFailure(message: string): boolean {
+  return bareTransientNetworkFailurePattern.test(message.trim());
+}
+
 export function beforeSendClientEvent(
   event: ErrorEvent,
   _hint: EventHint,
 ): ErrorEvent | null {
   const message = getEventErrorMessage(event);
 
+  if (isExpectedClientNoiseErrorMessage(message)) {
+    return null;
+  }
+
   if (
     isThirdPartyAnalyticsFetchFailure(message) ||
-    isTransientFirstPartyApiFetchFailure(message)
+    isTransientFirstPartyApiFetchFailure(message) ||
+    isBareTransientNetworkFailure(message)
   ) {
     return null;
   }

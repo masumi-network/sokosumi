@@ -7,6 +7,33 @@ const UNAUTHENTICATED_MESSAGE = /^user is not authenticated$/i;
 const NEXT_ROUTER_HOOKS_MISMATCH =
   /rendered more hooks than during the previous render/i;
 
+/**
+ * Next.js masks server-thrown errors in production RSC payloads. Client-side
+ * soft navigations surface them as unhandled rejections (SOKOSUMI-W on /agents,
+ * /hermes) even when the server already redirected for an expired session.
+ * Real render failures are still captured server-side via `onRequestError`.
+ */
+const MASKED_PRODUCTION_RSC_RENDER_ERROR =
+  /An error occurred in the Server Components render\. The specific message is omitted in production builds/i;
+
+/**
+ * Cardano wallet browser extensions inject `cardano.bundle.js` and throw when
+ * the dApp bridge is not wired (SOKOSUMI-13 on `/chat`).
+ */
+export const thirdPartyWalletIgnoreErrors: RegExp[] = [
+  /reading 'REQUEST_ID'/,
+  /Failed to connect to MetaMask/i,
+  /window\.webkit\.messageHandlers/i,
+];
+
+/**
+ * `nuqs` / Next.js App Router can hit the browser history rate limit during
+ * rapid URL sync on chat (SOKOSUMI-PX).
+ */
+export const browserHistoryRateLimitIgnoreErrors: RegExp[] = [
+  /Attempt to use history\.replaceState\(\) more than 100 times per 10 seconds/,
+];
+
 function getThrownErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -68,7 +95,10 @@ export const browserExtensionIgnoreErrors: RegExp[] = [
 
 export const expectedClientNoiseIgnoreErrors: RegExp[] = [
   NEXT_ROUTER_HOOKS_MISMATCH,
+  MASKED_PRODUCTION_RSC_RENDER_ERROR,
   ...browserExtensionIgnoreErrors,
+  ...thirdPartyWalletIgnoreErrors,
+  ...browserHistoryRateLimitIgnoreErrors,
 ];
 
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
