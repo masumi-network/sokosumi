@@ -61,6 +61,7 @@ import {
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
@@ -747,6 +748,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to mark admin invoice paid",
+    );
+  }
+
+  async function deleteAdminInvoice(invoiceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminInvoice({
+          client,
+          path: { id: invoiceId },
+          cache: "no-store",
+        }),
+      "Failed to delete admin invoice",
     );
   }
 
@@ -2779,6 +2793,7 @@ export function createCoreClient(getClient: GetClient) {
     createAdminFreeCreditGrant,
     getAdminInvoice,
     markAdminInvoicePaid,
+    deleteAdminInvoice,
     listCreditPrices,
     getCreditTopUpPriceCatalog,
     getSubscriptionCatalog,

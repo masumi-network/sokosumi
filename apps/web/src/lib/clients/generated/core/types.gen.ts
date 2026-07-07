@@ -3869,6 +3869,102 @@ export type MarkAdminInvoicePaidResponses = {
 
 export type MarkAdminInvoicePaidResponse = MarkAdminInvoicePaidResponses[keyof MarkAdminInvoicePaidResponses];
 
+export type DeleteAdminInvoiceData = {
+    body?: never;
+    path: {
+        /**
+         * Stripe invoice ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/invoices/{id}';
+};
+
+export type DeleteAdminInvoiceErrors = {
+    /**
+     * Bad Request - not an admin invoice, or invoice cannot be deleted
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - invoice missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminInvoiceError = DeleteAdminInvoiceErrors[keyof DeleteAdminInvoiceErrors];
+
+export type DeleteAdminInvoiceResponses = {
+    /**
+     * Admin invoice deleted or voided
+     */
+    204: void;
+};
+
+export type DeleteAdminInvoiceResponse = DeleteAdminInvoiceResponses[keyof DeleteAdminInvoiceResponses];
+
 export type GetAdminInvoiceData = {
     body?: never;
     path: {

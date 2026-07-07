@@ -2866,6 +2866,15 @@
         "title": "請求書",
         "description": "Stripe の請求書を通じてユーザーまたは組織に一度限りのクレジットを付与します。請求書を支払い済みにすると、クレジットが即座に付与されます。",
         "cardTitle": "新しい請求書",
+        "newGrant": "新しい請求書",
+        "backToList": "一覧に戻る",
+        "delete": "削除",
+        "deleting": "削除中…",
+        "deleteSuccess": "請求書を削除しました",
+        "deleteError": "請求書の削除に失敗しました",
+        "deleteConfirmTitle": "請求書を削除しますか？",
+        "deleteConfirmDescription": "下書きは完全に削除されます。未払いの請求書は無効化され、支払えなくなります。",
+        "cancel": "キャンセル",
         "Form": {
           "Fields": {
             "organization": "組織",

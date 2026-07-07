@@ -794,4 +794,16 @@ export const stripeClient = {
       expand: ["lines.data.price.product"],
     });
   },
+
+  /** Permanently deletes a draft invoice in Stripe. */
+  async deleteDraftInvoice(invoiceId: string): Promise<void> {
+    await stripe.invoices.del(invoiceId);
+  },
+
+  /** Voids an open invoice so it can no longer be paid. */
+  async voidInvoice(invoiceId: string): Promise<Stripe.Invoice> {
+    return await stripe.invoices.voidInvoice(invoiceId, {
+      expand: ["lines.data.price.product"],
+    });
+  },
 };

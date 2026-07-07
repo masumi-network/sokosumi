@@ -2835,6 +2835,15 @@
         "title": "Facturas",
         "description": "Otorga créditos únicos a un usuario u organización mediante una factura de Stripe. Al marcar la factura como pagada, los créditos se otorgan al instante.",
         "cardTitle": "Nueva factura",
+        "newGrant": "Nueva factura",
+        "backToList": "Volver a la lista",
+        "delete": "Eliminar",
+        "deleting": "Eliminando…",
+        "deleteSuccess": "Factura eliminada",
+        "deleteError": "No se pudo eliminar la factura",
+        "deleteConfirmTitle": "¿Eliminar factura?",
+        "deleteConfirmDescription": "Los borradores se eliminan de forma permanente. Las facturas abiertas se anulan y ya no se pueden pagar.",
+        "cancel": "Cancelar",
         "Form": {
           "Fields": {
             "organization": "Organización",

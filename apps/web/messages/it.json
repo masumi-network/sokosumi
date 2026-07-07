@@ -2866,6 +2866,15 @@
         "title": "Fatture",
         "description": "Assegna crediti una tantum a un utente o un'organizzazione tramite una fattura Stripe. Contrassegnando la fattura come pagata, i crediti vengono assegnati immediatamente.",
         "cardTitle": "Nuova fattura",
+        "newGrant": "Nuova fattura",
+        "backToList": "Torna all'elenco",
+        "delete": "Elimina",
+        "deleting": "Eliminazione…",
+        "deleteSuccess": "Fattura eliminata",
+        "deleteError": "Impossibile eliminare la fattura",
+        "deleteConfirmTitle": "Eliminare la fattura?",
+        "deleteConfirmDescription": "Le bozze vengono eliminate definitivamente. Le fatture aperte vengono annullate e non possono più essere pagate.",
+        "cancel": "Annulla",
         "Form": {
           "Fields": {
             "organization": "Organizzazione",

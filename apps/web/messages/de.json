@@ -2835,6 +2835,15 @@
         "title": "Rechnungen",
         "description": "Gewähren Sie einem Benutzer oder einer Organisation einmalige Credits über eine Stripe-Rechnung. Sobald die Rechnung als bezahlt markiert ist, werden die Credits sofort gewährt.",
         "cardTitle": "Neue Rechnung",
+        "newGrant": "Neue Rechnung",
+        "backToList": "Zurück zur Liste",
+        "delete": "Löschen",
+        "deleting": "Wird gelöscht…",
+        "deleteSuccess": "Rechnung gelöscht",
+        "deleteError": "Rechnung konnte nicht gelöscht werden",
+        "deleteConfirmTitle": "Rechnung löschen?",
+        "deleteConfirmDescription": "Entwürfe werden dauerhaft gelöscht. Offene Rechnungen werden storniert und können nicht mehr bezahlt werden.",
+        "cancel": "Abbrechen",
         "Form": {
           "Fields": {
             "organization": "Organisation",

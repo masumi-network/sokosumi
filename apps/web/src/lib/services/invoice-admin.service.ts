@@ -176,4 +176,12 @@ export const invoiceAdminService = {
       .catch(mapCoreError);
     return response.data;
   },
+
+  /**
+   * Deletes or voids an admin invoice in Stripe. Draft invoices are
+   * permanently deleted; open invoices are voided.
+   */
+  async deleteInvoice(invoiceId: string): Promise<void> {
+    await coreClient.deleteAdminInvoice(invoiceId).catch(mapCoreError);
+  },
 };

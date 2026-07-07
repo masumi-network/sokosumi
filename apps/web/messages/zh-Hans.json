@@ -2866,6 +2866,15 @@
         "title": "发票",
         "description": "通过 Stripe 发票向用户或组织授予一次性积分。将发票标记为已支付后，积分将立即授予。",
         "cardTitle": "新建发票",
+        "newGrant": "新建发票",
+        "backToList": "返回列表",
+        "delete": "删除",
+        "deleting": "正在删除…",
+        "deleteSuccess": "发票已删除",
+        "deleteError": "删除发票失败",
+        "deleteConfirmTitle": "删除发票？",
+        "deleteConfirmDescription": "草稿将被永久删除。未付款发票将被作废，无法再支付。",
+        "cancel": "取消",
         "Form": {
           "Fields": {
             "organization": "组织",

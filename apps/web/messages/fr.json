@@ -2866,6 +2866,15 @@
         "title": "Factures",
         "description": "Accordez des crédits uniques à un utilisateur ou une organisation via une facture Stripe. Marquer la facture comme payée accorde les crédits instantanément.",
         "cardTitle": "Nouvelle facture",
+        "newGrant": "Nouvelle facture",
+        "backToList": "Retour à la liste",
+        "delete": "Supprimer",
+        "deleting": "Suppression…",
+        "deleteSuccess": "Facture supprimée",
+        "deleteError": "Échec de la suppression de la facture",
+        "deleteConfirmTitle": "Supprimer la facture ?",
+        "deleteConfirmDescription": "Les brouillons sont supprimés définitivement. Les factures ouvertes sont annulées et ne peuvent plus être payées.",
+        "cancel": "Annuler",
         "Form": {
           "Fields": {
             "organization": "Organisation",

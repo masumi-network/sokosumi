@@ -637,6 +637,38 @@ export const invoiceAdminService = (() => {
      * `invoice.paid` webhook later arrives (or is retried). Returns null when
      * the invoice does not exist, so the caller can surface a 404.
      */
+    /**
+     * Deletes or voids an admin invoice in Stripe. Draft invoices are
+     * permanently deleted; open invoices are voided. Returns null when the
+     * invoice does not exist, so the caller can surface a 404.
+     */
+    async deleteInvoice(invoiceId: string): Promise<void | null> {
+      let existing: Stripe.Invoice;
+      try {
+        existing = await stripeClient.getInvoice(invoiceId);
+      } catch {
+        return null;
+      }
+
+      if (existing.metadata?.grant_source !== ADMIN_INVOICE_SOURCE) {
+        throw new InvoiceValidationError("Invoice is not an admin invoice");
+      }
+
+      if (existing.status === "draft") {
+        await stripeClient.deleteDraftInvoice(invoiceId);
+        return;
+      }
+
+      if (existing.status === "open") {
+        await stripeClient.voidInvoice(invoiceId);
+        return;
+      }
+
+      throw new InvoiceValidationError(
+        "Only draft or open invoices can be deleted",
+      );
+    },
+
     async markInvoicePaid(invoiceId: string): Promise<InvoiceSummary | null> {
       let existing: Stripe.Invoice;
       try {
