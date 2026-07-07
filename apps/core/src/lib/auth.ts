@@ -9,6 +9,8 @@ import * as Sentry from "@sentry/node";
 import { MemberRole, type User } from "@sokosumi/database";
 import {
   ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE,
+  getCreditExpiryDate,
+  grantSignupBonusCredits,
   hasConsumableEnterpriseContract,
 } from "@sokosumi/database/helpers";
 import {
@@ -26,11 +28,11 @@ import {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
   getEmailLocale,
-  getOrganizationMetadata,
   getStoredUserName,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
@@ -68,6 +70,7 @@ import {
   prepareStripeEmailSyncForUserUpdate,
 } from "@/services/stripe-user-email.service";
 import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.service";
+import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -87,6 +90,42 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
+
+async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
+  const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
+  const grantedAt = new Date();
+  const expiresAt = getCreditExpiryDate(grantedAt, SIGNUP_BONUS_TTL_DAYS);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const { created } = await grantSignupBonusCredits(
+        {
+          credits: SIGNUP_BONUS_CREDITS,
+          expiresAt,
+          userId,
+        },
+        tx,
+      );
+
+      if (created) {
+        await markOutOfCreditsTasksAsToppedUp({
+          organizationId: null,
+          tx,
+          userId,
+        });
+      }
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        context: "signup_bonus_grant",
+      },
+      extra: {
+        userId,
+      },
+    });
+  }
+}
 
 async function ensureWorkspaceForCreatedUser(user: {
   email: string;
@@ -136,16 +175,13 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
 
 async function ensureStripeCustomerForCreatedOrganization(organization: {
   id: string;
-  metadata?: string | null;
   name: string;
   slug: string;
 }): Promise<void> {
-  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
   await stripeClient.createOrganizationCustomer({
     organizationId: organization.id,
     slug: organization.slug,
     name: organization.name,
-    invoiceEmail,
   });
 }
 
@@ -312,34 +348,39 @@ export const auth = betterAuth({
         },
         after: async (user, _ctx) => {
           await ensureWorkspaceForCreatedUser(user);
-          void stripeClient
-            .createUserCustomer({
-              email: user.email,
-              name: user.name,
-              userId: user.id,
-            })
-            .catch((error) => {
+          waitUntil(grantSignupBonusForCreatedUser(user.id));
+          waitUntil(
+            stripeClient
+              .createUserCustomer({
+                email: user.email,
+                name: user.name,
+                userId: user.id,
+              })
+              .catch((error) => {
+                Sentry.captureException(error, {
+                  tags: {
+                    context: "stripe_user_customer_creation",
+                  },
+                  extra: {
+                    userId: user.id,
+                    email: user.email,
+                    name: user.name,
+                  },
+                });
+              }),
+          );
+          waitUntil(
+            webhookService.callUserCreated(user).catch((error) => {
               Sentry.captureException(error, {
                 tags: {
-                  context: "stripe_user_customer_creation",
+                  context: "user_created_webhook",
                 },
                 extra: {
                   userId: user.id,
-                  email: user.email,
-                  name: user.name,
                 },
               });
-            });
-          void webhookService.callUserCreated(user).catch((error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "user_created_webhook",
-              },
-              extra: {
-                userId: user.id,
-              },
-            });
-          });
+            }),
+          );
         },
       },
       update: {

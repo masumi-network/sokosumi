@@ -4,7 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
+import { InvoiceDeleteButton } from "@/components/admin/invoices/invoice-delete-button";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { markAdminInvoicePaidAction } from "@/lib/actions/invoice-admin/action";
@@ -107,6 +107,12 @@ export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
             {isMarkingPaid ? t("Result.marking") : t("Result.markPaid")}
           </Button>
         ) : null}
+        <InvoiceDeleteButton
+          invoiceId={invoice.invoiceId}
+          status={invoice.status}
+          size="default"
+          redirectToList
+        />
         <Button variant="outline" asChild>
           <a
             href={invoice.dashboardUrl}

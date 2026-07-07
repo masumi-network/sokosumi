@@ -185,6 +185,28 @@ Environment variables are accessed via `process.env`, validated at startup with 
 
 **Note**: Environment variables are loaded via `dotenv/config` at the application entry point.
 
+**Signup bonus** (Core only — granted on `user.create.after`, not via Stripe):
+
+- `SIGNUP_BONUS_CREDITS` — credits per new user (default `3000`)
+- `SIGNUP_BONUS_TTL_DAYS` — bucket expiry in days from grant time (default `30`)
+
+Buckets use `referenceType: SIGNUP_BONUS` and `referenceId: user:{userId}`. Grants are idempotent per user via the `(referenceId, referenceType)` unique key.
+
+**Operations:**
+
+- Alert on Sentry events tagged `context:signup_bonus_grant`. Grant failures are swallowed so signup is not blocked; there is no batch backfill job.
+
+**Free credits** (Core admin — granted via `POST /v1/admin/credits`, not via Stripe):
+
+- Admin-only direct grants to a user or organization from the web UI at `/admin/free-credits`.
+- Buckets use `referenceType: FREE`, `referenceId: user:{userId}:free:{grantId}` or `org:{orgId}:free:{grantId}`, and optional `referenceNote` (free-text audit note from the admin form).
+- Each grant uses a new `grantId` (UUID); repeat grants to the same target are allowed.
+- Organization grants attach credits to the org bucket and record the transaction against the organization's earliest-created owner.
+
+**Operations:**
+
+- Run `pnpm prisma:migrate:deploy` (migration `20260706150000_add_free_credit_reference_type`) **before** deploying Core — the `FREE` enum value and `credit_bucket.referenceNote` column must exist or grants fail at runtime.
+
 ### CORS and Better Auth origins
 
 - **CORS** (`src/config/cors-allow-origin.ts`): `Access-Control-Allow-Origin` is echoed only for `https://sokosumi.com` / `https://*.sokosumi.com` in non-development, or for `localhost` with `http`/`https` when `NODE_ENV=development`. Wildcard Vercel preview hosts are not allowlisted.

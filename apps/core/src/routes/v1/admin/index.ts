@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import creditsRouter from "./credits/index.js";
 import invoicesRouter from "./invoices/index.js";
 import organizationsRouter from "./organizations/index.js";
 import searchRouter from "./search/index.js";
@@ -20,6 +21,7 @@ app.route("/search", searchRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/invoices", invoicesRouter);
+app.route("/credits", creditsRouter);
 app.route("/tasks", tasksRouter);
 
 export default app;

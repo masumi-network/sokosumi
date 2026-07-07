@@ -10,10 +10,12 @@ import {
 
 import mountPostUserStripeCustomer from "./post";
 
-const { userFindUniqueMock, createUserCustomerMock } = vi.hoisted(() => ({
-  userFindUniqueMock: vi.fn(),
-  createUserCustomerMock: vi.fn(),
-}));
+const { userFindUniqueMock, provisionUserStripeCustomerMock } = vi.hoisted(
+  () => ({
+    userFindUniqueMock: vi.fn(),
+    provisionUserStripeCustomerMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -23,10 +25,9 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/clients/stripe.client", () => ({
-  stripeClient: {
-    createUserCustomer: createUserCustomerMock,
-  },
+vi.mock("@/services/stripe-customer-provision.service", () => ({
+  provisionUserStripeCustomer: (...args: unknown[]) =>
+    provisionUserStripeCustomerMock(...args),
 }));
 
 const SESSION_USER: AuthenticationContext = {
@@ -77,7 +78,7 @@ describe("POST /users/{id}/stripe-customer", () => {
     );
     expect(response.status).toBe(403);
     expect(userFindUniqueMock).not.toHaveBeenCalled();
-    expect(createUserCustomerMock).not.toHaveBeenCalled();
+    expect(provisionUserStripeCustomerMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when an admin targets a missing user", async () => {
@@ -87,7 +88,7 @@ describe("POST /users/{id}/stripe-customer", () => {
       { method: "POST" },
     );
     expect(response.status).toBe(404);
-    expect(createUserCustomerMock).not.toHaveBeenCalled();
+    expect(provisionUserStripeCustomerMock).not.toHaveBeenCalled();
   });
 
   it("returns the existing customer id without creating a new one", async () => {
@@ -104,7 +105,7 @@ describe("POST /users/{id}/stripe-customer", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ stripeCustomerId: "cus_existing" });
-    expect(createUserCustomerMock).not.toHaveBeenCalled();
+    expect(provisionUserStripeCustomerMock).not.toHaveBeenCalled();
   });
 
   it("creates a Stripe customer when none is provisioned", async () => {
@@ -114,7 +115,7 @@ describe("POST /users/{id}/stripe-customer", () => {
       email: "jane@example.com",
       stripeCustomerId: null,
     });
-    createUserCustomerMock.mockResolvedValue({ id: "cus_new" });
+    provisionUserStripeCustomerMock.mockResolvedValue("cus_new");
     const response = await createApp().request(
       "http://localhost/me/stripe-customer",
       { method: "POST" },
@@ -122,10 +123,10 @@ describe("POST /users/{id}/stripe-customer", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data).toEqual({ stripeCustomerId: "cus_new" });
-    expect(createUserCustomerMock).toHaveBeenCalledWith({
+    expect(provisionUserStripeCustomerMock).toHaveBeenCalledWith({
       email: "jane@example.com",
       name: "Jane",
-      userId: "user_123",
+      id: "user_123",
     });
   });
 });

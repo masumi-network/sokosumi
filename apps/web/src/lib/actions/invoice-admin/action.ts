@@ -7,6 +7,7 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import {
   type InvoiceListItem,
   type InvoiceStatusFilter,
@@ -62,38 +63,26 @@ interface CreateAdminInvoiceParameters extends AuthenticatedRequest {
   credits: number;
   ttlDays: number | null;
   priceId: string | null;
-  markFree: boolean;
 }
 
 export const createAdminInvoiceAction = withSession<
   CreateAdminInvoiceParameters,
   Result<InvoiceSummary, ActionError>
->(
-  async ({
-    session,
-    targetType,
-    targetId,
-    credits,
-    ttlDays,
-    priceId,
-    markFree,
-  }) => {
-    try {
-      assertAdminSession(session);
-      const summary = await invoiceAdminService.createInvoice({
-        target: { targetType, targetId },
-        credits,
-        ttlDays,
-        priceId,
-        markFree,
-      });
-      revalidatePath("/admin/invoices");
-      return Ok(summary);
-    } catch (error) {
-      return Err(mapError(error));
-    }
-  },
-);
+>(async ({ session, targetType, targetId, credits, ttlDays, priceId }) => {
+  try {
+    assertAdminSession(session);
+    const summary = await invoiceAdminService.createInvoice({
+      target: { targetType, targetId },
+      credits,
+      ttlDays,
+      priceId,
+    });
+    revalidatePath("/admin/invoices");
+    return Ok(summary);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
 
 interface ListAdminInvoicesParameters extends AuthenticatedRequest {
   status: InvoiceStatusFilter;
@@ -152,6 +141,45 @@ export const markAdminInvoicePaidAction = withSession<
     const summary = await invoiceAdminService.markInvoicePaid(invoiceId);
     revalidatePath("/admin/invoices");
     return Ok(summary);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
+
+interface DeleteAdminInvoiceParameters extends AuthenticatedRequest {
+  invoiceId: string;
+}
+
+export const deleteAdminInvoiceAction = withSession<
+  DeleteAdminInvoiceParameters,
+  Result<void, ActionError>
+>(async ({ session, invoiceId }) => {
+  try {
+    assertAdminSession(session);
+    await invoiceAdminService.deleteInvoice(invoiceId);
+    revalidatePath("/admin/invoices");
+    return Ok(undefined);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
+
+interface GetAdminRecipientBillingDetailsParameters
+  extends AuthenticatedRequest {
+  targetType: InvoiceTargetType;
+  targetId: string;
+}
+
+export const getAdminRecipientBillingDetailsAction = withSession<
+  GetAdminRecipientBillingDetailsParameters,
+  Result<StripeCustomerBillingDetails, ActionError>
+>(async ({ session, targetType, targetId }) => {
+  try {
+    assertAdminSession(session);
+    const billingDetails = await invoiceAdminService.getRecipientBillingDetails(
+      { targetType, targetId },
+    );
+    return Ok(billingDetails);
   } catch (error) {
     return Err(mapError(error));
   }

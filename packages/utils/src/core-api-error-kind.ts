@@ -18,6 +18,7 @@ export const CORE_API_ERROR_KINDS = {
   SUBSCRIPTION_CHANGE_NOT_ALLOWED: "subscription_change_not_allowed",
   SUBSCRIPTION_NOT_ACTIVE: "subscription_not_active",
   SUBSCRIPTION_SEATS_BELOW_ASSIGNED: "subscription_seats_below_assigned",
+  FREE_CREDIT_INVALID: "free_credit_invalid",
 } as const;
 
 export type CoreApiErrorKind =

@@ -1,8 +1,10 @@
-import { getOrganizationMetadata } from "@sokosumi/utils";
 import pLimit from "p-limit";
 
-import { stripeClient } from "@/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
+import {
+  provisionOrganizationStripeCustomer,
+  provisionUserStripeCustomer,
+} from "@/services/stripe-customer-provision.service";
 
 const STRIPE_CUSTOMER_SYNC_CONCURRENCY = 5;
 const MIN_STRIPE_REQUEST_TIMEOUT_MS = 1000;
@@ -61,11 +63,11 @@ async function createStripeCustomerForUser(
   }
 
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
-  await stripeClient.createUserCustomer(
+  await provisionUserStripeCustomer(
     {
       email: user.email,
+      id: user.id,
       name: user.name,
-      userId: user.id,
     },
     {
       timeout: requestTimeoutMs,
@@ -83,7 +85,6 @@ async function createStripeCustomerForOrganization(
     where: { id: organizationId },
     select: {
       id: true,
-      metadata: true,
       name: true,
       slug: true,
     },
@@ -93,13 +94,11 @@ async function createStripeCustomerForOrganization(
     return;
   }
 
-  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
-  await stripeClient.createOrganizationCustomer(
+  await provisionOrganizationStripeCustomer(
     {
-      invoiceEmail,
+      id: organization.id,
       name: organization.name,
-      organizationId: organization.id,
       slug: organization.slug,
     },
     {

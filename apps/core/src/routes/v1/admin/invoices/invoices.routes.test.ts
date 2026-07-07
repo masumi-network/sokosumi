@@ -10,12 +10,14 @@ import { requireAdminAuthContext } from "@/middleware/auth";
 
 const {
   createInvoiceMock,
+  deleteInvoiceMock,
   getInvoiceMock,
   listInvoicesMock,
   listPricesMock,
   markInvoicePaidMock,
 } = vi.hoisted(() => ({
   createInvoiceMock: vi.fn(),
+  deleteInvoiceMock: vi.fn(),
   getInvoiceMock: vi.fn(),
   listInvoicesMock: vi.fn(),
   listPricesMock: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("@/services/invoice-admin.service", () => {
     InvoiceValidationError,
     invoiceAdminService: {
       createInvoice: createInvoiceMock,
+      deleteInvoice: deleteInvoiceMock,
       getInvoice: getInvoiceMock,
       listInvoices: listInvoicesMock,
       listPrices: listPricesMock,
@@ -48,6 +51,7 @@ const { InvoiceValidationError } = await import(
 const { default: mountListInvoices } = await import("./get.js");
 const { default: mountCreateInvoice } = await import("./post.js");
 const { default: mountGetInvoice } = await import("./[id]/get.js");
+const { default: mountDeleteInvoice } = await import("./[id]/delete.js");
 const { default: mountMarkInvoicePaid } = await import("./[id]/pay/post.js");
 
 const SUMMARY = {
@@ -101,6 +105,7 @@ function createApp(options: AppOptions = {}) {
   mountListInvoices(authApp);
   mountCreateInvoice(authApp);
   mountMarkInvoicePaid(authApp);
+  mountDeleteInvoice(authApp);
   mountGetInvoice(authApp);
 
   return app;
@@ -113,6 +118,7 @@ describe("admin invoices routes", () => {
     createInvoiceMock.mockResolvedValue(SUMMARY);
     getInvoiceMock.mockResolvedValue(SUMMARY);
     markInvoicePaidMock.mockResolvedValue({ ...SUMMARY, status: "paid" });
+    deleteInvoiceMock.mockResolvedValue(undefined);
   });
 
   it("returns 403 for non-admin users", async () => {
@@ -152,7 +158,6 @@ describe("admin invoices routes", () => {
         credits: 1,
         ttlDays: null,
         priceId: null,
-        markFree: false,
       }),
     });
 
@@ -197,5 +202,29 @@ describe("admin invoices routes", () => {
     const body = await response.json();
     expect(body.data.status).toBe("paid");
     expect(markInvoicePaidMock).toHaveBeenCalledWith("in_1");
+  });
+
+  it("deletes an invoice and returns 204", async () => {
+    const app = createApp();
+
+    const response = await app.request("http://localhost/in_1", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(204);
+    expect(deleteInvoiceMock).toHaveBeenCalledWith("in_1");
+  });
+
+  it("carries the invoice_not_found kind when the delete lookup misses", async () => {
+    deleteInvoiceMock.mockResolvedValue(null);
+    const app = createApp();
+
+    const response = await app.request("http://localhost/in_missing", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.kind).toBe("invoice_not_found");
   });
 });

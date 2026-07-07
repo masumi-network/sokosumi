@@ -218,7 +218,7 @@ Stripe **test mode** and **live mode** are separate environments. The app does n
 2. **Stripe customer** – Users have a `stripeCustomerId` in your DB; in production that ID must refer to a customer in the **live** Stripe account. New production users get a customer created in live when they first use Stripe.
 3. **Auth in server actions** – When claiming a coupon from a server action, the credits flow passes the request auth into `stripeService.claimCoupon` so it does not rely on `getAuthContext()` again (which can be null in production if cookies/headers differ).
 
-Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CREDIT_PRODUCT_ID`. The webhook secret (`STRIPE_WEBHOOK_SECRET`) and welcome coupon (`STRIPE_WELCOME_COUPON`) are configured on the core app, which owns the `customer.created` webhook.
+Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CREDIT_PRODUCT_ID`. The webhook secret (`STRIPE_WEBHOOK_SECRET`) is configured on the core app, which owns the `customer.created` webhook. Signup bonus credits (`SIGNUP_BONUS_CREDITS`, `SIGNUP_BONUS_TTL_DAYS`) are also configured on core and granted directly on user creation.
 
 **Enterprise subscription products:** Enterprise products are discovered from Stripe product metadata, not env vars. Configure each active enterprise product with `metadata.slug=enterprise`, `metadata.credits=<positive integer>`, and a monthly recurring `default_price`.
 

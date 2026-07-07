@@ -37,7 +37,6 @@ const route = createRoute({
           logo: "https://example.com/logo.png",
           metadata: {
             url: "https://example.com",
-            invoiceEmail: "test@example.com",
           },
           createdAt: "2025-01-01T00:00:00.000Z",
           role: "member",

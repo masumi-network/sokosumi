@@ -37,7 +37,6 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
-  PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
@@ -59,8 +58,10 @@ import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
   claimCoupon as coreClaimCoupon,
+  createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
@@ -119,6 +120,7 @@ import {
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
+  getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
@@ -134,6 +136,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
@@ -160,7 +163,6 @@ import {
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
-  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   patchTasksByIdEventsByEventId as corePatchTasksByIdEventsByEventId,
@@ -368,7 +370,7 @@ async function executeOperation<TData, TError>(
     );
   }
 
-  if (result.error || !result.data) {
+  if (result.error) {
     const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
@@ -377,7 +379,20 @@ async function executeOperation<TData, TError>(
     });
   }
 
-  return result.data;
+  const isNoContentSuccess =
+    result.response?.ok === true &&
+    (result.response.status === 204 || result.response.status === 205);
+
+  if (result.data == null && !isNoContentSuccess) {
+    const message = extractErrorMessage(result.error, result.response?.status);
+    throw new CoreApiRequestError(message, {
+      details: result.error,
+      kind: extractErrorKind(result.error),
+      status: result.response?.status,
+    });
+  }
+
+  return result.data as TData;
 }
 
 export function mapCoreApiStatusToCommonErrorCode(
@@ -695,7 +710,6 @@ export function createCoreClient(getClient: GetClient) {
     credits: number;
     ttlDays: number | null;
     priceId: string | null;
-    markFree: boolean;
   }) {
     return executeOperation(
       getClient,
@@ -706,6 +720,25 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to create admin invoice",
+    );
+  }
+
+  async function createAdminFreeCreditGrant(body: {
+    targetType: "user" | "organization";
+    targetId: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+  }) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminFreeCreditGrant({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to grant free credits",
     );
   }
 
@@ -732,6 +765,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to mark admin invoice paid",
+    );
+  }
+
+  async function deleteAdminInvoice(invoiceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminInvoice({
+          client,
+          path: { id: invoiceId },
+          cache: "no-store",
+        }),
+      "Failed to delete admin invoice",
     );
   }
 
@@ -1248,6 +1294,19 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationBillingDetails(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdBillingDetails({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization billing details",
+    );
+  }
+
   async function getOrganizationBillingPlan(organizationId: string) {
     return executeOperation(
       getClient,
@@ -1328,6 +1387,32 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to create user Stripe customer",
+    );
+  }
+
+  async function getMyBillingDetails() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdBillingDetails({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user billing details",
+    );
+  }
+
+  async function getUserBillingDetails(userId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdBillingDetails({
+          client,
+          path: { id: userId },
+          cache: "no-store",
+        }),
+      "Failed to fetch user billing details",
     );
   }
 
@@ -2050,26 +2135,6 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to save organization DESIGN.md",
-    );
-  }
-
-  /**
-   * Sets (or clears, when `invoiceEmail` is null) an organization's invoice
-   * email. Core enforces that the caller is an organization owner or admin.
-   */
-  async function updateOrganizationInvoiceEmail(
-    organizationId: string,
-    body: NonNullable<PatchOrganizationsByIdInvoiceEmailData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchOrganizationsByIdInvoiceEmail({
-          client,
-          path: { id: organizationId },
-          body,
-        }),
-      "Failed to update organization invoice email",
     );
   }
 
@@ -2810,8 +2875,10 @@ export function createCoreClient(getClient: GetClient) {
     unassignAdminOrganizationMemberSeat,
     listAdminInvoices,
     createAdminInvoice,
+    createAdminFreeCreditGrant,
     getAdminInvoice,
     markAdminInvoicePaid,
+    deleteAdminInvoice,
     listCreditPrices,
     getCreditTopUpPriceCatalog,
     getSubscriptionCatalog,
@@ -2831,8 +2898,11 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     createMyStripeCustomer,
     createOrganizationStripeCustomer,
+    getMyBillingDetails,
+    getUserBillingDetails,
     getMyStripeCustomer,
     getOrganizationActiveSubscription,
+    getOrganizationBillingDetails,
     getOrganizationBillingPlan,
     getOrganizationById,
     getOrganizationBySlug,
@@ -2879,7 +2949,6 @@ export function createCoreClient(getClient: GetClient) {
     unassignOrganizationSeat,
     updateConversation,
     updateHermesInstance,
-    updateOrganizationInvoiceEmail,
     updateOrganizationSubscriptionSeats,
   };
 }

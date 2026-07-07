@@ -1,4 +1,4 @@
-import { CreditBucketReferenceType, MemberRole } from "@sokosumi/database";
+import { CreditBucketReferenceType } from "@sokosumi/database";
 import {
   buildOrganizationInvoiceCreditReferenceId,
   buildOrganizationMemberSubscriptionReferenceId,
@@ -556,13 +556,16 @@ export async function handleInvoicePaidEvent(
       organizationMemberUserIds = assignedMemberUserIds;
       organizationUnassignedMemberUserIds = unassignedMemberUserIds;
 
-      const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
+      const ownerUserId = await memberRepository.getOrganizationOwnerUserId(
+        organizationId,
+        prisma,
+      );
 
-      if (!ownerMember) {
+      if (!ownerUserId) {
         console.log(`No owner found for organization ${organizationId}`);
         return;
       }
-      userId = ownerMember.userId;
+      userId = ownerUserId;
     } else {
       // Unlike the web handler, throw so the webhook responds 5xx and Stripe
       // retries — a silent 200 permanently drops the credits when the

@@ -2,7 +2,6 @@ import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import {
   type CreditTopUpLookupKey,
-  getOrganizationMetadata,
   STANDARD_CREDIT_TOPUP_TIERS,
 } from "@sokosumi/utils";
 import type Stripe from "stripe";
@@ -12,6 +11,10 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { resolveZeroMarginTopUpLookupKey } from "@/lib/zero-margin-top-up";
 import type { CreditTopUpPricing } from "@/schemas/billing.schema";
+import {
+  provisionOrganizationStripeCustomer,
+  provisionUserStripeCustomer,
+} from "@/services/stripe-customer-provision.service";
 import type { SubscriptionCatalog } from "@/services/subscription-catalog.service";
 import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 
@@ -205,7 +208,6 @@ async function ensureStripeCustomerId(
         name: true,
         slug: true,
         stripeCustomerId: true,
-        metadata: true,
       },
     });
 
@@ -217,23 +219,11 @@ async function ensureStripeCustomerId(
       return organization.stripeCustomerId;
     }
 
-    const customer = await stripeClient.createOrganizationCustomer({
-      organizationId: organization.id,
-      slug: organization.slug,
+    return await provisionOrganizationStripeCustomer({
+      id: organization.id,
       name: organization.name,
-      invoiceEmail: getOrganizationMetadata(organization.metadata).invoiceEmail,
+      slug: organization.slug,
     });
-
-    // Persist the id immediately (write-through) rather than waiting for the
-    // customer.created webhook. The create is idempotent, but persisting here
-    // avoids a duplicate Stripe customer if the webhook is delayed beyond
-    // Stripe's idempotency window, and keeps ownership checks consistent.
-    await prisma.organization.update({
-      where: { id: organization.id },
-      data: { stripeCustomerId: customer.id },
-    });
-
-    return customer.id;
   }
 
   const user = await prisma.user.findUnique({
@@ -249,22 +239,11 @@ async function ensureStripeCustomerId(
     return user.stripeCustomerId;
   }
 
-  const customer = await stripeClient.createUserCustomer({
-    email: user.email,
+  return await provisionUserStripeCustomer({
+    id: user.id,
     name: user.name,
-    userId: user.id,
+    email: user.email,
   });
-
-  // Persist the id immediately (write-through) rather than waiting for the
-  // customer.created webhook. The create is idempotent, but persisting here
-  // avoids a duplicate Stripe customer if the webhook is delayed beyond
-  // Stripe's idempotency window, and keeps ownership checks consistent.
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { stripeCustomerId: customer.id },
-  });
-
-  return customer.id;
 }
 
 async function resolveZeroMarginLookupKeyForUser(
@@ -543,24 +522,5 @@ export const stripeBillingService = {
     }
 
     return mapCheckoutSessionAnalytics(session);
-  },
-
-  async syncOrganizationInvoiceEmailWithStripe(
-    organizationId: string,
-    invoiceEmail: string | null,
-  ): Promise<void> {
-    const organization = await prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { stripeCustomerId: true },
-    });
-
-    if (!organization?.stripeCustomerId) {
-      return;
-    }
-
-    await stripeClient.updateCustomerEmail(
-      organization.stripeCustomerId,
-      invoiceEmail,
-    );
   },
 };

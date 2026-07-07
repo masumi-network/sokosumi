@@ -2571,7 +2571,6 @@
       "billingPortalTitle": "Portale di fatturazione",
       "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i tuoi abbonamenti e le tue fatture.",
       "billingPortalDescriptionWithPlan": "Attualmente sei su {plan}. Gestisci i tuoi abbonamenti, i dettagli di fatturazione e le fatture in Stripe.",
-      "openingBillingPortal": "Apertura in corso...",
       "billingPortalCta": "Apri il portale di fatturazione",
       "freePrice": "Gratis",
       "customPrice": "Personalizzato",
@@ -2760,6 +2759,10 @@
           "tasks": {
             "title": "Attività",
             "description": "Elenco ricercabile di tutte le attività tra utenti e organizzazioni."
+          },
+          "freeCredits": {
+            "title": "Crediti gratuiti",
+            "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione senza fattura Stripe."
           }
         }
       },
@@ -2863,6 +2866,15 @@
         "title": "Fatture",
         "description": "Assegna crediti una tantum a un utente o un'organizzazione tramite una fattura Stripe. Contrassegnando la fattura come pagata, i crediti vengono assegnati immediatamente.",
         "cardTitle": "Nuova fattura",
+        "newGrant": "Nuova fattura",
+        "backToList": "Torna all'elenco",
+        "delete": "Elimina",
+        "deleting": "Eliminazione…",
+        "deleteSuccess": "Fattura eliminata",
+        "deleteError": "Impossibile eliminare la fattura",
+        "deleteConfirmTitle": "Eliminare la fattura?",
+        "deleteConfirmDescription": "Le bozze vengono eliminate definitivamente. Le fatture aperte vengono annullate e non possono più essere pagate.",
+        "cancel": "Annulla",
         "Form": {
           "Fields": {
             "organization": "Organizzazione",
@@ -2883,7 +2895,30 @@
           "createError": "Creazione della fattura non riuscita",
           "pricePlaceholder": "Seleziona un prezzo",
           "priceHelper": "Prezzo per credito utilizzato per l'importo della fattura.",
-          "priceRequired": "Seleziona un prezzo"
+          "priceRequired": "Seleziona un prezzo",
+          "billingLoadErrorTitle": "Impossibile caricare i dati di fatturazione",
+          "billingLoadError": "Impossibile caricare i dati di fatturazione del destinatario",
+          "billingRefresh": "Aggiorna",
+          "billingIncomplete": "È richiesto un indirizzo di fatturazione con paese",
+          "billingIncompleteUser": "Questo utente deve aggiungere un indirizzo di fatturazione con paese nelle impostazioni dell'account prima che tu possa creare una fattura.",
+          "billingIncompleteOrganization": "Questa organizzazione deve aggiungere un indirizzo di fatturazione con paese nelle impostazioni dell'organizzazione prima che tu possa creare una fattura.",
+          "BillingDetails": {
+            "title": "Informazioni di fatturazione",
+            "description": "Indirizzo di fatturazione e dati fiscali memorizzati sul cliente Stripe del destinatario.",
+            "addressLabel": "Indirizzo di fatturazione",
+            "taxIdLabel": "IVA / codice fiscale",
+            "taxIdVerification": "Stato di verifica: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verificato",
+              "pending": "In attesa",
+              "unverified": "Non verificato",
+              "unavailable": "Non disponibile",
+              "verification_failed": "Verifica non riuscita"
+            },
+            "invoiceEmailLabel": "E-mail di fatturazione",
+            "invoiceEmailEmpty": "Nessuna e-mail di fatturazione registrata",
+            "empty": "Nessun indirizzo di fatturazione registrato"
+          }
         },
         "Result": {
           "heading": "Fattura",
@@ -2923,6 +2958,35 @@
           "backToList": "Torna alle attività",
           "personalWorkspace": "Spazio di lavoro personale"
         }
+      },
+      "FreeCredits": {
+        "title": "Crediti gratuiti",
+        "description": "Concedi crediti gratuiti direttamente a un utente o un'organizzazione. I crediti vengono applicati subito.",
+        "backToAdmin": "Torna all'amministrazione",
+        "Form": {
+          "Fields": {
+            "target": "Destinatario",
+            "credits": "Crediti",
+            "expiryDays": "Scadenza (giorni)",
+            "referenceNote": "Nota di riferimento"
+          },
+          "Tabs": {
+            "organization": "Organizzazione",
+            "user": "Utente"
+          },
+          "targetRequired": "Seleziona un destinatario",
+          "creditsRequired": "Inserisci un numero positivo di crediti",
+          "creditsHelper": "Numero di crediti da concedere al destinatario.",
+          "expiryHelper": "Opzionale. Giorni fino alla scadenza dei crediti. Lascia vuoto per nessuna scadenza.",
+          "expiryPlaceholder": "Nessuna scadenza",
+          "expiryInvalid": "La scadenza deve essere un numero intero positivo di giorni",
+          "referenceNoteHelper": "Nota opzionale salvata sul bucket di crediti per riferimento interno.",
+          "referenceNotePlaceholder": "es. Problema di fatturazione, gesto di cortesia",
+          "submit": "Concedi crediti",
+          "submitting": "Concessione crediti…",
+          "grantSuccess": "Crediti gratuiti concessi",
+          "grantError": "Impossibile concedere i crediti gratuiti"
+        }
       }
     },
     "Billing": {
@@ -2936,9 +3000,8 @@
         "credits": "Crediti",
         "coupon": "Coupon"
       },
-      "billingPortalDescription": "Scarica le fatture, modifica gli indirizzi di fatturazione e gestisci altre informazioni di fatturazione.",
-      "manageYourBilling": "Gestisci la fatturazione",
-      "openingBillingPortal": "Apertura in corso...",
+      "billingPortalDescription": "Aggiorna indirizzo di fatturazione, codice fiscale, metodi di pagamento, email per le fatture e abbonamenti in Stripe.",
+      "manageYourBilling": "Gestisci in Stripe",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
       "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",
@@ -3164,6 +3227,29 @@
         "marketingEmailsDisabledSuccess": "Email di marketing disattivate",
         "loading": "Salvataggio preferenza...",
         "error": "Impossibile aggiornare le preferenze di notifica"
+      },
+      "BillingDetails": {
+        "title": "Informazioni di fatturazione",
+        "description": "Indirizzo di fatturazione, codice fiscale, email per le fatture e metodi di pagamento sono gestiti in Stripe.",
+        "addressLabel": "Indirizzo di fatturazione",
+        "taxIdLabel": "IVA / codice fiscale",
+        "taxIdVerification": "Stato verifica: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificato",
+          "pending": "In attesa",
+          "unverified": "Non verificato",
+          "unavailable": "Non disponibile",
+          "verification_failed": "Verifica non riuscita"
+        },
+        "invoiceEmailLabel": "Email per le fatture",
+        "invoiceEmailEmpty": "Nessuna email per le fatture registrata",
+        "empty": "Nessun indirizzo di fatturazione registrato",
+        "loadErrorTitle": "Impossibile caricare le informazioni di fatturazione",
+        "loadError": "Non è stato possibile caricare le tue informazioni di fatturazione in questo momento.",
+        "retry": "Riprova",
+        "Errors": {
+          "general": "Impossibile aprire Stripe"
+        }
       },
       "Delete": {
         "title": "Elimina account",
@@ -3406,24 +3492,28 @@
         "delete": "Elimina",
         "invite": "Invita un membro",
         "bulkInvite": "Invita in blocco",
-        "InvoiceEmail": {
-          "title": "Email per le fatture",
-          "description": "Indirizzo email per ricevere fatture e notifiche di fatturazione",
-          "label": "Email per le fatture",
-          "placeholder": "billing@example.com",
-          "help": "Questa email riceverà tutte le fatture e le comunicazioni di fatturazione da Stripe",
-          "edit": "Modifica",
-          "save": "Salva",
-          "cancel": "Annulla",
-          "Success": {
-            "update": "Email per le fatture aggiornata correttamente"
+        "BillingDetails": {
+          "title": "Informazioni di fatturazione",
+          "description": "Indirizzo di fatturazione, codice fiscale, email per le fatture e metodi di pagamento sono gestiti in Stripe.",
+          "addressLabel": "Indirizzo di fatturazione",
+          "taxIdLabel": "IVA / codice fiscale",
+          "taxIdVerification": "Stato verifica: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificato",
+            "pending": "In attesa",
+            "unverified": "Non verificato",
+            "unavailable": "Non disponibile",
+            "verification_failed": "Verifica non riuscita"
           },
+          "invoiceEmailLabel": "Email per le fatture",
+          "invoiceEmailEmpty": "Nessuna email per le fatture registrata",
+          "empty": "Nessun indirizzo di fatturazione registrato",
+          "loadErrorTitle": "Impossibile caricare le informazioni di fatturazione",
+          "loadError": "Non è stato possibile caricare le informazioni di fatturazione di questa organizzazione in questo momento.",
+          "retry": "Riprova",
           "Errors": {
-            "unauthenticated": "Accedi per continuare",
-            "unauthenticatedAction": "Accedi",
-            "unauthorized": "Solo i proprietari e gli amministratori dell’organizzazione possono aggiornare l’email per le fatture",
-            "badInput": "Inserisci un indirizzo email valido",
-            "general": "Impossibile aggiornare l’email per le fatture"
+            "unauthorized": "Solo proprietari e amministratori possono aprire la fatturazione Stripe",
+            "general": "Impossibile aprire Stripe"
           }
         },
         "Subscription": {

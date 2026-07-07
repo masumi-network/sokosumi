@@ -2571,7 +2571,6 @@
       "billingPortalTitle": "請求ポータル",
       "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
       "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe でサブスクリプション、請求情報、請求書を管理してください。",
-      "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "freePrice": "無料",
       "customPrice": "カスタム",
@@ -2760,6 +2759,10 @@
           "tasks": {
             "title": "タスク",
             "description": "ユーザーや組織を横断してすべてのタスクを検索できる一覧です。"
+          },
+          "freeCredits": {
+            "title": "無料クレジット",
+            "description": "Stripe の請求書なしで、ユーザーまたは組織に無料クレジットを直接付与します。"
           }
         }
       },
@@ -2863,6 +2866,15 @@
         "title": "請求書",
         "description": "Stripe の請求書を通じてユーザーまたは組織に一度限りのクレジットを付与します。請求書を支払い済みにすると、クレジットが即座に付与されます。",
         "cardTitle": "新しい請求書",
+        "newGrant": "新しい請求書",
+        "backToList": "一覧に戻る",
+        "delete": "削除",
+        "deleting": "削除中…",
+        "deleteSuccess": "請求書を削除しました",
+        "deleteError": "請求書の削除に失敗しました",
+        "deleteConfirmTitle": "請求書を削除しますか？",
+        "deleteConfirmDescription": "下書きは完全に削除されます。未払いの請求書は無効化され、支払えなくなります。",
+        "cancel": "キャンセル",
         "Form": {
           "Fields": {
             "organization": "組織",
@@ -2883,7 +2895,30 @@
           "createError": "請求書の作成に失敗しました",
           "pricePlaceholder": "価格を選択",
           "priceHelper": "請求金額に使用するクレジットあたりの価格。",
-          "priceRequired": "価格を選択してください"
+          "priceRequired": "価格を選択してください",
+          "billingLoadErrorTitle": "請求情報を読み込めませんでした",
+          "billingLoadError": "受取人の請求情報を読み込めませんでした",
+          "billingRefresh": "更新",
+          "billingIncomplete": "国を含む請求先住所が必要です",
+          "billingIncompleteUser": "請求書を作成する前に、このユーザーはアカウント設定で国を含む請求先住所を追加する必要があります。",
+          "billingIncompleteOrganization": "請求書を作成する前に、この組織は組織設定で国を含む請求先住所を追加する必要があります。",
+          "BillingDetails": {
+            "title": "請求情報",
+            "description": "受取人の Stripe 顧客に保存されている請求先住所と税務情報。",
+            "addressLabel": "請求先住所",
+            "taxIdLabel": "VAT / 税 ID",
+            "taxIdVerification": "確認ステータス: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "確認済み",
+              "pending": "保留中",
+              "unverified": "未確認",
+              "unavailable": "利用不可",
+              "verification_failed": "確認に失敗"
+            },
+            "invoiceEmailLabel": "請求書メール",
+            "invoiceEmailEmpty": "請求書メールが登録されていません",
+            "empty": "請求先住所が登録されていません"
+          }
         },
         "Result": {
           "heading": "請求書",
@@ -2923,6 +2958,35 @@
           "backToList": "タスク一覧に戻る",
           "personalWorkspace": "個人ワークスペース"
         }
+      },
+      "FreeCredits": {
+        "title": "無料クレジット",
+        "description": "ユーザーまたは組織に無料クレジットを直接付与します。クレジットは即時に反映されます。",
+        "backToAdmin": "管理画面に戻る",
+        "Form": {
+          "Fields": {
+            "target": "付与先",
+            "credits": "クレジット",
+            "expiryDays": "有効期限（日）",
+            "referenceNote": "参照メモ"
+          },
+          "Tabs": {
+            "organization": "組織",
+            "user": "ユーザー"
+          },
+          "targetRequired": "付与先を選択してください",
+          "creditsRequired": "正のクレジット数を入力してください",
+          "creditsHelper": "付与先に付与するクレジット数です。",
+          "expiryHelper": "任意。クレジットの有効期限までの日数。無期限の場合は空欄のままにしてください。",
+          "expiryPlaceholder": "無期限",
+          "expiryInvalid": "有効期限は正の整数（日数）である必要があります",
+          "referenceNoteHelper": "内部参照用にクレジットバケットへ保存する任意のメモです。",
+          "referenceNotePlaceholder": "例: 請求の問題、 goodwill 措置",
+          "submit": "クレジットを付与",
+          "submitting": "クレジットを付与中…",
+          "grantSuccess": "無料クレジットを付与しました",
+          "grantError": "無料クレジットの付与に失敗しました"
+        }
       }
     },
     "Billing": {
@@ -2936,9 +3000,8 @@
         "credits": "クレジット",
         "coupon": "クーポン"
       },
-      "billingPortalDescription": "請求書をダウンロードし、請求先住所を変更し、その他の請求情報を管理できます。",
-      "manageYourBilling": "請求を管理",
-      "openingBillingPortal": "開いています...",
+      "billingPortalDescription": "Stripeで請求先住所、税ID、支払い方法、請求書メール、サブスクリプションを管理します。",
+      "manageYourBilling": "Stripe で管理",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
@@ -3164,6 +3227,29 @@
         "marketingEmailsDisabledSuccess": "マーケティングメールを無効にしました",
         "loading": "設定を保存しています...",
         "error": "通知設定の更新に失敗しました"
+      },
+      "BillingDetails": {
+        "title": "請求情報",
+        "description": "請求先住所、税 ID、請求書メール、支払い方法は Stripe で管理されます。",
+        "addressLabel": "請求先住所",
+        "taxIdLabel": "VAT / 税 ID",
+        "taxIdVerification": "確認ステータス: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "確認済み",
+          "pending": "保留中",
+          "unverified": "未確認",
+          "unavailable": "利用不可",
+          "verification_failed": "確認に失敗"
+        },
+        "invoiceEmailLabel": "請求書送付先メール",
+        "invoiceEmailEmpty": "請求書送付先メールは未登録です",
+        "empty": "請求先住所は未登録です",
+        "loadErrorTitle": "請求情報を読み込めませんでした",
+        "loadError": "現在、請求情報を読み込めませんでした。",
+        "retry": "再試行",
+        "Errors": {
+          "general": "Stripe を開けませんでした"
+        }
       },
       "Delete": {
         "title": "アカウントを削除",
@@ -3406,24 +3492,28 @@
         "delete": "削除",
         "invite": "メンバーを招待",
         "bulkInvite": "一括招待",
-        "InvoiceEmail": {
-          "title": "請求書送付先メール",
-          "description": "請求書および請求関連の通知を受け取るメールアドレス",
-          "label": "請求書送付先メール",
-          "placeholder": "billing@example.com",
-          "help": "このメールアドレス宛てに、Stripe からの請求書および請求に関する連絡が届きます",
-          "edit": "編集",
-          "save": "保存",
-          "cancel": "キャンセル",
-          "Success": {
-            "update": "請求書送付先メールを更新しました"
+        "BillingDetails": {
+          "title": "請求情報",
+          "description": "請求先住所、税 ID、請求書メール、支払い方法は Stripe で管理されます。",
+          "addressLabel": "請求先住所",
+          "taxIdLabel": "VAT / 税 ID",
+          "taxIdVerification": "確認ステータス: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "確認済み",
+            "pending": "保留中",
+            "unverified": "未確認",
+            "unavailable": "利用不可",
+            "verification_failed": "確認に失敗"
           },
+          "invoiceEmailLabel": "請求書送付先メール",
+          "invoiceEmailEmpty": "請求書送付先メールは未登録です",
+          "empty": "請求先住所は未登録です",
+          "loadErrorTitle": "請求情報を読み込めませんでした",
+          "loadError": "現在、この組織の請求情報を読み込めませんでした。",
+          "retry": "再試行",
           "Errors": {
-            "unauthenticated": "続行するにはログインしてください",
-            "unauthenticatedAction": "ログイン",
-            "unauthorized": "請求書送付先メールを更新できるのは、組織のオーナーと管理者のみです",
-            "badInput": "有効なメールアドレスを入力してください",
-            "general": "請求書送付先メールの更新に失敗しました"
+            "unauthorized": "Stripe の請求管理を開けるのはオーナーと管理者のみです",
+            "general": "Stripe を開けませんでした"
           }
         },
         "Subscription": {

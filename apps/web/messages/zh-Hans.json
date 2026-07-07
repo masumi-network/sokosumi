@@ -2571,7 +2571,6 @@
       "billingPortalTitle": "计费门户",
       "billingPortalDescription": "打开 Stripe 计费门户以管理您的订阅和发票。",
       "billingPortalDescriptionWithPlan": "您当前使用 {plan}。请在 Stripe 中管理订阅、账单信息和发票。",
-      "openingBillingPortal": "正在打开...",
       "billingPortalCta": "打开计费门户",
       "freePrice": "免费",
       "customPrice": "自定义",
@@ -2760,6 +2759,10 @@
           "tasks": {
             "title": "任务",
             "description": "可跨用户和组织搜索的所有任务列表。"
+          },
+          "freeCredits": {
+            "title": "免费积分",
+            "description": "无需 Stripe 发票，直接向用户或组织发放免费积分。"
           }
         }
       },
@@ -2863,6 +2866,15 @@
         "title": "发票",
         "description": "通过 Stripe 发票向用户或组织授予一次性积分。将发票标记为已支付后，积分将立即授予。",
         "cardTitle": "新建发票",
+        "newGrant": "新建发票",
+        "backToList": "返回列表",
+        "delete": "删除",
+        "deleting": "正在删除…",
+        "deleteSuccess": "发票已删除",
+        "deleteError": "删除发票失败",
+        "deleteConfirmTitle": "删除发票？",
+        "deleteConfirmDescription": "草稿将被永久删除。未付款发票将被作废，无法再支付。",
+        "cancel": "取消",
         "Form": {
           "Fields": {
             "organization": "组织",
@@ -2883,7 +2895,30 @@
           "createError": "创建发票失败",
           "pricePlaceholder": "选择价格",
           "priceHelper": "用于发票金额的每积分价格。",
-          "priceRequired": "请选择价格"
+          "priceRequired": "请选择价格",
+          "billingLoadErrorTitle": "无法加载账单信息",
+          "billingLoadError": "无法加载收件人的账单信息",
+          "billingRefresh": "刷新",
+          "billingIncomplete": "需要包含国家的账单地址",
+          "billingIncompleteUser": "创建发票前，该用户必须在其账户设置中添加包含国家的账单地址。",
+          "billingIncompleteOrganization": "创建发票前，该组织必须在其组织设置中添加包含国家的账单地址。",
+          "BillingDetails": {
+            "title": "账单信息",
+            "description": "存储在收件人 Stripe 客户上的账单地址和税务信息。",
+            "addressLabel": "账单地址",
+            "taxIdLabel": "增值税 / 税号",
+            "taxIdVerification": "验证状态：{status}",
+            "taxIdVerificationStatus": {
+              "verified": "已验证",
+              "pending": "待处理",
+              "unverified": "未验证",
+              "unavailable": "不可用",
+              "verification_failed": "验证失败"
+            },
+            "invoiceEmailLabel": "发票邮箱",
+            "invoiceEmailEmpty": "未设置发票邮箱",
+            "empty": "未设置账单地址"
+          }
         },
         "Result": {
           "heading": "发票",
@@ -2923,6 +2958,35 @@
           "backToList": "返回任务列表",
           "personalWorkspace": "个人工作区"
         }
+      },
+      "FreeCredits": {
+        "title": "免费积分",
+        "description": "直接向用户或组织发放免费积分。积分会立即入账。",
+        "backToAdmin": "返回管理后台",
+        "Form": {
+          "Fields": {
+            "target": "接收方",
+            "credits": "积分",
+            "expiryDays": "有效期（天）",
+            "referenceNote": "引用备注"
+          },
+          "Tabs": {
+            "organization": "组织",
+            "user": "用户"
+          },
+          "targetRequired": "请选择接收方",
+          "creditsRequired": "请输入正数积分",
+          "creditsHelper": "将发放给接收方的积分数量。",
+          "expiryHelper": "可选。积分到期前的天数。留空表示永不过期。",
+          "expiryPlaceholder": "永不过期",
+          "expiryInvalid": "有效期必须是正整数天数",
+          "referenceNoteHelper": "可选备注，会保存在积分桶中供内部参考。",
+          "referenceNotePlaceholder": "例如：账单问题、善意补偿",
+          "submit": "发放积分",
+          "submitting": "正在发放积分…",
+          "grantSuccess": "免费积分已发放",
+          "grantError": "发放免费积分失败"
+        }
       }
     },
     "Billing": {
@@ -2936,9 +3000,8 @@
         "credits": "积分",
         "coupon": "优惠券"
       },
-      "billingPortalDescription": "下载您的发票，更改账单地址并管理其他账单信息。",
-      "manageYourBilling": "管理账单",
-      "openingBillingPortal": "正在打开...",
+      "billingPortalDescription": "在 Stripe 中更新账单地址、税号、支付方式、发票邮箱和订阅。",
+      "manageYourBilling": "在 Stripe 中管理",
       "orgAccessRestrictedTitle": "计费访问受限",
       "orgAccessRestrictedDescription": "只有组织所有者和管理员可以查看该组织的计费详情。",
       "orgAccessRestrictedHint": "如需访问，请切换到个人上下文，或联系组织所有者/管理员。",
@@ -3164,6 +3227,29 @@
         "marketingEmailsDisabledSuccess": "已停用营销邮件",
         "loading": "正在保存偏好设置...",
         "error": "更新通知偏好失败"
+      },
+      "BillingDetails": {
+        "title": "账单信息",
+        "description": "账单地址、税号、发票邮箱和支付方式均在 Stripe 中管理。",
+        "addressLabel": "账单地址",
+        "taxIdLabel": "增值税 / 税号",
+        "taxIdVerification": "验证状态：{status}",
+        "taxIdVerificationStatus": {
+          "verified": "已验证",
+          "pending": "待处理",
+          "unverified": "未验证",
+          "unavailable": "不可用",
+          "verification_failed": "验证失败"
+        },
+        "invoiceEmailLabel": "发票邮箱",
+        "invoiceEmailEmpty": "尚未设置发票邮箱",
+        "empty": "尚未保存账单地址",
+        "loadErrorTitle": "无法加载账单信息",
+        "loadError": "暂时无法加载你的账单信息。",
+        "retry": "重试",
+        "Errors": {
+          "general": "无法打开 Stripe"
+        }
       },
       "Delete": {
         "title": "删除账户",
@@ -3406,24 +3492,28 @@
         "delete": "删除",
         "invite": "邀请成员",
         "bulkInvite": "批量邀请",
-        "InvoiceEmail": {
-          "title": "发票邮箱",
-          "description": "用于接收发票和计费通知的邮箱地址",
-          "label": "发票邮箱",
-          "placeholder": "billing@example.com",
-          "help": "该邮箱将接收来自 Stripe 的所有发票和计费相关通信",
-          "edit": "编辑",
-          "save": "保存",
-          "cancel": "取消",
-          "Success": {
-            "update": "发票邮箱更新成功"
+        "BillingDetails": {
+          "title": "账单信息",
+          "description": "账单地址、税号、发票邮箱和支付方式均在 Stripe 中管理。",
+          "addressLabel": "账单地址",
+          "taxIdLabel": "增值税 / 税号",
+          "taxIdVerification": "验证状态：{status}",
+          "taxIdVerificationStatus": {
+            "verified": "已验证",
+            "pending": "待处理",
+            "unverified": "未验证",
+            "unavailable": "不可用",
+            "verification_failed": "验证失败"
           },
+          "invoiceEmailLabel": "发票邮箱",
+          "invoiceEmailEmpty": "尚未设置发票邮箱",
+          "empty": "尚未保存账单地址",
+          "loadErrorTitle": "无法加载账单信息",
+          "loadError": "暂时无法加载此组织的账单信息。",
+          "retry": "重试",
           "Errors": {
-            "unauthenticated": "请登录以继续",
-            "unauthenticatedAction": "登录",
-            "unauthorized": "只有组织所有者和管理员可以更新发票邮箱",
-            "badInput": "请输入有效的邮箱地址",
-            "general": "更新发票邮箱失败"
+            "unauthorized": "仅组织所有者和管理员可以打开 Stripe 账单管理",
+            "general": "无法打开 Stripe"
           }
         },
         "Subscription": {

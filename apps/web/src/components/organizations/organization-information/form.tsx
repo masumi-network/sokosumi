@@ -157,7 +157,6 @@ export default function OrganizationInformationForm({
           name: values.name,
           metadata: values.metadata ?? {
             url: values.url ?? null,
-            invoiceEmail: null,
           },
           logo: logoForApi ?? "",
         });
