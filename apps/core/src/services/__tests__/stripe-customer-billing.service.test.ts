@@ -158,7 +158,9 @@ describe("stripeCustomerBillingService", () => {
     vi.mocked(prisma.organization.findUnique).mockResolvedValue(null);
 
     await expect(
-      stripeCustomerBillingService.getOrganizationBillingDetailsById("org_missing"),
+      stripeCustomerBillingService.getOrganizationBillingDetailsById(
+        "org_missing",
+      ),
     ).rejects.toThrow("Organization not found");
   });
 
@@ -175,6 +177,8 @@ describe("stripeCustomerBillingService", () => {
       where: { id: "org_1" },
       select: { stripeCustomerId: true },
     });
-    expect(retrieveCustomerBillingDetailsMock).toHaveBeenCalledWith("cus_org_1");
+    expect(retrieveCustomerBillingDetailsMock).toHaveBeenCalledWith(
+      "cus_org_1",
+    );
   });
 });
