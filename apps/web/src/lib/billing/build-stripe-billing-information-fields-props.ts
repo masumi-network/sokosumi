@@ -4,7 +4,7 @@ import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core"
 
 type BillingDetailsTranslator = (
   key: string,
-  values?: Record<string, unknown>,
+  values?: Record<string, string | number | Date>,
 ) => string;
 
 export interface StripeBillingInformationTaxIdField {
