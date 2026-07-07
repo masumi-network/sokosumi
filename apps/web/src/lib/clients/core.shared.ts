@@ -61,6 +61,7 @@ import {
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
+  deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
   deleteHermesMeInstanceIntegrationsByProvider as coreDeleteHermesMeInstanceIntegrationsByProvider,
   deleteHermesMeInstanceSkillsBySlug as coreDeleteHermesMeInstanceSkillsBySlug,
@@ -365,7 +366,7 @@ async function executeOperation<TData, TError>(
     );
   }
 
-  if (result.error || !result.data) {
+  if (result.error) {
     const message = extractErrorMessage(result.error, result.response?.status);
     throw new CoreApiRequestError(message, {
       details: result.error,
@@ -374,7 +375,20 @@ async function executeOperation<TData, TError>(
     });
   }
 
-  return result.data;
+  const isNoContentSuccess =
+    result.response?.ok === true &&
+    (result.response.status === 204 || result.response.status === 205);
+
+  if (result.data == null && !isNoContentSuccess) {
+    const message = extractErrorMessage(result.error, result.response?.status);
+    throw new CoreApiRequestError(message, {
+      details: result.error,
+      kind: extractErrorKind(result.error),
+      status: result.response?.status,
+    });
+  }
+
+  return result.data as TData;
 }
 
 export function mapCoreApiStatusToCommonErrorCode(
@@ -747,6 +761,19 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to mark admin invoice paid",
+    );
+  }
+
+  async function deleteAdminInvoice(invoiceId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminInvoice({
+          client,
+          path: { id: invoiceId },
+          cache: "no-store",
+        }),
+      "Failed to delete admin invoice",
     );
   }
 
@@ -2792,6 +2819,7 @@ export function createCoreClient(getClient: GetClient) {
     createAdminFreeCreditGrant,
     getAdminInvoice,
     markAdminInvoicePaid,
+    deleteAdminInvoice,
     listCreditPrices,
     getCreditTopUpPriceCatalog,
     getSubscriptionCatalog,

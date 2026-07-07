@@ -146,6 +146,24 @@ export const markAdminInvoicePaidAction = withSession<
   }
 });
 
+interface DeleteAdminInvoiceParameters extends AuthenticatedRequest {
+  invoiceId: string;
+}
+
+export const deleteAdminInvoiceAction = withSession<
+  DeleteAdminInvoiceParameters,
+  Result<void, ActionError>
+>(async ({ session, invoiceId }) => {
+  try {
+    assertAdminSession(session);
+    await invoiceAdminService.deleteInvoice(invoiceId);
+    revalidatePath("/admin/invoices");
+    return Ok(undefined);
+  } catch (error) {
+    return Err(mapError(error));
+  }
+});
+
 interface GetAdminRecipientBillingDetailsParameters
   extends AuthenticatedRequest {
   targetType: InvoiceTargetType;

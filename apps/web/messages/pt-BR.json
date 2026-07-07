@@ -2866,6 +2866,15 @@
         "title": "Faturas",
         "description": "Conceda créditos únicos a um usuário ou organização por meio de uma fatura do Stripe. Ao marcar a fatura como paga, os créditos são concedidos instantaneamente.",
         "cardTitle": "Nova fatura",
+        "newGrant": "Nova fatura",
+        "backToList": "Voltar à lista",
+        "delete": "Excluir",
+        "deleting": "Excluindo…",
+        "deleteSuccess": "Fatura excluída",
+        "deleteError": "Falha ao excluir a fatura",
+        "deleteConfirmTitle": "Excluir fatura?",
+        "deleteConfirmDescription": "Rascunhos são excluídos permanentemente. Faturas abertas são anuladas e não podem mais ser pagas.",
+        "cancel": "Cancelar",
         "Form": {
           "Fields": {
             "organization": "Organização",

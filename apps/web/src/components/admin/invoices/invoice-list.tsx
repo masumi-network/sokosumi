@@ -9,6 +9,7 @@ import {
   AsyncSearchCombobox,
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
+import { InvoiceDeleteButton } from "@/components/admin/invoices/invoice-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -325,11 +326,24 @@ export function InvoiceList({ initialInvoices }: InvoiceListProps) {
                       })}
                     </TableCell>
                     <TableCell className="pr-4 text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/admin/invoices/${invoice.invoiceId}`}>
-                          {t("view")}
-                        </Link>
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/invoices/${invoice.invoiceId}`}>
+                            {t("view")}
+                          </Link>
+                        </Button>
+                        <InvoiceDeleteButton
+                          invoiceId={invoice.invoiceId}
+                          status={invoice.status}
+                          onDeleted={() =>
+                            setInvoices((current) =>
+                              current.filter(
+                                (item) => item.invoiceId !== invoice.invoiceId,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

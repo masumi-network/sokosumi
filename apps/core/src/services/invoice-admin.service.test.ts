@@ -12,6 +12,8 @@ const getBaseCreditTopUpPriceMock = vi.fn();
 const getCreditTopUpPriceByIdMock = vi.fn();
 const getInvoiceMock = vi.fn();
 const payInvoiceOutOfBandMock = vi.fn();
+const deleteDraftInvoiceMock = vi.fn();
+const voidInvoiceMock = vi.fn();
 const getAccountIdMock = vi.fn();
 const searchInvoicesMock = vi.fn();
 
@@ -73,6 +75,8 @@ vi.mock("@/clients/stripe.client", () => ({
     getInvoice: (...args: unknown[]) => getInvoiceMock(...args),
     payInvoiceOutOfBand: (...args: unknown[]) =>
       payInvoiceOutOfBandMock(...args),
+    deleteDraftInvoice: (...args: unknown[]) => deleteDraftInvoiceMock(...args),
+    voidInvoice: (...args: unknown[]) => voidInvoiceMock(...args),
     getAccountId: (...args: unknown[]) => getAccountIdMock(...args),
     searchInvoices: (...args: unknown[]) => searchInvoicesMock(...args),
   },
@@ -518,6 +522,39 @@ describe("invoiceAdminService.listInvoices", () => {
     });
   });
 
+  it("drops stale search hits whose live status no longer matches unfinished", async () => {
+    searchInvoicesMock.mockResolvedValue([
+      {
+        id: "in_void",
+        status: "void",
+        currency: "eur",
+        amount_due: 2380,
+        created: 400,
+        metadata: { grant_source: "admin_one_time_credit", credits: "2000" },
+        customer: {
+          name: "Andreas Osberghaus",
+          metadata: { customerType: "organization" },
+        },
+      },
+      {
+        id: "in_open",
+        status: "open",
+        currency: "eur",
+        amount_due: 1000,
+        created: 300,
+        metadata: { grant_source: "admin_one_time_credit", credits: "10" },
+        customer: {
+          name: "Acme",
+          metadata: { customerType: "organization" },
+        },
+      },
+    ]);
+
+    const items = await invoiceAdminService.listInvoices();
+
+    expect(items.map((item) => item.invoiceId)).toEqual(["in_open"]);
+  });
+
   it("handles unexpanded or deleted customers without throwing", async () => {
     searchInvoicesMock.mockResolvedValue([
       {
@@ -739,5 +776,71 @@ describe("invoiceAdminService.markInvoicePaid", () => {
     );
 
     expect(payInvoiceOutOfBandMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("invoiceAdminService.deleteInvoice", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns null when the invoice cannot be retrieved", async () => {
+    getInvoiceMock.mockRejectedValue(new Error("No such invoice"));
+
+    const result = await invoiceAdminService.deleteInvoice("missing");
+
+    expect(result).toBeNull();
+    expect(deleteDraftInvoiceMock).not.toHaveBeenCalled();
+    expect(voidInvoiceMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes a draft admin invoice", async () => {
+    getInvoiceMock.mockResolvedValue({
+      id: "in_draft",
+      metadata: { grant_source: "admin_one_time_credit" },
+      status: "draft",
+    });
+
+    await invoiceAdminService.deleteInvoice("in_draft");
+
+    expect(deleteDraftInvoiceMock).toHaveBeenCalledWith("in_draft");
+    expect(voidInvoiceMock).not.toHaveBeenCalled();
+  });
+
+  it("voids an open admin invoice", async () => {
+    getInvoiceMock.mockResolvedValue({
+      id: "in_open",
+      metadata: { grant_source: "admin_one_time_credit" },
+      status: "open",
+    });
+
+    await invoiceAdminService.deleteInvoice("in_open");
+
+    expect(voidInvoiceMock).toHaveBeenCalledWith("in_open");
+    expect(deleteDraftInvoiceMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invoice that is not an admin invoice", async () => {
+    getInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      metadata: {},
+      status: "open",
+    });
+
+    await expect(invoiceAdminService.deleteInvoice("in_1")).rejects.toThrow(
+      "Invoice is not an admin invoice",
+    );
+  });
+
+  it("rejects a paid invoice", async () => {
+    getInvoiceMock.mockResolvedValue({
+      id: "in_1",
+      metadata: { grant_source: "admin_one_time_credit" },
+      status: "paid",
+    });
+
+    await expect(invoiceAdminService.deleteInvoice("in_1")).rejects.toThrow(
+      "Only draft or open invoices can be deleted",
+    );
   });
 });
