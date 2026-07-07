@@ -3216,8 +3216,6 @@
         "loadError": "現在、請求情報を読み込めませんでした。",
         "retry": "再試行",
         "Errors": {
-          "unauthenticated": "続行するにはログインしてください",
-          "unauthenticatedAction": "ログイン",
           "general": "Stripe を開けませんでした"
         }
       },
@@ -3482,8 +3480,6 @@
           "loadError": "現在、この組織の請求情報を読み込めませんでした。",
           "retry": "再試行",
           "Errors": {
-            "unauthenticated": "続行するにはログインしてください",
-            "unauthenticatedAction": "ログイン",
             "unauthorized": "Stripe の請求管理を開けるのはオーナーと管理者のみです",
             "general": "Stripe を開けませんでした"
           }

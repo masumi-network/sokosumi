@@ -3216,8 +3216,6 @@
         "loadError": "暂时无法加载你的账单信息。",
         "retry": "重试",
         "Errors": {
-          "unauthenticated": "请登录后继续",
-          "unauthenticatedAction": "登录",
           "general": "无法打开 Stripe"
         }
       },
@@ -3482,8 +3480,6 @@
           "loadError": "暂时无法加载此组织的账单信息。",
           "retry": "重试",
           "Errors": {
-            "unauthenticated": "请登录后继续",
-            "unauthenticatedAction": "登录",
             "unauthorized": "仅组织所有者和管理员可以打开 Stripe 账单管理",
             "general": "无法打开 Stripe"
           }

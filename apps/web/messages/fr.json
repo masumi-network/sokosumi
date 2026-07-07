@@ -3216,8 +3216,6 @@
         "loadError": "Nous n'avons pas pu charger vos informations de facturation pour le moment.",
         "retry": "Réessayer",
         "Errors": {
-          "unauthenticated": "Veuillez vous connecter pour continuer",
-          "unauthenticatedAction": "Se connecter",
           "general": "Impossible d'ouvrir Stripe"
         }
       },
@@ -3482,8 +3480,6 @@
           "loadError": "Nous n'avons pas pu charger les informations de facturation de cette organisation pour le moment.",
           "retry": "Réessayer",
           "Errors": {
-            "unauthenticated": "Veuillez vous connecter pour continuer",
-            "unauthenticatedAction": "Se connecter",
             "unauthorized": "Seuls les propriétaires et administrateurs peuvent ouvrir la facturation Stripe",
             "general": "Impossible d'ouvrir Stripe"
           }

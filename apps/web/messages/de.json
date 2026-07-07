@@ -3185,8 +3185,6 @@
         "loadError": "Deine Rechnungsinformationen konnten gerade nicht geladen werden.",
         "retry": "Erneut versuchen",
         "Errors": {
-          "unauthenticated": "Bitte melde dich an, um fortzufahren",
-          "unauthenticatedAction": "Anmelden",
           "general": "Stripe konnte nicht geöffnet werden"
         }
       },
@@ -3451,8 +3449,6 @@
           "loadError": "Die Rechnungsinformationen dieser Organisation konnten gerade nicht geladen werden.",
           "retry": "Erneut versuchen",
           "Errors": {
-            "unauthenticated": "Bitte melde dich an, um fortzufahren",
-            "unauthenticatedAction": "Anmelden",
             "unauthorized": "Nur Eigentümer und Admins der Organisation können Stripe-Billing öffnen",
             "general": "Stripe konnte nicht geöffnet werden"
           }

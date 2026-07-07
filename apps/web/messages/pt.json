@@ -3216,8 +3216,6 @@
         "loadError": "Não foi possível carregar as suas informações de faturação neste momento.",
         "retry": "Tentar novamente",
         "Errors": {
-          "unauthenticated": "Inicia sessão para continuar",
-          "unauthenticatedAction": "Iniciar sessão",
           "general": "Não foi possível abrir a Stripe"
         }
       },
@@ -3482,8 +3480,6 @@
           "loadError": "Não foi possível carregar as informações de faturação desta organização neste momento.",
           "retry": "Tentar novamente",
           "Errors": {
-            "unauthenticated": "Inicia sessão para continuar",
-            "unauthenticatedAction": "Iniciar sessão",
             "unauthorized": "Apenas proprietários e administradores podem abrir a faturação Stripe",
             "general": "Não foi possível abrir a Stripe"
           }

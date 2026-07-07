@@ -5,7 +5,6 @@ import { Suspense, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import {
-  BILLING_PORTAL_ERROR_GENERAL,
   BILLING_PORTAL_ERROR_PARAM,
   BILLING_PORTAL_ERROR_UNAUTHORIZED,
 } from "@/lib/billing/billing-portal-redirect";
@@ -36,19 +35,11 @@ function BillingPortalErrorToastContent({
 
     hasHandledRef.current = true;
 
-    if (
-      errorCode === BILLING_PORTAL_ERROR_UNAUTHORIZED &&
-      unauthorizedMessage
-    ) {
-      toast.error(unauthorizedMessage);
-    } else if (
-      errorCode === BILLING_PORTAL_ERROR_GENERAL ||
-      errorCode === BILLING_PORTAL_ERROR_UNAUTHORIZED
-    ) {
-      toast.error(generalMessage);
-    } else {
-      toast.error(generalMessage);
-    }
+    const message =
+      errorCode === BILLING_PORTAL_ERROR_UNAUTHORIZED && unauthorizedMessage
+        ? unauthorizedMessage
+        : generalMessage;
+    toast.error(message);
 
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete(BILLING_PORTAL_ERROR_PARAM);

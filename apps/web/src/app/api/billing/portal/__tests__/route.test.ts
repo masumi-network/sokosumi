@@ -110,7 +110,7 @@ describe("GET /api/billing/portal", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://app.sokosumi.test/account?billingPortalError=1",
+      "https://app.sokosumi.test/account?billingPortalError=general",
     );
   });
 
@@ -151,7 +151,7 @@ describe("GET /api/billing/portal", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://app.sokosumi.test/billing?tab=subscription&billingPortalError=1",
+      "https://app.sokosumi.test/billing?tab=subscription&billingPortalError=general",
     );
     expect(openPersonalBillingPortalServerMock).toHaveBeenCalledWith({
       returnPath: "/billing?tab=subscription",
@@ -174,7 +174,7 @@ describe("GET /api/billing/portal", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://app.sokosumi.test/account?billingPortalError=1",
+      "https://app.sokosumi.test/account?billingPortalError=general",
     );
   });
 
@@ -190,7 +190,7 @@ describe("GET /api/billing/portal", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://app.sokosumi.test/organizations/acme?billingPortalError=1",
+      "https://app.sokosumi.test/organizations/acme?billingPortalError=general",
     );
     expect(openOrganizationBillingPortalServerMock).not.toHaveBeenCalled();
   });

@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!isAllowedStripeBillingPortalUrl(result.data.url)) {
+    console.error("[billing-portal] rejected redirect url", result.data.url);
     return redirectToReturnPathWithError(request, safeReturnPath);
   }
 

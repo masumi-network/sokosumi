@@ -3314,8 +3314,6 @@
         "loadError": "We could not load your billing information right now.",
         "retry": "Try again",
         "Errors": {
-          "unauthenticated": "Please log in to continue",
-          "unauthenticatedAction": "Log in",
           "general": "Failed to open Stripe"
         }
       },
@@ -3580,8 +3578,6 @@
           "loadError": "We could not load billing information for this organization right now.",
           "retry": "Try again",
           "Errors": {
-            "unauthenticated": "Please log in to continue",
-            "unauthenticatedAction": "Log in",
             "unauthorized": "Only organization owners and admins can open Stripe billing",
             "general": "Failed to open Stripe"
           }

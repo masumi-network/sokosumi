@@ -1,5 +1,5 @@
 export const BILLING_PORTAL_ERROR_PARAM = "billingPortalError";
-export const BILLING_PORTAL_ERROR_GENERAL = "1";
+export const BILLING_PORTAL_ERROR_GENERAL = "general";
 export const BILLING_PORTAL_ERROR_UNAUTHORIZED = "unauthorized";
 
 export function isAllowedBillingPortalNavigation(
