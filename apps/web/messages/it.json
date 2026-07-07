@@ -2969,8 +2969,8 @@
         "credits": "Crediti",
         "coupon": "Coupon"
       },
-      "billingPortalDescription": "Scarica le fatture, modifica gli indirizzi di fatturazione e gestisci altre informazioni di fatturazione.",
-      "manageYourBilling": "Gestisci la fatturazione",
+      "billingPortalDescription": "Aggiorna indirizzo di fatturazione, codice fiscale, metodi di pagamento, email per le fatture e abbonamenti in Stripe.",
+      "manageYourBilling": "Gestisci in Stripe",
       "openingBillingPortal": "Apertura in corso...",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
@@ -3199,33 +3199,18 @@
         "error": "Impossibile aggiornare le preferenze di notifica"
       },
       "BillingDetails": {
-        "title": "Indirizzo di fatturazione",
-        "description": "Indirizzo e partita IVA usati per fatture e calcolo delle imposte. Salvati nel profilo cliente Stripe.",
-        "line1Label": "Indirizzo riga 1",
-        "line2Label": "Indirizzo riga 2 (opzionale)",
-        "cityLabel": "Città",
-        "stateLabel": "Stato / provincia",
-        "postalCodeLabel": "CAP",
-        "countryLabel": "Paese",
-        "countryPlaceholder": "Seleziona un paese",
+        "title": "Informazioni di fatturazione",
+        "description": "Indirizzo di fatturazione, codice fiscale, email per le fatture e metodi di pagamento sono gestiti in Stripe.",
+        "addressLabel": "Indirizzo di fatturazione",
         "taxIdLabel": "IVA / codice fiscale",
-        "taxIdPlaceholder": "es. DE123456789",
-        "taxIdHelp": "Opzionale. Usato per il trattamento fiscale aziendale, ad esempio il reverse charge UE.",
         "taxIdVerification": "Stato verifica: {status}",
-        "empty": "Nessun indirizzo di fatturazione registrato.",
-        "add": "Aggiungi indirizzo di fatturazione",
-        "edit": "Modifica",
-        "save": "Salva",
-        "cancel": "Annulla",
-        "Success": {
-          "update": "Dati di fatturazione aggiornati con successo"
-        },
+        "invoiceEmailLabel": "Email per le fatture",
+        "invoiceEmailEmpty": "Nessuna email per le fatture registrata",
+        "empty": "Nessun indirizzo di fatturazione registrato",
         "Errors": {
           "unauthenticated": "Accedi per continuare",
           "unauthenticatedAction": "Accedi",
-          "unauthorized": "Non hai il permesso di aggiornare i dati di fatturazione",
-          "badInput": "Controlla indirizzo di fatturazione e codice fiscale",
-          "general": "Impossibile aggiornare i dati di fatturazione"
+          "general": "Impossibile aprire Stripe"
         }
       },
       "Delete": {
@@ -3469,54 +3454,20 @@
         "delete": "Elimina",
         "invite": "Invita un membro",
         "bulkInvite": "Invita in blocco",
-        "InvoiceEmail": {
-          "title": "Email per le fatture",
-          "description": "Indirizzo email per ricevere fatture e notifiche di fatturazione",
-          "label": "Email per le fatture",
-          "placeholder": "billing@example.com",
-          "help": "Questa email riceverà tutte le fatture e le comunicazioni di fatturazione da Stripe",
-          "edit": "Modifica",
-          "save": "Salva",
-          "cancel": "Annulla",
-          "Success": {
-            "update": "Email per le fatture aggiornata correttamente"
-          },
-          "Errors": {
-            "unauthenticated": "Accedi per continuare",
-            "unauthenticatedAction": "Accedi",
-            "unauthorized": "Solo i proprietari e gli amministratori dell’organizzazione possono aggiornare l’email per le fatture",
-            "badInput": "Inserisci un indirizzo email valido",
-            "general": "Impossibile aggiornare l’email per le fatture"
-          }
-        },
         "BillingDetails": {
-          "title": "Indirizzo di fatturazione",
-          "description": "Indirizzo e partita IVA usati per le fatture dell'organizzazione e il calcolo delle imposte. Salvati nel profilo cliente Stripe dell'organizzazione.",
-          "line1Label": "Indirizzo riga 1",
-          "line2Label": "Indirizzo riga 2 (opzionale)",
-          "cityLabel": "Città",
-          "stateLabel": "Stato / provincia",
-          "postalCodeLabel": "CAP",
-          "countryLabel": "Paese",
-          "countryPlaceholder": "Seleziona un paese",
+          "title": "Informazioni di fatturazione",
+          "description": "Indirizzo di fatturazione, codice fiscale, email per le fatture e metodi di pagamento sono gestiti in Stripe.",
+          "addressLabel": "Indirizzo di fatturazione",
           "taxIdLabel": "IVA / codice fiscale",
-          "taxIdPlaceholder": "es. DE123456789",
-          "taxIdHelp": "Opzionale. Usato per il trattamento fiscale aziendale, ad esempio il reverse charge UE.",
           "taxIdVerification": "Stato verifica: {status}",
-          "empty": "Nessun indirizzo di fatturazione registrato.",
-          "add": "Aggiungi indirizzo di fatturazione",
-          "edit": "Modifica",
-          "save": "Salva",
-          "cancel": "Annulla",
-          "Success": {
-            "update": "Dati di fatturazione aggiornati con successo"
-          },
+          "invoiceEmailLabel": "Email per le fatture",
+          "invoiceEmailEmpty": "Nessuna email per le fatture registrata",
+          "empty": "Nessun indirizzo di fatturazione registrato",
           "Errors": {
             "unauthenticated": "Accedi per continuare",
             "unauthenticatedAction": "Accedi",
-            "unauthorized": "Solo proprietari e amministratori dell'organizzazione possono aggiornare i dati di fatturazione",
-            "badInput": "Controlla indirizzo di fatturazione e codice fiscale",
-            "general": "Impossibile aggiornare i dati di fatturazione"
+            "unauthorized": "Solo proprietari e amministratori possono aprire la fatturazione Stripe",
+            "general": "Impossibile aprire Stripe"
           }
         },
         "Subscription": {

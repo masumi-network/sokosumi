@@ -41,6 +41,7 @@ export interface StripeCustomerBillingTaxId {
 
 export interface StripeCustomerBillingDetails {
   stripeCustomerId: string;
+  email: string | null;
   address: StripeCustomerBillingAddress | null;
   taxIds: StripeCustomerBillingTaxId[];
 }
@@ -207,6 +208,7 @@ function mapStripeCustomerBillingDetails(
 ): StripeCustomerBillingDetails {
   return {
     stripeCustomerId: customer.id,
+    email: customer.email ?? null,
     address: mapStripeCustomerAddress(customer.address),
     taxIds: mapStripeCustomerTaxIds(customer.tax_ids),
   };

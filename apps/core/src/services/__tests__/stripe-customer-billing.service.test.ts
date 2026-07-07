@@ -63,6 +63,7 @@ const address = {
 
 const billingDetails = {
   stripeCustomerId: "cus_1",
+  email: "billing@example.com",
   address,
   taxIds: [],
 };
@@ -84,6 +85,7 @@ describe("stripeCustomerBillingService", () => {
       stripeCustomerBillingService.getUserBillingDetails("user_1"),
     ).resolves.toEqual({
       stripeCustomerId: null,
+      email: null,
       address: null,
       taxIds: [],
     });

@@ -3067,8 +3067,8 @@
         "credits": "Credits",
         "coupon": "Coupon"
       },
-      "billingPortalDescription": "Download your invoices, change your billing addresses and manage other billing information.",
-      "manageYourBilling": "Manage your billing",
+      "billingPortalDescription": "Update billing address, tax ID, payment methods, invoice email, and subscriptions in Stripe.",
+      "manageYourBilling": "Manage in Stripe",
       "openingBillingPortal": "Opening...",
       "purchasedSeatsLabel": "Purchased seats",
       "assignedSeatsLabel": "Assigned",
@@ -3297,33 +3297,18 @@
         "error": "Failed to update notification preference"
       },
       "BillingDetails": {
-        "title": "Billing address",
-        "description": "Address and tax ID used for invoices and tax calculation. Stored on your Stripe customer profile.",
-        "line1Label": "Address line 1",
-        "line2Label": "Address line 2 (optional)",
-        "cityLabel": "City",
-        "stateLabel": "State / province",
-        "postalCodeLabel": "Postal code",
-        "countryLabel": "Country",
-        "countryPlaceholder": "Select a country",
+        "title": "Billing information",
+        "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
+        "addressLabel": "Billing address",
         "taxIdLabel": "VAT / tax ID",
-        "taxIdPlaceholder": "e.g. DE123456789",
-        "taxIdHelp": "Optional. Used for business tax treatment such as EU reverse charge.",
         "taxIdVerification": "Verification status: {status}",
-        "empty": "No billing address on file yet.",
-        "add": "Add billing address",
-        "edit": "Edit",
-        "save": "Save",
-        "cancel": "Cancel",
-        "Success": {
-          "update": "Billing details updated successfully"
-        },
+        "invoiceEmailLabel": "Invoice email",
+        "invoiceEmailEmpty": "No invoice email on file",
+        "empty": "No billing address on file",
         "Errors": {
           "unauthenticated": "Please log in to continue",
           "unauthenticatedAction": "Log in",
-          "unauthorized": "You do not have permission to update billing details",
-          "badInput": "Please check the billing address and tax ID",
-          "general": "Failed to update billing details"
+          "general": "Failed to open Stripe"
         }
       },
       "Delete": {
@@ -3567,54 +3552,20 @@
         "delete": "Delete",
         "invite": "Invite Member",
         "bulkInvite": "Bulk invite",
-        "InvoiceEmail": {
-          "title": "Invoice Email",
-          "description": "Email address for receiving invoices and billing notifications",
-          "label": "Invoice Email",
-          "placeholder": "billing@example.com",
-          "help": "This email will receive all invoices and billing-related communications from Stripe",
-          "edit": "Edit",
-          "save": "Save",
-          "cancel": "Cancel",
-          "Success": {
-            "update": "Invoice email updated successfully"
-          },
-          "Errors": {
-            "unauthenticated": "Please log in to continue",
-            "unauthenticatedAction": "Log in",
-            "unauthorized": "Only organization owners and admins can update the invoice email",
-            "badInput": "Please enter a valid email address",
-            "general": "Failed to update invoice email"
-          }
-        },
         "BillingDetails": {
-          "title": "Billing address",
-          "description": "Address and tax ID used for organization invoices and tax calculation. Stored on your organization's Stripe customer profile.",
-          "line1Label": "Address line 1",
-          "line2Label": "Address line 2 (optional)",
-          "cityLabel": "City",
-          "stateLabel": "State / province",
-          "postalCodeLabel": "Postal code",
-          "countryLabel": "Country",
-          "countryPlaceholder": "Select a country",
+          "title": "Billing information",
+          "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
+          "addressLabel": "Billing address",
           "taxIdLabel": "VAT / tax ID",
-          "taxIdPlaceholder": "e.g. DE123456789",
-          "taxIdHelp": "Optional. Used for business tax treatment such as EU reverse charge.",
           "taxIdVerification": "Verification status: {status}",
-          "empty": "No billing address on file yet.",
-          "add": "Add billing address",
-          "edit": "Edit",
-          "save": "Save",
-          "cancel": "Cancel",
-          "Success": {
-            "update": "Billing details updated successfully"
-          },
+          "invoiceEmailLabel": "Invoice email",
+          "invoiceEmailEmpty": "No invoice email on file",
+          "empty": "No billing address on file",
           "Errors": {
             "unauthenticated": "Please log in to continue",
             "unauthenticatedAction": "Log in",
-            "unauthorized": "Only organization owners and admins can update billing details",
-            "badInput": "Please check the billing address and tax ID",
-            "general": "Failed to update billing details"
+            "unauthorized": "Only organization owners and admins can open Stripe billing",
+            "general": "Failed to open Stripe"
           }
         },
         "Subscription": {

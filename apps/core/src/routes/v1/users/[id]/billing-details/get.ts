@@ -35,6 +35,7 @@ const route = withGlobalHeaderParameters(
         {
           data: {
             stripeCustomerId: "cus_123",
+            email: "billing@example.com",
             address: {
               line1: "123 Main St",
               line2: null,

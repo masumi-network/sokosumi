@@ -15,7 +15,6 @@ import {
 import OrganizationBillingDetails from "./components/organization-billing-details";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
-import OrganizationInvoiceEmail from "./components/organization-invoice-email";
 import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
 
 interface OrganizationPageProps {
@@ -119,8 +118,8 @@ export default async function OrganizationPage({
           billingDetails={billingDetails}
           member={member}
           organization={organization}
+          organizationSlug={normalizedSlug}
         />
-        <OrganizationInvoiceEmail organization={organization} member={member} />
         {isOwnerOrAdmin && seatSummary ? (
           <OrganizationSeatSummaryCard seatSummary={seatSummary} />
         ) : null}

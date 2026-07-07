@@ -1,9 +1,10 @@
 "use client";
 
 import { MemberRole } from "@sokosumi/utils";
+import { useTranslations } from "next-intl";
 
-import { BillingDetailsSection } from "@/components/billing/billing-details-section";
-import { updateOrganizationBillingDetails } from "@/lib/actions";
+import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
+import { StripeBillingInformationCard } from "@/components/billing/stripe-billing-information-card";
 import type {
   MemberRecord,
   OrganizationRecord,
@@ -14,40 +15,44 @@ interface OrganizationBillingDetailsProps {
   billingDetails: StripeCustomerBillingDetails;
   member: MemberRecord;
   organization: OrganizationRecord;
+  organizationSlug: string;
 }
 
 export default function OrganizationBillingDetails({
   billingDetails,
   member,
   organization,
+  organizationSlug,
 }: OrganizationBillingDetailsProps) {
+  const t = useTranslations(
+    "App.Organizations.OrganizationDetail.BillingDetails",
+  );
+  const tBilling = useTranslations("App.Billing");
+
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
+  const returnPath = `/organizations/${organizationSlug}`;
+
+  const portalLink =
+    isOwnerOrAdmin && billingDetails.stripeCustomerId ? (
+      <BalanceBillingPortalLink
+        description={tBilling("billingPortalDescription")}
+        generalErrorMessage={t("Errors.general")}
+        label={tBilling("manageYourBilling")}
+        openingLabel={tBilling("openingBillingPortal")}
+        organizationId={organization.id}
+        returnPath={returnPath}
+        unauthenticatedActionLabel={t("Errors.unauthenticatedAction")}
+        unauthenticatedErrorMessage={t("Errors.unauthenticated")}
+        unauthorizedErrorMessage={t("Errors.unauthorized")}
+      />
+    ) : null;
 
   return (
-    <BillingDetailsSection
+    <StripeBillingInformationCard
       billingDetails={billingDetails}
-      canEdit={isOwnerOrAdmin}
+      portalLink={portalLink}
       translationNamespace="App.Organizations.OrganizationDetail.BillingDetails"
-      onSave={async (data) => {
-        const result = await updateOrganizationBillingDetails({
-          organizationId: organization.id,
-          address: data.address,
-          taxIdValue: data.taxIdValue,
-        });
-
-        if (result.ok) {
-          return { ok: true as const };
-        }
-
-        return {
-          ok: false as const,
-          error: {
-            code: result.error.code,
-            message: result.error.message,
-          },
-        };
-      }}
     />
   );
 }

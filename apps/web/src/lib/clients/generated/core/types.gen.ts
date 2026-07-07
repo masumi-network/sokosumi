@@ -1909,6 +1909,10 @@ export type StripeCustomerBillingDetails = {
      * Stripe customer id
      */
     stripeCustomerId: string | null;
+    /**
+     * Stripe customer email used for invoices
+     */
+    email: string | null;
     address: StripeCustomerBillingAddress;
     taxIds: Array<StripeCustomerBillingTaxId>;
 };

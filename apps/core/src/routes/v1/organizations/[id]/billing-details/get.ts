@@ -31,6 +31,7 @@ const route = createRoute({
       {
         data: {
           stripeCustomerId: "cus_org_123",
+          email: "billing@acme.example",
           address: null,
           taxIds: [],
         },

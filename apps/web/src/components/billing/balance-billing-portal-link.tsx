@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Loader2, ReceiptText } from "lucide-react";
+import { ExternalLink, Loader2, ReceiptText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -85,7 +85,7 @@ export function BalanceBillingPortalLink({
         }
       }
 
-      window.location.href = result.data.url;
+      window.open(result.data.url, "_blank", "noopener,noreferrer");
     } finally {
       setIsPending(false);
     }
@@ -117,7 +117,7 @@ export function BalanceBillingPortalLink({
           {description}
         </span>
       </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      <ExternalLink className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
     </Button>
   );
 }

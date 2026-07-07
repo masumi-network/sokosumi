@@ -119,6 +119,7 @@ async function getBillingDetailsForCustomer(
   if (!stripeCustomerId) {
     return {
       stripeCustomerId: null,
+      email: null,
       address: null,
       taxIds: [],
     };

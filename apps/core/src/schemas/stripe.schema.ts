@@ -81,6 +81,10 @@ export const stripeCustomerBillingDetailsSchema = z
       .string()
       .nullable()
       .openapi({ example: "cus_123", description: "Stripe customer id" }),
+    email: z.string().nullable().openapi({
+      example: "billing@example.com",
+      description: "Stripe customer email used for invoices",
+    }),
     address: stripeCustomerBillingAddressSchema.nullable(),
     taxIds: z.array(stripeCustomerBillingTaxIdSchema),
   })

@@ -6593,6 +6593,14 @@ export const StripeCustomerBillingDetailsSchema = {
             example: 'cus_123',
             description: 'Stripe customer id'
         },
+        email: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'billing@example.com',
+            description: 'Stripe customer email used for invoices'
+        },
         address: {
             $ref: '#/components/schemas/StripeCustomerBillingAddress'
         },
@@ -6605,6 +6613,7 @@ export const StripeCustomerBillingDetailsSchema = {
     },
     required: [
         'stripeCustomerId',
+        'email',
         'address',
         'taxIds'
     ]

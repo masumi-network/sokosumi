@@ -2938,8 +2938,8 @@
         "credits": "Credits",
         "coupon": "Cupón"
       },
-      "billingPortalDescription": "Descarga tus facturas, cambia tus direcciones de facturación y gestiona otra información de facturación.",
-      "manageYourBilling": "Gestionar facturación",
+      "billingPortalDescription": "Actualiza dirección de facturación, identificación fiscal, métodos de pago, email de facturación y suscripciones en Stripe.",
+      "manageYourBilling": "Gestionar en Stripe",
       "openingBillingPortal": "Abriendo...",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",
       "orgAccessRestrictedDescription": "Solo los propietarios y admins de la organización pueden ver los detalles de Billing.",
@@ -3168,33 +3168,18 @@
         "error": "No se pudo actualizar la configuración de notificaciones"
       },
       "BillingDetails": {
-        "title": "Dirección de facturación",
-        "description": "Dirección e identificación fiscal usadas para facturas y cálculo de impuestos. Se guardan en tu perfil de cliente de Stripe.",
-        "line1Label": "Línea de dirección 1",
-        "line2Label": "Línea de dirección 2 (opcional)",
-        "cityLabel": "Ciudad",
-        "stateLabel": "Estado / provincia",
-        "postalCodeLabel": "Código postal",
-        "countryLabel": "País",
-        "countryPlaceholder": "Selecciona un país",
+        "title": "Información de facturación",
+        "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
+        "addressLabel": "Dirección de facturación",
         "taxIdLabel": "IVA / identificación fiscal",
-        "taxIdPlaceholder": "p. ej. DE123456789",
-        "taxIdHelp": "Opcional. Se usa para el tratamiento fiscal empresarial, como la inversión del sujeto pasivo en la UE.",
         "taxIdVerification": "Estado de verificación: {status}",
-        "empty": "Aún no hay dirección de facturación registrada.",
-        "add": "Añadir dirección de facturación",
-        "edit": "Editar",
-        "save": "Guardar",
-        "cancel": "Cancelar",
-        "Success": {
-          "update": "Datos de facturación actualizados correctamente"
-        },
+        "invoiceEmailLabel": "Email de facturación",
+        "invoiceEmailEmpty": "No hay email de facturación registrado",
+        "empty": "No hay dirección de facturación registrada",
         "Errors": {
           "unauthenticated": "Inicia sesión para continuar",
           "unauthenticatedAction": "Iniciar sesión",
-          "unauthorized": "No tienes permiso para actualizar los datos de facturación",
-          "badInput": "Revisa la dirección de facturación y la identificación fiscal",
-          "general": "No se pudieron actualizar los datos de facturación"
+          "general": "No se pudo abrir Stripe"
         }
       },
       "Delete": {
@@ -3438,54 +3423,20 @@
         "delete": "Eliminar",
         "invite": "Invitar miembro",
         "bulkInvite": "Invitar en bloque",
-        "InvoiceEmail": {
-          "title": "Email de facturación",
-          "description": "Dirección de email para recibir facturas y notificaciones de Billing",
-          "label": "Email de facturación",
-          "placeholder": "billing@example.com",
-          "help": "Esta dirección de email recibirá todas las facturas y comunicaciones de Billing de Stripe",
-          "edit": "Editar",
-          "save": "Guardar",
-          "cancel": "Cancelar",
-          "Success": {
-            "update": "Email de facturación actualizado correctamente"
-          },
-          "Errors": {
-            "unauthenticated": "Por favor, inicia sesión para continuar",
-            "unauthenticatedAction": "Iniciar sesión",
-            "unauthorized": "Solo los propietarios y admins pueden actualizar el email de facturación",
-            "badInput": "Por favor, introduce una dirección de email válida",
-            "general": "No se pudo actualizar el email de facturación"
-          }
-        },
         "BillingDetails": {
-          "title": "Dirección de facturación",
-          "description": "Dirección e identificación fiscal usadas para facturas de la organización y cálculo de impuestos. Se guardan en el perfil de cliente de Stripe de la organización.",
-          "line1Label": "Línea de dirección 1",
-          "line2Label": "Línea de dirección 2 (opcional)",
-          "cityLabel": "Ciudad",
-          "stateLabel": "Estado / provincia",
-          "postalCodeLabel": "Código postal",
-          "countryLabel": "País",
-          "countryPlaceholder": "Selecciona un país",
+          "title": "Información de facturación",
+          "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
+          "addressLabel": "Dirección de facturación",
           "taxIdLabel": "IVA / identificación fiscal",
-          "taxIdPlaceholder": "p. ej. DE123456789",
-          "taxIdHelp": "Opcional. Se usa para el tratamiento fiscal empresarial, como la inversión del sujeto pasivo en la UE.",
           "taxIdVerification": "Estado de verificación: {status}",
-          "empty": "Aún no hay dirección de facturación registrada.",
-          "add": "Añadir dirección de facturación",
-          "edit": "Editar",
-          "save": "Guardar",
-          "cancel": "Cancelar",
-          "Success": {
-            "update": "Datos de facturación actualizados correctamente"
-          },
+          "invoiceEmailLabel": "Email de facturación",
+          "invoiceEmailEmpty": "No hay email de facturación registrado",
+          "empty": "No hay dirección de facturación registrada",
           "Errors": {
             "unauthenticated": "Inicia sesión para continuar",
             "unauthenticatedAction": "Iniciar sesión",
-            "unauthorized": "Solo los propietarios y administradores de la organización pueden actualizar los datos de facturación",
-            "badInput": "Revisa la dirección de facturación y la identificación fiscal",
-            "general": "No se pudieron actualizar los datos de facturación"
+            "unauthorized": "Solo los propietarios y administradores pueden abrir la facturación de Stripe",
+            "general": "No se pudo abrir Stripe"
           }
         },
         "Subscription": {

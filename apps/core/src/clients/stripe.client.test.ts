@@ -364,6 +364,7 @@ describe("stripeClient.createAdminInvoice", () => {
   it("retrieves billing details with expanded tax ids", async () => {
     stripeCustomersRetrieveMock.mockResolvedValue({
       id: "cus_1",
+      email: "billing@example.com",
       deleted: false,
       address: {
         line1: "123 Main St",
@@ -391,6 +392,7 @@ describe("stripeClient.createAdminInvoice", () => {
       stripeClient.retrieveCustomerBillingDetails("cus_1"),
     ).resolves.toEqual({
       stripeCustomerId: "cus_1",
+      email: "billing@example.com",
       address: {
         line1: "123 Main St",
         line2: null,
