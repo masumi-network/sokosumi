@@ -252,6 +252,18 @@ describe("InvoiceForm billing preview", () => {
     ).toBeDisabled();
   });
 
+  it("disables submit when billing is complete but credits are empty", async () => {
+    const user = userEvent.setup();
+    render(<InvoiceForm prices={prices} />);
+
+    await user.click(screen.getByTestId("select-org-1"));
+    await screen.findByText(/123 Main St/);
+
+    expect(
+      screen.getByRole("button", { name: "Create invoice" }),
+    ).toBeDisabled();
+  });
+
   it("enables submit when billing is complete and credits are entered", async () => {
     const user = userEvent.setup();
     render(<InvoiceForm prices={prices} />);
@@ -367,7 +379,7 @@ describe("InvoiceForm billing preview", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create invoice" }),
-    ).toBeEnabled();
+    ).toBeDisabled();
   });
 
   it("loads billing for a user target when the user tab is selected", async () => {

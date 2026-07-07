@@ -98,11 +98,13 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
   const hasCompleteBilling =
     billingDetails !== null &&
     hasStripeBillingAddressWithCountry(billingDetails.address);
+  const hasValidCredits = parseOptionalPositiveInteger(creditsInput) !== null;
   const canCreateInvoice =
     Boolean(selectedTargetId) &&
     !isBillingLoading &&
     billingLoadError === null &&
     hasCompleteBilling &&
+    hasValidCredits &&
     !isSubmitting;
 
   function clearBillingState() {
