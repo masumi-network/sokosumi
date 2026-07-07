@@ -2891,7 +2891,6 @@
           "billingLoadError": "Impossible de charger les informations de facturation du destinataire",
           "billingRefresh": "Actualiser",
           "billingIncomplete": "Une adresse de facturation avec pays est requise",
-          "billingIncompleteTitle": "Informations de facturation incomplètes",
           "billingIncompleteUser": "Cet utilisateur doit ajouter une adresse de facturation avec pays dans les paramètres de son compte avant que vous puissiez créer une facture.",
           "billingIncompleteOrganization": "Cette organisation doit ajouter une adresse de facturation avec pays dans les paramètres de l'organisation avant que vous puissiez créer une facture.",
           "BillingDetails": {

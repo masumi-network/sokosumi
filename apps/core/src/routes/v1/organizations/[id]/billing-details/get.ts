@@ -55,8 +55,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    // Platform-admin bypass is session-only: admin invoice UI uses Better Auth
-    // sessions, not API keys. Org members still use membership checks below.
+    // Platform admins with user auth (session or API key) can read org billing
+    // without membership. Org members still use membership checks below.
     const isPlatformAdmin =
       userContext.source === "session" && hasAdminRole(userContext.role);
 

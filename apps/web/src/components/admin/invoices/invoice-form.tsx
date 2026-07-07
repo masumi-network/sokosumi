@@ -106,6 +106,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     !isSubmitting;
 
   function clearBillingState() {
+    billingLoadIdRef.current += 1;
     setBillingDetails(null);
     setBillingLoadError(null);
     setIsBillingLoading(false);

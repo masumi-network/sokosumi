@@ -2,6 +2,11 @@ import type { ReactNode } from "react";
 
 import type { StripeBillingInformationFieldsContent } from "@/lib/billing/build-stripe-billing-information-fields-props";
 
+export type StripeBillingInformationTranslationNamespace =
+  | "App.Account.BillingDetails"
+  | "App.Organizations.OrganizationDetail.BillingDetails"
+  | "App.Admin.Invoices.Form.BillingDetails";
+
 export interface StripeBillingInformationFieldsProps
   extends StripeBillingInformationFieldsContent {
   portalLink?: ReactNode;

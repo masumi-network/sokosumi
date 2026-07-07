@@ -2891,7 +2891,6 @@
           "billingLoadError": "受取人の請求情報を読み込めませんでした",
           "billingRefresh": "更新",
           "billingIncomplete": "国を含む請求先住所が必要です",
-          "billingIncompleteTitle": "請求情報が不完全です",
           "billingIncompleteUser": "請求書を作成する前に、このユーザーはアカウント設定で国を含む請求先住所を追加する必要があります。",
           "billingIncompleteOrganization": "請求書を作成する前に、この組織は組織設定で国を含む請求先住所を追加する必要があります。",
           "BillingDetails": {

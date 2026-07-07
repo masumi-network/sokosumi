@@ -2860,7 +2860,6 @@
           "billingLoadError": "Rechnungsdaten des Empfängers konnten nicht geladen werden",
           "billingRefresh": "Aktualisieren",
           "billingIncomplete": "Rechnungsadresse mit Land ist erforderlich",
-          "billingIncompleteTitle": "Rechnungsdaten unvollständig",
           "billingIncompleteUser": "Dieser Benutzer muss in den Kontoeinstellungen eine Rechnungsadresse mit Land hinterlegen, bevor Sie eine Rechnung erstellen können.",
           "billingIncompleteOrganization": "Diese Organisation muss in den Organisationseinstellungen eine Rechnungsadresse mit Land hinterlegen, bevor Sie eine Rechnung erstellen können.",
           "BillingDetails": {

@@ -1,7 +1,10 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
-import { StripeBillingInformationFields } from "@/components/billing/stripe-billing-information-fields";
+import {
+  StripeBillingInformationFields,
+  type StripeBillingInformationTranslationNamespace,
+} from "@/components/billing/stripe-billing-information-fields";
 import {
   Card,
   CardContent,
@@ -11,10 +14,6 @@ import {
 } from "@/components/ui/card";
 import { buildStripeBillingInformationFieldsProps } from "@/lib/billing/build-stripe-billing-information-fields-props";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
-
-export type StripeBillingInformationTranslationNamespace =
-  | "App.Account.BillingDetails"
-  | "App.Organizations.OrganizationDetail.BillingDetails";
 
 export interface StripeBillingInformationCardProps {
   billingDetails: StripeCustomerBillingDetails;

@@ -103,6 +103,12 @@ vi.mock("next-intl", () => ({
       if (key === "Form.billingIncompleteOrganization") {
         return "Organization billing incomplete";
       }
+      if (key === "Form.billingIncompleteUser") {
+        return "User billing incomplete";
+      }
+      if (key === "Form.Tabs.user") {
+        return "User";
+      }
       if (key === "Form.billingLoadErrorTitle") {
         return "Billing load failed";
       }
@@ -139,8 +145,8 @@ vi.mock("@/lib/actions/invoice-admin/action", () => ({
 }));
 
 vi.mock("@/lib/actions/admin-search/client", () => ({
-  searchOrganizationsClient: vi.fn(),
-  searchUsersClient: vi.fn(),
+  searchOrganizationsClient: { __type: "organization" },
+  searchUsersClient: { __type: "user" },
 }));
 
 vi.mock("@/components/admin/async-search-combobox", () => ({
@@ -155,28 +161,52 @@ vi.mock("@/components/admin/async-search-combobox", () => ({
   }),
   AsyncSearchCombobox: ({
     onChange,
+    search,
   }: {
     onChange: (
-      value: { id: string; name: string; slug: string } | null,
+      value: {
+        id: string;
+        name: string;
+        slug?: string;
+        email?: string;
+      } | null,
     ) => void;
-  }) => (
-    <div>
-      <button
-        type="button"
-        data-testid="select-org-1"
-        onClick={() => onChange({ id: "org_1", name: "Acme", slug: "acme" })}
-      >
-        Select Acme
-      </button>
-      <button
-        type="button"
-        data-testid="select-org-2"
-        onClick={() => onChange({ id: "org_2", name: "Beta", slug: "beta" })}
-      >
-        Select Beta
-      </button>
-    </div>
-  ),
+    search: { __type?: string };
+  }) =>
+    search.__type === "user" ? (
+      <div>
+        <button
+          type="button"
+          data-testid="select-user-1"
+          onClick={() =>
+            onChange({
+              id: "user_1",
+              name: "Ada Lovelace",
+              email: "ada@example.com",
+            })
+          }
+        >
+          Select Ada
+        </button>
+      </div>
+    ) : (
+      <div>
+        <button
+          type="button"
+          data-testid="select-org-1"
+          onClick={() => onChange({ id: "org_1", name: "Acme", slug: "acme" })}
+        >
+          Select Acme
+        </button>
+        <button
+          type="button"
+          data-testid="select-org-2"
+          onClick={() => onChange({ id: "org_2", name: "Beta", slug: "beta" })}
+        >
+          Select Beta
+        </button>
+      </div>
+    ),
 }));
 
 describe("InvoiceForm billing preview", () => {
@@ -338,5 +368,19 @@ describe("InvoiceForm billing preview", () => {
     expect(
       screen.getByRole("button", { name: "Create invoice" }),
     ).toBeEnabled();
+  });
+
+  it("loads billing for a user target when the user tab is selected", async () => {
+    const user = userEvent.setup();
+    render(<InvoiceForm prices={prices} />);
+
+    await user.click(screen.getByRole("tab", { name: "User" }));
+    await user.click(screen.getByTestId("select-user-1"));
+
+    expect(await screen.findByText(/123 Main St/)).toBeVisible();
+    expect(getBillingMock).toHaveBeenCalledWith({
+      targetType: "user",
+      targetId: "user_1",
+    });
   });
 });
