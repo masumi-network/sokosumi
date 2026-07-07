@@ -7,6 +7,11 @@ const UNAUTHENTICATED_MESSAGE = /^user is not authenticated$/i;
 const NEXT_ROUTER_HOOKS_MISMATCH =
   /rendered more hooks than during the previous render/i;
 
+/** Next.js masks real RSC failures in production; the client surfaces them as
+ * unhandled rejections without actionable detail (SOKOSUMI-W on `/agents`). */
+export const MASKED_PRODUCTION_RSC_RENDER_ERROR =
+  /an error occurred in the server components render/i;
+
 function getThrownErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -68,8 +73,13 @@ export const browserExtensionIgnoreErrors: RegExp[] = [
 
 export const expectedClientNoiseIgnoreErrors: RegExp[] = [
   NEXT_ROUTER_HOOKS_MISMATCH,
+  MASKED_PRODUCTION_RSC_RENDER_ERROR,
   ...browserExtensionIgnoreErrors,
 ];
+
+export function isMaskedProductionRscRenderError(message: string): boolean {
+  return MASKED_PRODUCTION_RSC_RENDER_ERROR.test(message);
+}
 
 export function isExpectedClientNoiseErrorMessage(message: string): boolean {
   return expectedClientNoiseIgnoreErrors.some((pattern) =>
