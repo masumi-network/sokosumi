@@ -1,7 +1,7 @@
 "use client";
 
 import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
-import { AlertCircle, MapPin } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -12,7 +12,6 @@ import {
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { StripeBillingInformationContent } from "@/components/billing/stripe-billing-information-content";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -218,8 +216,8 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
+    <form onSubmit={handleSubmit} className="space-y-8">
+      <div className="space-y-3">
         <Label htmlFor="target">{t("Form.Fields.target")}</Label>
         <Tabs value={targetType} onValueChange={handleTargetTypeChange}>
           <TabsList>
@@ -269,123 +267,119 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
       </div>
 
       {selectedTargetId ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <MapPin className="size-5" />
-            <div className="space-y-0.5">
-              <p className="font-medium">{t("Form.BillingDetails.title")}</p>
-              <p className="text-muted-foreground text-sm">
-                {t("Form.BillingDetails.description")}
-              </p>
-            </div>
-          </div>
+        <section
+          aria-labelledby="invoice-recipient-billing"
+          className="bg-muted/30 space-y-4 rounded-lg border p-4"
+        >
+          <h3 className="text-sm font-medium" id="invoice-recipient-billing">
+            {t("Form.BillingDetails.title")}
+          </h3>
 
           {isBillingLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-4 w-48" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
             </div>
           ) : null}
 
           {!isBillingLoading && billingLoadError ? (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertTitle>{t("Form.billingLoadErrorTitle")}</AlertTitle>
-              <AlertDescription>{billingLoadError}</AlertDescription>
-            </Alert>
+            <p className="text-destructive flex items-start gap-2 text-sm">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <span className="font-medium">
+                  {t("Form.billingLoadErrorTitle")}.{" "}
+                </span>
+                {billingLoadError}
+              </span>
+            </p>
           ) : null}
 
           {!isBillingLoading && !billingLoadError && billingDetails ? (
-            <div className="space-y-3">
+            <>
               <StripeBillingInformationContent
                 billingDetails={billingDetails}
                 translationNamespace="App.Admin.Invoices.Form.BillingDetails"
               />
               {!hasCompleteBilling ? (
-                <Alert variant="destructive">
-                  <AlertCircle />
-                  <AlertTitle>{t("Form.billingIncompleteTitle")}</AlertTitle>
-                  <AlertDescription>
-                    {targetType === "organization"
-                      ? t("Form.billingIncompleteOrganization")
-                      : t("Form.billingIncompleteUser")}
-                  </AlertDescription>
-                </Alert>
+                <p className="text-destructive border-t pt-3 text-sm">
+                  {targetType === "organization"
+                    ? t("Form.billingIncompleteOrganization")
+                    : t("Form.billingIncompleteUser")}
+                </p>
               ) : null}
-            </div>
+            </>
           ) : null}
-        </div>
+        </section>
       ) : null}
 
-      <Separator />
-
-      <div className="space-y-2">
-        <Label htmlFor="price">{t("Form.Fields.price")}</Label>
-        <Select value={priceId} onValueChange={setPriceId}>
-          <SelectTrigger id="price" className="w-full">
-            <SelectValue placeholder={t("Form.pricePlaceholder")} />
-          </SelectTrigger>
-          <SelectContent>
-            {prices.map((price) => (
-              <SelectItem key={price.id} value={price.id}>
-                <span className="tabular-nums">
-                  {formatter.number(price.amountPerCredit / 100, {
-                    style: "currency",
-                    currency: price.currency.toUpperCase(),
-                    minimumFractionDigits: priceFractionDigits,
-                    maximumFractionDigits: priceFractionDigits,
-                  })}
-                </span>
-                {price.nickname ? (
-                  <span className="text-muted-foreground">
-                    {price.nickname}
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="price">{t("Form.Fields.price")}</Label>
+          <Select value={priceId} onValueChange={setPriceId}>
+            <SelectTrigger id="price" className="w-full">
+              <SelectValue placeholder={t("Form.pricePlaceholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {prices.map((price) => (
+                <SelectItem key={price.id} value={price.id}>
+                  <span className="tabular-nums">
+                    {formatter.number(price.amountPerCredit / 100, {
+                      style: "currency",
+                      currency: price.currency.toUpperCase(),
+                      minimumFractionDigits: priceFractionDigits,
+                      maximumFractionDigits: priceFractionDigits,
+                    })}
                   </span>
-                ) : null}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+                  {price.nickname ? (
+                    <span className="text-muted-foreground">
+                      {price.nickname}
+                    </span>
+                  ) : null}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="credits">{t("Form.Fields.credits")}</Label>
+            <Input
+              id="credits"
+              type="number"
+              min={1}
+              step={1}
+              value={creditsInput}
+              onChange={(event) => setCreditsInput(event.target.value)}
+              required
+            />
+            <p className="text-muted-foreground text-xs">
+              {t("Form.creditsHelper")}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="expiryDays">{t("Form.Fields.expiryDays")}</Label>
+            <Input
+              id="expiryDays"
+              type="number"
+              min={1}
+              step={1}
+              value={expiryDaysInput}
+              onChange={(event) => setExpiryDaysInput(event.target.value)}
+              placeholder={t("Form.expiryPlaceholder")}
+            />
+            <p className="text-muted-foreground text-xs">
+              {t("Form.expiryHelper")}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="credits">{t("Form.Fields.credits")}</Label>
-          <Input
-            id="credits"
-            type="number"
-            min={1}
-            step={1}
-            value={creditsInput}
-            onChange={(event) => setCreditsInput(event.target.value)}
-            required
-          />
-          <p className="text-muted-foreground text-xs">
-            {t("Form.creditsHelper")}
-          </p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="expiryDays">{t("Form.Fields.expiryDays")}</Label>
-          <Input
-            id="expiryDays"
-            type="number"
-            min={1}
-            step={1}
-            value={expiryDaysInput}
-            onChange={(event) => setExpiryDaysInput(event.target.value)}
-            placeholder={t("Form.expiryPlaceholder")}
-          />
-          <p className="text-muted-foreground text-xs">
-            {t("Form.expiryHelper")}
-          </p>
-        </div>
+      <div className="flex justify-end border-t pt-6">
+        <Button type="submit" disabled={!canCreateInvoice}>
+          {isSubmitting ? t("Form.submitting") : t("Form.submit")}
+        </Button>
       </div>
-
-      <Separator />
-
-      <Button type="submit" disabled={!canCreateInvoice}>
-        {isSubmitting ? t("Form.submitting") : t("Form.submit")}
-      </Button>
     </form>
   );
 }

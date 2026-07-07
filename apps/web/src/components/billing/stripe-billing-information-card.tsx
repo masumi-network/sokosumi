@@ -1,4 +1,3 @@
-import { MapPin } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
@@ -32,10 +31,7 @@ export async function StripeBillingInformationCard({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <MapPin className="size-5" />
-          <CardTitle>{t("title")}</CardTitle>
-        </div>
+        <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
