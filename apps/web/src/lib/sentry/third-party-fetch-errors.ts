@@ -1,5 +1,8 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
+import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
+import { isThirdPartyWalletError } from "@/lib/sentry/third-party-wallet-errors";
+
 /** Hostnames for marketing/analytics scripts loaded via GTM or similar. */
 const THIRD_PARTY_ANALYTICS_HOSTS = [
   "plausible.io",
@@ -38,6 +41,17 @@ const thirdPartyFetchFailurePattern =
 /** WebKit reports blocked or offline network calls as `Load failed (hostname)`. */
 const transientFetchFailurePattern =
   /^(?:TypeError: )?(?:Failed to fetch|Load failed) \(([^)]+)\)$/;
+
+/**
+ * Safari on iOS reports aborted RSC/fetch work as bare `Load failed` with no
+ * hostname and no stack (SOKOSUMI-18 on `/chat`).
+ */
+const bareTransientNetworkFailurePattern =
+  /^(?:TypeError: )?(?:Load failed|Failed to fetch)$/;
+
+/** Consent SDK chunk load failures from Usercentrics (SOKOSUMI-7V). */
+const thirdPartyDynamicImportFailurePattern =
+  /Failed to fetch dynamically imported module: https?:\/\/[^/]*usercentrics/i;
 
 /** Core API hosts where client-side connectivity blips are user/network noise. */
 const FIRST_PARTY_API_HOSTS = [
@@ -102,6 +116,14 @@ export function isTransientFirstPartyApiFetchFailure(message: string): boolean {
   return isKnownFirstPartyApiHost(match[1]);
 }
 
+export function isBareTransientNetworkFailure(message: string): boolean {
+  return bareTransientNetworkFailurePattern.test(message);
+}
+
+export function isThirdPartyDynamicImportFailure(message: string): boolean {
+  return thirdPartyDynamicImportFailurePattern.test(message);
+}
+
 export function beforeSendClientEvent(
   event: ErrorEvent,
   _hint: EventHint,
@@ -110,7 +132,11 @@ export function beforeSendClientEvent(
 
   if (
     isThirdPartyAnalyticsFetchFailure(message) ||
-    isTransientFirstPartyApiFetchFailure(message)
+    isTransientFirstPartyApiFetchFailure(message) ||
+    isBareTransientNetworkFailure(message) ||
+    isThirdPartyDynamicImportFailure(message) ||
+    isExpectedClientNoiseErrorMessage(message) ||
+    isThirdPartyWalletError(message, event)
   ) {
     return null;
   }
