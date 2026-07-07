@@ -28,7 +28,6 @@ import {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
   getEmailLocale,
-  getOrganizationMetadata,
   getStoredUserName,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
@@ -176,16 +175,13 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
 
 async function ensureStripeCustomerForCreatedOrganization(organization: {
   id: string;
-  metadata?: string | null;
   name: string;
   slug: string;
 }): Promise<void> {
-  const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
   await stripeClient.createOrganizationCustomer({
     organizationId: organization.id,
     slug: organization.slug,
     name: organization.name,
-    invoiceEmail,
   });
 }
 

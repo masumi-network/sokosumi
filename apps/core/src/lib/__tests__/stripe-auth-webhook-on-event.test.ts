@@ -28,15 +28,15 @@ describe("isBillingStripeEventType", () => {
   it.each([
     "invoice.paid",
     "customer.created",
-    "customer.updated",
   ] as const)("returns true for %s", (eventType) => {
     expect(isBillingStripeEventType(eventType)).toBe(true);
   });
 
-  it("returns false for subscription lifecycle events", () => {
-    expect(isBillingStripeEventType("customer.subscription.deleted")).toBe(
-      false,
-    );
+  it.each([
+    "customer.subscription.deleted",
+    "customer.updated",
+  ] as const)("returns false for %s", (eventType) => {
+    expect(isBillingStripeEventType(eventType)).toBe(false);
   });
 });
 

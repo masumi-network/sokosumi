@@ -2540,7 +2540,6 @@
       "billingPortalTitle": "Billing-Portal",
       "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements und Rechnungen zu verwalten.",
       "billingPortalDescriptionWithPlan": "Du nutzt aktuell {plan}. Verwalte Abonnements, Zahlungsdetails und Rechnungen in Stripe.",
-      "openingBillingPortal": "Wird geöffnet...",
       "billingPortalCta": "Billing-Portal öffnen",
       "freePrice": "Kostenlos",
       "customPrice": "Individuell",
@@ -2938,9 +2937,8 @@
         "credits": "Credits",
         "coupon": "Gutschein"
       },
-      "billingPortalDescription": "Lade deine Rechnungen herunter, ändere deine Rechnungsadressen und verwalte weitere Rechnungsinformationen.",
-      "manageYourBilling": "Billing verwalten",
-      "openingBillingPortal": "Wird geöffnet...",
+      "billingPortalDescription": "Rechnungsadresse, Steuer-ID, Zahlungsmethoden, Rechnungs-E-Mail und Abonnements in Stripe verwalten.",
+      "manageYourBilling": "In Stripe verwalten",
       "orgAccessRestrictedTitle": "Billing-Zugang eingeschränkt",
       "orgAccessRestrictedDescription": "Nur Eigentümer und Admins der Organisation können Billing-Details einsehen.",
       "orgAccessRestrictedHint": "Wechsle zu deinem persönlichen Account oder kontaktiere einen Organisations-Admin, wenn du Zugang benötigst.",
@@ -3166,6 +3164,29 @@
         "marketingEmailsDisabledSuccess": "Marketing-E-Mails deaktiviert",
         "loading": "Einstellung wird gespeichert...",
         "error": "Benachrichtigungseinstellung konnte nicht aktualisiert werden"
+      },
+      "BillingDetails": {
+        "title": "Rechnungsinformationen",
+        "description": "Rechnungsadresse, Steuer-ID, Rechnungs-E-Mail und Zahlungsmethoden werden in Stripe verwaltet.",
+        "addressLabel": "Rechnungsadresse",
+        "taxIdLabel": "USt-IdNr. / Steuer-ID",
+        "taxIdVerification": "Verifizierungsstatus: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verifiziert",
+          "pending": "Ausstehend",
+          "unverified": "Nicht verifiziert",
+          "unavailable": "Nicht verfügbar",
+          "verification_failed": "Verifizierung fehlgeschlagen"
+        },
+        "invoiceEmailLabel": "Rechnungs-E-Mail",
+        "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+        "empty": "Keine Rechnungsadresse hinterlegt",
+        "loadErrorTitle": "Rechnungsinformationen konnten nicht geladen werden",
+        "loadError": "Deine Rechnungsinformationen konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "Errors": {
+          "general": "Stripe konnte nicht geöffnet werden"
+        }
       },
       "Delete": {
         "title": "Account löschen",
@@ -3408,24 +3429,28 @@
         "delete": "Löschen",
         "invite": "Mitglied einladen",
         "bulkInvite": "Mehrere einladen",
-        "InvoiceEmail": {
-          "title": "Rechnungs-E-Mail",
-          "description": "E-Mail-Adresse für den Empfang von Rechnungen und Billing-Benachrichtigungen",
-          "label": "Rechnungs-E-Mail",
-          "placeholder": "billing@example.com",
-          "help": "Diese E-Mail-Adresse erhält alle Rechnungen und billing-bezogenen Mitteilungen von Stripe",
-          "edit": "Bearbeiten",
-          "save": "Speichern",
-          "cancel": "Abbrechen",
-          "Success": {
-            "update": "Rechnungs-E-Mail erfolgreich aktualisiert"
+        "BillingDetails": {
+          "title": "Rechnungsinformationen",
+          "description": "Rechnungsadresse, Steuer-ID, Rechnungs-E-Mail und Zahlungsmethoden werden in Stripe verwaltet.",
+          "addressLabel": "Rechnungsadresse",
+          "taxIdLabel": "USt-IdNr. / Steuer-ID",
+          "taxIdVerification": "Verifizierungsstatus: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verifiziert",
+            "pending": "Ausstehend",
+            "unverified": "Nicht verifiziert",
+            "unavailable": "Nicht verfügbar",
+            "verification_failed": "Verifizierung fehlgeschlagen"
           },
+          "invoiceEmailLabel": "Rechnungs-E-Mail",
+          "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+          "empty": "Keine Rechnungsadresse hinterlegt",
+          "loadErrorTitle": "Rechnungsinformationen konnten nicht geladen werden",
+          "loadError": "Die Rechnungsinformationen dieser Organisation konnten gerade nicht geladen werden.",
+          "retry": "Erneut versuchen",
           "Errors": {
-            "unauthenticated": "Bitte melde dich an, um fortzufahren",
-            "unauthenticatedAction": "Anmelden",
-            "unauthorized": "Nur Eigentümer und Admins der Organisation können die Rechnungs-E-Mail aktualisieren",
-            "badInput": "Bitte gib eine gültige E-Mail-Adresse ein",
-            "general": "Rechnungs-E-Mail konnte nicht aktualisiert werden"
+            "unauthorized": "Nur Eigentümer und Admins der Organisation können Stripe-Billing öffnen",
+            "general": "Stripe konnte nicht geöffnet werden"
           }
         },
         "Subscription": {

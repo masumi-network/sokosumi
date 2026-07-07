@@ -111,6 +111,10 @@ vi.mock("@/components/billing/balance-billing-portal-link", () => ({
   },
 }));
 
+vi.mock("@/components/billing/billing-portal-error-toast", () => ({
+  BillingPortalErrorToast: () => null,
+}));
+
 vi.mock("@/components/billing/billing-tabs", () => ({
   BillingTabs: (props: {
     couponContent: React.ReactNode;

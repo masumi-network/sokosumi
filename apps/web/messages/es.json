@@ -2540,7 +2540,6 @@
       "billingPortalTitle": "Portal de Billing",
       "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus suscripciones y facturas.",
       "billingPortalDescriptionWithPlan": "Actualmente usas {plan}. Gestiona tus suscripciones, datos de pago y facturas en Stripe.",
-      "openingBillingPortal": "Abriendo...",
       "billingPortalCta": "Abrir portal de Billing",
       "freePrice": "Gratis",
       "customPrice": "Personalizado",
@@ -2938,9 +2937,8 @@
         "credits": "Credits",
         "coupon": "Cupón"
       },
-      "billingPortalDescription": "Descarga tus facturas, cambia tus direcciones de facturación y gestiona otra información de facturación.",
-      "manageYourBilling": "Gestionar facturación",
-      "openingBillingPortal": "Abriendo...",
+      "billingPortalDescription": "Actualiza dirección de facturación, identificación fiscal, métodos de pago, email de facturación y suscripciones en Stripe.",
+      "manageYourBilling": "Gestionar en Stripe",
       "orgAccessRestrictedTitle": "Acceso a Billing restringido",
       "orgAccessRestrictedDescription": "Solo los propietarios y admins de la organización pueden ver los detalles de Billing.",
       "orgAccessRestrictedHint": "Cambia a tu cuenta personal o contacta a un admin de la organización si necesitas acceso.",
@@ -3166,6 +3164,29 @@
         "marketingEmailsDisabledSuccess": "Emails de marketing desactivados",
         "loading": "Guardando configuración...",
         "error": "No se pudo actualizar la configuración de notificaciones"
+      },
+      "BillingDetails": {
+        "title": "Información de facturación",
+        "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
+        "addressLabel": "Dirección de facturación",
+        "taxIdLabel": "IVA / identificación fiscal",
+        "taxIdVerification": "Estado de verificación: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificado",
+          "pending": "Pendiente",
+          "unverified": "No verificado",
+          "unavailable": "No disponible",
+          "verification_failed": "Verificación fallida"
+        },
+        "invoiceEmailLabel": "Email de facturación",
+        "invoiceEmailEmpty": "No hay email de facturación registrado",
+        "empty": "No hay dirección de facturación registrada",
+        "loadErrorTitle": "No se pudo cargar la información de facturación",
+        "loadError": "No pudimos cargar tu información de facturación en este momento.",
+        "retry": "Reintentar",
+        "Errors": {
+          "general": "No se pudo abrir Stripe"
+        }
       },
       "Delete": {
         "title": "Eliminar cuenta",
@@ -3408,24 +3429,28 @@
         "delete": "Eliminar",
         "invite": "Invitar miembro",
         "bulkInvite": "Invitar en bloque",
-        "InvoiceEmail": {
-          "title": "Email de facturación",
-          "description": "Dirección de email para recibir facturas y notificaciones de Billing",
-          "label": "Email de facturación",
-          "placeholder": "billing@example.com",
-          "help": "Esta dirección de email recibirá todas las facturas y comunicaciones de Billing de Stripe",
-          "edit": "Editar",
-          "save": "Guardar",
-          "cancel": "Cancelar",
-          "Success": {
-            "update": "Email de facturación actualizado correctamente"
+        "BillingDetails": {
+          "title": "Información de facturación",
+          "description": "La dirección de facturación, identificación fiscal, email de facturación y métodos de pago se gestionan en Stripe.",
+          "addressLabel": "Dirección de facturación",
+          "taxIdLabel": "IVA / identificación fiscal",
+          "taxIdVerification": "Estado de verificación: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificado",
+            "pending": "Pendiente",
+            "unverified": "No verificado",
+            "unavailable": "No disponible",
+            "verification_failed": "Verificación fallida"
           },
+          "invoiceEmailLabel": "Email de facturación",
+          "invoiceEmailEmpty": "No hay email de facturación registrado",
+          "empty": "No hay dirección de facturación registrada",
+          "loadErrorTitle": "No se pudo cargar la información de facturación",
+          "loadError": "No pudimos cargar la información de facturación de esta organización en este momento.",
+          "retry": "Reintentar",
           "Errors": {
-            "unauthenticated": "Por favor, inicia sesión para continuar",
-            "unauthenticatedAction": "Iniciar sesión",
-            "unauthorized": "Solo los propietarios y admins pueden actualizar el email de facturación",
-            "badInput": "Por favor, introduce una dirección de email válida",
-            "general": "No se pudo actualizar el email de facturación"
+            "unauthorized": "Solo los propietarios y administradores pueden abrir la facturación de Stripe",
+            "general": "No se pudo abrir Stripe"
           }
         },
         "Subscription": {

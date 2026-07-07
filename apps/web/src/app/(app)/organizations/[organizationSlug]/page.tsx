@@ -2,19 +2,26 @@ import { MemberRole } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { PendingInvitation } from "@/lib/clients/generated/core";
+import type {
+  PendingInvitation,
+  StripeCustomerBillingDetails,
+} from "@/lib/clients/generated/core";
 import {
   organizationSeatService,
   organizationService,
   userService,
 } from "@/lib/services";
 
+import { OrganizationBillingAccessRestricted } from "./components/organization-billing-access-restricted";
+import OrganizationBillingDetails from "./components/organization-billing-details";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
-import OrganizationInvoiceEmail from "./components/organization-invoice-email";
 import { OrganizationSeatSummaryCard } from "./components/organization-seat-summary";
 
 interface OrganizationPageProps {
@@ -70,6 +77,9 @@ export default async function OrganizationPage({
   params,
 }: OrganizationPageProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
+  const tBilling = await getTranslations(
+    "App.Organizations.OrganizationDetail.BillingDetails",
+  );
   const { organizationSlug } = await params;
   const normalizedSlug = decodeURIComponent(organizationSlug);
 
@@ -104,15 +114,48 @@ export default async function OrganizationPage({
     ? await organizationSeatService.getSeatSummary(organization.id)
     : null;
 
+  let billingDetails: StripeCustomerBillingDetails | undefined;
+  let billingDetailsLoadError: ReactNode | undefined;
+
+  if (isOwnerOrAdmin) {
+    try {
+      const billingDetailsResponse =
+        await coreClient.getOrganizationBillingDetails(organization.id);
+      billingDetails = billingDetailsResponse.data;
+    } catch (error) {
+      console.error("Failed to load organization billing details", error);
+      billingDetailsLoadError = (
+        <CoreAuthReadRetry
+          description={tBilling("loadError")}
+          retryLabel={tBilling("retry")}
+          title={tBilling("loadErrorTitle")}
+        />
+      );
+    }
+  }
+
   return (
     <div className="min-h-full w-full">
+      <BillingPortalErrorToast
+        generalMessage={tBilling("Errors.general")}
+        unauthorizedMessage={tBilling("Errors.unauthorized")}
+      />
       <div className="mx-auto max-w-4xl space-y-12 px-4">
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />
         </div>
         <OrganizationInformation organization={organization} member={member} />
-        <OrganizationInvoiceEmail organization={organization} member={member} />
+        {isOwnerOrAdmin ? (
+          <OrganizationBillingDetails
+            billingDetails={billingDetails}
+            billingDetailsLoadError={billingDetailsLoadError}
+            organizationId={organization.id}
+            organizationSlug={normalizedSlug}
+          />
+        ) : (
+          <OrganizationBillingAccessRestricted />
+        )}
         {isOwnerOrAdmin && seatSummary ? (
           <OrganizationSeatSummaryCard seatSummary={seatSummary} />
         ) : null}

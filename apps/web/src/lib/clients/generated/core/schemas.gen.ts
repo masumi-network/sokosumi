@@ -6175,12 +6175,6 @@ export const OrganizationSchema = {
                         'null'
                     ],
                     format: 'uri'
-                },
-                invoiceEmail: {
-                    type: [
-                        'string',
-                        'null'
-                    ]
                 }
             },
             additionalProperties: {},
@@ -6579,6 +6573,132 @@ export const ProvisionedStripeCustomerSchema = {
     },
     required: [
         'stripeCustomerId'
+    ]
+} as const;
+
+export const StripeCustomerBillingDetailsSchema = {
+    type: 'object',
+    properties: {
+        stripeCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cus_123',
+            description: 'Stripe customer id'
+        },
+        email: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'billing@example.com',
+            description: 'Stripe customer email used for invoices'
+        },
+        address: {
+            $ref: '#/components/schemas/StripeCustomerBillingAddress'
+        },
+        taxIds: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StripeCustomerBillingTaxId'
+            }
+        }
+    },
+    required: [
+        'stripeCustomerId',
+        'email',
+        'address',
+        'taxIds'
+    ]
+} as const;
+
+export const StripeCustomerBillingAddressSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        line1: {
+            type: 'string',
+            example: '123 Main St'
+        },
+        line2: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Suite 4',
+            description: 'Optional second line'
+        },
+        city: {
+            type: 'string',
+            example: 'Berlin'
+        },
+        state: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'CA',
+            description: 'State or province when required'
+        },
+        postalCode: {
+            type: 'string',
+            example: '10115'
+        },
+        country: {
+            type: 'string',
+            example: 'DE',
+            description: 'ISO 3166-1 alpha-2 country code, or empty when not set on Stripe'
+        }
+    },
+    required: [
+        'line1',
+        'line2',
+        'city',
+        'state',
+        'postalCode',
+        'country'
+    ]
+} as const;
+
+export const StripeCustomerBillingTaxIdSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'txi_123'
+        },
+        type: {
+            type: 'string',
+            example: 'eu_vat'
+        },
+        value: {
+            type: 'string',
+            example: 'DE123456789'
+        },
+        country: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'DE'
+        },
+        verificationStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'verified'
+        }
+    },
+    required: [
+        'id',
+        'type',
+        'value',
+        'country',
+        'verificationStatus'
     ]
 } as const;
 
@@ -7053,41 +7173,6 @@ export const UpdateOrganizationSubscriptionSeatsSchema = {
     },
     required: [
         'seats'
-    ]
-} as const;
-
-export const OrganizationInvoiceEmailSchema = {
-    type: 'object',
-    properties: {
-        invoiceEmail: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'billing@acme.example',
-            description: 'The persisted invoice email, or null when none'
-        }
-    },
-    required: [
-        'invoiceEmail'
-    ]
-} as const;
-
-export const OrganizationInvoiceEmailWriteSchema = {
-    type: 'object',
-    properties: {
-        invoiceEmail: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'email',
-            example: 'billing@acme.example',
-            description: 'Invoice email to set, or null to clear it'
-        }
-    },
-    required: [
-        'invoiceEmail'
     ]
 } as const;
 

@@ -6,6 +6,7 @@ const {
   stripeCheckoutSessionsRetrieveMock,
   stripeCouponsRetrieveMock,
   stripeCustomersCreateMock,
+  stripeCustomersRetrieveMock,
   stripeInvoiceItemsCreateMock,
   stripeInvoicesCreateMock,
   stripeInvoicesFinalizeMock,
@@ -18,6 +19,7 @@ const {
   stripeCheckoutSessionsRetrieveMock: vi.fn(),
   stripeCouponsRetrieveMock: vi.fn(),
   stripeCustomersCreateMock: vi.fn(),
+  stripeCustomersRetrieveMock: vi.fn(),
   stripeInvoiceItemsCreateMock: vi.fn(),
   stripeInvoicesCreateMock: vi.fn(),
   stripeInvoicesFinalizeMock: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock("stripe", () => ({
   default: class StripeMock {
     customers = {
       create: (...args: unknown[]) => stripeCustomersCreateMock(...args),
+      retrieve: (...args: unknown[]) => stripeCustomersRetrieveMock(...args),
     };
 
     coupons = {
@@ -126,7 +129,6 @@ describe("stripeClient", () => {
 
     await stripeClient.createOrganizationCustomer(
       {
-        invoiceEmail: "billing@example.com",
         name: "Sokosumi Org",
         organizationId: "org_123",
         slug: "sokosumi-org",
@@ -138,7 +140,6 @@ describe("stripeClient", () => {
 
     expect(stripeCustomersCreateMock).toHaveBeenCalledWith(
       {
-        email: "billing@example.com",
         metadata: {
           customerType: "organization",
           organizationId: "org_123",
@@ -345,5 +346,113 @@ describe("stripeClient.createAdminInvoice", () => {
     expect(stripeInvoiceItemsCreateMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "discounts",
     );
+  });
+
+  it("retrieves billing details with expanded tax ids", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      email: "billing@example.com",
+      deleted: false,
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: "Berlin",
+        state: null,
+        postal_code: "10115",
+        country: "DE",
+      },
+      tax_ids: {
+        data: [
+          {
+            id: "txi_1",
+            type: "eu_vat",
+            value: "DE123456789",
+            country: "DE",
+            verification: { status: "verified" },
+          },
+        ],
+      },
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.retrieveCustomerBillingDetails("cus_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: "cus_1",
+      email: "billing@example.com",
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: "Berlin",
+        state: null,
+        postalCode: "10115",
+        country: "DE",
+      },
+      taxIds: [
+        {
+          id: "txi_1",
+          type: "eu_vat",
+          value: "DE123456789",
+          country: "DE",
+          verificationStatus: "verified",
+        },
+      ],
+    });
+    expect(stripeCustomersRetrieveMock).toHaveBeenCalledWith(
+      "cus_1",
+      { expand: ["tax_ids"] },
+      undefined,
+    );
+  });
+
+  it("returns partial billing address when stripe address is incomplete", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      email: null,
+      deleted: false,
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: null,
+        state: null,
+        postal_code: null,
+        country: null,
+      },
+      tax_ids: { data: [] },
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.retrieveCustomerBillingDetails("cus_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: "cus_1",
+      email: null,
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: "",
+        state: null,
+        postalCode: "",
+        country: "",
+      },
+      taxIds: [],
+    });
+  });
+
+  it("returns empty billing details when stripe customer was deleted", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      deleted: true,
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.retrieveCustomerBillingDetails("cus_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: null,
+      email: null,
+      address: null,
+      taxIds: [],
+    });
   });
 });

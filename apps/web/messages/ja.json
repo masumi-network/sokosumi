@@ -2571,7 +2571,6 @@
       "billingPortalTitle": "請求ポータル",
       "billingPortalDescription": "Stripe の請求ポータルを開いて、サブスクリプションと請求書を管理します。",
       "billingPortalDescriptionWithPlan": "現在のプランは{plan}です。Stripe でサブスクリプション、請求情報、請求書を管理してください。",
-      "openingBillingPortal": "開いています...",
       "billingPortalCta": "請求ポータルを開く",
       "freePrice": "無料",
       "customPrice": "カスタム",
@@ -2969,9 +2968,8 @@
         "credits": "クレジット",
         "coupon": "クーポン"
       },
-      "billingPortalDescription": "請求書をダウンロードし、請求先住所を変更し、その他の請求情報を管理できます。",
-      "manageYourBilling": "請求を管理",
-      "openingBillingPortal": "開いています...",
+      "billingPortalDescription": "Stripeで請求先住所、税ID、支払い方法、請求書メール、サブスクリプションを管理します。",
+      "manageYourBilling": "Stripe で管理",
       "orgAccessRestrictedTitle": "請求へのアクセスが制限されています",
       "orgAccessRestrictedDescription": "この組織の請求情報を閲覧できるのは、組織のオーナーと管理者のみです。",
       "orgAccessRestrictedHint": "個人コンテキストに切り替えるか、アクセスが必要な場合は組織のオーナー／管理者にお問い合わせください。",
@@ -3197,6 +3195,29 @@
         "marketingEmailsDisabledSuccess": "マーケティングメールを無効にしました",
         "loading": "設定を保存しています...",
         "error": "通知設定の更新に失敗しました"
+      },
+      "BillingDetails": {
+        "title": "請求情報",
+        "description": "請求先住所、税 ID、請求書メール、支払い方法は Stripe で管理されます。",
+        "addressLabel": "請求先住所",
+        "taxIdLabel": "VAT / 税 ID",
+        "taxIdVerification": "確認ステータス: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "確認済み",
+          "pending": "保留中",
+          "unverified": "未確認",
+          "unavailable": "利用不可",
+          "verification_failed": "確認に失敗"
+        },
+        "invoiceEmailLabel": "請求書送付先メール",
+        "invoiceEmailEmpty": "請求書送付先メールは未登録です",
+        "empty": "請求先住所は未登録です",
+        "loadErrorTitle": "請求情報を読み込めませんでした",
+        "loadError": "現在、請求情報を読み込めませんでした。",
+        "retry": "再試行",
+        "Errors": {
+          "general": "Stripe を開けませんでした"
+        }
       },
       "Delete": {
         "title": "アカウントを削除",
@@ -3439,24 +3460,28 @@
         "delete": "削除",
         "invite": "メンバーを招待",
         "bulkInvite": "一括招待",
-        "InvoiceEmail": {
-          "title": "請求書送付先メール",
-          "description": "請求書および請求関連の通知を受け取るメールアドレス",
-          "label": "請求書送付先メール",
-          "placeholder": "billing@example.com",
-          "help": "このメールアドレス宛てに、Stripe からの請求書および請求に関する連絡が届きます",
-          "edit": "編集",
-          "save": "保存",
-          "cancel": "キャンセル",
-          "Success": {
-            "update": "請求書送付先メールを更新しました"
+        "BillingDetails": {
+          "title": "請求情報",
+          "description": "請求先住所、税 ID、請求書メール、支払い方法は Stripe で管理されます。",
+          "addressLabel": "請求先住所",
+          "taxIdLabel": "VAT / 税 ID",
+          "taxIdVerification": "確認ステータス: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "確認済み",
+            "pending": "保留中",
+            "unverified": "未確認",
+            "unavailable": "利用不可",
+            "verification_failed": "確認に失敗"
           },
+          "invoiceEmailLabel": "請求書送付先メール",
+          "invoiceEmailEmpty": "請求書送付先メールは未登録です",
+          "empty": "請求先住所は未登録です",
+          "loadErrorTitle": "請求情報を読み込めませんでした",
+          "loadError": "現在、この組織の請求情報を読み込めませんでした。",
+          "retry": "再試行",
           "Errors": {
-            "unauthenticated": "続行するにはログインしてください",
-            "unauthenticatedAction": "ログイン",
-            "unauthorized": "請求書送付先メールを更新できるのは、組織のオーナーと管理者のみです",
-            "badInput": "有効なメールアドレスを入力してください",
-            "general": "請求書送付先メールの更新に失敗しました"
+            "unauthorized": "Stripe の請求管理を開けるのはオーナーと管理者のみです",
+            "general": "Stripe を開けませんでした"
           }
         },
         "Subscription": {

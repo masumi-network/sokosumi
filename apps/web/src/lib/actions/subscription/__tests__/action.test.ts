@@ -8,8 +8,6 @@ vi.mock("server-only", () => ({}));
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
 
 vi.mock("@/lib/auth/subscription.server", () => ({
-  openOrganizationBillingPortalServer: vi.fn(),
-  openPersonalBillingPortalServer: vi.fn(),
   upgradeOrganizationSubscriptionServer: vi.fn(),
   upgradePersonalSubscriptionServer: vi.fn(),
 }));

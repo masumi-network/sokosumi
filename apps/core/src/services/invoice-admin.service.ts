@@ -6,7 +6,6 @@ import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-import { getOrganizationMetadata } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
@@ -264,12 +263,10 @@ export const invoiceAdminService = (() => {
       };
     }
 
-    const { invoiceEmail } = getOrganizationMetadata(organization.metadata);
     const customer = await stripeClient.createOrganizationCustomer({
       organizationId: organization.id,
       slug: organization.slug,
       name: organization.name,
-      invoiceEmail,
     });
 
     await prisma.organization.update({

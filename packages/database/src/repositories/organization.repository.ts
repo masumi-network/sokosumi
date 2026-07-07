@@ -1,5 +1,3 @@
-import { parseOrganizationMetadata } from "@sokosumi/utils";
-
 import type { Organization, Prisma } from "../generated/prisma/client.js";
 import {
   type OrganizationWithLimitedInfo,
@@ -135,44 +133,6 @@ export const organizationRepository = {
     return await tx.organization.findUnique({
       where: { slug },
       select: organizationLimitedInfoInclude,
-    });
-  },
-
-  /**
-   * Updates the invoice email for an organization.
-   *
-   * @param organizationId - The ID of the organization to update.
-   * @param invoiceEmail - The invoice email to set (or null to clear).
-   * @param tx - Optional Prisma transaction client.
-   * @returns The updated Organization object.
-   */
-  async updateOrganizationInvoiceEmail(
-    organizationId: string,
-    invoiceEmail: string | null,
-    tx: Prisma.TransactionClient,
-  ): Promise<Organization> {
-    const organization = await tx.organization.findUnique({
-      where: { id: organizationId },
-      select: { metadata: true },
-    });
-
-    const parsedMetadata =
-      parseOrganizationMetadata(organization?.metadata ?? null) ?? {};
-
-    if (invoiceEmail) {
-      parsedMetadata.invoiceEmail = invoiceEmail;
-    } else {
-      delete parsedMetadata.invoiceEmail;
-    }
-
-    const nextMetadata =
-      Object.keys(parsedMetadata).length > 0
-        ? JSON.stringify(parsedMetadata)
-        : null;
-
-    return await tx.organization.update({
-      where: { id: organizationId },
-      data: { metadata: nextMetadata },
     });
   },
 

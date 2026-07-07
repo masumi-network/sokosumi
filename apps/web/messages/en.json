@@ -2628,7 +2628,6 @@
       "billingPortalTitle": "Billing Portal",
       "billingPortalDescription": "Open Stripe Billing Portal to manage your subscriptions and invoices.",
       "billingPortalDescriptionWithPlan": "You are currently on {plan}. Manage your subscriptions, billing details, and invoices in Stripe.",
-      "openingBillingPortal": "Opening...",
       "billingPortalCta": "Open billing portal",
       "freePrice": "Free",
       "customPrice": "Custom",
@@ -3067,9 +3066,8 @@
         "credits": "Credits",
         "coupon": "Coupon"
       },
-      "billingPortalDescription": "Download your invoices, change your billing addresses and manage other billing information.",
-      "manageYourBilling": "Manage your billing",
-      "openingBillingPortal": "Opening...",
+      "billingPortalDescription": "Update billing address, tax ID, payment methods, invoice email, and subscriptions in Stripe.",
+      "manageYourBilling": "Manage in Stripe",
       "purchasedSeatsLabel": "Purchased seats",
       "assignedSeatsLabel": "Assigned",
       "unusedSeatsLabel": "Unused seats",
@@ -3295,6 +3293,29 @@
         "marketingEmailsDisabledSuccess": "Marketing emails disabled",
         "loading": "Saving preference...",
         "error": "Failed to update notification preference"
+      },
+      "BillingDetails": {
+        "title": "Billing information",
+        "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
+        "addressLabel": "Billing address",
+        "taxIdLabel": "VAT / tax ID",
+        "taxIdVerification": "Verification status: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verified",
+          "pending": "Pending",
+          "unverified": "Unverified",
+          "unavailable": "Unavailable",
+          "verification_failed": "Verification failed"
+        },
+        "invoiceEmailLabel": "Invoice email",
+        "invoiceEmailEmpty": "No invoice email on file",
+        "empty": "No billing address on file",
+        "loadErrorTitle": "Could not load billing information",
+        "loadError": "We could not load your billing information right now.",
+        "retry": "Try again",
+        "Errors": {
+          "general": "Failed to open Stripe"
+        }
       },
       "Delete": {
         "title": "Delete account",
@@ -3537,24 +3558,28 @@
         "delete": "Delete",
         "invite": "Invite Member",
         "bulkInvite": "Bulk invite",
-        "InvoiceEmail": {
-          "title": "Invoice Email",
-          "description": "Email address for receiving invoices and billing notifications",
-          "label": "Invoice Email",
-          "placeholder": "billing@example.com",
-          "help": "This email will receive all invoices and billing-related communications from Stripe",
-          "edit": "Edit",
-          "save": "Save",
-          "cancel": "Cancel",
-          "Success": {
-            "update": "Invoice email updated successfully"
+        "BillingDetails": {
+          "title": "Billing information",
+          "description": "Billing address, tax ID, invoice email, and payment methods are managed in Stripe.",
+          "addressLabel": "Billing address",
+          "taxIdLabel": "VAT / tax ID",
+          "taxIdVerification": "Verification status: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verified",
+            "pending": "Pending",
+            "unverified": "Unverified",
+            "unavailable": "Unavailable",
+            "verification_failed": "Verification failed"
           },
+          "invoiceEmailLabel": "Invoice email",
+          "invoiceEmailEmpty": "No invoice email on file",
+          "empty": "No billing address on file",
+          "loadErrorTitle": "Could not load billing information",
+          "loadError": "We could not load billing information for this organization right now.",
+          "retry": "Try again",
           "Errors": {
-            "unauthenticated": "Please log in to continue",
-            "unauthenticatedAction": "Log in",
-            "unauthorized": "Only organization owners and admins can update the invoice email",
-            "badInput": "Please enter a valid email address",
-            "general": "Failed to update invoice email"
+            "unauthorized": "Only organization owners and admins can open Stripe billing",
+            "general": "Failed to open Stripe"
           }
         },
         "Subscription": {

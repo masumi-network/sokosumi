@@ -34,7 +34,6 @@ describe("getOrganizationMetadata", () => {
     assert.deepEqual(
       getOrganizationMetadata(
         JSON.stringify({
-          invoiceEmail: "  billing@example.com  ",
           designMdExtractionId: "  42  ",
           designMdUrl: "  https://blob.example/design.md  ",
           other: true,
@@ -44,7 +43,22 @@ describe("getOrganizationMetadata", () => {
       {
         designMdExtractionId: "42",
         designMdUrl: "https://blob.example/design.md",
-        invoiceEmail: "billing@example.com",
+        url: "https://acme.com",
+      },
+    );
+  });
+
+  it("ignores legacy invoiceEmail values", () => {
+    assert.deepEqual(
+      getOrganizationMetadata(
+        JSON.stringify({
+          invoiceEmail: "billing@example.com",
+          url: "https://acme.com",
+        }),
+      ),
+      {
+        designMdExtractionId: null,
+        designMdUrl: null,
         url: "https://acme.com",
       },
     );
@@ -54,7 +68,6 @@ describe("getOrganizationMetadata", () => {
     assert.deepEqual(getOrganizationMetadata(JSON.stringify({})), {
       designMdExtractionId: null,
       designMdUrl: null,
-      invoiceEmail: null,
       url: null,
     });
     assert.deepEqual(
@@ -62,14 +75,12 @@ describe("getOrganizationMetadata", () => {
         JSON.stringify({
           designMdExtractionId: "   ",
           designMdUrl: "   ",
-          invoiceEmail: "   ",
           url: "   ",
         }),
       ),
       {
         designMdExtractionId: null,
         designMdUrl: null,
-        invoiceEmail: null,
         url: null,
       },
     );

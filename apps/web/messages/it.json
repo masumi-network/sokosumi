@@ -2571,7 +2571,6 @@
       "billingPortalTitle": "Portale di fatturazione",
       "billingPortalDescription": "Apri il Portale di fatturazione Stripe per gestire i tuoi abbonamenti e le tue fatture.",
       "billingPortalDescriptionWithPlan": "Attualmente sei su {plan}. Gestisci i tuoi abbonamenti, i dettagli di fatturazione e le fatture in Stripe.",
-      "openingBillingPortal": "Apertura in corso...",
       "billingPortalCta": "Apri il portale di fatturazione",
       "freePrice": "Gratis",
       "customPrice": "Personalizzato",
@@ -2969,9 +2968,8 @@
         "credits": "Crediti",
         "coupon": "Coupon"
       },
-      "billingPortalDescription": "Scarica le fatture, modifica gli indirizzi di fatturazione e gestisci altre informazioni di fatturazione.",
-      "manageYourBilling": "Gestisci la fatturazione",
-      "openingBillingPortal": "Apertura in corso...",
+      "billingPortalDescription": "Aggiorna indirizzo di fatturazione, codice fiscale, metodi di pagamento, email per le fatture e abbonamenti in Stripe.",
+      "manageYourBilling": "Gestisci in Stripe",
       "orgAccessRestrictedTitle": "Accesso alla fatturazione limitato",
       "orgAccessRestrictedDescription": "Solo i proprietari e gli amministratori dell’organizzazione possono visualizzare i dettagli di fatturazione per questa organizzazione.",
       "orgAccessRestrictedHint": "Passa al contesto personale o contatta un proprietario/amministratore dell’organizzazione se ti serve l’accesso.",
@@ -3197,6 +3195,29 @@
         "marketingEmailsDisabledSuccess": "Email di marketing disattivate",
         "loading": "Salvataggio preferenza...",
         "error": "Impossibile aggiornare le preferenze di notifica"
+      },
+      "BillingDetails": {
+        "title": "Informazioni di fatturazione",
+        "description": "Indirizzo di fatturazione, codice fiscale, email per le fatture e metodi di pagamento sono gestiti in Stripe.",
+        "addressLabel": "Indirizzo di fatturazione",
+        "taxIdLabel": "IVA / codice fiscale",
+        "taxIdVerification": "Stato verifica: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificato",
+          "pending": "In attesa",
+          "unverified": "Non verificato",
+          "unavailable": "Non disponibile",
+          "verification_failed": "Verifica non riuscita"
+        },
+        "invoiceEmailLabel": "Email per le fatture",
+        "invoiceEmailEmpty": "Nessuna email per le fatture registrata",
+        "empty": "Nessun indirizzo di fatturazione registrato",
+        "loadErrorTitle": "Impossibile caricare le informazioni di fatturazione",
+        "loadError": "Non è stato possibile caricare le tue informazioni di fatturazione in questo momento.",
+        "retry": "Riprova",
+        "Errors": {
+          "general": "Impossibile aprire Stripe"
+        }
       },
       "Delete": {
         "title": "Elimina account",
@@ -3439,24 +3460,28 @@
         "delete": "Elimina",
         "invite": "Invita un membro",
         "bulkInvite": "Invita in blocco",
-        "InvoiceEmail": {
-          "title": "Email per le fatture",
-          "description": "Indirizzo email per ricevere fatture e notifiche di fatturazione",
-          "label": "Email per le fatture",
-          "placeholder": "billing@example.com",
-          "help": "Questa email riceverà tutte le fatture e le comunicazioni di fatturazione da Stripe",
-          "edit": "Modifica",
-          "save": "Salva",
-          "cancel": "Annulla",
-          "Success": {
-            "update": "Email per le fatture aggiornata correttamente"
+        "BillingDetails": {
+          "title": "Informazioni di fatturazione",
+          "description": "Indirizzo di fatturazione, codice fiscale, email per le fatture e metodi di pagamento sono gestiti in Stripe.",
+          "addressLabel": "Indirizzo di fatturazione",
+          "taxIdLabel": "IVA / codice fiscale",
+          "taxIdVerification": "Stato verifica: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificato",
+            "pending": "In attesa",
+            "unverified": "Non verificato",
+            "unavailable": "Non disponibile",
+            "verification_failed": "Verifica non riuscita"
           },
+          "invoiceEmailLabel": "Email per le fatture",
+          "invoiceEmailEmpty": "Nessuna email per le fatture registrata",
+          "empty": "Nessun indirizzo di fatturazione registrato",
+          "loadErrorTitle": "Impossibile caricare le informazioni di fatturazione",
+          "loadError": "Non è stato possibile caricare le informazioni di fatturazione di questa organizzazione in questo momento.",
+          "retry": "Riprova",
           "Errors": {
-            "unauthenticated": "Accedi per continuare",
-            "unauthenticatedAction": "Accedi",
-            "unauthorized": "Solo i proprietari e gli amministratori dell’organizzazione possono aggiornare l’email per le fatture",
-            "badInput": "Inserisci un indirizzo email valido",
-            "general": "Impossibile aggiornare l’email per le fatture"
+            "unauthorized": "Solo proprietari e amministratori possono aprire la fatturazione Stripe",
+            "general": "Impossibile aprire Stripe"
           }
         },
         "Subscription": {

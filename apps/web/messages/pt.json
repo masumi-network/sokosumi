@@ -2571,7 +2571,6 @@
       "billingPortalTitle": "Portal de faturação",
       "billingPortalDescription": "Abra o Portal de faturação da Stripe para gerir as suas subscrições e faturas.",
       "billingPortalDescriptionWithPlan": "Atualmente está no plano {plan}. Gira as suas subscrições, os detalhes de faturação e as faturas na Stripe.",
-      "openingBillingPortal": "A abrir...",
       "billingPortalCta": "Abrir portal de faturação",
       "freePrice": "Gratuito",
       "customPrice": "Personalizado",
@@ -2969,9 +2968,8 @@
         "credits": "Créditos",
         "coupon": "Cupão"
       },
-      "billingPortalDescription": "Transfira as suas faturas, altere as suas moradas de faturação e gira outras informações de faturação.",
-      "manageYourBilling": "Gerir faturação",
-      "openingBillingPortal": "A abrir...",
+      "billingPortalDescription": "Atualize morada de faturação, NIF, métodos de pagamento, e-mail de faturação e subscrições na Stripe.",
+      "manageYourBilling": "Gerir na Stripe",
       "orgAccessRestrictedTitle": "Acesso à faturação restrito",
       "orgAccessRestrictedDescription": "Apenas os proprietários e administradores da organização podem ver os detalhes de faturação desta organização.",
       "orgAccessRestrictedHint": "Mude para um contexto pessoal ou contacte um proprietário/administrador da organização se precisar de acesso.",
@@ -3197,6 +3195,29 @@
         "marketingEmailsDisabledSuccess": "E-mails de marketing desativados",
         "loading": "A guardar preferência...",
         "error": "Falha ao atualizar a preferência de notificações"
+      },
+      "BillingDetails": {
+        "title": "Informações de faturação",
+        "description": "Morada de faturação, NIF, e-mail de faturação e métodos de pagamento são geridos na Stripe.",
+        "addressLabel": "Morada de faturação",
+        "taxIdLabel": "IVA / NIF",
+        "taxIdVerification": "Estado de verificação: {status}",
+        "taxIdVerificationStatus": {
+          "verified": "Verificado",
+          "pending": "Pendente",
+          "unverified": "Não verificado",
+          "unavailable": "Indisponível",
+          "verification_failed": "Verificação falhada"
+        },
+        "invoiceEmailLabel": "E-mail de faturação",
+        "invoiceEmailEmpty": "Nenhum e-mail de faturação registado",
+        "empty": "Nenhuma morada de faturação registada",
+        "loadErrorTitle": "Não foi possível carregar as informações de faturação",
+        "loadError": "Não foi possível carregar as suas informações de faturação neste momento.",
+        "retry": "Tentar novamente",
+        "Errors": {
+          "general": "Não foi possível abrir a Stripe"
+        }
       },
       "Delete": {
         "title": "Eliminar conta",
@@ -3439,24 +3460,28 @@
         "delete": "Eliminar",
         "invite": "Convidar membro",
         "bulkInvite": "Convidar em massa",
-        "InvoiceEmail": {
-          "title": "E-mail de faturação",
-          "description": "Endereço de e-mail para receber faturas e notificações de faturação",
-          "label": "E-mail de faturação",
-          "placeholder": "billing@example.com",
-          "help": "Este e-mail receberá todas as faturas e comunicações relacionadas com faturação da Stripe",
-          "edit": "Editar",
-          "save": "Guardar",
-          "cancel": "Cancelar",
-          "Success": {
-            "update": "E-mail de faturação atualizado com sucesso"
+        "BillingDetails": {
+          "title": "Informações de faturação",
+          "description": "Morada de faturação, NIF, e-mail de faturação e métodos de pagamento são geridos na Stripe.",
+          "addressLabel": "Morada de faturação",
+          "taxIdLabel": "IVA / NIF",
+          "taxIdVerification": "Estado de verificação: {status}",
+          "taxIdVerificationStatus": {
+            "verified": "Verificado",
+            "pending": "Pendente",
+            "unverified": "Não verificado",
+            "unavailable": "Indisponível",
+            "verification_failed": "Verificação falhada"
           },
+          "invoiceEmailLabel": "E-mail de faturação",
+          "invoiceEmailEmpty": "Nenhum e-mail de faturação registado",
+          "empty": "Nenhuma morada de faturação registada",
+          "loadErrorTitle": "Não foi possível carregar as informações de faturação",
+          "loadError": "Não foi possível carregar as informações de faturação desta organização neste momento.",
+          "retry": "Tentar novamente",
           "Errors": {
-            "unauthenticated": "Inicie sessão para continuar",
-            "unauthenticatedAction": "Iniciar sessão",
-            "unauthorized": "Apenas os proprietários e administradores da organização podem atualizar o e-mail de faturação",
-            "badInput": "Introduza um endereço de e-mail válido",
-            "general": "Falha ao atualizar o e-mail de faturação"
+            "unauthorized": "Apenas proprietários e administradores podem abrir a faturação Stripe",
+            "general": "Não foi possível abrir a Stripe"
           }
         },
         "Subscription": {

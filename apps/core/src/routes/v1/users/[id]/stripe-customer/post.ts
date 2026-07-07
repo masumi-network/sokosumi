@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { stripeClient } from "@/clients/stripe.client";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -15,6 +14,7 @@ import {
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
 import { provisionedStripeCustomerSchema } from "@/schemas/stripe.schema";
+import { provisionUserStripeCustomer } from "@/services/stripe-customer-provision.service";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -25,7 +25,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/stripe-customer",
     description:
-      "Ensure a Stripe customer exists for a user (path `me` for the session user, or a user id the caller may access). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer and returns the new id. Local persistence of the id happens asynchronously via the Stripe `customer.created` webhook.",
+      "Ensure a Stripe customer exists for a user (path `me` for the session user, or a user id the caller may access). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.",
     tags: ["Users"],
     request: {
       params,
@@ -73,15 +73,12 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       );
     }
 
-    const customer = await stripeClient.createUserCustomer({
+    const stripeCustomerId = await provisionUserStripeCustomer({
       email: user.email,
       name: user.name,
-      userId: user.id,
+      id: user.id,
     });
 
-    return ok(
-      c,
-      provisionedStripeCustomerSchema.parse({ stripeCustomerId: customer.id }),
-    );
+    return ok(c, provisionedStripeCustomerSchema.parse({ stripeCustomerId }));
   });
 }

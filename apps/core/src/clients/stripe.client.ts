@@ -7,9 +7,14 @@ import {
 import Stripe from "stripe";
 
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import {
+  emptyStripeCustomerBillingDetails,
+  type StripeCustomerBillingAddress,
+  type StripeCustomerBillingDetails,
+  type StripeCustomerBillingTaxId,
+} from "@/schemas/stripe.schema";
 
 interface CreateOrganizationCustomerInput {
-  invoiceEmail?: null | string;
   name: string;
   organizationId: string;
   slug: string;
@@ -144,6 +149,64 @@ function validatePrice(price: Stripe.Price): CreditPrice {
   };
 }
 
+function mapStripeCustomerAddress(
+  address: Stripe.Address | null | undefined,
+): StripeCustomerBillingAddress | null {
+  if (!address) {
+    return null;
+  }
+
+  const line1 = address.line1?.trim() ?? "";
+  const line2 = address.line2?.trim() ?? null;
+  const city = address.city?.trim() ?? "";
+  const state = address.state?.trim() ?? null;
+  const postalCode = address.postal_code?.trim() ?? "";
+  const country = address.country?.trim().toUpperCase() ?? "";
+  const hasAnyField =
+    line1.length > 0 ||
+    (line2?.length ?? 0) > 0 ||
+    city.length > 0 ||
+    (state?.length ?? 0) > 0 ||
+    postalCode.length > 0 ||
+    country.length > 0;
+
+  if (!hasAnyField) {
+    return null;
+  }
+
+  return {
+    line1,
+    line2,
+    city,
+    state,
+    postalCode,
+    country,
+  };
+}
+
+function mapStripeCustomerTaxIds(
+  taxIds: Stripe.ApiList<Stripe.TaxId> | undefined,
+): StripeCustomerBillingTaxId[] {
+  return (taxIds?.data ?? []).map((taxId) => ({
+    id: taxId.id,
+    type: taxId.type,
+    value: taxId.value,
+    country: taxId.country ?? null,
+    verificationStatus: taxId.verification?.status ?? null,
+  }));
+}
+
+function mapStripeCustomerBillingDetails(
+  customer: Stripe.Customer,
+): StripeCustomerBillingDetails {
+  return {
+    stripeCustomerId: customer.id,
+    email: customer.email ?? null,
+    address: mapStripeCustomerAddress(customer.address),
+    taxIds: mapStripeCustomerTaxIds(customer.tax_ids),
+  };
+}
+
 export const stripeClient = {
   async createUserCustomer(
     user: CreateUserCustomerInput,
@@ -168,9 +231,6 @@ export const stripeClient = {
   ): Promise<Stripe.Customer> {
     return await stripe.customers.create(
       {
-        ...(organization.invoiceEmail
-          ? { email: organization.invoiceEmail }
-          : {}),
         metadata: {
           customerType: "organization",
           organizationId: organization.organizationId,
@@ -204,6 +264,23 @@ export const stripeClient = {
         maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
       },
     );
+  },
+
+  async retrieveCustomerBillingDetails(
+    customerId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<StripeCustomerBillingDetails> {
+    const customer = await stripe.customers.retrieve(
+      customerId,
+      { expand: ["tax_ids"] },
+      requestOptions,
+    );
+
+    if (customer.deleted) {
+      return emptyStripeCustomerBillingDetails;
+    }
+
+    return mapStripeCustomerBillingDetails(customer);
   },
 
   async retrieveProduct(

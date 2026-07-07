@@ -9,7 +9,6 @@ const inviteOrganizationMemberViaCoreMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const headersMock = vi.fn();
-const updateOrganizationInvoiceEmailMock = vi.fn();
 const setMyPreferredOrganizationMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
@@ -27,8 +26,6 @@ class MockCoreApiRequestError extends Error {
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: MockCoreApiRequestError,
   coreClient: {
-    updateOrganizationInvoiceEmail: (...args: unknown[]) =>
-      updateOrganizationInvoiceEmailMock(...args),
     setMyPreferredOrganization: (...args: unknown[]) =>
       setMyPreferredOrganizationMock(...args),
   },
@@ -253,153 +250,6 @@ describe("organization actions", () => {
     expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
-  });
-});
-
-describe("updateOrganizationInvoiceEmail", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("updates the invoice email via Core and syncs with Stripe", async () => {
-    updateOrganizationInvoiceEmailMock.mockResolvedValue({
-      data: { invoiceEmail: "billing@acme.example" },
-    });
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    const result = await updateOrganizationInvoiceEmail({
-      organizationId: "org-1",
-      invoiceEmail: "billing@acme.example",
-      session,
-    });
-
-    expect(result).toEqual({
-      ok: true,
-      data: { invoiceEmail: "billing@acme.example" },
-    });
-    expect(updateOrganizationInvoiceEmailMock).toHaveBeenCalledWith("org-1", {
-      invoiceEmail: "billing@acme.example",
-    });
-  });
-
-  it("clears the invoice email when null is provided", async () => {
-    updateOrganizationInvoiceEmailMock.mockResolvedValue({
-      data: { invoiceEmail: null },
-    });
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    const result = await updateOrganizationInvoiceEmail({
-      organizationId: "org-1",
-      invoiceEmail: null,
-      session,
-    });
-
-    expect(result).toEqual({
-      ok: true,
-      data: { invoiceEmail: null },
-    });
-    expect(updateOrganizationInvoiceEmailMock).toHaveBeenCalledWith("org-1", {
-      invoiceEmail: null,
-    });
-  });
-
-  it("rejects an invalid email without calling Core", async () => {
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    const result = await updateOrganizationInvoiceEmail({
-      organizationId: "org-1",
-      invoiceEmail: "not-an-email",
-      session,
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe("BAD_INPUT");
-    }
-    expect(updateOrganizationInvoiceEmailMock).not.toHaveBeenCalled();
-  });
-
-  it("maps Core 403 responses to UNAUTHORIZED", async () => {
-    updateOrganizationInvoiceEmailMock.mockRejectedValue(
-      new MockCoreApiRequestError("You are not a member of this organization", {
-        status: 403,
-      }),
-    );
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    const result = await updateOrganizationInvoiceEmail({
-      organizationId: "org-1",
-      invoiceEmail: "billing@acme.example",
-      session,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "UNAUTHORIZED",
-        message: "You are not a member of this organization",
-      },
-    });
-  });
-
-  it("maps Core 404 responses to UNAUTHORIZED", async () => {
-    updateOrganizationInvoiceEmailMock.mockRejectedValue(
-      new MockCoreApiRequestError("Organization not found", { status: 404 }),
-    );
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    const result = await updateOrganizationInvoiceEmail({
-      organizationId: "org-1",
-      invoiceEmail: "billing@acme.example",
-      session,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "UNAUTHORIZED",
-        message: "Organization not found",
-      },
-    });
-  });
-
-  it("maps the organization_role_forbidden kind to UNAUTHORIZED even when the message is reworded", async () => {
-    updateOrganizationInvoiceEmailMock.mockRejectedValue(
-      new MockCoreApiRequestError("Owners and admins only", {
-        kind: "organization_role_forbidden",
-        status: 403,
-      }),
-    );
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    const result = await updateOrganizationInvoiceEmail({
-      organizationId: "org-1",
-      invoiceEmail: "billing@acme.example",
-      session,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "UNAUTHORIZED",
-        message: "Owners and admins only",
-      },
-    });
-  });
-
-  it("rethrows unexpected Core errors", async () => {
-    updateOrganizationInvoiceEmailMock.mockRejectedValue(
-      new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
-    );
-    const { updateOrganizationInvoiceEmail } = await import("../action");
-
-    await expect(
-      updateOrganizationInvoiceEmail({
-        organizationId: "org-1",
-        invoiceEmail: "billing@acme.example",
-        session,
-      }),
-    ).rejects.toThrow("Internal Server Error");
   });
 });
 

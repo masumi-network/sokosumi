@@ -1732,7 +1732,6 @@ export type Organization = {
     logo?: string | '' | null;
     metadata: {
         url?: string | null;
-        invoiceEmail?: string | null;
         [key: string]: unknown;
     } | null;
     /**
@@ -1904,6 +1903,45 @@ export type ProvisionedStripeCustomer = {
     stripeCustomerId: string;
 };
 
+export type StripeCustomerBillingDetails = {
+    /**
+     * Stripe customer id
+     */
+    stripeCustomerId: string | null;
+    /**
+     * Stripe customer email used for invoices
+     */
+    email: string | null;
+    address: StripeCustomerBillingAddress;
+    taxIds: Array<StripeCustomerBillingTaxId>;
+};
+
+export type StripeCustomerBillingAddress = {
+    line1: string;
+    /**
+     * Optional second line
+     */
+    line2: string | null;
+    city: string;
+    /**
+     * State or province when required
+     */
+    state: string | null;
+    postalCode: string;
+    /**
+     * ISO 3166-1 alpha-2 country code, or empty when not set on Stripe
+     */
+    country: string;
+} | null;
+
+export type StripeCustomerBillingTaxId = {
+    id: string;
+    type: string;
+    value: string;
+    country: string | null;
+    verificationStatus: string | null;
+};
+
 export type ActiveSubscriptionResponse = {
     subscription: {
         plan: string;
@@ -2044,20 +2082,6 @@ export type UpdateOrganizationSubscriptionSeats = {
      * Desired purchased seat count
      */
     seats: number;
-};
-
-export type OrganizationInvoiceEmail = {
-    /**
-     * The persisted invoice email, or null when none
-     */
-    invoiceEmail: string | null;
-};
-
-export type OrganizationInvoiceEmailWrite = {
-    /**
-     * Invoice email to set, or null to clear it
-     */
-    invoiceEmail: string | null;
 };
 
 export type ProjectListItem = Project & {
@@ -14339,6 +14363,109 @@ export type PostUsersByIdStripeCustomerResponses = {
 
 export type PostUsersByIdStripeCustomerResponse = PostUsersByIdStripeCustomerResponses[keyof PostUsersByIdStripeCustomerResponses];
 
+export type GetUsersByIdBillingDetailsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         */
+        'X-Delegation-User-Id'?: string;
+        /**
+         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         */
+        'X-Delegation-Organization-Id'?: string;
+    };
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/billing-details';
+};
+
+export type GetUsersByIdBillingDetailsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdBillingDetailsError = GetUsersByIdBillingDetailsErrors[keyof GetUsersByIdBillingDetailsErrors];
+
+export type GetUsersByIdBillingDetailsResponses = {
+    /**
+     * The user's Stripe billing details
+     */
+    200: {
+        data: StripeCustomerBillingDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdBillingDetailsResponse = GetUsersByIdBillingDetailsResponses[keyof GetUsersByIdBillingDetailsResponses];
+
 export type GetUsersByIdSubscriptionData = {
     body?: never;
     headers?: {
@@ -15532,6 +15659,95 @@ export type PostOrganizationsByIdStripeCustomerResponses = {
 
 export type PostOrganizationsByIdStripeCustomerResponse = PostOrganizationsByIdStripeCustomerResponses[keyof PostOrganizationsByIdStripeCustomerResponses];
 
+export type GetOrganizationsByIdBillingDetailsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/billing-details';
+};
+
+export type GetOrganizationsByIdBillingDetailsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You are not an owner or admin of this organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingDetailsError = GetOrganizationsByIdBillingDetailsErrors[keyof GetOrganizationsByIdBillingDetailsErrors];
+
+export type GetOrganizationsByIdBillingDetailsResponses = {
+    /**
+     * The organization's Stripe billing details
+     */
+    200: {
+        data: StripeCustomerBillingDetails;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdBillingDetailsResponse = GetOrganizationsByIdBillingDetailsResponses[keyof GetOrganizationsByIdBillingDetailsResponses];
+
 export type GetOrganizationsByIdSubscriptionData = {
     body?: never;
     path: {
@@ -15929,109 +16145,6 @@ export type PutOrganizationsByIdDesignMdResponses = {
 };
 
 export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
-
-export type PatchOrganizationsByIdInvoiceEmailData = {
-    body?: OrganizationInvoiceEmailWrite;
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/organizations/{id}/invoice-email';
-};
-
-export type PatchOrganizationsByIdInvoiceEmailErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You must be an organization owner or admin
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchOrganizationsByIdInvoiceEmailError = PatchOrganizationsByIdInvoiceEmailErrors[keyof PatchOrganizationsByIdInvoiceEmailErrors];
-
-export type PatchOrganizationsByIdInvoiceEmailResponses = {
-    /**
-     * The persisted invoice email for the organization
-     */
-    200: {
-        data: OrganizationInvoiceEmail;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchOrganizationsByIdInvoiceEmailResponse = PatchOrganizationsByIdInvoiceEmailResponses[keyof PatchOrganizationsByIdInvoiceEmailResponses];
 
 export type GetProjectsData = {
     body?: never;
