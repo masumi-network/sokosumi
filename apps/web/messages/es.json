@@ -2864,7 +2864,30 @@
           "createError": "No se pudo crear la factura",
           "pricePlaceholder": "Selecciona un precio",
           "priceHelper": "Precio por crédito utilizado para el importe de la factura.",
-          "priceRequired": "Selecciona un precio"
+          "priceRequired": "Selecciona un precio",
+          "billingLoadErrorTitle": "No se pudieron cargar los datos de facturación",
+          "billingLoadError": "No se pudieron cargar los datos de facturación del destinatario",
+          "billingRefresh": "Actualizar",
+          "billingIncomplete": "Se requiere una dirección de facturación con país",
+          "billingIncompleteUser": "Este usuario debe añadir una dirección de facturación con país en la configuración de su cuenta antes de que puedas crear una factura.",
+          "billingIncompleteOrganization": "Esta organización debe añadir una dirección de facturación con país en la configuración de la organización antes de que puedas crear una factura.",
+          "BillingDetails": {
+            "title": "Información de facturación",
+            "description": "Dirección de facturación y datos fiscales almacenados en el cliente de Stripe del destinatario.",
+            "addressLabel": "Dirección de facturación",
+            "taxIdLabel": "IVA / ID fiscal",
+            "taxIdVerification": "Estado de verificación: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verificado",
+              "pending": "Pendiente",
+              "unverified": "No verificado",
+              "unavailable": "No disponible",
+              "verification_failed": "Verificación fallida"
+            },
+            "invoiceEmailLabel": "Correo de facturación",
+            "invoiceEmailEmpty": "No hay correo de facturación registrado",
+            "empty": "No hay dirección de facturación registrada"
+          }
         },
         "Result": {
           "heading": "Factura",

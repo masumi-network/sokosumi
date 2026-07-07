@@ -8,7 +8,7 @@ const STRIPE_TAX_ID_VERIFICATION_STATUS_KEYS = {
 
 type BillingDetailsTranslator = (
   key: string,
-  values?: { status?: string },
+  values?: Record<string, string | number | Date>,
 ) => string;
 
 export function formatStripeTaxIdVerificationStatus(

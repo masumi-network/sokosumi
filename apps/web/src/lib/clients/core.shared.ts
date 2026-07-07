@@ -1399,6 +1399,19 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getUserBillingDetails(userId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdBillingDetails({
+          client,
+          path: { id: userId },
+          cache: "no-store",
+        }),
+      "Failed to fetch user billing details",
+    );
+  }
+
   /**
    * Revokes the current user's OAuth consent: Core deletes the consent,
    * revokes the client's refresh tokens, and deletes its access tokens in a
@@ -2827,6 +2840,7 @@ export function createCoreClient(getClient: GetClient) {
     createMyStripeCustomer,
     createOrganizationStripeCustomer,
     getMyBillingDetails,
+    getUserBillingDetails,
     getMyStripeCustomer,
     getOrganizationActiveSubscription,
     getOrganizationBillingDetails,

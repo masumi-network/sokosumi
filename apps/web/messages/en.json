@@ -2831,7 +2831,30 @@
           "createSuccess": "Invoice created",
           "createError": "Failed to create invoice",
           "pricePlaceholder": "Select a price",
-          "priceRequired": "Select a price"
+          "priceRequired": "Select a price",
+          "billingLoadErrorTitle": "Could not load billing details",
+          "billingLoadError": "Failed to load recipient billing details",
+          "billingRefresh": "Refresh",
+          "billingIncomplete": "Recipient billing address with country is required",
+          "billingIncompleteUser": "This user must add a billing address with country in their account settings before you can create an invoice.",
+          "billingIncompleteOrganization": "This organization must add a billing address with country in its organization settings before you can create an invoice.",
+          "BillingDetails": {
+            "title": "Billing information",
+            "description": "Billing address and tax details stored on the recipient's Stripe customer.",
+            "addressLabel": "Billing address",
+            "taxIdLabel": "VAT / tax ID",
+            "taxIdVerification": "Verification status: {status}",
+            "taxIdVerificationStatus": {
+              "verified": "Verified",
+              "pending": "Pending",
+              "unverified": "Unverified",
+              "unavailable": "Unavailable",
+              "verification_failed": "Verification failed"
+            },
+            "invoiceEmailLabel": "Invoice email",
+            "invoiceEmailEmpty": "No invoice email on file",
+            "empty": "No billing address on file"
+          }
         },
         "Result": {
           "heading": "Invoice",
