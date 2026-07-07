@@ -5,7 +5,7 @@ import { handleSubscriptionDeletedEvent } from "@/services/stripe-backed-subscri
 import { stripeWebhookService } from "@/services/stripe-webhook.service";
 
 export const BILLING_STRIPE_EVENT_TYPES: ReadonlySet<Stripe.Event.Type> =
-  new Set(["invoice.paid", "customer.created", "customer.updated"]);
+  new Set(["invoice.paid", "customer.created"]);
 
 export function isBillingStripeEventType(
   eventType: Stripe.Event.Type,
