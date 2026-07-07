@@ -76,7 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const stripeCustomerId = await provisionUserStripeCustomer({
       email: user.email,
       name: user.name,
-      userId: user.id,
+      id: user.id,
     });
 
     return ok(c, provisionedStripeCustomerSchema.parse({ stripeCustomerId }));

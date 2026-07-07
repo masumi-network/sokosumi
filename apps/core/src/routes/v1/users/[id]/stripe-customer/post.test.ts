@@ -126,7 +126,7 @@ describe("POST /users/{id}/stripe-customer", () => {
     expect(provisionUserStripeCustomerMock).toHaveBeenCalledWith({
       email: "jane@example.com",
       name: "Jane",
-      userId: "user_123",
+      id: "user_123",
     });
   });
 });
