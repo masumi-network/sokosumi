@@ -68,7 +68,8 @@ export interface BillingDetailsSectionProps {
     };
     taxIdValue?: string | null;
   }) => Promise<
-    { ok: true } | { ok: false; error: { code: string; message?: string } }
+    | { ok: true }
+    | { ok: false; error: { code: string; message?: string | null } }
   >;
   translationNamespace:
     | "App.Account.BillingDetails"
