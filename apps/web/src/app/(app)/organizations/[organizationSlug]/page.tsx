@@ -12,6 +12,7 @@ import {
   userService,
 } from "@/lib/services";
 
+import OrganizationBillingDetails from "./components/organization-billing-details";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 import OrganizationInvoiceEmail from "./components/organization-invoice-email";
@@ -103,6 +104,8 @@ export default async function OrganizationPage({
   const seatSummary = isOwnerOrAdmin
     ? await organizationSeatService.getSeatSummary(organization.id)
     : null;
+  const { data: billingDetails } =
+    await coreClient.getOrganizationBillingDetails(organization.id);
 
   return (
     <div className="min-h-full w-full">
@@ -112,6 +115,11 @@ export default async function OrganizationPage({
           <OrganizationRoleBadge role={member.role} />
         </div>
         <OrganizationInformation organization={organization} member={member} />
+        <OrganizationBillingDetails
+          billingDetails={billingDetails}
+          member={member}
+          organization={organization}
+        />
         <OrganizationInvoiceEmail organization={organization} member={member} />
         {isOwnerOrAdmin && seatSummary ? (
           <OrganizationSeatSummaryCard seatSummary={seatSummary} />

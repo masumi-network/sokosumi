@@ -3198,6 +3198,36 @@
         "loading": "A guardar preferência...",
         "error": "Falha ao atualizar a preferência de notificações"
       },
+      "BillingDetails": {
+        "title": "Morada de faturação",
+        "description": "Morada e NIF usados para faturas e cálculo de impostos. Guardados no perfil de cliente Stripe.",
+        "line1Label": "Morada linha 1",
+        "line2Label": "Morada linha 2 (opcional)",
+        "cityLabel": "Cidade",
+        "stateLabel": "Estado / província",
+        "postalCodeLabel": "Código postal",
+        "countryLabel": "País",
+        "countryPlaceholder": "Selecionar um país",
+        "taxIdLabel": "IVA / NIF",
+        "taxIdPlaceholder": "ex. DE123456789",
+        "taxIdHelp": "Opcional. Usado para tratamento fiscal empresarial, como autoliquidação na UE.",
+        "taxIdVerification": "Estado de verificação: {status}",
+        "empty": "Ainda não existe morada de faturação.",
+        "add": "Adicionar morada de faturação",
+        "edit": "Editar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "Success": {
+          "update": "Dados de faturação atualizados com sucesso"
+        },
+        "Errors": {
+          "unauthenticated": "Inicia sessão para continuar",
+          "unauthenticatedAction": "Iniciar sessão",
+          "unauthorized": "Não tens permissão para atualizar os dados de faturação",
+          "badInput": "Verifica a morada de faturação e o NIF",
+          "general": "Falha ao atualizar os dados de faturação"
+        }
+      },
       "Delete": {
         "title": "Eliminar conta",
         "description": "Eliminar permanentemente a sua conta e todos os dados associados",
@@ -3457,6 +3487,36 @@
             "unauthorized": "Apenas os proprietários e administradores da organização podem atualizar o e-mail de faturação",
             "badInput": "Introduza um endereço de e-mail válido",
             "general": "Falha ao atualizar o e-mail de faturação"
+          }
+        },
+        "BillingDetails": {
+          "title": "Morada de faturação",
+          "description": "Morada e NIF usados para faturas da organização e cálculo de impostos. Guardados no perfil de cliente Stripe da organização.",
+          "line1Label": "Morada linha 1",
+          "line2Label": "Morada linha 2 (opcional)",
+          "cityLabel": "Cidade",
+          "stateLabel": "Estado / província",
+          "postalCodeLabel": "Código postal",
+          "countryLabel": "País",
+          "countryPlaceholder": "Selecionar um país",
+          "taxIdLabel": "IVA / NIF",
+          "taxIdPlaceholder": "ex. DE123456789",
+          "taxIdHelp": "Opcional. Usado para tratamento fiscal empresarial, como autoliquidação na UE.",
+          "taxIdVerification": "Estado de verificação: {status}",
+          "empty": "Ainda não existe morada de faturação.",
+          "add": "Adicionar morada de faturação",
+          "edit": "Editar",
+          "save": "Guardar",
+          "cancel": "Cancelar",
+          "Success": {
+            "update": "Dados de faturação atualizados com sucesso"
+          },
+          "Errors": {
+            "unauthenticated": "Inicia sessão para continuar",
+            "unauthenticatedAction": "Iniciar sessão",
+            "unauthorized": "Apenas proprietários e administradores da organização podem atualizar os dados de faturação",
+            "badInput": "Verifica a morada de faturação e o NIF",
+            "general": "Falha ao atualizar os dados de faturação"
           }
         },
         "Subscription": {

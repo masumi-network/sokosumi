@@ -3167,6 +3167,36 @@
         "loading": "Einstellung wird gespeichert...",
         "error": "Benachrichtigungseinstellung konnte nicht aktualisiert werden"
       },
+      "BillingDetails": {
+        "title": "Rechnungsadresse",
+        "description": "Adresse und Steuer-ID für Rechnungen und Steuerberechnung. Gespeichert in deinem Stripe-Kundenprofil.",
+        "line1Label": "Adresszeile 1",
+        "line2Label": "Adresszeile 2 (optional)",
+        "cityLabel": "Stadt",
+        "stateLabel": "Bundesland / Provinz",
+        "postalCodeLabel": "Postleitzahl",
+        "countryLabel": "Land",
+        "countryPlaceholder": "Land auswählen",
+        "taxIdLabel": "USt-IdNr. / Steuer-ID",
+        "taxIdPlaceholder": "z. B. DE123456789",
+        "taxIdHelp": "Optional. Wird für die steuerliche Behandlung von Unternehmen verwendet, z. B. EU-Reverse-Charge.",
+        "taxIdVerification": "Verifizierungsstatus: {status}",
+        "empty": "Noch keine Rechnungsadresse hinterlegt.",
+        "add": "Rechnungsadresse hinzufügen",
+        "edit": "Bearbeiten",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "Success": {
+          "update": "Rechnungsdetails erfolgreich aktualisiert"
+        },
+        "Errors": {
+          "unauthenticated": "Bitte melde dich an, um fortzufahren",
+          "unauthenticatedAction": "Anmelden",
+          "unauthorized": "Du hast keine Berechtigung, Rechnungsdetails zu aktualisieren",
+          "badInput": "Bitte überprüfe Rechnungsadresse und Steuer-ID",
+          "general": "Rechnungsdetails konnten nicht aktualisiert werden"
+        }
+      },
       "Delete": {
         "title": "Account löschen",
         "description": "Deinen Account und alle zugehörigen Daten dauerhaft löschen",
@@ -3426,6 +3456,36 @@
             "unauthorized": "Nur Eigentümer und Admins der Organisation können die Rechnungs-E-Mail aktualisieren",
             "badInput": "Bitte gib eine gültige E-Mail-Adresse ein",
             "general": "Rechnungs-E-Mail konnte nicht aktualisiert werden"
+          }
+        },
+        "BillingDetails": {
+          "title": "Rechnungsadresse",
+          "description": "Adresse und Steuer-ID für Organisationsrechnungen und Steuerberechnung. Gespeichert im Stripe-Kundenprofil der Organisation.",
+          "line1Label": "Adresszeile 1",
+          "line2Label": "Adresszeile 2 (optional)",
+          "cityLabel": "Stadt",
+          "stateLabel": "Bundesland / Provinz",
+          "postalCodeLabel": "Postleitzahl",
+          "countryLabel": "Land",
+          "countryPlaceholder": "Land auswählen",
+          "taxIdLabel": "USt-IdNr. / Steuer-ID",
+          "taxIdPlaceholder": "z. B. DE123456789",
+          "taxIdHelp": "Optional. Wird für die steuerliche Behandlung von Unternehmen verwendet, z. B. EU-Reverse-Charge.",
+          "taxIdVerification": "Verifizierungsstatus: {status}",
+          "empty": "Noch keine Rechnungsadresse hinterlegt.",
+          "add": "Rechnungsadresse hinzufügen",
+          "edit": "Bearbeiten",
+          "save": "Speichern",
+          "cancel": "Abbrechen",
+          "Success": {
+            "update": "Rechnungsdetails erfolgreich aktualisiert"
+          },
+          "Errors": {
+            "unauthenticated": "Bitte melde dich an, um fortzufahren",
+            "unauthenticatedAction": "Anmelden",
+            "unauthorized": "Nur Eigentümer und Admins der Organisation können Rechnungsdetails aktualisieren",
+            "badInput": "Bitte überprüfe Rechnungsadresse und Steuer-ID",
+            "general": "Rechnungsdetails konnten nicht aktualisiert werden"
           }
         },
         "Subscription": {

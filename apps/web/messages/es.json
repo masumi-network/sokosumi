@@ -3167,6 +3167,36 @@
         "loading": "Guardando configuración...",
         "error": "No se pudo actualizar la configuración de notificaciones"
       },
+      "BillingDetails": {
+        "title": "Dirección de facturación",
+        "description": "Dirección e identificación fiscal usadas para facturas y cálculo de impuestos. Se guardan en tu perfil de cliente de Stripe.",
+        "line1Label": "Línea de dirección 1",
+        "line2Label": "Línea de dirección 2 (opcional)",
+        "cityLabel": "Ciudad",
+        "stateLabel": "Estado / provincia",
+        "postalCodeLabel": "Código postal",
+        "countryLabel": "País",
+        "countryPlaceholder": "Selecciona un país",
+        "taxIdLabel": "IVA / identificación fiscal",
+        "taxIdPlaceholder": "p. ej. DE123456789",
+        "taxIdHelp": "Opcional. Se usa para el tratamiento fiscal empresarial, como la inversión del sujeto pasivo en la UE.",
+        "taxIdVerification": "Estado de verificación: {status}",
+        "empty": "Aún no hay dirección de facturación registrada.",
+        "add": "Añadir dirección de facturación",
+        "edit": "Editar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "Success": {
+          "update": "Datos de facturación actualizados correctamente"
+        },
+        "Errors": {
+          "unauthenticated": "Inicia sesión para continuar",
+          "unauthenticatedAction": "Iniciar sesión",
+          "unauthorized": "No tienes permiso para actualizar los datos de facturación",
+          "badInput": "Revisa la dirección de facturación y la identificación fiscal",
+          "general": "No se pudieron actualizar los datos de facturación"
+        }
+      },
       "Delete": {
         "title": "Eliminar cuenta",
         "description": "Eliminar permanentemente tu cuenta y todos los datos asociados",
@@ -3426,6 +3456,36 @@
             "unauthorized": "Solo los propietarios y admins pueden actualizar el email de facturación",
             "badInput": "Por favor, introduce una dirección de email válida",
             "general": "No se pudo actualizar el email de facturación"
+          }
+        },
+        "BillingDetails": {
+          "title": "Dirección de facturación",
+          "description": "Dirección e identificación fiscal usadas para facturas de la organización y cálculo de impuestos. Se guardan en el perfil de cliente de Stripe de la organización.",
+          "line1Label": "Línea de dirección 1",
+          "line2Label": "Línea de dirección 2 (opcional)",
+          "cityLabel": "Ciudad",
+          "stateLabel": "Estado / provincia",
+          "postalCodeLabel": "Código postal",
+          "countryLabel": "País",
+          "countryPlaceholder": "Selecciona un país",
+          "taxIdLabel": "IVA / identificación fiscal",
+          "taxIdPlaceholder": "p. ej. DE123456789",
+          "taxIdHelp": "Opcional. Se usa para el tratamiento fiscal empresarial, como la inversión del sujeto pasivo en la UE.",
+          "taxIdVerification": "Estado de verificación: {status}",
+          "empty": "Aún no hay dirección de facturación registrada.",
+          "add": "Añadir dirección de facturación",
+          "edit": "Editar",
+          "save": "Guardar",
+          "cancel": "Cancelar",
+          "Success": {
+            "update": "Datos de facturación actualizados correctamente"
+          },
+          "Errors": {
+            "unauthenticated": "Inicia sesión para continuar",
+            "unauthenticatedAction": "Iniciar sesión",
+            "unauthorized": "Solo los propietarios y administradores de la organización pueden actualizar los datos de facturación",
+            "badInput": "Revisa la dirección de facturación y la identificación fiscal",
+            "general": "No se pudieron actualizar los datos de facturación"
           }
         },
         "Subscription": {

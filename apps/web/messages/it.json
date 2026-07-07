@@ -3198,6 +3198,36 @@
         "loading": "Salvataggio preferenza...",
         "error": "Impossibile aggiornare le preferenze di notifica"
       },
+      "BillingDetails": {
+        "title": "Indirizzo di fatturazione",
+        "description": "Indirizzo e partita IVA usati per fatture e calcolo delle imposte. Salvati nel profilo cliente Stripe.",
+        "line1Label": "Indirizzo riga 1",
+        "line2Label": "Indirizzo riga 2 (opzionale)",
+        "cityLabel": "Città",
+        "stateLabel": "Stato / provincia",
+        "postalCodeLabel": "CAP",
+        "countryLabel": "Paese",
+        "countryPlaceholder": "Seleziona un paese",
+        "taxIdLabel": "IVA / codice fiscale",
+        "taxIdPlaceholder": "es. DE123456789",
+        "taxIdHelp": "Opzionale. Usato per il trattamento fiscale aziendale, ad esempio il reverse charge UE.",
+        "taxIdVerification": "Stato verifica: {status}",
+        "empty": "Nessun indirizzo di fatturazione registrato.",
+        "add": "Aggiungi indirizzo di fatturazione",
+        "edit": "Modifica",
+        "save": "Salva",
+        "cancel": "Annulla",
+        "Success": {
+          "update": "Dati di fatturazione aggiornati con successo"
+        },
+        "Errors": {
+          "unauthenticated": "Accedi per continuare",
+          "unauthenticatedAction": "Accedi",
+          "unauthorized": "Non hai il permesso di aggiornare i dati di fatturazione",
+          "badInput": "Controlla indirizzo di fatturazione e codice fiscale",
+          "general": "Impossibile aggiornare i dati di fatturazione"
+        }
+      },
       "Delete": {
         "title": "Elimina account",
         "description": "Elimina definitivamente il tuo account e tutti i dati associati",
@@ -3457,6 +3487,36 @@
             "unauthorized": "Solo i proprietari e gli amministratori dell’organizzazione possono aggiornare l’email per le fatture",
             "badInput": "Inserisci un indirizzo email valido",
             "general": "Impossibile aggiornare l’email per le fatture"
+          }
+        },
+        "BillingDetails": {
+          "title": "Indirizzo di fatturazione",
+          "description": "Indirizzo e partita IVA usati per le fatture dell'organizzazione e il calcolo delle imposte. Salvati nel profilo cliente Stripe dell'organizzazione.",
+          "line1Label": "Indirizzo riga 1",
+          "line2Label": "Indirizzo riga 2 (opzionale)",
+          "cityLabel": "Città",
+          "stateLabel": "Stato / provincia",
+          "postalCodeLabel": "CAP",
+          "countryLabel": "Paese",
+          "countryPlaceholder": "Seleziona un paese",
+          "taxIdLabel": "IVA / codice fiscale",
+          "taxIdPlaceholder": "es. DE123456789",
+          "taxIdHelp": "Opzionale. Usato per il trattamento fiscale aziendale, ad esempio il reverse charge UE.",
+          "taxIdVerification": "Stato verifica: {status}",
+          "empty": "Nessun indirizzo di fatturazione registrato.",
+          "add": "Aggiungi indirizzo di fatturazione",
+          "edit": "Modifica",
+          "save": "Salva",
+          "cancel": "Annulla",
+          "Success": {
+            "update": "Dati di fatturazione aggiornati con successo"
+          },
+          "Errors": {
+            "unauthenticated": "Accedi per continuare",
+            "unauthenticatedAction": "Accedi",
+            "unauthorized": "Solo proprietari e amministratori dell'organizzazione possono aggiornare i dati di fatturazione",
+            "badInput": "Controlla indirizzo di fatturazione e codice fiscale",
+            "general": "Impossibile aggiornare i dati di fatturazione"
           }
         },
         "Subscription": {

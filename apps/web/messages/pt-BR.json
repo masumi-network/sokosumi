@@ -3198,6 +3198,36 @@
         "loading": "Salvando preferência...",
         "error": "Falha ao atualizar preferência de notificação"
       },
+      "BillingDetails": {
+        "title": "Endereço de faturamento",
+        "description": "Endereço e CNPJ/CPF usados para faturas e cálculo de impostos. Armazenados no perfil de cliente Stripe.",
+        "line1Label": "Endereço linha 1",
+        "line2Label": "Endereço linha 2 (opcional)",
+        "cityLabel": "Cidade",
+        "stateLabel": "Estado / província",
+        "postalCodeLabel": "CEP",
+        "countryLabel": "País",
+        "countryPlaceholder": "Selecione um país",
+        "taxIdLabel": "IVA / identificação fiscal",
+        "taxIdPlaceholder": "ex. DE123456789",
+        "taxIdHelp": "Opcional. Usado para tratamento fiscal empresarial, como autoliquidação na UE.",
+        "taxIdVerification": "Status de verificação: {status}",
+        "empty": "Nenhum endereço de faturamento cadastrado.",
+        "add": "Adicionar endereço de faturamento",
+        "edit": "Editar",
+        "save": "Salvar",
+        "cancel": "Cancelar",
+        "Success": {
+          "update": "Dados de faturamento atualizados com sucesso"
+        },
+        "Errors": {
+          "unauthenticated": "Faça login para continuar",
+          "unauthenticatedAction": "Entrar",
+          "unauthorized": "Você não tem permissão para atualizar os dados de faturamento",
+          "badInput": "Verifique o endereço de faturamento e a identificação fiscal",
+          "general": "Falha ao atualizar os dados de faturamento"
+        }
+      },
       "Delete": {
         "title": "Excluir conta",
         "description": "Excluir permanentemente sua conta e todos os dados associados",
@@ -3457,6 +3487,36 @@
             "unauthorized": "Apenas proprietários e admins da organização podem atualizar o e-mail para faturas",
             "badInput": "Digite um endereço de e-mail válido",
             "general": "Falha ao atualizar o e-mail para faturas"
+          }
+        },
+        "BillingDetails": {
+          "title": "Endereço de faturamento",
+          "description": "Endereço e identificação fiscal usados para faturas da organização e cálculo de impostos. Armazenados no perfil de cliente Stripe da organização.",
+          "line1Label": "Endereço linha 1",
+          "line2Label": "Endereço linha 2 (opcional)",
+          "cityLabel": "Cidade",
+          "stateLabel": "Estado / província",
+          "postalCodeLabel": "CEP",
+          "countryLabel": "País",
+          "countryPlaceholder": "Selecione um país",
+          "taxIdLabel": "IVA / identificação fiscal",
+          "taxIdPlaceholder": "ex. DE123456789",
+          "taxIdHelp": "Opcional. Usado para tratamento fiscal empresarial, como autoliquidação na UE.",
+          "taxIdVerification": "Status de verificação: {status}",
+          "empty": "Nenhum endereço de faturamento cadastrado.",
+          "add": "Adicionar endereço de faturamento",
+          "edit": "Editar",
+          "save": "Salvar",
+          "cancel": "Cancelar",
+          "Success": {
+            "update": "Dados de faturamento atualizados com sucesso"
+          },
+          "Errors": {
+            "unauthenticated": "Faça login para continuar",
+            "unauthenticatedAction": "Entrar",
+            "unauthorized": "Apenas proprietários e administradores da organização podem atualizar os dados de faturamento",
+            "badInput": "Verifique o endereço de faturamento e a identificação fiscal",
+            "general": "Falha ao atualizar os dados de faturamento"
           }
         },
         "Subscription": {

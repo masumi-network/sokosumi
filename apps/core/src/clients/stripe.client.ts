@@ -7,6 +7,7 @@ import {
 import Stripe from "stripe";
 
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { inferStripeTaxIdTypeForCountry } from "@/lib/stripe-tax-id";
 
 interface CreateOrganizationCustomerInput {
   invoiceEmail?: null | string;
@@ -19,6 +20,29 @@ interface CreateUserCustomerInput {
   email: string;
   name: string;
   userId: string;
+}
+
+export interface StripeCustomerBillingAddress {
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string | null;
+  postalCode: string;
+  country: string;
+}
+
+export interface StripeCustomerBillingTaxId {
+  id: string;
+  type: string;
+  value: string;
+  country: string | null;
+  verificationStatus: string | null;
+}
+
+export interface StripeCustomerBillingDetails {
+  stripeCustomerId: string;
+  address: StripeCustomerBillingAddress | null;
+  taxIds: StripeCustomerBillingTaxId[];
 }
 
 export interface CreditPrice {
@@ -144,6 +168,50 @@ function validatePrice(price: Stripe.Price): CreditPrice {
   };
 }
 
+function mapStripeCustomerAddress(
+  address: Stripe.Address | null | undefined,
+): StripeCustomerBillingAddress | null {
+  if (
+    !address?.line1 ||
+    !address.city ||
+    !address.postal_code ||
+    !address.country
+  ) {
+    return null;
+  }
+
+  return {
+    line1: address.line1,
+    line2: address.line2 ?? null,
+    city: address.city,
+    state: address.state ?? null,
+    postalCode: address.postal_code,
+    country: address.country,
+  };
+}
+
+function mapStripeCustomerTaxIds(
+  taxIds: Stripe.ApiList<Stripe.TaxId> | undefined,
+): StripeCustomerBillingTaxId[] {
+  return (taxIds?.data ?? []).map((taxId) => ({
+    id: taxId.id,
+    type: taxId.type,
+    value: taxId.value,
+    country: taxId.country ?? null,
+    verificationStatus: taxId.verification?.status ?? null,
+  }));
+}
+
+function mapStripeCustomerBillingDetails(
+  customer: Stripe.Customer,
+): StripeCustomerBillingDetails {
+  return {
+    stripeCustomerId: customer.id,
+    address: mapStripeCustomerAddress(customer.address),
+    taxIds: mapStripeCustomerTaxIds(customer.tax_ids),
+  };
+}
+
 export const stripeClient = {
   async createUserCustomer(
     user: CreateUserCustomerInput,
@@ -203,6 +271,93 @@ export const stripeClient = {
         ...requestOptions,
         maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
       },
+    );
+  },
+
+  async retrieveCustomerBillingDetails(
+    customerId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<StripeCustomerBillingDetails> {
+    const customer = await stripe.customers.retrieve(
+      customerId,
+      { expand: ["tax_ids.data"] },
+      requestOptions,
+    );
+
+    if (customer.deleted) {
+      throw new Error(`Stripe customer ${customerId} was deleted`);
+    }
+
+    return mapStripeCustomerBillingDetails(customer);
+  },
+
+  async updateCustomerBillingAddress(
+    customerId: string,
+    address: StripeCustomerBillingAddress,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Customer> {
+    return await stripe.customers.update(
+      customerId,
+      {
+        address: {
+          line1: address.line1,
+          line2: address.line2 ?? undefined,
+          city: address.city,
+          state: address.state ?? undefined,
+          postal_code: address.postalCode,
+          country: address.country,
+        },
+        tax: {
+          validate_location: "immediately",
+        },
+      },
+      {
+        ...requestOptions,
+        maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
+      },
+    );
+  },
+
+  async replaceCustomerTaxIds(
+    customerId: string,
+    params: { country: string; value: string } | null,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<void> {
+    const customer = await stripe.customers.retrieve(
+      customerId,
+      { expand: ["tax_ids.data"] },
+      requestOptions,
+    );
+
+    if (customer.deleted) {
+      throw new Error(`Stripe customer ${customerId} was deleted`);
+    }
+
+    const existingTaxIds = customer.tax_ids?.data ?? [];
+    await Promise.all(
+      existingTaxIds.map((taxId) =>
+        stripe.customers.deleteTaxId(customerId, taxId.id, requestOptions),
+      ),
+    );
+
+    if (!params?.value.trim()) {
+      return;
+    }
+
+    const taxIdType = inferStripeTaxIdTypeForCountry(params.country);
+    if (!taxIdType) {
+      throw new Error(
+        `Tax ID collection is not supported for country ${params.country}`,
+      );
+    }
+
+    await stripe.customers.createTaxId(
+      customerId,
+      {
+        type: taxIdType as Stripe.TaxIdCreateParams.Type,
+        value: params.value.trim(),
+      },
+      requestOptions,
     );
   },
 

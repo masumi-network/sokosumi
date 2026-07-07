@@ -6,6 +6,10 @@ const {
   stripeCheckoutSessionsRetrieveMock,
   stripeCouponsRetrieveMock,
   stripeCustomersCreateMock,
+  stripeCustomersCreateTaxIdMock,
+  stripeCustomersDeleteTaxIdMock,
+  stripeCustomersRetrieveMock,
+  stripeCustomersUpdateMock,
   stripeInvoiceItemsCreateMock,
   stripeInvoicesCreateMock,
   stripeInvoicesFinalizeMock,
@@ -18,6 +22,10 @@ const {
   stripeCheckoutSessionsRetrieveMock: vi.fn(),
   stripeCouponsRetrieveMock: vi.fn(),
   stripeCustomersCreateMock: vi.fn(),
+  stripeCustomersCreateTaxIdMock: vi.fn(),
+  stripeCustomersDeleteTaxIdMock: vi.fn(),
+  stripeCustomersRetrieveMock: vi.fn(),
+  stripeCustomersUpdateMock: vi.fn(),
   stripeInvoiceItemsCreateMock: vi.fn(),
   stripeInvoicesCreateMock: vi.fn(),
   stripeInvoicesFinalizeMock: vi.fn(),
@@ -30,6 +38,12 @@ vi.mock("stripe", () => ({
   default: class StripeMock {
     customers = {
       create: (...args: unknown[]) => stripeCustomersCreateMock(...args),
+      retrieve: (...args: unknown[]) => stripeCustomersRetrieveMock(...args),
+      update: (...args: unknown[]) => stripeCustomersUpdateMock(...args),
+      deleteTaxId: (...args: unknown[]) =>
+        stripeCustomersDeleteTaxIdMock(...args),
+      createTaxId: (...args: unknown[]) =>
+        stripeCustomersCreateTaxIdMock(...args),
     };
 
     coupons = {
@@ -344,6 +358,122 @@ describe("stripeClient.createAdminInvoice", () => {
 
     expect(stripeInvoiceItemsCreateMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "discounts",
+    );
+  });
+
+  it("retrieves billing details with expanded tax ids", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      deleted: false,
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: "Berlin",
+        state: null,
+        postal_code: "10115",
+        country: "DE",
+      },
+      tax_ids: {
+        data: [
+          {
+            id: "txi_1",
+            type: "eu_vat",
+            value: "DE123456789",
+            country: "DE",
+            verification: { status: "verified" },
+          },
+        ],
+      },
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.retrieveCustomerBillingDetails("cus_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: "cus_1",
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: "Berlin",
+        state: null,
+        postalCode: "10115",
+        country: "DE",
+      },
+      taxIds: [
+        {
+          id: "txi_1",
+          type: "eu_vat",
+          value: "DE123456789",
+          country: "DE",
+          verificationStatus: "verified",
+        },
+      ],
+    });
+  });
+
+  it("updates billing address with immediate tax location validation", async () => {
+    stripeCustomersUpdateMock.mockResolvedValue({ id: "cus_1" });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.updateCustomerBillingAddress("cus_1", {
+      line1: "123 Main St",
+      line2: null,
+      city: "Berlin",
+      state: null,
+      postalCode: "10115",
+      country: "DE",
+    });
+
+    expect(stripeCustomersUpdateMock).toHaveBeenCalledWith(
+      "cus_1",
+      {
+        address: {
+          line1: "123 Main St",
+          line2: undefined,
+          city: "Berlin",
+          state: undefined,
+          postal_code: "10115",
+          country: "DE",
+        },
+        tax: {
+          validate_location: "immediately",
+        },
+      },
+      {
+        maxNetworkRetries: 0,
+      },
+    );
+  });
+
+  it("replaces customer tax ids", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      deleted: false,
+      tax_ids: {
+        data: [{ id: "txi_old" }],
+      },
+    });
+    stripeCustomersDeleteTaxIdMock.mockResolvedValue({ deleted: true });
+    stripeCustomersCreateTaxIdMock.mockResolvedValue({ id: "txi_new" });
+    const { stripeClient } = await import("./stripe.client");
+
+    await stripeClient.replaceCustomerTaxIds("cus_1", {
+      country: "DE",
+      value: "DE123456789",
+    });
+
+    expect(stripeCustomersDeleteTaxIdMock).toHaveBeenCalledWith(
+      "cus_1",
+      "txi_old",
+      undefined,
+    );
+    expect(stripeCustomersCreateTaxIdMock).toHaveBeenCalledWith(
+      "cus_1",
+      {
+        type: "eu_vat",
+        value: "DE123456789",
+      },
+      undefined,
     );
   });
 });

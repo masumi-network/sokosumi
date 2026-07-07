@@ -3198,6 +3198,36 @@
         "loading": "設定を保存しています...",
         "error": "通知設定の更新に失敗しました"
       },
+      "BillingDetails": {
+        "title": "請求先住所",
+        "description": "請求書と税金計算に使用する住所と税 ID。Stripe 顧客プロフィールに保存されます。",
+        "line1Label": "住所 1",
+        "line2Label": "住所 2（任意）",
+        "cityLabel": "市区町村",
+        "stateLabel": "都道府県 / 州",
+        "postalCodeLabel": "郵便番号",
+        "countryLabel": "国",
+        "countryPlaceholder": "国を選択",
+        "taxIdLabel": "VAT / 税 ID",
+        "taxIdPlaceholder": "例: DE123456789",
+        "taxIdHelp": "任意。EU リバースチャージなど、法人の税務処理に使用されます。",
+        "taxIdVerification": "確認ステータス: {status}",
+        "empty": "請求先住所はまだ登録されていません。",
+        "add": "請求先住所を追加",
+        "edit": "編集",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "Success": {
+          "update": "請求情報を更新しました"
+        },
+        "Errors": {
+          "unauthenticated": "続行するにはログインしてください",
+          "unauthenticatedAction": "ログイン",
+          "unauthorized": "請求情報を更新する権限がありません",
+          "badInput": "請求先住所と税 ID を確認してください",
+          "general": "請求情報の更新に失敗しました"
+        }
+      },
       "Delete": {
         "title": "アカウントを削除",
         "description": "アカウントと関連するすべてのデータを完全に削除します",
@@ -3457,6 +3487,36 @@
             "unauthorized": "請求書送付先メールを更新できるのは、組織のオーナーと管理者のみです",
             "badInput": "有効なメールアドレスを入力してください",
             "general": "請求書送付先メールの更新に失敗しました"
+          }
+        },
+        "BillingDetails": {
+          "title": "請求先住所",
+          "description": "組織の請求書と税金計算に使用する住所と税 ID。組織の Stripe 顧客プロフィールに保存されます。",
+          "line1Label": "住所 1",
+          "line2Label": "住所 2（任意）",
+          "cityLabel": "市区町村",
+          "stateLabel": "都道府県 / 州",
+          "postalCodeLabel": "郵便番号",
+          "countryLabel": "国",
+          "countryPlaceholder": "国を選択",
+          "taxIdLabel": "VAT / 税 ID",
+          "taxIdPlaceholder": "例: DE123456789",
+          "taxIdHelp": "任意。EU リバースチャージなど、法人の税務処理に使用されます。",
+          "taxIdVerification": "確認ステータス: {status}",
+          "empty": "請求先住所はまだ登録されていません。",
+          "add": "請求先住所を追加",
+          "edit": "編集",
+          "save": "保存",
+          "cancel": "キャンセル",
+          "Success": {
+            "update": "請求情報を更新しました"
+          },
+          "Errors": {
+            "unauthenticated": "続行するにはログインしてください",
+            "unauthenticatedAction": "ログイン",
+            "unauthorized": "組織のオーナーまたは管理者のみ請求情報を更新できます",
+            "badInput": "請求先住所と税 ID を確認してください",
+            "general": "請求情報の更新に失敗しました"
           }
         },
         "Subscription": {

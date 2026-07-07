@@ -36,3 +36,73 @@ export const provisionedStripeCustomerSchema = z
 export type ProvisionedStripeCustomer = z.infer<
   typeof provisionedStripeCustomerSchema
 >;
+
+export const stripeCustomerBillingAddressSchema = z
+  .object({
+    line1: z.string().min(1).openapi({ example: "123 Main St" }),
+    line2: z
+      .string()
+      .nullable()
+      .openapi({ example: "Suite 4", description: "Optional second line" }),
+    city: z.string().min(1).openapi({ example: "Berlin" }),
+    state: z.string().nullable().openapi({
+      example: "CA",
+      description: "State or province when required",
+    }),
+    postalCode: z.string().min(1).openapi({ example: "10115" }),
+    country: z.string().length(2).openapi({
+      example: "DE",
+      description: "ISO 3166-1 alpha-2 country code",
+    }),
+  })
+  .openapi("StripeCustomerBillingAddress");
+
+export type StripeCustomerBillingAddress = z.infer<
+  typeof stripeCustomerBillingAddressSchema
+>;
+
+export const stripeCustomerBillingTaxIdSchema = z
+  .object({
+    id: z.string().openapi({ example: "txi_123" }),
+    type: z.string().openapi({ example: "eu_vat" }),
+    value: z.string().openapi({ example: "DE123456789" }),
+    country: z.string().nullable().openapi({ example: "DE" }),
+    verificationStatus: z.string().nullable().openapi({ example: "verified" }),
+  })
+  .openapi("StripeCustomerBillingTaxId");
+
+export type StripeCustomerBillingTaxId = z.infer<
+  typeof stripeCustomerBillingTaxIdSchema
+>;
+
+export const stripeCustomerBillingDetailsSchema = z
+  .object({
+    stripeCustomerId: z
+      .string()
+      .nullable()
+      .openapi({ example: "cus_123", description: "Stripe customer id" }),
+    address: stripeCustomerBillingAddressSchema.nullable(),
+    taxIds: z.array(stripeCustomerBillingTaxIdSchema),
+  })
+  .openapi("StripeCustomerBillingDetails");
+
+export type StripeCustomerBillingDetails = z.infer<
+  typeof stripeCustomerBillingDetailsSchema
+>;
+
+export const stripeCustomerBillingTaxIdWriteSchema = z
+  .object({
+    value: z.string().min(1).openapi({ example: "DE123456789" }),
+  })
+  .openapi("StripeCustomerBillingTaxIdWrite");
+
+export const stripeCustomerBillingDetailsWriteSchema = z
+  .object({
+    address: stripeCustomerBillingAddressSchema,
+    taxId: stripeCustomerBillingTaxIdWriteSchema.nullable().optional(),
+  })
+  .openapi("StripeCustomerBillingDetailsWrite");
+
+export type StripeCustomerBillingDetailsWrite = z.infer<
+  typeof stripeCustomerBillingDetailsWriteSchema
+>;

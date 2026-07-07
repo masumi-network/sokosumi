@@ -2,6 +2,7 @@ import { getUserMetadata } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
+import { coreClient } from "@/lib/clients/core.client";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
 
@@ -9,9 +10,10 @@ import { AccountSettings } from "./components/account-settings";
 
 export default async function Page() {
   const t = await getTranslations("App.Account.LinkedAccounts");
-  const [accountsResult, session] = await Promise.all([
+  const [accountsResult, session, billingDetailsResponse] = await Promise.all([
     listUserAccounts(),
     getSession(),
+    coreClient.getMyBillingDetails(),
   ]);
   const userMetadata = getUserMetadata(session?.user.metadata);
   const designMdValue = toDesignMdProfileValue(
@@ -24,6 +26,7 @@ export default async function Page() {
       <div className="mx-auto max-w-4xl px-4">
         <AccountSettings
           accounts={accountsResult.isOk() ? accountsResult.value : []}
+          billingDetails={billingDetailsResponse.data}
           designMdValue={designMdValue}
           credentialAccountsLoadError={
             accountsResult.isErr() ? (

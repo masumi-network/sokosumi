@@ -6582,6 +6582,160 @@ export const ProvisionedStripeCustomerSchema = {
     ]
 } as const;
 
+export const StripeCustomerBillingDetailsSchema = {
+    type: 'object',
+    properties: {
+        stripeCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cus_123',
+            description: 'Stripe customer id'
+        },
+        address: {
+            $ref: '#/components/schemas/StripeCustomerBillingAddress'
+        },
+        taxIds: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/StripeCustomerBillingTaxId'
+            }
+        }
+    },
+    required: [
+        'stripeCustomerId',
+        'address',
+        'taxIds'
+    ]
+} as const;
+
+export const StripeCustomerBillingAddressSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        line1: {
+            type: 'string',
+            minLength: 1,
+            example: '123 Main St'
+        },
+        line2: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Suite 4',
+            description: 'Optional second line'
+        },
+        city: {
+            type: 'string',
+            minLength: 1,
+            example: 'Berlin'
+        },
+        state: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'CA',
+            description: 'State or province when required'
+        },
+        postalCode: {
+            type: 'string',
+            minLength: 1,
+            example: '10115'
+        },
+        country: {
+            type: 'string',
+            minLength: 2,
+            maxLength: 2,
+            example: 'DE',
+            description: 'ISO 3166-1 alpha-2 country code'
+        }
+    },
+    required: [
+        'line1',
+        'line2',
+        'city',
+        'state',
+        'postalCode',
+        'country'
+    ]
+} as const;
+
+export const StripeCustomerBillingTaxIdSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'txi_123'
+        },
+        type: {
+            type: 'string',
+            example: 'eu_vat'
+        },
+        value: {
+            type: 'string',
+            example: 'DE123456789'
+        },
+        country: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'DE'
+        },
+        verificationStatus: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'verified'
+        }
+    },
+    required: [
+        'id',
+        'type',
+        'value',
+        'country',
+        'verificationStatus'
+    ]
+} as const;
+
+export const StripeCustomerBillingDetailsWriteSchema = {
+    type: 'object',
+    properties: {
+        address: {
+            $ref: '#/components/schemas/StripeCustomerBillingAddress'
+        },
+        taxId: {
+            $ref: '#/components/schemas/StripeCustomerBillingTaxIdWrite'
+        }
+    },
+    required: [
+        'address'
+    ]
+} as const;
+
+export const StripeCustomerBillingTaxIdWriteSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        value: {
+            type: 'string',
+            minLength: 1,
+            example: 'DE123456789'
+        }
+    },
+    required: [
+        'value'
+    ]
+} as const;
+
 export const ActiveSubscriptionResponseSchema = {
     type: 'object',
     properties: {

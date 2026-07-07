@@ -3198,6 +3198,36 @@
         "loading": "Enregistrement des préférences...",
         "error": "Échec de la mise à jour des préférences de notification"
       },
+      "BillingDetails": {
+        "title": "Adresse de facturation",
+        "description": "Adresse et numéro de TVA utilisés pour les factures et le calcul des taxes. Stockés sur votre profil client Stripe.",
+        "line1Label": "Adresse ligne 1",
+        "line2Label": "Adresse ligne 2 (facultatif)",
+        "cityLabel": "Ville",
+        "stateLabel": "État / province",
+        "postalCodeLabel": "Code postal",
+        "countryLabel": "Pays",
+        "countryPlaceholder": "Sélectionner un pays",
+        "taxIdLabel": "TVA / identifiant fiscal",
+        "taxIdPlaceholder": "ex. DE123456789",
+        "taxIdHelp": "Facultatif. Utilisé pour le traitement fiscal des entreprises, par ex. l'autoliquidation UE.",
+        "taxIdVerification": "Statut de vérification : {status}",
+        "empty": "Aucune adresse de facturation enregistrée.",
+        "add": "Ajouter une adresse de facturation",
+        "edit": "Modifier",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "Success": {
+          "update": "Informations de facturation mises à jour"
+        },
+        "Errors": {
+          "unauthenticated": "Veuillez vous connecter pour continuer",
+          "unauthenticatedAction": "Se connecter",
+          "unauthorized": "Vous n'avez pas l'autorisation de modifier les informations de facturation",
+          "badInput": "Vérifiez l'adresse de facturation et l'identifiant fiscal",
+          "general": "Échec de la mise à jour des informations de facturation"
+        }
+      },
       "Delete": {
         "title": "Supprimer le compte",
         "description": "Supprimez définitivement votre compte et toutes les données associées",
@@ -3457,6 +3487,36 @@
             "unauthorized": "Seuls les propriétaires et administrateurs de l’organisation peuvent mettre à jour l’e-mail de facturation",
             "badInput": "Veuillez saisir une adresse e-mail valide",
             "general": "Échec de la mise à jour de l’e-mail de facturation"
+          }
+        },
+        "BillingDetails": {
+          "title": "Adresse de facturation",
+          "description": "Adresse et numéro de TVA utilisés pour les factures de l'organisation et le calcul des taxes. Stockés sur le profil client Stripe de l'organisation.",
+          "line1Label": "Adresse ligne 1",
+          "line2Label": "Adresse ligne 2 (facultatif)",
+          "cityLabel": "Ville",
+          "stateLabel": "État / province",
+          "postalCodeLabel": "Code postal",
+          "countryLabel": "Pays",
+          "countryPlaceholder": "Sélectionner un pays",
+          "taxIdLabel": "TVA / identifiant fiscal",
+          "taxIdPlaceholder": "ex. DE123456789",
+          "taxIdHelp": "Facultatif. Utilisé pour le traitement fiscal des entreprises, par ex. l'autoliquidation UE.",
+          "taxIdVerification": "Statut de vérification : {status}",
+          "empty": "Aucune adresse de facturation enregistrée.",
+          "add": "Ajouter une adresse de facturation",
+          "edit": "Modifier",
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "Success": {
+            "update": "Informations de facturation mises à jour"
+          },
+          "Errors": {
+            "unauthenticated": "Veuillez vous connecter pour continuer",
+            "unauthenticatedAction": "Se connecter",
+            "unauthorized": "Seuls les propriétaires et administrateurs de l'organisation peuvent modifier les informations de facturation",
+            "badInput": "Vérifiez l'adresse de facturation et l'identifiant fiscal",
+            "general": "Échec de la mise à jour des informations de facturation"
           }
         },
         "Subscription": {

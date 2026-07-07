@@ -37,8 +37,10 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
+  PatchOrganizationsByIdBillingDetailsData,
   PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
+  PatchUsersByIdBillingDetailsData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -118,6 +120,7 @@ import {
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationsById as coreGetOrganizationsById,
+  getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
@@ -133,6 +136,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
@@ -158,9 +162,11 @@ import {
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
+  patchOrganizationsByIdBillingDetails as corePatchOrganizationsByIdBillingDetails,
   patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
+  patchUsersByIdBillingDetails as corePatchUsersByIdBillingDetails,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -1263,6 +1269,35 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getOrganizationBillingDetails(organizationId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdBillingDetails({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization billing details",
+    );
+  }
+
+  async function updateOrganizationBillingDetails(
+    organizationId: string,
+    body: NonNullable<PatchOrganizationsByIdBillingDetailsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchOrganizationsByIdBillingDetails({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to update organization billing details",
+    );
+  }
+
   async function getOrganizationBillingPlan(organizationId: string) {
     return executeOperation(
       getClient,
@@ -1343,6 +1378,34 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to create user Stripe customer",
+    );
+  }
+
+  async function getMyBillingDetails() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdBillingDetails({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch user billing details",
+    );
+  }
+
+  async function updateMyBillingDetails(
+    body: NonNullable<PatchUsersByIdBillingDetailsData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchUsersByIdBillingDetails({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          body,
+        }),
+      "Failed to update user billing details",
     );
   }
 
@@ -2792,8 +2855,10 @@ export function createCoreClient(getClient: GetClient) {
     getMyOrganizations,
     createMyStripeCustomer,
     createOrganizationStripeCustomer,
+    getMyBillingDetails,
     getMyStripeCustomer,
     getOrganizationActiveSubscription,
+    getOrganizationBillingDetails,
     getOrganizationBillingPlan,
     getOrganizationById,
     getOrganizationBySlug,
@@ -2836,6 +2901,8 @@ export function createCoreClient(getClient: GetClient) {
     unassignOrganizationSeat,
     updateConversation,
     updateHermesInstance,
+    updateMyBillingDetails,
+    updateOrganizationBillingDetails,
     updateOrganizationInvoiceEmail,
     updateOrganizationSubscriptionSeats,
   };

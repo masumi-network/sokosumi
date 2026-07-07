@@ -3296,6 +3296,36 @@
         "loading": "Saving preference...",
         "error": "Failed to update notification preference"
       },
+      "BillingDetails": {
+        "title": "Billing address",
+        "description": "Address and tax ID used for invoices and tax calculation. Stored on your Stripe customer profile.",
+        "line1Label": "Address line 1",
+        "line2Label": "Address line 2 (optional)",
+        "cityLabel": "City",
+        "stateLabel": "State / province",
+        "postalCodeLabel": "Postal code",
+        "countryLabel": "Country",
+        "countryPlaceholder": "Select a country",
+        "taxIdLabel": "VAT / tax ID",
+        "taxIdPlaceholder": "e.g. DE123456789",
+        "taxIdHelp": "Optional. Used for business tax treatment such as EU reverse charge.",
+        "taxIdVerification": "Verification status: {status}",
+        "empty": "No billing address on file yet.",
+        "add": "Add billing address",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "Success": {
+          "update": "Billing details updated successfully"
+        },
+        "Errors": {
+          "unauthenticated": "Please log in to continue",
+          "unauthenticatedAction": "Log in",
+          "unauthorized": "You do not have permission to update billing details",
+          "badInput": "Please check the billing address and tax ID",
+          "general": "Failed to update billing details"
+        }
+      },
       "Delete": {
         "title": "Delete account",
         "description": "Permanently delete your account and all associated data",
@@ -3555,6 +3585,36 @@
             "unauthorized": "Only organization owners and admins can update the invoice email",
             "badInput": "Please enter a valid email address",
             "general": "Failed to update invoice email"
+          }
+        },
+        "BillingDetails": {
+          "title": "Billing address",
+          "description": "Address and tax ID used for organization invoices and tax calculation. Stored on your organization's Stripe customer profile.",
+          "line1Label": "Address line 1",
+          "line2Label": "Address line 2 (optional)",
+          "cityLabel": "City",
+          "stateLabel": "State / province",
+          "postalCodeLabel": "Postal code",
+          "countryLabel": "Country",
+          "countryPlaceholder": "Select a country",
+          "taxIdLabel": "VAT / tax ID",
+          "taxIdPlaceholder": "e.g. DE123456789",
+          "taxIdHelp": "Optional. Used for business tax treatment such as EU reverse charge.",
+          "taxIdVerification": "Verification status: {status}",
+          "empty": "No billing address on file yet.",
+          "add": "Add billing address",
+          "edit": "Edit",
+          "save": "Save",
+          "cancel": "Cancel",
+          "Success": {
+            "update": "Billing details updated successfully"
+          },
+          "Errors": {
+            "unauthenticated": "Please log in to continue",
+            "unauthenticatedAction": "Log in",
+            "unauthorized": "Only organization owners and admins can update billing details",
+            "badInput": "Please check the billing address and tax ID",
+            "general": "Failed to update billing details"
           }
         },
         "Subscription": {

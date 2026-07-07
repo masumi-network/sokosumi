@@ -3198,6 +3198,36 @@
         "loading": "正在保存偏好设置...",
         "error": "更新通知偏好失败"
       },
+      "BillingDetails": {
+        "title": "账单地址",
+        "description": "用于发票和税费计算的地址与税号。保存在你的 Stripe 客户资料中。",
+        "line1Label": "地址行 1",
+        "line2Label": "地址行 2（可选）",
+        "cityLabel": "城市",
+        "stateLabel": "省 / 州",
+        "postalCodeLabel": "邮政编码",
+        "countryLabel": "国家/地区",
+        "countryPlaceholder": "选择国家/地区",
+        "taxIdLabel": "增值税 / 税号",
+        "taxIdPlaceholder": "例如 DE123456789",
+        "taxIdHelp": "可选。用于企业税务处理，例如欧盟反向征收。",
+        "taxIdVerification": "验证状态：{status}",
+        "empty": "尚未保存账单地址。",
+        "add": "添加账单地址",
+        "edit": "编辑",
+        "save": "保存",
+        "cancel": "取消",
+        "Success": {
+          "update": "账单信息更新成功"
+        },
+        "Errors": {
+          "unauthenticated": "请登录后继续",
+          "unauthenticatedAction": "登录",
+          "unauthorized": "你没有权限更新账单信息",
+          "badInput": "请检查账单地址和税号",
+          "general": "更新账单信息失败"
+        }
+      },
       "Delete": {
         "title": "删除账户",
         "description": "永久删除您的账户及所有关联数据",
@@ -3457,6 +3487,36 @@
             "unauthorized": "只有组织所有者和管理员可以更新发票邮箱",
             "badInput": "请输入有效的邮箱地址",
             "general": "更新发票邮箱失败"
+          }
+        },
+        "BillingDetails": {
+          "title": "账单地址",
+          "description": "用于组织发票和税费计算的地址与税号。保存在组织的 Stripe 客户资料中。",
+          "line1Label": "地址行 1",
+          "line2Label": "地址行 2（可选）",
+          "cityLabel": "城市",
+          "stateLabel": "省 / 州",
+          "postalCodeLabel": "邮政编码",
+          "countryLabel": "国家/地区",
+          "countryPlaceholder": "选择国家/地区",
+          "taxIdLabel": "增值税 / 税号",
+          "taxIdPlaceholder": "例如 DE123456789",
+          "taxIdHelp": "可选。用于企业税务处理，例如欧盟反向征收。",
+          "taxIdVerification": "验证状态：{status}",
+          "empty": "尚未保存账单地址。",
+          "add": "添加账单地址",
+          "edit": "编辑",
+          "save": "保存",
+          "cancel": "取消",
+          "Success": {
+            "update": "账单信息更新成功"
+          },
+          "Errors": {
+            "unauthenticated": "请登录后继续",
+            "unauthenticatedAction": "登录",
+            "unauthorized": "仅组织所有者和管理员可以更新账单信息",
+            "badInput": "请检查账单地址和税号",
+            "general": "更新账单信息失败"
           }
         },
         "Subscription": {

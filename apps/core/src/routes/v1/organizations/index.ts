@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
+import mountGetOrganizationBillingDetails from "./[id]/billing-details/get.js";
+import mountPatchOrganizationBillingDetails from "./[id]/billing-details/patch.js";
 import mountGetOrganizationBillingPlan from "./[id]/billing-plan/get.js";
 import mountGetOrganizationDesignMd from "./[id]/design-md/get.js";
 import mountPutOrganizationDesignMd from "./[id]/design-md/put.js";
@@ -32,6 +33,8 @@ mountGetOrganizationBillingPlan(app);
 mountGetOrganizationEnterpriseContractSummary(app);
 mountGetOrganizationStripeCustomer(app);
 mountPostOrganizationStripeCustomer(app);
+mountGetOrganizationBillingDetails(app);
+mountPatchOrganizationBillingDetails(app);
 mountGetOrganizationSubscription(app);
 mountPutOrganizationSubscriptionSeats(app);
 mountGetOrganizationDesignMd(app);
