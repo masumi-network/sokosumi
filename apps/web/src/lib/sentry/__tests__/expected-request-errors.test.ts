@@ -112,4 +112,12 @@ describe("isExpectedClientNoiseErrorMessage", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches masked production RSC render errors", () => {
+    expect(
+      isExpectedClientNoiseErrorMessage(
+        "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details.",
+      ),
+    ).toBe(true);
+  });
 });
