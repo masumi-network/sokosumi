@@ -135,4 +135,16 @@ describe("GET /users/{id}/billing-details", () => {
       taxIds: [],
     });
   });
+
+  it("returns 500 when the stripe read fails instead of empty billing details", async () => {
+    getUserBillingDetailsMock.mockRejectedValue(new Error("stripe down"));
+
+    const response = await createApp().request(
+      "http://localhost/user_123/billing-details",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(500);
+    expect(body).not.toContain("stripeCustomerId");
+  });
 });

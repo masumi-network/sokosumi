@@ -150,4 +150,18 @@ describe("GET /organizations/{id}/billing-details", () => {
       taxIds: [],
     });
   });
+
+  it("returns 500 when the stripe read fails instead of empty billing details", async () => {
+    getOrganizationBillingDetailsMock.mockRejectedValue(
+      new Error("stripe down"),
+    );
+
+    const response = await createApp().request(
+      "http://localhost/org_123/billing-details",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.data).toBeUndefined();
+  });
 });
