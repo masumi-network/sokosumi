@@ -79,6 +79,27 @@ describe("stripeCustomerBillingService", () => {
     ).rejects.toThrow(stripeError);
   });
 
+  it("preserves stripe customer id when stripe returns deleted customer details", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      stripeCustomerId: "cus_1",
+    } as never);
+    retrieveCustomerBillingDetailsMock.mockResolvedValue({
+      stripeCustomerId: null,
+      email: null,
+      address: null,
+      taxIds: [],
+    });
+
+    await expect(
+      stripeCustomerBillingService.getUserBillingDetails("user_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: "cus_1",
+      email: null,
+      address: null,
+      taxIds: [],
+    });
+  });
+
   it("returns stripe billing details for a user with a customer", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       stripeCustomerId: "cus_1",
