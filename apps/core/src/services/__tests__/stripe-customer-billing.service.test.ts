@@ -67,22 +67,16 @@ describe("stripeCustomerBillingService", () => {
     });
   });
 
-  it("returns empty billing details when stripe retrieval fails", async () => {
+  it("propagates stripe retrieval failures", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       stripeCustomerId: "cus_1",
     } as never);
-    retrieveCustomerBillingDetailsMock.mockRejectedValue(
-      new Error("Stripe unavailable"),
-    );
+    const stripeError = new Error("Stripe unavailable");
+    retrieveCustomerBillingDetailsMock.mockRejectedValue(stripeError);
 
     await expect(
       stripeCustomerBillingService.getUserBillingDetails("user_1"),
-    ).resolves.toEqual({
-      stripeCustomerId: null,
-      email: null,
-      address: null,
-      taxIds: [],
-    });
+    ).rejects.toThrow(stripeError);
   });
 
   it("returns stripe billing details for a user with a customer", async () => {

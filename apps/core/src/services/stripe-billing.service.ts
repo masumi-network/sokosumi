@@ -544,23 +544,4 @@ export const stripeBillingService = {
 
     return mapCheckoutSessionAnalytics(session);
   },
-
-  async syncOrganizationInvoiceEmailWithStripe(
-    organizationId: string,
-    invoiceEmail: string | null,
-  ): Promise<void> {
-    const organization = await prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { stripeCustomerId: true },
-    });
-
-    if (!organization?.stripeCustomerId) {
-      return;
-    }
-
-    await stripeClient.updateCustomerEmail(
-      organization.stripeCustomerId,
-      invoiceEmail,
-    );
-  },
 };

@@ -16,11 +16,7 @@ async function getBillingDetailsForCustomer(
     return emptyStripeCustomerBillingDetails;
   }
 
-  try {
-    return await stripeClient.retrieveCustomerBillingDetails(stripeCustomerId);
-  } catch {
-    return emptyStripeCustomerBillingDetails;
-  }
+  return await stripeClient.retrieveCustomerBillingDetails(stripeCustomerId);
 }
 
 export const stripeCustomerBillingService = {
