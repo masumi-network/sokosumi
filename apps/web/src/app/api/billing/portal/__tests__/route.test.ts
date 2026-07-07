@@ -110,6 +110,27 @@ describe("GET /api/billing/portal", () => {
     });
   });
 
+  it("redirects to sign in when portal creation returns unauthenticated", async () => {
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    openPersonalBillingPortalServerMock.mockResolvedValue({
+      ok: false,
+      error: { code: CommonErrorCode.UNAUTHENTICATED },
+    });
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/signin?returnUrl=%2Fapi%2Fbilling%2Fportal%3FreturnPath%3D%252Faccount",
+    );
+  });
+
   it("redirects back with billingPortalError when portal creation fails", async () => {
     const { CommonErrorCode } = await import("@/lib/actions/errors");
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
