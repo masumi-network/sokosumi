@@ -6,10 +6,7 @@ const {
   stripeCheckoutSessionsRetrieveMock,
   stripeCouponsRetrieveMock,
   stripeCustomersCreateMock,
-  stripeCustomersCreateTaxIdMock,
-  stripeCustomersDeleteTaxIdMock,
   stripeCustomersRetrieveMock,
-  stripeCustomersUpdateMock,
   stripeInvoiceItemsCreateMock,
   stripeInvoicesCreateMock,
   stripeInvoicesFinalizeMock,
@@ -22,10 +19,7 @@ const {
   stripeCheckoutSessionsRetrieveMock: vi.fn(),
   stripeCouponsRetrieveMock: vi.fn(),
   stripeCustomersCreateMock: vi.fn(),
-  stripeCustomersCreateTaxIdMock: vi.fn(),
-  stripeCustomersDeleteTaxIdMock: vi.fn(),
   stripeCustomersRetrieveMock: vi.fn(),
-  stripeCustomersUpdateMock: vi.fn(),
   stripeInvoiceItemsCreateMock: vi.fn(),
   stripeInvoicesCreateMock: vi.fn(),
   stripeInvoicesFinalizeMock: vi.fn(),
@@ -39,11 +33,6 @@ vi.mock("stripe", () => ({
     customers = {
       create: (...args: unknown[]) => stripeCustomersCreateMock(...args),
       retrieve: (...args: unknown[]) => stripeCustomersRetrieveMock(...args),
-      update: (...args: unknown[]) => stripeCustomersUpdateMock(...args),
-      deleteTaxId: (...args: unknown[]) =>
-        stripeCustomersDeleteTaxIdMock(...args),
-      createTaxId: (...args: unknown[]) =>
-        stripeCustomersCreateTaxIdMock(...args),
     };
 
     coupons = {
@@ -410,6 +399,57 @@ describe("stripeClient.createAdminInvoice", () => {
           verificationStatus: "verified",
         },
       ],
+    });
+  });
+
+  it("returns partial billing address when stripe address is incomplete", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      email: null,
+      deleted: false,
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: null,
+        state: null,
+        postal_code: null,
+        country: null,
+      },
+      tax_ids: { data: [] },
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.retrieveCustomerBillingDetails("cus_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: "cus_1",
+      email: null,
+      address: {
+        line1: "123 Main St",
+        line2: null,
+        city: "",
+        state: null,
+        postalCode: "",
+        country: "",
+      },
+      taxIds: [],
+    });
+  });
+
+  it("returns empty billing details when stripe customer was deleted", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      id: "cus_1",
+      deleted: true,
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(
+      stripeClient.retrieveCustomerBillingDetails("cus_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: null,
+      email: null,
+      address: null,
+      taxIds: [],
     });
   });
 });

@@ -3176,6 +3176,9 @@
         "invoiceEmailLabel": "Rechnungs-E-Mail",
         "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
         "empty": "Keine Rechnungsadresse hinterlegt",
+        "loadErrorTitle": "Rechnungsinformationen konnten nicht geladen werden",
+        "loadError": "Deine Rechnungsinformationen konnten gerade nicht geladen werden.",
+        "retry": "Erneut versuchen",
         "Errors": {
           "unauthenticated": "Bitte melde dich an, um fortzufahren",
           "unauthenticatedAction": "Anmelden",
@@ -3432,6 +3435,9 @@
           "invoiceEmailLabel": "Rechnungs-E-Mail",
           "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
           "empty": "Keine Rechnungsadresse hinterlegt",
+          "loadErrorTitle": "Rechnungsinformationen konnten nicht geladen werden",
+          "loadError": "Die Rechnungsinformationen dieser Organisation konnten gerade nicht geladen werden.",
+          "retry": "Erneut versuchen",
           "Errors": {
             "unauthenticated": "Bitte melde dich an, um fortzufahren",
             "unauthenticatedAction": "Anmelden",

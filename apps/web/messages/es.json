@@ -3176,6 +3176,9 @@
         "invoiceEmailLabel": "Email de facturación",
         "invoiceEmailEmpty": "No hay email de facturación registrado",
         "empty": "No hay dirección de facturación registrada",
+        "loadErrorTitle": "No se pudo cargar la información de facturación",
+        "loadError": "No pudimos cargar tu información de facturación en este momento.",
+        "retry": "Reintentar",
         "Errors": {
           "unauthenticated": "Inicia sesión para continuar",
           "unauthenticatedAction": "Iniciar sesión",
@@ -3432,6 +3435,9 @@
           "invoiceEmailLabel": "Email de facturación",
           "invoiceEmailEmpty": "No hay email de facturación registrado",
           "empty": "No hay dirección de facturación registrada",
+          "loadErrorTitle": "No se pudo cargar la información de facturación",
+          "loadError": "No pudimos cargar la información de facturación de esta organización en este momento.",
+          "retry": "Reintentar",
           "Errors": {
             "unauthenticated": "Inicia sesión para continuar",
             "unauthenticatedAction": "Iniciar sesión",

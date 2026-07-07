@@ -3305,6 +3305,9 @@
         "invoiceEmailLabel": "Invoice email",
         "invoiceEmailEmpty": "No invoice email on file",
         "empty": "No billing address on file",
+        "loadErrorTitle": "Could not load billing information",
+        "loadError": "We could not load your billing information right now.",
+        "retry": "Try again",
         "Errors": {
           "unauthenticated": "Please log in to continue",
           "unauthenticatedAction": "Log in",
@@ -3561,6 +3564,9 @@
           "invoiceEmailLabel": "Invoice email",
           "invoiceEmailEmpty": "No invoice email on file",
           "empty": "No billing address on file",
+          "loadErrorTitle": "Could not load billing information",
+          "loadError": "We could not load billing information for this organization right now.",
+          "retry": "Try again",
           "Errors": {
             "unauthenticated": "Please log in to continue",
             "unauthenticatedAction": "Log in",

@@ -19,7 +19,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/billing-details",
   description:
-    "Get billing address and tax IDs stored on the organization's Stripe customer. Any organization member may read them.",
+    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins only.",
   tags: ["Organizations"],
   request: {
     params,
@@ -43,7 +43,7 @@ const route = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse(
-      "Forbidden - You are not a member of this organization",
+      "Forbidden - You are not an owner or admin of this organization",
     ),
     404: jsonErrorResponse("Not Found - Organization not found"),
     500: jsonErrorResponse("Internal Server Error"),

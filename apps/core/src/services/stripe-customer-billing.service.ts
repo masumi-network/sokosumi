@@ -1,4 +1,9 @@
-import { stripeClient } from "@/clients/stripe.client";
+import { MemberRole } from "@sokosumi/database";
+
+import {
+  emptyStripeCustomerBillingDetails,
+  stripeClient,
+} from "@/clients/stripe.client";
 import { notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import prisma from "@/lib/db/prisma";
@@ -8,15 +13,14 @@ async function getBillingDetailsForCustomer(
   stripeCustomerId: string | null,
 ): Promise<StripeCustomerBillingDetails> {
   if (!stripeCustomerId) {
-    return {
-      stripeCustomerId: null,
-      email: null,
-      address: null,
-      taxIds: [],
-    };
+    return emptyStripeCustomerBillingDetails;
   }
 
-  return await stripeClient.retrieveCustomerBillingDetails(stripeCustomerId);
+  try {
+    return await stripeClient.retrieveCustomerBillingDetails(stripeCustomerId);
+  } catch {
+    return emptyStripeCustomerBillingDetails;
+  }
 }
 
 export const stripeCustomerBillingService = {
@@ -38,6 +42,7 @@ export const stripeCustomerBillingService = {
       id: organizationId,
       userId,
       tx: prisma,
+      allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
     });
 
     return await getBillingDetailsForCustomer(organization.stripeCustomerId);

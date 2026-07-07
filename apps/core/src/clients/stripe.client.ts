@@ -39,11 +39,18 @@ export interface StripeCustomerBillingTaxId {
 }
 
 export interface StripeCustomerBillingDetails {
-  stripeCustomerId: string;
+  stripeCustomerId: string | null;
   email: string | null;
   address: StripeCustomerBillingAddress | null;
   taxIds: StripeCustomerBillingTaxId[];
 }
+
+export const emptyStripeCustomerBillingDetails: StripeCustomerBillingDetails = {
+  stripeCustomerId: null,
+  email: null,
+  address: null,
+  taxIds: [],
+};
 
 export interface CreditPrice {
   id: string;
@@ -171,22 +178,35 @@ function validatePrice(price: Stripe.Price): CreditPrice {
 function mapStripeCustomerAddress(
   address: Stripe.Address | null | undefined,
 ): StripeCustomerBillingAddress | null {
-  if (
-    !address?.line1 ||
-    !address.city ||
-    !address.postal_code ||
-    !address.country
-  ) {
+  if (!address) {
+    return null;
+  }
+
+  const line1 = address.line1?.trim() ?? "";
+  const line2 = address.line2?.trim() ?? null;
+  const city = address.city?.trim() ?? "";
+  const state = address.state?.trim() ?? null;
+  const postalCode = address.postal_code?.trim() ?? "";
+  const country = address.country?.trim().toUpperCase() ?? "";
+  const hasAnyField =
+    line1.length > 0 ||
+    (line2?.length ?? 0) > 0 ||
+    city.length > 0 ||
+    (state?.length ?? 0) > 0 ||
+    postalCode.length > 0 ||
+    country.length > 0;
+
+  if (!hasAnyField) {
     return null;
   }
 
   return {
-    line1: address.line1,
-    line2: address.line2 ?? null,
-    city: address.city,
-    state: address.state ?? null,
-    postalCode: address.postal_code,
-    country: address.country,
+    line1,
+    line2,
+    city,
+    state,
+    postalCode,
+    country,
   };
 }
 
@@ -286,7 +306,7 @@ export const stripeClient = {
     );
 
     if (customer.deleted) {
-      throw new Error(`Stripe customer ${customerId} was deleted`);
+      return emptyStripeCustomerBillingDetails;
     }
 
     return mapStripeCustomerBillingDetails(customer);

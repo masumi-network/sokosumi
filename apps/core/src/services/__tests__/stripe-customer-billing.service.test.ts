@@ -1,3 +1,4 @@
+import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { retrieveCustomerBillingDetailsMock } = vi.hoisted(() => ({
@@ -7,6 +8,12 @@ const { retrieveCustomerBillingDetailsMock } = vi.hoisted(() => ({
 const resolveMemberOrganizationByIdMock = vi.fn();
 
 vi.mock("@/clients/stripe.client", () => ({
+  emptyStripeCustomerBillingDetails: {
+    stripeCustomerId: null,
+    email: null,
+    address: null,
+    taxIds: [],
+  },
   stripeClient: {
     retrieveCustomerBillingDetails: (...args: unknown[]) =>
       retrieveCustomerBillingDetailsMock(...args),
@@ -66,6 +73,24 @@ describe("stripeCustomerBillingService", () => {
     });
   });
 
+  it("returns empty billing details when stripe retrieval fails", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      stripeCustomerId: "cus_1",
+    } as never);
+    retrieveCustomerBillingDetailsMock.mockRejectedValue(
+      new Error("Stripe unavailable"),
+    );
+
+    await expect(
+      stripeCustomerBillingService.getUserBillingDetails("user_1"),
+    ).resolves.toEqual({
+      stripeCustomerId: null,
+      email: null,
+      address: null,
+      taxIds: [],
+    });
+  });
+
   it("returns stripe billing details for a user with a customer", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       stripeCustomerId: "cus_1",
@@ -94,6 +119,7 @@ describe("stripeCustomerBillingService", () => {
       expect.objectContaining({
         id: "org_1",
         userId: "user_1",
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
       }),
     );
     expect(retrieveCustomerBillingDetailsMock).toHaveBeenCalledWith(

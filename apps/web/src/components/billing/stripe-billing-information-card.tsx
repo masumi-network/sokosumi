@@ -31,14 +31,19 @@ function formatAddressLine(
     return null;
   }
 
-  const countryLabel = getBillingCountryLabel(address.country, locale);
+  const countryLabel =
+    address.country.length === 2
+      ? getBillingCountryLabel(address.country, locale)
+      : address.country;
   const locality = [address.postalCode, address.city].filter(Boolean).join(" ");
   const region = address.state ? `${address.state}, ` : "";
+  const localityLine =
+    `${locality}${locality ? ", " : ""}${region}${countryLabel}`.trim();
 
   return [
     address.line1,
     address.line2,
-    `${locality}${locality ? ", " : ""}${region}${countryLabel}`,
+    localityLine.length > 0 ? localityLine : null,
   ]
     .filter((line) => line && line.trim().length > 0)
     .join("\n");

@@ -39,22 +39,33 @@ export type ProvisionedStripeCustomer = z.infer<
 
 export const stripeCustomerBillingAddressSchema = z
   .object({
-    line1: z.string().min(1).openapi({ example: "123 Main St" }),
+    line1: z.string().openapi({ example: "123 Main St" }),
     line2: z
       .string()
       .nullable()
       .openapi({ example: "Suite 4", description: "Optional second line" }),
-    city: z.string().min(1).openapi({ example: "Berlin" }),
+    city: z.string().openapi({ example: "Berlin" }),
     state: z.string().nullable().openapi({
       example: "CA",
       description: "State or province when required",
     }),
-    postalCode: z.string().min(1).openapi({ example: "10115" }),
-    country: z.string().length(2).openapi({
+    postalCode: z.string().openapi({ example: "10115" }),
+    country: z.string().openapi({
       example: "DE",
-      description: "ISO 3166-1 alpha-2 country code",
+      description:
+        "ISO 3166-1 alpha-2 country code, or empty when not set on Stripe",
     }),
   })
+  .refine(
+    (address) =>
+      address.line1.trim().length > 0 ||
+      (address.line2?.trim().length ?? 0) > 0 ||
+      address.city.trim().length > 0 ||
+      (address.state?.trim().length ?? 0) > 0 ||
+      address.postalCode.trim().length > 0 ||
+      address.country.trim().length > 0,
+    { message: "At least one address field must be set" },
+  )
   .openapi("StripeCustomerBillingAddress");
 
 export type StripeCustomerBillingAddress = z.infer<

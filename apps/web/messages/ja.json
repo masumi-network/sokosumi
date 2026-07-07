@@ -3207,6 +3207,9 @@
         "invoiceEmailLabel": "請求書送付先メール",
         "invoiceEmailEmpty": "請求書送付先メールは未登録です",
         "empty": "請求先住所は未登録です",
+        "loadErrorTitle": "請求情報を読み込めませんでした",
+        "loadError": "現在、請求情報を読み込めませんでした。",
+        "retry": "再試行",
         "Errors": {
           "unauthenticated": "続行するにはログインしてください",
           "unauthenticatedAction": "ログイン",
@@ -3463,6 +3466,9 @@
           "invoiceEmailLabel": "請求書送付先メール",
           "invoiceEmailEmpty": "請求書送付先メールは未登録です",
           "empty": "請求先住所は未登録です",
+          "loadErrorTitle": "請求情報を読み込めませんでした",
+          "loadError": "現在、この組織の請求情報を読み込めませんでした。",
+          "retry": "再試行",
           "Errors": {
             "unauthenticated": "続行するにはログインしてください",
             "unauthenticatedAction": "ログイン",

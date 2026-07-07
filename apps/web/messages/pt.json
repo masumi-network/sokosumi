@@ -3207,6 +3207,9 @@
         "invoiceEmailLabel": "E-mail de faturação",
         "invoiceEmailEmpty": "Nenhum e-mail de faturação registado",
         "empty": "Nenhuma morada de faturação registada",
+        "loadErrorTitle": "Não foi possível carregar as informações de faturação",
+        "loadError": "Não foi possível carregar as suas informações de faturação neste momento.",
+        "retry": "Tentar novamente",
         "Errors": {
           "unauthenticated": "Inicia sessão para continuar",
           "unauthenticatedAction": "Iniciar sessão",
@@ -3463,6 +3466,9 @@
           "invoiceEmailLabel": "E-mail de faturação",
           "invoiceEmailEmpty": "Nenhum e-mail de faturação registado",
           "empty": "Nenhuma morada de faturação registada",
+          "loadErrorTitle": "Não foi possível carregar as informações de faturação",
+          "loadError": "Não foi possível carregar as informações de faturação desta organização neste momento.",
+          "retry": "Tentar novamente",
           "Errors": {
             "unauthenticated": "Inicia sessão para continuar",
             "unauthenticatedAction": "Iniciar sessão",

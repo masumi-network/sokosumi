@@ -3207,6 +3207,9 @@
         "invoiceEmailLabel": "E-mail de facturation",
         "invoiceEmailEmpty": "Aucun e-mail de facturation enregistré",
         "empty": "Aucune adresse de facturation enregistrée",
+        "loadErrorTitle": "Impossible de charger les informations de facturation",
+        "loadError": "Nous n'avons pas pu charger vos informations de facturation pour le moment.",
+        "retry": "Réessayer",
         "Errors": {
           "unauthenticated": "Veuillez vous connecter pour continuer",
           "unauthenticatedAction": "Se connecter",
@@ -3463,6 +3466,9 @@
           "invoiceEmailLabel": "E-mail de facturation",
           "invoiceEmailEmpty": "Aucun e-mail de facturation enregistré",
           "empty": "Aucune adresse de facturation enregistrée",
+          "loadErrorTitle": "Impossible de charger les informations de facturation",
+          "loadError": "Nous n'avons pas pu charger les informations de facturation de cette organisation pour le moment.",
+          "retry": "Réessayer",
           "Errors": {
             "unauthenticated": "Veuillez vous connecter pour continuer",
             "unauthenticatedAction": "Se connecter",

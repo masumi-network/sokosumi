@@ -1930,7 +1930,7 @@ export type StripeCustomerBillingAddress = {
     state: string | null;
     postalCode: string;
     /**
-     * ISO 3166-1 alpha-2 country code
+     * ISO 3166-1 alpha-2 country code, or empty when not set on Stripe
      */
     country: string;
 } | null;
@@ -15688,7 +15688,7 @@ export type GetOrganizationsByIdBillingDetailsErrors = {
         };
     };
     /**
-     * Forbidden - You are not a member of this organization
+     * Forbidden - You are not an owner or admin of this organization
      */
     403: {
         error: string;

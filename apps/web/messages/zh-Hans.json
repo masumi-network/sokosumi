@@ -3207,6 +3207,9 @@
         "invoiceEmailLabel": "发票邮箱",
         "invoiceEmailEmpty": "尚未设置发票邮箱",
         "empty": "尚未保存账单地址",
+        "loadErrorTitle": "无法加载账单信息",
+        "loadError": "暂时无法加载你的账单信息。",
+        "retry": "重试",
         "Errors": {
           "unauthenticated": "请登录后继续",
           "unauthenticatedAction": "登录",
@@ -3463,6 +3466,9 @@
           "invoiceEmailLabel": "发票邮箱",
           "invoiceEmailEmpty": "尚未设置发票邮箱",
           "empty": "尚未保存账单地址",
+          "loadErrorTitle": "无法加载账单信息",
+          "loadError": "暂时无法加载此组织的账单信息。",
+          "retry": "重试",
           "Errors": {
             "unauthenticated": "请登录后继续",
             "unauthenticatedAction": "登录",

@@ -3207,6 +3207,9 @@
         "invoiceEmailLabel": "E-mail para faturas",
         "invoiceEmailEmpty": "Nenhum e-mail para faturas cadastrado",
         "empty": "Nenhum endereço de faturamento cadastrado",
+        "loadErrorTitle": "Não foi possível carregar as informações de faturamento",
+        "loadError": "Não foi possível carregar suas informações de faturamento no momento.",
+        "retry": "Tentar novamente",
         "Errors": {
           "unauthenticated": "Faça login para continuar",
           "unauthenticatedAction": "Entrar",
@@ -3463,6 +3466,9 @@
           "invoiceEmailLabel": "E-mail para faturas",
           "invoiceEmailEmpty": "Nenhum e-mail para faturas cadastrado",
           "empty": "Nenhum endereço de faturamento cadastrado",
+          "loadErrorTitle": "Não foi possível carregar as informações de faturamento",
+          "loadError": "Não foi possível carregar as informações de faturamento desta organização no momento.",
+          "retry": "Tentar novamente",
           "Errors": {
             "unauthenticated": "Faça login para continuar",
             "unauthenticatedAction": "Entrar",

@@ -16,7 +16,8 @@ import { PreferencesSection } from "./preferences-section";
 
 interface AccountSettingsProps {
   accounts: Account[];
-  billingDetails: StripeCustomerBillingDetails;
+  billingDetails?: StripeCustomerBillingDetails;
+  billingDetailsLoadError?: ReactNode;
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
   notificationsOptIn: boolean;
@@ -28,6 +29,7 @@ interface AccountSettingsProps {
 export function AccountSettings({
   accounts,
   billingDetails,
+  billingDetailsLoadError,
   designMdValue,
   credentialAccountsLoadError,
   notificationsOptIn,
@@ -78,7 +80,11 @@ export function AccountSettings({
       </div>
 
       <div className="border-t pt-8">
-        <AccountBillingDetails billingDetails={billingDetails} />
+        {billingDetailsLoadError ? (
+          billingDetailsLoadError
+        ) : billingDetails ? (
+          <AccountBillingDetails billingDetails={billingDetails} />
+        ) : null}
       </div>
 
       <div className="border-t pt-8">

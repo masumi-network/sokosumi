@@ -6627,7 +6627,6 @@ export const StripeCustomerBillingAddressSchema = {
     properties: {
         line1: {
             type: 'string',
-            minLength: 1,
             example: '123 Main St'
         },
         line2: {
@@ -6640,7 +6639,6 @@ export const StripeCustomerBillingAddressSchema = {
         },
         city: {
             type: 'string',
-            minLength: 1,
             example: 'Berlin'
         },
         state: {
@@ -6653,15 +6651,12 @@ export const StripeCustomerBillingAddressSchema = {
         },
         postalCode: {
             type: 'string',
-            minLength: 1,
             example: '10115'
         },
         country: {
             type: 'string',
-            minLength: 2,
-            maxLength: 2,
             example: 'DE',
-            description: 'ISO 3166-1 alpha-2 country code'
+            description: 'ISO 3166-1 alpha-2 country code, or empty when not set on Stripe'
         }
     },
     required: [

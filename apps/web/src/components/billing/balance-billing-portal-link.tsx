@@ -53,6 +53,8 @@ export function BalanceBillingPortalLink({
 
   async function handleOpenBillingPortal() {
     setIsPending(true);
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+
     try {
       const resolvedReturnPath = resolveReturnPath();
       const result = organizationId
@@ -65,6 +67,7 @@ export function BalanceBillingPortalLink({
           });
 
       if (!result.ok) {
+        popup?.close();
         switch (result.error.code) {
           case CommonErrorCode.UNAUTHENTICATED:
             toast.error(unauthenticatedErrorMessage, {
@@ -85,7 +88,15 @@ export function BalanceBillingPortalLink({
         }
       }
 
+      if (popup) {
+        popup.location.href = result.data.url;
+        return;
+      }
+
       window.open(result.data.url, "_blank", "noopener,noreferrer");
+    } catch {
+      popup?.close();
+      toast.error(generalErrorMessage);
     } finally {
       setIsPending(false);
     }
