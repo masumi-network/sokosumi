@@ -93,20 +93,3 @@ export const stripeCustomerBillingDetailsSchema = z
 export type StripeCustomerBillingDetails = z.infer<
   typeof stripeCustomerBillingDetailsSchema
 >;
-
-export const stripeCustomerBillingTaxIdWriteSchema = z
-  .object({
-    value: z.string().min(1).openapi({ example: "DE123456789" }),
-  })
-  .openapi("StripeCustomerBillingTaxIdWrite");
-
-export const stripeCustomerBillingDetailsWriteSchema = z
-  .object({
-    address: stripeCustomerBillingAddressSchema,
-    taxId: stripeCustomerBillingTaxIdWriteSchema.nullable().optional(),
-  })
-  .openapi("StripeCustomerBillingDetailsWrite");
-
-export type StripeCustomerBillingDetailsWrite = z.infer<
-  typeof stripeCustomerBillingDetailsWriteSchema
->;

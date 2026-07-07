@@ -7,7 +7,6 @@ import {
 import Stripe from "stripe";
 
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
-import { inferStripeTaxIdTypeForCountry } from "@/lib/stripe-tax-id";
 
 interface CreateOrganizationCustomerInput {
   invoiceEmail?: null | string;
@@ -291,76 +290,6 @@ export const stripeClient = {
     }
 
     return mapStripeCustomerBillingDetails(customer);
-  },
-
-  async updateCustomerBillingAddress(
-    customerId: string,
-    address: StripeCustomerBillingAddress,
-    requestOptions?: Stripe.RequestOptions,
-  ): Promise<Stripe.Customer> {
-    return await stripe.customers.update(
-      customerId,
-      {
-        address: {
-          line1: address.line1,
-          line2: address.line2 ?? undefined,
-          city: address.city,
-          state: address.state ?? undefined,
-          postal_code: address.postalCode,
-          country: address.country,
-        },
-        tax: {
-          validate_location: "immediately",
-        },
-      },
-      {
-        ...requestOptions,
-        maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
-      },
-    );
-  },
-
-  async replaceCustomerTaxIds(
-    customerId: string,
-    params: { country: string; value: string } | null,
-    requestOptions?: Stripe.RequestOptions,
-  ): Promise<void> {
-    const customer = await stripe.customers.retrieve(
-      customerId,
-      { expand: ["tax_ids.data"] },
-      requestOptions,
-    );
-
-    if (customer.deleted) {
-      throw new Error(`Stripe customer ${customerId} was deleted`);
-    }
-
-    const existingTaxIds = customer.tax_ids?.data ?? [];
-    await Promise.all(
-      existingTaxIds.map((taxId) =>
-        stripe.customers.deleteTaxId(customerId, taxId.id, requestOptions),
-      ),
-    );
-
-    if (!params?.value.trim()) {
-      return;
-    }
-
-    const taxIdType = inferStripeTaxIdTypeForCountry(params.country);
-    if (!taxIdType) {
-      throw new Error(
-        `Tax ID collection is not supported for country ${params.country}`,
-      );
-    }
-
-    await stripe.customers.createTaxId(
-      customerId,
-      {
-        type: taxIdType as Stripe.TaxIdCreateParams.Type,
-        value: params.value.trim(),
-      },
-      requestOptions,
-    );
   },
 
   async retrieveProduct(

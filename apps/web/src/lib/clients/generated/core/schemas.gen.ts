@@ -6713,38 +6713,6 @@ export const StripeCustomerBillingTaxIdSchema = {
     ]
 } as const;
 
-export const StripeCustomerBillingDetailsWriteSchema = {
-    type: 'object',
-    properties: {
-        address: {
-            $ref: '#/components/schemas/StripeCustomerBillingAddress'
-        },
-        taxId: {
-            $ref: '#/components/schemas/StripeCustomerBillingTaxIdWrite'
-        }
-    },
-    required: [
-        'address'
-    ]
-} as const;
-
-export const StripeCustomerBillingTaxIdWriteSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        value: {
-            type: 'string',
-            minLength: 1,
-            example: 'DE123456789'
-        }
-    },
-    required: [
-        'value'
-    ]
-} as const;
-
 export const ActiveSubscriptionResponseSchema = {
     type: 'object',
     properties: {
@@ -7216,41 +7184,6 @@ export const UpdateOrganizationSubscriptionSeatsSchema = {
     },
     required: [
         'seats'
-    ]
-} as const;
-
-export const OrganizationInvoiceEmailSchema = {
-    type: 'object',
-    properties: {
-        invoiceEmail: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'billing@acme.example',
-            description: 'The persisted invoice email, or null when none'
-        }
-    },
-    required: [
-        'invoiceEmail'
-    ]
-} as const;
-
-export const OrganizationInvoiceEmailWriteSchema = {
-    type: 'object',
-    properties: {
-        invoiceEmail: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'email',
-            example: 'billing@acme.example',
-            description: 'Invoice email to set, or null to clear it'
-        }
-    },
-    required: [
-        'invoiceEmail'
     ]
 } as const;
 

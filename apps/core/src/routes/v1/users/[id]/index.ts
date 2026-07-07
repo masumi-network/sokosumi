@@ -4,7 +4,6 @@ import {
   usersPathUserContextMiddleware,
 } from "../user-route-context.js";
 import mountGetUserBillingDetails from "./billing-details/get.js";
-import mountPatchUserBillingDetails from "./billing-details/patch.js";
 import mountGetUserCredits from "./credits/get.js";
 import mountGetUserDesignMd from "./design-md/get.js";
 import mountPutUserDesignMd from "./design-md/put.js";
@@ -53,7 +52,6 @@ mountPostUserUtmAttribution(app);
 mountGetUserStripeCustomer(app);
 mountPostUserStripeCustomer(app);
 mountGetUserBillingDetails(app);
-mountPatchUserBillingDetails(app);
 mountGetUserSubscription(app);
 mountGetUserById(app);
 

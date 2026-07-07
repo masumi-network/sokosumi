@@ -37,10 +37,7 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
-  PatchOrganizationsByIdBillingDetailsData,
-  PatchOrganizationsByIdInvoiceEmailData,
   PatchProjectsByIdData,
-  PatchUsersByIdBillingDetailsData,
   PostAgentsByIdJobsData,
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
@@ -162,11 +159,8 @@ import {
   patchJobsById as corePatchJobsById,
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
-  patchOrganizationsByIdBillingDetails as corePatchOrganizationsByIdBillingDetails,
-  patchOrganizationsByIdInvoiceEmail as corePatchOrganizationsByIdInvoiceEmail,
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
-  patchUsersByIdBillingDetails as corePatchUsersByIdBillingDetails,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
   postConversations as corePostConversations,
@@ -1282,22 +1276,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function updateOrganizationBillingDetails(
-    organizationId: string,
-    body: NonNullable<PatchOrganizationsByIdBillingDetailsData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchOrganizationsByIdBillingDetails({
-          client,
-          path: { id: organizationId },
-          body,
-        }),
-      "Failed to update organization billing details",
-    );
-  }
-
   async function getOrganizationBillingPlan(organizationId: string) {
     return executeOperation(
       getClient,
@@ -1391,21 +1369,6 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch user billing details",
-    );
-  }
-
-  async function updateMyBillingDetails(
-    body: NonNullable<PatchUsersByIdBillingDetailsData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchUsersByIdBillingDetails({
-          client,
-          path: { id: CURRENT_USER_PATH_ID },
-          body,
-        }),
-      "Failed to update user billing details",
     );
   }
 
@@ -2073,26 +2036,6 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to save organization DESIGN.md",
-    );
-  }
-
-  /**
-   * Sets (or clears, when `invoiceEmail` is null) an organization's invoice
-   * email. Core enforces that the caller is an organization owner or admin.
-   */
-  async function updateOrganizationInvoiceEmail(
-    organizationId: string,
-    body: NonNullable<PatchOrganizationsByIdInvoiceEmailData["body"]>,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePatchOrganizationsByIdInvoiceEmail({
-          client,
-          path: { id: organizationId },
-          body,
-        }),
-      "Failed to update organization invoice email",
     );
   }
 
@@ -2901,9 +2844,6 @@ export function createCoreClient(getClient: GetClient) {
     unassignOrganizationSeat,
     updateConversation,
     updateHermesInstance,
-    updateMyBillingDetails,
-    updateOrganizationBillingDetails,
-    updateOrganizationInvoiceEmail,
     updateOrganizationSubscriptionSeats,
   };
 }
