@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { CopyableValue } from "@/components/copyable-value";
 import type { StripeBillingInformationFieldsContent } from "@/lib/billing/build-stripe-billing-information-fields-props";
 
 export type StripeBillingInformationTranslationNamespace =
@@ -19,6 +20,9 @@ export function StripeBillingInformationFields({
   invoiceEmailLabel,
   invoiceEmail,
   invoiceEmailEmpty,
+  stripeCustomerIdLabel,
+  stripeCustomerId,
+  stripeCustomerIdEmpty,
   taxIdLabel,
   taxIds,
   portalLink,
@@ -68,9 +72,32 @@ export function StripeBillingInformationFields({
     </div>
   );
 
+  const stripeCustomerIdField =
+    stripeCustomerIdLabel !== undefined ? (
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          {stripeCustomerIdLabel}
+        </p>
+        {stripeCustomerId ? (
+          <CopyableValue
+            copiedFeedback
+            presentation="inline-code"
+            value={stripeCustomerId}
+            buttonClassName="size-7"
+            codeClassName="text-sm"
+          />
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            {stripeCustomerIdEmpty}
+          </p>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
+        {stripeCustomerIdField}
         {addressField}
         {emailField}
       </div>

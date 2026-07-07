@@ -2886,6 +2886,8 @@
             },
             "invoiceEmailLabel": "Rechnungs-E-Mail",
             "invoiceEmailEmpty": "Keine Rechnungs-E-Mail hinterlegt",
+            "stripeCustomerIdLabel": "Stripe-Kunden-ID",
+            "stripeCustomerIdEmpty": "Kein Stripe-Kunde hinterlegt",
             "empty": "Keine Rechnungsadresse hinterlegt"
           }
         },

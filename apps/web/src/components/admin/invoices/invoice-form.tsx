@@ -343,6 +343,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
             <>
               <StripeBillingInformationContent
                 billingDetails={billingDetails}
+                showStripeCustomerId
                 translationNamespace="App.Admin.Invoices.Form.BillingDetails"
               />
               {!hasCompleteBilling ? (

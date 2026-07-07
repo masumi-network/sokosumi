@@ -20,16 +20,24 @@ export interface StripeBillingInformationFieldsContent {
   invoiceEmailLabel: string;
   invoiceEmail: string | null;
   invoiceEmailEmpty: string;
+  stripeCustomerIdLabel?: string;
+  stripeCustomerId?: string | null;
+  stripeCustomerIdEmpty?: string;
   taxIdLabel: string;
   taxIds: StripeBillingInformationTaxIdField[];
+}
+
+export interface BuildStripeBillingInformationFieldsPropsOptions {
+  showStripeCustomerId?: boolean;
 }
 
 export function buildStripeBillingInformationFieldsProps(
   billingDetails: StripeCustomerBillingDetails,
   t: BillingDetailsTranslator,
   locale: string,
+  options?: BuildStripeBillingInformationFieldsPropsOptions,
 ): StripeBillingInformationFieldsContent {
-  return {
+  const content: StripeBillingInformationFieldsContent = {
     addressLabel: t("addressLabel"),
     formattedAddress: billingDetails.address
       ? formatStripeBillingAddress(billingDetails.address, locale)
@@ -47,4 +55,12 @@ export function buildStripeBillingInformationFieldsProps(
         : null,
     })),
   };
+
+  if (options?.showStripeCustomerId) {
+    content.stripeCustomerIdLabel = t("stripeCustomerIdLabel");
+    content.stripeCustomerId = billingDetails.stripeCustomerId;
+    content.stripeCustomerIdEmpty = t("stripeCustomerIdEmpty");
+  }
+
+  return content;
 }
