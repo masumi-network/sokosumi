@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -135,6 +136,10 @@ export default async function OrganizationPage({
 
   return (
     <div className="min-h-full w-full">
+      <BillingPortalErrorToast
+        generalMessage={tBilling("Errors.general")}
+        unauthorizedMessage={tBilling("Errors.unauthorized")}
+      />
       <div className="mx-auto max-w-4xl space-y-12 px-4">
         <div className="flex items-center gap-2">
           <p className="text-muted-foreground">{t("roleIndicator")}</p>

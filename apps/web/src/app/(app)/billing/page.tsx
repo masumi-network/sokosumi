@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { BalanceBillingPortalLink } from "@/components/billing/balance-billing-portal-link";
 import { BalanceSection } from "@/components/billing/balance-section";
+import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
@@ -191,6 +192,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
     return (
       <div className="min-h-full w-full">
+        <BillingPortalErrorToast
+          generalMessage={t("Errors.general")}
+          unauthorizedMessage={t("Errors.unauthorized")}
+        />
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
           {enterpriseContractSummary ? (
             <EnterpriseContractSummary summary={enterpriseContractSummary} />
@@ -297,6 +302,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   return (
     <div className="min-h-full w-full">
+      <BillingPortalErrorToast
+        generalMessage={t("Errors.general")}
+        unauthorizedMessage={t("Errors.unauthorized")}
+      />
       <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
         <BalanceSection
           title={t("balanceTitle")}

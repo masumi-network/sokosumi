@@ -16,6 +16,13 @@ vi.mock("@/lib/auth/subscription.server", () => ({
     openOrganizationBillingPortalServerMock(...args),
 }));
 
+function createPortalRequest(
+  url: string,
+  headers: Record<string, string> = {},
+): NextRequest {
+  return new NextRequest(url, { headers });
+}
+
 describe("GET /api/billing/portal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +33,7 @@ describe("GET /api/billing/portal", () => {
 
     const { GET } = await import("../route");
     const response = await GET(
-      new NextRequest(
+      createPortalRequest(
         "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
       ),
     );
@@ -47,8 +54,9 @@ describe("GET /api/billing/portal", () => {
 
     const { GET } = await import("../route");
     const response = await GET(
-      new NextRequest(
+      createPortalRequest(
         "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
+        { "Sec-Fetch-Site": "same-origin" },
       ),
     );
 
@@ -70,7 +78,7 @@ describe("GET /api/billing/portal", () => {
 
     const { GET } = await import("../route");
     const response = await GET(
-      new NextRequest(
+      createPortalRequest(
         "https://app.sokosumi.test/api/billing/portal?returnPath=%2Forganizations%2Facme&organizationId=org-1",
       ),
     );
@@ -85,7 +93,7 @@ describe("GET /api/billing/portal", () => {
     });
   });
 
-  it("redirects back to the safe return path when portal creation fails", async () => {
+  it("redirects back with billingPortalError when portal creation fails", async () => {
     const { CommonErrorCode } = await import("@/lib/actions/errors");
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     openPersonalBillingPortalServerMock.mockResolvedValue({
@@ -95,14 +103,95 @@ describe("GET /api/billing/portal", () => {
 
     const { GET } = await import("../route");
     const response = await GET(
-      new NextRequest(
+      createPortalRequest(
         "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
       ),
     );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "https://app.sokosumi.test/account",
+      "https://app.sokosumi.test/account?billingPortalError=1",
     );
+  });
+
+  it("redirects back with unauthorized billingPortalError when access is denied", async () => {
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    openOrganizationBillingPortalServerMock.mockResolvedValue({
+      ok: false,
+      error: { code: CommonErrorCode.UNAUTHORIZED },
+    });
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Forganizations%2Facme&organizationId=org-1",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/organizations/acme?billingPortalError=unauthorized",
+    );
+  });
+
+  it("sanitizes malicious returnPath values", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    openPersonalBillingPortalServerMock.mockResolvedValue({
+      ok: false,
+      error: { code: "INTERNAL_SERVER_ERROR" },
+    });
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=https%3A%2F%2Fevil.com",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/billing?tab=subscription&billingPortalError=1",
+    );
+    expect(openPersonalBillingPortalServerMock).toHaveBeenCalledWith({
+      returnPath: "/billing?tab=subscription",
+    });
+  });
+
+  it("rejects non-Stripe portal URLs", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+    openPersonalBillingPortalServerMock.mockResolvedValue({
+      ok: true,
+      data: { url: "https://evil.com/phish" },
+    });
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Faccount",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/account?billingPortalError=1",
+    );
+  });
+
+  it("rejects empty organizationId when the parameter is present", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+
+    const { GET } = await import("../route");
+    const response = await GET(
+      createPortalRequest(
+        "https://app.sokosumi.test/api/billing/portal?returnPath=%2Forganizations%2Facme&organizationId=",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.test/organizations/acme?billingPortalError=1",
+    );
+    expect(openOrganizationBillingPortalServerMock).not.toHaveBeenCalled();
   });
 });

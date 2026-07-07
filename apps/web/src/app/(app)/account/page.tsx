@@ -2,6 +2,7 @@ import { getUserMetadata } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
+import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
@@ -43,6 +44,7 @@ export default async function Page() {
 
   return (
     <div className="min-h-full w-full">
+      <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
       <div className="mx-auto max-w-4xl px-4">
         <AccountSettings
           accounts={accountsResult.isOk() ? accountsResult.value : []}
