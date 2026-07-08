@@ -37,7 +37,7 @@
     "@react-email/render": "2.0.10",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "react-email": "6.6.6",
+    "react-email": "6.6.8",
     "use-intl": "4.13.1"
   },
   "devDependencies": {
