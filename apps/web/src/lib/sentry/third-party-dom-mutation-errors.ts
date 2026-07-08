@@ -13,6 +13,8 @@ export const thirdPartyDomMutationIgnoreErrors: RegExp[] = [
   // Firefox message format (translate extensions cause the same mutation)
   /Node\.removeChild: The node to be removed is not a child of this node/,
   /Node\.insertBefore: Child to insert before is not a child of this node/,
+  // WebKit message format (browser translation on `/chat`, SOKOSUMI-MA)
+  /The object can not be found here/,
 ];
 
 export function isThirdPartyDomMutationError(message: string): boolean {

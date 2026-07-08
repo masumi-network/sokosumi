@@ -270,4 +270,57 @@ describe("beforeSendClientEvent", () => {
       ),
     ).toBeNull();
   });
+
+  it("drops WebKit DOM mutation NotFoundError noise", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "NotFoundError",
+                value: "The object can not be found here.",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops in-app browser webkit bridge failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value:
+                  "undefined is not an object (evaluating 'window.webkit.messageHandlers')",
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops transient stream connection closures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [{ type: "Error", value: "Connection closed." }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
 });
