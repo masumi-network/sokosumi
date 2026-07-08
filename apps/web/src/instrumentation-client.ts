@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/nextjs";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
+import {
+  inAppBrowserIgnoreErrors,
+  transientStreamIgnoreErrors,
+} from "@/lib/sentry/third-party-browser-environment-errors";
 import { thirdPartyDomMutationIgnoreErrors } from "@/lib/sentry/third-party-dom-mutation-errors";
 import {
   beforeSendClientEvent,
@@ -23,6 +27,8 @@ Sentry.init({
     ...thirdPartyDomMutationIgnoreErrors,
     ...thirdPartyAnalyticsIgnoreErrors,
     ...thirdPartyWalletIgnoreErrors,
+    ...inAppBrowserIgnoreErrors,
+    ...transientStreamIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,

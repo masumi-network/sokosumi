@@ -1,6 +1,11 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
 import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
+import {
+  isInAppBrowserEnvironmentError,
+  isTransientStreamClosureError,
+} from "@/lib/sentry/third-party-browser-environment-errors";
+import { isThirdPartyDomMutationError } from "@/lib/sentry/third-party-dom-mutation-errors";
 import { isThirdPartyWalletError } from "@/lib/sentry/third-party-wallet-errors";
 
 /** Hostnames for marketing/analytics scripts loaded via GTM or similar. */
@@ -136,6 +141,9 @@ export function beforeSendClientEvent(
     isBareTransientNetworkFailure(message) ||
     isThirdPartyDynamicImportFailure(message) ||
     isExpectedClientNoiseErrorMessage(message) ||
+    isThirdPartyDomMutationError(message) ||
+    isInAppBrowserEnvironmentError(message) ||
+    isTransientStreamClosureError(message) ||
     isThirdPartyWalletError(message, event)
   ) {
     return null;

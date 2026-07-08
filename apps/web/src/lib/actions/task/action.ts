@@ -3,7 +3,10 @@
 import { TaskLinkType, TaskStatus } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import type {
   Task,
   TaskLink,
@@ -92,6 +95,31 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   direction?: "outgoing" | "incoming";
   note?: string | null;
   replaceExistingParent?: boolean;
+}
+
+function isClientCoreApiError(error: unknown): error is CoreApiRequestError {
+  return (
+    error instanceof CoreApiRequestError &&
+    typeof error.status === "number" &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 401
+  );
+}
+
+function rethrowTaskActionError(
+  error: unknown,
+  fallbackMessage: string,
+  logLabel: string,
+): never {
+  console.error(logLabel, error);
+
+  if (isClientCoreApiError(error)) {
+    throw error;
+  }
+
+  const { message } = toCoreApiActionError(error);
+  throw new Error(message ?? fallbackMessage);
 }
 
 async function applyTaskSchedule(
@@ -479,8 +507,11 @@ export const updateTask = withSession<UpdateTaskParameters, { taskId: string }>(
       }
       return { taskId };
     } catch (error) {
-      console.error("Failed to update task", error);
-      throw new Error("Failed to update task");
+      rethrowTaskActionError(
+        error,
+        "Failed to update task",
+        "Failed to update task",
+      );
     }
   },
 );
@@ -518,8 +549,11 @@ export const setTaskStatusFromDrag = withSession<
     revalidatePath(`/tasks/${taskId}`);
     return { taskId };
   } catch (error) {
-    console.error("Failed to update task status", error);
-    throw new Error("Failed to update task status");
+    rethrowTaskActionError(
+      error,
+      "Failed to update task status",
+      "Failed to update task status",
+    );
   }
 });
 
@@ -531,8 +565,11 @@ export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
       revalidatePath(`/tasks/${taskId}`);
       return { taskId };
     } catch (error) {
-      console.error("Failed to delete task", error);
-      throw new Error("Failed to delete task");
+      rethrowTaskActionError(
+        error,
+        "Failed to delete task",
+        "Failed to delete task",
+      );
     }
   },
 );
@@ -547,9 +584,11 @@ export const moveTaskToWorkspace = withSession<
     revalidatePath(`/tasks/${taskId}`);
     return { taskId };
   } catch (error) {
-    console.error("Failed to move task to workspace", error);
-    const { message } = toCoreApiActionError(error);
-    throw new Error(message ?? "Failed to move task to workspace");
+    rethrowTaskActionError(
+      error,
+      "Failed to move task to workspace",
+      "Failed to move task to workspace",
+    );
   }
 });
 
@@ -567,8 +606,11 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
       revalidatePath("/tasks");
       revalidatePath(`/tasks/${taskId}`);
     } catch (error) {
-      console.error("Failed to create task comment", error);
-      throw new Error("Failed to create task comment");
+      rethrowTaskActionError(
+        error,
+        "Failed to create task comment",
+        "Failed to create task comment",
+      );
     }
   },
 );
