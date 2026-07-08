@@ -155,6 +155,26 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("hides awaiting-acceptance tasks from a granted delegated coworker", async () => {
+    hasCoworkerGrantMock.mockResolvedValue(true);
+
+    const app = createApp(DELEGATED_COWORKER_AUTH_CONTEXT);
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    // The granted workspace-wide list mirrors what the user can read, but
+    // awaiting-acceptance tasks stay inert for every coworker context until
+    // the owner accepts — matching the per-task read gate's 404.
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          awaitingAcceptance: false,
+        }),
+      }),
+    );
+  });
+
   it("parses multiple statuses into an IN filter", async () => {
     const app = createApp();
     const response = await app.request(
@@ -342,6 +362,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
+          awaitingAcceptance: false,
           userId: "user_delegate",
         },
       }),
@@ -363,6 +384,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
+          awaitingAcceptance: false,
           coworkerId: "cow_999",
         },
       }),

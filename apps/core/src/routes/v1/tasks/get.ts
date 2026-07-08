@@ -169,6 +169,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? {
               archivedAt: null,
               workspaceId: workspaceContext.workspaceId,
+              // Awaiting-acceptance tasks are inert for every coworker
+              // context until the owner accepts (a delegated coworker may
+              // even be the pending task's creator) — only the owner's own
+              // session sees them. Matches the per-task read gate, which
+              // 404s awaiting tasks for delegated coworkers.
+              awaitingAcceptance: false,
               ...(scope === "owned"
                 ? { userId: authContext.delegation.userId }
                 : {}),
