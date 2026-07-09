@@ -880,13 +880,6 @@ function getTaskStatusActions(
   status: TaskStatus,
   labels: TaskDetailActionsLabels,
 ) {
-  if (status === TASK_STATUS.CANCELED) {
-    return [
-      { label: labels.revertToDraft, target: TASK_STATUS.DRAFT },
-      { label: labels.markAsReady, target: TASK_STATUS.READY },
-    ];
-  }
-
   if (status === TASK_STATUS.DRAFT) {
     return [{ label: labels.markAsReady, target: TASK_STATUS.READY }];
   }

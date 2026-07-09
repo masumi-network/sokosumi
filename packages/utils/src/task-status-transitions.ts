@@ -34,7 +34,8 @@ const USER_TASK_STATUS_TRANSITIONS: Record<
   [TaskStatus.AWAITING_EXTERNAL]: [TaskStatus.CANCEL_REQUESTED],
   [TaskStatus.COMPLETED]: [],
   [TaskStatus.FAILED]: [],
-  [TaskStatus.CANCELED]: [TaskStatus.DRAFT, TaskStatus.READY],
+  // CANCELED is terminal: reopen would allow a second billing cycle.
+  [TaskStatus.CANCELED]: [],
   [TaskStatus.CANCEL_REQUESTED]: [],
 };
 

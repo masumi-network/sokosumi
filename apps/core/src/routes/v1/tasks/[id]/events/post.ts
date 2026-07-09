@@ -1,7 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
 import { NotificationKind, Prisma } from "@sokosumi/database";
-import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  TaskStatus,
+} from "@sokosumi/utils";
 
 import { waitUntil } from "@vercel/functions";
 
@@ -249,6 +253,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           let transactionId: string | null = null;
 
           if (isAgentSpend) {
+            const wantsCharge =
+              masumiPayment != null || (credits != null && credits > 0);
+
+            if (wantsCharge) {
+              // One billed terminal outcome per task lifetime. Prevents
+              // duplicate completion/cancel charges from retries or reopen.
+              const priorBilledEvent = await tx.taskEvent.findFirst({
+                where: {
+                  taskId,
+                  transactionId: { not: null },
+                  status: {
+                    in: [TaskStatus.COMPLETED, TaskStatus.CANCELED],
+                  },
+                },
+                select: { id: true },
+              });
+              if (priorBilledEvent) {
+                throw unprocessableEntity(
+                  "Task already has a billed completion or cancellation; further credit usage is not allowed",
+                );
+              }
+            }
+
             if (masumiPayment) {
               console.info("[tasks] masumi task payment: using masumiPayment", {
                 masumiPayment,
