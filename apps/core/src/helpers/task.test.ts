@@ -499,24 +499,24 @@ describe("validateStatusTransition", () => {
       ).not.toThrow();
     });
 
-    it("CANCELED → DRAFT", () => {
+    it("rejects CANCELED → DRAFT (terminal)", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.CANCELED,
           TaskStatus.DRAFT,
         ),
-      ).not.toThrow();
+      ).toThrow(/Invalid status transition/);
     });
 
-    it("CANCELED → READY", () => {
+    it("rejects CANCELED → READY (terminal)", () => {
       expect(() =>
         validateStatusTransition(
           userContext,
           TaskStatus.CANCELED,
           TaskStatus.READY,
         ),
-      ).not.toThrow();
+      ).toThrow(/Invalid status transition/);
     });
 
     it("OUT_OF_CREDITS → CREDITS_TOPPED_UP", () => {
@@ -887,7 +887,7 @@ describe("mapTask", () => {
     });
   });
 
-  it("aggregates credits from multiple charged events", () => {
+  it("aggregates credits from multiple charged events (historical rows)", () => {
     const task = {
       id: "tsk_123",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),

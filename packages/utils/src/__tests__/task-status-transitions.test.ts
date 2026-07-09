@@ -14,9 +14,19 @@ describe("canUserTransitionTaskStatus", () => {
     [TaskStatus.DRAFT, TaskStatus.QUEUED],
     [TaskStatus.QUEUED, TaskStatus.READY],
     [TaskStatus.READY, TaskStatus.QUEUED],
-    [TaskStatus.CANCELED, TaskStatus.DRAFT],
   ])("accepts %s → %s", (from, to) => {
     expect(canUserTransitionTaskStatus(from, to)).toBe(true);
+  });
+
+  it.each([
+    [TaskStatus.COMPLETED, TaskStatus.DRAFT],
+    [TaskStatus.COMPLETED, TaskStatus.READY],
+    [TaskStatus.FAILED, TaskStatus.DRAFT],
+    [TaskStatus.FAILED, TaskStatus.READY],
+    [TaskStatus.CANCELED, TaskStatus.DRAFT],
+    [TaskStatus.CANCELED, TaskStatus.READY],
+  ])("rejects terminal %s → %s", (from, to) => {
+    expect(canUserTransitionTaskStatus(from, to)).toBe(false);
   });
 
   it("rejects CREDITS_TOPPED_UP → QUEUED (scheduled column drag)", () => {

@@ -121,11 +121,12 @@
     "@types/react-dom": "19.2.3",
     "@types/react-file-icon": "1.0.5",
     "@types/sanitize-html": "2.16.1",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitejs/plugin-react": "6.0.3",
     "postcss": "8.5.16",
     "puppeteer": "25.1.0",
     "tailwindcss": "4.3.2",
-    "typescript": "6.0.3",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
     "vite": "8.1.4",
     "vitest": "4.1.10"
   }
