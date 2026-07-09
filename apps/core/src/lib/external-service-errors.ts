@@ -35,9 +35,12 @@ export function getPrismaErrorCode(error: unknown): string | null {
  */
 export function isTransientPostmarkError(error: unknown): boolean {
   const message = getErrorMessage(error);
+  const name = getErrorName(error);
 
   return (
     /timeout of \d+ms exceeded/i.test(message) ||
+    /aborted due to timeout/i.test(message) ||
+    name === "TimeoutError" ||
     /socket hang up/i.test(message) ||
     /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message)
   );

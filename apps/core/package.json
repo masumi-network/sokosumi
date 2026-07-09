@@ -67,7 +67,7 @@
     "neverthrow": "8.2.0",
     "p-limit": "7.3.0",
     "p-timeout": "7.0.1",
-    "postmark": "4.0.7",
+    "postmark": "5.0.0",
     "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
     "stripe": "22.3.0",
