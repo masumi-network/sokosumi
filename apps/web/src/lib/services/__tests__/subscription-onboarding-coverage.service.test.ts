@@ -163,4 +163,21 @@ describe("userHasPaidOrEnterpriseCoverage", () => {
 
     await expect(userHasPaidOrEnterpriseCoverage()).resolves.toBe(false);
   });
+
+  it("returns false when membership reads fail unexpectedly", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    getMyMembersWithOrganizationsMock.mockRejectedValue(
+      new Error("Core outage"),
+    );
+
+    const userHasPaidOrEnterpriseCoverage = await loadCoverage();
+
+    await expect(userHasPaidOrEnterpriseCoverage()).resolves.toBe(false);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to resolve subscription onboarding coverage",
+      expect.any(Error),
+    );
+  });
 });

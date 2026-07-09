@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { markSubscriptionOnboardingGateSessionSeen } from "@/lib/actions/onboarding";
 
 interface MarkSubscriptionOnboardingGateSeenProps {
@@ -16,9 +16,9 @@ interface MarkSubscriptionOnboardingGateSeenProps {
 export function MarkSubscriptionOnboardingGateSeen({
   loginId,
 }: MarkSubscriptionOnboardingGateSeenProps) {
-  useEffect(() => {
+  useMountEffect(() => {
     void markSubscriptionOnboardingGateSessionSeen(loginId);
-  }, [loginId]);
+  });
 
   return null;
 }

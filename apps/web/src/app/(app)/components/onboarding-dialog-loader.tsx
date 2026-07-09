@@ -34,27 +34,41 @@ interface OnboardingDialogLoaderProps {
   subscriptionOnly?: boolean;
 }
 
+function SubscriptionOnboardingReturnOnly() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingSubscriptionReturnHandler />
+    </Suspense>
+  );
+}
+
+function SuppressedSubscriptionOnboardingGate({
+  loginId,
+}: {
+  loginId?: null | string;
+}) {
+  return (
+    <>
+      {loginId ? (
+        <MarkSubscriptionOnboardingGateSeen loginId={loginId} />
+      ) : null}
+      <SubscriptionOnboardingReturnOnly />
+    </>
+  );
+}
+
 export async function OnboardingDialogLoader({
   activeOrganization,
   loginId,
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
   if (subscriptionOnly) {
-    // Credits context can look "free" while the user still has a personal paid
-    // plan, an org paid plan, or an enterprise contract (including on another
-    // org). Suppress the subscription hint in all of those cases.
+    // Defense-in-depth: layout already skips mounting this loader when coverage
+    // is true (and React cache() dedupes). Keep the check so direct callers and
+    // tests still suppress the hint without relying on layout wiring.
     const hasPaidOrEnterpriseCoverage = await userHasPaidOrEnterpriseCoverage();
     if (hasPaidOrEnterpriseCoverage) {
-      return (
-        <>
-          {loginId ? (
-            <MarkSubscriptionOnboardingGateSeen loginId={loginId} />
-          ) : null}
-          <Suspense fallback={null}>
-            <OnboardingSubscriptionReturnHandler />
-          </Suspense>
-        </>
-      );
+      return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
     }
   }
 
@@ -75,11 +89,7 @@ export async function OnboardingDialogLoader({
       // the client dialog would render null anyway, and the session cookie is
       // intentionally not set so switching to a personal workspace can still
       // show the gate.
-      return (
-        <Suspense fallback={null}>
-          <OnboardingSubscriptionReturnHandler />
-        </Suspense>
-      );
+      return <SubscriptionOnboardingReturnOnly />;
     }
   }
 
@@ -94,11 +104,7 @@ export async function OnboardingDialogLoader({
   }
 
   if (!subscriptionCatalog) {
-    return (
-      <Suspense fallback={null}>
-        <OnboardingSubscriptionReturnHandler />
-      </Suspense>
-    );
+    return <SubscriptionOnboardingReturnOnly />;
   }
 
   const organizationMemberPromise =
@@ -157,11 +163,7 @@ export async function OnboardingDialogLoader({
     });
 
     if (personalActiveSubscriptionsResult.isErr()) {
-      return (
-        <Suspense fallback={null}>
-          <OnboardingSubscriptionReturnHandler />
-        </Suspense>
-      );
+      return <SubscriptionOnboardingReturnOnly />;
     }
 
     personalCurrentPlan =
@@ -179,18 +181,9 @@ export async function OnboardingDialogLoader({
   if (
     subscriptionOnly &&
     (organizationBillingPlan?.mode === "enterprise_contract" ||
-      (currentPlan !== "free" && currentPlan !== null))
+      currentPlan !== "free")
   ) {
-    return (
-      <>
-        {loginId ? (
-          <MarkSubscriptionOnboardingGateSeen loginId={loginId} />
-        ) : null}
-        <Suspense fallback={null}>
-          <OnboardingSubscriptionReturnHandler />
-        </Suspense>
-      </>
-    );
+    return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
   }
 
   const onboardingPlans: PaidSubscriptionPlanView[] = PLAN_ORDER.flatMap(
@@ -224,9 +217,7 @@ export async function OnboardingDialogLoader({
 
   return (
     <>
-      <Suspense fallback={null}>
-        <OnboardingSubscriptionReturnHandler />
-      </Suspense>
+      <SubscriptionOnboardingReturnOnly />
       <OnboardingDialog
         loginId={loginId}
         organizationSubscription={organizationSubscription}

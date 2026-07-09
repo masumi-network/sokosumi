@@ -33,6 +33,7 @@ import {
   hasSubscriptionOnboardingGateBeenServedForSession,
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
+import { resolveSubscriptionOnboardingGateDecision } from "@/lib/subscription-onboarding-gate-decision";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 import { resolveAccountNotice } from "./components/account-notice-state";
 import { AuthSessionGuard } from "./components/auth-session-guard";
@@ -137,18 +138,21 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     );
   // Credits can report "free" while the user still has personal/org paid
   // coverage or an enterprise contract — check before mounting the gate.
-  const hasPaidOrEnterpriseCoverage =
-    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed
-      ? await userHasPaidOrEnterpriseCoverage()
-      : false;
+  const shouldResolveCoverage =
+    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
+  const hasPaidOrEnterpriseCoverage = shouldResolveCoverage
+    ? await userHasPaidOrEnterpriseCoverage()
+    : false;
+  const subscriptionOnboardingGateDecision =
+    resolveSubscriptionOnboardingGateDecision({
+      alreadyServed: subscriptionOnboardingGateAlreadyServed,
+      hasPaidOrEnterpriseCoverage,
+      shouldShowFreeSubscriptionGate,
+    });
   const shouldLoadSubscriptionOnboarding =
-    shouldShowFreeSubscriptionGate &&
-    !subscriptionOnboardingGateAlreadyServed &&
-    !hasPaidOrEnterpriseCoverage;
+    subscriptionOnboardingGateDecision === "load";
   const shouldMarkSubscriptionOnboardingGateSeen =
-    shouldShowFreeSubscriptionGate &&
-    !subscriptionOnboardingGateAlreadyServed &&
-    hasPaidOrEnterpriseCoverage;
+    subscriptionOnboardingGateDecision === "mark-seen";
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
