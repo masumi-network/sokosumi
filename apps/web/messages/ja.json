@@ -1414,7 +1414,7 @@
         "inputRequired": "入力が必要",
         "done": "完了"
       },
-      "ParkedBadge": {
+      "AwaitingVendorApprovalBadge": {
         "label": "ベンダーアクセス待ち"
       },
       "Actions": {
@@ -1655,7 +1655,7 @@
         },
         "clonedFrom": "{name} から複製",
         "schedule": "スケジュール",
-        "ParkedVendorAccess": {
+        "AwaitingVendorApproval": {
           "title": "承認待ち",
           "description": "{vendor} がこのワークスペースでこのタスクを実行するには、あなたの許可が必要です。",
           "approve": "承認",
@@ -3128,7 +3128,7 @@
         "actionError": "ベンダーアクセスを更新できませんでした。",
         "personalWorkspace": "個人ワークスペース",
         "scope": "スコープ: {scope}",
-        "parkedCount": "{count, plural, =0 {保留中のタスクはありません} one {保留中のタスク # 件} other {保留中のタスク # 件}}",
+        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {保留中のタスクはありません} one {保留中のタスク # 件} other {保留中のタスク # 件}}",
         "approve": "承認",
         "deny": "拒否",
         "revoke": "取り消し",

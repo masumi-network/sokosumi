@@ -259,7 +259,7 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
   return rows.map((row) => row.entityId);
 }
 
-export async function findParkedTaskEntityIds(
+export async function findAwaitingVendorApprovalTaskEntityIds(
   prismaClient: HistoryPrismaClient,
 ): Promise<string[]> {
   const rows = await prismaClient.$queryRaw<Array<{ id: string }>>`
@@ -269,10 +269,10 @@ export async function findParkedTaskEntityIds(
   return rows.map((row) => row.id);
 }
 
-export function buildExcludeParkedTaskHistoryFilter(
-  parkedTaskEntityIds: string[],
+export function buildExcludeAwaitingVendorApprovalTaskHistoryFilter(
+  awaitingVendorApprovalTaskEntityIds: string[],
 ): Prisma.HistoryWhereInput | null {
-  if (parkedTaskEntityIds.length === 0) {
+  if (awaitingVendorApprovalTaskEntityIds.length === 0) {
     return null;
   }
 
@@ -281,7 +281,7 @@ export function buildExcludeParkedTaskHistoryFilter(
       { kind: { not: HistoryKind.TASK } },
       {
         kind: HistoryKind.TASK,
-        entityId: { notIn: parkedTaskEntityIds },
+        entityId: { notIn: awaitingVendorApprovalTaskEntityIds },
       },
     ],
   };
@@ -366,11 +366,14 @@ export async function buildHistoryWhere(
   }
 
   if (params.types.includes(HistoryKind.TASK)) {
-    const parkedTaskEntityIds = await findParkedTaskEntityIds(prismaClient);
-    const parkedFilter =
-      buildExcludeParkedTaskHistoryFilter(parkedTaskEntityIds);
-    if (parkedFilter) {
-      andClauses.push(parkedFilter);
+    const awaitingVendorApprovalTaskEntityIds =
+      await findAwaitingVendorApprovalTaskEntityIds(prismaClient);
+    const awaitingVendorApprovalFilter =
+      buildExcludeAwaitingVendorApprovalTaskHistoryFilter(
+        awaitingVendorApprovalTaskEntityIds,
+      );
+    if (awaitingVendorApprovalFilter) {
+      andClauses.push(awaitingVendorApprovalFilter);
     }
   }
 

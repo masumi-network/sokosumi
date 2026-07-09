@@ -20,10 +20,10 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import {
-  isTaskParked,
+  isTaskAwaitingVendorApproval,
   isVendorSiblingInWorkspace,
   loadTaskForSiblingCheck,
-  requireTaskNotParked,
+  requireTaskNotAwaitingVendorApproval,
 } from "./vendor-grants";
 
 // -----------------------------------------------------------------------------
@@ -62,7 +62,7 @@ export async function requireTaskOwnership(
   userContext: UserContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-  options?: { allowParked?: boolean },
+  options?: { allowAwaitingVendorApproval?: boolean },
 ): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
@@ -76,8 +76,8 @@ export async function requireTaskOwnership(
     throw notFound("Task not found");
   }
 
-  if (!options?.allowParked) {
-    requireTaskNotParked(task);
+  if (!options?.allowAwaitingVendorApproval) {
+    requireTaskNotAwaitingVendorApproval(task);
   }
 
   return task;
@@ -173,6 +173,34 @@ export async function requireTaskAssignableCoworker(
 // -----------------------------------------------------------------------------
 
 /**
+ * Coworker branch of task read: tasks capability, task exists (non-draft), and assignment to this coworker.
+ * Does not block tasks awaiting vendor approval — assignees may list and read them while approval is pending.
+ */
+export async function requireCoworkerAssignedTaskRead(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+
+  const task = await tx.task.findUnique({
+    where: {
+      id: taskId,
+      status: { not: TaskStatus.DRAFT },
+      archivedAt: null,
+    },
+  });
+  if (!task) {
+    throw notFound("Task not found");
+  }
+  if (task.coworkerId !== authContext.coworkerId) {
+    throw forbidden("You can only access tasks assigned to your coworker");
+  }
+
+  return task;
+}
+
+/**
  * Coworker branch of task collaboration: tasks capability, task exists (non-draft), and assignment to this coworker.
  *
  * @param authContext - The authenticated coworker context
@@ -196,31 +224,19 @@ export async function requireCoworkerTaskCollaboration(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
-
-  const task = await tx.task.findUnique({
-    where: {
-      id: taskId,
-      status: { not: TaskStatus.DRAFT },
-      archivedAt: null,
-    },
-  });
-  if (!task) {
-    throw notFound("Task not found");
-  }
-  if (task.coworkerId !== authContext.coworkerId) {
-    throw forbidden("You can only access tasks assigned to your coworker");
-  }
-
-  requireTaskNotParked(task);
+  const task = await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
+  requireTaskNotAwaitingVendorApproval(task);
   return task;
 }
 
-function assertUserCanReadParkedTask(
+function assertUserCanReadTaskAwaitingVendorApproval(
   userContext: UserContext,
   task: Pick<Task, "userId" | "pendingVendorGrantId">,
 ) {
-  if (isTaskParked(task) && task.userId !== userContext.userId) {
+  if (
+    isTaskAwaitingVendorApproval(task) &&
+    task.userId !== userContext.userId
+  ) {
     throw notFound("Task not found");
   }
 }
@@ -233,7 +249,11 @@ function assertDelegatedCanReadTask(
     throw notFound("Task not found");
   }
 
-  if (isTaskParked(task)) {
+  if (isTaskAwaitingVendorApproval(task)) {
+    if (task.coworkerId === coworker.coworkerId) {
+      return;
+    }
+
     throw notFound("Task not found");
   }
 
@@ -326,7 +346,7 @@ export async function requireTaskCommentAccess(
       throw notFound("Task not found");
     }
 
-    requireTaskNotParked(task);
+    requireTaskNotAwaitingVendorApproval(task);
     return task;
   }
 
@@ -365,7 +385,7 @@ export async function requireTaskReadForWorkspace(
 
 /**
  * Task read for a workspace-scoped user or an assigned coworker with the tasks capability.
- * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskReadForWorkspace` or `requireCoworkerTaskCollaboration`.
+ * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskReadForWorkspace` or coworker assignment read helpers.
  */
 export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
@@ -381,7 +401,7 @@ export async function requireTaskReadForRouteVars(
       taskId,
       tx,
     );
-    assertUserCanReadParkedTask(userContext, task);
+    assertUserCanReadTaskAwaitingVendorApproval(userContext, task);
     return task;
   }
 
@@ -410,7 +430,7 @@ export async function requireTaskReadForRouteVars(
     return task;
   }
 
-  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+  return await requireCoworkerAssignedTaskRead(coworker, taskId, tx);
 }
 
 /**
@@ -601,7 +621,7 @@ async function assertDelegatedCanReadJob(
  *
  * @throws {forbidden} If a bare coworker (no delegation) is used, or a delegated
  *   coworker is not assigned to the job's task and is not a same-vendor sibling
- * @throws {notFound} If the job is not in the active workspace, or the task is parked
+ * @throws {notFound} If the job is not in the active workspace, or the task is awaiting vendor approval and the coworker is not the assignee
  */
 export async function requireJobReadForRouteVars(
   vars: EnvVariables["Variables"],

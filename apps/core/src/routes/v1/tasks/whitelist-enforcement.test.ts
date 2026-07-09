@@ -25,7 +25,7 @@ const {
     return {
       ...t,
       pendingVendorGrantId: t.pendingVendorGrantId ?? null,
-      parked: t.pendingVendorGrantId != null,
+      awaitingVendorApproval: t.pendingVendorGrantId != null,
       user: t.user ?? {
         id: t.userId,
         name: "Task owner",

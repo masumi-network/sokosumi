@@ -16,16 +16,18 @@ export function isVendorGrantEnabled(): boolean {
   return getEnv().VENDOR_GRANT_ENABLED;
 }
 
-export function isTaskParked(
+export function isTaskAwaitingVendorApproval(
   task: Pick<Task, "pendingVendorGrantId">,
 ): boolean {
   return task.pendingVendorGrantId != null;
 }
 
-export function requireTaskNotParked(task: Pick<Task, "pendingVendorGrantId">) {
-  if (isTaskParked(task)) {
+export function requireTaskNotAwaitingVendorApproval(
+  task: Pick<Task, "pendingVendorGrantId">,
+) {
+  if (isTaskAwaitingVendorApproval(task)) {
     throw forbidden(
-      "Parked tasks cannot be modified until vendor access is granted",
+      "Tasks awaiting vendor approval cannot be modified until vendor access is granted",
     );
   }
 }
@@ -143,7 +145,8 @@ export async function loadActorVendorId(
   return coworker.vendorId;
 }
 
-export function buildNonOwnerParkedTaskFilter(): Prisma.TaskWhereInput {
+export function buildNonOwnerAwaitingVendorApprovalTaskFilter(): Prisma.TaskWhereInput {
+  // Session-user workspace lists and non-assignee feeds hide tasks awaiting vendor approval.
   return {
     pendingVendorGrantId: null,
   };

@@ -286,13 +286,13 @@ export type Task = {
      */
     nextRunAt: Date | null;
     /**
-     * When set, the task is parked pending vendor access approval
+     * When set, the task is awaiting vendor access approval before it can run
      */
     pendingVendorGrantId: string | null;
     /**
-     * True when the task is parked pending vendor access approval
+     * True when the task is awaiting vendor access approval before it can run
      */
-    parked: boolean;
+    awaitingVendorApproval: boolean;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2012,7 +2012,7 @@ export type VendorGrant = {
     workspaceId: string;
     workspace: WorkspaceSummary;
     resolvedAt: Date | null;
-    parkedTaskCount: number;
+    awaitingVendorApprovalTaskCount: number;
 };
 
 export type Member = {
@@ -2624,13 +2624,13 @@ export type TaskListItem = {
      */
     nextRunAt: Date | null;
     /**
-     * When set, the task is parked pending vendor access approval
+     * When set, the task is awaiting vendor access approval before it can run
      */
     pendingVendorGrantId: string | null;
     /**
-     * True when the task is parked pending vendor access approval
+     * True when the task is awaiting vendor access approval before it can run
      */
-    parked: boolean;
+    awaitingVendorApproval: boolean;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -20877,7 +20877,7 @@ export type PostTasksErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden. Delegated coworker create may return kind `grant_denied` when vendor access was denied or revoked.
      */
     403: {
         error: string;
@@ -20905,7 +20905,7 @@ export type PostTasksErrors = {
         };
     };
     /**
-     * Conflict
+     * Conflict — vendor grant upsert concurrency while creating a task awaiting vendor approval
      */
     409: {
         error: string;

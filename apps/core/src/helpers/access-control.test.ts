@@ -453,7 +453,7 @@ describe("requireTaskReadForRouteVars", () => {
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
   });
 
-  it("hides parked tasks from non-owner users", async () => {
+  it("hides tasks awaiting vendor approval from non-owner users", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -472,7 +472,7 @@ describe("requireTaskReadForRouteVars", () => {
     ).rejects.toThrow("Task not found");
   });
 
-  it("hides parked tasks from delegated coworkers", async () => {
+  it("hides tasks awaiting vendor approval from non-assignee delegated coworkers", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {
       userId: "user_delegate",
@@ -501,6 +501,41 @@ describe("requireTaskReadForRouteVars", () => {
     await expect(
       requireTaskReadForRouteVars(vars, "tsk_123", tx),
     ).rejects.toThrow("Task not found");
+  });
+
+  it("allows the assignee delegated coworker to read a task awaiting vendor approval", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        coworkerId: "cow_123",
+        pendingVendorGrantId: "grant_1",
+        status: TaskStatus.READY,
+        coworker: { vendorId: defaultVendorId },
+      } as never)
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        coworkerId: "cow_123",
+        pendingVendorGrantId: "grant_1",
+      } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
   });
 });
 
@@ -595,6 +630,29 @@ describe("requireCoworkerTaskCollaboration", () => {
         archivedAt: null,
       },
     });
+  });
+
+  it("rejects collaboration on tasks awaiting vendor approval", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123");
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_123",
+      pendingVendorGrantId: "grant_1",
+      status: TaskStatus.READY,
+    } as never);
+
+    await expect(
+      requireCoworkerTaskCollaboration(coworkerContext, "tsk_123", tx),
+    ).rejects.toThrow(
+      "Tasks awaiting vendor approval cannot be modified until vendor access is granted",
+    );
   });
 
   it("rejects when tasks capability is unavailable", async () => {

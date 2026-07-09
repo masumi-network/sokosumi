@@ -101,7 +101,7 @@ const route = withGlobalHeaderParameters(
       },
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse(
-        "Conflict — vendor grant upsert concurrency while parking task",
+        "Conflict — vendor grant upsert concurrency while creating a task awaiting vendor approval",
       ),
     },
   }),
@@ -312,7 +312,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         tx,
       );
-    }, "Could not park task while resolving vendor access");
+    }, "Could not create task awaiting vendor approval");
 
     return created(c, taskSchema.parse(mapTask(task)));
   });

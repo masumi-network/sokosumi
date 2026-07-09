@@ -1216,12 +1216,12 @@ export const TaskSchema = {
                 'string',
                 'null'
             ],
-            description: 'When set, the task is parked pending vendor access approval',
+            description: 'When set, the task is awaiting vendor access approval before it can run',
             example: null
         },
-        parked: {
+        awaitingVendorApproval: {
             type: 'boolean',
-            description: 'True when the task is parked pending vendor access approval',
+            description: 'True when the task is awaiting vendor access approval before it can run',
             example: false
         },
         credits: {
@@ -1281,7 +1281,7 @@ export const TaskSchema = {
         'metadata',
         'nextRunAt',
         'pendingVendorGrantId',
-        'parked',
+        'awaitingVendorApproval',
         'credits',
         'events',
         'jobs',
@@ -7017,7 +7017,7 @@ export const VendorGrantSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
-        parkedTaskCount: {
+        awaitingVendorApprovalTaskCount: {
             type: 'integer',
             minimum: 0,
             example: 1
@@ -7035,7 +7035,7 @@ export const VendorGrantSchema = {
         'workspaceId',
         'workspace',
         'resolvedAt',
-        'parkedTaskCount'
+        'awaitingVendorApprovalTaskCount'
     ]
 } as const;
 
@@ -9541,12 +9541,12 @@ export const TaskListItemSchema = {
                 'string',
                 'null'
             ],
-            description: 'When set, the task is parked pending vendor access approval',
+            description: 'When set, the task is awaiting vendor access approval before it can run',
             example: null
         },
-        parked: {
+        awaitingVendorApproval: {
             type: 'boolean',
-            description: 'True when the task is parked pending vendor access approval',
+            description: 'True when the task is awaiting vendor access approval before it can run',
             example: false
         },
         credits: {
@@ -9588,7 +9588,7 @@ export const TaskListItemSchema = {
         'metadata',
         'nextRunAt',
         'pendingVendorGrantId',
-        'parked',
+        'awaitingVendorApproval',
         'credits',
         'events',
         'jobs',

@@ -78,9 +78,11 @@ export function VendorAccessSection() {
                   {" · "}
                   {t("scope", { scope: grant.scope })}
                 </p>
-                {grant.parkedTaskCount > 0 ? (
+                {grant.awaitingVendorApprovalTaskCount > 0 ? (
                   <p className="text-amber-700 dark:text-amber-300 text-xs font-medium">
-                    {t("parkedCount", { count: grant.parkedTaskCount })}
+                    {t("awaitingVendorApprovalTaskCount", {
+                      count: grant.awaitingVendorApprovalTaskCount,
+                    })}
                   </p>
                 ) : null}
               </div>

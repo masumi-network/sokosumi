@@ -1414,7 +1414,7 @@
         "inputRequired": "Input richiesto",
         "done": "Completato"
       },
-      "ParkedBadge": {
+      "AwaitingVendorApprovalBadge": {
         "label": "Accesso fornitore in attesa"
       },
       "Actions": {
@@ -1655,7 +1655,7 @@
         },
         "clonedFrom": "Clonata da {name}",
         "schedule": "Pianificazione",
-        "ParkedVendorAccess": {
+        "AwaitingVendorApproval": {
           "title": "In attesa della tua approvazione",
           "description": "{vendor} ha bisogno del tuo permesso per eseguire questa attività in questo workspace.",
           "approve": "Approva",
@@ -3128,7 +3128,7 @@
         "actionError": "Impossibile aggiornare l'accesso fornitore.",
         "personalWorkspace": "Workspace personale",
         "scope": "Ambito: {scope}",
-        "parkedCount": "{count, plural, =0 {Nessuna attività in sospeso} one {# attività in sospeso} other {# attività in sospeso}}",
+        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {Nessuna attività in sospeso} one {# attività in sospeso} other {# attività in sospeso}}",
         "approve": "Approva",
         "deny": "Rifiuta",
         "revoke": "Revoca",

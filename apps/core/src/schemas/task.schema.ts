@@ -81,11 +81,13 @@ const taskBaseSchema = z.object({
     example: "2026-06-24T09:00:00.000Z",
   }),
   pendingVendorGrantId: z.string().nullable().openapi({
-    description: "When set, the task is parked pending vendor access approval",
+    description:
+      "When set, the task is awaiting vendor access approval before it can run",
     example: null,
   }),
-  parked: z.boolean().openapi({
-    description: "True when the task is parked pending vendor access approval",
+  awaitingVendorApproval: z.boolean().openapi({
+    description:
+      "True when the task is awaiting vendor access approval before it can run",
     example: false,
   }),
   credits: z.number().openapi({ example: 5 }),

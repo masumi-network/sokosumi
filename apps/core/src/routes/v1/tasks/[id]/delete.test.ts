@@ -18,7 +18,7 @@ const { prismaTransactionMock, requireTaskOwnershipMock, mapTaskMock } =
       return {
         ...t,
         pendingVendorGrantId: t.pendingVendorGrantId ?? null,
-        parked: t.pendingVendorGrantId != null,
+        awaitingVendorApproval: t.pendingVendorGrantId != null,
         user: t.user ?? {
           id: t.userId,
           name: "Task owner",
@@ -115,7 +115,7 @@ describe("DELETE /tasks/{id}", () => {
       metadata: null,
       nextRunAt: null,
       pendingVendorGrantId: null,
-      parked: false,
+      awaitingVendorApproval: false,
       credits: 0,
       events: [],
       jobs: [],

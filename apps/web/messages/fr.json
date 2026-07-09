@@ -1414,7 +1414,7 @@
         "inputRequired": "Saisie requise",
         "done": "Terminé"
       },
-      "ParkedBadge": {
+      "AwaitingVendorApprovalBadge": {
         "label": "Accès fournisseur en attente"
       },
       "Actions": {
@@ -1655,7 +1655,7 @@
         },
         "clonedFrom": "Clonée depuis {name}",
         "schedule": "Planification",
-        "ParkedVendorAccess": {
+        "AwaitingVendorApproval": {
           "title": "En attente de votre approbation",
           "description": "{vendor} a besoin de votre autorisation pour exécuter cette tâche dans cet espace de travail.",
           "approve": "Approuver",
@@ -3128,7 +3128,7 @@
         "actionError": "Impossible de mettre à jour l'accès fournisseur.",
         "personalWorkspace": "Espace de travail personnel",
         "scope": "Portée : {scope}",
-        "parkedCount": "{count, plural, =0 {Aucune tâche en attente} one {# tâche en attente} other {# tâches en attente}}",
+        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {Aucune tâche en attente} one {# tâche en attente} other {# tâches en attente}}",
         "approve": "Approuver",
         "deny": "Refuser",
         "revoke": "Révoquer",

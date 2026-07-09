@@ -62,7 +62,7 @@ describe("GET /coworkers/me/events", () => {
     });
   });
 
-  it("excludes parked tasks from the events query", async () => {
+  it("includes tasks awaiting vendor approval in the events query", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/me/events");
 
@@ -73,7 +73,6 @@ describe("GET /coworkers/me/events", () => {
           task: {
             coworkerId: "cow_123",
             status: { not: "DRAFT" },
-            pendingVendorGrantId: null,
           },
         },
       }),

@@ -69,7 +69,7 @@ const route = createRoute({
             organizationSlug: null,
           },
           resolvedAt: "2025-01-01T00:00:00.000Z",
-          parkedTaskCount: 0,
+          awaitingVendorApprovalTaskCount: 0,
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",

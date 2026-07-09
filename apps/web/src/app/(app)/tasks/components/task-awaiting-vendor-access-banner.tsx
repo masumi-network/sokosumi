@@ -9,16 +9,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { coreClient } from "@/lib/clients/core.browser.client";
 
-interface TaskParkedVendorAccessBannerProps {
+interface TaskAwaitingVendorAccessBannerProps {
   grantId: string;
   vendorName: string;
 }
 
-export function TaskParkedVendorAccessBanner({
+export function TaskAwaitingVendorAccessBanner({
   grantId,
   vendorName,
-}: TaskParkedVendorAccessBannerProps) {
-  const t = useTranslations("App.Tasks.Detail.ParkedVendorAccess");
+}: TaskAwaitingVendorAccessBannerProps) {
+  const t = useTranslations("App.Tasks.Detail.AwaitingVendorApproval");
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
 

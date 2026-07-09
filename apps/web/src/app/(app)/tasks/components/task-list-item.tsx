@@ -26,7 +26,7 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
-  const t = useTranslations("App.Tasks.ParkedBadge");
+  const t = useTranslations("App.Tasks.AwaitingVendorApprovalBadge");
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -67,7 +67,7 @@ export function TaskListItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
-          {task.parked ? (
+          {task.awaitingVendorApproval ? (
             <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium">
               {t("label")}
             </span>

@@ -38,7 +38,11 @@ export const vendorGrantSchema = z
     }),
     workspace: workspaceSummarySchema,
     resolvedAt: dateTimeSchema.nullable(),
-    parkedTaskCount: z.number().int().nonnegative().openapi({ example: 1 }),
+    awaitingVendorApprovalTaskCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .openapi({ example: 1 }),
   })
   .openapi("VendorGrant");
 

@@ -6,11 +6,11 @@ import type prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
 
 import {
-  buildExcludeParkedTaskHistoryFilter,
+  buildExcludeAwaitingVendorApprovalTaskHistoryFilter,
   buildHistoryArchivedFilter,
   buildHistoryStatusFilter,
   buildHistoryWhere,
-  findParkedTaskEntityIds,
+  findAwaitingVendorApprovalTaskEntityIds,
   type HistoryRowForApi,
   mapHistoryRow,
 } from "./history";
@@ -351,13 +351,15 @@ describe("buildHistoryStatusFilter", () => {
   });
 });
 
-describe("buildExcludeParkedTaskHistoryFilter", () => {
+describe("buildExcludeAwaitingVendorApprovalTaskHistoryFilter", () => {
   it("returns null when no parked tasks exist", () => {
-    expect(buildExcludeParkedTaskHistoryFilter([])).toBeNull();
+    expect(buildExcludeAwaitingVendorApprovalTaskHistoryFilter([])).toBeNull();
   });
 
   it("excludes task history rows for parked entity ids", () => {
-    expect(buildExcludeParkedTaskHistoryFilter(["tsk_parked"])).toEqual({
+    expect(
+      buildExcludeAwaitingVendorApprovalTaskHistoryFilter(["tsk_parked"]),
+    ).toEqual({
       OR: [
         { kind: { not: HistoryKind.TASK } },
         {
@@ -369,13 +371,13 @@ describe("buildExcludeParkedTaskHistoryFilter", () => {
   });
 });
 
-describe("findParkedTaskEntityIds", () => {
+describe("findAwaitingVendorApprovalTaskEntityIds", () => {
   it("loads parked task ids from SQL", async () => {
     const queryRawMock = vi
       .fn()
       .mockResolvedValue([{ id: "tsk_parked" }, { id: "tsk_parked_2" }]);
 
-    const ids = await findParkedTaskEntityIds(
+    const ids = await findAwaitingVendorApprovalTaskEntityIds(
       createHistoryPrismaClient({ $queryRaw: queryRawMock }),
     );
 

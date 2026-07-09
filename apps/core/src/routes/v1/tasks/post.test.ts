@@ -202,7 +202,7 @@ describe("POST /tasks", () => {
       metadata: null,
       nextRunAt: null,
       pendingVendorGrantId: null,
-      parked: false,
+      awaitingVendorApproval: false,
       credits: 0,
       events: [],
       jobs: [],

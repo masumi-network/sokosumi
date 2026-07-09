@@ -49,7 +49,7 @@ function createGrantRecord(status: VendorGrantStatus) {
       organization: null,
       user: { id: USER_ID, name: "Alex" },
     },
-    _count: { pendingTasks: 1 },
+    _count: { tasksAwaitingVendorApproval: 1 },
   };
 }
 

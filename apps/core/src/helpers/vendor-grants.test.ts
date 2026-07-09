@@ -8,9 +8,9 @@ import { testVendor } from "@/test-fixtures/vendor";
 import {
   hasAutonomyGrant,
   isGrantDenied,
-  isTaskParked,
+  isTaskAwaitingVendorApproval,
   isVendorSiblingInWorkspace,
-  requireTaskNotParked,
+  requireTaskNotAwaitingVendorApproval,
   resolveRequiredGrantScope,
 } from "./vendor-grants";
 
@@ -39,27 +39,31 @@ describe("resolveRequiredGrantScope", () => {
   });
 });
 
-describe("isTaskParked", () => {
-  it("treats explicit grant ids as parked", () => {
-    expect(isTaskParked({ pendingVendorGrantId: "grant_1" })).toBe(true);
+describe("isTaskAwaitingVendorApproval", () => {
+  it("treats explicit grant ids as awaiting vendor approval", () => {
+    expect(
+      isTaskAwaitingVendorApproval({ pendingVendorGrantId: "grant_1" }),
+    ).toBe(true);
   });
 
-  it("treats null and missing ids as not parked", () => {
-    expect(isTaskParked({ pendingVendorGrantId: null })).toBe(false);
-    expect(isTaskParked({})).toBe(false);
+  it("treats null and missing ids as not awaiting vendor approval", () => {
+    expect(isTaskAwaitingVendorApproval({ pendingVendorGrantId: null })).toBe(
+      false,
+    );
+    expect(isTaskAwaitingVendorApproval({})).toBe(false);
   });
 });
 
-describe("requireTaskNotParked", () => {
-  it("throws when the task is parked", () => {
+describe("requireTaskNotAwaitingVendorApproval", () => {
+  it("throws when the task is awaiting vendor approval", () => {
     expect(() =>
-      requireTaskNotParked({ pendingVendorGrantId: "grant_1" }),
+      requireTaskNotAwaitingVendorApproval({ pendingVendorGrantId: "grant_1" }),
     ).toThrow(HTTPException);
   });
 
-  it("allows unparked tasks", () => {
+  it("allows tasks not awaiting vendor approval", () => {
     expect(() =>
-      requireTaskNotParked({ pendingVendorGrantId: null }),
+      requireTaskNotAwaitingVendorApproval({ pendingVendorGrantId: null }),
     ).not.toThrow();
   });
 });
@@ -86,7 +90,7 @@ describe("isVendorSiblingInWorkspace", () => {
     ).toBe(true);
   });
 
-  it("returns false for parked, draft, bare, or cross-vendor tasks", () => {
+  it("returns false for tasks awaiting vendor approval, draft, bare, or cross-vendor tasks", () => {
     const assigneeTask = {
       coworkerId: "cow_assignee",
       status: TaskStatus.READY,

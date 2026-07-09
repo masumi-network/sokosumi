@@ -18,7 +18,7 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
-import { buildNonOwnerParkedTaskFilter } from "@/helpers/vendor-grants";
+import { buildNonOwnerAwaitingVendorApprovalTaskFilter } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -159,7 +159,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where = {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          ...buildNonOwnerParkedTaskFilter(),
           ...(scope === "owned"
             ? { userId: authContext.delegation.userId }
             : {}),
@@ -188,7 +187,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where = {
         archivedAt: null,
         workspaceId: workspaceContext.workspaceId,
-        ...(scope === "workspace" ? buildNonOwnerParkedTaskFilter() : {}),
+        ...(scope === "workspace"
+          ? buildNonOwnerAwaitingVendorApprovalTaskFilter()
+          : {}),
         ...(scope === "owned" ? { userId: authContext.userId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),

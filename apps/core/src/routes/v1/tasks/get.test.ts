@@ -171,7 +171,7 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("keeps parked tasks visible to the owner on scope=owned", async () => {
+  it("keeps tasks awaiting vendor approval visible to the owner on scope=owned", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/");
 
@@ -337,7 +337,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
           userId: "user_delegate",
-          pendingVendorGrantId: null,
         },
       }),
     );
@@ -359,7 +358,6 @@ describe("GET /tasks", () => {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
           coworkerId: "cow_999",
-          pendingVendorGrantId: null,
         },
       }),
     );

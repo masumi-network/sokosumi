@@ -16,7 +16,7 @@ type VendorGrantWithRelations = Prisma.VendorGrantGetPayload<{
         organization: { select: { id: true; name: true; slug: true } };
       };
     };
-    _count: { select: { pendingTasks: true } };
+    _count: { select: { tasksAwaitingVendorApproval: true } };
   };
 }>;
 
@@ -37,7 +37,7 @@ export function mapVendorGrant(grant: VendorGrantWithRelations) {
     workspaceId: grant.workspaceId,
     workspace: mapWorkspaceSummary(grant.workspace),
     resolvedAt: grant.resolvedAt,
-    parkedTaskCount: grant._count.pendingTasks,
+    awaitingVendorApprovalTaskCount: grant._count.tasksAwaitingVendorApproval,
   });
 }
 
@@ -51,7 +51,7 @@ export const vendorGrantInclude = {
   },
   _count: {
     select: {
-      pendingTasks: true,
+      tasksAwaitingVendorApproval: true,
     },
   },
 } as const satisfies Prisma.VendorGrantInclude;

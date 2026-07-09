@@ -1414,7 +1414,7 @@
         "inputRequired": "需要输入",
         "done": "已完成"
       },
-      "ParkedBadge": {
+      "AwaitingVendorApprovalBadge": {
         "label": "待处理的供应商访问"
       },
       "Actions": {
@@ -1655,7 +1655,7 @@
         },
         "clonedFrom": "克隆自 {name}",
         "schedule": "计划",
-        "ParkedVendorAccess": {
+        "AwaitingVendorApproval": {
           "title": "等待您的批准",
           "description": "{vendor} 需要您授权才能在此工作区运行此任务。",
           "approve": "批准",
@@ -3128,7 +3128,7 @@
         "actionError": "无法更新供应商访问。",
         "personalWorkspace": "个人工作区",
         "scope": "范围：{scope}",
-        "parkedCount": "{count, plural, =0 {没有待处理任务} one {# 个待处理任务} other {# 个待处理任务}}",
+        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {没有待处理任务} one {# 个待处理任务} other {# 个待处理任务}}",
         "approve": "批准",
         "deny": "拒绝",
         "revoke": "撤销",

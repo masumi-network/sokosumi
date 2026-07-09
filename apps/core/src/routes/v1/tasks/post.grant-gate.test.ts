@@ -159,7 +159,7 @@ function createMappedTask(
   overrides: {
     id?: string;
     pendingVendorGrantId?: string | null;
-    parked?: boolean;
+    awaitingVendorApproval?: boolean;
   } = {},
 ) {
   return {
@@ -187,7 +187,7 @@ function createMappedTask(
     metadata: null,
     nextRunAt: null,
     pendingVendorGrantId: overrides.pendingVendorGrantId ?? null,
-    parked: overrides.parked ?? false,
+    awaitingVendorApproval: overrides.awaitingVendorApproval ?? false,
     credits: 0,
     events: [],
     jobs: [],
@@ -216,7 +216,7 @@ describe("POST /tasks vendor grant gate", () => {
       createMappedTask({
         id: task.id,
         pendingVendorGrantId: task.pendingVendorGrantId ?? null,
-        parked: task.pendingVendorGrantId != null,
+        awaitingVendorApproval: task.pendingVendorGrantId != null,
       }),
     );
     prismaTransactionMock.mockImplementation(

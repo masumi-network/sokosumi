@@ -151,7 +151,7 @@ describe("vendor-access lifecycle", () => {
           organization: null,
           user: { id: USER_ID, name: "Alex" },
         },
-        _count: { pendingTasks: 0 },
+        _count: { tasksAwaitingVendorApproval: 0 },
       });
 
       return await callback(transaction.tx);
@@ -194,7 +194,7 @@ describe("vendor-access lifecycle", () => {
           organization: null,
           user: { id: USER_ID, name: "Alex" },
         },
-        _count: { pendingTasks: 0 },
+        _count: { tasksAwaitingVendorApproval: 0 },
       });
 
       return await callback(transaction.tx);
@@ -231,7 +231,7 @@ describe("vendor-access lifecycle", () => {
         organization: null,
         user: { id: USER_ID, name: "Alex" },
       },
-      _count: { pendingTasks: 0 },
+      _count: { tasksAwaitingVendorApproval: 0 },
     };
 
     vendorGrantFindUniqueMock.mockResolvedValueOnce(
@@ -275,7 +275,7 @@ describe("vendor-access lifecycle", () => {
           organization: null,
           user: { id: USER_ID, name: "Alex" },
         },
-        _count: { pendingTasks: 0 },
+        _count: { tasksAwaitingVendorApproval: 0 },
       });
 
       return await callback(transaction.tx);

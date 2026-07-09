@@ -74,7 +74,7 @@ function createTaskApi(projectId: string | null = null) {
     metadata: null,
     nextRunAt: null,
     pendingVendorGrantId: null,
-    parked: false,
+    awaitingVendorApproval: false,
     credits: 0,
     events: [],
     jobs: [],

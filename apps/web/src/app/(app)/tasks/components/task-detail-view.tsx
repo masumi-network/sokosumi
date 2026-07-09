@@ -5,13 +5,13 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
+import { TaskAwaitingVendorAccessBanner } from "@/app/tasks/components/task-awaiting-vendor-access-banner";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
-import { TaskParkedVendorAccessBanner } from "@/app/tasks/components/task-parked-vendor-access-banner";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
@@ -135,9 +135,11 @@ export async function TaskDetailView({
           }
         />
 
-        {task.parked && task.pendingVendorGrantId && !forceReadOnly ? (
+        {task.awaitingVendorApproval &&
+        task.pendingVendorGrantId &&
+        !forceReadOnly ? (
           <Suspense fallback={null}>
-            <TaskParkedVendorAccessBannerSlot
+            <TaskAwaitingVendorAccessBannerSlot
               grantId={task.pendingVendorGrantId}
               coworkerId={task.coworkerId}
               coworkersPromise={coworkersPromise}
@@ -207,7 +209,7 @@ export async function TaskDetailView({
   );
 }
 
-async function TaskParkedVendorAccessBannerSlot({
+async function TaskAwaitingVendorAccessBannerSlot({
   grantId,
   coworkerId,
   coworkersPromise,
@@ -227,7 +229,7 @@ async function TaskParkedVendorAccessBannerSlot({
   }
 
   return (
-    <TaskParkedVendorAccessBanner grantId={grantId} vendorName={vendorName} />
+    <TaskAwaitingVendorAccessBanner grantId={grantId} vendorName={vendorName} />
   );
 }
 

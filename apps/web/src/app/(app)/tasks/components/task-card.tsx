@@ -26,7 +26,7 @@ export function TaskCard({
   compact = false,
   statusLabels,
 }: TaskCardProps) {
-  const t = useTranslations("App.Tasks.ParkedBadge");
+  const t = useTranslations("App.Tasks.AwaitingVendorApprovalBadge");
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -57,7 +57,7 @@ export function TaskCard({
           <div className="space-y-2.5">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                {task.parked ? (
+                {task.awaitingVendorApproval ? (
                   <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium">
                     {t("label")}
                   </span>

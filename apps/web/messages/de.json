@@ -1414,7 +1414,7 @@
         "inputRequired": "Input erforderlich",
         "done": "Erledigt"
       },
-      "ParkedBadge": {
+      "AwaitingVendorApprovalBadge": {
         "label": "Ausstehende Anbieter-Freigabe"
       },
       "Actions": {
@@ -1655,7 +1655,7 @@
         },
         "clonedFrom": "Geklont von {name}",
         "schedule": "Zeitplan",
-        "ParkedVendorAccess": {
+        "AwaitingVendorApproval": {
           "title": "Wartet auf deine Freigabe",
           "description": "{vendor} braucht deine Erlaubnis, diese Aufgabe in diesem Workspace auszuführen.",
           "approve": "Genehmigen",
@@ -3097,7 +3097,7 @@
         "actionError": "Anbieter-Zugriff konnte nicht aktualisiert werden.",
         "personalWorkspace": "Persönlicher Workspace",
         "scope": "Bereich: {scope}",
-        "parkedCount": "{count, plural, =0 {Keine geparkten Aufgaben} one {# geparkte Aufgabe} other {# geparkte Aufgaben}}",
+        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {Keine Aufgaben mit ausstehender Anbieterfreigabe} one {# Aufgabe mit ausstehender Anbieterfreigabe} other {# Aufgaben mit ausstehender Anbieterfreigabe}}",
         "approve": "Genehmigen",
         "deny": "Ablehnen",
         "revoke": "Widerrufen",
