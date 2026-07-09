@@ -11,8 +11,9 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
   },
 }));
 
-import { TasksViewFilters } from "../tasks-view-filters";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
+
+import { TasksViewFilters } from "../tasks-view-filters";
 
 const replaceMock = vi.fn();
 
