@@ -30,3 +30,26 @@ jobs:
               title: "chore(deps): patch bumps, undici override, and openrouter v3",
               body,
             });
+
+  sync-dependency-pr-body-401d:
+    if: github.event.pull_request.head.ref == 'cursor/dependency-update-process-401d'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/github-script@v7.1.0
+        with:
+          script: |
+            const fs = require("node:fs");
+            const body = fs.readFileSync(
+              ".github/pr-bodies/dependency-update-process-401d.md",
+              "utf8",
+            );
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              title: "chore(deps): apply patch updates and upgrade postmark to v5",
+              body,
+            });

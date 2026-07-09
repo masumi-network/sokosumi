@@ -39,7 +39,7 @@
     "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {
-    "@ai-sdk/provider-utils": "5.0.5",
+    "@ai-sdk/provider-utils": "5.0.6",
     "@types/node": "24.13.2",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
