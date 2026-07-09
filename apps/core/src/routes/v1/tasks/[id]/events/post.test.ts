@@ -537,6 +537,7 @@ describe("POST /{id}/events", () => {
         where: expect.objectContaining({
           taskId: TASK_ID,
           transactionId: { not: null },
+          status: { in: [TaskStatus.COMPLETED, TaskStatus.CANCELED] },
         }),
       }),
     );
@@ -580,6 +581,7 @@ describe("POST /{id}/events", () => {
         where: expect.objectContaining({
           taskId: TASK_ID,
           transactionId: { not: null },
+          status: { in: [TaskStatus.COMPLETED, TaskStatus.CANCELED] },
         }),
       }),
     );
@@ -623,6 +625,7 @@ describe("POST /{id}/events", () => {
         where: expect.objectContaining({
           taskId: TASK_ID,
           transactionId: { not: null },
+          status: { in: [TaskStatus.COMPLETED, TaskStatus.CANCELED] },
         }),
       }),
     );
