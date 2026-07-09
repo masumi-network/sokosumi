@@ -5,6 +5,7 @@ import {
   isInAppBrowserEnvironmentError,
   isTransientStreamClosureError,
 } from "@/lib/sentry/third-party-browser-environment-errors";
+import { isBrowserExtensionOnlyStackError } from "@/lib/sentry/third-party-browser-extension-errors";
 import { isThirdPartyDomMutationError } from "@/lib/sentry/third-party-dom-mutation-errors";
 import { isThirdPartyWalletError } from "@/lib/sentry/third-party-wallet-errors";
 
@@ -133,6 +134,10 @@ export function beforeSendClientEvent(
   event: ErrorEvent,
   _hint: EventHint,
 ): ErrorEvent | null {
+  if (isBrowserExtensionOnlyStackError(event)) {
+    return null;
+  }
+
   const message = getEventErrorMessage(event);
 
   if (

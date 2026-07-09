@@ -323,4 +323,26 @@ describe("beforeSendClientEvent", () => {
       ),
     ).toBeNull();
   });
+
+  it("drops React DevTools hook.js extension failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [
+              {
+                type: "TypeError",
+                value: "Cannot read properties of undefined (reading 'id')",
+                stacktrace: {
+                  frames: [{ filename: "app:///hook.js" }],
+                },
+              },
+            ],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
 });

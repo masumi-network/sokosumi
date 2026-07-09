@@ -8,11 +8,21 @@ import {
 } from "@/lib/external-service-errors";
 
 describe("isTransientPostmarkError", () => {
-  it("treats Postmark timeouts as transient", () => {
+  it("treats axios-era Postmark timeouts as transient", () => {
     expect(
       isTransientPostmarkError(
         Object.assign(new Error("timeout of 180000ms exceeded"), {
           name: "PostmarkError",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("treats fetch-era Postmark timeouts as transient", () => {
+    expect(
+      isTransientPostmarkError(
+        Object.assign(new Error("The operation was aborted due to timeout"), {
+          name: "TimeoutError",
         }),
       ),
     ).toBe(true);
@@ -69,6 +79,13 @@ describe("shouldSuppressSentryForExternalError", () => {
     expect(
       shouldSuppressSentryForExternalError(
         new Error("timeout of 180000ms exceeded"),
+      ),
+    ).toBe(true);
+    expect(
+      shouldSuppressSentryForExternalError(
+        Object.assign(new Error("The operation was aborted due to timeout"), {
+          name: "TimeoutError",
+        }),
       ),
     ).toBe(true);
     expect(
