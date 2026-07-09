@@ -11,7 +11,6 @@ import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
 import mountGetCoworkers from "./get.js";
 import mountGetCoworkerMeEvents from "./me/events/get.js";
 import mountGetCoworkerMe from "./me/get.js";
-import mountPostCoworkerMeUsage from "./me/usage/post.js";
 import mountPostCoworker from "./post.js";
 
 const app = new OpenAPIHonoWithAuth();
@@ -20,7 +19,6 @@ mountGetCoworkers(app);
 mountPostCoworker(app);
 mountGetCoworkerMe(app);
 mountGetCoworkerMeEvents(app);
-mountPostCoworkerMeUsage(app);
 mountGetCoworkerApiKeys(app);
 mountPostCoworkerApiKey(app);
 mountPatchCoworkerApiKey(app);

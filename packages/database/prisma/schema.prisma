@@ -66,9 +66,8 @@ model User {
   coworkers Coworker[]
   workspace Workspace?
 
-  tasks          Task[]
-  taskEvents     TaskEvent[]
-  coworkerUsages CoworkerUsage[]
+  tasks      Task[]
+  taskEvents TaskEvent[]
 
   // Credit Buckets
   creditBuckets CreditBucket[]
@@ -193,13 +192,12 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members        Member[]
-  invitations    Invitation[]
-  workspace      Workspace?
-  jobs           Job[]
-  tasks          Task[]
-  transactions   Transaction[]
-  coworkerUsages CoworkerUsage[]
+  members      Member[]
+  invitations  Invitation[]
+  workspace    Workspace?
+  jobs         Job[]
+  tasks        Task[]
+  transactions Transaction[]
 
   stripeCustomerId String?
 
@@ -647,10 +645,9 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job           Job?           @relation("TransactionJob")
-  refundedJob   Job?           @relation("RefundedTransactionJob")
-  taskEvents    TaskEvent[]    @relation("TransactionTaskEvent")
-  coworkerUsage CoworkerUsage? @relation("TransactionCoworkerUsage")
+  job         Job?        @relation("TransactionJob")
+  refundedJob Job?        @relation("RefundedTransactionJob")
+  taskEvents  TaskEvent[] @relation("TransactionTaskEvent")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1157,9 +1154,8 @@ model Coworker {
 
   coworkerApiKeys CoworkerApiKey[]
 
-  tasks          Task[]
-  taskEvents     TaskEvent[]
-  coworkerUsages CoworkerUsage[]
+  tasks      Task[]
+  taskEvents TaskEvent[]
 
   @@index([archivedAt])
   @@map("coworker")
@@ -1319,33 +1315,6 @@ model TaskEvent {
 
   @@index([transactionId])
   @@map("taskEvent")
-}
-
-model CoworkerUsage {
-  id        String   @id @default(uuid(7))
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  idempotencyKey String
-  referenceId    String?
-
-  coworkerId String
-  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  cents BigInt
-
-  transactionId String      @unique
-  transaction   Transaction @relation("TransactionCoworkerUsage", fields: [transactionId], references: [id], onDelete: Cascade)
-
-  @@unique([coworkerId, idempotencyKey])
-  @@index([userId, organizationId, createdAt])
-  @@map("coworker_usage")
 }
 
 model Conversation {
