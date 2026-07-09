@@ -55,7 +55,6 @@ export function emptyStringToNull<T>(
 
 export * from "./datetime";
 export * from "./duration";
-export * from "./email";
 export * from "./gradient";
 export * from "./parse-date";
 export * from "./usdm-unit";

@@ -4,54 +4,38 @@ export {};
 
 vi.mock("server-only", () => ({}));
 
-const getSessionMock = vi.fn();
+const flagMock = vi.fn((declaration: unknown) => declaration);
+const vercelAdapterMock = vi.fn(() => ({ decide: vi.fn() }));
 
 vi.mock("flags/next", () => ({
-  flag: ({
-    decide,
-  }: {
-    key: string;
-    decide: () => boolean | Promise<boolean>;
-  }) => decide,
+  flag: (declaration: unknown) => flagMock(declaration),
 }));
 
-vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: (...args: unknown[]) => getSessionMock(...args),
+vi.mock("@flags-sdk/vercel", () => ({
+  vercelAdapter: () => vercelAdapterMock(),
+}));
+
+vi.mock("@/lib/flags/identify", () => ({
+  identify: vi.fn(),
 }));
 
 describe("hermesBetaEnabled", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
-  it("returns false when session is missing", async () => {
-    getSessionMock.mockResolvedValue(null);
-
+  it("declares a Vercel-backed boolean flag with identify", async () => {
+    const { identify } = await import("@/lib/flags/identify");
     const { hermesBetaEnabled } = await import("../hermes-beta");
 
-    await expect(hermesBetaEnabled()).resolves.toBe(false);
-  });
-
-  it.each([
-    "user@nmkr.io",
-    "USER@NMKR.IO",
-    "k.platz@house-of-communication.com",
-    "K.PLATZ@HOUSE-OF-COMMUNICATION.COM",
-  ])("returns true for beta access email %s", async (email) => {
-    getSessionMock.mockResolvedValue({ user: { email } });
-
-    const { hermesBetaEnabled } = await import("../hermes-beta");
-
-    await expect(hermesBetaEnabled()).resolves.toBe(true);
-  });
-
-  it("returns false for other domains", async () => {
-    getSessionMock.mockResolvedValue({
-      user: { email: "someone@example.com" },
+    expect(flagMock).toHaveBeenCalledTimes(1);
+    expect(hermesBetaEnabled).toMatchObject({
+      key: "hermes-beta-enabled",
+      defaultValue: false,
+      identify,
     });
-
-    const { hermesBetaEnabled } = await import("../hermes-beta");
-
-    await expect(hermesBetaEnabled()).resolves.toBe(false);
+    expect(vercelAdapterMock).toHaveBeenCalledTimes(1);
+    expect(hermesBetaEnabled).toHaveProperty("adapter");
   });
 });

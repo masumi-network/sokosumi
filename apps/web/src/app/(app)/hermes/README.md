@@ -231,9 +231,14 @@ project channel if you don't have them yet. Never commit them.
 
 ### Enabling the feature
 
-The route is gated by the `hermes-beta` flag (`apps/web/src/lib/flags/hermes-beta.ts`).
-Locally it's enabled for users in `HERMES_BETA_ALLOWLIST`, or for everyone
-when `HERMES_BETA_ALL_USERS=true`.
+The route is gated by the Vercel Flags key `hermes-beta-enabled`
+(`apps/web/src/lib/flags/hermes-beta.ts`), evaluated via `@flags-sdk/vercel`.
+
+1. Create a boolean flag named `hermes-beta-enabled` in the Vercel Dashboard
+   (project → Flags).
+2. Add targeting rules using `user.email` / `user.id` (and optional `team.id`).
+3. For local eval + Flags Explorer: `vercel link` (if needed) then
+   `vercel env pull` so `FLAGS` / OIDC and `FLAGS_SECRET` are available.
 
 ### Bypassing the subscription gate
 
