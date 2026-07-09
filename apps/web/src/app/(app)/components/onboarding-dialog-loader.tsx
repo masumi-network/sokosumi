@@ -1,15 +1,21 @@
-import type { SubscriptionPlanName } from "@sokosumi/utils";
+import type {
+  SelfServeSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@sokosumi/utils";
 import { MemberRole } from "@sokosumi/utils";
 import { Suspense } from "react";
-import {
-  type PaidSubscriptionPlanView,
-  resolveCurrentPlanName,
-} from "@/components/billing/subscription-plan-utils";
-import { listActiveSubscriptions } from "@/lib/auth/auth.server";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { type PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
-import { organizationSeatService, userService } from "@/lib/services";
+import {
+  getOrganizationBillingPlanForOnboarding,
+  organizationSeatService,
+  resolvePersonalActiveSubscriptionPlanForOnboarding,
+  userHasPaidOrEnterpriseCoverage,
+  userService,
+} from "@/lib/services";
 
+import { MarkSubscriptionOnboardingGateSeen } from "./mark-subscription-onboarding-gate-seen";
 import {
   OnboardingDialog,
   type OnboardingSubscriptionCheckoutMode,
@@ -29,11 +35,44 @@ interface OnboardingDialogLoaderProps {
   subscriptionOnly?: boolean;
 }
 
+function SubscriptionOnboardingReturnOnly() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingSubscriptionReturnHandler />
+    </Suspense>
+  );
+}
+
+function SuppressedSubscriptionOnboardingGate({
+  loginId,
+}: {
+  loginId?: null | string;
+}) {
+  return (
+    <>
+      {loginId ? (
+        <MarkSubscriptionOnboardingGateSeen loginId={loginId} />
+      ) : null}
+      <SubscriptionOnboardingReturnOnly />
+    </>
+  );
+}
+
 export async function OnboardingDialogLoader({
   activeOrganization,
   loginId,
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
+  if (subscriptionOnly) {
+    // Defense-in-depth: layout already skips mounting this loader when coverage
+    // is true (and React cache() dedupes). Keep the check so direct callers and
+    // tests still suppress the hint without relying on layout wiring.
+    const hasPaidOrEnterpriseCoverage = await userHasPaidOrEnterpriseCoverage();
+    if (hasPaidOrEnterpriseCoverage) {
+      return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
+    }
+  }
+
   let prefetchedOrganizationMember:
     | Awaited<ReturnType<typeof userService.getMyMemberInOrganization>>
     | undefined;
@@ -51,11 +90,7 @@ export async function OnboardingDialogLoader({
       // the client dialog would render null anyway, and the session cookie is
       // intentionally not set so switching to a personal workspace can still
       // show the gate.
-      return (
-        <Suspense fallback={null}>
-          <OnboardingSubscriptionReturnHandler />
-        </Suspense>
-      );
+      return <SubscriptionOnboardingReturnOnly />;
     }
   }
 
@@ -70,11 +105,7 @@ export async function OnboardingDialogLoader({
   }
 
   if (!subscriptionCatalog) {
-    return (
-      <Suspense fallback={null}>
-        <OnboardingSubscriptionReturnHandler />
-      </Suspense>
-    );
+    return <SubscriptionOnboardingReturnOnly />;
   }
 
   const organizationMemberPromise =
@@ -84,20 +115,7 @@ export async function OnboardingDialogLoader({
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
   const organizationBillingPlanPromise = activeOrganization
-    ? coreClient
-        .getOrganizationBillingPlan(activeOrganization.id)
-        .then((response) => response.data)
-        .catch((error: unknown) => {
-          // A stale active organization (e.g. revoked membership) must not
-          // break onboarding — fall back to no organization plan.
-          if (
-            error instanceof CoreApiRequestError &&
-            (error.status === 403 || error.status === 404)
-          ) {
-            return null;
-          }
-          throw error;
-        })
+    ? getOrganizationBillingPlanForOnboarding(activeOrganization.id)
     : Promise.resolve(null);
   const organizationSeatSummaryPromise = activeOrganization
     ? organizationSeatService.getSeatSummary(activeOrganization.id)
@@ -125,29 +143,33 @@ export async function OnboardingDialogLoader({
         : "restricted"
       : "personal";
 
-  let personalCurrentPlan: ReturnType<typeof resolveCurrentPlanName> | null =
-    null;
+  let personalCurrentPlan: SelfServeSubscriptionPlanName | null = null;
   if (subscriptionCheckoutMode !== "organization") {
-    const personalActiveSubscriptionsResult = await listActiveSubscriptions({
-      customerType: "user",
-    });
+    const personalPlanResult =
+      await resolvePersonalActiveSubscriptionPlanForOnboarding();
 
-    if (personalActiveSubscriptionsResult.isErr()) {
-      return (
-        <Suspense fallback={null}>
-          <OnboardingSubscriptionReturnHandler />
-        </Suspense>
-      );
+    if (personalPlanResult.status === "unavailable") {
+      return <SubscriptionOnboardingReturnOnly />;
     }
 
-    personalCurrentPlan =
-      resolveCurrentPlanName(personalActiveSubscriptionsResult.value) ?? "free";
+    personalCurrentPlan = personalPlanResult.plan;
   }
 
   const currentPlan =
     subscriptionCheckoutMode === "organization"
       ? (organizationCurrentPlan ?? "free")
       : (personalCurrentPlan ?? "free");
+
+  // Active-org billing can still be paid/enterprise after the early coverage
+  // check (e.g. personal subscription read failed). Never show the paid-plan
+  // hint when the checkout context is already covered.
+  if (
+    subscriptionOnly &&
+    (organizationBillingPlan?.mode === "enterprise_contract" ||
+      currentPlan !== "free")
+  ) {
+    return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
+  }
 
   const onboardingPlans: PaidSubscriptionPlanView[] = PLAN_ORDER.flatMap(
     (planName) => {
@@ -180,9 +202,7 @@ export async function OnboardingDialogLoader({
 
   return (
     <>
-      <Suspense fallback={null}>
-        <OnboardingSubscriptionReturnHandler />
-      </Suspense>
+      <SubscriptionOnboardingReturnOnly />
       <OnboardingDialog
         loginId={loginId}
         organizationSubscription={organizationSubscription}

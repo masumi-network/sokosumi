@@ -32,14 +32,12 @@ import {
 } from "@/components/ui/tooltip";
 import { useCoworkersContext } from "@/contexts/coworkers-context";
 import { CommonErrorCode } from "@/lib/actions";
-import {
-  completeOnboarding,
-  markSubscriptionOnboardingGateSessionSeen,
-} from "@/lib/actions/onboarding";
+import { completeOnboarding } from "@/lib/actions/onboarding";
 import {
   upgradeOrganizationSubscription,
   upgradePersonalSubscription,
 } from "@/lib/actions/subscription";
+import { markSubscriptionOnboardingGateSeenSafely } from "@/lib/onboarding/mark-subscription-onboarding-gate-seen.client";
 
 const INTRO_STEP_COUNT = 5;
 const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
@@ -435,7 +433,7 @@ export function OnboardingDialog({
     if (!shouldOpenSubscriptionOnlyOnboarding(loginId)) {
       setOpen(false);
       if (loginId) {
-        void markSubscriptionOnboardingGateSessionSeen(loginId);
+        markSubscriptionOnboardingGateSeenSafely(loginId);
       }
       return;
     }
