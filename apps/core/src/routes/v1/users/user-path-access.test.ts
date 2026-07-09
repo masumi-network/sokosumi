@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import {
   requireAccessToTargetUserData,
@@ -28,6 +29,7 @@ describe("requireAccessToTargetUserData", () => {
       {
         actor: "coworker",
         coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
         delegation: { userId: target, organizationId: null },
       },
       target,
@@ -70,6 +72,7 @@ describe("requireAccessToTargetUserData", () => {
         {
           actor: "coworker",
           coworkerId: "cow_1",
+          vendorId: TEST_VENDOR_ID,
           delegation: { userId: "usr_other", organizationId: null },
         },
         target,
@@ -100,6 +103,7 @@ describe("resolveUsersPathUserId", () => {
         {
           actor: "coworker",
           coworkerId: "cow_1",
+          vendorId: TEST_VENDOR_ID,
           delegation: { userId: "usr_x", organizationId: null },
         },
         USERS_PATH_ME,

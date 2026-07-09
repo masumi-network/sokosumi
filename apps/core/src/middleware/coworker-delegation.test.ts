@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthVariables } from "./auth";
 import { coworkerDelegationMiddleware } from "./coworker-delegation";
@@ -72,7 +73,11 @@ describe("coworkerDelegationMiddleware", () => {
   it("leaves coworker context unchanged when delegation headers are absent", async () => {
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/");
@@ -84,6 +89,7 @@ describe("coworkerDelegationMiddleware", () => {
     expect(body.authContext).toEqual({
       actor: "coworker",
       coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
     });
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
@@ -93,7 +99,11 @@ describe("coworkerDelegationMiddleware", () => {
 
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/", {
@@ -107,6 +117,7 @@ describe("coworkerDelegationMiddleware", () => {
     expect(body.authContext).toEqual({
       actor: "coworker",
       coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
       delegation: { userId: "user_delegated", organizationId: null },
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -121,7 +132,11 @@ describe("coworkerDelegationMiddleware", () => {
 
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/", {
@@ -135,6 +150,7 @@ describe("coworkerDelegationMiddleware", () => {
     expect(body.authContext).toEqual({
       actor: "coworker",
       coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
       delegation: { userId: "user_arbitrary", organizationId: null },
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -149,7 +165,11 @@ describe("coworkerDelegationMiddleware", () => {
 
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/", {
@@ -166,6 +186,7 @@ describe("coworkerDelegationMiddleware", () => {
     expect(body.authContext).toEqual({
       actor: "coworker",
       coworkerId: "cow_1",
+      vendorId: TEST_VENDOR_ID,
       delegation: { userId: "u1", organizationId: "org_1" },
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -186,7 +207,11 @@ describe("coworkerDelegationMiddleware", () => {
 
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/", {
@@ -204,7 +229,11 @@ describe("coworkerDelegationMiddleware", () => {
 
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/", {
@@ -218,7 +247,11 @@ describe("coworkerDelegationMiddleware", () => {
   it("returns 400 when organization delegation header is set without user id", async () => {
     const app = createApp({
       isAuthenticated: true,
-      authContext: { actor: "coworker", coworkerId: "cow_1" },
+      authContext: {
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: TEST_VENDOR_ID,
+      },
     });
 
     const res = await app.request("http://localhost/", {

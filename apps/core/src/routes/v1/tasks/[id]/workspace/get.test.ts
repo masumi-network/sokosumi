@@ -1,10 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetTaskWorkspace from "./get";
 
@@ -120,6 +120,7 @@ describe("GET /tasks/{id}/workspace", () => {
     const response = await createApp({
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
       delegation: {
         userId: "user_123",
         organizationId: "org_123",

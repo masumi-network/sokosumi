@@ -4,10 +4,10 @@ import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostTaskEvents from "./post";
 
@@ -296,6 +296,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -348,6 +349,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -391,6 +393,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -413,6 +416,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -483,6 +487,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -522,6 +527,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -566,6 +572,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -610,6 +617,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -660,6 +668,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -698,6 +707,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -728,6 +738,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -768,6 +779,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -836,6 +848,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -879,6 +892,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -909,6 +923,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -978,6 +993,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
       delegation: {
         userId: USER_ID,
         organizationId: null,
@@ -1090,6 +1106,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
       delegation: {
         userId: USER_ID,
         organizationId: null,
@@ -1260,6 +1277,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
       delegation: {
         userId: USER_ID,
         organizationId: null,

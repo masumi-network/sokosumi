@@ -9,11 +9,11 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { createMiddleware } from "hono/factory";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler.js";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import type { AuthVariables } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountActivateEnterpriseContract from "./[id]/activate/post.js";
 import mountCancelEnterpriseContract from "./[id]/cancel/post.js";
@@ -132,6 +132,7 @@ function createContractsApp(options: AppOptions = {}) {
       c.set("authContext", {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       });
     } else {
       c.set("authContext", {

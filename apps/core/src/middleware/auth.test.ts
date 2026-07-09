@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthVariables } from "./auth";
 import { authMiddleware, requireAdminAuthContext } from "./auth";
@@ -404,6 +405,7 @@ describe("requireAdminAuthContext", () => {
       requireAdminAuthContext({
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       }),
     ).toThrowError("User authentication required");
   });
@@ -413,6 +415,7 @@ describe("requireAdminAuthContext", () => {
       requireAdminAuthContext({
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
         delegation: {
           userId: "user_456",
           organizationId: "org_1",

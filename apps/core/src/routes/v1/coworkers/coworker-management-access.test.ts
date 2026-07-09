@@ -1,5 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import { requireCoworkerManagementAccess } from "./coworker-management-access";
 
@@ -112,6 +113,7 @@ describe("requireCoworkerManagementAccess", () => {
         {
           actor: "coworker",
           coworkerId: "cow_123",
+          vendorId: TEST_VENDOR_ID,
         },
         "cow_123",
       ),

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
   captureExceptionMock,
@@ -265,6 +265,7 @@ describe("workspaceMiddleware", () => {
       expiresAt: null,
       coworker: {
         archivedAt: null,
+        vendorId: TEST_VENDOR_ID,
       },
     });
 
@@ -281,6 +282,7 @@ describe("workspaceMiddleware", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       },
       workspaceContext: null,
     });
@@ -294,6 +296,7 @@ describe("workspaceMiddleware", () => {
       expiresAt: null,
       coworker: {
         archivedAt: null,
+        vendorId: TEST_VENDOR_ID,
       },
     });
     userFindUniqueMock.mockResolvedValue({ id: "user_delegate" });
@@ -316,6 +319,7 @@ describe("workspaceMiddleware", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
         delegation: {
           userId: "user_delegate",
           organizationId: null,

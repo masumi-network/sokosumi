@@ -1,6 +1,5 @@
 import {
   type Prisma,
-  type Task,
   VendorGrantScope,
   VendorGrantStatus,
 } from "@sokosumi/database";
@@ -16,15 +15,15 @@ export function isVendorGrantEnabled(): boolean {
   return getEnv().VENDOR_GRANT_ENABLED;
 }
 
-export function isTaskAwaitingVendorApproval(
-  task: Pick<Task, "pendingVendorGrantId">,
-): boolean {
+export function isTaskAwaitingVendorApproval(task: {
+  pendingVendorGrantId?: string | null;
+}): boolean {
   return task.pendingVendorGrantId != null;
 }
 
-export function requireTaskNotAwaitingVendorApproval(
-  task: Pick<Task, "pendingVendorGrantId">,
-) {
+export function requireTaskNotAwaitingVendorApproval(task: {
+  pendingVendorGrantId?: string | null;
+}) {
   if (isTaskAwaitingVendorApproval(task)) {
     throw forbidden(
       "Tasks awaiting vendor approval cannot be modified until vendor access is granted",

@@ -926,6 +926,9 @@ describe("coworker management CRUD endpoints", () => {
           count: 2,
         }),
       },
+      vendor: {
+        findUnique: vi.fn(),
+      },
     };
 
     mockTransaction(tx);
@@ -990,6 +993,9 @@ describe("coworker management CRUD endpoints", () => {
         updateMany: coworkerApiKeyUpdateManyMock.mockResolvedValue({
           count: 2,
         }),
+      },
+      vendor: {
+        findUnique: vi.fn(),
       },
     };
 

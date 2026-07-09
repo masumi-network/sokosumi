@@ -5,6 +5,7 @@ import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import { CoworkerConversationError } from "./coworker-conversation";
 import mountPostChat from "./post";
@@ -414,6 +415,7 @@ describe("POST /chat", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
         delegation: {
           userId: "delegated_user_123",
           organizationId: "delegated_org_123",
@@ -475,6 +477,7 @@ describe("POST /chat", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
         delegation: {
           userId: "delegated_user_123",
           organizationId: "delegated_org_123",
@@ -515,6 +518,7 @@ describe("POST /chat", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
         delegation: {
           userId: "delegated_user_123",
           organizationId: "delegated_org_123",
@@ -542,6 +546,7 @@ describe("POST /chat", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
         delegation: {
           userId: "delegated_user_123",
           organizationId: "delegated_org_123",
@@ -631,6 +636,7 @@ describe("POST /chat", () => {
       authContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       },
     });
     const response = await app.request("http://localhost/", {

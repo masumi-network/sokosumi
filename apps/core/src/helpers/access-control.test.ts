@@ -125,7 +125,6 @@ describe("requireTaskCollaboration", () => {
       coworkerId: "cow_123",
       pendingVendorGrantId: null,
       status: TaskStatus.READY,
-      pendingVendorGrantId: null,
     } as never);
 
     await requireTaskCollaboration(coworkerContext, "tsk_123", tx);
@@ -303,7 +302,6 @@ describe("requireTaskReadForRouteVars", () => {
         coworkerId: "cow_123",
         pendingVendorGrantId: null,
         status: TaskStatus.READY,
-        pendingVendorGrantId: null,
         coworker: { vendorId: defaultVendorId },
       } as never)
       .mockResolvedValueOnce({
@@ -403,7 +401,6 @@ describe("requireTaskReadForRouteVars", () => {
       coworkerId: "cow_other",
       pendingVendorGrantId: null,
       status: TaskStatus.READY,
-      pendingVendorGrantId: null,
       coworker: { vendorId: "other-vendor" },
     } as never);
 

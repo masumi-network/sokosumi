@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostCoworkerMeUsage from "./post";
 
@@ -89,6 +89,7 @@ function createApp() {
     c.set("authContext", {
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     return await next();
