@@ -7,6 +7,11 @@ export * from "./organization.service";
 export * from "./organization-seat.service";
 export * from "./project.service";
 export * from "./share.service";
-export * from "./subscription-onboarding-coverage.service";
+// React cache()-wrapped request readers (stable function refs — not object services)
+export {
+  getOrganizationBillingPlanForOnboarding,
+  resolvePersonalActiveSubscriptionPlanForOnboarding,
+  userHasPaidOrEnterpriseCoverage,
+} from "./subscription-onboarding-coverage.service";
 export * from "./user.service";
 export * from "./utm.service";

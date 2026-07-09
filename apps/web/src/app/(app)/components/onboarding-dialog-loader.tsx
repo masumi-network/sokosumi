@@ -1,15 +1,16 @@
-import type { SubscriptionPlanName } from "@sokosumi/utils";
+import type {
+  SelfServeSubscriptionPlanName,
+  SubscriptionPlanName,
+} from "@sokosumi/utils";
 import { MemberRole } from "@sokosumi/utils";
 import { Suspense } from "react";
-import {
-  type PaidSubscriptionPlanView,
-  resolveCurrentPlanName,
-} from "@/components/billing/subscription-plan-utils";
-import { listActiveSubscriptions } from "@/lib/auth/auth.server";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import { type PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 import {
+  getOrganizationBillingPlanForOnboarding,
   organizationSeatService,
+  resolvePersonalActiveSubscriptionPlanForOnboarding,
   userHasPaidOrEnterpriseCoverage,
   userService,
 } from "@/lib/services";
@@ -114,20 +115,7 @@ export async function OnboardingDialogLoader({
         ? userService.getMyMemberInOrganization(activeOrganization.id)
         : Promise.resolve(null);
   const organizationBillingPlanPromise = activeOrganization
-    ? coreClient
-        .getOrganizationBillingPlan(activeOrganization.id)
-        .then((response) => response.data)
-        .catch((error: unknown) => {
-          // A stale active organization (e.g. revoked membership) must not
-          // break onboarding — fall back to no organization plan.
-          if (
-            error instanceof CoreApiRequestError &&
-            (error.status === 403 || error.status === 404)
-          ) {
-            return null;
-          }
-          throw error;
-        })
+    ? getOrganizationBillingPlanForOnboarding(activeOrganization.id)
     : Promise.resolve(null);
   const organizationSeatSummaryPromise = activeOrganization
     ? organizationSeatService.getSeatSummary(activeOrganization.id)
@@ -155,19 +143,16 @@ export async function OnboardingDialogLoader({
         : "restricted"
       : "personal";
 
-  let personalCurrentPlan: ReturnType<typeof resolveCurrentPlanName> | null =
-    null;
+  let personalCurrentPlan: SelfServeSubscriptionPlanName | null = null;
   if (subscriptionCheckoutMode !== "organization") {
-    const personalActiveSubscriptionsResult = await listActiveSubscriptions({
-      customerType: "user",
-    });
+    const personalPlanResult =
+      await resolvePersonalActiveSubscriptionPlanForOnboarding();
 
-    if (personalActiveSubscriptionsResult.isErr()) {
+    if (personalPlanResult.status === "unavailable") {
       return <SubscriptionOnboardingReturnOnly />;
     }
 
-    personalCurrentPlan =
-      resolveCurrentPlanName(personalActiveSubscriptionsResult.value) ?? "free";
+    personalCurrentPlan = personalPlanResult.plan;
   }
 
   const currentPlan =

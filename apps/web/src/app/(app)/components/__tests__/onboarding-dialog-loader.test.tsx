@@ -1,15 +1,14 @@
 import { MemberRole } from "@sokosumi/utils";
 import { render } from "@testing-library/react";
-import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Organization } from "@/lib/clients/generated/core";
 
 const getMyMemberInOrganizationMock = vi.fn();
-const getOrganizationBillingPlanMock = vi.fn();
+const getOrganizationBillingPlanForOnboardingMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
-const listActiveSubscriptionsMock = vi.fn();
+const resolvePersonalActiveSubscriptionPlanForOnboardingMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const onboardingDialogMock = vi.fn();
 const userHasPaidOrEnterpriseCoverageMock = vi.fn();
@@ -20,32 +19,20 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
-  CoreApiRequestError: class CoreApiRequestError extends Error {
-    status?: number;
-
-    constructor(message: string, options?: { status?: number }) {
-      super(message);
-      this.name = "CoreApiRequestError";
-      this.status = options?.status;
-    }
-  },
   coreClient: {
-    getOrganizationBillingPlan: (...args: unknown[]) =>
-      getOrganizationBillingPlanMock(...args),
     getSubscriptionCatalog: (...args: unknown[]) =>
       getSubscriptionCatalogMock(...args),
   },
 }));
 
-vi.mock("@/lib/auth/auth.server", () => ({
-  listActiveSubscriptions: (...args: unknown[]) =>
-    listActiveSubscriptionsMock(...args),
-}));
-
 vi.mock("@/lib/services", () => ({
+  getOrganizationBillingPlanForOnboarding: (...args: unknown[]) =>
+    getOrganizationBillingPlanForOnboardingMock(...args),
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
   },
+  resolvePersonalActiveSubscriptionPlanForOnboarding: (...args: unknown[]) =>
+    resolvePersonalActiveSubscriptionPlanForOnboardingMock(...args),
   userHasPaidOrEnterpriseCoverage: (...args: unknown[]) =>
     userHasPaidOrEnterpriseCoverageMock(...args),
   userService: {
@@ -107,24 +94,18 @@ describe("OnboardingDialogLoader", () => {
     getSubscriptionCatalogMock.mockResolvedValue({
       data: createSubscriptionCatalog(),
     });
-    getOrganizationBillingPlanMock.mockResolvedValue({
-      data: {
-        cancelAtPeriodEnd: false,
-        isConsumable: false,
-        mode: "self_serve",
-        periodEnd: null,
-        plan: "starter",
-        purchasedSeats: 3,
-      },
+    getOrganizationBillingPlanForOnboardingMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      isConsumable: false,
+      mode: "self_serve",
+      periodEnd: null,
+      plan: "starter",
+      purchasedSeats: 3,
     });
-    listActiveSubscriptionsMock.mockResolvedValue(
-      ok([
-        {
-          periodEnd: "2026-04-01T00:00:00.000Z",
-          plan: "pro",
-        },
-      ]),
-    );
+    resolvePersonalActiveSubscriptionPlanForOnboardingMock.mockResolvedValue({
+      plan: "pro",
+      status: "ok",
+    });
     getSeatSummaryMock.mockResolvedValue({
       assignedCount: 2,
       memberCount: 3,
@@ -171,10 +152,9 @@ describe("OnboardingDialogLoader", () => {
     expect(
       props.paidPlans.find((plan) => plan.name === "starter")?.isCurrent,
     ).toBe(false);
-    expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
-    expect(listActiveSubscriptionsMock).toHaveBeenCalledWith({
-      customerType: "user",
-    });
+    expect(
+      resolvePersonalActiveSubscriptionPlanForOnboardingMock,
+    ).toHaveBeenCalledOnce();
   });
 
   it("skips subscription-only onboarding when the user has paid or enterprise coverage", async () => {
@@ -202,8 +182,10 @@ describe("OnboardingDialogLoader", () => {
     expect(userHasPaidOrEnterpriseCoverageMock).toHaveBeenCalledOnce();
     expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
-    expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
-    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+    expect(getOrganizationBillingPlanForOnboardingMock).not.toHaveBeenCalled();
+    expect(
+      resolvePersonalActiveSubscriptionPlanForOnboardingMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("short-circuits subscription-only org gates for non-admin members without billing fetches", async () => {
@@ -229,8 +211,10 @@ describe("OnboardingDialogLoader", () => {
     expect(userHasPaidOrEnterpriseCoverageMock).toHaveBeenCalledOnce();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
-    expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
-    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+    expect(getOrganizationBillingPlanForOnboardingMock).not.toHaveBeenCalled();
+    expect(
+      resolvePersonalActiveSubscriptionPlanForOnboardingMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("skips the onboarding dialog when the subscription catalog cannot be loaded", async () => {
@@ -259,8 +243,10 @@ describe("OnboardingDialogLoader", () => {
     expect(onboardingDialogMock).not.toHaveBeenCalled();
     expect(userHasPaidOrEnterpriseCoverageMock).toHaveBeenCalledOnce();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
-    expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
-    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+    expect(getOrganizationBillingPlanForOnboardingMock).not.toHaveBeenCalled();
+    expect(
+      resolvePersonalActiveSubscriptionPlanForOnboardingMock,
+    ).not.toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Failed to load subscription catalog for onboarding",
       expect.any(Error),
@@ -271,15 +257,13 @@ describe("OnboardingDialogLoader", () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.OWNER,
     });
-    getOrganizationBillingPlanMock.mockResolvedValue({
-      data: {
-        cancelAtPeriodEnd: false,
-        isConsumable: false,
-        mode: "self_serve",
-        periodEnd: null,
-        plan: "standard",
-        purchasedSeats: 5,
-      },
+    getOrganizationBillingPlanForOnboardingMock.mockResolvedValue({
+      cancelAtPeriodEnd: false,
+      isConsumable: false,
+      mode: "self_serve",
+      periodEnd: null,
+      plan: "standard",
+      purchasedSeats: 5,
     });
 
     const { OnboardingDialogLoader } = await import(
@@ -299,14 +283,17 @@ describe("OnboardingDialogLoader", () => {
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
     expect(getSubscriptionCatalogMock).toHaveBeenCalledOnce();
-    expect(getOrganizationBillingPlanMock).toHaveBeenCalledOnce();
+    expect(getOrganizationBillingPlanForOnboardingMock).toHaveBeenCalledOnce();
+    expect(getOrganizationBillingPlanForOnboardingMock).toHaveBeenCalledWith(
+      "org-1",
+    );
   });
 
   it("shows no current personal plan when the user has no active subscriptions", async () => {
-    listActiveSubscriptionsMock.mockResolvedValue(ok([]));
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    resolvePersonalActiveSubscriptionPlanForOnboardingMock.mockResolvedValue({
+      plan: "free",
+      status: "ok",
+    });
 
     const { OnboardingDialogLoader } = await import(
       "../onboarding-dialog-loader"
@@ -325,20 +312,15 @@ describe("OnboardingDialogLoader", () => {
       paidPlans: Array<{ isCurrent: boolean; name: string }>;
     };
     expect(props.paidPlans.every((plan) => !plan.isCurrent)).toBe(true);
-    expect(listActiveSubscriptionsMock).toHaveBeenCalledOnce();
-    expect(listActiveSubscriptionsMock).toHaveBeenCalledWith({
-      customerType: "user",
-    });
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(
+      resolvePersonalActiveSubscriptionPlanForOnboardingMock,
+    ).toHaveBeenCalledOnce();
   });
 
   it("skips subscription-only onboarding when personal subscription reads fail", async () => {
-    listActiveSubscriptionsMock.mockResolvedValue(
-      err({
-        path: "/auth/subscription/list",
-        reason: "network",
-      }),
-    );
+    resolvePersonalActiveSubscriptionPlanForOnboardingMock.mockResolvedValue({
+      status: "unavailable",
+    });
 
     const { OnboardingDialogLoader } = await import(
       "../onboarding-dialog-loader"
@@ -358,12 +340,9 @@ describe("OnboardingDialogLoader", () => {
   });
 
   it("skips full onboarding when personal subscription reads fail", async () => {
-    listActiveSubscriptionsMock.mockResolvedValue(
-      err({
-        path: "/auth/subscription/list",
-        reason: "network",
-      }),
-    );
+    resolvePersonalActiveSubscriptionPlanForOnboardingMock.mockResolvedValue({
+      status: "unavailable",
+    });
 
     const { OnboardingDialogLoader } = await import(
       "../onboarding-dialog-loader"
