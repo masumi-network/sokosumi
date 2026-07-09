@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -84,8 +85,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name: body.name,
           caption: body.caption,
-          company: body.company,
-          companyLogo: body.companyLogo,
           url: body.url,
           baseURL: body.baseURL,
           description: body.description,
@@ -105,6 +104,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           id,
           archivedAt: null,
         },
+        include: coworkerInclude,
       });
 
       if (!updatedCoworker) {
@@ -114,6 +114,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return updatedCoworker;
     });
 
-    return ok(c, coworkerSchema.parse(coworker));
+    return ok(c, mapCoworker(coworker));
   });
 }

@@ -26,6 +26,17 @@ interface TransactionMock {
   };
 }
 
+const vendorId = "01960001-0001-7001-8001-000000000001";
+
+const sampleVendor = {
+  id: vendorId,
+  createdAt: new Date("2026-02-20T10:00:00.000Z"),
+  updatedAt: new Date("2026-02-20T10:00:00.000Z"),
+  name: "Service Plan",
+  slug: "service-plan",
+  logo: null,
+};
+
 function createApp() {
   const app = new OpenAPIHono<{
     Variables: AuthVariables;
@@ -65,14 +76,15 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     slug: "ops-agent",
     name: "Ops Agent",
     caption: null,
-    company: null,
-    companyLogo: null,
     url: null,
     baseURL: null,
     description: null,
     capabilities: [],
     image: null,
     userId: "user_123",
+    vendorId,
+    vendor: sampleVendor,
+    metadata: null,
     ...overrides,
   };
 }

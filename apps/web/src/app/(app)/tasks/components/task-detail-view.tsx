@@ -11,6 +11,7 @@ import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-type
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
+import { TaskParkedVendorAccessBanner } from "@/app/tasks/components/task-parked-vendor-access-banner";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
@@ -134,6 +135,16 @@ export async function TaskDetailView({
           }
         />
 
+        {task.parked && task.pendingVendorGrantId && !forceReadOnly ? (
+          <Suspense fallback={null}>
+            <TaskParkedVendorAccessBannerSlot
+              grantId={task.pendingVendorGrantId}
+              coworkerId={task.coworkerId}
+              coworkersPromise={coworkersPromise}
+            />
+          </Suspense>
+        ) : null}
+
         <div className="mt-6 space-y-8">
           <Suspense
             fallback={
@@ -193,6 +204,30 @@ export async function TaskDetailView({
         </div>
       </div>
     </div>
+  );
+}
+
+async function TaskParkedVendorAccessBannerSlot({
+  grantId,
+  coworkerId,
+  coworkersPromise,
+}: {
+  grantId: string;
+  coworkerId: string | null;
+  coworkersPromise: Promise<CoworkersResult>;
+}) {
+  const coworkers = await coworkersPromise;
+  const vendorName =
+    coworkerId != null
+      ? coworkers.find((coworker) => coworker.id === coworkerId)?.vendor.name
+      : undefined;
+
+  if (!vendorName) {
+    return null;
+  }
+
+  return (
+    <TaskParkedVendorAccessBanner grantId={grantId} vendorName={vendorName} />
   );
 }
 

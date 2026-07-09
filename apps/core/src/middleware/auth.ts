@@ -27,6 +27,7 @@ export interface CoworkerDelegation {
 export interface CoworkerAuthenticationContext {
   actor: "coworker";
   coworkerId: string;
+  vendorId: string;
   delegation?: CoworkerDelegation;
 }
 
@@ -259,6 +260,7 @@ async function verifyCoworkerApiKey(
       coworker: {
         select: {
           archivedAt: true,
+          vendorId: true,
         },
       },
     },
@@ -285,6 +287,7 @@ async function verifyCoworkerApiKey(
     authContext: {
       actor: "coworker",
       coworkerId: coworkerApiKey.coworkerId,
+      vendorId: coworkerApiKey.coworker.vendorId,
     },
   });
   return true;

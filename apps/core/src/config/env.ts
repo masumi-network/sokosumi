@@ -142,6 +142,10 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
+  VENDOR_GRANT_ENABLED: z
+    .string()
+    .default("false")
+    .transform((val: string) => val.trim().toLowerCase() === "true"),
 
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),

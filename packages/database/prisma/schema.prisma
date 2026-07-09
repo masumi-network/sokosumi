@@ -64,6 +64,7 @@ model User {
 
   // Coworkers
   coworkers Coworker[]
+  vendorGrants VendorGrant[]
   workspace Workspace?
 
   tasks          Task[]
@@ -224,11 +225,65 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs     Job[]
-  tasks    Task[]
-  projects Project[]
+  jobs         Job[]
+  tasks        Task[]
+  projects     Project[]
+  vendorGrants VendorGrant[]
 
   @@map("workspace")
+}
+
+enum VendorGrantScope {
+  VENDOR
+  WORKSPACE
+}
+
+enum VendorGrantStatus {
+  PENDING
+  GRANTED
+  DENIED
+  REVOKED
+}
+
+model Vendor {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+  slug String @unique
+  logo String?
+
+  coworkers    Coworker[]
+  vendorGrants VendorGrant[]
+
+  @@map("vendor")
+}
+
+model VendorGrant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scope  VendorGrantScope
+  status VendorGrantStatus @default(PENDING)
+
+  vendorId String
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  resolvedAt DateTime?
+
+  pendingTasks Task[]
+
+  @@unique([vendorId, userId, workspaceId, scope])
+  @@index([userId, status])
+  @@map("vendor_grant")
 }
 
 enum HistoryKind {
@@ -1144,8 +1199,6 @@ model Coworker {
   slug        String  @unique
   name        String
   caption     String?
-  company     String?
-  companyLogo String?
   url         String?
   baseURL     String?
   description String?
@@ -1154,6 +1207,9 @@ model Coworker {
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  vendorId String
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
   coworkerApiKeys CoworkerApiKey[]
 
@@ -1205,6 +1261,9 @@ model Task {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
+  pendingVendorGrantId String?
+  pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
+
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
@@ -1229,6 +1288,7 @@ model Task {
   @@index([userId, organizationId])
   @@index([projectId])
   @@index([status, nextRunAt])
+  @@index([pendingVendorGrantId])
   @@map("task")
 }
 

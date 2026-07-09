@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import { CompanyMark } from "@/components/agents/company-mark";
+import { VendorMark } from "@/components/agents/company-mark";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { Vendor } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 
@@ -577,7 +578,7 @@ export interface OfferDetailItem {
   offer: CoworkerOffer;
   coworkerName: string;
   coworkerCaption?: string;
-  company?: string;
+  vendor?: Pick<Vendor, "name" | "slug" | "logo">;
   /** Rendered coworker avatar (so callers keep their own avatar component). */
   coworkerAvatar: ReactNode;
   /** Rendered model/region tags. */
@@ -729,9 +730,9 @@ function OfferDetailBody({
                   </p>
                 ) : null}
               </div>
-              {item.company ? (
-                <CompanyMark
-                  company={item.company}
+              {item.vendor ? (
+                <VendorMark
+                  vendor={item.vendor}
                   className="h-3.5 shrink-0"
                   textClassName="text-muted-foreground text-xs font-medium"
                 />

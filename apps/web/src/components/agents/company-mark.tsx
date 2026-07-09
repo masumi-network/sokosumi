@@ -1,7 +1,8 @@
+import type { Vendor } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-const COMPANY_LOGOS: Record<string, { light: string; dark: string }> = {
-  serviceplan: {
+const VENDOR_LOGOS: Record<string, { light: string; dark: string }> = {
+  "service-plan": {
     light: "/images/logos/serviceplan-logo.png",
     dark: "/images/logos/serviceplan-logo-white.png",
   },
@@ -11,51 +12,73 @@ const COMPANY_LOGOS: Record<string, { light: string; dark: string }> = {
   },
 };
 
-function companyKey(company: string): string {
-  return company
-    .toLowerCase()
-    .replace(/\s+(ag|gmbh|inc|llc)\.?$/, "")
-    .trim();
-}
-
-interface CompanyMarkProps {
-  company: string;
+interface VendorMarkProps {
+  vendor: Pick<Vendor, "name" | "slug" | "logo">;
   className?: string;
   textClassName?: string;
 }
 
 /**
- * Renders a company's logo (light/dark variants) when an asset exists, falling
- * back to the company name as text. Shared by the New Task picker and the
- * agents-page coworker gallery so company branding stays consistent.
+ * Renders a vendor logo when available, otherwise falls back to the vendor name.
  */
-export function CompanyMark({
-  company,
+export function VendorMark({
+  vendor,
   className = "h-5",
   textClassName,
-}: CompanyMarkProps) {
-  const asset = COMPANY_LOGOS[companyKey(company)];
+}: VendorMarkProps) {
+  if (vendor.logo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={vendor.logo}
+        alt={vendor.name}
+        className={cn("w-auto object-contain", className)}
+      />
+    );
+  }
+
+  const asset = VENDOR_LOGOS[vendor.slug];
   if (asset) {
     return (
       <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={asset.light}
-          alt={company}
+          alt={vendor.name}
           className={cn("w-auto object-contain dark:hidden", className)}
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={asset.dark}
-          alt={company}
+          alt={vendor.name}
           className={cn("hidden w-auto object-contain dark:block", className)}
         />
       </>
     );
   }
+
   return (
     <span className={textClassName ?? "text-foreground text-sm font-semibold"}>
-      {company}
+      {vendor.name}
     </span>
+  );
+}
+
+/** @deprecated Use VendorMark with a vendor object. */
+export function CompanyMark({
+  company,
+  className,
+  textClassName,
+}: {
+  company: string;
+  className?: string;
+  textClassName?: string;
+}) {
+  return (
+    <VendorMark
+      vendor={{ name: company, slug: company.trim().toLowerCase(), logo: null }}
+      className={className}
+      textClassName={textClassName}
+    />
   );
 }

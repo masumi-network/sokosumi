@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
-
+import { testVendor } from "@/test-fixtures/vendor";
 import mountDeleteTaskLink from "./[linkId]/delete";
 import mountPatchTaskLink from "./[linkId]/patch";
 import mountGetTaskLinks from "./get";
@@ -85,6 +85,7 @@ function createCoworkerApp() {
     c.set("authContext", {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: testVendor.id,
     } satisfies AuthenticationContext);
     c.set("workspaceContext", null);
     return await next();
@@ -236,6 +237,7 @@ describe("GET /tasks/{id}/links", () => {
         authContext: {
           actor: "coworker",
           coworkerId: "cow_123",
+          vendorId: testVendor.id,
         },
         workspaceContext: null,
       }),
@@ -252,6 +254,7 @@ describe("GET /tasks/{id}/links", () => {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
+                pendingVendorGrantId: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
               },
             },
@@ -282,6 +285,7 @@ describe("GET /tasks/{id}/links", () => {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
+                pendingVendorGrantId: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
               },
             },
@@ -327,6 +331,7 @@ describe("GET /tasks/{id}/links", () => {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -356,6 +361,7 @@ describe("GET /tasks/{id}/links", () => {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -434,6 +440,7 @@ describe("GET /tasks/{id}/links", () => {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -463,6 +470,7 @@ describe("GET /tasks/{id}/links", () => {
               is: {
                 workspaceId: "11111111-1111-7111-8111-111111111111",
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },

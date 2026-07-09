@@ -47,7 +47,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const currentTask = await requireTaskOwnership(userContext, id, tx);
+      const currentTask = await requireTaskOwnership(userContext, id, tx, {
+        allowParked: true,
+      });
 
       if (!isTaskArchivableStatus(currentTask.status)) {
         throw unprocessableEntity(

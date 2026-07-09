@@ -17,6 +17,8 @@ const { prismaTransactionMock, requireTaskOwnershipMock, mapTaskMock } =
       const t = task as Record<string, unknown>;
       return {
         ...t,
+        pendingVendorGrantId: t.pendingVendorGrantId ?? null,
+        parked: t.pendingVendorGrantId != null,
         user: t.user ?? {
           id: t.userId,
           name: "Task owner",
@@ -112,6 +114,8 @@ describe("DELETE /tasks/{id}", () => {
       description: null,
       metadata: null,
       nextRunAt: null,
+      pendingVendorGrantId: null,
+      parked: false,
       credits: 0,
       events: [],
       jobs: [],
@@ -155,6 +159,7 @@ describe("DELETE /tasks/{id}", () => {
                 is: {
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
+                  pendingVendorGrantId: null,
                 },
               },
             },
@@ -165,6 +170,7 @@ describe("DELETE /tasks/{id}", () => {
                 is: {
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
+                  pendingVendorGrantId: null,
                 },
               },
             },

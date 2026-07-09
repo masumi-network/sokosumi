@@ -90,6 +90,7 @@ describe("authMiddleware", () => {
       expiresAt: null,
       coworker: {
         archivedAt: null,
+        vendorId: "01960001-0001-7001-8001-000000000001",
       },
     });
 
@@ -104,6 +105,7 @@ describe("authMiddleware", () => {
     expect(await response.json()).toEqual({
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
     });
     expect(coworkerApiKeyFindUniqueMock).toHaveBeenCalledWith({
       where: {
@@ -116,6 +118,7 @@ describe("authMiddleware", () => {
         coworker: {
           select: {
             archivedAt: true,
+            vendorId: true,
           },
         },
       },

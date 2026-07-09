@@ -45,17 +45,20 @@ function buildVisiblePeerTaskWhere(
           return {
             workspaceId,
             archivedAt: null,
+            pendingVendorGrantId: null,
           };
         }
 
         return {
           userId: authContext.delegation.userId,
+          pendingVendorGrantId: null,
         };
       }
 
       return {
         coworkerId: authContext.coworkerId,
         archivedAt: null,
+        pendingVendorGrantId: null,
         NOT: {
           status: {
             in: [TaskStatus.DRAFT],
@@ -68,11 +71,13 @@ function buildVisiblePeerTaskWhere(
         return {
           workspaceId,
           archivedAt: null,
+          pendingVendorGrantId: null,
         };
       }
 
       return {
         userId: authContext.userId,
+        pendingVendorGrantId: null,
       };
     }
     default: {

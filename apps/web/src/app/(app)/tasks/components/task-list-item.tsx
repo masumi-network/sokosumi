@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 import type { TaskWithCoworker } from "@/lib/types/task";
@@ -22,6 +26,7 @@ export function TaskListItem({
   compact = false,
   statusLabels,
 }: TaskListItemProps) {
+  const t = useTranslations("App.Tasks.ParkedBadge");
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -62,6 +67,11 @@ export function TaskListItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 text-xs sm:gap-4">
+          {task.parked ? (
+            <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium">
+              {t("label")}
+            </span>
+          ) : null}
           <TaskStatusBadge
             status={task.status}
             label={statusLabels?.[task.status]}

@@ -62,6 +62,24 @@ describe("GET /coworkers/me/events", () => {
     });
   });
 
+  it("excludes parked tasks from the events query", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/me/events");
+
+    expect(response.status).toBe(200);
+    expect(taskEventFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          task: {
+            coworkerId: "cow_123",
+            status: { not: "DRAFT" },
+            pendingVendorGrantId: null,
+          },
+        },
+      }),
+    );
+  });
+
   it("returns 403 when tasks capability is unavailable", async () => {
     requireCoworkerCapabilityMock.mockRejectedValue(
       new HTTPException(403, {

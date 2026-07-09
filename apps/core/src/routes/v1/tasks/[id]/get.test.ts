@@ -53,6 +53,7 @@ function createApp(options: CreateAppOptions = {}) {
         ? ({
             actor: "coworker",
             coworkerId: "cow_123",
+            vendorId: "01960001-0001-7001-8001-000000000001",
             ...(delegation ? { delegation } : {}),
           } satisfies AuthenticationContext)
         : ({
@@ -117,6 +118,9 @@ function createTask(
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
+    pendingVendorGrantId: null,
+    metadata: null,
+    nextRunAt: null,
     events: [],
     jobs: [],
     workspace: {
@@ -146,7 +150,14 @@ describe("GET /tasks/{id}", () => {
       slug: "cow",
       baseURL: "http://coworker.test",
     });
-    taskFindFirstMock.mockResolvedValue(createTask());
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_a",
+      userId: "user_123",
+      pendingVendorGrantId: null,
+      coworkerId: "cow_123",
+      status: TaskStatus.READY,
+      coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
+    });
     taskFindUniqueMock.mockImplementation(
       async (args: { include?: unknown }) => {
         if (args.include !== undefined) {
@@ -178,6 +189,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -207,6 +219,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -289,6 +302,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -301,6 +315,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -333,6 +348,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
+                pendingVendorGrantId: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
               },
             },
@@ -363,6 +379,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
+                pendingVendorGrantId: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
               },
             },
@@ -404,7 +421,24 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindFirstMock).toHaveBeenCalledWith({
+    expect(taskFindFirstMock).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+        workspaceId: testWorkspaceId,
+      },
+      select: {
+        coworkerId: true,
+        status: true,
+        pendingVendorGrantId: true,
+        coworker: {
+          select: {
+            vendorId: true,
+          },
+        },
+      },
+    });
+    expect(taskFindFirstMock).toHaveBeenNthCalledWith(2, {
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -425,6 +459,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },
@@ -437,6 +472,7 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
+                pendingVendorGrantId: null,
               },
             },
           },

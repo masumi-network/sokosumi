@@ -9,6 +9,7 @@ import { OAuthAuthorizedClients } from "./authorized-clients";
 import { ConnectionsTabs } from "./connections-tabs";
 import { McpActiveKeyView } from "./mcp-active-key-view";
 import { SocialAccounts } from "./social-accounts";
+import { VendorAccessSection } from "./vendor-access/vendor-access-section";
 
 export async function ConnectionsPage() {
   const t = await getTranslations("App.Account.SocialAccounts");
@@ -47,6 +48,7 @@ export async function ConnectionsPage() {
                 <McpActiveKeyView />
               </Suspense>
             }
+            vendorAccessContent={<VendorAccessSection />}
           />
         </div>
       </div>

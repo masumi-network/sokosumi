@@ -63,6 +63,7 @@ const RESTRICTED_ENDPOINTS: Array<{
     path: "/",
     body: {
       name: "Ops Agent",
+      vendorId: "01960001-0001-7001-8001-000000000001",
     },
     restriction: "admin-only",
   },
@@ -167,6 +168,7 @@ describe("coworker management endpoints auth guard", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
     });
 
     const response = await app.request(`http://localhost${path}`, {

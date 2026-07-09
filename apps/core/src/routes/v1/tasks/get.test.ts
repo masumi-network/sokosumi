@@ -39,11 +39,13 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: "01960001-0001-7001-8001-000000000001",
 };
 
 const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: "01960001-0001-7001-8001-000000000001",
   delegation: {
     userId: "user_delegate",
     organizationId: "org_delegate",
@@ -169,6 +171,25 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("keeps parked tasks visible to the owner on scope=owned", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+      }),
+    );
+    expect(taskFindManyMock.mock.calls[0]?.[0]?.where).not.toHaveProperty(
+      "pendingVendorGrantId",
+    );
+  });
+
   it("omits the authenticated user filter when scope=workspace is provided", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?scope=workspace");
@@ -179,6 +200,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
+          pendingVendorGrantId: null,
         },
       }),
     );
@@ -315,6 +337,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
           userId: "user_delegate",
+          pendingVendorGrantId: null,
         },
       }),
     );
@@ -336,6 +359,7 @@ describe("GET /tasks", () => {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
           coworkerId: "cow_999",
+          pendingVendorGrantId: null,
         },
       }),
     );

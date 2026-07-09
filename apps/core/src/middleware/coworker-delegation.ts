@@ -81,6 +81,7 @@ export const coworkerDelegationMiddleware = createMiddleware<AuthEnv>(
     const nextContext: CoworkerAuthenticationContext = {
       actor: "coworker",
       coworkerId: authContext.coworkerId,
+      vendorId: authContext.vendorId,
       delegation: {
         userId,
         organizationId: organizationIdTrimmed ? organizationIdTrimmed : null,

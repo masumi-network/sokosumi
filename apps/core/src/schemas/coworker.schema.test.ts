@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import { vendorSchema } from "@/schemas/vendor.schema";
+
 import { coworkerOfferSchema, coworkerSchema } from "./coworker.schema";
+
+const sampleVendor = {
+  id: "01960001-0001-7001-8001-000000000001",
+  createdAt: new Date("2025-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+  name: "Service Plan",
+  slug: "service-plan",
+  logo: "https://example.com/company-logo.png",
+};
 
 describe("coworkerSchema", () => {
   it("parses coworker profile metadata fields", () => {
@@ -17,15 +28,13 @@ describe("coworkerSchema", () => {
       description: "Ops helper",
       image: "https://example.com/image.png",
       caption: "Senior Campaign Partner",
-      company: "Serviceplan",
-      companyLogo: "https://example.com/company-logo.png",
+      vendor: sampleVendor,
       baseURL: "https://responses.example.com/v1",
       capabilities: ["tasks", "chat", "tasks"],
     });
 
     expect(result.caption).toBe("Senior Campaign Partner");
-    expect(result.company).toBe("Serviceplan");
-    expect(result.companyLogo).toBe("https://example.com/company-logo.png");
+    expect(result.vendor).toEqual(vendorSchema.parse(sampleVendor));
     expect(result.baseURL).toBe("https://responses.example.com/v1");
     expect(result.capabilities).toEqual(["chat", "tasks"]);
     expect(result.archivedAt).toBeNull();
@@ -46,6 +55,7 @@ describe("coworkerSchema", () => {
       priority: 0,
       slug: "ops-agent",
       name: "Ops Agent",
+      vendor: sampleVendor,
       baseURL: null,
       capabilities: [],
       metadata: {
@@ -70,6 +80,7 @@ describe("coworkerSchema", () => {
       priority: 0,
       slug: "ops-agent",
       name: "Ops Agent",
+      vendor: sampleVendor,
       baseURL: null,
       capabilities: [],
     });

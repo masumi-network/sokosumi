@@ -12,6 +12,7 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import { mapTaskEvent, taskEventApiInclude } from "@/helpers/task";
+import { buildNonOwnerParkedTaskFilter } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
@@ -76,6 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       task: {
         coworkerId: authContext.coworkerId,
         status: { not: TaskStatus.DRAFT },
+        ...buildNonOwnerParkedTaskFilter(),
       },
     };
 

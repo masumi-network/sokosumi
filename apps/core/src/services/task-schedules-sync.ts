@@ -212,6 +212,7 @@ async function processDueTask(
         id: templateId,
         status: TaskStatus.QUEUED,
         archivedAt: null,
+        pendingVendorGrantId: null,
         nextRunAt: { lte: new Date() },
       },
       select: {
@@ -361,6 +362,7 @@ async function syncDueTaskSchedules(
       where: {
         status: TaskStatus.QUEUED,
         archivedAt: null,
+        pendingVendorGrantId: null,
         nextRunAt: { lte: new Date() },
       },
       orderBy: [{ nextRunAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],

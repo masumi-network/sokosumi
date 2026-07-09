@@ -4,6 +4,7 @@ import { publicShareRepository } from "@sokosumi/database/repositories";
 import { forbidden, notFound } from "@/helpers/error.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -47,6 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: {
           id: true,
           userId: true,
+          pendingVendorGrantId: true,
         },
       });
 
@@ -57,6 +59,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (task.userId !== userContext.userId) {
         throw forbidden("You can only manage sharing for your own tasks");
       }
+
+      requireTaskNotParked(task);
 
       await publicShareRepository.deleteByTaskId(id, tx);
     });

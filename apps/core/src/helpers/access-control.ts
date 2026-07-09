@@ -8,6 +8,7 @@ import {
   type CoworkerAuthenticationContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
+  requireUserContext,
   type UserContext,
 } from "@/middleware/auth";
 
@@ -18,6 +19,12 @@ import {
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
+import {
+  isTaskParked,
+  isVendorSiblingInWorkspace,
+  loadTaskForSiblingCheck,
+  requireTaskNotParked,
+} from "./vendor-grants";
 
 // -----------------------------------------------------------------------------
 // User ownership (resource belongs to the authenticated user)
@@ -55,6 +62,7 @@ export async function requireTaskOwnership(
   userContext: UserContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  options?: { allowParked?: boolean },
 ): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
@@ -66,6 +74,10 @@ export async function requireTaskOwnership(
 
   if (!task) {
     throw notFound("Task not found");
+  }
+
+  if (!options?.allowParked) {
+    requireTaskNotParked(task);
   }
 
   return task;
@@ -199,7 +211,41 @@ export async function requireCoworkerTaskCollaboration(
   if (task.coworkerId !== authContext.coworkerId) {
     throw forbidden("You can only access tasks assigned to your coworker");
   }
+
+  requireTaskNotParked(task);
   return task;
+}
+
+function assertUserCanReadParkedTask(
+  userContext: UserContext,
+  task: Pick<Task, "userId" | "pendingVendorGrantId">,
+) {
+  if (isTaskParked(task) && task.userId !== userContext.userId) {
+    throw notFound("Task not found");
+  }
+}
+
+function assertDelegatedCanReadTask(
+  coworker: CoworkerAuthenticationContext,
+  task: Awaited<ReturnType<typeof loadTaskForSiblingCheck>>,
+) {
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  if (isTaskParked(task)) {
+    throw notFound("Task not found");
+  }
+
+  if (task.coworkerId === coworker.coworkerId) {
+    return;
+  }
+
+  if (isVendorSiblingInWorkspace(coworker, task)) {
+    return;
+  }
+
+  throw forbidden("You can only access tasks assigned to your coworker");
 }
 
 /**
@@ -211,11 +257,12 @@ export async function requireTaskCollaboration(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   if (isUserAuthContext(authContext)) {
-    return await requireTaskOwnership(
+    const task = await requireTaskOwnership(
       { source: "session", ...authContext },
       taskId,
       tx,
     );
+    return task;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -232,12 +279,54 @@ export async function requireTaskCollaboration(
       tx,
     );
 
-    // Delegation only authorizes collaboration on tasks assigned to this
-    // coworker — not every task the delegated user owns.
     if (task.coworkerId !== coworker.coworkerId) {
       throw forbidden("You can only act on tasks assigned to your coworker");
     }
 
+    return task;
+  }
+
+  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+}
+
+/**
+ * Comment access: assigned coworker or same-vendor sibling (delegated + workspace-bound).
+ */
+export async function requireTaskCommentAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext, workspaceContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    const userContext = requireUserContext(authContext);
+    return await requireTaskOwnership(userContext, taskId, tx);
+  }
+
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const taskForSibling = await loadTaskForSiblingCheck(
+      taskId,
+      workspace.workspaceId,
+      tx,
+    );
+    assertDelegatedCanReadTask(coworker, taskForSibling);
+
+    const task = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        archivedAt: null,
+        workspaceId: workspace.workspaceId,
+      },
+    });
+    if (!task) {
+      throw notFound("Task not found");
+    }
+
+    requireTaskNotParked(task);
     return task;
   }
 
@@ -286,26 +375,36 @@ export async function requireTaskReadForRouteVars(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    return await requireTaskReadForWorkspace(
-      requireWorkspaceContext(workspaceContext),
-      taskId,
-      tx,
-    );
-  }
-
-  const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
-
+    const userContext = requireUserContext(authContext);
     const task = await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
     );
+    assertUserCanReadParkedTask(userContext, task);
+    return task;
+  }
 
-    // Delegation only authorizes reads of tasks assigned to this coworker.
-    if (task.coworkerId !== coworker.coworkerId) {
-      throw forbidden("You can only access tasks assigned to your coworker");
+  const coworker = requireCoworkerAuthContext(authContext);
+  if (coworker.delegation) {
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const taskForSibling = await loadTaskForSiblingCheck(
+      taskId,
+      workspace.workspaceId,
+      tx,
+    );
+    assertDelegatedCanReadTask(coworker, taskForSibling);
+
+    const task = await tx.task.findFirst({
+      where: {
+        id: taskId,
+        archivedAt: null,
+        workspaceId: workspace.workspaceId,
+      },
+    });
+    if (!task) {
+      throw notFound("Task not found");
     }
 
     return task;
@@ -453,6 +552,9 @@ export function pinCoworkerConversationBinding(
  * `Job.taskId -> Task.coworkerId`. Jobs without a task, or whose task is
  * assigned to a different coworker, are denied.
  *
+ * Used for job **writes** only. Job reads also allow same-vendor siblings via
+ * {@link assertDelegatedCanReadJob}.
+ *
  * @throws {forbidden} If the job is not attached to a task assigned to the coworker
  */
 async function assertJobAssignedToCoworker(
@@ -474,14 +576,32 @@ async function assertJobAssignedToCoworker(
   }
 }
 
+async function assertDelegatedCanReadJob(
+  coworker: CoworkerAuthenticationContext,
+  job: Job,
+  workspaceId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (job.taskId === null) {
+    throw forbidden("You can only access jobs assigned to your coworker");
+  }
+
+  const taskForSibling = await loadTaskForSiblingCheck(
+    job.taskId,
+    workspaceId,
+    tx,
+  );
+  assertDelegatedCanReadTask(coworker, taskForSibling);
+}
+
 /**
  * Job read for a workspace-scoped user or an assigned coworker with the tasks
  * capability. Pass the route `Variables` object (e.g. `c.var` from
  * `OpenAPIHonoWithAuth`). Mirrors `requireTaskReadForRouteVars` for jobs.
  *
  * @throws {forbidden} If a bare coworker (no delegation) is used, or a delegated
- *   coworker is not assigned to the job's task
- * @throws {notFound} If the job is not in the active workspace
+ *   coworker is not assigned to the job's task and is not a same-vendor sibling
+ * @throws {notFound} If the job is not in the active workspace, or the task is parked
  */
 export async function requireJobReadForRouteVars(
   vars: EnvVariables["Variables"],
@@ -502,13 +622,10 @@ export async function requireJobReadForRouteVars(
   if (coworker.delegation) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
-    const job = await requireJobRead(
-      requireWorkspaceContext(workspaceContext),
-      jobId,
-      tx,
-    );
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const job = await requireJobRead(workspace, jobId, tx);
 
-    await assertJobAssignedToCoworker(job, coworker.coworkerId, tx);
+    await assertDelegatedCanReadJob(coworker, job, workspace.workspaceId, tx);
 
     return job;
   }

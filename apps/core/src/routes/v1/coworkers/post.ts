@@ -1,7 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import slugify from "slugify";
-
-import { badRequest, conflict } from "@/helpers/error";
+import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
+import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -36,8 +36,14 @@ const route = createRoute({
         name: "Ops Agent",
         isWhitelisted: false,
         caption: "Senior Campaign Partner",
-        company: "Serviceplan",
-        companyLogo: "https://example.com/company-logo",
+        vendor: {
+          id: "01960001-0001-7001-8001-000000000001",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+          name: "Service Plan",
+          slug: "service-plan",
+          logo: "https://example.com/company-logo",
+        },
         url: "https://example.com",
         baseURL: "https://responses.example.com/v1",
         description: "Ops helper",
@@ -97,15 +103,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      const vendor = await tx.vendor.findUnique({
+        where: { id: body.vendorId },
+        select: { id: true },
+      });
+
+      if (!vendor) {
+        throw notFound("Vendor not found");
+      }
+
       try {
         return await tx.coworker.create({
           data: {
             userId: userAuthContext.userId,
+            vendorId: body.vendorId,
             slug,
             name: body.name,
             caption: body.caption ?? null,
-            company: body.company ?? null,
-            companyLogo: body.companyLogo ?? null,
             url: body.url ?? null,
             baseURL: body.baseURL ?? null,
             description: body.description ?? null,
@@ -115,6 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             metadata: metadata ?? null,
             isWhitelisted: false,
           },
+          include: coworkerInclude,
         });
       } catch (error) {
         if (isSlugUniqueConstraintError(error)) {
@@ -126,6 +141,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     });
 
-    return created(c, coworkerSchema.parse(coworker));
+    return created(c, mapCoworker(coworker));
   });
 }

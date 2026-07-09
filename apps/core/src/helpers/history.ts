@@ -259,6 +259,34 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
   return rows.map((row) => row.entityId);
 }
 
+export async function findParkedTaskEntityIds(
+  prismaClient: HistoryPrismaClient,
+): Promise<string[]> {
+  const rows = await prismaClient.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "task" WHERE "pendingVendorGrantId" IS NOT NULL
+  `;
+
+  return rows.map((row) => row.id);
+}
+
+export function buildExcludeParkedTaskHistoryFilter(
+  parkedTaskEntityIds: string[],
+): Prisma.HistoryWhereInput | null {
+  if (parkedTaskEntityIds.length === 0) {
+    return null;
+  }
+
+  return {
+    OR: [
+      { kind: { not: HistoryKind.TASK } },
+      {
+        kind: HistoryKind.TASK,
+        entityId: { notIn: parkedTaskEntityIds },
+      },
+    ],
+  };
+}
+
 export async function buildHistoryWhere(
   params: BuildHistoryWhereParams,
   prismaClient: HistoryPrismaClient,
@@ -335,6 +363,15 @@ export async function buildHistoryWhere(
         { description: { contains: params.q, mode: "insensitive" } },
       ],
     });
+  }
+
+  if (params.types.includes(HistoryKind.TASK)) {
+    const parkedTaskEntityIds = await findParkedTaskEntityIds(prismaClient);
+    const parkedFilter =
+      buildExcludeParkedTaskHistoryFilter(parkedTaskEntityIds);
+    if (parkedFilter) {
+      andClauses.push(parkedFilter);
+    }
   }
 
   return { AND: andClauses };

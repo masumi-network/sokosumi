@@ -1211,6 +1211,19 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'When set, the task is parked pending vendor access approval',
+            example: null
+        },
+        parked: {
+            type: 'boolean',
+            description: 'True when the task is parked pending vendor access approval',
+            example: false
+        },
         credits: {
             type: 'number',
             example: 5
@@ -1267,6 +1280,8 @@ export const TaskSchema = {
         'status',
         'metadata',
         'nextRunAt',
+        'pendingVendorGrantId',
+        'parked',
         'credits',
         'events',
         'jobs',
@@ -1943,6 +1958,114 @@ export const TaskLinkPeerTaskSchema = {
         name: 'Review onboarding copy',
         status: 'READY',
         archivedAt: null
+    }
+} as const;
+
+export const VendorListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/Vendor'
+    }
+} as const;
+
+export const VendorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        name: {
+            type: 'string',
+            example: 'Service Plan'
+        },
+        slug: {
+            type: 'string',
+            example: 'service-plan'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo.png'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'slug',
+        'logo'
+    ]
+} as const;
+
+export const CreateVendorRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            example: 'Service Plan'
+        },
+        slug: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+            example: 'service-plan'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/logo.png'
+        }
+    },
+    required: [
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const PatchVendorRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            example: 'Service Plan'
+        },
+        slug: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+            example: 'service-plan'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.com/logo.png'
+        }
     }
 } as const;
 
@@ -6825,6 +6948,97 @@ export const UserSchema = {
     ]
 } as const;
 
+export const VendorGrantListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/VendorGrant'
+    }
+} as const;
+
+export const VendorGrantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'vgr_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'VENDOR',
+                'WORKSPACE'
+            ],
+            example: 'VENDOR'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ],
+            example: 'PENDING'
+        },
+        vendorId: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        vendor: {
+            $ref: '#/components/schemas/Vendor'
+        },
+        userId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        workspace: {
+            $ref: '#/components/schemas/WorkspaceSummary'
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        parkedTaskCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 1
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'scope',
+        'status',
+        'vendorId',
+        'vendor',
+        'userId',
+        'workspaceId',
+        'workspace',
+        'resolvedAt',
+        'parkedTaskCount'
+    ]
+} as const;
+
 export const MemberSchema = {
     type: 'object',
     properties: {
@@ -8852,19 +9066,8 @@ export const CoworkerSchema = {
             ],
             example: 'Senior Campaign Partner'
         },
-        company: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Serviceplan'
-        },
-        companyLogo: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/company-logo'
+        vendor: {
+            $ref: '#/components/schemas/Vendor'
         },
         url: {
             type: [
@@ -8923,6 +9126,7 @@ export const CoworkerSchema = {
         'priority',
         'slug',
         'name',
+        'vendor',
         'baseURL',
         'capabilities'
     ]
@@ -9332,6 +9536,19 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'When set, the task is parked pending vendor access approval',
+            example: null
+        },
+        parked: {
+            type: 'boolean',
+            description: 'True when the task is parked pending vendor access approval',
+            example: false
+        },
         credits: {
             type: 'number',
             example: 5
@@ -9370,6 +9587,8 @@ export const TaskListItemSchema = {
         'status',
         'metadata',
         'nextRunAt',
+        'pendingVendorGrantId',
+        'parked',
         'credits',
         'events',
         'jobs',

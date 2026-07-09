@@ -32,8 +32,9 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 describe("taskSchedulesSyncService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    vi.resetModules();
     publishTaskEventDataMock.mockResolvedValue(undefined);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
@@ -101,6 +102,13 @@ describe("taskSchedulesSyncService", () => {
     });
 
     expect(result.cloned).toBe(1);
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          pendingVendorGrantId: null,
+        }),
+      }),
+    );
     expect(mockTaskCreate).toHaveBeenCalledTimes(3);
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(3);
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({

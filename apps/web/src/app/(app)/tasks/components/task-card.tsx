@@ -1,4 +1,7 @@
+"use client";
+
 import { TaskStatus } from "@sokosumi/utils";
+import { useTranslations } from "next-intl";
 
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
@@ -23,6 +26,7 @@ export function TaskCard({
   compact = false,
   statusLabels,
 }: TaskCardProps) {
+  const t = useTranslations("App.Tasks.ParkedBadge");
   const handleProps = dragHandleProps
     ? {
         ...dragHandleProps.attributes,
@@ -52,12 +56,19 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="space-y-2">
-              <TaskStatusBadge
-                status={task.status}
-                label={statusLabels?.[task.status]}
-                showDot={task.columnId === "in-progress"}
-                className="w-fit rounded-sm"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                {task.parked ? (
+                  <span className="bg-amber-500/10 text-amber-700 dark:text-amber-300 shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium">
+                    {t("label")}
+                  </span>
+                ) : null}
+                <TaskStatusBadge
+                  status={task.status}
+                  label={statusLabels?.[task.status]}
+                  showDot={task.columnId === "in-progress"}
+                  className="w-fit rounded-sm"
+                />
+              </div>
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>

@@ -14,7 +14,9 @@ import {
 
 export const taskEventApiInclude = {
   user: { select: { id: true, name: true, image: true } },
-  coworker: { select: { id: true, name: true, image: true, slug: true } },
+  coworker: {
+    select: { id: true, name: true, image: true, slug: true, vendorId: true },
+  },
   transaction: { select: { amount: true } },
 } as const;
 

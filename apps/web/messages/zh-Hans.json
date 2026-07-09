@@ -1414,6 +1414,9 @@
         "inputRequired": "需要输入",
         "done": "已完成"
       },
+      "ParkedBadge": {
+        "label": "待处理的供应商访问"
+      },
       "Actions": {
         "add": "添加",
         "addTask": "添加任务",
@@ -1651,7 +1654,16 @@
           "switchError": "切换工作区失败，请重试。"
         },
         "clonedFrom": "克隆自 {name}",
-        "schedule": "计划"
+        "schedule": "计划",
+        "ParkedVendorAccess": {
+          "title": "等待您的批准",
+          "description": "{vendor} 需要您授权才能在此工作区运行此任务。",
+          "approve": "批准",
+          "deny": "拒绝",
+          "approveSuccess": "已批准供应商访问。此任务即将开始。",
+          "denySuccess": "已拒绝供应商访问。此任务已取消。",
+          "actionError": "无法更新供应商访问。"
+        }
       },
       "NewTask": {
         "title": "新建任务",
@@ -3104,7 +3116,28 @@
       "tabs": {
         "connectedApps": "已连接的应用",
         "apiKeys": "API 密钥",
-        "mcp": "MCP"
+        "mcp": "MCP",
+        "vendorAccess": "供应商访问"
+      },
+      "VendorAccess": {
+        "title": "供应商访问",
+        "description": "查看并管理各工作区中 coworker 的自主权限授予。",
+        "empty": "尚无供应商访问授权。",
+        "loading": "正在加载供应商访问…",
+        "loadError": "无法加载供应商访问授权。",
+        "actionError": "无法更新供应商访问。",
+        "personalWorkspace": "个人工作区",
+        "scope": "范围：{scope}",
+        "parkedCount": "{count, plural, =0 {没有待处理任务} one {# 个待处理任务} other {# 个待处理任务}}",
+        "approve": "批准",
+        "deny": "拒绝",
+        "revoke": "撤销",
+        "status": {
+          "PENDING": "待处理",
+          "GRANTED": "已授予",
+          "DENIED": "已拒绝",
+          "REVOKED": "已撤销"
+        }
       }
     },
     "MCP": {

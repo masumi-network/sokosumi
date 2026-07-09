@@ -12,12 +12,15 @@ import { waitUntil } from "@vercel/functions";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import { requireTaskCollaboration } from "@/helpers/access-control";
+import {
+  requireTaskCollaboration,
+  requireTaskCommentAccess,
+} from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import { conflict, unprocessableEntity } from "@/helpers/error";
+import { conflict, forbidden, unprocessableEntity } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -36,7 +39,9 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type AuthenticationContext,
   isCoworkerAgentContext,
+  isCoworkerAuthContext,
   isUserAuthContext,
+  requireCoworkerAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 
@@ -215,7 +220,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const { event, userId, masumiPayment } = await serializableTransaction(
       async (tx) => {
-        const task = await requireTaskCollaboration(authContext, taskId, tx);
         const {
           status,
           comment,
@@ -224,6 +228,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           origin,
           masumiPayment,
         } = body;
+
+        const hasNonCommentWrite =
+          status !== undefined ||
+          credits != null ||
+          authenticationUrl != null ||
+          masumiPayment != null;
+
+        const task = hasNonCommentWrite
+          ? await requireTaskCollaboration(authContext, taskId, tx)
+          : await requireTaskCommentAccess(c.var, taskId, tx);
+
+        if (isCoworkerAuthContext(authContext) && authContext.delegation) {
+          const coworker = requireCoworkerAuthContext(authContext);
+          if (task.coworkerId !== coworker.coworkerId && hasNonCommentWrite) {
+            throw forbidden(
+              "Vendor siblings may only add comments on tasks they are not assigned to",
+            );
+          }
+        }
 
         if (status !== undefined) {
           validateStatusTransition(authContext, task.status, status);

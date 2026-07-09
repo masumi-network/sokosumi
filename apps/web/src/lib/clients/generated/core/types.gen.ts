@@ -285,6 +285,14 @@ export type Task = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
+    /**
+     * When set, the task is parked pending vendor access approval
+     */
+    pendingVendorGrantId: string | null;
+    /**
+     * True when the task is parked pending vendor access approval
+     */
+    parked: boolean;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -417,6 +425,29 @@ export type TaskLinkPeerTask = {
     name: string;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     archivedAt: Date | null;
+};
+
+export type VendorList = Array<Vendor>;
+
+export type Vendor = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    slug: string;
+    logo: string | null;
+};
+
+export type CreateVendorRequest = {
+    name: string;
+    slug: string;
+    logo?: string | null;
+};
+
+export type PatchVendorRequest = {
+    name?: string;
+    slug?: string;
+    logo?: string | null;
 };
 
 export type Agent = {
@@ -1967,6 +1998,23 @@ export type User = {
     role: string;
 };
 
+export type VendorGrantList = Array<VendorGrant>;
+
+export type VendorGrant = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    scope: 'VENDOR' | 'WORKSPACE';
+    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+    vendorId: string;
+    vendor: Vendor;
+    userId: string;
+    workspaceId: string;
+    workspace: WorkspaceSummary;
+    resolvedAt: Date | null;
+    parkedTaskCount: number;
+};
+
 export type Member = {
     id: string;
     organizationId: string;
@@ -2460,8 +2508,7 @@ export type Coworker = {
     slug: string;
     name: string;
     caption?: string | null;
-    company?: string | null;
-    companyLogo?: string | null;
+    vendor: Vendor;
     url?: string | null;
     /**
      * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -2576,6 +2623,14 @@ export type TaskListItem = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
+    /**
+     * When set, the task is parked pending vendor access approval
+     */
+    pendingVendorGrantId: string | null;
+    /**
+     * True when the task is parked pending vendor access approval
+     */
+    parked: boolean;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -4278,6 +4333,331 @@ export type GetAdminTaskResponses = {
 };
 
 export type GetAdminTaskResponse = GetAdminTaskResponses[keyof GetAdminTaskResponses];
+
+export type ListAdminVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/vendors';
+};
+
+export type ListAdminVendorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminVendorsError = ListAdminVendorsErrors[keyof ListAdminVendorsErrors];
+
+export type ListAdminVendorsResponses = {
+    /**
+     * List of vendors
+     */
+    200: {
+        data: VendorList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminVendorsResponse = ListAdminVendorsResponses[keyof ListAdminVendorsResponses];
+
+export type CreateAdminVendorData = {
+    body?: CreateVendorRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/vendors';
+};
+
+export type CreateAdminVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminVendorError = CreateAdminVendorErrors[keyof CreateAdminVendorErrors];
+
+export type CreateAdminVendorResponses = {
+    /**
+     * The created vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminVendorResponse = CreateAdminVendorResponses[keyof CreateAdminVendorResponses];
+
+export type DeleteAdminVendorData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/vendors/{id}';
+};
+
+export type DeleteAdminVendorErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor is referenced by coworkers or pending grants
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminVendorError = DeleteAdminVendorErrors[keyof DeleteAdminVendorErrors];
+
+export type DeleteAdminVendorResponses = {
+    /**
+     * Vendor deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminVendorResponse = DeleteAdminVendorResponses[keyof DeleteAdminVendorResponses];
+
+export type PatchAdminVendorData = {
+    body?: PatchVendorRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/vendors/{id}';
+};
+
+export type PatchAdminVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchAdminVendorError = PatchAdminVendorErrors[keyof PatchAdminVendorErrors];
+
+export type PatchAdminVendorResponses = {
+    /**
+     * The updated vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchAdminVendorResponse = PatchAdminVendorResponses[keyof PatchAdminVendorResponses];
 
 export type GetAgentsData = {
     body?: never;
@@ -14754,6 +15134,449 @@ export type GetUsersByIdResponses = {
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
 
+export type GetUsersByIdVendorAccessData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * Comma-separated vendor grant status filters
+         */
+        status?: Array<'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED'>;
+    };
+    url: '/users/{id}/vendor-access';
+};
+
+export type GetUsersByIdVendorAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdVendorAccessError = GetUsersByIdVendorAccessErrors[keyof GetUsersByIdVendorAccessErrors];
+
+export type GetUsersByIdVendorAccessResponses = {
+    /**
+     * Retrieve the user's vendor access grants
+     */
+    200: {
+        data: VendorGrantList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdVendorAccessResponse = GetUsersByIdVendorAccessResponses[keyof GetUsersByIdVendorAccessResponses];
+
+export type PostUsersByIdVendorAccessByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-access/{grantId}/approve';
+};
+
+export type PostUsersByIdVendorAccessByGrantIdApproveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorAccessByGrantIdApproveError = PostUsersByIdVendorAccessByGrantIdApproveErrors[keyof PostUsersByIdVendorAccessByGrantIdApproveErrors];
+
+export type PostUsersByIdVendorAccessByGrantIdApproveResponses = {
+    /**
+     * Vendor access grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorAccessByGrantIdApproveResponse = PostUsersByIdVendorAccessByGrantIdApproveResponses[keyof PostUsersByIdVendorAccessByGrantIdApproveResponses];
+
+export type PostUsersByIdVendorAccessByGrantIdDenyData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-access/{grantId}/deny';
+};
+
+export type PostUsersByIdVendorAccessByGrantIdDenyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorAccessByGrantIdDenyError = PostUsersByIdVendorAccessByGrantIdDenyErrors[keyof PostUsersByIdVendorAccessByGrantIdDenyErrors];
+
+export type PostUsersByIdVendorAccessByGrantIdDenyResponses = {
+    /**
+     * Vendor access grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorAccessByGrantIdDenyResponse = PostUsersByIdVendorAccessByGrantIdDenyResponses[keyof PostUsersByIdVendorAccessByGrantIdDenyResponses];
+
+export type PostUsersByIdVendorAccessByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/users/{id}/vendor-access/{grantId}/revoke';
+};
+
+export type PostUsersByIdVendorAccessByGrantIdRevokeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdVendorAccessByGrantIdRevokeError = PostUsersByIdVendorAccessByGrantIdRevokeErrors[keyof PostUsersByIdVendorAccessByGrantIdRevokeErrors];
+
+export type PostUsersByIdVendorAccessByGrantIdRevokeResponses = {
+    /**
+     * Vendor access grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdVendorAccessByGrantIdRevokeResponse = PostUsersByIdVendorAccessByGrantIdRevokeResponses[keyof PostUsersByIdVendorAccessByGrantIdRevokeResponses];
+
 export type GetOrganizationBySlugData = {
     body?: never;
     path: {
@@ -18932,8 +19755,6 @@ export type PostCoworkersData = {
     body?: {
         name: string;
         caption?: string | null;
-        company?: string | null;
-        companyLogo?: string | null;
         url?: string | null;
         /**
          * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -18946,6 +19767,10 @@ export type PostCoworkersData = {
          */
         priority?: number;
         metadata?: CoworkerMetadata;
+        /**
+         * Vendor that owns this coworker.
+         */
+        vendorId: string;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
          */
@@ -19713,8 +20538,6 @@ export type PatchCoworkersByIdData = {
     body?: {
         name?: string;
         caption?: string | null;
-        company?: string | null;
-        companyLogo?: string | null;
         url?: string | null;
         /**
          * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -20071,6 +20894,20 @@ export type PostTasksErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

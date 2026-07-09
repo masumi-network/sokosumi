@@ -1,7 +1,9 @@
 import { AgentJobStatus, JobType } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor";
 
 import mountGetJobById from "./get";
 
@@ -23,6 +25,7 @@ const { authContextState, prismaTransactionMock, jobFindFirstMock } =
         | {
             actor: "coworker";
             coworkerId: string;
+            vendorId?: string;
             delegation?: { userId: string; organizationId: string | null };
           }
         | null,
@@ -346,6 +349,7 @@ describe("GET /jobs/{id}", () => {
     authContextState.current = {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
       delegation: { userId: "user_123", organizationId: "org_123" },
     };
     const coworkerFindFirstMock = vi.fn().mockResolvedValue({
@@ -353,9 +357,13 @@ describe("GET /jobs/{id}", () => {
       slug: "ops-agent",
       baseURL: null,
     });
-    const taskFindFirstMock = vi
-      .fn()
-      .mockResolvedValue({ coworkerId: "cow_123" });
+    const taskFindFirstMock = vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      coworkerId: "cow_123",
+      pendingVendorGrantId: null,
+      status: TaskStatus.READY,
+      coworker: { vendorId: TEST_VENDOR_ID },
+    });
     jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -371,15 +379,29 @@ describe("GET /jobs/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(taskFindFirstMock).toHaveBeenCalledWith({
-      where: { id: "tsk_123" },
-      select: { coworkerId: true },
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      },
+      select: {
+        coworkerId: true,
+        status: true,
+        pendingVendorGrantId: true,
+        coworker: {
+          select: {
+            vendorId: true,
+          },
+        },
+      },
     });
   });
 
-  it("rejects a delegated coworker reading a job assigned to another coworker", async () => {
+  it("allows a delegated coworker to read a job on a same-vendor sibling task", async () => {
     authContextState.current = {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
       delegation: { userId: "user_123", organizationId: "org_123" },
     };
     const coworkerFindFirstMock = vi.fn().mockResolvedValue({
@@ -387,9 +409,48 @@ describe("GET /jobs/{id}", () => {
       slug: "ops-agent",
       baseURL: null,
     });
-    const taskFindFirstMock = vi
-      .fn()
-      .mockResolvedValue({ coworkerId: "cow_other" });
+    const taskFindFirstMock = vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      pendingVendorGrantId: null,
+      status: TaskStatus.READY,
+      coworker: { vendorId: TEST_VENDOR_ID },
+    });
+    jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) =>
+        await callback({
+          coworker: { findFirst: coworkerFindFirstMock },
+          job: { findFirst: jobFindFirstMock },
+          task: { findFirst: taskFindFirstMock },
+        }),
+    );
+
+    const app = createApp();
+    const response = await app.request("http://localhost/job_123");
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects a delegated coworker reading a cross-vendor sibling job", async () => {
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
+      delegation: { userId: "user_123", organizationId: "org_123" },
+    };
+    const coworkerFindFirstMock = vi.fn().mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    });
+    const taskFindFirstMock = vi.fn().mockResolvedValue({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      pendingVendorGrantId: null,
+      status: TaskStatus.READY,
+      coworker: { vendorId: "other-vendor" },
+    });
     jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
