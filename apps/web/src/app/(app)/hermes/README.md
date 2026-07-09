@@ -236,7 +236,8 @@ The route is gated by the Vercel Flags key `hermes-beta-enabled`
 
 1. Create a boolean flag named `hermes-beta-enabled` in the Vercel Dashboard
    (project → Flags).
-2. Add targeting rules using `user.email` / `user.id` (and optional `team.id`).
+2. Add targeting rules using `user.email` / `user.id` (and optional `organization.id`).
+
 3. For local eval + Flags Explorer: `vercel link` (if needed) then
    `vercel env pull` so `FLAGS` / OIDC and `FLAGS_SECRET` are available.
 

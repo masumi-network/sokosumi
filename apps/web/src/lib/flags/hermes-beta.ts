@@ -6,7 +6,7 @@ import { type FlagEntities, identify } from "@/lib/flags/identify";
 /**
  * Hermes beta gate — managed in the Vercel Flags dashboard.
  * Create a boolean flag with key `hermes-beta-enabled` and target via
- * `user.email` / `user.id` (see `identify`).
+ * `user.email` / `user.id` / `organization.id` (see `identify`).
  */
 export const hermesBetaEnabled = flag<boolean, FlagEntities>({
   key: "hermes-beta-enabled",

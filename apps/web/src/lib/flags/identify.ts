@@ -11,7 +11,7 @@ export interface FlagEntities {
     id: string;
     email: string;
   };
-  team?: {
+  organization?: {
     id: string;
   };
 }
@@ -31,7 +31,7 @@ export const identify = dedupe(async (): Promise<FlagEntities> => {
       id: session.user.id,
       email: session.user.email,
     },
-    team: session.session.activeOrganizationId
+    organization: session.session.activeOrganizationId
       ? { id: session.session.activeOrganizationId }
       : undefined,
   };

@@ -28,7 +28,7 @@ describe("identify", () => {
     await expect(identify()).resolves.toEqual({});
   });
 
-  it("returns user and team from session", async () => {
+  it("returns user and organization from session", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user_1", email: "a@nmkr.io" },
       session: { activeOrganizationId: "org_1" },
@@ -38,11 +38,11 @@ describe("identify", () => {
 
     await expect(identify()).resolves.toEqual({
       user: { id: "user_1", email: "a@nmkr.io" },
-      team: { id: "org_1" },
+      organization: { id: "org_1" },
     });
   });
 
-  it("omits team when active organization is missing", async () => {
+  it("omits organization when active organization is missing", async () => {
     getSessionMock.mockResolvedValue({
       user: { id: "user_1", email: "a@nmkr.io" },
       session: {},
@@ -52,7 +52,7 @@ describe("identify", () => {
 
     await expect(identify()).resolves.toEqual({
       user: { id: "user_1", email: "a@nmkr.io" },
-      team: undefined,
+      organization: undefined,
     });
   });
 });
