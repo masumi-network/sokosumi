@@ -26,7 +26,7 @@ import type {
   Notice,
 } from "@/lib/clients/generated/core";
 import { hermesBetaEnabled } from "@/lib/flags/hermes-beta";
-import { userService } from "@/lib/services";
+import { userHasPaidOrEnterpriseCoverage, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import {
@@ -40,6 +40,7 @@ import ChatRail from "./components/chat-rail";
 import Header from "./components/header";
 import HeaderGate from "./components/header-gate";
 import { LoginAccountNoticeToast } from "./components/login-account-notice-toast.client";
+import { MarkSubscriptionOnboardingGateSeen } from "./components/mark-subscription-onboarding-gate-seen";
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
@@ -129,12 +130,25 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const subscriptionOnboardingGateCookie = cookieStore.get(
     SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
   )?.value;
-  const shouldLoadSubscriptionOnboarding =
-    shouldShowFreeSubscriptionGate &&
-    !hasSubscriptionOnboardingGateBeenServedForSession(
+  const subscriptionOnboardingGateAlreadyServed =
+    hasSubscriptionOnboardingGateBeenServedForSession(
       subscriptionOnboardingGateCookie,
       session.session.id,
     );
+  // Credits can report "free" while the user still has personal/org paid
+  // coverage or an enterprise contract — check before mounting the gate.
+  const hasPaidOrEnterpriseCoverage =
+    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed
+      ? await userHasPaidOrEnterpriseCoverage()
+      : false;
+  const shouldLoadSubscriptionOnboarding =
+    shouldShowFreeSubscriptionGate &&
+    !subscriptionOnboardingGateAlreadyServed &&
+    !hasPaidOrEnterpriseCoverage;
+  const shouldMarkSubscriptionOnboardingGateSeen =
+    shouldShowFreeSubscriptionGate &&
+    !subscriptionOnboardingGateAlreadyServed &&
+    hasPaidOrEnterpriseCoverage;
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
     : 0;
@@ -231,6 +245,10 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                     activeOrganization={activeOrganization}
                     loginId={session.session.id}
                     subscriptionOnly
+                  />
+                ) : shouldMarkSubscriptionOnboardingGateSeen ? (
+                  <MarkSubscriptionOnboardingGateSeen
+                    loginId={session.session.id}
                   />
                 ) : null}
               </CoworkersProvider>

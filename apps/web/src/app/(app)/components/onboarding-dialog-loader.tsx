@@ -8,8 +8,13 @@ import {
 import { listActiveSubscriptions } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
-import { organizationSeatService, userService } from "@/lib/services";
+import {
+  organizationSeatService,
+  userHasPaidOrEnterpriseCoverage,
+  userService,
+} from "@/lib/services";
 
+import { MarkSubscriptionOnboardingGateSeen } from "./mark-subscription-onboarding-gate-seen";
 import {
   OnboardingDialog,
   type OnboardingSubscriptionCheckoutMode,
@@ -34,6 +39,25 @@ export async function OnboardingDialogLoader({
   loginId,
   subscriptionOnly = false,
 }: OnboardingDialogLoaderProps) {
+  if (subscriptionOnly) {
+    // Credits context can look "free" while the user still has a personal paid
+    // plan, an org paid plan, or an enterprise contract (including on another
+    // org). Suppress the subscription hint in all of those cases.
+    const hasPaidOrEnterpriseCoverage = await userHasPaidOrEnterpriseCoverage();
+    if (hasPaidOrEnterpriseCoverage) {
+      return (
+        <>
+          {loginId ? (
+            <MarkSubscriptionOnboardingGateSeen loginId={loginId} />
+          ) : null}
+          <Suspense fallback={null}>
+            <OnboardingSubscriptionReturnHandler />
+          </Suspense>
+        </>
+      );
+    }
+  }
+
   let prefetchedOrganizationMember:
     | Awaited<ReturnType<typeof userService.getMyMemberInOrganization>>
     | undefined;
@@ -148,6 +172,26 @@ export async function OnboardingDialogLoader({
     subscriptionCheckoutMode === "organization"
       ? (organizationCurrentPlan ?? "free")
       : (personalCurrentPlan ?? "free");
+
+  // Active-org billing can still be paid/enterprise after the early coverage
+  // check (e.g. personal subscription read failed). Never show the paid-plan
+  // hint when the checkout context is already covered.
+  if (
+    subscriptionOnly &&
+    (organizationBillingPlan?.mode === "enterprise_contract" ||
+      (currentPlan !== "free" && currentPlan !== null))
+  ) {
+    return (
+      <>
+        {loginId ? (
+          <MarkSubscriptionOnboardingGateSeen loginId={loginId} />
+        ) : null}
+        <Suspense fallback={null}>
+          <OnboardingSubscriptionReturnHandler />
+        </Suspense>
+      </>
+    );
+  }
 
   const onboardingPlans: PaidSubscriptionPlanView[] = PLAN_ORDER.flatMap(
     (planName) => {

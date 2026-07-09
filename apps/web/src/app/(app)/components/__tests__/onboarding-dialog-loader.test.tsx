@@ -12,6 +12,8 @@ const getSeatSummaryMock = vi.fn();
 const listActiveSubscriptionsMock = vi.fn();
 const getSubscriptionCatalogMock = vi.fn();
 const onboardingDialogMock = vi.fn();
+const userHasPaidOrEnterpriseCoverageMock = vi.fn();
+const markSubscriptionOnboardingGateSeenMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -44,10 +46,17 @@ vi.mock("@/lib/services", () => ({
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
   },
+  userHasPaidOrEnterpriseCoverage: (...args: unknown[]) =>
+    userHasPaidOrEnterpriseCoverageMock(...args),
   userService: {
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
+}));
+
+vi.mock("@/lib/actions/onboarding", () => ({
+  markSubscriptionOnboardingGateSessionSeen: (...args: unknown[]) =>
+    markSubscriptionOnboardingGateSeenMock(...args),
 }));
 
 vi.mock("../onboarding-dialog", () => ({
@@ -55,6 +64,12 @@ vi.mock("../onboarding-dialog", () => ({
     onboardingDialogMock(props);
     return <div data-testid="onboarding-dialog" />;
   },
+}));
+
+vi.mock("../mark-subscription-onboarding-gate-seen", () => ({
+  MarkSubscriptionOnboardingGateSeen: ({ loginId }: { loginId: string }) => (
+    <div data-testid="mark-gate-seen" data-login-id={loginId} />
+  ),
 }));
 
 vi.mock("../onboarding-subscription-return-handler", () => ({
@@ -87,6 +102,8 @@ function createSubscriptionCatalog() {
 describe("OnboardingDialogLoader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    userHasPaidOrEnterpriseCoverageMock.mockResolvedValue(false);
+    markSubscriptionOnboardingGateSeenMock.mockResolvedValue(undefined);
     getSubscriptionCatalogMock.mockResolvedValue({
       data: createSubscriptionCatalog(),
     });
@@ -160,6 +177,35 @@ describe("OnboardingDialogLoader", () => {
     });
   });
 
+  it("skips subscription-only onboarding when the user has paid or enterprise coverage", async () => {
+    userHasPaidOrEnterpriseCoverageMock.mockResolvedValue(true);
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: createActiveOrganization(),
+        loginId: "session-1",
+        subscriptionOnly: true,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(getByTestId("mark-gate-seen")).toHaveAttribute(
+      "data-login-id",
+      "session-1",
+    );
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(userHasPaidOrEnterpriseCoverageMock).toHaveBeenCalledOnce();
+    expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
+    expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
+    expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
+  });
+
   it("short-circuits subscription-only org gates for non-admin members without billing fetches", async () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       role: MemberRole.MEMBER,
@@ -180,6 +226,7 @@ describe("OnboardingDialogLoader", () => {
     expect(getByTestId("return-handler")).toBeTruthy();
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(userHasPaidOrEnterpriseCoverageMock).toHaveBeenCalledOnce();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
     expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
@@ -210,6 +257,7 @@ describe("OnboardingDialogLoader", () => {
     expect(getByTestId("return-handler")).toBeTruthy();
     expect(queryByTestId("onboarding-dialog")).toBeNull();
     expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(userHasPaidOrEnterpriseCoverageMock).toHaveBeenCalledOnce();
     expect(getMyMemberInOrganizationMock).toHaveBeenCalledOnce();
     expect(getOrganizationBillingPlanMock).not.toHaveBeenCalled();
     expect(listActiveSubscriptionsMock).not.toHaveBeenCalled();
@@ -217,6 +265,41 @@ describe("OnboardingDialogLoader", () => {
       "Failed to load subscription catalog for onboarding",
       expect.any(Error),
     );
+  });
+
+  it("skips subscription-only onboarding when the active organization plan is already paid", async () => {
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    getOrganizationBillingPlanMock.mockResolvedValue({
+      data: {
+        cancelAtPeriodEnd: false,
+        isConsumable: false,
+        mode: "self_serve",
+        periodEnd: null,
+        plan: "standard",
+        purchasedSeats: 5,
+      },
+    });
+
+    const { OnboardingDialogLoader } = await import(
+      "../onboarding-dialog-loader"
+    );
+
+    const { getByTestId, queryByTestId } = render(
+      (await OnboardingDialogLoader({
+        activeOrganization: createActiveOrganization(),
+        loginId: "session-1",
+        subscriptionOnly: true,
+      })) as ReactNode,
+    );
+
+    expect(getByTestId("return-handler")).toBeTruthy();
+    expect(getByTestId("mark-gate-seen")).toBeTruthy();
+    expect(queryByTestId("onboarding-dialog")).toBeNull();
+    expect(onboardingDialogMock).not.toHaveBeenCalled();
+    expect(getSubscriptionCatalogMock).toHaveBeenCalledOnce();
+    expect(getOrganizationBillingPlanMock).toHaveBeenCalledOnce();
   });
 
   it("shows no current personal plan when the user has no active subscriptions", async () => {
