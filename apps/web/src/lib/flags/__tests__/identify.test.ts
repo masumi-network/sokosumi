@@ -5,12 +5,9 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const getSessionMock = vi.fn();
-const dedupeMock = vi.fn(
-  <T extends (...args: never[]) => unknown>(fn: T): T => fn,
-);
 
 vi.mock("flags/next", () => ({
-  dedupe: <T extends (...args: never[]) => unknown>(fn: T): T => dedupeMock(fn),
+  dedupe: <T extends (...args: never[]) => unknown>(fn: T): T => fn,
 }));
 
 vi.mock("@/lib/auth/auth.server", () => ({
