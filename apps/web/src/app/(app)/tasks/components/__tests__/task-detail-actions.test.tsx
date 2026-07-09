@@ -574,6 +574,7 @@ describe("TaskDetailActions", () => {
   it.each([
     TASK_STATUS.COMPLETED,
     TASK_STATUS.FAILED,
+    TASK_STATUS.CANCELED,
   ] as const)("shows archive in the overflow menu for finalized status %s without edit", async (status) => {
     const user = userEvent.setup();
     renderActions({ status });
@@ -585,6 +586,12 @@ describe("TaskDetailActions", () => {
       screen.getByRole("menuitem", { name: labels.archive }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Revert to Draft" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Mark as Ready" }),
+    ).toBeNull();
   });
 
   it("shows edit for queued tasks", async () => {
@@ -650,7 +657,7 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockReturnValueOnce(deferred.promise);
 
     renderActions({
-      status: TASK_STATUS.CANCELED,
+      status: TASK_STATUS.DRAFT,
       organizations: undefined,
     });
 
@@ -658,7 +665,7 @@ describe("TaskDetailActions", () => {
       name: actionsMenuLabel,
     });
     await user.click(actionsButton);
-    await user.click(screen.getByRole("menuitem", { name: "Revert to Draft" }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() => {
       expect(actionsButton).toBeDisabled();
@@ -666,7 +673,7 @@ describe("TaskDetailActions", () => {
 
     expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
       taskId: "task-1",
-      desiredStatus: TASK_STATUS.DRAFT,
+      desiredStatus: TASK_STATUS.READY,
     });
 
     deferred.resolve({ taskId: "task-1" });
@@ -682,22 +689,22 @@ describe("TaskDetailActions", () => {
     setTaskStatusFromDragMock.mockResolvedValueOnce({ taskId: "task-1" });
 
     renderActions({
-      status: TASK_STATUS.CANCELED,
+      status: TASK_STATUS.DRAFT,
       organizations: undefined,
     });
 
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-    await user.click(screen.getByRole("menuitem", { name: "Revert to Draft" }));
+    await user.click(screen.getByRole("menuitem", { name: "Mark as Ready" }));
 
     await waitFor(() => {
       expect(setTaskStatusFromDragMock).toHaveBeenCalledWith({
         taskId: "task-1",
-        desiredStatus: TASK_STATUS.DRAFT,
+        desiredStatus: TASK_STATUS.READY,
       });
     });
   });
 
-  it("renders a single separator between status actions and archive for canceled tasks", async () => {
+  it("renders archive without status reopen actions for canceled tasks", async () => {
     const user = userEvent.setup();
     renderActions({
       status: TASK_STATUS.CANCELED,
@@ -707,8 +714,14 @@ describe("TaskDetailActions", () => {
     await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
     expect(
-      document.querySelectorAll('[data-slot="dropdown-menu-separator"]').length,
-    ).toBe(1);
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Revert to Draft" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Mark as Ready" }),
+    ).toBeNull();
   });
 
   it("shows move to workspace when the task can be moved", async () => {
