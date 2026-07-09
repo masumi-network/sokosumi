@@ -6,6 +6,7 @@ describe("isBrowserExtensionOnlyStackError", () => {
   it("matches React DevTools hook.js-only stacks", () => {
     expect(
       isBrowserExtensionOnlyStackError({
+        type: undefined,
         exception: {
           values: [
             {
@@ -23,6 +24,7 @@ describe("isBrowserExtensionOnlyStackError", () => {
   it("matches chrome-extension-only stacks", () => {
     expect(
       isBrowserExtensionOnlyStackError({
+        type: undefined,
         exception: {
           values: [
             {
@@ -45,6 +47,7 @@ describe("isBrowserExtensionOnlyStackError", () => {
   it("does not match mixed extension and app stacks", () => {
     expect(
       isBrowserExtensionOnlyStackError({
+        type: undefined,
         exception: {
           values: [
             {
@@ -65,6 +68,7 @@ describe("isBrowserExtensionOnlyStackError", () => {
   it("does not match errors without stack frames", () => {
     expect(
       isBrowserExtensionOnlyStackError({
+        type: undefined,
         exception: {
           values: [
             {
