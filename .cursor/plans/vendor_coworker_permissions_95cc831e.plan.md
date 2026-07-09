@@ -4,25 +4,25 @@ overview: Vendor groups coworkers; delegated siblings get assignee-equivalent GE
 todos:
   - id: schema
     content: Vendor, Coworker.vendorId (required, immutable), VendorGrant, Task.pendingVendorGrantId; migration; direct Prisma helpers
-    status: pending
+    status: completed
   - id: access-control
     content: Sibling GET=assignee parity; comment-only writes; vendorId on includes
-    status: pending
+    status: completed
   - id: create-gate
     content: Flag at create-gate; park owner+taskboard only (no history); block mutations; OpenAPI 409
-    status: pending
+    status: completed
   - id: grant-routes
     content: users/[id]/vendor-access self-only; serializable approve/deny (clear FK); Ably; no notifications
-    status: pending
+    status: completed
   - id: admin-vendors
     content: Admin vendors CRUD+DELETE guards; coworker vendorId create-only
-    status: pending
+    status: completed
   - id: web
     content: Core client regen; company→vendor sweep; Connections Vendor access; all-locale i18n
-    status: pending
+    status: completed
   - id: tests
     content: Sibling GET/comment, grant gate, parking lifecycle, admin delete guards
-    status: pending
+    status: completed
 isProject: false
 ---
 
