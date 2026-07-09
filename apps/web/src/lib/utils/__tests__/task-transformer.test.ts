@@ -38,6 +38,8 @@ function buildTask(
       organizationId: null,
       organization: null,
     },
+    pendingVendorGrantId: null,
+    awaitingVendorApproval: false,
     ...overrides,
   };
 }

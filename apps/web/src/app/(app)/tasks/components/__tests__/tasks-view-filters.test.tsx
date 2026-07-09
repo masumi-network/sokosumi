@@ -12,6 +12,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 }));
 
 import { TasksViewFilters } from "../tasks-view-filters";
+import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const replaceMock = vi.fn();
 
@@ -57,12 +58,12 @@ function renderTasksViewFilters(activeOrganizationId: string | null) {
     <TasksViewFilters
       activeOrganizationId={activeOrganizationId}
       coworkerOptions={[
-        {
+        mockCoworkerOption({
           id: "coworker-1",
           slug: "elena",
           name: "Elena",
           image: "elena.png",
-        },
+        }),
       ]}
       projectOptions={[
         {

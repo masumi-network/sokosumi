@@ -27,6 +27,7 @@ import {
 } from "@/lib/actions/task/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { TaskLinkRelation } from "@/lib/clients/generated/core/types.gen";
+import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const { pushMock, refreshMock, browserCoreClientMock, isMobileMock } =
   vi.hoisted(() => ({
@@ -524,12 +525,11 @@ const removableTaskLinks = [
 ] as const;
 
 const coworkerOptions = [
-  {
+  mockCoworkerOption({
     id: "coworker-1",
     slug: "elena",
     name: "Elena",
-    image: "",
-  },
+  }),
 ];
 
 function renderActions(

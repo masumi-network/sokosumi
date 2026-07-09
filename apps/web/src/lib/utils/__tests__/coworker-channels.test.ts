@@ -2,24 +2,12 @@ import { TaskEventOrigin } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import type { Coworker } from "@/lib/clients/generated/core";
+import { mockCoreCoworker } from "@/test-fixtures/coworker";
 
 import { getCoworkerMetadataChannels } from "../coworker-channels";
 
 function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
-  return {
-    id: "cow_1",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    archivedAt: null,
-    isWhitelisted: true,
-    priority: 0,
-    slug: "ops-agent",
-    name: "Ops Agent",
-    baseURL: null,
-    capabilities: ["tasks"],
-    metadata: null,
-    ...overrides,
-  };
+  return mockCoreCoworker(overrides);
 }
 
 describe("getCoworkerMetadataChannels", () => {
