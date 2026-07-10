@@ -82,26 +82,3 @@ export function VendorMark({
     </span>
   );
 }
-
-/** @deprecated Use VendorMark with a vendor object. */
-export function CompanyMark({
-  company,
-  className,
-  textClassName,
-}: {
-  company: string;
-  className?: string;
-  textClassName?: string;
-}) {
-  return (
-    <VendorMark
-      vendor={{
-        name: company,
-        slug: company.trim().toLowerCase(),
-        logos: { light: null, dark: null },
-      }}
-      className={className}
-      textClassName={textClassName}
-    />
-  );
-}
