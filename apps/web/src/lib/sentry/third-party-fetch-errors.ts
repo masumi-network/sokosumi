@@ -1,5 +1,7 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
+import { isExpectedChatStreamSurfaceError } from "@/lib/sentry/chat-stream-surface-errors";
+import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
 import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
 import {
   isInAppBrowserEnvironmentError,
@@ -65,17 +67,8 @@ const FIRST_PARTY_API_HOSTS = [
   "api.preprod.sokosumi.com",
 ] as const;
 
-function getEventErrorMessage(event: ErrorEvent): string {
-  const exceptionValue = event.exception?.values?.[0]?.value;
-  if (typeof exceptionValue === "string" && exceptionValue.length > 0) {
-    return exceptionValue;
-  }
-
-  if (typeof event.message === "string") {
-    return event.message;
-  }
-
-  return "";
+function getEventErrorMessage(event: ErrorEvent, hint?: EventHint): string {
+  return getSentryErrorEventMessage(event, hint);
 }
 
 function isKnownThirdPartyHost(host: string): boolean {
@@ -132,13 +125,13 @@ export function isThirdPartyDynamicImportFailure(message: string): boolean {
 
 export function beforeSendClientEvent(
   event: ErrorEvent,
-  _hint: EventHint,
+  hint: EventHint,
 ): ErrorEvent | null {
   if (isBrowserExtensionOnlyStackError(event)) {
     return null;
   }
 
-  const message = getEventErrorMessage(event);
+  const message = getEventErrorMessage(event, hint);
 
   if (
     isThirdPartyAnalyticsFetchFailure(message) ||
@@ -149,6 +142,7 @@ export function beforeSendClientEvent(
     isThirdPartyDomMutationError(message) ||
     isInAppBrowserEnvironmentError(message) ||
     isTransientStreamClosureError(message) ||
+    isExpectedChatStreamSurfaceError(event) ||
     isThirdPartyWalletError(message, event)
   ) {
     return null;
