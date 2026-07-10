@@ -6,7 +6,7 @@ CREATE TYPE "VendorGrantStatus" AS ENUM ('PENDING', 'GRANTED', 'DENIED', 'REVOKE
 
 -- CreateTable
 CREATE TABLE "vendor" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "name" TEXT NOT NULL,
@@ -40,7 +40,7 @@ VALUES
   );
 
 -- AlterTable: add nullable vendorId before backfill
-ALTER TABLE "coworker" ADD COLUMN "vendorId" TEXT;
+ALTER TABLE "coworker" ADD COLUMN "vendorId" UUID;
 
 -- Backfill vendor assignments: company "Serviceplan" → Service Plan vendor; all others → utxo AG
 UPDATE "coworker"
@@ -71,12 +71,12 @@ DROP COLUMN "companyLogo";
 
 -- CreateTable
 CREATE TABLE "vendor_grant" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "scope" "VendorGrantScope" NOT NULL,
     "status" "VendorGrantStatus" NOT NULL DEFAULT 'PENDING',
-    "vendorId" TEXT NOT NULL,
+    "vendorId" UUID NOT NULL,
     "userId" TEXT NOT NULL,
     "workspaceId" UUID NOT NULL,
     "resolvedAt" TIMESTAMP(3),
@@ -103,7 +103,7 @@ ALTER TABLE "vendor_grant" ADD CONSTRAINT "vendor_grant_userId_fkey" FOREIGN KEY
 ALTER TABLE "vendor_grant" ADD CONSTRAINT "vendor_grant_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AlterTable
-ALTER TABLE "task" ADD COLUMN "pendingVendorGrantId" TEXT;
+ALTER TABLE "task" ADD COLUMN "pendingVendorGrantId" UUID;
 
 -- CreateIndex
 CREATE INDEX "task_pendingVendorGrantId_idx" ON "task"("pendingVendorGrantId");

@@ -246,7 +246,7 @@ enum VendorGrantStatus {
 }
 
 model Vendor {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -261,14 +261,14 @@ model Vendor {
 }
 
 model VendorGrant {
-  id        String   @id @default(uuid(7))
+  id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   scope  VendorGrantScope
   status VendorGrantStatus @default(PENDING)
 
-  vendorId String
+  vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   userId String
@@ -1208,7 +1208,7 @@ model Coworker {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  vendorId String
+  vendorId String @db.Uuid
   vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
 
   coworkerApiKeys CoworkerApiKey[]
@@ -1261,7 +1261,7 @@ model Task {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  pendingVendorGrantId String?
+  pendingVendorGrantId String?    @db.Uuid
   pendingVendorGrant   VendorGrant? @relation("TasksAwaitingVendorApproval", fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
 
   workspaceId String    @db.Uuid
