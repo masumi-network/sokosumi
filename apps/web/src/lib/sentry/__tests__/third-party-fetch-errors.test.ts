@@ -345,4 +345,37 @@ describe("beforeSendClientEvent", () => {
       ),
     ).toBeNull();
   });
+
+  it("drops generic coworker chat stream surface errors", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          transaction: "/chat",
+          exception: {
+            values: [{ type: "Error", value: "An error occurred." }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops Next.js router hook mismatch noise from hint fallback", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [{ type: "Error", value: "" }],
+          },
+        },
+        {
+          originalException: new Error(
+            "Rendered more hooks than during the previous render.",
+          ),
+        },
+      ),
+    ).toBeNull();
+  });
 });
