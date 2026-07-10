@@ -2398,7 +2398,15 @@ describe("POST /chat", () => {
       const init = toUIMessageStreamResponseMock.mock.calls[0]![0] as {
         onError?: (error: unknown) => string;
       };
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       init.onError?.(new Error("upstream stream failed"));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Coworker chat UI stream error (POST /chat):",
+        expect.objectContaining({ message: "upstream stream failed" }),
+      );
+      consoleErrorSpy.mockRestore();
       expect(waitUntilCapturedPromises).toHaveLength(1);
       await waitUntilCapturedPromises[0]!;
       expect(releaseStreamLockMock).toHaveBeenCalledWith(
