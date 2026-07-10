@@ -13,6 +13,10 @@ import OnboardingScreen from "@/app/personal-assistant/components/onboarding-scr
 import ProvisioningState from "@/app/personal-assistant/components/provisioning-state";
 import RunningState from "@/app/personal-assistant/components/running-state";
 import {
+  SubscriptionRequiredDialog,
+  type SubscriptionWallPlan,
+} from "@/app/personal-assistant/components/subscription-required-dialog";
+import {
   destroyHermesAction,
   getHermesInstanceAction,
   listHermesMessagesAction,
@@ -50,6 +54,12 @@ interface HermesExperienceProps {
   organizations?: HermesOrganizationOption[];
   /** Active org from the user's session; pre-selected in the dropdown. */
   activeOrganizationId?: string | null;
+  /** Whether the user (or their active org) has a paid subscription.
+   * Activating the assistant is gated on this — viewing the page is not. */
+  hasActiveSubscription?: boolean;
+  /** The 3 paid plans, shown as links on the subscription wall. Empty if
+   * the catalog couldn't be loaded — the wall still works without them. */
+  subscriptionWallPlans?: SubscriptionWallPlan[];
 }
 
 const POLL_INTERVAL_MS = 5_000;
@@ -137,6 +147,8 @@ export default function HermesExperience({
   userImageUrl,
   organizations = [],
   activeOrganizationId = null,
+  hasActiveSubscription = false,
+  subscriptionWallPlans = [],
 }: HermesExperienceProps) {
   const params = useSearchParams();
   const isMockConfirmationPreview = params.get("mock") === "confirmation";
@@ -180,6 +192,9 @@ export default function HermesExperience({
   const [committedSeed, setCommittedSeed] = useState<string | null | undefined>(
     undefined,
   );
+  /** The subscription wall — shown instead of activating when a free-plan
+   * user hits the CTA. Viewing EmptyState itself is never gated. */
+  const [subscriptionWallOpen, setSubscriptionWallOpen] = useState(false);
 
   /**
    * Loads instance state then persisted history. Sequenced (not parallel) because
@@ -349,10 +364,19 @@ export default function HermesExperience({
   }, [uiState, previewMode, refetchHermes]);
 
   const handleActivate = useCallback(async () => {
+    if (!hasActiveSubscription) {
+      setSubscriptionWallOpen(true);
+      return;
+    }
     setUiState("provisioning");
     setErrorMessage(null);
     const result = await provisionHermesAction({});
     if (!result.ok) {
+      if (result.error.code === "SUBSCRIPTION_REQUIRED") {
+        setSubscriptionWallOpen(true);
+        setUiState("idle");
+        return;
+      }
       setUiState("error");
       setErrorMessage(result.error.message ?? t("provisionFailed"));
       return;
@@ -366,7 +390,7 @@ export default function HermesExperience({
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
     setUiState(nextUi);
-  }, [t]);
+  }, [t, hasActiveSubscription]);
 
   const handleRetry = useCallback(() => {
     if (previewMode) return;
@@ -471,7 +495,17 @@ export default function HermesExperience({
   }
 
   if (uiState === "idle") {
-    return <EmptyState onActivate={handleActivate} />;
+    return (
+      <>
+        <EmptyState onActivate={handleActivate} />
+        <SubscriptionRequiredDialog
+          open={subscriptionWallOpen}
+          onOpenChange={setSubscriptionWallOpen}
+          plans={subscriptionWallPlans}
+          activeOrganizationId={activeOrganizationId}
+        />
+      </>
+    );
   }
   if (uiState === "provisioning") {
     return <ProvisioningState seed={committedOrbSeed} />;

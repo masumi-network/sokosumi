@@ -2008,6 +2008,12 @@
         "destroyFailed": "Failed to destroy your assistant.",
         "onboardingStartFailed": "Couldn't start onboarding."
       },
+      "SubscriptionWall": {
+        "title": "Unlock your personal assistant",
+        "description": "Activate on a paid plan to put it to work.",
+        "cta": "See plans & pricing",
+        "dismiss": "Maybe later"
+      },
       "EmptyState": {
         "eyebrow": "Personal Assistant",
         "title": "Meet your personal assistant.",

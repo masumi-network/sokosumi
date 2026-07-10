@@ -1,3 +1,4 @@
+import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
@@ -5,8 +6,20 @@ import { Suspense } from "react";
 
 import HermesExperience from "@/app/personal-assistant/components/hermes-experience";
 import LoadingState from "@/app/personal-assistant/components/loading-state";
+import type { SubscriptionWallPlan } from "@/app/personal-assistant/components/subscription-required-dialog";
 import { getSession } from "@/lib/auth/auth.server";
+import { coreClient } from "@/lib/clients/core.client";
+import type {
+  GetSubscriptionCatalogResponse,
+  GetUsersByIdCreditsResponse,
+} from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services/user.service";
+
+const PAID_PLAN_ORDER = [
+  "starter",
+  "standard",
+  "pro",
+] as const satisfies SelfServeSubscriptionPlanName[];
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Hermes.Metadata");
@@ -48,6 +61,36 @@ export default async function HermesPage() {
     slug: m.organization.slug,
   }));
 
+  // Activating the assistant requires a paid plan — viewing the page (the
+  // landing content, the pitch) stays open to everyone. Fail closed: if the
+  // credits call errors we can't confirm a subscription, so treat the user
+  // as unsubscribed here. This is only the UX-level gate; provisionHermesAction
+  // re-checks server-side, which is the real enforcement.
+  const [creditsResultRaw, catalogResultRaw] = await Promise.all([
+    session ? coreClient.getMyCredits().catch(() => null) : null,
+    session ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
+  ]);
+  const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
+  const currentPlan = creditsResult?.data.subscription?.plan ?? "free";
+  const hasActiveSubscription = currentPlan !== "free";
+
+  // The 3 paid plans — gives the subscription wall real, clickable plan
+  // links instead of a vague "upgrade to unlock". Best-effort: the wall
+  // still works (minus the plan links) if the catalog fetch fails.
+  const catalogResult =
+    catalogResultRaw as GetSubscriptionCatalogResponse | null;
+  const subscriptionWallPlans: SubscriptionWallPlan[] = catalogResult
+    ? PAID_PLAN_ORDER.map((name) => {
+        const plan = catalogResult.data[name];
+        return {
+          name,
+          monthlyAmount: plan.monthlyAmount,
+          currency: plan.currency,
+          credits: plan.credits,
+        };
+      })
+    : [];
+
   return (
     <Suspense fallback={<LoadingState />}>
       <HermesExperience
@@ -57,6 +100,8 @@ export default async function HermesPage() {
         userImageUrl={userImageUrl}
         organizations={organizations}
         activeOrganizationId={activeOrganizationId}
+        hasActiveSubscription={hasActiveSubscription}
+        subscriptionWallPlans={subscriptionWallPlans}
       />
     </Suspense>
   );

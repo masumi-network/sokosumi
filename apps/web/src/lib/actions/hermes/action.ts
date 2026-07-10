@@ -167,12 +167,21 @@ export const getHermesInstanceAction = withSession<
  * Provisions a new Hermes instance for the signed-in user (idempotent).
  * Returns the post-provision state — the caller should poll
  * `getHermesInstanceAction` until status === "running".
+ *
+ * Requires a paid plan. This re-checks server-side (the UI already gates the
+ * activate button on the same signal) so the action can't be triggered
+ * directly to bypass the subscription wall.
  */
 export const provisionHermesAction = withSession<
   Record<string, never>,
   Result<HermesInstancePublic, ActionError>
 >(async () => {
   try {
+    const creditsResult = await coreClient.getMyCredits().catch(() => null);
+    const currentPlan = creditsResult?.data.subscription?.plan ?? "free";
+    if (currentPlan === "free") {
+      return Err({ code: "SUBSCRIPTION_REQUIRED" });
+    }
     const response = await coreClient.provisionHermesInstance();
     return Ok(mapHermesInstance(response.data)!);
   } catch (error) {
