@@ -7,7 +7,7 @@ import { testVendor } from "@/test-fixtures/vendor";
 
 import {
   buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter,
-  buildNonOwnerAwaitingVendorApprovalTaskFilter,
+  buildSessionWorkspaceAwaitingVendorApprovalTaskFilter,
   hasAutonomyGrant,
   isGrantDenied,
   isTaskAwaitingVendorApproval,
@@ -24,10 +24,12 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
 
-describe("buildNonOwnerAwaitingVendorApprovalTaskFilter", () => {
-  it("requires pendingVendorGrantId to be null", () => {
-    expect(buildNonOwnerAwaitingVendorApprovalTaskFilter()).toEqual({
-      pendingVendorGrantId: null,
+describe("buildSessionWorkspaceAwaitingVendorApprovalTaskFilter", () => {
+  it("allows approved tasks and awaiting-approval tasks owned by the session user", () => {
+    expect(
+      buildSessionWorkspaceAwaitingVendorApprovalTaskFilter("user_owner"),
+    ).toEqual({
+      OR: [{ pendingVendorGrantId: null }, { userId: "user_owner" }],
     });
   });
 });

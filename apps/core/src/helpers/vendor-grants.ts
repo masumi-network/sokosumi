@@ -144,10 +144,13 @@ export async function loadActorVendorId(
   return coworker.vendorId;
 }
 
-export function buildNonOwnerAwaitingVendorApprovalTaskFilter(): Prisma.TaskWhereInput {
-  // Session-user workspace lists and non-assignee feeds hide tasks awaiting vendor approval.
+export function buildSessionWorkspaceAwaitingVendorApprovalTaskFilter(
+  ownerUserId: string,
+): Prisma.TaskWhereInput {
+  // Workspace lists hide awaiting-approval tasks from non-owners, but the task owner
+  // must still see their own pending tasks (matches single-task read).
   return {
-    pendingVendorGrantId: null,
+    OR: [{ pendingVendorGrantId: null }, { userId: ownerUserId }],
   };
 }
 

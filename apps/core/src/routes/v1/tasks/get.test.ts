@@ -200,8 +200,20 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          pendingVendorGrantId: null,
+          OR: [{ pendingVendorGrantId: null }, { userId: "user_123" }],
         },
+      }),
+    );
+  });
+
+  it("keeps tasks awaiting vendor approval visible to the owner on scope=workspace", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock.mock.calls[0]?.[0]?.where).toEqual(
+      expect.objectContaining({
+        OR: [{ pendingVendorGrantId: null }, { userId: "user_123" }],
       }),
     );
   });

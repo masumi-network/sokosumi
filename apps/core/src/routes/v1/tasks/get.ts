@@ -20,7 +20,7 @@ import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import {
   buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter,
-  buildNonOwnerAwaitingVendorApprovalTaskFilter,
+  buildSessionWorkspaceAwaitingVendorApprovalTaskFilter,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -194,7 +194,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         archivedAt: null,
         workspaceId: workspaceContext.workspaceId,
         ...(scope === "workspace"
-          ? buildNonOwnerAwaitingVendorApprovalTaskFilter()
+          ? buildSessionWorkspaceAwaitingVendorApprovalTaskFilter(
+              authContext.userId,
+            )
           : {}),
         ...(scope === "owned" ? { userId: authContext.userId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
