@@ -2576,10 +2576,9 @@ export type TaskListItem = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
-    credits: number;
-    events: Array<TaskEvent>;
-    jobs: Array<JobSummary>;
     workspace: WorkspaceSummary;
+    jobsCount: number;
+    commentsCount: number;
 };
 
 export type TaskLinkDeleted = {

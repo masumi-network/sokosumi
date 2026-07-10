@@ -1222,7 +1222,7 @@ export const postOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean
 });
 
 /**
- * Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins only.
+ * Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins, or platform admins with a session, may access this route.
  */
 export const getOrganizationsByIdBillingDetails = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdBillingDetailsData, ThrowOnError>): RequestResult<GetOrganizationsByIdBillingDetailsResponses, GetOrganizationsByIdBillingDetailsErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdBillingDetailsResponses, GetOrganizationsByIdBillingDetailsErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdBillingDetailsResponseTransformer,

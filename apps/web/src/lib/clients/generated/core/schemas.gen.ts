@@ -9332,26 +9332,18 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
-        credits: {
-            type: 'number',
-            example: 5
-        },
-        events: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/TaskEvent'
-            },
-            example: []
-        },
-        jobs: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/JobSummary'
-            },
-            example: []
-        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
+        },
+        jobsCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 2
+        },
+        commentsCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 4
         }
     },
     required: [
@@ -9370,10 +9362,9 @@ export const TaskListItemSchema = {
         'status',
         'metadata',
         'nextRunAt',
-        'credits',
-        'events',
-        'jobs',
-        'workspace'
+        'workspace',
+        'jobsCount',
+        'commentsCount'
     ]
 } as const;
 
