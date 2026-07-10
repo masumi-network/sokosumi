@@ -67,7 +67,7 @@ flowchart TD
   - `workspaceId` required for both scopes (task always lands in one workspace)
 - `Task.pendingVendorGrantId?` → `VendorGrant` (`onDelete: SetNull`) — non-null = parked
 - FK: `Coworker.vendorId` `onDelete: Restrict`; `VendorGrant.vendorId` `onDelete: Cascade`
-- Migration: insert `Service Plan` (`service-plan`) and `utxo AG` (`utxo-ag`) with fixed ids; seed logos from existing `companyLogo` when present; assign `alex`/`hannah`/`elena`/`jamal`/`maya` → Service Plan, rest → utxo AG; then `vendorId NOT NULL` and drop company fields (`jamal`/`maya` exist in prod, not in seed script)
+- Migration: insert `Service Plan` (`service-plan`) and `utxo AG` (`utxo-ag`) with fixed ids; seed logos from existing `companyLogo` when present; assign coworkers with `company = 'Serviceplan'` → Service Plan, all others → utxo AG; then `vendorId NOT NULL` and drop company fields
 - Core: direct Prisma only — helpers in [`apps/core/src/helpers/vendor-grants.ts`](apps/core/src/helpers/vendor-grants.ts)
 - Helpers:
   - `resolveRequiredGrantScope` — same-vendor assignee → `VENDOR`; else `WORKSPACE`

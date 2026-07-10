@@ -42,11 +42,10 @@ VALUES
 -- AlterTable: add nullable vendorId before backfill
 ALTER TABLE "coworker" ADD COLUMN "vendorId" TEXT;
 
--- Backfill vendor assignments from company field or slug heuristics
+-- Backfill vendor assignments: company "Serviceplan" → Service Plan vendor; all others → utxo AG
 UPDATE "coworker"
 SET "vendorId" = '01960001-0001-7001-8001-000000000001'
-WHERE LOWER(COALESCE("company", '')) LIKE '%serviceplan%'
-   OR LOWER("slug") IN ('alex', 'hannah', 'elena', 'jamal', 'maya');
+WHERE "company" = 'Serviceplan';
 
 UPDATE "coworker"
 SET "vendorId" = '01960001-0001-7001-8001-000000000002'
