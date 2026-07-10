@@ -1,4 +1,4 @@
-import type { ErrorEvent, EventHint } from "@sentry/nextjs";
+import type { EventHint } from "@sentry/nextjs";
 import { describe, expect, it } from "vitest";
 
 import { createErrorEvent } from "@/lib/sentry/__tests__/error-event-fixture";

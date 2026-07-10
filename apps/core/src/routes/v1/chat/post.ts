@@ -1095,7 +1095,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const coworkerStreamResponseOptions = releaseOwnedCoworkerStreamLock
         ? {
-            onError: (error) => {
+            onError: (error: unknown) => {
               console.error(
                 "Coworker chat UI stream error (POST /chat):",
                 error,
