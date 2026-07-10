@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testVendor } from "@/test-fixtures/vendor";
 
 import {
+  buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter,
+  buildNonOwnerAwaitingVendorApprovalTaskFilter,
   hasAutonomyGrant,
   isGrantDenied,
   isTaskAwaitingVendorApproval,
@@ -21,6 +23,24 @@ const { vendorGrantFindManyMock } = vi.hoisted(() => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {},
 }));
+
+describe("buildNonOwnerAwaitingVendorApprovalTaskFilter", () => {
+  it("requires pendingVendorGrantId to be null", () => {
+    expect(buildNonOwnerAwaitingVendorApprovalTaskFilter()).toEqual({
+      pendingVendorGrantId: null,
+    });
+  });
+});
+
+describe("buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter", () => {
+  it("allows approved tasks and awaiting-approval tasks assigned to the actor", () => {
+    expect(
+      buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter("cow_actor"),
+    ).toEqual({
+      OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_actor" }],
+    });
+  });
+});
 
 describe("resolveRequiredGrantScope", () => {
   it("returns VENDOR when assignee shares the actor vendor", () => {

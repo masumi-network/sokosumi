@@ -357,7 +357,27 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "22222222-2222-7222-8222-222222222222",
+          OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
           coworkerId: "cow_999",
+        },
+      }),
+    );
+  });
+
+  it("hides non-assignee awaiting-approval tasks from delegated workspace lists", async () => {
+    const app = createApp(
+      DELEGATED_COWORKER_AUTH_CONTEXT,
+      DELEGATED_WORKSPACE_CONTEXT,
+    );
+    const response = await app.request("http://localhost/?scope=workspace");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          workspaceId: "22222222-2222-7222-8222-222222222222",
+          OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
         },
       }),
     );

@@ -151,6 +151,16 @@ export function buildNonOwnerAwaitingVendorApprovalTaskFilter(): Prisma.TaskWher
   };
 }
 
+export function buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter(
+  assignedCoworkerId: string,
+): Prisma.TaskWhereInput {
+  // Delegated workspace lists hide awaiting-approval tasks from vendor siblings, but the
+  // assigned coworker must still see their own pending tasks (matches single-task read).
+  return {
+    OR: [{ pendingVendorGrantId: null }, { coworkerId: assignedCoworkerId }],
+  };
+}
+
 export function isGrantDenied(status: VendorGrantStatus): boolean {
   return (
     status === VendorGrantStatus.DENIED || status === VendorGrantStatus.REVOKED
