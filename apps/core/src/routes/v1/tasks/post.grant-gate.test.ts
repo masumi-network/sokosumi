@@ -6,7 +6,7 @@ import {
 } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { forbidden } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -17,6 +17,7 @@ import mountPostTask from "./post";
 const {
   coworkerFindUniqueMock,
   generateTaskNameMock,
+  getDelegatedVendorGrantStateMock,
   hasAutonomyGrantMock,
   isVendorGrantEnabledMock,
   mapTaskMock,
@@ -29,6 +30,7 @@ const {
 } = vi.hoisted(() => ({
   coworkerFindUniqueMock: vi.fn(),
   generateTaskNameMock: vi.fn(),
+  getDelegatedVendorGrantStateMock: vi.fn(),
   hasAutonomyGrantMock: vi.fn(),
   isVendorGrantEnabledMock: vi.fn(),
   mapTaskMock: vi.fn(),
@@ -59,6 +61,7 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
 
   return {
     ...actual,
+    getDelegatedVendorGrantState: getDelegatedVendorGrantStateMock,
     hasAutonomyGrant: hasAutonomyGrantMock,
     isVendorGrantEnabled: isVendorGrantEnabledMock,
   };
@@ -86,7 +89,6 @@ vi.mock("@/clients/openrouter.client", () => ({
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const GRANT_ID = "01960001-0001-7001-8001-000000000099";
-const OTHER_VENDOR_ID = "01960001-0001-7001-8001-000000000002";
 
 function createDelegatedApp() {
   const app = new OpenAPIHono<{
@@ -278,10 +280,11 @@ describe("POST /tasks vendor grant gate", () => {
   });
 
   it("returns grant_denied when an existing grant is denied", async () => {
-    vendorGrantFindUniqueMock.mockResolvedValue({
-      id: GRANT_ID,
-      status: VendorGrantStatus.DENIED,
-    });
+    getDelegatedVendorGrantStateMock.mockRejectedValue(
+      forbidden("Vendor access was denied for this workspace", {
+        kind: "grant_denied",
+      }),
+    );
 
     const app = createDelegatedApp();
     const response = await app.request("http://localhost/", {
@@ -295,9 +298,13 @@ describe("POST /tasks vendor grant gate", () => {
   });
 
   it("creates immediately when autonomy is already granted", async () => {
-    vendorGrantFindUniqueMock.mockResolvedValue({
-      id: GRANT_ID,
-      status: VendorGrantStatus.GRANTED,
+    getDelegatedVendorGrantStateMock.mockResolvedValue({
+      scope: VendorGrantScope.VENDOR,
+      existingGrant: {
+        id: GRANT_ID,
+        status: VendorGrantStatus.GRANTED,
+      },
+      granted: true,
     });
     taskCreateMock.mockResolvedValue({
       id: "tsk_123",
@@ -323,8 +330,11 @@ describe("POST /tasks vendor grant gate", () => {
   });
 
   it("parks the task and upserts a pending grant when autonomy is missing", async () => {
-    vendorGrantFindUniqueMock.mockResolvedValue(null);
-    hasAutonomyGrantMock.mockResolvedValue(false);
+    getDelegatedVendorGrantStateMock.mockResolvedValue({
+      scope: VendorGrantScope.VENDOR,
+      existingGrant: null,
+      granted: false,
+    });
     serializableTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         vendorGrant: {
@@ -377,9 +387,11 @@ describe("POST /tasks vendor grant gate", () => {
   });
 
   it("uses WORKSPACE scope when the assignee belongs to another vendor", async () => {
-    coworkerFindUniqueMock.mockResolvedValue({ vendorId: OTHER_VENDOR_ID });
-    vendorGrantFindUniqueMock.mockResolvedValue(null);
-    hasAutonomyGrantMock.mockResolvedValue(false);
+    getDelegatedVendorGrantStateMock.mockResolvedValue({
+      scope: VendorGrantScope.WORKSPACE,
+      existingGrant: null,
+      granted: false,
+    });
     serializableTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         vendorGrant: {
@@ -407,16 +419,11 @@ describe("POST /tasks vendor grant gate", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(vendorGrantFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        vendorId_userId_workspaceId_scope: {
-          vendorId: TEST_VENDOR_ID,
-          userId: "user_123",
-          workspaceId: WORKSPACE_ID,
-          scope: VendorGrantScope.WORKSPACE,
-        },
-      },
-      select: { id: true, status: true },
+    expect(getDelegatedVendorGrantStateMock).toHaveBeenCalledWith({
+      actorVendorId: TEST_VENDOR_ID,
+      userId: "user_123",
+      workspaceId: WORKSPACE_ID,
+      assigneeCoworkerId: "cow_assignee",
     });
     expect(vendorGrantUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -433,11 +440,14 @@ describe("POST /tasks vendor grant gate", () => {
   });
 
   it("re-parks a task against an existing pending grant without reopening it", async () => {
-    vendorGrantFindUniqueMock.mockResolvedValue({
-      id: GRANT_ID,
-      status: VendorGrantStatus.PENDING,
+    getDelegatedVendorGrantStateMock.mockResolvedValue({
+      scope: VendorGrantScope.VENDOR,
+      existingGrant: {
+        id: GRANT_ID,
+        status: VendorGrantStatus.PENDING,
+      },
+      granted: false,
     });
-    hasAutonomyGrantMock.mockResolvedValue(false);
     serializableTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         vendorGrant: {
@@ -491,8 +501,11 @@ describe("POST /tasks vendor grant gate", () => {
   });
 
   it("looks up and creates grants in the current workspace only", async () => {
-    vendorGrantFindUniqueMock.mockResolvedValue(null);
-    hasAutonomyGrantMock.mockResolvedValue(false);
+    getDelegatedVendorGrantStateMock.mockResolvedValue({
+      scope: VendorGrantScope.VENDOR,
+      existingGrant: null,
+      granted: false,
+    });
     serializableTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         vendorGrant: {
@@ -520,22 +533,11 @@ describe("POST /tasks vendor grant gate", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(vendorGrantFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        vendorId_userId_workspaceId_scope: {
-          vendorId: TEST_VENDOR_ID,
-          userId: "user_123",
-          workspaceId: WORKSPACE_ID,
-          scope: VendorGrantScope.VENDOR,
-        },
-      },
-      select: { id: true, status: true },
-    });
-    expect(hasAutonomyGrantMock).toHaveBeenCalledWith({
-      vendorId: TEST_VENDOR_ID,
+    expect(getDelegatedVendorGrantStateMock).toHaveBeenCalledWith({
+      actorVendorId: TEST_VENDOR_ID,
       userId: "user_123",
       workspaceId: WORKSPACE_ID,
-      scope: VendorGrantScope.VENDOR,
+      assigneeCoworkerId: "cow_assignee",
     });
     expect(vendorGrantUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({

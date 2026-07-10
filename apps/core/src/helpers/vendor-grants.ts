@@ -170,61 +170,93 @@ export function isGrantDenied(status: VendorGrantStatus): boolean {
   );
 }
 
-export interface ScheduledTaskVendorGrantContext {
-  userId: string;
-  workspaceId: string;
-  coworkerId: string | null;
-}
-
-/**
- * Returns true when a due scheduled template must not promote/clone because
- * vendor autonomy was revoked. Only REVOKED grants block — DENIED grants never
- * produced un-parked scheduled templates, and user-owned schedules without a
- * prior GRANTED grant are unaffected.
- */
-export async function isScheduledTaskBlockedByRevokedVendorGrant(
-  template: ScheduledTaskVendorGrantContext,
+export async function resolveAssigneeVendorId(
+  coworkerId: string | null | undefined,
   tx: Prisma.TransactionClient = prisma,
-): Promise<boolean> {
-  if (!isVendorGrantEnabled() || !template.coworkerId) {
-    return false;
+): Promise<string | null> {
+  if (!coworkerId) {
+    return null;
   }
 
   const coworker = await tx.coworker.findUnique({
-    where: { id: template.coworkerId },
+    where: { id: coworkerId },
     select: { vendorId: true },
   });
 
-  if (!coworker) {
-    return false;
+  return coworker?.vendorId ?? null;
+}
+
+export interface DelegatedVendorGrantState {
+  scope: VendorGrantScope;
+  existingGrant: { id: string; status: VendorGrantStatus } | null;
+  granted: boolean;
+}
+
+export async function getDelegatedVendorGrantState(
+  params: {
+    actorVendorId: string;
+    userId: string;
+    workspaceId: string;
+    assigneeCoworkerId: string | null | undefined;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<DelegatedVendorGrantState> {
+  const assigneeVendorId = await resolveAssigneeVendorId(
+    params.assigneeCoworkerId,
+    tx,
+  );
+  const scope = resolveRequiredGrantScope(
+    params.actorVendorId,
+    assigneeVendorId,
+  );
+
+  const existingGrant = await tx.vendorGrant.findUnique({
+    where: {
+      vendorId_userId_workspaceId_scope: {
+        vendorId: params.actorVendorId,
+        userId: params.userId,
+        workspaceId: params.workspaceId,
+        scope,
+      },
+    },
+    select: { id: true, status: true },
+  });
+
+  if (existingGrant && isGrantDenied(existingGrant.status)) {
+    throw forbidden("Vendor access was denied for this workspace", {
+      kind: "grant_denied",
+    });
   }
 
-  const assigneeVendorId = coworker.vendorId;
+  const granted =
+    existingGrant?.status === VendorGrantStatus.GRANTED ||
+    (await hasAutonomyGrant(
+      {
+        vendorId: params.actorVendorId,
+        userId: params.userId,
+        workspaceId: params.workspaceId,
+        scope,
+      },
+      tx,
+    ));
 
-  const revokedGrants = await tx.vendorGrant.findMany({
-    where: {
-      userId: template.userId,
-      workspaceId: template.workspaceId,
-      status: VendorGrantStatus.REVOKED,
-    },
-    select: { vendorId: true, scope: true },
-  });
+  return { scope, existingGrant, granted };
+}
 
-  return revokedGrants.some((grant) => {
-    if (
-      grant.scope === VendorGrantScope.VENDOR &&
-      grant.vendorId === assigneeVendorId
-    ) {
-      return true;
-    }
+export async function requireDelegatedVendorAutonomyForAssignee(
+  params: {
+    actorVendorId: string;
+    userId: string;
+    workspaceId: string;
+    assigneeCoworkerId: string | null | undefined;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const grantState = await getDelegatedVendorGrantState(params, tx);
 
-    if (
-      grant.scope === VendorGrantScope.WORKSPACE &&
-      grant.vendorId !== assigneeVendorId
-    ) {
-      return true;
-    }
-
-    return false;
-  });
+  if (!grantState.granted) {
+    throw forbidden("Vendor access is required for this workspace", {
+      kind: "grant_denied",
+    });
+  }
 }

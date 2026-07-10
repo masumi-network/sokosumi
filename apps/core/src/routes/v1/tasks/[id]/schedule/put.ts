@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/utils";
 
-import { requireTaskOwnership } from "@/helpers/access-control";
+import { requireTaskCollaboration } from "@/helpers/access-control";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -11,9 +11,13 @@ import {
   computeScheduleNextRun,
   validateScheduleInput,
 } from "@/helpers/task-schedule";
+import {
+  isVendorGrantEnabled,
+  requireDelegatedVendorAutonomyForAssignee,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -50,7 +54,9 @@ const route = createRoute({
     200: jsonSuccessResponse(taskSchema, "Task schedule saved"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
+    403: jsonErrorResponse(
+      "Forbidden. Delegated coworker schedule may return kind `grant_denied` when vendor access was denied, revoked, or not granted.",
+    ),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
@@ -72,24 +78,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Unable to compute the next scheduled run");
     }
 
+    const existingTask = await requireTaskCollaboration(
+      authContext,
+      id,
+      prisma,
+    );
+
+    if (!SCHEDULABLE_STATUSES.includes(existingTask.status)) {
+      throw forbidden("You can only schedule draft, ready, or queued tasks");
+    }
+
+    const nextStatus =
+      existingTask.status !== TaskStatus.QUEUED
+        ? TaskStatus.QUEUED
+        : existingTask.status;
+
+    if (nextStatus === TaskStatus.QUEUED) {
+      validateTaskCoworkerAssignment({
+        status: TaskStatus.QUEUED,
+        coworkerId: existingTask.coworkerId,
+      });
+    }
+
+    if (
+      isVendorGrantEnabled() &&
+      isCoworkerAuthContext(authContext) &&
+      authContext.delegation
+    ) {
+      await requireDelegatedVendorAutonomyForAssignee({
+        actorVendorId: authContext.vendorId,
+        userId: userContext.userId,
+        workspaceId: existingTask.workspaceId,
+        assigneeCoworkerId: existingTask.coworkerId,
+      });
+    }
+
     const task = await prisma.$transaction(async (tx) => {
-      const existingTask = await requireTaskOwnership(userContext, id, tx);
-
-      if (!SCHEDULABLE_STATUSES.includes(existingTask.status)) {
-        throw forbidden("You can only schedule draft, ready, or queued tasks");
-      }
-
-      const nextStatus =
-        existingTask.status !== TaskStatus.QUEUED
-          ? TaskStatus.QUEUED
-          : existingTask.status;
-
-      if (nextStatus === TaskStatus.QUEUED) {
-        validateTaskCoworkerAssignment({
-          status: TaskStatus.QUEUED,
-          coworkerId: existingTask.coworkerId,
-        });
-      }
+      await requireTaskCollaboration(authContext, id, tx);
 
       return tx.task.update({
         where: { id },

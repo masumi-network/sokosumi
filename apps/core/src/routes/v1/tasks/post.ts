@@ -14,10 +14,9 @@ import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
 import {
-  hasAutonomyGrant,
+  getDelegatedVendorGrantState,
   isGrantDenied,
   isVendorGrantEnabled,
-  resolveRequiredGrantScope,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -106,19 +105,6 @@ const route = withGlobalHeaderParameters(
     },
   }),
 );
-
-async function resolveAssigneeVendorId(coworkerId: string | null | undefined) {
-  if (!coworkerId) {
-    return null;
-  }
-
-  const coworker = await prisma.coworker.findUnique({
-    where: { id: coworkerId },
-    select: { vendorId: true },
-  });
-
-  return coworker?.vendorId ?? null;
-}
 
 async function createTaskRecord(
   params: {
@@ -224,40 +210,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return created(c, taskSchema.parse(mapTask(task)));
     }
 
-    const assigneeVendorId = await resolveAssigneeVendorId(body.coworkerId);
-    const scope = resolveRequiredGrantScope(
-      authContext.vendorId,
-      assigneeVendorId,
-    );
-
-    const existingGrant = await prisma.vendorGrant.findUnique({
-      where: {
-        vendorId_userId_workspaceId_scope: {
-          vendorId: authContext.vendorId,
-          userId: userContext.userId,
-          workspaceId: workspaceContext.workspaceId,
-          scope,
-        },
-      },
-      select: { id: true, status: true },
+    const grantState = await getDelegatedVendorGrantState({
+      actorVendorId: authContext.vendorId,
+      userId: userContext.userId,
+      workspaceId: workspaceContext.workspaceId,
+      assigneeCoworkerId: body.coworkerId,
     });
 
-    if (existingGrant && isGrantDenied(existingGrant.status)) {
-      throw forbidden("Vendor access was denied for this workspace", {
-        kind: "grant_denied",
-      });
-    }
-
-    const granted =
-      existingGrant?.status === VendorGrantStatus.GRANTED ||
-      (await hasAutonomyGrant({
-        vendorId: authContext.vendorId,
-        userId: userContext.userId,
-        workspaceId: workspaceContext.workspaceId,
-        scope,
-      }));
-
-    if (granted) {
+    if (grantState.granted) {
       const task = await prisma.$transaction(async (tx) =>
         createTaskRecord(
           {
@@ -281,14 +241,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             vendorId: authContext.vendorId,
             userId: userContext.userId,
             workspaceId: workspaceContext.workspaceId,
-            scope,
+            scope: grantState.scope,
           },
         },
         create: {
           vendorId: authContext.vendorId,
           userId: userContext.userId,
           workspaceId: workspaceContext.workspaceId,
-          scope,
+          scope: grantState.scope,
           status: VendorGrantStatus.PENDING,
         },
         update: {},

@@ -8,7 +8,6 @@ import {
   isDueRunPastScheduleEnd,
   parseTaskScheduleMetadata,
 } from "@/helpers/task-schedule";
-import { isScheduledTaskBlockedByRevokedVendorGrant } from "@/helpers/vendor-grants";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
@@ -241,19 +240,6 @@ async function processDueTask(
         outcome: "skipped",
         publishEvents: [{ userId: template.userId, taskId: template.id }],
       };
-    }
-
-    if (
-      await isScheduledTaskBlockedByRevokedVendorGrant(
-        {
-          userId: template.userId,
-          workspaceId: template.workspaceId,
-          coworkerId: template.coworkerId,
-        },
-        tx,
-      )
-    ) {
-      return { outcome: "skipped", publishEvents: [] };
     }
 
     if (scheduleMetadata.mode === "once") {
