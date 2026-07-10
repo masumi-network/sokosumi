@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { VendorGrantStatus } from "@sokosumi/database";
+import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { forbidden, notFound, unprocessableEntity } from "@/helpers/error";
@@ -129,13 +129,22 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         });
 
         if (affectedTasks.length > 0) {
-          await tx.task.updateMany({
-            where: { pendingVendorGrantId: grantId },
-            data: {
-              status: TaskStatus.CANCELED,
-              pendingVendorGrantId: null,
-            },
-          });
+          for (const { id: taskId } of affectedTasks) {
+            await tx.task.update({
+              where: { id: taskId, pendingVendorGrantId: grantId },
+              data: {
+                status: TaskStatus.CANCELED,
+                pendingVendorGrantId: null,
+                events: {
+                  create: {
+                    status: TaskStatus.CANCELED,
+                    origin: TaskEventOrigin.SOKOSUMI,
+                    userId: session.userId,
+                  },
+                },
+              },
+            });
+          }
         }
 
         const updatedGrant = await tx.vendorGrant.findUniqueOrThrow({

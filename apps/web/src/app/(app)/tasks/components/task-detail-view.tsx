@@ -517,7 +517,7 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       isFreePlan={isFreePlan}
-      canComment={!isReadOnlyWorkspaceView}
+      canComment={!isReadOnlyWorkspaceView && !task.awaitingVendorApproval}
     />
   );
 }

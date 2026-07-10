@@ -1,5 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { VendorGrantScope, VendorGrantStatus } from "@sokosumi/database";
+import {
+  TaskEventOrigin,
+  VendorGrantScope,
+  VendorGrantStatus,
+} from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -100,12 +104,14 @@ function createTransactionMock() {
   const vendorGrantFindUnique = vi.fn();
   const vendorGrantUpdate = vi.fn();
   const taskFindMany = vi.fn();
+  const taskUpdate = vi.fn();
   const taskUpdateMany = vi.fn();
 
   return {
     vendorGrantFindUnique,
     vendorGrantUpdate,
     taskFindMany,
+    taskUpdate,
     taskUpdateMany,
     tx: {
       vendorGrant: {
@@ -115,6 +121,7 @@ function createTransactionMock() {
       },
       task: {
         findMany: taskFindMany,
+        update: taskUpdate,
         updateMany: taskUpdateMany,
       },
     },
@@ -141,6 +148,7 @@ describe("vendor-access lifecycle", () => {
         createGrantRecord(VendorGrantStatus.PENDING),
       );
       transaction.taskFindMany.mockResolvedValueOnce([{ id: parkedTaskId }]);
+      transaction.taskUpdateMany.mockResolvedValue(undefined);
       transaction.vendorGrantUpdate.mockResolvedValue(undefined);
       transaction.tx.vendorGrant.findUniqueOrThrow.mockResolvedValueOnce({
         ...createGrantRecord(VendorGrantStatus.GRANTED),
@@ -184,6 +192,7 @@ describe("vendor-access lifecycle", () => {
         createGrantRecord(VendorGrantStatus.PENDING),
       );
       transaction.taskFindMany.mockResolvedValueOnce([{ id: parkedTaskId }]);
+      transaction.taskUpdate.mockResolvedValue(undefined);
       transaction.vendorGrantUpdate.mockResolvedValue(undefined);
       transaction.tx.vendorGrant.findUniqueOrThrow.mockResolvedValueOnce({
         ...createGrantRecord(VendorGrantStatus.DENIED),
@@ -207,11 +216,18 @@ describe("vendor-access lifecycle", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(transaction.taskUpdateMany).toHaveBeenCalledWith({
-      where: { pendingVendorGrantId: GRANT_ID },
+    expect(transaction.taskUpdate).toHaveBeenCalledWith({
+      where: { id: parkedTaskId, pendingVendorGrantId: GRANT_ID },
       data: {
         status: TaskStatus.CANCELED,
         pendingVendorGrantId: null,
+        events: {
+          create: {
+            status: TaskStatus.CANCELED,
+            origin: TaskEventOrigin.SOKOSUMI,
+            userId: USER_ID,
+          },
+        },
       },
     });
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
