@@ -162,11 +162,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where = {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
+          ...buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter(
+            authContext.coworkerId,
+          ),
           ...(scope === "owned"
             ? { userId: authContext.delegation.userId }
-            : buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter(
-                authContext.coworkerId,
-              )),
+            : {}),
           ...(statuses ? { status: { in: statuses } } : {}),
           ...(coworkerId ? { coworkerId } : {}),
           ...projectFilter,
