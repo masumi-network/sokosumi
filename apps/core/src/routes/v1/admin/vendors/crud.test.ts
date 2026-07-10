@@ -114,8 +114,8 @@ describe("admin vendor CRUD", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: "Service Plan",
-        slug: "service-plan",
+        name: "Serviceplan",
+        slug: "serviceplan",
       }),
     });
 
@@ -128,8 +128,8 @@ describe("admin vendor CRUD", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: "Service Plan",
-        slug: "service-plan",
+        name: "Serviceplan",
+        slug: "serviceplan",
         logos: {
           light: "https://example.com/logo-light.png",
           dark: "https://example.com/logo-dark.png",
@@ -140,8 +140,8 @@ describe("admin vendor CRUD", () => {
     expect(response.status).toBe(200);
     expect(vendorCreateMock).toHaveBeenCalledWith({
       data: {
-        name: "Service Plan",
-        slug: "service-plan",
+        name: "Serviceplan",
+        slug: "serviceplan",
         logoLight: "https://example.com/logo-light.png",
         logoDark: "https://example.com/logo-dark.png",
       },

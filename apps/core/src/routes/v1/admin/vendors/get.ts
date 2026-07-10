@@ -21,8 +21,8 @@ const route = createRoute({
           id: "01960001-0001-7001-8001-000000000001",
           createdAt: "2025-01-01T00:00:00.000Z",
           updatedAt: "2025-01-01T00:00:00.000Z",
-          name: "Service Plan",
-          slug: "service-plan",
+          name: "Serviceplan",
+          slug: "serviceplan",
           logos: {
             light: "/images/logos/serviceplan-logo.png",
             dark: "/images/logos/serviceplan-logo-white.png",

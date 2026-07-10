@@ -8,8 +8,8 @@ const sampleVendor = {
   id: "01960001-0001-7001-8001-000000000001",
   createdAt: new Date("2025-01-01T00:00:00.000Z"),
   updatedAt: new Date("2025-01-01T00:00:00.000Z"),
-  name: "Service Plan",
-  slug: "service-plan",
+  name: "Serviceplan",
+  slug: "serviceplan",
   logos: {
     light: "https://example.com/company-logo.png",
     dark: null,

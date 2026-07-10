@@ -9,16 +9,16 @@ export const testVendor = {
   id: TEST_VENDOR_ID,
   createdAt: new Date("2026-02-25T10:00:00.000Z"),
   updatedAt: new Date("2026-02-25T10:00:00.000Z"),
-  name: "Service Plan",
-  slug: "service-plan",
+  name: "Serviceplan",
+  slug: "serviceplan",
   logoLight: testVendorLogos.light,
   logoDark: testVendorLogos.dark,
 };
 
 export const testVendorApi = {
   id: TEST_VENDOR_ID,
-  name: "Service Plan",
-  slug: "service-plan",
+  name: "Serviceplan",
+  slug: "serviceplan",
   logos: {
     light: testVendorLogos.light,
     dark: testVendorLogos.dark,

@@ -36,8 +36,8 @@ describe("mapDbCoworkerToChatCoworker", () => {
           id: "01960001-0001-7001-8001-000000000001",
           createdAt: new Date("2026-03-06T00:00:00.000Z"),
           updatedAt: new Date("2026-03-06T00:00:00.000Z"),
-          name: "Service Plan",
-          slug: "service-plan",
+          name: "Serviceplan",
+          slug: "serviceplan",
           logos: {
             light: null,
             dark: null,

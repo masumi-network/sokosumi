@@ -1987,11 +1987,11 @@ export const VendorSchema = {
         },
         name: {
             type: 'string',
-            example: 'Service Plan'
+            example: 'Serviceplan'
         },
         slug: {
             type: 'string',
-            example: 'service-plan'
+            example: 'serviceplan'
         },
         logos: {
             $ref: '#/components/schemas/VendorLogos'
@@ -2038,14 +2038,14 @@ export const CreateVendorRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 120,
-            example: 'Service Plan'
+            example: 'Serviceplan'
         },
         slug: {
             type: 'string',
             minLength: 1,
             maxLength: 120,
             pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
-            example: 'service-plan'
+            example: 'serviceplan'
         },
         logos: {
             $ref: '#/components/schemas/VendorLogosInput'
@@ -2082,14 +2082,14 @@ export const PatchVendorRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 120,
-            example: 'Service Plan'
+            example: 'Serviceplan'
         },
         slug: {
             type: 'string',
             minLength: 1,
             maxLength: 120,
             pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
-            example: 'service-plan'
+            example: 'serviceplan'
         },
         logos: {
             $ref: '#/components/schemas/VendorLogosInput'

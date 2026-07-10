@@ -63,8 +63,8 @@ const sampleVendor = {
   id: vendorId,
   createdAt: new Date("2026-02-20T10:00:00.000Z"),
   updatedAt: new Date("2026-02-20T10:00:00.000Z"),
-  name: "Service Plan",
-  slug: "service-plan",
+  name: "Serviceplan",
+  slug: "serviceplan",
   logoLight: "https://example.com/company-logo",
   logoDark: null,
 };

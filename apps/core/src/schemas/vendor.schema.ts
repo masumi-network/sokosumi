@@ -29,8 +29,8 @@ export const vendorSchema = z
     id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
-    name: z.string().openapi({ example: "Service Plan" }),
-    slug: z.string().openapi({ example: "service-plan" }),
+    name: z.string().openapi({ example: "Serviceplan" }),
+    slug: z.string().openapi({ example: "serviceplan" }),
     logos: vendorLogosSchema,
   })
   .openapi("Vendor");
@@ -70,19 +70,14 @@ export const vendorGrantListSchema = z
 
 export const createVendorRequestSchema = z
   .object({
-    name: z
-      .string()
-      .trim()
-      .min(1)
-      .max(120)
-      .openapi({ example: "Service Plan" }),
+    name: z.string().trim().min(1).max(120).openapi({ example: "Serviceplan" }),
     slug: z
       .string()
       .trim()
       .min(1)
       .max(120)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-      .openapi({ example: "service-plan" }),
+      .openapi({ example: "serviceplan" }),
     logos: vendorLogosInputSchema.optional(),
   })
   .openapi("CreateVendorRequest");

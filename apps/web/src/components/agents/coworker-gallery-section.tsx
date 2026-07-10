@@ -57,11 +57,15 @@ interface VendorInfo {
   legal?: string;
 }
 const VENDOR_DETAILS: Record<string, VendorInfo> = {
-  "service-plan": {
+  serviceplan: {
     description:
       "Coworkers from Serviceplan — strategy, planning, and creative leadership for your projects.",
     website: "https://www.serviceplan.com",
     legal: "https://www.serviceplan.com/en/imprint.html",
+  },
+  masumi: {
+    description:
+      "Coworkers from Masumi — agents and automation built on the Masumi network.",
   },
   "utxo-ag": {
     description:

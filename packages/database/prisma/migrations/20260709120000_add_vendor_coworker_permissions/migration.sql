@@ -27,8 +27,8 @@ VALUES
     '01960001-0001-7001-8001-000000000001',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP,
-    'Service Plan',
-    'service-plan',
+    'Serviceplan',
+    'serviceplan',
     '/images/logos/serviceplan-logo.png',
     '/images/logos/serviceplan-logo-white.png'
   ),
@@ -40,15 +40,28 @@ VALUES
     'utxo-ag',
     NULL,
     NULL
+  ),
+  (
+    '01960001-0001-7001-8001-000000000003',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    'Masumi',
+    'masumi',
+    '/images/logos/masumi-logo-black.svg',
+    '/images/logos/masumi-logo-white.svg'
   );
 
 -- AlterTable: add nullable vendorId before backfill
 ALTER TABLE "coworker" ADD COLUMN "vendorId" UUID;
 
--- Backfill vendor assignments: company "Serviceplan" → Service Plan vendor; all others → utxo AG
+-- Backfill vendor assignments: Serviceplan → Serviceplan vendor; Masumi → Masumi vendor; all others → utxo AG
 UPDATE "coworker"
 SET "vendorId" = '01960001-0001-7001-8001-000000000001'
 WHERE "company" = 'Serviceplan';
+
+UPDATE "coworker"
+SET "vendorId" = '01960001-0001-7001-8001-000000000003'
+WHERE "company" = 'Masumi';
 
 UPDATE "coworker"
 SET "vendorId" = '01960001-0001-7001-8001-000000000002'
