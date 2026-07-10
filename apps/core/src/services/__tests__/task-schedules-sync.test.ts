@@ -8,6 +8,12 @@ const mockTaskUpdate = vi.fn();
 const mockTaskLinkCreate = vi.fn();
 const mockTaskEventCreate = vi.fn();
 const publishTaskEventDataMock = vi.fn();
+const isScheduledTaskBlockedByRevokedVendorGrantMock = vi.fn();
+
+vi.mock("@/helpers/vendor-grants", () => ({
+  isScheduledTaskBlockedByRevokedVendorGrant:
+    isScheduledTaskBlockedByRevokedVendorGrantMock,
+}));
 
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: publishTaskEventDataMock,
@@ -33,8 +39,17 @@ vi.mock("@/lib/db/prisma", () => ({
 
 describe("taskSchedulesSyncService", () => {
   beforeEach(async () => {
-    vi.clearAllMocks();
+    mockTransaction.mockReset();
+    mockFindMany.mockReset();
+    mockFindFirst.mockReset();
+    mockTaskCreate.mockReset();
+    mockTaskUpdate.mockReset();
+    mockTaskLinkCreate.mockReset();
+    mockTaskEventCreate.mockReset();
+    isScheduledTaskBlockedByRevokedVendorGrantMock.mockReset();
+    publishTaskEventDataMock.mockReset();
     vi.resetModules();
+    isScheduledTaskBlockedByRevokedVendorGrantMock.mockResolvedValue(false);
     publishTaskEventDataMock.mockResolvedValue(undefined);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
@@ -256,5 +271,65 @@ describe("taskSchedulesSyncService", () => {
       taskId: "clone-1",
       eventType: "task_event",
     });
+  });
+
+  it("skips promote and clone when vendor grant was revoked", async () => {
+    isScheduledTaskBlockedByRevokedVendorGrantMock.mockResolvedValueOnce(true);
+
+    const { taskSchedulesSyncService } = await import(
+      "@/services/task-schedules-sync"
+    );
+
+    mockFindMany
+      .mockResolvedValueOnce([{ id: "template-1" }])
+      .mockResolvedValueOnce([]);
+
+    mockTransaction.mockImplementation(async (callback) =>
+      callback({
+        task: {
+          findFirst: mockFindFirst,
+          create: mockTaskCreate,
+          update: mockTaskUpdate,
+        },
+        taskLink: {
+          create: mockTaskLinkCreate,
+        },
+        taskEvent: {
+          create: mockTaskEventCreate,
+        },
+      }),
+    );
+
+    mockFindFirst.mockResolvedValue({
+      id: "template-1",
+      userId: "user-1",
+      organizationId: null,
+      workspaceId: "workspace-1",
+      projectId: null,
+      coworkerId: "cow-1",
+      name: "Template",
+      description: "Run me",
+      metadata: JSON.stringify({
+        version: 1,
+        mode: "recurring",
+        scheduledAt: "2026-06-01T09:00:00.000Z",
+        expr: "0 9 * * *",
+        timezone: "UTC",
+        endsMode: "never",
+      }),
+      nextRunAt: new Date("2026-06-08T09:00:00.000Z"),
+    });
+
+    const result = await taskSchedulesSyncService.syncDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Date.now() + 60_000,
+      shouldContinue: () => true,
+    });
+
+    expect(result.promoted).toBe(0);
+    expect(result.cloned).toBe(0);
+    expect(isScheduledTaskBlockedByRevokedVendorGrantMock).toHaveBeenCalled();
+    expect(mockTaskCreate).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).not.toHaveBeenCalled();
   });
 });

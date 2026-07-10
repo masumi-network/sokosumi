@@ -169,3 +169,62 @@ export function isGrantDenied(status: VendorGrantStatus): boolean {
     status === VendorGrantStatus.DENIED || status === VendorGrantStatus.REVOKED
   );
 }
+
+export interface ScheduledTaskVendorGrantContext {
+  userId: string;
+  workspaceId: string;
+  coworkerId: string | null;
+}
+
+/**
+ * Returns true when a due scheduled template must not promote/clone because
+ * vendor autonomy was revoked. Only REVOKED grants block — DENIED grants never
+ * produced un-parked scheduled templates, and user-owned schedules without a
+ * prior GRANTED grant are unaffected.
+ */
+export async function isScheduledTaskBlockedByRevokedVendorGrant(
+  template: ScheduledTaskVendorGrantContext,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  if (!isVendorGrantEnabled() || !template.coworkerId) {
+    return false;
+  }
+
+  const coworker = await tx.coworker.findUnique({
+    where: { id: template.coworkerId },
+    select: { vendorId: true },
+  });
+
+  if (!coworker) {
+    return false;
+  }
+
+  const assigneeVendorId = coworker.vendorId;
+
+  const revokedGrants = await tx.vendorGrant.findMany({
+    where: {
+      userId: template.userId,
+      workspaceId: template.workspaceId,
+      status: VendorGrantStatus.REVOKED,
+    },
+    select: { vendorId: true, scope: true },
+  });
+
+  return revokedGrants.some((grant) => {
+    if (
+      grant.scope === VendorGrantScope.VENDOR &&
+      grant.vendorId === assigneeVendorId
+    ) {
+      return true;
+    }
+
+    if (
+      grant.scope === VendorGrantScope.WORKSPACE &&
+      grant.vendorId !== assigneeVendorId
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+}

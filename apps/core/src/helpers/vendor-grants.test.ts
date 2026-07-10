@@ -10,14 +10,22 @@ import {
   buildSessionWorkspaceAwaitingVendorApprovalTaskFilter,
   hasAutonomyGrant,
   isGrantDenied,
+  isScheduledTaskBlockedByRevokedVendorGrant,
   isTaskAwaitingVendorApproval,
   isVendorSiblingInWorkspace,
   requireTaskNotAwaitingVendorApproval,
   resolveRequiredGrantScope,
 } from "./vendor-grants";
 
-const { vendorGrantFindManyMock } = vi.hoisted(() => ({
-  vendorGrantFindManyMock: vi.fn(),
+const { vendorGrantFindManyMock, coworkerFindUniqueMock, getEnvMock } =
+  vi.hoisted(() => ({
+    vendorGrantFindManyMock: vi.fn(),
+    coworkerFindUniqueMock: vi.fn(),
+    getEnvMock: vi.fn(),
+  }));
+
+vi.mock("@/config/env", () => ({
+  getEnv: getEnvMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -214,5 +222,79 @@ describe("isGrantDenied", () => {
     expect(isGrantDenied(VendorGrantStatus.REVOKED)).toBe(true);
     expect(isGrantDenied(VendorGrantStatus.PENDING)).toBe(false);
     expect(isGrantDenied(VendorGrantStatus.GRANTED)).toBe(false);
+  });
+});
+
+describe("isScheduledTaskBlockedByRevokedVendorGrant", () => {
+  const workspaceId = "11111111-1111-4111-8111-111111111111";
+  const utxoVendorId = "01960001-0001-7001-8001-000000000002";
+  const template = {
+    userId: "user_123",
+    workspaceId,
+    coworkerId: "cow_assignee",
+  };
+  const tx = {
+    coworker: { findUnique: coworkerFindUniqueMock },
+    vendorGrant: { findMany: vendorGrantFindManyMock },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ VENDOR_GRANT_ENABLED: true });
+    coworkerFindUniqueMock.mockResolvedValue({ vendorId: testVendor.id });
+  });
+
+  it("returns false when vendor grants are disabled", async () => {
+    getEnvMock.mockReturnValue({ VENDOR_GRANT_ENABLED: false });
+
+    await expect(
+      isScheduledTaskBlockedByRevokedVendorGrant(template, tx as never),
+    ).resolves.toBe(false);
+    expect(vendorGrantFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns false when the template has no assignee coworker", async () => {
+    await expect(
+      isScheduledTaskBlockedByRevokedVendorGrant(
+        { ...template, coworkerId: null },
+        tx as never,
+      ),
+    ).resolves.toBe(false);
+    expect(vendorGrantFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks same-vendor schedules after a revoked VENDOR grant", async () => {
+    vendorGrantFindManyMock.mockResolvedValue([
+      {
+        vendorId: testVendor.id,
+        scope: VendorGrantScope.VENDOR,
+      },
+    ]);
+
+    await expect(
+      isScheduledTaskBlockedByRevokedVendorGrant(template, tx as never),
+    ).resolves.toBe(true);
+  });
+
+  it("blocks cross-vendor schedules after a revoked WORKSPACE grant", async () => {
+    coworkerFindUniqueMock.mockResolvedValue({ vendorId: utxoVendorId });
+    vendorGrantFindManyMock.mockResolvedValue([
+      {
+        vendorId: testVendor.id,
+        scope: VendorGrantScope.WORKSPACE,
+      },
+    ]);
+
+    await expect(
+      isScheduledTaskBlockedByRevokedVendorGrant(template, tx as never),
+    ).resolves.toBe(true);
+  });
+
+  it("allows schedules when no revoked grant applies", async () => {
+    vendorGrantFindManyMock.mockResolvedValue([]);
+
+    await expect(
+      isScheduledTaskBlockedByRevokedVendorGrant(template, tx as never),
+    ).resolves.toBe(false);
   });
 });
