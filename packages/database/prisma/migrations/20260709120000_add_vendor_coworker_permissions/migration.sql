@@ -67,7 +67,7 @@ UPDATE "coworker"
 SET "vendorId" = '01960001-0001-7001-8001-000000000002'
 WHERE "vendorId" IS NULL;
 
--- Copy legacy coworker company logos into vendor light logo when not set yet
+-- Copy legacy coworker company logos into vendor light logo when not set yet (skip utxo AG)
 UPDATE "vendor" AS v
 SET "logoLight" = sub."companyLogo"
 FROM (
@@ -77,6 +77,7 @@ FROM (
   ORDER BY c."vendorId", c."updatedAt" DESC
 ) AS sub
 WHERE v."id" = sub."vendorId"
+  AND v."id" != '01960001-0001-7001-8001-000000000002'
   AND v."logoLight" IS NULL;
 
 -- Enforce vendorId and drop legacy company fields
