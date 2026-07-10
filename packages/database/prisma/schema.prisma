@@ -252,7 +252,8 @@ model Vendor {
 
   name String
   slug String @unique
-  logo String?
+  logoLight String?
+  logoDark  String?
 
   coworkers    Coworker[]
   vendorGrants VendorGrant[]

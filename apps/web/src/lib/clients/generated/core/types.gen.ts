@@ -435,19 +435,29 @@ export type Vendor = {
     updatedAt: Date;
     name: string;
     slug: string;
-    logo: string | null;
+    logos: VendorLogos;
+};
+
+export type VendorLogos = {
+    light: string | null;
+    dark: string | null;
 };
 
 export type CreateVendorRequest = {
     name: string;
     slug: string;
-    logo?: string | null;
+    logos?: VendorLogosInput;
+};
+
+export type VendorLogosInput = {
+    light?: string | null;
+    dark?: string | null;
 };
 
 export type PatchVendorRequest = {
     name?: string;
     slug?: string;
-    logo?: string | null;
+    logos?: VendorLogosInput;
 };
 
 export type Agent = {

@@ -46,7 +46,10 @@ const route = createRoute({
           updatedAt: "2025-01-01T00:00:00.000Z",
           name: "Service Plan",
           slug: "service-plan",
-          logo: null,
+          logos: {
+            light: null,
+            dark: null,
+          },
         },
         userId: "user_123",
         workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",

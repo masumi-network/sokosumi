@@ -34,7 +34,10 @@ const route = createRoute({
           updatedAt: "2025-01-01T00:00:00.000Z",
           name: "Service Plan",
           slug: "service-plan",
-          logo: "https://example.com/company-logo",
+          logos: {
+            light: "https://example.com/company-logo",
+            dark: null,
+          },
         },
         url: "https://example.com",
         baseURL: "https://responses.example.com/v1",

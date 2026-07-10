@@ -4,7 +4,7 @@ import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
-import { mapVendor } from "@/helpers/vendor";
+import { mapVendor, vendorLogoCreateData } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -35,7 +35,10 @@ const route = createRoute({
         updatedAt: "2025-01-01T00:00:00.000Z",
         name: "Service Plan",
         slug: "service-plan",
-        logo: "https://example.com/logo.png",
+        logos: {
+          light: "https://example.com/logo-light.png",
+          dark: "https://example.com/logo-dark.png",
+        },
       },
       meta: {
         timestamp: "2025-01-01T00:00:00.000Z",
@@ -58,7 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name: body.name,
           slug: body.slug,
-          logo: body.logo ?? null,
+          ...vendorLogoCreateData(body.logos),
         },
       });
 

@@ -11,7 +11,8 @@ CREATE TABLE "vendor" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "logo" TEXT,
+    "logoLight" TEXT,
+    "logoDark" TEXT,
 
     CONSTRAINT "vendor_pkey" PRIMARY KEY ("id")
 );
@@ -20,7 +21,7 @@ CREATE TABLE "vendor" (
 CREATE UNIQUE INDEX "vendor_slug_key" ON "vendor"("slug");
 
 -- Seed vendors with fixed ids
-INSERT INTO "vendor" ("id", "createdAt", "updatedAt", "name", "slug", "logo")
+INSERT INTO "vendor" ("id", "createdAt", "updatedAt", "name", "slug", "logoLight", "logoDark")
 VALUES
   (
     '01960001-0001-7001-8001-000000000001',
@@ -28,7 +29,8 @@ VALUES
     CURRENT_TIMESTAMP,
     'Service Plan',
     'service-plan',
-    '/images/logos/serviceplan-logo.png'
+    '/images/logos/serviceplan-logo.png',
+    '/images/logos/serviceplan-logo-white.png'
   ),
   (
     '01960001-0001-7001-8001-000000000002',
@@ -36,6 +38,7 @@ VALUES
     CURRENT_TIMESTAMP,
     'utxo AG',
     'utxo-ag',
+    NULL,
     NULL
   );
 
@@ -51,9 +54,9 @@ UPDATE "coworker"
 SET "vendorId" = '01960001-0001-7001-8001-000000000002'
 WHERE "vendorId" IS NULL;
 
--- Copy company logos into vendor when vendor has no logo yet
+-- Copy legacy coworker company logos into vendor light logo when not set yet
 UPDATE "vendor" AS v
-SET "logo" = sub."companyLogo"
+SET "logoLight" = sub."companyLogo"
 FROM (
   SELECT DISTINCT ON (c."vendorId") c."vendorId", c."companyLogo"
   FROM "coworker" AS c
@@ -61,7 +64,7 @@ FROM (
   ORDER BY c."vendorId", c."updatedAt" DESC
 ) AS sub
 WHERE v."id" = sub."vendorId"
-  AND v."logo" IS NULL;
+  AND v."logoLight" IS NULL;
 
 -- Enforce vendorId and drop legacy company fields
 ALTER TABLE "coworker" ALTER COLUMN "vendorId" SET NOT NULL;

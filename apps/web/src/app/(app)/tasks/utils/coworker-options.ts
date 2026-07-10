@@ -20,7 +20,7 @@ export function getCoworkerOptions(coworkers: Coworker[]): CoworkerOption[] {
           id: coworker.vendor.id,
           name: coworker.vendor.name,
           slug: coworker.vendor.slug,
-          logo: coworker.vendor.logo,
+          logos: coworker.vendor.logos,
         },
         priority: coworker.priority ?? 0,
         profile: profile

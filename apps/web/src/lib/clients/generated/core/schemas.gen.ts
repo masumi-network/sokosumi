@@ -1993,12 +1993,8 @@ export const VendorSchema = {
             type: 'string',
             example: 'service-plan'
         },
-        logo: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: '/images/logos/serviceplan-logo.png'
+        logos: {
+            $ref: '#/components/schemas/VendorLogos'
         }
     },
     required: [
@@ -2007,7 +2003,31 @@ export const VendorSchema = {
         'updatedAt',
         'name',
         'slug',
-        'logo'
+        'logos'
+    ]
+} as const;
+
+export const VendorLogosSchema = {
+    type: 'object',
+    properties: {
+        light: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo.png'
+        },
+        dark: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo-white.png'
+        }
+    },
+    required: [
+        'light',
+        'dark'
     ]
 } as const;
 
@@ -2027,19 +2047,32 @@ export const CreateVendorRequestSchema = {
             pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
             example: 'service-plan'
         },
-        logo: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri',
-            example: 'https://example.com/logo.png'
+        logos: {
+            $ref: '#/components/schemas/VendorLogosInput'
         }
     },
     required: [
         'name',
         'slug'
     ]
+} as const;
+
+export const VendorLogosInputSchema = {
+    type: 'object',
+    properties: {
+        light: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        dark: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    }
 } as const;
 
 export const PatchVendorRequestSchema = {
@@ -2058,13 +2091,8 @@ export const PatchVendorRequestSchema = {
             pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
             example: 'service-plan'
         },
-        logo: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri',
-            example: 'https://example.com/logo.png'
+        logos: {
+            $ref: '#/components/schemas/VendorLogosInput'
         }
     }
 } as const;

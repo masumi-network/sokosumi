@@ -1,5 +1,6 @@
 import {
   type Prisma,
+  type Vendor,
   VendorGrantScope,
   VendorGrantStatus,
 } from "@sokosumi/database";
@@ -20,8 +21,18 @@ type VendorGrantWithRelations = Prisma.VendorGrantGetPayload<{
   };
 }>;
 
-export function mapVendor(vendor: VendorGrantWithRelations["vendor"]) {
-  return vendorSchema.parse(vendor);
+export function mapVendor(vendor: Vendor) {
+  return vendorSchema.parse({
+    id: vendor.id,
+    createdAt: vendor.createdAt,
+    updatedAt: vendor.updatedAt,
+    name: vendor.name,
+    slug: vendor.slug,
+    logos: {
+      light: vendor.logoLight,
+      dark: vendor.logoDark,
+    },
+  });
 }
 
 export function mapVendorGrant(grant: VendorGrantWithRelations) {
@@ -39,6 +50,28 @@ export function mapVendorGrant(grant: VendorGrantWithRelations) {
     resolvedAt: grant.resolvedAt,
     awaitingVendorApprovalTaskCount: grant._count.tasksAwaitingVendorApproval,
   });
+}
+
+export function vendorLogoCreateData(
+  logos: { light?: string | null; dark?: string | null } | undefined,
+): Pick<Vendor, "logoLight" | "logoDark"> {
+  return {
+    logoLight: logos?.light ?? null,
+    logoDark: logos?.dark ?? null,
+  };
+}
+
+export function vendorLogoPatchData(
+  logos: { light?: string | null; dark?: string | null } | undefined,
+): Partial<Pick<Vendor, "logoLight" | "logoDark">> {
+  if (logos === undefined) {
+    return {};
+  }
+
+  return {
+    ...(logos.light !== undefined ? { logoLight: logos.light } : {}),
+    ...(logos.dark !== undefined ? { logoDark: logos.dark } : {}),
+  };
 }
 
 export const vendorGrantInclude = {

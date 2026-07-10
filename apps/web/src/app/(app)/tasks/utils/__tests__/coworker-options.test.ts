@@ -21,7 +21,10 @@ function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
       updatedAt: new Date(),
       name: "Service Plan",
       slug: "service-plan",
-      logo: null,
+      logos: {
+        light: null,
+        dark: null,
+      },
     },
     capabilities: ["tasks"],
     metadata: null,

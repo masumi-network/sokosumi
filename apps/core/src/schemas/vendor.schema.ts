@@ -4,6 +4,26 @@ import { VendorGrantScope, VendorGrantStatus } from "@sokosumi/database";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
+const vendorLogoSchema = z.string().nullable();
+
+export const vendorLogosSchema = z
+  .object({
+    light: vendorLogoSchema.openapi({
+      example: "/images/logos/serviceplan-logo.png",
+    }),
+    dark: vendorLogoSchema.openapi({
+      example: "/images/logos/serviceplan-logo-white.png",
+    }),
+  })
+  .openapi("VendorLogos");
+
+export const vendorLogosInputSchema = z
+  .object({
+    light: vendorLogoSchema.optional(),
+    dark: vendorLogoSchema.optional(),
+  })
+  .openapi("VendorLogosInput");
+
 export const vendorSchema = z
   .object({
     id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
@@ -11,9 +31,7 @@ export const vendorSchema = z
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "Service Plan" }),
     slug: z.string().openapi({ example: "service-plan" }),
-    logo: z.string().nullable().openapi({
-      example: "/images/logos/serviceplan-logo.png",
-    }),
+    logos: vendorLogosSchema,
   })
   .openapi("Vendor");
 
@@ -65,14 +83,16 @@ export const createVendorRequestSchema = z
       .max(120)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
       .openapi({ example: "service-plan" }),
-    logo: z.string().url().nullable().optional().openapi({
-      example: "https://example.com/logo.png",
-    }),
+    logos: vendorLogosInputSchema.optional(),
   })
   .openapi("CreateVendorRequest");
 
-export const patchVendorRequestSchema = createVendorRequestSchema
-  .partial()
+export const patchVendorRequestSchema = z
+  .object({
+    name: createVendorRequestSchema.shape.name.optional(),
+    slug: createVendorRequestSchema.shape.slug.optional(),
+    logos: vendorLogosInputSchema.optional(),
+  })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one vendor field is required",
   })

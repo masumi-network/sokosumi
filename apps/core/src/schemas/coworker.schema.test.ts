@@ -10,7 +10,10 @@ const sampleVendor = {
   updatedAt: new Date("2025-01-01T00:00:00.000Z"),
   name: "Service Plan",
   slug: "service-plan",
-  logo: "https://example.com/company-logo.png",
+  logos: {
+    light: "https://example.com/company-logo.png",
+    dark: null,
+  },
 };
 
 describe("coworkerSchema", () => {

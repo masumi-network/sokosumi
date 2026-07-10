@@ -38,7 +38,10 @@ describe("mapDbCoworkerToChatCoworker", () => {
           updatedAt: new Date("2026-03-06T00:00:00.000Z"),
           name: "Service Plan",
           slug: "service-plan",
-          logo: null,
+          logos: {
+            light: null,
+            dark: null,
+          },
         },
         url: null,
         baseURL: null,

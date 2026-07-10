@@ -25,7 +25,7 @@ export interface CoworkerOption {
   image: string;
   description?: string;
   caption?: string;
-  vendor: Pick<Vendor, "id" | "name" | "slug" | "logo">;
+  vendor: Pick<Vendor, "id" | "name" | "slug" | "logos">;
   /** Sort/recommend weight — higher surfaces first. From `Coworker.priority`. */
   priority?: number;
   profile?: CoworkerProfile;

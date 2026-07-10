@@ -23,7 +23,10 @@ const route = createRoute({
           updatedAt: "2025-01-01T00:00:00.000Z",
           name: "Service Plan",
           slug: "service-plan",
-          logo: "/images/logos/serviceplan-logo.png",
+          logos: {
+            light: "/images/logos/serviceplan-logo.png",
+            dark: "/images/logos/serviceplan-logo-white.png",
+          },
         },
       ],
       meta: {

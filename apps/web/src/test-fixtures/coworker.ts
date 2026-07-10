@@ -8,7 +8,10 @@ export function mockVendor(overrides: Partial<Vendor> = {}): Vendor {
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     name: "Service Plan",
     slug: "service-plan",
-    logo: null,
+    logos: {
+      light: "/images/logos/serviceplan-logo.png",
+      dark: "/images/logos/serviceplan-logo-white.png",
+    },
     ...overrides,
   };
 }
@@ -21,7 +24,7 @@ export function mockVendorPick(
     id: vendor.id,
     name: vendor.name,
     slug: vendor.slug,
-    logo: vendor.logo,
+    logos: vendor.logos,
     ...overrides,
   };
 }

@@ -2,10 +2,6 @@ import type { Vendor } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 const VENDOR_LOGOS: Record<string, { light: string; dark: string }> = {
-  "service-plan": {
-    light: "/images/logos/serviceplan-logo.png",
-    dark: "/images/logos/serviceplan-logo-white.png",
-  },
   sokosumi: {
     light: "/images/logos/sokosumi-logo-black.svg",
     dark: "/images/logos/sokosumi-logo-white.svg",
@@ -13,26 +9,57 @@ const VENDOR_LOGOS: Record<string, { light: string; dark: string }> = {
 };
 
 interface VendorMarkProps {
-  vendor: Pick<Vendor, "name" | "slug" | "logo">;
+  vendor: Pick<Vendor, "name" | "slug" | "logos">;
   className?: string;
   textClassName?: string;
 }
 
+function VendorLogoImages({
+  lightSrc,
+  darkSrc,
+  alt,
+  className,
+}: {
+  lightSrc: string;
+  darkSrc: string;
+  alt: string;
+  className?: string;
+}) {
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={lightSrc}
+        alt={alt}
+        className={cn("w-auto object-contain dark:hidden", className)}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={darkSrc}
+        alt={alt}
+        className={cn("hidden w-auto object-contain dark:block", className)}
+      />
+    </>
+  );
+}
+
 /**
- * Renders a vendor logo when available, otherwise falls back to the vendor name.
+ * Renders vendor logos when available, otherwise falls back to the vendor name.
  */
 export function VendorMark({
   vendor,
   className = "h-5",
   textClassName,
 }: VendorMarkProps) {
-  if (vendor.logo) {
+  const { light, dark } = vendor.logos;
+
+  if (light || dark) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={vendor.logo}
+      <VendorLogoImages
+        lightSrc={light ?? dark ?? ""}
+        darkSrc={dark ?? light ?? ""}
         alt={vendor.name}
-        className={cn("w-auto object-contain", className)}
+        className={className}
       />
     );
   }
@@ -40,20 +67,12 @@ export function VendorMark({
   const asset = VENDOR_LOGOS[vendor.slug];
   if (asset) {
     return (
-      <>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={asset.light}
-          alt={vendor.name}
-          className={cn("w-auto object-contain dark:hidden", className)}
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={asset.dark}
-          alt={vendor.name}
-          className={cn("hidden w-auto object-contain dark:block", className)}
-        />
-      </>
+      <VendorLogoImages
+        lightSrc={asset.light}
+        darkSrc={asset.dark}
+        alt={vendor.name}
+        className={className}
+      />
     );
   }
 
@@ -76,7 +95,11 @@ export function CompanyMark({
 }) {
   return (
     <VendorMark
-      vendor={{ name: company, slug: company.trim().toLowerCase(), logo: null }}
+      vendor={{
+        name: company,
+        slug: company.trim().toLowerCase(),
+        logos: { light: null, dark: null },
+      }}
       className={className}
       textClassName={textClassName}
     />

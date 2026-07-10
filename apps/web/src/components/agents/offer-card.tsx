@@ -578,7 +578,7 @@ export interface OfferDetailItem {
   offer: CoworkerOffer;
   coworkerName: string;
   coworkerCaption?: string;
-  vendor?: Pick<Vendor, "name" | "slug" | "logo">;
+  vendor?: Pick<Vendor, "name" | "slug" | "logos">;
   /** Rendered coworker avatar (so callers keep their own avatar component). */
   coworkerAvatar: ReactNode;
   /** Rendered model/region tags. */

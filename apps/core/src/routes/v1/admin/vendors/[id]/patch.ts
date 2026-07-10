@@ -4,7 +4,7 @@ import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
-import { mapVendor } from "@/helpers/vendor";
+import { mapVendor, vendorLogoPatchData } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -66,7 +66,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name: body.name,
           slug: body.slug,
-          logo: body.logo,
+          ...vendorLogoPatchData(body.logos),
         },
       });
 

@@ -7,7 +7,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
-import { testVendor } from "@/test-fixtures/vendor";
+import { emptyVendorLogos, testVendor } from "@/test-fixtures/vendor";
 
 import mountPatchAdminVendor from "./[id]/patch";
 import mountGetAdminVendors from "./get";
@@ -130,7 +130,10 @@ describe("admin vendor CRUD", () => {
       body: JSON.stringify({
         name: "Service Plan",
         slug: "service-plan",
-        logo: "https://example.com/logo.png",
+        logos: {
+          light: "https://example.com/logo-light.png",
+          dark: "https://example.com/logo-dark.png",
+        },
       }),
     });
 
@@ -139,7 +142,8 @@ describe("admin vendor CRUD", () => {
       data: {
         name: "Service Plan",
         slug: "service-plan",
-        logo: "https://example.com/logo.png",
+        logoLight: "https://example.com/logo-light.png",
+        logoDark: "https://example.com/logo-dark.png",
       },
     });
   });
@@ -151,7 +155,7 @@ describe("admin vendor CRUD", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: "Updated Vendor",
-        logo: null,
+        logos: emptyVendorLogos,
       }),
     });
 
@@ -165,7 +169,8 @@ describe("admin vendor CRUD", () => {
       data: {
         name: "Updated Vendor",
         slug: undefined,
-        logo: null,
+        logoLight: null,
+        logoDark: null,
       },
     });
   });
