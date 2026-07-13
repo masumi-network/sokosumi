@@ -9,6 +9,7 @@ import {
   beforeSendClientEvent,
   thirdPartyAnalyticsDenyUrls,
   thirdPartyAnalyticsIgnoreErrors,
+  thirdPartyScriptDenyUrls,
 } from "@/lib/sentry/third-party-fetch-errors";
 import { thirdPartyWalletIgnoreErrors } from "@/lib/sentry/third-party-wallet-errors";
 
@@ -22,7 +23,7 @@ Sentry.init({
   // TODO: Uncomment this when Sentry team fixed open issue
   // https://github.com/getsentry/sentry-javascript/issues/16542
 
-  denyUrls: thirdPartyAnalyticsDenyUrls,
+  denyUrls: [...thirdPartyAnalyticsDenyUrls, ...thirdPartyScriptDenyUrls],
   ignoreErrors: [
     ...thirdPartyDomMutationIgnoreErrors,
     ...thirdPartyAnalyticsIgnoreErrors,

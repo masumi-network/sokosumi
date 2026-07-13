@@ -61,6 +61,18 @@ const bareTransientNetworkFailurePattern =
 const thirdPartyDynamicImportFailurePattern =
   /Failed to fetch dynamically imported module: https?:\/\/[^/]*usercentrics/i;
 
+/**
+ * Firefox and some WebKit builds report offline or aborted fetches as a bare
+ * `network error` with no hostname (SOKOSUMI-D6 on `/tasks/:taskId`).
+ */
+const bareNetworkErrorPattern = /^(?:TypeError: )?network error$/i;
+
+/** Script URL substrings for injected extension/wallet bundles (SOKOSUMI-NB, SOKOSUMI-13). */
+export const thirdPartyScriptDenyUrls: RegExp[] = [
+  /hook\.js/i,
+  /cardano\.bundle\.js/i,
+];
+
 /** Core API hosts where client-side connectivity blips are user/network noise. */
 const FIRST_PARTY_API_HOSTS = [
   "api.sokosumi.com",
@@ -119,6 +131,10 @@ export function isBareTransientNetworkFailure(message: string): boolean {
   return bareTransientNetworkFailurePattern.test(message);
 }
 
+export function isBareNetworkError(message: string): boolean {
+  return bareNetworkErrorPattern.test(message);
+}
+
 export function isThirdPartyDynamicImportFailure(message: string): boolean {
   return thirdPartyDynamicImportFailurePattern.test(message);
 }
@@ -137,6 +153,7 @@ export function beforeSendClientEvent(
     isThirdPartyAnalyticsFetchFailure(message) ||
     isTransientFirstPartyApiFetchFailure(message) ||
     isBareTransientNetworkFailure(message) ||
+    isBareNetworkError(message) ||
     isThirdPartyDynamicImportFailure(message) ||
     isExpectedClientNoiseErrorMessage(message) ||
     isThirdPartyDomMutationError(message) ||

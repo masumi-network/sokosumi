@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HistoryItem } from "@/lib/services/history.service";
 
 const coworkerServiceMock = vi.hoisted(() => ({
-  listCoworkers: vi.fn(),
+  listCoworkersForUi: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -18,7 +18,7 @@ describe("buildHistoryBucketLookups", () => {
   });
 
   it("resolves coworker bucket icons and model bucket icons", async () => {
-    coworkerServiceMock.listCoworkers.mockResolvedValue([
+    coworkerServiceMock.listCoworkersForUi.mockResolvedValue([
       {
         id: "coworker-1",
         slug: "hannah",

@@ -59,7 +59,7 @@ vi.mock("@/lib/services", () => ({
 
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
-    listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
+    listCoworkersForUi: (...args: unknown[]) => listCoworkersMock(...args),
   },
 }));
 

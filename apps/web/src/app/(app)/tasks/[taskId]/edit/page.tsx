@@ -67,7 +67,7 @@ export default async function EditTaskPage({
   }
 
   const [taskCoworkers, agents, projectsPage] = await Promise.all([
-    coworkerService.listCoworkers("tasks"),
+    coworkerService.listCoworkersForUi("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
   ]);

@@ -18,7 +18,7 @@ export async function buildHistoryBucketLookups(
     return createEmptyHistoryBucketLookups();
   }
 
-  const coworkers = await coworkerService.listCoworkers().catch(() => []);
+  const coworkers = await coworkerService.listCoworkersForUi();
 
   return buildBucketLookupFromCoworkers(bucketSlugs, coworkers);
 }

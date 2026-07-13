@@ -18,7 +18,23 @@ export const coworkerService = (() => {
     return filterCoworkersForUiListing(response.data ?? []);
   }
 
+  /**
+   * Coworker metadata is supplementary for page shells. When Core is briefly
+   * unavailable, degrade to an empty list instead of failing the render
+   * (SOKOSUMI-Q3 on `/tasks` and `/tasks/[taskId]`).
+   */
+  async function listCoworkersForUi(
+    capability?: CoworkerCapability,
+  ): Promise<Coworker[]> {
+    try {
+      return await listCoworkers(capability);
+    } catch {
+      return [];
+    }
+  }
+
   return {
     listCoworkers,
+    listCoworkersForUi,
   };
 })();

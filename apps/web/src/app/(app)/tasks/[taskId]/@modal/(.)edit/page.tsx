@@ -62,7 +62,7 @@ export default async function TaskEditModalPage({
   }
 
   const [taskCoworkers, agents, projectsPage] = await Promise.all([
-    coworkerService.listCoworkers("tasks"),
+    coworkerService.listCoworkersForUi("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
   ]);

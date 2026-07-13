@@ -56,7 +56,7 @@ const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
 async function loadTasksPageData() {
   return await Promise.all([
-    coworkerService.listCoworkers("tasks"),
+    coworkerService.listCoworkersForUi("tasks"),
     agentService.getAvailableAgentsWithCreditsPrice(),
     projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
   ]);
