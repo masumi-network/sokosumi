@@ -71,7 +71,7 @@ export async function TaskDetailView({
   enableAutoSwitch = false,
 }: TaskDetailViewProps) {
   const taskId = task.id;
-  const coworkersPromise = coworkerService.listCoworkers();
+  const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();

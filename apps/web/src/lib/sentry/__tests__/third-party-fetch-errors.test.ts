@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   beforeSendClientEvent,
+  isBareNetworkError,
   isBareTransientNetworkFailure,
   isThirdPartyAnalyticsFetchFailure,
   isThirdPartyDynamicImportFailure,
   isTransientFirstPartyApiFetchFailure,
   thirdPartyAnalyticsIgnoreErrors,
+  thirdPartyScriptDenyUrls,
 } from "@/lib/sentry/third-party-fetch-errors";
 
 describe("isThirdPartyAnalyticsFetchFailure", () => {
@@ -98,6 +100,32 @@ describe("isThirdPartyDynamicImportFailure", () => {
     expect(
       isThirdPartyDynamicImportFailure(
         "TypeError: Failed to fetch dynamically imported module: https://web.cmp.usercentrics.eu/ui/v/4.3.0/WebSdk.lib.44b003b5.js. Error: undefined",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("isBareNetworkError", () => {
+  it("returns true for Firefox bare network failures", () => {
+    expect(isBareNetworkError("TypeError: network error")).toBe(true);
+    expect(isBareNetworkError("network error")).toBe(true);
+  });
+
+  it("returns false for unrelated errors", () => {
+    expect(isBareNetworkError("TypeError: Failed to fetch")).toBe(false);
+  });
+});
+
+describe("thirdPartyScriptDenyUrls", () => {
+  it("includes React DevTools and Cardano wallet bundles", () => {
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test("app:///hook.js"),
+      ),
+    ).toBe(true);
+    expect(
+      thirdPartyScriptDenyUrls.some((pattern) =>
+        pattern.test("app:///js/cardano.bundle.js"),
       ),
     ).toBe(true);
   });
@@ -205,6 +233,20 @@ describe("beforeSendClientEvent", () => {
           type: undefined,
           exception: {
             values: [{ value: "TypeError: Load failed" }],
+          },
+        },
+        {},
+      ),
+    ).toBeNull();
+  });
+
+  it("drops bare Firefox network failures", () => {
+    expect(
+      beforeSendClientEvent(
+        {
+          type: undefined,
+          exception: {
+            values: [{ value: "TypeError: network error" }],
           },
         },
         {},
