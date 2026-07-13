@@ -244,20 +244,7 @@ export function isTaskStatusSpendable(status: TaskStatus | undefined): boolean {
   return status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED;
 }
 
-function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
-  const credits = task.events.reduce((total, event) => {
-    const amount = event.transaction?.amount;
-    if (amount === undefined || amount === null) {
-      return total;
-    }
-
-    if (amount >= 0n) {
-      return total;
-    }
-
-    return total + convertCentsToCredits(amount * -1n);
-  }, 0);
-
+function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
   const taskOrganizationSummary = organizationSummaryFromLoadedRelation(
     `Task ${task.id}`,
     task.organizationId,
@@ -292,10 +279,29 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     status: task.status,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
+    workspace: mapWorkspaceSummary(task.workspace),
+  };
+}
+
+function mapTaskBase(task: TaskWithIncludes) {
+  const credits = task.events.reduce((total, event) => {
+    const amount = event.transaction?.amount;
+    if (amount === undefined || amount === null) {
+      return total;
+    }
+
+    if (amount >= 0n) {
+      return total;
+    }
+
+    return total + convertCentsToCredits(amount * -1n);
+  }, 0);
+
+  return {
+    ...mapTaskSummary(task),
     events: task.events.map(mapTaskEvent),
     jobs: task.jobs.map(flattenJob),
     credits,
-    workspace: mapWorkspaceSummary(task.workspace),
   };
 }
 
@@ -310,5 +316,9 @@ export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
 }
 
 export function mapTaskListItem(task: TaskListItemWithIncludes) {
-  return mapTaskBase(task);
+  return {
+    ...mapTaskSummary(task),
+    jobsCount: task._count.jobs,
+    commentsCount: task._count.events,
+  };
 }

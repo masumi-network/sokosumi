@@ -30,9 +30,8 @@ function buildTask(
     status,
     metadata: null,
     nextRunAt: null,
-    credits: 0,
-    events: [],
-    jobs: [],
+    commentsCount: 0,
+    jobsCount: 0,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: null,
@@ -110,19 +109,25 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.nextRunAt).toBe("2026-06-25T09:00:00.000Z");
   });
 
-  it("maps jobs count from the API task", () => {
+  it("maps counts from the list API task", () => {
     const task = buildTask(TaskStatus.READY, {
-      jobs: [{ id: "job-1" }] as unknown as TaskListItem["jobs"],
+      commentsCount: 2,
+      jobsCount: 1,
     });
 
     const mapped = mapTaskToTaskWithCoworker(task, new Map(), new Map());
 
     expect(mapped.jobsCount).toBe(1);
+    expect(mapped.commentsCount).toBe(2);
+    expect(mapped.events).toEqual([]);
   });
 
   it("preserves share information from task detail responses", () => {
     const task: Task = {
       ...buildTask(TaskStatus.READY),
+      credits: 0,
+      events: [],
+      jobs: [],
       share: {
         id: "share-1",
         taskId: "task-1",

@@ -103,14 +103,17 @@ export function mapTaskToTaskWithCoworker(
     updatedAt,
     nextRunAt,
     metadata: task.metadata ?? null,
-    jobsCount: task.jobs.length,
+    jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     coworker,
     share: "share" in task ? (task.share ?? null) : null,
     agents,
-    commentsCount: getCommentsCount(task.events),
+    commentsCount:
+      "commentsCount" in task
+        ? task.commentsCount
+        : getCommentsCount(task.events),
     columnId: getColumnId(task.status),
     description: task.description ?? null,
     descriptionPlain,
-    events: task.events,
+    events: "events" in task ? task.events : [],
   };
 }

@@ -207,10 +207,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             { id: "asc" as const },
           ] as const)
         : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
-    // Read-only list + count: run as independent queries instead of an
-    // interactive transaction. The transaction added a 5s timeout that the
-    // heavy nested include could exceed (esp. on a cold remote DB), surfacing
-    // as a 500. A list view does not need list/count snapshot consistency.
+    // A list view does not need list/count snapshot consistency, so run these
+    // as independent queries. The list include uses relation counts instead of
+    // loading each task's full event and job graphs.
     const [tasks, count] = await Promise.all([
       prisma.task.findMany({
         where,

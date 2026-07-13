@@ -49,7 +49,20 @@ const taskBaseInclude = {
   },
 } as const;
 
-export const taskListInclude = taskBaseInclude;
+export const taskListInclude = {
+  ...workspaceRelationInclude,
+  ...taskUserOrganizationInclude,
+  _count: {
+    select: {
+      events: {
+        where: {
+          comment: { not: null },
+        },
+      },
+      jobs: true,
+    },
+  },
+} as const;
 
 export const taskInclude = {
   ...taskBaseInclude,

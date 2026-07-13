@@ -134,8 +134,10 @@ function createTask() {
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
-    events: [],
-    jobs: [],
+    _count: {
+      events: 0,
+      jobs: 0,
+    },
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -265,15 +267,25 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("does not include task links for user-scoped task list reads", async () => {
+  it("uses relation counts instead of loading task detail graphs", async () => {
     const app = createApp();
 
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
     const include = taskFindManyMock.mock.calls[0]?.[0]?.include;
+    expect(include).not.toHaveProperty("events");
+    expect(include).not.toHaveProperty("jobs");
     expect(include).not.toHaveProperty("linksFrom");
     expect(include).not.toHaveProperty("linksTo");
+    expect(include).toMatchObject({
+      _count: {
+        select: {
+          events: { where: { comment: { not: null } } },
+          jobs: true,
+        },
+      },
+    });
   });
 
   it("does not include task links for coworker-scoped task list reads", async () => {
@@ -300,6 +312,12 @@ describe("GET /tasks", () => {
     };
     expect(body.data).toHaveLength(1);
     expect(body.data[0]).not.toHaveProperty("links");
+    expect(body.data[0]).not.toHaveProperty("events");
+    expect(body.data[0]).not.toHaveProperty("jobs");
+    expect(body.data[0]).toMatchObject({
+      commentsCount: 0,
+      jobsCount: 0,
+    });
   });
 
   it("rejects coworker requests that include DRAFT", async () => {

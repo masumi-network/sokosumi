@@ -86,7 +86,13 @@ const taskBaseSchema = z.object({
   workspace: workspaceSummarySchema,
 });
 
-export const taskListItemSchema = taskBaseSchema.openapi("TaskListItem");
+export const taskListItemSchema = taskBaseSchema
+  .omit({ credits: true, events: true, jobs: true })
+  .extend({
+    jobsCount: z.number().int().nonnegative().openapi({ example: 2 }),
+    commentsCount: z.number().int().nonnegative().openapi({ example: 4 }),
+  })
+  .openapi("TaskListItem");
 
 export const taskSchema = taskBaseSchema
   .extend({

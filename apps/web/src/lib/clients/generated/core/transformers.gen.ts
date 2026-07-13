@@ -1445,8 +1445,6 @@ const taskListItemSchemaResponseTransformer = (data: any) => {
     if (data.nextRunAt) {
         data.nextRunAt = new Date(data.nextRunAt);
     }
-    data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
-    data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
     return data;
 };
 
