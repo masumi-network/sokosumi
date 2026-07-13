@@ -276,6 +276,7 @@ describe("requireTaskReadForRouteVars", () => {
       where: {
         id: "tsk_123",
         archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
       },
       include: {
         coworker: {
@@ -319,6 +320,7 @@ describe("requireTaskReadForRouteVars", () => {
       where: {
         id: "tsk_123",
         archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
         workspaceId,
       },
       include: {
@@ -345,6 +347,43 @@ describe("requireTaskReadForRouteVars", () => {
       },
     });
     expect(tx.task.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker reads of draft assignee tasks", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123");
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: null,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_draft", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_draft",
+        archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
+      },
+      include: {
+        coworker: {
+          select: {
+            vendorId: true,
+          },
+        },
+      },
+    });
   });
 
   it("rejects delegated coworker reads without tasks capability before loading the task", async () => {
@@ -960,6 +999,7 @@ describe("requireJobReadForRouteVars", () => {
       where: {
         id: "tsk_123",
         archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
       },
       select: {
         coworkerId: true,

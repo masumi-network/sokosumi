@@ -67,10 +67,10 @@ const DELEGATED_WORKSPACE_CONTEXT = {
 const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
 
 const COWORKER_SIBLING_LIST_FILTER = {
+  status: { not: TaskStatus.DRAFT },
   OR: [
     { coworkerId: "cow_123" },
     {
-      status: { not: TaskStatus.DRAFT },
       coworkerId: { not: "cow_123" },
       coworker: {
         vendorId: DELEGATED_VENDOR_ID,

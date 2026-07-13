@@ -381,6 +381,7 @@ describe("GET /jobs/{id}", () => {
       where: {
         id: "tsk_123",
         archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
       },
       select: {
         coworkerId: true,

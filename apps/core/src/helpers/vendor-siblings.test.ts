@@ -85,10 +85,10 @@ describe("vendor-siblings", () => {
           vendorId: TEST_VENDOR_ID,
         }),
       ).toEqual({
+        status: { not: TaskStatus.DRAFT },
         OR: [
           { coworkerId: "cow_a" },
           {
-            status: { not: TaskStatus.DRAFT },
             coworkerId: { not: "cow_a" },
             coworker: {
               vendorId: TEST_VENDOR_ID,

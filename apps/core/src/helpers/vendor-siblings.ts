@@ -30,6 +30,7 @@ export async function loadTaskForSiblingCheck(
       id: taskId,
       ...(workspaceId ? { workspaceId } : {}),
       archivedAt: null,
+      status: { not: TaskStatus.DRAFT },
     },
     select: taskSiblingSelect,
   });
@@ -82,10 +83,10 @@ export function buildCoworkerSiblingTaskListFilter(
   params: CoworkerSiblingTaskListAccessParams,
 ): Prisma.TaskWhereInput {
   return {
+    status: { not: TaskStatus.DRAFT },
     OR: [
       { coworkerId: params.coworkerId },
       {
-        status: { not: TaskStatus.DRAFT },
         coworkerId: { not: params.coworkerId },
         coworker: {
           vendorId: params.vendorId,

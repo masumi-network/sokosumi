@@ -180,6 +180,7 @@ export async function requireCoworkerTaskRead(
     where: {
       id: taskId,
       archivedAt: null,
+      status: { not: TaskStatus.DRAFT },
       ...(workspaceId ? { workspaceId } : {}),
     },
     include: {
@@ -265,6 +266,10 @@ function assertCoworkerCanReadTask(
   task: Awaited<ReturnType<typeof loadTaskForSiblingCheck>>,
 ) {
   if (!task) {
+    throw notFound("Task not found");
+  }
+
+  if (task.status === TaskStatus.DRAFT) {
     throw notFound("Task not found");
   }
 

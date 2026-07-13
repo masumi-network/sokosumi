@@ -415,6 +415,7 @@ describe("GET /tasks/{id}", () => {
       where: {
         id: "tsk_a",
         archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
         workspaceId: testWorkspaceId,
       },
       include: {
@@ -527,6 +528,7 @@ describe("GET /tasks/{id}", () => {
       where: {
         id: "tsk_a",
         archivedAt: null,
+        status: { not: TaskStatus.DRAFT },
       },
       include: {
         coworker: {
