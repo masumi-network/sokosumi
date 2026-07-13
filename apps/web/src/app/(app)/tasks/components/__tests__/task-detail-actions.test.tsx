@@ -674,6 +674,10 @@ describe("TaskDetailActions", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Move to workspace" }),
     ).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Mark as" })).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "Create related" }),
+    ).toBeNull();
   });
 
   it("disables the actions trigger while a status update is pending", async () => {

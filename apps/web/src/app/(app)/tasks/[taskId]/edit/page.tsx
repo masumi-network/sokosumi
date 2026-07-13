@@ -1,4 +1,3 @@
-import { isTaskEditableStatus } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -8,6 +7,7 @@ import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/tas
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
+import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services";
@@ -35,10 +35,7 @@ export default async function EditTaskPage({
     return notFound();
   }
 
-  if (
-    !isTaskEditableStatus(taskResult.status) ||
-    taskResult.awaitingVendorApproval
-  ) {
+  if (!isTaskEditPageAllowed(taskResult)) {
     redirect(`/tasks/${taskId}`);
   }
 
