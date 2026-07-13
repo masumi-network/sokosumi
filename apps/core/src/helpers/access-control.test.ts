@@ -895,7 +895,7 @@ describe("requireConversationCoworkerAccess", () => {
     );
   });
 
-  it("rejects a coworker without delegation", async () => {
+  it("rejects a coworker without context headers", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123");
 
@@ -905,7 +905,9 @@ describe("requireConversationCoworkerAccess", () => {
         { coworker_id: "cow_123" },
         tx,
       ),
-    ).rejects.toThrow("Delegation is required for this resource");
+    ).rejects.toThrow(
+      "Context headers (X-Context-User-Id) are required for this resource",
+    );
   });
 });
 
@@ -1206,13 +1208,13 @@ describe("requireJobCollaboration", () => {
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 
-  it("rejects a bare coworker without delegation", async () => {
+  it("rejects a bare coworker without context headers", async () => {
     const tx = createTransactionClient();
     const bareCoworkerContext = createCoworkerContext("cow_123");
 
     await expect(
       requireJobCollaboration(bareCoworkerContext, "job_123", tx),
-    ).rejects.toThrow("Delegation headers");
+    ).rejects.toThrow("Context headers");
 
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });

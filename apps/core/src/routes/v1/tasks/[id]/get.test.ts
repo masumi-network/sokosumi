@@ -470,6 +470,85 @@ describe("GET /tasks/{id}", () => {
     });
   });
 
+  it("allows a delegated coworker to read a same-vendor sibling task", async () => {
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_a",
+      userId: "user_123",
+      coworkerId: "cow_sibling",
+      status: TaskStatus.READY,
+      coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
+    });
+
+    const app = createApp({
+      actor: "coworker",
+      context: {
+        userId: "user_delegate",
+        organizationId: "org_delegate",
+      },
+    });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects a delegated coworker reading a cross-vendor sibling task", async () => {
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_a",
+      userId: "user_123",
+      coworkerId: "cow_sibling",
+      status: TaskStatus.READY,
+      coworker: { vendorId: "01960001-0001-7001-8001-000000000002" },
+    });
+
+    const app = createApp({
+      actor: "coworker",
+      context: {
+        userId: "user_delegate",
+        organizationId: "org_delegate",
+      },
+    });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(403);
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a bare coworker to read a same-vendor sibling task without workspace scoping", async () => {
+    taskFindFirstMock.mockResolvedValue({
+      id: "tsk_a",
+      userId: "user_123",
+      coworkerId: "cow_sibling",
+      status: TaskStatus.READY,
+      coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
+    });
+
+    const app = createApp({ actor: "coworker" });
+    mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a");
+
+    expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "tsk_a",
+        archivedAt: null,
+      },
+      select: {
+        coworkerId: true,
+        status: true,
+        coworker: {
+          select: {
+            vendorId: true,
+          },
+        },
+      },
+    });
+  });
+
   it("returns an existing share token to a workspace collaborator", async () => {
     viewerTaskIncludeResult = createTask({
       userId: "user_123",

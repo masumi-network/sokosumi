@@ -82,3 +82,6 @@ DROP COLUMN "companyLogo";
 
 -- AddForeignKey
 ALTER TABLE "coworker" ADD CONSTRAINT "coworker_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- CreateIndex (sibling task list filters join task -> coworker.vendorId)
+CREATE INDEX "coworker_vendorId_idx" ON "coworker"("vendorId");

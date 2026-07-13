@@ -484,7 +484,9 @@ export async function requireConversationCoworkerAccess(
 
   const coworker = requireCoworkerAuthContext(authContext);
   if (!coworker.context) {
-    throw forbidden("Delegation is required for this resource");
+    throw forbidden(
+      "Context headers (X-Context-User-Id) are required for this resource",
+    );
   }
 
   const conversationCoworkerId = await resolveConversationCoworkerId(
@@ -653,8 +655,8 @@ export async function requireJobCollaboration(
     return job;
   }
 
-  // Bare coworkers (no delegation) have no user/workspace context for jobs.
+  // Bare coworkers (no context headers) have no user/workspace context for jobs.
   throw forbidden(
-    "Delegation headers (X-Delegation-User-Id) are required for this resource",
+    "Context headers (X-Context-User-Id) are required for this resource",
   );
 }
