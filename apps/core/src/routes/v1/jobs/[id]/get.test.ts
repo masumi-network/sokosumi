@@ -449,6 +449,6 @@ describe("GET /jobs/{id}", () => {
     const app = createApp();
     const response = await app.request("http://localhost/job_123");
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 });

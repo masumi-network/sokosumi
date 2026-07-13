@@ -10,6 +10,9 @@ interface CoworkerAuthorizedTaskWhereParams {
 
 /**
  * Single-task coworker read/list filter: assignee or same-vendor sibling, non-DRAFT.
+ *
+ * When `workspaceId` is omitted (bare coworker, no `X-Context-*` headers), the filter
+ * is vendor-wide: any non-DRAFT sibling task for that vendor may match.
  */
 export function buildCoworkerAuthorizedTaskWhere(
   params: CoworkerAuthorizedTaskWhereParams,

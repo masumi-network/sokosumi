@@ -169,6 +169,19 @@ export async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
   workspaceId: string | null,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+export async function requireCoworkerTaskRead<I extends Prisma.TaskInclude>(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  workspaceId: string | null,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+export async function requireCoworkerTaskRead(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  workspaceId: string | null,
   tx: Prisma.TransactionClient = prisma,
   include?: Prisma.TaskInclude,
 ): Promise<Task> {
@@ -325,6 +338,17 @@ export async function requireTaskCommentAccess(
 export async function requireTaskReadForWorkspace(
   workspaceContext: WorkspaceContext,
   taskId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+export async function requireTaskReadForWorkspace<I extends Prisma.TaskInclude>(
+  workspaceContext: WorkspaceContext,
+  taskId: string,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+export async function requireTaskReadForWorkspace(
+  workspaceContext: WorkspaceContext,
+  taskId: string,
   tx: Prisma.TransactionClient = prisma,
   include?: Prisma.TaskInclude,
 ): Promise<Task> {
@@ -353,6 +377,17 @@ export async function requireTaskReadForWorkspace(
 export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
   taskId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+export async function requireTaskReadForRouteVars<I extends Prisma.TaskInclude>(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+export async function requireTaskReadForRouteVars(
+  vars: EnvVariables["Variables"],
+  taskId: string,
   tx: Prisma.TransactionClient = prisma,
   include?: Prisma.TaskInclude,
 ): Promise<Task> {
@@ -360,12 +395,11 @@ export async function requireTaskReadForRouteVars(
 
   if (isUserAuthContext(authContext)) {
     requireUserContext(authContext);
-    return await requireTaskReadForWorkspace(
-      requireWorkspaceContext(workspaceContext),
-      taskId,
-      tx,
-      include,
-    );
+    const workspace = requireWorkspaceContext(workspaceContext);
+    if (include) {
+      return await requireTaskReadForWorkspace(workspace, taskId, tx, include);
+    }
+    return await requireTaskReadForWorkspace(workspace, taskId, tx);
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
@@ -374,13 +408,17 @@ export async function requireTaskReadForRouteVars(
       ? requireWorkspaceContext(workspaceContext).workspaceId
       : null;
 
-  return await requireCoworkerTaskRead(
-    coworker,
-    taskId,
-    workspaceId,
-    tx,
-    include,
-  );
+  if (include) {
+    return await requireCoworkerTaskRead(
+      coworker,
+      taskId,
+      workspaceId,
+      tx,
+      include,
+    );
+  }
+
+  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
 /**
@@ -525,7 +563,7 @@ export function pinCoworkerConversationBinding(
  * assigned to a different coworker, are denied.
  *
  * Used for job **writes** only. Job reads also allow same-vendor siblings via
- * {@link assertDelegatedCanReadJob}.
+ * {@link assertCoworkerCanReadJob}.
  *
  * @throws {forbidden} If the job is not attached to a task assigned to the coworker
  */
@@ -567,7 +605,7 @@ async function assertCoworkerCanReadJob(
     select: { id: true },
   });
   if (!taskForSibling) {
-    throw forbidden("You can only access jobs assigned to your coworker");
+    throw notFound("Job not found");
   }
 }
 

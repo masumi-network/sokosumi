@@ -8,7 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
-import { buildTaskIncludeForViewer, type TaskWithIncludes } from "@/types/task";
+import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -44,12 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : null;
 
     const include = buildTaskIncludeForViewer(authContext, workspaceId);
-    const task = (await requireTaskReadForRouteVars(
-      c.var,
-      id,
-      prisma,
-      include,
-    )) as TaskWithIncludes;
+    const task = await requireTaskReadForRouteVars(c.var, id, prisma, include);
 
     return ok(c, taskSchema.parse(mapTask(task)));
   });

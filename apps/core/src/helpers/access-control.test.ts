@@ -443,7 +443,7 @@ describe("requireTaskReadForRouteVars", () => {
 });
 
 describe("requireTaskCommentAccess", () => {
-  it("allows a bare coworker to read a same-vendor sibling task", async () => {
+  it("allows a bare coworker to comment on a same-vendor sibling task", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123");
 
@@ -465,7 +465,7 @@ describe("requireTaskCommentAccess", () => {
       workspaceContext: null,
     };
 
-    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
+    await requireTaskCommentAccess(vars, "tsk_123", tx);
   });
 
   it("allows a session user to comment on a workspace-visible task they do not own", async () => {
@@ -1013,7 +1013,7 @@ describe("requireJobReadForRouteVars", () => {
 
     await expect(
       requireJobReadForRouteVars(vars, "job_123", tx),
-    ).rejects.toThrow("You can only access jobs assigned to your coworker");
+    ).rejects.toThrow("Job not found");
   });
 
   it("rejects a delegated coworker reading a job with no task", async () => {
