@@ -97,6 +97,7 @@ vi.mock("@/clients/masumi-payment.client", () => ({
 
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
+const BOB_USER_ID = "user_bob";
 const COWORKER_ID = "cow_123";
 
 const validMasumiPaymentBody = {
@@ -971,14 +972,14 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("attributes a delegated coworker's comment to the user and the acting coworker", async () => {
+  it("attributes a delegated coworker's comment to the acting coworker only", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn().mockResolvedValue(
           createTaskEvent({
             status: null,
             comment: "On behalf of the user",
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -1009,13 +1010,11 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    // Recorded against the delegated user, but the acting coworker is retained
-    // so the audit trail is not a forged user-only record.
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           comment: "On behalf of the user",
-          userId: USER_ID,
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),
@@ -1025,7 +1024,7 @@ describe("POST /{id}/events", () => {
   it("uses sibling-friendly comment access for delegated coworker comments", async () => {
     const siblingTask = createTask({
       coworkerId: "cow_sibling",
-      userId: USER_ID,
+      userId: BOB_USER_ID,
     });
     requireTaskCommentAccessMock.mockResolvedValueOnce(siblingTask);
 
@@ -1035,7 +1034,7 @@ describe("POST /{id}/events", () => {
           createTaskEvent({
             status: null,
             comment: "Sibling note",
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -1080,7 +1079,7 @@ describe("POST /{id}/events", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           comment: "Sibling note",
-          userId: USER_ID,
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),

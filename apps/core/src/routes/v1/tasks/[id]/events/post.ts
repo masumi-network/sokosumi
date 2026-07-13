@@ -52,7 +52,7 @@ const paramsSchema = z.object({
   }),
 });
 
-function getActorData(authContext: AuthenticationContext) {
+function getStatusEventActorData(authContext: AuthenticationContext) {
   if (isUserAuthContext(authContext)) {
     return {
       userId: authContext.userId,
@@ -60,11 +60,9 @@ function getActorData(authContext: AuthenticationContext) {
     };
   }
 
-  // A delegated coworker acts on behalf of the user: attribute the event to the
-  // delegated user, but keep the coworker that actually performed it so the
-  // audit trail honestly shows "coworker X on behalf of user Y" rather than a
-  // user-only record. Delegation only reaches tasks assigned to this coworker
-  // (see SOK-554), so the recorded coworker is the task's assigned coworker.
+  // Status transitions from a delegated coworker are attributed to the context
+  // user plus the acting coworker so the audit trail is not a forged user-only
+  // record. Writes are assignee-only, so the context user owns the task.
   if (authContext.context) {
     return {
       userId: authContext.context.userId,
@@ -72,6 +70,21 @@ function getActorData(authContext: AuthenticationContext) {
     };
   }
 
+  return {
+    userId: null,
+    coworkerId: authContext.coworkerId,
+  };
+}
+
+function getCommentEventActorData(authContext: AuthenticationContext) {
+  if (isUserAuthContext(authContext)) {
+    return {
+      userId: authContext.userId,
+      coworkerId: null,
+    };
+  }
+
+  // Coworker comments are shown by coworkerId in the UI; userId is not used.
   return {
     userId: null,
     coworkerId: authContext.coworkerId,
@@ -339,7 +352,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               origin,
               cents,
               transactionId,
-              ...getActorData(authContext),
+              ...getStatusEventActorData(authContext),
             },
           });
 
@@ -373,7 +386,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             status: null,
             comment,
             origin,
-            ...getActorData(authContext),
+            ...getCommentEventActorData(authContext),
           },
         });
 
