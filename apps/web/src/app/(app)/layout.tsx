@@ -95,7 +95,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     getPendingNoticesAction(),
     userService.getActiveOrganization(),
     coreClient.getMyCredits().catch(() => null),
-    coworkerService.listCoworkersForUi(),
+    coworkerService.listCoworkers().catch(() => []),
     hermesBetaEnabled(),
     designMdService.resolveEffectiveDesignMd(),
   ]);

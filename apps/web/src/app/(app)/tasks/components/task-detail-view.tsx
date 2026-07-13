@@ -35,7 +35,7 @@ type AgentsResult = Awaited<
   ReturnType<typeof agentService.getAvailableAgentsWithCreditsPrice>
 >;
 type CoworkersResult = Awaited<
-  ReturnType<typeof coworkerService.listCoworkersForUi>
+  ReturnType<typeof coworkerService.listCoworkers>
 >;
 type MembersResult = Awaited<
   ReturnType<typeof userService.getMyMembersWithOrganizations>
@@ -71,7 +71,7 @@ export async function TaskDetailView({
   enableAutoSwitch = false,
 }: TaskDetailViewProps) {
   const taskId = task.id;
-  const coworkersPromise = coworkerService.listCoworkersForUi();
+  const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
   const agentsPromise = agentService.getAvailableAgentsWithCreditsPrice();
   const membersPromise = userService.getMyMembersWithOrganizations();
   const sessionPromise = getSession();

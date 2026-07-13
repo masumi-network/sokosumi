@@ -33,7 +33,7 @@ export default async function GalleryPage() {
     await Promise.all([
       getAllCoreAgents(),
       coreClient.getCategories(),
-      coworkerService.listCoworkersForUi("tasks"),
+      coworkerService.listCoworkers("tasks").catch(() => []),
       getSession(),
     ]);
 

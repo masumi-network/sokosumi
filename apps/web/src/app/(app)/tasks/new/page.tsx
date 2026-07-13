@@ -15,7 +15,7 @@ export const metadata = {
 export default async function NewTaskPage() {
   const t = await getTranslations("App.Tasks.NewTask");
   const [taskCoworkers, agents, session] = await Promise.all([
-    coworkerService.listCoworkersForUi("tasks"),
+    coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
     getSession(),
   ]);

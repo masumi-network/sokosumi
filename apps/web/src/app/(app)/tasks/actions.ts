@@ -40,7 +40,7 @@ export async function loadMoreTasksColumn({
 }: LoadMoreTasksColumnParams) {
   const [session, coworkers, agents] = await Promise.all([
     getSession(),
-    coworkerService.listCoworkersForUi("tasks"),
+    coworkerService.listCoworkers("tasks").catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
 
@@ -82,7 +82,7 @@ export async function loadMoreJobs(
 ) {
   const [session, coworkers, agents] = await Promise.all([
     getSession(),
-    coworkerService.listCoworkersForUi(),
+    coworkerService.listCoworkers().catch(() => []),
     agentService.getAvailableAgentsWithCreditsPrice(),
   ]);
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;

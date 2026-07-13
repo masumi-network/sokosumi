@@ -9,7 +9,7 @@ const mapJobsToTasksViewDataMock = vi.fn();
 
 vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
-    listCoworkersForUi: (...args: unknown[]) => listCoworkersMock(...args),
+    listCoworkers: (...args: unknown[]) => listCoworkersMock(...args),
   },
 }));
 

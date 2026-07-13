@@ -94,15 +94,4 @@ describe("coworker.service", () => {
       capability: ["tasks"],
     });
   });
-
-  it("returns an empty list when listCoworkersForUi cannot reach Core", async () => {
-    coreClientMock.getCoworkers.mockRejectedValue(
-      new Error("An unexpected error occurred"),
-    );
-
-    const { coworkerService } = await import("../coworker.service");
-    const result = await coworkerService.listCoworkersForUi("tasks");
-
-    expect(result).toEqual([]);
-  });
 });
