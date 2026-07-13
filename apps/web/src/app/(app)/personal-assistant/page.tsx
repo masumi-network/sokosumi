@@ -8,6 +8,7 @@ import HermesExperience from "@/app/personal-assistant/components/hermes-experie
 import LoadingState from "@/app/personal-assistant/components/loading-state";
 import type { SubscriptionWallPlan } from "@/app/personal-assistant/components/subscription-required-dialog";
 import { getSession } from "@/lib/auth/auth.server";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   GetSubscriptionCatalogResponse,
@@ -65,14 +66,17 @@ export default async function HermesPage() {
   // landing content, the pitch) stays open to everyone. Fail closed: if the
   // credits call errors we can't confirm a subscription, so treat the user
   // as unsubscribed here. This is only the UX-level gate; provisionHermesAction
-  // re-checks server-side, which is the real enforcement.
+  // re-checks server-side, which is the real enforcement. Admins skip the
+  // wall entirely (same admin-role check used to bypass restrictions
+  // elsewhere) so the team can set up and test instances without billing.
   const [creditsResultRaw, catalogResultRaw] = await Promise.all([
     session ? coreClient.getMyCredits().catch(() => null) : null,
     session ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
   ]);
   const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const currentPlan = creditsResult?.data.subscription?.plan ?? "free";
-  const hasActiveSubscription = currentPlan !== "free";
+  const hasActiveSubscription =
+    currentPlan !== "free" || hasAdminRole(session?.user.role);
 
   // The 3 paid plans — gives the subscription wall real, clickable plan
   // links instead of a vague "upgrade to unlock". Best-effort: the wall

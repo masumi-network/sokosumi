@@ -5,6 +5,7 @@ const {
   provisionHermesInstanceMock,
   MockCoreApiRequestError,
   toCoreApiActionErrorMock,
+  mockSessionRole,
 } = vi.hoisted(() => {
   class MockCoreApiRequestError extends Error {
     status?: number;
@@ -21,6 +22,7 @@ const {
     provisionHermesInstanceMock: vi.fn(),
     MockCoreApiRequestError,
     toCoreApiActionErrorMock: vi.fn(),
+    mockSessionRole: { current: undefined as string | undefined },
   };
 });
 
@@ -37,7 +39,11 @@ vi.mock("@/middleware/auth-middleware", () => ({
       await handler({
         ...params,
         session: {
-          user: { id: "user-1", email: "ada@example.com" },
+          user: {
+            id: "user-1",
+            email: "ada@example.com",
+            role: mockSessionRole.current,
+          },
           session: { activeOrganizationId: null },
         },
       } as TParams),
@@ -76,6 +82,7 @@ const RUNNING_INSTANCE = {
 describe("provisionHermesAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSessionRole.current = undefined;
     provisionHermesInstanceMock.mockResolvedValue({ data: RUNNING_INSTANCE });
   });
 
@@ -126,5 +133,32 @@ describe("provisionHermesAction", () => {
 
     expect(result.ok).toBe(true);
     expect(provisionHermesInstanceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets an admin provision on the free plan", async () => {
+    mockSessionRole.current = "admin";
+    getMyCreditsMock.mockResolvedValue({
+      data: { subscription: { plan: "free" } },
+    });
+
+    const result = await provisionHermesAction({});
+
+    expect(result.ok).toBe(true);
+    expect(provisionHermesInstanceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still blocks a non-admin role on the free plan", async () => {
+    mockSessionRole.current = "support";
+    getMyCreditsMock.mockResolvedValue({
+      data: { subscription: { plan: "free" } },
+    });
+
+    const result = await provisionHermesAction({});
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("SUBSCRIPTION_REQUIRED");
+    }
+    expect(provisionHermesInstanceMock).not.toHaveBeenCalled();
   });
 });

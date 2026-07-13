@@ -2,13 +2,17 @@
 
 import {
   ArrowRight,
+  CalendarClock,
   Check,
+  Layers,
   ListTodo,
   Loader2,
   Mail,
   Repeat,
+  Server,
   ShieldAlert,
   Sparkles,
+  UserPlus,
   Wand2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -107,11 +111,13 @@ const JOURNEY: Array<{
 const FEATURES: Array<{
   titleKey: string;
   bodyKey: string;
+  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }> = [
-  { titleKey: "feature2Title", bodyKey: "feature2Body" },
-  { titleKey: "feature4Title", bodyKey: "feature4Body" },
-  { titleKey: "feature5Title", bodyKey: "feature5Body" },
-  { titleKey: "feature6Title", bodyKey: "feature6Body" },
+  { titleKey: "feature2Title", bodyKey: "feature2Body", Icon: UserPlus },
+  { titleKey: "feature4Title", bodyKey: "feature4Body", Icon: Server },
+  { titleKey: "feature5Title", bodyKey: "feature5Body", Icon: CalendarClock },
+  { titleKey: "feature6Title", bodyKey: "feature6Body", Icon: Layers },
+  { titleKey: "feature7Title", bodyKey: "feature7Body", Icon: SwissFlagIcon },
 ];
 
 type ExampleKey = "example1" | "example3" | "example4";
@@ -212,7 +218,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
                 <Button
                   size="lg"
                   variant="primary"
-                  className="group shadow-primary/20 hover:shadow-primary/30 h-12 gap-2 px-6 text-base shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+                  className="group h-12 gap-2 text-base"
                   onClick={onActivate}
                 >
                   <span>{t("primaryCta")}</span>
@@ -251,13 +257,20 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
               heading={t("featuresHeading")}
               marginTop="mt-6 md:mt-8"
             >
-              {/* One segmented band — hairline gaps instead of icon tiles,
-                  echoing the brand's segmented-lines principle. Quiet type
-                  does the work: title leads, muted body supports. */}
-              <ul className="border-border/50 bg-border/50 grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-4">
-                {FEATURES.map(({ titleKey, bodyKey }) => (
+              {/* One segmented band — hairline gaps, small bordered icon
+                  tiles for a quiet illustration per feature. Color stays
+                  contained to the tile (the Swiss flag keeps its native
+                  red/white, same treatment as the service logos below). */}
+              <ul className="border-border/50 bg-border/50 grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2 lg:grid-cols-5">
+                {FEATURES.map(({ titleKey, bodyKey, Icon }) => (
                   <li key={titleKey} className="bg-background p-5">
-                    <h3 className="text-foreground text-sm font-medium">
+                    <div
+                      aria-hidden
+                      className="bg-muted/60 border-border/50 text-muted-foreground flex size-9 items-center justify-center overflow-hidden rounded-lg border"
+                    >
+                      <Icon className="size-4" />
+                    </div>
+                    <h3 className="text-foreground mt-3 text-sm font-medium">
                       {t(titleKey)}
                     </h3>
                     <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
@@ -391,7 +404,7 @@ export default function EmptyState({ onActivate }: EmptyStateProps) {
                   <Button
                     size="lg"
                     variant="primary"
-                    className="group shadow-primary/20 hover:shadow-primary/30 h-12 gap-2 px-6 text-base shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+                    className="group h-12 gap-2 text-base"
                     onClick={onActivate}
                   >
                     <span>{t("primaryCta")}</span>
@@ -512,6 +525,23 @@ function JourneyRow({
 // helper. They lean on borders + type and use color only for status
 // (success check, active dot, warning) so they read as "instrument panel"
 // rather than "marketing illustration".
+
+/** Swiss flag, drawn rather than an emoji so it renders identically across
+ * platforms inside the feature icon tile. */
+function SwissFlagIcon({
+  className,
+}: {
+  className?: string;
+  "aria-hidden"?: boolean;
+}) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
+      <rect width="32" height="32" fill="#D52B1E" />
+      <rect x="13" y="7" width="6" height="18" fill="#FFFFFF" />
+      <rect x="7" y="13" width="18" height="6" fill="#FFFFFF" />
+    </svg>
+  );
+}
 
 function ActivationVisual() {
   const seed = useContext(EmptyStateSeedContext);

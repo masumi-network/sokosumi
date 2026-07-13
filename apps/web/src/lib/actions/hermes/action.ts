@@ -3,6 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 
 import type { ActionError } from "@/lib/actions";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import {
   CoreApiRequestError,
   coreClient,
@@ -168,18 +169,19 @@ export const getHermesInstanceAction = withSession<
  * Returns the post-provision state — the caller should poll
  * `getHermesInstanceAction` until status === "running".
  *
- * Requires a paid plan. This re-checks server-side (the UI already gates the
- * activate button on the same signal) so the action can't be triggered
- * directly to bypass the subscription wall.
+ * Requires a paid plan, unless the signed-in user has the admin role. This
+ * re-checks server-side (the UI already gates the activate button on the
+ * same signal) so the action can't be triggered directly to bypass the
+ * subscription wall.
  */
 export const provisionHermesAction = withSession<
   Record<string, never>,
   Result<HermesInstancePublic, ActionError>
->(async () => {
+>(async ({ session }) => {
   try {
     const creditsResult = await coreClient.getMyCredits().catch(() => null);
     const currentPlan = creditsResult?.data.subscription?.plan ?? "free";
-    if (currentPlan === "free") {
+    if (currentPlan === "free" && !hasAdminRole(session.user.role)) {
       return Err({ code: "SUBSCRIPTION_REQUIRED" });
     }
     const response = await coreClient.provisionHermesInstance();
