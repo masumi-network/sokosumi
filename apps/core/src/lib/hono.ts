@@ -82,8 +82,6 @@ export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
       { $ref: "#/components/parameters/OrganizationSlug" },
       { $ref: "#/components/parameters/ContextUserId" },
       { $ref: "#/components/parameters/ContextOrganizationId" },
-      { $ref: "#/components/parameters/DelegationUserId" },
-      { $ref: "#/components/parameters/DelegationOrganizationId" },
     ],
   } as T;
 }

@@ -72,36 +72,6 @@ app.openAPIRegistry.registerComponent("parameters", "ContextOrganizationId", {
   },
 });
 
-app.openAPIRegistry.registerComponent("parameters", "DelegationUserId", {
-  name: "X-Delegation-User-Id",
-  in: "header",
-  description:
-    "Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.",
-  required: false,
-  deprecated: true,
-  schema: {
-    type: "string",
-    example: "user_abc123",
-  },
-});
-
-app.openAPIRegistry.registerComponent(
-  "parameters",
-  "DelegationOrganizationId",
-  {
-    name: "X-Delegation-Organization-Id",
-    in: "header",
-    description:
-      "Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.",
-    required: false,
-    deprecated: true,
-    schema: {
-      type: "string",
-      example: "org_xyz789",
-    },
-  },
-);
-
 app.use(
   "*",
   cors({
