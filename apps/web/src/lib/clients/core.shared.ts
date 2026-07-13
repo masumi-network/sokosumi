@@ -271,6 +271,23 @@ function transformHistoryResponseEnvelope(data: any) {
   return data;
 }
 
+function transformTaskListResponseEnvelope(data: any) {
+  data.data = (data.data ?? []).map((item: any) => {
+    item.createdAt = toDate(item.createdAt);
+    item.updatedAt = toDate(item.updatedAt);
+    if (item.nextRunAt) {
+      item.nextRunAt = toDate(item.nextRunAt);
+    }
+
+    return item;
+  });
+  if (data.meta?.timestamp) {
+    data.meta.timestamp = toDate(data.meta.timestamp);
+  }
+
+  return data;
+}
+
 function transformTaskResponseEnvelope(data: any) {
   const task = data.data;
 
@@ -562,6 +579,8 @@ export function createCoreClient(getClient: GetClient) {
           client,
           query,
           cache: "no-store",
+          responseTransformer: async (data) =>
+            transformTaskListResponseEnvelope(data),
         }),
       "Failed to fetch tasks",
     );

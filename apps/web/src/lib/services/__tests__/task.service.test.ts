@@ -98,6 +98,33 @@ describe("task.service", () => {
     });
   });
 
+  it("returns an empty task list when core data is missing", async () => {
+    coreClientMock.getTasks.mockResolvedValue({
+      data: undefined,
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 0,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { taskService } = await import("../task.service");
+    const result = await taskService.listTasks({ limit: 20 });
+
+    expect(result).toEqual({
+      tasks: [],
+      pagination: {
+        cursor: null,
+        limit: 20,
+        total: 0,
+        nextCursor: null,
+      },
+    });
+  });
+
   it("passes through multiple statuses for the core client", async () => {
     coreClientMock.getTasks.mockResolvedValue({
       data: [buildTask()],
