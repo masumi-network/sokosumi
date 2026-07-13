@@ -27,7 +27,6 @@ export interface TaskWithCoworker {
   coworker?: Coworker | null;
   share?: TaskShare | null;
   commentsCount: number;
-  awaitingVendorApproval?: boolean;
   columnId: KanbanColumnId;
   description?: string | null;
   descriptionPlain?: string | null;

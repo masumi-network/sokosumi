@@ -259,34 +259,6 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
   return rows.map((row) => row.entityId);
 }
 
-export async function findAwaitingVendorApprovalTaskEntityIds(
-  prismaClient: HistoryPrismaClient,
-): Promise<string[]> {
-  const rows = await prismaClient.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "task" WHERE "pendingVendorGrantId" IS NOT NULL
-  `;
-
-  return rows.map((row) => row.id);
-}
-
-export function buildExcludeAwaitingVendorApprovalTaskHistoryFilter(
-  awaitingVendorApprovalTaskEntityIds: string[],
-): Prisma.HistoryWhereInput | null {
-  if (awaitingVendorApprovalTaskEntityIds.length === 0) {
-    return null;
-  }
-
-  return {
-    OR: [
-      { kind: { not: HistoryKind.TASK } },
-      {
-        kind: HistoryKind.TASK,
-        entityId: { notIn: awaitingVendorApprovalTaskEntityIds },
-      },
-    ],
-  };
-}
-
 export async function buildHistoryWhere(
   params: BuildHistoryWhereParams,
   prismaClient: HistoryPrismaClient,
@@ -363,18 +335,6 @@ export async function buildHistoryWhere(
         { description: { contains: params.q, mode: "insensitive" } },
       ],
     });
-  }
-
-  if (params.types.includes(HistoryKind.TASK)) {
-    const awaitingVendorApprovalTaskEntityIds =
-      await findAwaitingVendorApprovalTaskEntityIds(prismaClient);
-    const awaitingVendorApprovalFilter =
-      buildExcludeAwaitingVendorApprovalTaskHistoryFilter(
-        awaitingVendorApprovalTaskEntityIds,
-      );
-    if (awaitingVendorApprovalFilter) {
-      andClauses.push(awaitingVendorApprovalFilter);
-    }
   }
 
   return { AND: andClauses };

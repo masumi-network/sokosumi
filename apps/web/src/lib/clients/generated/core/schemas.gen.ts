@@ -1211,19 +1211,6 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
-        pendingVendorGrantId: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'When set, the task is awaiting vendor access approval before it can run',
-            example: null
-        },
-        awaitingVendorApproval: {
-            type: 'boolean',
-            description: 'True when the task is awaiting vendor access approval before it can run',
-            example: false
-        },
         credits: {
             type: 'number',
             example: 5
@@ -1280,8 +1267,6 @@ export const TaskSchema = {
         'status',
         'metadata',
         'nextRunAt',
-        'pendingVendorGrantId',
-        'awaitingVendorApproval',
         'credits',
         'events',
         'jobs',
@@ -1977,13 +1962,11 @@ export const VendorSchema = {
         },
         createdAt: {
             type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
+            format: 'date-time'
         },
         updatedAt: {
             type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
+            format: 'date-time'
         },
         name: {
             type: 'string',
@@ -6976,97 +6959,6 @@ export const UserSchema = {
     ]
 } as const;
 
-export const VendorGrantListSchema = {
-    type: 'array',
-    items: {
-        $ref: '#/components/schemas/VendorGrant'
-    }
-} as const;
-
-export const VendorGrantSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'vgr_123'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        scope: {
-            type: 'string',
-            enum: [
-                'VENDOR',
-                'WORKSPACE'
-            ],
-            example: 'VENDOR'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'PENDING',
-                'GRANTED',
-                'DENIED',
-                'REVOKED'
-            ],
-            example: 'PENDING'
-        },
-        vendorId: {
-            type: 'string',
-            example: '01960001-0001-7001-8001-000000000001'
-        },
-        vendor: {
-            $ref: '#/components/schemas/Vendor'
-        },
-        userId: {
-            type: 'string',
-            example: 'user_123'
-        },
-        workspaceId: {
-            type: 'string',
-            format: 'uuid',
-            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
-        },
-        workspace: {
-            $ref: '#/components/schemas/WorkspaceSummary'
-        },
-        resolvedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        awaitingVendorApprovalTaskCount: {
-            type: 'integer',
-            minimum: 0,
-            example: 1
-        }
-    },
-    required: [
-        'id',
-        'createdAt',
-        'updatedAt',
-        'scope',
-        'status',
-        'vendorId',
-        'vendor',
-        'userId',
-        'workspaceId',
-        'workspace',
-        'resolvedAt',
-        'awaitingVendorApprovalTaskCount'
-    ]
-} as const;
-
 export const MemberSchema = {
     type: 'object',
     properties: {
@@ -9564,19 +9456,6 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'Next scheduled run time for queued tasks'
         },
-        pendingVendorGrantId: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'When set, the task is awaiting vendor access approval before it can run',
-            example: null
-        },
-        awaitingVendorApproval: {
-            type: 'boolean',
-            description: 'True when the task is awaiting vendor access approval before it can run',
-            example: false
-        },
         credits: {
             type: 'number',
             example: 5
@@ -9615,8 +9494,6 @@ export const TaskListItemSchema = {
         'status',
         'metadata',
         'nextRunAt',
-        'pendingVendorGrantId',
-        'awaitingVendorApproval',
         'credits',
         'events',
         'jobs',

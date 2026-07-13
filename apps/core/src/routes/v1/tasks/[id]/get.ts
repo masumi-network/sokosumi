@@ -48,7 +48,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let task;
     if (
       isUserAuthContext(authContext) ||
-      (isCoworkerAuthContext(authContext) && authContext.delegation)
+      (isCoworkerAuthContext(authContext) && authContext.context)
     ) {
       const requiredWorkspaceContext =
         requireWorkspaceContext(workspaceContext);
@@ -59,8 +59,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           archivedAt: null,
           workspaceId: requiredWorkspaceContext.workspaceId,
         },
-        // Workspace collaborators may read an existing share token here.
-        // Share creation and deletion remain owner-only in the dedicated share routes.
         include: buildTaskIncludeForViewer(
           authContext,
           requiredWorkspaceContext.workspaceId,
@@ -74,7 +72,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           id,
           archivedAt: null,
           status: { not: TaskStatus.DRAFT },
-          coworkerId: coworkerAuthContext.coworkerId,
         },
         include: buildTaskIncludeForViewer(coworkerAuthContext),
       });

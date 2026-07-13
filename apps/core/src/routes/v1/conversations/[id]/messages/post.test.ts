@@ -62,7 +62,7 @@ const delegatedCoworker: AuthVariables["authContext"] = {
   actor: "coworker",
   coworkerId: "cow_123",
   vendorId: TEST_VENDOR_ID,
-  delegation: {
+  context: {
     userId: "delegated_user_123",
     organizationId: "delegated_org_123",
   },

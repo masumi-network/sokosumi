@@ -201,7 +201,6 @@ describe("POST /tasks", () => {
       status: TaskStatus.DRAFT,
       metadata: null,
       nextRunAt: null,
-      pendingVendorGrantId: null,
       awaitingVendorApproval: false,
       credits: 0,
       events: [],

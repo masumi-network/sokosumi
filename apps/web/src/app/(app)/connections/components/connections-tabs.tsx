@@ -6,31 +6,24 @@ import { type ReactNode, useEffect } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ConnectionsTabValue =
-  | "connected-apps"
-  | "api-keys"
-  | "mcp"
-  | "vendor-access";
+type ConnectionsTabValue = "connected-apps" | "api-keys" | "mcp";
 
 interface ConnectionsTabsProps {
   apiKeysContent: ReactNode;
   connectedAppsContent: ReactNode;
   mcpContent: ReactNode;
-  vendorAccessContent: ReactNode;
 }
 
 const ENABLED_TABS: ConnectionsTabValue[] = [
   "connected-apps",
   "api-keys",
   "mcp",
-  "vendor-access",
 ];
 
 export function ConnectionsTabs({
   apiKeysContent,
   connectedAppsContent,
   mcpContent,
-  vendorAccessContent,
 }: ConnectionsTabsProps) {
   const t = useTranslations("App.Connections");
   const [tab, setTab] = useQueryState("tab", {
@@ -74,18 +67,11 @@ export function ConnectionsTabs({
         >
           {t("tabs.mcp")}
         </TabsTrigger>
-        <TabsTrigger
-          value="vendor-access"
-          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
-        >
-          {t("tabs.vendorAccess")}
-        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="connected-apps">{connectedAppsContent}</TabsContent>
       <TabsContent value="api-keys">{apiKeysContent}</TabsContent>
       <TabsContent value="mcp">{mcpContent}</TabsContent>
-      <TabsContent value="vendor-access">{vendorAccessContent}</TabsContent>
     </Tabs>
   );
 }

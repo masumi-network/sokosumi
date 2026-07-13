@@ -1414,9 +1414,6 @@
         "inputRequired": "Saisie requise",
         "done": "Terminé"
       },
-      "AwaitingVendorApprovalBadge": {
-        "label": "Accès fournisseur en attente"
-      },
       "Actions": {
         "add": "Ajouter",
         "addTask": "Ajouter une tâche",
@@ -1654,16 +1651,7 @@
           "switchError": "Échec du changement d’espace de travail. Veuillez réessayer."
         },
         "clonedFrom": "Clonée depuis {name}",
-        "schedule": "Planification",
-        "AwaitingVendorApproval": {
-          "title": "En attente de votre approbation",
-          "description": "{vendor} a besoin de votre autorisation pour exécuter cette tâche dans cet espace de travail.",
-          "approve": "Approuver",
-          "deny": "Refuser",
-          "approveSuccess": "Accès fournisseur approuvé. Cette tâche démarrera sous peu.",
-          "denySuccess": "Accès fournisseur refusé. Cette tâche a été annulée.",
-          "actionError": "Impossible de mettre à jour l'accès fournisseur."
-        }
+        "schedule": "Planification"
       },
       "NewTask": {
         "title": "Nouvelle tâche",
@@ -3116,28 +3104,7 @@
       "tabs": {
         "connectedApps": "Applications connectées",
         "apiKeys": "Clés API",
-        "mcp": "MCP",
-        "vendorAccess": "Accès fournisseur"
-      },
-      "VendorAccess": {
-        "title": "Accès fournisseur",
-        "description": "Consultez et gérez les autorisations d'autonomie des coworkers pour vos espaces de travail.",
-        "empty": "Aucune autorisation d'accès fournisseur pour le moment.",
-        "loading": "Chargement de l'accès fournisseur…",
-        "loadError": "Impossible de charger les autorisations d'accès fournisseur.",
-        "actionError": "Impossible de mettre à jour l'accès fournisseur.",
-        "personalWorkspace": "Espace de travail personnel",
-        "scope": "Portée : {scope}",
-        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {Aucune tâche en attente} one {# tâche en attente} other {# tâches en attente}}",
-        "approve": "Approuver",
-        "deny": "Refuser",
-        "revoke": "Révoquer",
-        "status": {
-          "PENDING": "En attente",
-          "GRANTED": "Accordé",
-          "DENIED": "Refusé",
-          "REVOKED": "Révoqué"
-        }
+        "mcp": "MCP"
       }
     },
     "MCP": {

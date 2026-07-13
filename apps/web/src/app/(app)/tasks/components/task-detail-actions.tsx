@@ -109,7 +109,6 @@ interface TaskDetailActionsProps {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
-  awaitingVendorApproval?: boolean;
 }
 
 export function TaskDetailActions({
@@ -127,7 +126,6 @@ export function TaskDetailActions({
   organizations,
   personalWorkspaceLabel,
   isReadOnly = false,
-  awaitingVendorApproval = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -167,7 +165,7 @@ export function TaskDetailActions({
     null,
   );
 
-  const canMutateTask = !isReadOnly && !awaitingVendorApproval;
+  const canMutateTask = !isReadOnly;
   const statusActions = canMutateTask
     ? getTaskStatusActions(status, labels)
     : [];

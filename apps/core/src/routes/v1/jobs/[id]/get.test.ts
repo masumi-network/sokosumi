@@ -26,7 +26,7 @@ const { authContextState, prismaTransactionMock, jobFindFirstMock } =
             actor: "coworker";
             coworkerId: string;
             vendorId?: string;
-            delegation?: { userId: string; organizationId: string | null };
+            context?: { userId: string; organizationId: string | null };
           }
         | null,
     },
@@ -69,7 +69,7 @@ vi.mock("@/middleware/auth", () => ({
       userId: string;
       organizationId: string | null;
       role: string;
-      delegation?: { userId: string; organizationId: string | null };
+      context?: { userId: string; organizationId: string | null };
     };
     if (a.actor === "user") {
       return {
@@ -80,11 +80,11 @@ vi.mock("@/middleware/auth", () => ({
         role: a.role,
       };
     }
-    if (a.actor === "coworker" && a.delegation) {
+    if (a.actor === "coworker" && a.context) {
       return {
-        source: "delegation" as const,
-        userId: a.delegation.userId,
-        organizationId: a.delegation.organizationId,
+        source: "context" as const,
+        userId: a.context.userId,
+        organizationId: a.context.organizationId,
       };
     }
     throw new Error("mock requireUserContext: unsupported auth context");
@@ -350,7 +350,7 @@ describe("GET /jobs/{id}", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: TEST_VENDOR_ID,
-      delegation: { userId: "user_123", organizationId: "org_123" },
+      context: { userId: "user_123", organizationId: "org_123" },
     };
     const coworkerFindFirstMock = vi.fn().mockResolvedValue({
       id: "cow_123",
@@ -360,7 +360,6 @@ describe("GET /jobs/{id}", () => {
     const taskFindFirstMock = vi.fn().mockResolvedValue({
       id: "tsk_123",
       coworkerId: "cow_123",
-      pendingVendorGrantId: null,
       status: TaskStatus.READY,
       coworker: { vendorId: TEST_VENDOR_ID },
     });
@@ -382,12 +381,10 @@ describe("GET /jobs/{id}", () => {
       where: {
         id: "tsk_123",
         archivedAt: null,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
       },
       select: {
         coworkerId: true,
         status: true,
-        pendingVendorGrantId: true,
         coworker: {
           select: {
             vendorId: true,
@@ -402,7 +399,7 @@ describe("GET /jobs/{id}", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: TEST_VENDOR_ID,
-      delegation: { userId: "user_123", organizationId: "org_123" },
+      context: { userId: "user_123", organizationId: "org_123" },
     };
     const coworkerFindFirstMock = vi.fn().mockResolvedValue({
       id: "cow_123",
@@ -412,7 +409,6 @@ describe("GET /jobs/{id}", () => {
     const taskFindFirstMock = vi.fn().mockResolvedValue({
       id: "tsk_123",
       coworkerId: "cow_other",
-      pendingVendorGrantId: null,
       status: TaskStatus.READY,
       coworker: { vendorId: TEST_VENDOR_ID },
     });
@@ -437,7 +433,7 @@ describe("GET /jobs/{id}", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: TEST_VENDOR_ID,
-      delegation: { userId: "user_123", organizationId: "org_123" },
+      context: { userId: "user_123", organizationId: "org_123" },
     };
     const coworkerFindFirstMock = vi.fn().mockResolvedValue({
       id: "cow_123",
@@ -447,7 +443,6 @@ describe("GET /jobs/{id}", () => {
     const taskFindFirstMock = vi.fn().mockResolvedValue({
       id: "tsk_123",
       coworkerId: "cow_other",
-      pendingVendorGrantId: null,
       status: TaskStatus.READY,
       coworker: { vendorId: "other-vendor" },
     });

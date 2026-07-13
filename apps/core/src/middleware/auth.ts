@@ -18,8 +18,8 @@ export interface UserAuthenticationContext {
   role: string;
 }
 
-/** Optional user/org scope supplied by coworker API keys via delegation headers. */
-export interface CoworkerDelegation {
+/** Optional user/org workspace scope supplied by coworker API keys via context headers. */
+export interface CoworkerRequestContext {
   userId: string;
   organizationId: string | null;
 }
@@ -28,7 +28,7 @@ export interface CoworkerAuthenticationContext {
   actor: "coworker";
   coworkerId: string;
   vendorId: string;
-  delegation?: CoworkerDelegation;
+  context?: CoworkerRequestContext;
 }
 
 export type AuthenticationContext =
@@ -65,10 +65,10 @@ function syncSentryUser(context: AuthVariables) {
     id: `coworker:${coworker.coworkerId}`,
     coworkerId: coworker.coworkerId,
   });
-  if (coworker.delegation) {
-    scope.setContext("coworkerDelegation", {
-      userId: coworker.delegation.userId,
-      organizationId: coworker.delegation.organizationId,
+  if (coworker.context) {
+    scope.setContext("coworkerContext", {
+      userId: coworker.context.userId,
+      organizationId: coworker.context.organizationId,
     });
   }
 }
@@ -92,9 +92,9 @@ export function isCoworkerAuthContext(
 }
 
 /**
- * True only for a coworker acting as itself — the agent, with no delegation headers.
- * A coworker that supplies delegation acts as the delegated user, so this returns
- * false for it (use {@link requireUserContext} / the user code paths in that case).
+ * True only for a coworker acting as itself — the agent, with no context headers.
+ * A coworker that supplies workspace context acts in that user's workspace, so this
+ * returns false for it (use {@link requireUserContext} / the user code paths in that case).
  *
  * Use to gate agent-only semantics (coworker status transitions, agent task
  * payments) that must NOT apply when a coworker is impersonating a user.
@@ -106,27 +106,27 @@ export function isCoworkerAuthContext(
 export function isCoworkerAgentContext(
   authContext: AuthenticationContext,
 ): boolean {
-  return isCoworkerAuthContext(authContext) && !authContext.delegation;
+  return isCoworkerAuthContext(authContext) && !authContext.context;
 }
 
 /**
  * Effective user context for a handler: either a Better Auth session (`source: "session"`)
- * or a coworker API key with delegation headers (`source: "delegation"`). Use
+ * or a coworker API key with context headers (`source: "context"`). Use
  * {@link requireUserAuthContext} when the operation must not run under coworker
- * delegation (PII, session-bound consent, etc.).
+ * context (PII, session-bound consent, etc.).
  */
 export type UserContext =
   | ({ source: "session" } & UserAuthenticationContext)
   | {
-      source: "delegation";
+      source: "context";
       userId: string;
       organizationId: string | null;
     };
 
 /**
- * Resolves the effective user context for this request (session user or delegated
- * coworker). Coworkers must send `X-Delegation-User-Id` (and optional org header validated
- * in middleware).
+ * Resolves the effective user context for this request (session user or coworker
+ * with workspace context). Coworkers must send `X-Context-User-Id` (and optional
+ * org header validated in middleware).
  */
 export function requireUserContext(
   authContext: AuthenticationContext,
@@ -136,17 +136,17 @@ export function requireUserContext(
   }
 
   if (isCoworkerAuthContext(authContext)) {
-    const delegation = authContext.delegation;
-    if (!delegation) {
+    const context = authContext.context;
+    if (!context) {
       throw forbidden(
-        "Delegation headers (X-Delegation-User-Id) are required for this resource",
+        "Context headers (X-Context-User-Id) are required for this resource",
       );
     }
 
     return {
-      source: "delegation",
-      userId: delegation.userId,
-      organizationId: delegation.organizationId,
+      source: "context",
+      userId: context.userId,
+      organizationId: context.organizationId,
     };
   }
 
@@ -155,10 +155,10 @@ export function requireUserContext(
 
 /**
  * Requires an interactive user session (Better Auth). Rejects coworker keys,
- * including delegated ones — use for PII, session-bound operations, and any
+ * including contextual ones — use for PII, session-bound operations, and any
  * handler that must read the real session user (e.g. before an admin-role check).
  *
- * For the effective user (session or delegated coworker), use {@link requireUserContext}.
+ * For the effective user (session or contextual coworker), use {@link requireUserContext}.
  */
 export function requireUserAuthContext(
   authContext: AuthenticationContext,

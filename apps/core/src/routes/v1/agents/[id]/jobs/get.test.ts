@@ -152,7 +152,7 @@ describe("GET /agents/{id}/jobs", () => {
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
-        delegation: {
+        context: {
           userId: "user_123",
           organizationId: "org_123",
         },
@@ -174,7 +174,7 @@ describe("GET /agents/{id}/jobs", () => {
     expect(getUserJobsMock).toHaveBeenCalledWith(
       {
         userContext: {
-          source: "delegation",
+          source: "context",
           userId: "user_123",
           organizationId: "org_123",
         },

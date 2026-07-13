@@ -2,7 +2,7 @@ import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
-import { coworkerDelegationMiddleware } from "@/middleware/coworker-delegation";
+import { coworkerContextMiddleware } from "@/middleware/coworker-context";
 import { organizationHeaderMiddleware } from "@/middleware/organization";
 import {
   type WorkspaceVariables,
@@ -42,7 +42,7 @@ export type EnvVariables = {
  * Use this for OpenAPI routes that require authentication
  *
  * Auth middleware is automatically applied - all routes are protected
- * Coworker delegation middleware runs after auth to attach optional delegation scope from headers.
+ * Coworker context middleware runs after auth to attach optional workspace scope from headers.
  * Organization header middleware is also applied to set organizationId from X-Organization-Slug header
  * For mixed public/private routes, use standard OpenAPIHono class instead
  *
@@ -63,7 +63,7 @@ export class OpenAPIHonoWithAuth<
     });
 
     this.use(authMiddleware);
-    this.use(coworkerDelegationMiddleware);
+    this.use(coworkerContextMiddleware);
     this.use(organizationHeaderMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));
   }
@@ -80,6 +80,8 @@ export function withGlobalHeaderParameters<T extends RouteConfig>(route: T): T {
     parameters: [
       ...(route.parameters ?? []),
       { $ref: "#/components/parameters/OrganizationSlug" },
+      { $ref: "#/components/parameters/ContextUserId" },
+      { $ref: "#/components/parameters/ContextOrganizationId" },
       { $ref: "#/components/parameters/DelegationUserId" },
       { $ref: "#/components/parameters/DelegationOrganizationId" },
     ],

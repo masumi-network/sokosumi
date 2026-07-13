@@ -6,11 +6,8 @@ import type prisma from "@/lib/db/prisma";
 import type { UserAuthenticationContext } from "@/middleware/auth";
 
 import {
-  buildExcludeAwaitingVendorApprovalTaskHistoryFilter,
   buildHistoryArchivedFilter,
   buildHistoryStatusFilter,
-  buildHistoryWhere,
-  findAwaitingVendorApprovalTaskEntityIds,
   type HistoryRowForApi,
   mapHistoryRow,
 } from "./history";
@@ -345,121 +342,6 @@ describe("buildHistoryStatusFilter", () => {
         {
           kind: HistoryKind.JOB,
           entityId: { in: ["job_1"] },
-        },
-      ],
-    });
-  });
-});
-
-describe("buildExcludeAwaitingVendorApprovalTaskHistoryFilter", () => {
-  it("returns null when no parked tasks exist", () => {
-    expect(buildExcludeAwaitingVendorApprovalTaskHistoryFilter([])).toBeNull();
-  });
-
-  it("excludes task history rows for parked entity ids", () => {
-    expect(
-      buildExcludeAwaitingVendorApprovalTaskHistoryFilter(["tsk_parked"]),
-    ).toEqual({
-      OR: [
-        { kind: { not: HistoryKind.TASK } },
-        {
-          kind: HistoryKind.TASK,
-          entityId: { notIn: ["tsk_parked"] },
-        },
-      ],
-    });
-  });
-});
-
-describe("findAwaitingVendorApprovalTaskEntityIds", () => {
-  it("loads parked task ids from SQL", async () => {
-    const queryRawMock = vi
-      .fn()
-      .mockResolvedValue([{ id: "tsk_parked" }, { id: "tsk_parked_2" }]);
-
-    const ids = await findAwaitingVendorApprovalTaskEntityIds(
-      createHistoryPrismaClient({ $queryRaw: queryRawMock }),
-    );
-
-    expect(ids).toEqual(["tsk_parked", "tsk_parked_2"]);
-    expect(queryRawMock).toHaveBeenCalledOnce();
-  });
-});
-
-describe("buildHistoryWhere parked tasks", () => {
-  it("filters legacy parked task history rows when TASK is requested", async () => {
-    const queryRawMock = vi.fn().mockResolvedValue([{ id: "tsk_parked" }]);
-    const workspaceContext = {
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      userId: null,
-      organizationId: "org_123",
-    };
-
-    const where = await buildHistoryWhere(
-      {
-        scope: "owned",
-        types: [HistoryKind.TASK],
-        userContext: { source: "session", ...orgAuthContext },
-        workspaceContext,
-      },
-      createHistoryPrismaClient({ $queryRaw: queryRawMock }),
-    );
-
-    expect(where).toEqual({
-      AND: [
-        { archivedAt: null },
-        {
-          OR: [
-            {
-              kind: { in: [HistoryKind.TASK] },
-              workspaceId: workspaceContext.workspaceId,
-              userId: orgAuthContext.userId,
-            },
-          ],
-        },
-        {
-          OR: [
-            { kind: { not: HistoryKind.TASK } },
-            {
-              kind: HistoryKind.TASK,
-              entityId: { notIn: ["tsk_parked"] },
-            },
-          ],
-        },
-      ],
-    });
-  });
-
-  it("skips parked filtering when TASK is not requested", async () => {
-    const queryRawMock = vi.fn();
-    const workspaceContext = {
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      userId: null,
-      organizationId: "org_123",
-    };
-
-    const where = await buildHistoryWhere(
-      {
-        scope: "owned",
-        types: [HistoryKind.JOB],
-        userContext: { source: "session", ...orgAuthContext },
-        workspaceContext,
-      },
-      createHistoryPrismaClient({ $queryRaw: queryRawMock }),
-    );
-
-    expect(queryRawMock).not.toHaveBeenCalled();
-    expect(where).toEqual({
-      AND: [
-        { archivedAt: null },
-        {
-          OR: [
-            {
-              kind: { in: [HistoryKind.JOB] },
-              workspaceId: workspaceContext.workspaceId,
-              userId: orgAuthContext.userId,
-            },
-          ],
         },
       ],
     });

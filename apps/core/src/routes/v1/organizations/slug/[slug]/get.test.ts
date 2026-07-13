@@ -26,13 +26,13 @@ vi.mock("@/middleware/auth", () => ({
 
     if (
       authContext.actor === "coworker" &&
-      "delegation" in authContext &&
-      authContext.delegation
+      "context" in authContext &&
+      authContext.context
     ) {
       return {
-        source: "delegation" as const,
-        userId: authContext.delegation.userId,
-        organizationId: authContext.delegation.organizationId,
+        source: "context" as const,
+        userId: authContext.context.userId,
+        organizationId: authContext.context.organizationId,
       };
     }
 

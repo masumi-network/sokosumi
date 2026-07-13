@@ -46,7 +46,7 @@ const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
   vendorId: "01960001-0001-7001-8001-000000000001",
-  delegation: {
+  context: {
     userId: "user_delegate",
     organizationId: "org_delegate",
   },
@@ -66,20 +66,15 @@ const DELEGATED_WORKSPACE_CONTEXT = {
 
 const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
 
-const DELEGATED_COWORKER_LIST_ACCESS_FILTER = {
-  AND: [
+const COWORKER_SIBLING_LIST_FILTER = {
+  OR: [
+    { coworkerId: "cow_123" },
     {
-      OR: [
-        { coworkerId: "cow_123" },
-        {
-          pendingVendorGrantId: null,
-          status: { not: TaskStatus.DRAFT },
-          coworkerId: { not: "cow_123" },
-          coworker: {
-            vendorId: DELEGATED_VENDOR_ID,
-          },
-        },
-      ],
+      status: { not: TaskStatus.DRAFT },
+      coworkerId: { not: "cow_123" },
+      coworker: {
+        vendorId: DELEGATED_VENDOR_ID,
+      },
     },
   ],
 } as const;
@@ -90,8 +85,7 @@ function delegatedCoworkerListWhere(
   return {
     archivedAt: null,
     workspaceId: "22222222-2222-7222-8222-222222222222",
-    OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
-    ...DELEGATED_COWORKER_LIST_ACCESS_FILTER,
+    AND: [COWORKER_SIBLING_LIST_FILTER],
     ...extra,
   };
 }
@@ -203,7 +197,7 @@ describe("GET /tasks", () => {
     );
   });
 
-  it("keeps tasks awaiting vendor approval visible to the owner on scope=owned", async () => {
+  it("scopes owned task lists to the authenticated user", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/");
 
@@ -232,20 +226,7 @@ describe("GET /tasks", () => {
         where: {
           archivedAt: null,
           workspaceId: "11111111-1111-7111-8111-111111111111",
-          OR: [{ pendingVendorGrantId: null }, { userId: "user_123" }],
         },
-      }),
-    );
-  });
-
-  it("keeps tasks awaiting vendor approval visible to the owner on scope=workspace", async () => {
-    const app = createApp();
-    const response = await app.request("http://localhost/?scope=workspace");
-
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock.mock.calls[0]?.[0]?.where).toEqual(
-      expect.objectContaining({
-        OR: [{ pendingVendorGrantId: null }, { userId: "user_123" }],
       }),
     );
   });
@@ -341,12 +322,11 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          coworkerId: "cow_123",
           archivedAt: null,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
           status: {
             in: [TaskStatus.QUEUED],
           },
-          NOT: { status: { in: [TaskStatus.DRAFT] } },
         },
       }),
     );
@@ -398,38 +378,6 @@ describe("GET /tasks", () => {
       expect.objectContaining({
         where: delegatedCoworkerListWhere({
           coworkerId: "cow_999",
-        }),
-      }),
-    );
-  });
-
-  it("hides non-assignee awaiting-approval tasks from delegated workspace lists", async () => {
-    const app = createApp(
-      DELEGATED_COWORKER_AUTH_CONTEXT,
-      DELEGATED_WORKSPACE_CONTEXT,
-    );
-    const response = await app.request("http://localhost/?scope=workspace");
-
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: delegatedCoworkerListWhere(),
-      }),
-    );
-  });
-
-  it("hides non-assignee awaiting-approval tasks from delegated owned lists", async () => {
-    const app = createApp(
-      DELEGATED_COWORKER_AUTH_CONTEXT,
-      DELEGATED_WORKSPACE_CONTEXT,
-    );
-    const response = await app.request("http://localhost/?scope=owned");
-
-    expect(response.status).toBe(200);
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: delegatedCoworkerListWhere({
-          userId: "user_delegate",
         }),
       }),
     );

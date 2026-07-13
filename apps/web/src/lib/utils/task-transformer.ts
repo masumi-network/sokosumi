@@ -112,6 +112,5 @@ export function mapTaskToTaskWithCoworker(
     description: task.description ?? null,
     descriptionPlain,
     events: task.events,
-    awaitingVendorApproval: task.awaitingVendorApproval,
   };
 }

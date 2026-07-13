@@ -73,7 +73,6 @@ function createTaskApi(projectId: string | null = null) {
     status: TaskStatus.DRAFT,
     metadata: null,
     nextRunAt: null,
-    pendingVendorGrantId: null,
     awaitingVendorApproval: false,
     credits: 0,
     events: [],

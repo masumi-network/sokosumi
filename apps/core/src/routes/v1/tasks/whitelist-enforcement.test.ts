@@ -24,8 +24,6 @@ const {
     const t = task as Record<string, unknown>;
     return {
       ...t,
-      pendingVendorGrantId: t.pendingVendorGrantId ?? null,
-      awaitingVendorApproval: t.pendingVendorGrantId != null,
       user: t.user ?? {
         id: t.userId,
         name: "Task owner",
@@ -187,7 +185,6 @@ describe("task coworker whitelist enforcement", () => {
       description: null,
       metadata: null,
       nextRunAt: null,
-      pendingVendorGrantId: null,
       credits: 0,
       events: [],
       jobs: [],
@@ -239,7 +236,6 @@ describe("task coworker whitelist enforcement", () => {
                 is: {
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
-                  pendingVendorGrantId: null,
                 },
               },
             },
@@ -250,7 +246,6 @@ describe("task coworker whitelist enforcement", () => {
                 is: {
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
-                  pendingVendorGrantId: null,
                 },
               },
             },

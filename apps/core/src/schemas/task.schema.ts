@@ -80,16 +80,6 @@ const taskBaseSchema = z.object({
     description: "Next scheduled run time for queued tasks",
     example: "2026-06-24T09:00:00.000Z",
   }),
-  pendingVendorGrantId: z.string().nullable().openapi({
-    description:
-      "When set, the task is awaiting vendor access approval before it can run",
-    example: null,
-  }),
-  awaitingVendorApproval: z.boolean().openapi({
-    description:
-      "True when the task is awaiting vendor access approval before it can run",
-    example: false,
-  }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),

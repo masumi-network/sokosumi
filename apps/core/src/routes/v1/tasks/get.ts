@@ -18,11 +18,7 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
-import {
-  buildDelegatedCoworkerTaskListAccessFilter,
-  buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter,
-  buildSessionWorkspaceAwaitingVendorApprovalTaskFilter,
-} from "@/helpers/vendor-grants";
+import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -156,41 +152,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (isCoworkerAuthContext(authContext)) {
       await requireCoworkerCapability(authContext.coworkerId, "tasks");
 
-      if (authContext.delegation) {
+      if (statuses?.includes(TaskStatus.DRAFT)) {
+        throw badRequest(
+          "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
+        );
+      }
+
+      const siblingFilter = buildCoworkerSiblingTaskListFilter({
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+      });
+
+      if (authContext.context) {
         const workspaceContext = requireWorkspaceContext(
           c.var.workspaceContext,
         );
         where = {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          ...buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter(
-            authContext.coworkerId,
-          ),
-          ...buildDelegatedCoworkerTaskListAccessFilter({
-            coworkerId: authContext.coworkerId,
-            vendorId: authContext.vendorId,
-          }),
-          ...(scope === "owned"
-            ? { userId: authContext.delegation.userId }
-            : {}),
+          AND: [siblingFilter],
+          ...(scope === "owned" ? { userId: authContext.context.userId } : {}),
           ...(statuses ? { status: { in: statuses } } : {}),
           ...(coworkerId ? { coworkerId } : {}),
           ...projectFilter,
           ...searchFilter,
         };
       } else {
-        if (statuses?.includes(TaskStatus.DRAFT)) {
-          throw badRequest(
-            "Coworkers cannot filter by DRAFT status. DRAFT tasks are not accessible to coworkers.",
-          );
-        }
         where = {
-          coworkerId: authContext.coworkerId,
           archivedAt: null,
+          AND: [siblingFilter],
           ...(statuses ? { status: { in: statuses } } : {}),
           ...projectFilter,
           ...searchFilter,
-          NOT: { status: { in: [TaskStatus.DRAFT] } },
         };
       }
     } else {
@@ -198,11 +191,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where = {
         archivedAt: null,
         workspaceId: workspaceContext.workspaceId,
-        ...(scope === "workspace"
-          ? buildSessionWorkspaceAwaitingVendorApprovalTaskFilter(
-              authContext.userId,
-            )
-          : {}),
         ...(scope === "owned" ? { userId: authContext.userId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
         ...(coworkerId ? { coworkerId } : {}),

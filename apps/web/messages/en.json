@@ -1425,9 +1425,6 @@
         "inputRequired": "Input Required",
         "done": "Done"
       },
-      "AwaitingVendorApprovalBadge": {
-        "label": "Pending vendor access"
-      },
       "Actions": {
         "add": "Add",
         "addTask": "Add Task",
@@ -1665,16 +1662,7 @@
           "switchError": "Failed to switch workspace. Please try again."
         },
         "clonedFrom": "Cloned from {name}",
-        "schedule": "Schedule",
-        "AwaitingVendorApproval": {
-          "title": "Waiting for your approval",
-          "description": "{vendor} needs your permission to run this task in this workspace.",
-          "approve": "Approve",
-          "deny": "Deny",
-          "approveSuccess": "Vendor access approved. This task will start shortly.",
-          "denySuccess": "Vendor access denied. This task was canceled.",
-          "actionError": "Could not update vendor access."
-        }
+        "schedule": "Schedule"
       },
       "NewTask": {
         "title": "New Task",
@@ -3212,28 +3200,7 @@
       "tabs": {
         "connectedApps": "Connected Apps",
         "apiKeys": "API Keys",
-        "mcp": "MCP",
-        "vendorAccess": "Vendor access"
-      },
-      "VendorAccess": {
-        "title": "Vendor access",
-        "description": "Review and manage coworker autonomy grants for your workspaces.",
-        "empty": "No vendor access grants yet.",
-        "loading": "Loading vendor access…",
-        "loadError": "Could not load vendor access grants.",
-        "actionError": "Could not update vendor access.",
-        "personalWorkspace": "Personal workspace",
-        "scope": "Scope: {scope}",
-        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {No tasks awaiting vendor approval} one {# task awaiting vendor approval} other {# tasks awaiting vendor approval}}",
-        "approve": "Approve",
-        "deny": "Deny",
-        "revoke": "Revoke",
-        "status": {
-          "PENDING": "Pending",
-          "GRANTED": "Granted",
-          "DENIED": "Denied",
-          "REVOKED": "Revoked"
-        }
+        "mcp": "MCP"
       }
     },
     "MCP": {

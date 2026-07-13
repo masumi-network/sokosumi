@@ -1,30 +1,20 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
+import { TaskEventOrigin } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
-import { errorResponseSchema, forbidden, notFound } from "@/helpers/error";
-import {
-  jsonContent,
-  jsonErrorResponse,
-  jsonSuccessResponse,
-} from "@/helpers/openapi";
+import { notFound } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
-import {
-  getDelegatedVendorGrantState,
-  isGrantDenied,
-  isVendorGrantEnabled,
-} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
-import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
+import { requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
@@ -93,15 +83,8 @@ const route = withGlobalHeaderParameters(
       201: jsonSuccessResponse(taskSchema, "Create task"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
-      403: {
-        description:
-          "Forbidden. Delegated coworker create may return kind `grant_denied` when vendor access was denied or revoked.",
-        content: jsonContent(errorResponseSchema),
-      },
+      403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse(
-        "Conflict — vendor grant upsert concurrency while creating a task awaiting vendor approval",
-      ),
     },
   }),
 );
@@ -113,18 +96,10 @@ async function createTaskRecord(
     workspaceId: string;
     body: z.infer<typeof createTaskRequestSchema>;
     resolvedName: string;
-    pendingVendorGrantId?: string | null;
   },
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
 ) {
-  const {
-    body,
-    organizationId,
-    pendingVendorGrantId,
-    resolvedName,
-    userId,
-    workspaceId,
-  } = params;
+  const { body, organizationId, resolvedName, userId, workspaceId } = params;
 
   if (body.projectId !== null && body.projectId !== undefined) {
     const project = await tx.project.findFirst({
@@ -152,7 +127,6 @@ async function createTaskRecord(
       status: body.status,
       metadata: null,
       nextRunAt: null,
-      pendingVendorGrantId: pendingVendorGrantId ?? null,
       events: {
         create: {
           status: body.status,
@@ -188,91 +162,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskAssignableCoworker(body.coworkerId);
     }
 
-    const shouldEnforceGrant =
-      isVendorGrantEnabled() &&
-      isCoworkerAuthContext(authContext) &&
-      authContext.delegation;
-
-    if (!shouldEnforceGrant) {
-      const task = await prisma.$transaction(async (tx) =>
-        createTaskRecord(
-          {
-            userId: userContext.userId,
-            organizationId: userContext.organizationId,
-            workspaceId: workspaceContext.workspaceId,
-            body,
-            resolvedName,
-          },
-          tx,
-        ),
-      );
-
-      return created(c, taskSchema.parse(mapTask(task)));
-    }
-
-    const grantState = await getDelegatedVendorGrantState({
-      actorVendorId: authContext.vendorId,
-      userId: userContext.userId,
-      workspaceId: workspaceContext.workspaceId,
-      assigneeCoworkerId: body.coworkerId,
-    });
-
-    if (grantState.granted) {
-      const task = await prisma.$transaction(async (tx) =>
-        createTaskRecord(
-          {
-            userId: userContext.userId,
-            organizationId: userContext.organizationId,
-            workspaceId: workspaceContext.workspaceId,
-            body,
-            resolvedName,
-          },
-          tx,
-        ),
-      );
-
-      return created(c, taskSchema.parse(mapTask(task)));
-    }
-
-    const task = await serializableTransaction(async (tx) => {
-      const grant = await tx.vendorGrant.upsert({
-        where: {
-          vendorId_userId_workspaceId_scope: {
-            vendorId: authContext.vendorId,
-            userId: userContext.userId,
-            workspaceId: workspaceContext.workspaceId,
-            scope: grantState.scope,
-          },
-        },
-        create: {
-          vendorId: authContext.vendorId,
-          userId: userContext.userId,
-          workspaceId: workspaceContext.workspaceId,
-          scope: grantState.scope,
-          status: VendorGrantStatus.PENDING,
-        },
-        update: {},
-        select: { id: true, status: true },
-      });
-
-      if (isGrantDenied(grant.status)) {
-        throw forbidden("Vendor access was denied for this workspace", {
-          kind: "grant_denied",
-        });
-      }
-
-      return createTaskRecord(
+    const task = await prisma.$transaction(async (tx) =>
+      createTaskRecord(
         {
           userId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           body,
           resolvedName,
-          pendingVendorGrantId: grant.id,
         },
         tx,
-      );
-    }, "Could not create task awaiting vendor approval");
+      ),
+    );
 
     return created(c, taskSchema.parse(mapTask(task)));
   });

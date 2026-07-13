@@ -64,7 +64,6 @@ model User {
 
   // Coworkers
   coworkers Coworker[]
-  vendorGrants VendorGrant[]
   workspace Workspace?
 
   tasks          Task[]
@@ -225,24 +224,11 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs         Job[]
-  tasks        Task[]
-  projects     Project[]
-  vendorGrants VendorGrant[]
+  jobs     Job[]
+  tasks    Task[]
+  projects Project[]
 
   @@map("workspace")
-}
-
-enum VendorGrantScope {
-  VENDOR
-  WORKSPACE
-}
-
-enum VendorGrantStatus {
-  PENDING
-  GRANTED
-  DENIED
-  REVOKED
 }
 
 model Vendor {
@@ -255,36 +241,9 @@ model Vendor {
   logoLight String?
   logoDark  String?
 
-  coworkers    Coworker[]
-  vendorGrants VendorGrant[]
+  coworkers Coworker[]
 
   @@map("vendor")
-}
-
-model VendorGrant {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  scope  VendorGrantScope
-  status VendorGrantStatus @default(PENDING)
-
-  vendorId String @db.Uuid
-  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  workspaceId String    @db.Uuid
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  resolvedAt DateTime?
-
-  tasksAwaitingVendorApproval Task[] @relation("TasksAwaitingVendorApproval")
-
-  @@unique([vendorId, userId, workspaceId, scope])
-  @@index([userId, status])
-  @@map("vendor_grant")
 }
 
 enum HistoryKind {
@@ -1262,9 +1221,6 @@ model Task {
   coworkerId String?
   coworker   Coworker? @relation(fields: [coworkerId], references: [id], onDelete: SetNull)
 
-  pendingVendorGrantId String?    @db.Uuid
-  pendingVendorGrant   VendorGrant? @relation("TasksAwaitingVendorApproval", fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
-
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
@@ -1289,7 +1245,6 @@ model Task {
   @@index([userId, organizationId])
   @@index([projectId])
   @@index([status, nextRunAt])
-  @@index([pendingVendorGrantId])
   @@map("task")
 }
 

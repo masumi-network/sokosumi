@@ -285,14 +285,6 @@ export type Task = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
-    /**
-     * When set, the task is awaiting vendor access approval before it can run
-     */
-    pendingVendorGrantId: string | null;
-    /**
-     * True when the task is awaiting vendor access approval before it can run
-     */
-    awaitingVendorApproval: boolean;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2008,23 +2000,6 @@ export type User = {
     role: string;
 };
 
-export type VendorGrantList = Array<VendorGrant>;
-
-export type VendorGrant = {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    scope: 'VENDOR' | 'WORKSPACE';
-    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
-    vendorId: string;
-    vendor: Vendor;
-    userId: string;
-    workspaceId: string;
-    workspace: WorkspaceSummary;
-    resolvedAt: Date | null;
-    awaitingVendorApprovalTaskCount: number;
-};
-
 export type Member = {
     id: string;
     organizationId: string;
@@ -2633,14 +2608,6 @@ export type TaskListItem = {
      * Next scheduled run time for queued tasks
      */
     nextRunAt: Date | null;
-    /**
-     * When set, the task is awaiting vendor access approval before it can run
-     */
-    pendingVendorGrantId: string | null;
-    /**
-     * True when the task is awaiting vendor access approval before it can run
-     */
-    awaitingVendorApproval: boolean;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -2792,12 +2759,26 @@ export type WorkspaceOrganization = {
 export type OrganizationSlug = string;
 
 /**
- * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+ * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
+ */
+export type ContextUserId = string;
+
+/**
+ * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
+ */
+export type ContextOrganizationId = string;
+
+/**
+ * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+ *
+ * @deprecated
  */
 export type DelegationUserId = string;
 
 /**
- * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+ * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+ *
+ * @deprecated
  */
 export type DelegationOrganizationId = string;
 
@@ -4540,7 +4521,7 @@ export type DeleteAdminVendorErrors = {
         };
     };
     /**
-     * Conflict - vendor is referenced by coworkers or pending grants
+     * Conflict - vendor is referenced by coworkers
      */
     409: {
         error: string;
@@ -4677,11 +4658,15 @@ export type GetAgentsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4760,11 +4745,15 @@ export type GetAgentsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4832,11 +4821,15 @@ export type GetAgentsByIdReviewsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4913,11 +4906,15 @@ export type GetAgentsByIdReviewsMeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -4985,11 +4982,15 @@ export type GetAgentsByIdRatingsEligibilityData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -5057,11 +5058,15 @@ export type PostAgentsByIdRatingsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -5157,11 +5162,15 @@ export type GetAgentsByIdInputSchemaData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -6178,11 +6187,15 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7237,11 +7250,15 @@ export type PostAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7379,11 +7396,15 @@ export type GetCategoriesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7435,11 +7456,15 @@ export type GetChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7656,11 +7681,15 @@ export type PostChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -7803,11 +7832,15 @@ export type GetChatStreamByConversationIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8076,11 +8109,15 @@ export type GetConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8160,11 +8197,15 @@ export type PostConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8258,11 +8299,15 @@ export type GetConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8361,11 +8406,15 @@ export type PatchConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8464,11 +8513,15 @@ export type GetConversationsByIdWarmupData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8567,11 +8620,15 @@ export type PatchConversationsByIdArchiveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8670,11 +8727,15 @@ export type GetConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -8782,11 +8843,15 @@ export type PostConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10029,11 +10094,15 @@ export type PostHermesChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10152,11 +10221,15 @@ export type DeleteHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10236,11 +10309,15 @@ export type GetHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10320,11 +10397,15 @@ export type PatchHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10432,11 +10513,15 @@ export type PostHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10530,11 +10615,15 @@ export type GetHermesMeMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10609,11 +10698,15 @@ export type GetHermesMeUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10679,11 +10772,15 @@ export type PostHermesMeInboxSeenData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10763,11 +10860,15 @@ export type PostHermesMeSecretsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10875,11 +10976,15 @@ export type PostHermesMeInstanceOnboardData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -10973,11 +11078,15 @@ export type GetHermesMeInstanceOnboardingProgressData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11057,11 +11166,15 @@ export type GetHermesMeInstanceIntegrationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11141,11 +11254,15 @@ export type GetHermesMeInstanceSchedulesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11225,11 +11342,15 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11339,11 +11460,15 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11439,11 +11564,15 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11539,11 +11668,15 @@ export type DeleteHermesMeInstanceIntegrationsByProviderData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11625,11 +11758,15 @@ export type PostHermesMeInstanceIntegrationsInitiateData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11723,11 +11860,15 @@ export type PostHermesMeInstanceIntegrationsFinalizeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11821,11 +11962,15 @@ export type GetHermesMeInstanceSkillsCatalogData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11895,11 +12040,15 @@ export type GetHermesMeInstanceSkillsCatalogSearchData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -11968,11 +12117,15 @@ export type GetHermesMeInstanceSkillsCatalogCuratedData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12038,11 +12191,15 @@ export type GetHermesMeInstanceSkillsCatalogDetailData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12125,11 +12282,15 @@ export type GetHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12195,11 +12356,15 @@ export type PostHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12321,11 +12486,15 @@ export type GetHermesMeInstanceSkillsPreinstalledData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12391,11 +12560,15 @@ export type DeleteHermesMeInstanceSkillsBySlugData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12491,11 +12664,15 @@ export type GetHistoryData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -12702,11 +12879,15 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14651,11 +14832,15 @@ export type GetUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14754,11 +14939,15 @@ export type PostUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14857,11 +15046,15 @@ export type GetUsersByIdBillingDetailsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -14960,11 +15153,15 @@ export type GetUsersByIdSubscriptionData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -15143,449 +15340,6 @@ export type GetUsersByIdResponses = {
 };
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
-
-export type GetUsersByIdVendorAccessData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
-         */
-        id: string;
-    };
-    query?: {
-        /**
-         * Comma-separated vendor grant status filters
-         */
-        status?: Array<'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED'>;
-    };
-    url: '/users/{id}/vendor-access';
-};
-
-export type GetUsersByIdVendorAccessErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdVendorAccessError = GetUsersByIdVendorAccessErrors[keyof GetUsersByIdVendorAccessErrors];
-
-export type GetUsersByIdVendorAccessResponses = {
-    /**
-     * Retrieve the user's vendor access grants
-     */
-    200: {
-        data: VendorGrantList;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdVendorAccessResponse = GetUsersByIdVendorAccessResponses[keyof GetUsersByIdVendorAccessResponses];
-
-export type PostUsersByIdVendorAccessByGrantIdApproveData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
-         */
-        id: string;
-        /**
-         * Vendor grant ID
-         */
-        grantId: string;
-    };
-    query?: never;
-    url: '/users/{id}/vendor-access/{grantId}/approve';
-};
-
-export type PostUsersByIdVendorAccessByGrantIdApproveErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdVendorAccessByGrantIdApproveError = PostUsersByIdVendorAccessByGrantIdApproveErrors[keyof PostUsersByIdVendorAccessByGrantIdApproveErrors];
-
-export type PostUsersByIdVendorAccessByGrantIdApproveResponses = {
-    /**
-     * Vendor access grant approved
-     */
-    200: {
-        data: VendorGrant;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdVendorAccessByGrantIdApproveResponse = PostUsersByIdVendorAccessByGrantIdApproveResponses[keyof PostUsersByIdVendorAccessByGrantIdApproveResponses];
-
-export type PostUsersByIdVendorAccessByGrantIdDenyData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
-         */
-        id: string;
-        /**
-         * Vendor grant ID
-         */
-        grantId: string;
-    };
-    query?: never;
-    url: '/users/{id}/vendor-access/{grantId}/deny';
-};
-
-export type PostUsersByIdVendorAccessByGrantIdDenyErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdVendorAccessByGrantIdDenyError = PostUsersByIdVendorAccessByGrantIdDenyErrors[keyof PostUsersByIdVendorAccessByGrantIdDenyErrors];
-
-export type PostUsersByIdVendorAccessByGrantIdDenyResponses = {
-    /**
-     * Vendor access grant denied
-     */
-    200: {
-        data: VendorGrant;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdVendorAccessByGrantIdDenyResponse = PostUsersByIdVendorAccessByGrantIdDenyResponses[keyof PostUsersByIdVendorAccessByGrantIdDenyResponses];
-
-export type PostUsersByIdVendorAccessByGrantIdRevokeData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated session user, or a user id when the caller may access that user's data.
-         */
-        id: string;
-        /**
-         * Vendor grant ID
-         */
-        grantId: string;
-    };
-    query?: never;
-    url: '/users/{id}/vendor-access/{grantId}/revoke';
-};
-
-export type PostUsersByIdVendorAccessByGrantIdRevokeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdVendorAccessByGrantIdRevokeError = PostUsersByIdVendorAccessByGrantIdRevokeErrors[keyof PostUsersByIdVendorAccessByGrantIdRevokeErrors];
-
-export type PostUsersByIdVendorAccessByGrantIdRevokeResponses = {
-    /**
-     * Vendor access grant revoked
-     */
-    200: {
-        data: VendorGrant;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdVendorAccessByGrantIdRevokeResponse = PostUsersByIdVendorAccessByGrantIdRevokeResponses[keyof PostUsersByIdVendorAccessByGrantIdRevokeResponses];
 
 export type GetOrganizationBySlugData = {
     body?: never;
@@ -17083,11 +16837,15 @@ export type GetProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17176,11 +16934,15 @@ export type PostProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17246,11 +17008,15 @@ export type GetProjectsStatsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17335,11 +17101,15 @@ export type PostProjectsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17435,11 +17205,15 @@ export type DeleteProjectsByIdJobsByJobIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17522,11 +17296,15 @@ export type PostProjectsByIdTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17622,11 +17400,15 @@ export type DeleteProjectsByIdTasksByTaskIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17709,11 +17491,15 @@ export type DeleteProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17795,11 +17581,15 @@ export type GetProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17881,11 +17671,15 @@ export type PatchProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -17981,11 +17775,15 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18090,11 +17888,15 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18192,11 +17994,15 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18306,11 +18112,15 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18420,11 +18230,15 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18520,11 +18334,15 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18620,11 +18438,15 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18735,11 +18557,15 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18877,11 +18703,15 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -18977,11 +18807,15 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19067,11 +18901,15 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19155,11 +18993,15 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19269,11 +19111,15 @@ export type GetNotificationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19370,11 +19216,15 @@ export type GetNotificationsUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19440,11 +19290,15 @@ export type PatchNotificationsByIdReadData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -19543,11 +19397,15 @@ export type PatchNotificationsReadAllData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -20717,11 +20575,15 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -20844,11 +20706,15 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Deprecated. Use X-Context-User-Id instead. Optional workspace user id when authenticating as a coworker API key.
+         *
+         * @deprecated
          */
         'X-Delegation-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Deprecated. Use X-Context-Organization-Id instead. Requires X-Delegation-User-Id or X-Context-User-Id.
+         *
+         * @deprecated
          */
         'X-Delegation-Organization-Id'?: string;
     };
@@ -20887,7 +20753,7 @@ export type PostTasksErrors = {
         };
     };
     /**
-     * Forbidden. Delegated coworker create may return kind `grant_denied` when vendor access was denied or revoked.
+     * Forbidden
      */
     403: {
         error: string;
@@ -20904,20 +20770,6 @@ export type PostTasksErrors = {
      * Not Found
      */
     404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict — vendor grant upsert concurrency while creating a task awaiting vendor approval
-     */
-    409: {
         error: string;
         message: string;
         kind?: string;

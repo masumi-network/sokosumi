@@ -102,13 +102,6 @@ describe("taskSchedulesSyncService", () => {
     });
 
     expect(result.cloned).toBe(1);
-    expect(mockFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          pendingVendorGrantId: null,
-        }),
-      }),
-    );
     expect(mockTaskCreate).toHaveBeenCalledTimes(3);
     expect(publishTaskEventDataMock).toHaveBeenCalledTimes(3);
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({

@@ -40,25 +40,22 @@ function buildVisiblePeerTaskWhere(
 ): Prisma.TaskWhereInput {
   switch (authContext.actor) {
     case "coworker": {
-      if (authContext.delegation) {
+      if (authContext.context) {
         if (workspaceId) {
           return {
             workspaceId,
             archivedAt: null,
-            pendingVendorGrantId: null,
           };
         }
 
         return {
-          userId: authContext.delegation.userId,
-          pendingVendorGrantId: null,
+          userId: authContext.context.userId,
         };
       }
 
       return {
         coworkerId: authContext.coworkerId,
         archivedAt: null,
-        pendingVendorGrantId: null,
         NOT: {
           status: {
             in: [TaskStatus.DRAFT],
@@ -71,13 +68,11 @@ function buildVisiblePeerTaskWhere(
         return {
           workspaceId,
           archivedAt: null,
-          pendingVendorGrantId: null,
         };
       }
 
       return {
         userId: authContext.userId,
-        pendingVendorGrantId: null,
       };
     }
     default: {

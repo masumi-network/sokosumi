@@ -142,35 +142,4 @@ describe("TaskEditModalPage", () => {
     expect(taskEditModalMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("auto-context-switch")).toBeInTheDocument();
   });
-
-  it("redirects to task detail when the task is awaiting vendor approval", async () => {
-    getTaskByIdMock.mockResolvedValue({
-      id: "task_1",
-      name: "Parked task",
-      description: "Desc",
-      coworkerId: "cow_123",
-      status: "DRAFT",
-      awaitingVendorApproval: true,
-      workspace: {
-        organizationId: "org-current",
-      },
-    });
-    getSessionMock.mockResolvedValue({
-      session: {
-        activeOrganizationId: "org-current",
-      },
-    });
-
-    const { default: TaskEditModalPage } = await import("../page");
-
-    await expect(
-      TaskEditModalPage({
-        params: Promise.resolve({
-          taskId: "task_1",
-        }),
-      }),
-    ).rejects.toThrow("redirect:/tasks/task_1");
-
-    expect(taskEditModalMock).not.toHaveBeenCalled();
-  });
 });

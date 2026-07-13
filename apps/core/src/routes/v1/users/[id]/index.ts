@@ -26,7 +26,6 @@ import mountGetUserSubscription from "./subscription/get.js";
 import mountGetUserUploads from "./uploads/get.js";
 import mountPostUserUploads from "./uploads/post.js";
 import mountPostUserUtmAttribution from "./utm-attribution/post.js";
-import vendorAccessRouter from "./vendor-access/index.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
@@ -55,6 +54,5 @@ mountPostUserStripeCustomer(app);
 mountGetUserBillingDetails(app);
 mountGetUserSubscription(app);
 mountGetUserById(app);
-app.route("/vendor-access", vendorAccessRouter);
 
 export default app;

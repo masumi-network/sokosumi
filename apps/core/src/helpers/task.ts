@@ -291,8 +291,6 @@ function mapTaskBase(task: TaskListItemWithIncludes | TaskWithIncludes) {
     status: task.status,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
-    pendingVendorGrantId: task.pendingVendorGrantId ?? null,
-    awaitingVendorApproval: task.pendingVendorGrantId != null,
     events: task.events.map(mapTaskEvent),
     jobs: task.jobs.map(flattenJob),
     credits,

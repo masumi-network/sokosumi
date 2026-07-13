@@ -59,15 +59,8 @@ export function statusForColumn(columnId: KanbanColumnId): TaskStatus | null {
 
 /** Scheduled backlog tasks must not be dragged; status changes require clearing the schedule first. */
 export function isTaskDnDDraggable(
-  task: Pick<
-    TaskWithCoworker,
-    "status" | "metadata" | "nextRunAt" | "awaitingVendorApproval"
-  >,
+  task: Pick<TaskWithCoworker, "status" | "metadata" | "nextRunAt">,
 ): boolean {
-  if (task.awaitingVendorApproval) {
-    return false;
-  }
-
   if (task.status !== TaskStatus.QUEUED) {
     return true;
   }

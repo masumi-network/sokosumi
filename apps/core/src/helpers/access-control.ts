@@ -20,11 +20,9 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import {
-  isTaskAwaitingVendorApproval,
-  isVendorSiblingInWorkspace,
+  isSameVendorSiblingTask,
   loadTaskForSiblingCheck,
-  requireTaskNotAwaitingVendorApproval,
-} from "./vendor-grants";
+} from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
 // User ownership (resource belongs to the authenticated user)
@@ -62,7 +60,6 @@ export async function requireTaskOwnership(
   userContext: UserContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
-  options?: { allowAwaitingVendorApproval?: boolean },
 ): Promise<Task> {
   const task = await tx.task.findFirst({
     where: {
@@ -74,10 +71,6 @@ export async function requireTaskOwnership(
 
   if (!task) {
     throw notFound("Task not found");
-  }
-
-  if (!options?.allowAwaitingVendorApproval) {
-    requireTaskNotAwaitingVendorApproval(task);
   }
 
   return task;
@@ -173,8 +166,35 @@ export async function requireTaskAssignableCoworker(
 // -----------------------------------------------------------------------------
 
 /**
+ * Coworker branch of task read: assignee or same-vendor sibling (non-DRAFT).
+ */
+export async function requireCoworkerTaskRead(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  workspaceId: string | null,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+
+  const taskForSibling = await loadTaskForSiblingCheck(taskId, workspaceId, tx);
+  assertCoworkerCanReadTask(authContext, taskForSibling);
+
+  const task = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      archivedAt: null,
+      ...(workspaceId ? { workspaceId } : {}),
+    },
+  });
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  return task;
+}
+
+/**
  * Coworker branch of task read: tasks capability, task exists (non-draft), and assignment to this coworker.
- * Does not block tasks awaiting vendor approval — assignees may list and read them while approval is pending.
  */
 export async function requireCoworkerAssignedTaskRead(
   authContext: CoworkerAuthenticationContext,
@@ -224,24 +244,10 @@ export async function requireCoworkerTaskCollaboration(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  const task = await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
-  requireTaskNotAwaitingVendorApproval(task);
-  return task;
+  return await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
 }
 
-function assertUserCanReadTaskAwaitingVendorApproval(
-  userContext: UserContext,
-  task: Pick<Task, "userId" | "pendingVendorGrantId">,
-) {
-  if (
-    isTaskAwaitingVendorApproval(task) &&
-    task.userId !== userContext.userId
-  ) {
-    throw notFound("Task not found");
-  }
-}
-
-function assertDelegatedCanReadTask(
+function assertCoworkerCanReadTask(
   coworker: CoworkerAuthenticationContext,
   task: Awaited<ReturnType<typeof loadTaskForSiblingCheck>>,
 ) {
@@ -249,19 +255,11 @@ function assertDelegatedCanReadTask(
     throw notFound("Task not found");
   }
 
-  if (isTaskAwaitingVendorApproval(task)) {
-    if (task.coworkerId === coworker.coworkerId) {
-      return;
-    }
-
-    throw notFound("Task not found");
-  }
-
   if (task.coworkerId === coworker.coworkerId) {
     return;
   }
 
-  if (isVendorSiblingInWorkspace(coworker, task)) {
+  if (isSameVendorSiblingTask(coworker, task)) {
     return;
   }
 
@@ -286,14 +284,14 @@ export async function requireTaskCollaboration(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
+  if (coworker.context) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
     const task = await requireTaskOwnership(
       {
-        source: "delegation",
-        userId: coworker.delegation.userId,
-        organizationId: coworker.delegation.organizationId,
+        source: "context",
+        userId: coworker.context.userId,
+        organizationId: coworker.context.organizationId,
       },
       taskId,
       tx,
@@ -310,8 +308,7 @@ export async function requireTaskCollaboration(
 }
 
 /**
- * Comment access: workspace-visible session users, or assigned / same-vendor sibling
- * delegated coworkers (workspace-bound).
+ * Comment access: workspace-visible session users, or assignee / same-vendor sibling coworkers.
  */
 export async function requireTaskCommentAccess(
   vars: EnvVariables["Variables"],
@@ -321,44 +318,21 @@ export async function requireTaskCommentAccess(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    const userContext = requireUserContext(authContext);
-    const task = await requireTaskReadForWorkspace(
+    requireUserContext(authContext);
+    return await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
     );
-    assertUserCanReadTaskAwaitingVendorApproval(userContext, task);
-    requireTaskNotAwaitingVendorApproval(task);
-    return task;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
-    const workspace = requireWorkspaceContext(workspaceContext);
-    const taskForSibling = await loadTaskForSiblingCheck(
-      taskId,
-      workspace.workspaceId,
-      tx,
-    );
-    assertDelegatedCanReadTask(coworker, taskForSibling);
+  const workspaceId =
+    coworker.context && workspaceContext
+      ? requireWorkspaceContext(workspaceContext).workspaceId
+      : null;
 
-    const task = await tx.task.findFirst({
-      where: {
-        id: taskId,
-        archivedAt: null,
-        workspaceId: workspace.workspaceId,
-      },
-    });
-    if (!task) {
-      throw notFound("Task not found");
-    }
-
-    requireTaskNotAwaitingVendorApproval(task);
-    return task;
-  }
-
-  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
 // -----------------------------------------------------------------------------
@@ -403,42 +377,21 @@ export async function requireTaskReadForRouteVars(
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    const userContext = requireUserContext(authContext);
-    const task = await requireTaskReadForWorkspace(
+    requireUserContext(authContext);
+    return await requireTaskReadForWorkspace(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
     );
-    assertUserCanReadTaskAwaitingVendorApproval(userContext, task);
-    return task;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
-    const workspace = requireWorkspaceContext(workspaceContext);
-    const taskForSibling = await loadTaskForSiblingCheck(
-      taskId,
-      workspace.workspaceId,
-      tx,
-    );
-    assertDelegatedCanReadTask(coworker, taskForSibling);
+  const workspaceId =
+    coworker.context && workspaceContext
+      ? requireWorkspaceContext(workspaceContext).workspaceId
+      : null;
 
-    const task = await tx.task.findFirst({
-      where: {
-        id: taskId,
-        archivedAt: null,
-        workspaceId: workspace.workspaceId,
-      },
-    });
-    if (!task) {
-      throw notFound("Task not found");
-    }
-
-    return task;
-  }
-
-  return await requireCoworkerAssignedTaskRead(coworker, taskId, tx);
+  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
 /**
@@ -530,7 +483,7 @@ export async function requireConversationCoworkerAccess(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (!coworker.delegation) {
+  if (!coworker.context) {
     throw forbidden("Delegation is required for this resource");
   }
 
@@ -604,10 +557,9 @@ async function assertJobAssignedToCoworker(
   }
 }
 
-async function assertDelegatedCanReadJob(
+async function assertCoworkerCanReadJob(
   coworker: CoworkerAuthenticationContext,
   job: Job,
-  workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
   if (job.taskId === null) {
@@ -616,20 +568,14 @@ async function assertDelegatedCanReadJob(
 
   const taskForSibling = await loadTaskForSiblingCheck(
     job.taskId,
-    workspaceId,
+    job.workspaceId,
     tx,
   );
-  assertDelegatedCanReadTask(coworker, taskForSibling);
+  assertCoworkerCanReadTask(coworker, taskForSibling);
 }
 
 /**
- * Job read for a workspace-scoped user or an assigned coworker with the tasks
- * capability. Pass the route `Variables` object (e.g. `c.var` from
- * `OpenAPIHonoWithAuth`). Mirrors `requireTaskReadForRouteVars` for jobs.
- *
- * @throws {forbidden} If a bare coworker (no delegation) is used, or a delegated
- *   coworker is not assigned to the job's task and is not a same-vendor sibling
- * @throws {notFound} If the job is not in the active workspace, or the task is awaiting vendor approval and the coworker is not the assignee
+ * Job read for a workspace-scoped user or a coworker with assignee / same-vendor sibling access.
  */
 export async function requireJobReadForRouteVars(
   vars: EnvVariables["Variables"],
@@ -647,21 +593,24 @@ export async function requireJobReadForRouteVars(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+  await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
+  if (coworker.context) {
     const workspace = requireWorkspaceContext(workspaceContext);
     const job = await requireJobRead(workspace, jobId, tx);
-
-    await assertDelegatedCanReadJob(coworker, job, workspace.workspaceId, tx);
-
+    await assertCoworkerCanReadJob(coworker, job, tx);
     return job;
   }
 
-  // Bare coworkers (no delegation) have no user/workspace context for jobs.
-  throw forbidden(
-    "Delegation headers (X-Delegation-User-Id) are required for this resource",
-  );
+  const job = await tx.job.findFirst({
+    where: { id: jobId },
+  });
+  if (!job) {
+    throw notFound("Job not found");
+  }
+
+  await assertCoworkerCanReadJob(coworker, job, tx);
+  return job;
 }
 
 /**
@@ -686,14 +635,14 @@ export async function requireJobCollaboration(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
+  if (coworker.context) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
     const job = await requireJobOwnership(
       {
-        source: "delegation",
-        userId: coworker.delegation.userId,
-        organizationId: coworker.delegation.organizationId,
+        source: "context",
+        userId: coworker.context.userId,
+        organizationId: coworker.context.organizationId,
       },
       jobId,
       tx,

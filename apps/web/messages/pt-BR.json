@@ -1414,9 +1414,6 @@
         "inputRequired": "Entrada necessária",
         "done": "Concluído"
       },
-      "AwaitingVendorApprovalBadge": {
-        "label": "Acesso de fornecedor pendente"
-      },
       "Actions": {
         "add": "Adicionar",
         "addTask": "Adicionar tarefa",
@@ -1654,16 +1651,7 @@
           "switchError": "Não foi possível trocar de espaço de trabalho. Tente novamente."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Agendamento",
-        "AwaitingVendorApproval": {
-          "title": "Aguardando sua aprovação",
-          "description": "{vendor} precisa da sua permissão para executar esta tarefa neste workspace.",
-          "approve": "Aprovar",
-          "deny": "Recusar",
-          "approveSuccess": "Acesso de fornecedor aprovado. Esta tarefa começará em breve.",
-          "denySuccess": "Acesso de fornecedor recusado. Esta tarefa foi cancelada.",
-          "actionError": "Não foi possível atualizar o acesso de fornecedor."
-        }
+        "schedule": "Agendamento"
       },
       "NewTask": {
         "title": "Nova tarefa",
@@ -3116,28 +3104,7 @@
       "tabs": {
         "connectedApps": "Apps conectados",
         "apiKeys": "Chaves de API",
-        "mcp": "MCP",
-        "vendorAccess": "Acesso de fornecedor"
-      },
-      "VendorAccess": {
-        "title": "Acesso de fornecedor",
-        "description": "Revise e gerencie concessões de autonomia de coworkers para seus workspaces.",
-        "empty": "Ainda não há concessões de acesso de fornecedor.",
-        "loading": "Carregando acesso de fornecedor…",
-        "loadError": "Não foi possível carregar as concessões de acesso de fornecedor.",
-        "actionError": "Não foi possível atualizar o acesso de fornecedor.",
-        "personalWorkspace": "Workspace pessoal",
-        "scope": "Escopo: {scope}",
-        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {Nenhuma tarefa em espera} one {# tarefa em espera} other {# tarefas em espera}}",
-        "approve": "Aprovar",
-        "deny": "Recusar",
-        "revoke": "Revogar",
-        "status": {
-          "PENDING": "Pendente",
-          "GRANTED": "Concedido",
-          "DENIED": "Recusado",
-          "REVOKED": "Revogado"
-        }
+        "mcp": "MCP"
       }
     },
     "MCP": {

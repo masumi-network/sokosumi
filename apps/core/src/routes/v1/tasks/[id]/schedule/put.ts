@@ -11,13 +11,8 @@ import {
   computeScheduleNextRun,
   validateScheduleInput,
 } from "@/helpers/task-schedule";
-import {
-  isVendorGrantEnabled,
-  requireDelegatedVendorAutonomyForAssignee,
-} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { putTaskScheduleRequestSchema } from "@/schemas/task-schedule.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -54,9 +49,7 @@ const route = createRoute({
     200: jsonSuccessResponse(taskSchema, "Task schedule saved"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse(
-      "Forbidden. Delegated coworker schedule may return kind `grant_denied` when vendor access was denied, revoked, or not granted.",
-    ),
+    403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
@@ -65,7 +58,6 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
@@ -97,19 +89,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       validateTaskCoworkerAssignment({
         status: TaskStatus.QUEUED,
         coworkerId: existingTask.coworkerId,
-      });
-    }
-
-    if (
-      isVendorGrantEnabled() &&
-      isCoworkerAuthContext(authContext) &&
-      authContext.delegation
-    ) {
-      await requireDelegatedVendorAutonomyForAssignee({
-        actorVendorId: authContext.vendorId,
-        userId: userContext.userId,
-        workspaceId: existingTask.workspaceId,
-        assigneeCoworkerId: existingTask.coworkerId,
       });
     }
 

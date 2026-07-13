@@ -1,8 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import { VendorGrantScope, VendorGrantStatus } from "@sokosumi/database";
-
-import { dateTimeSchema } from "@/helpers/datetime.js";
-import { workspaceSummarySchema } from "@/schemas/workspace.schema";
 
 const vendorLogoSchema = z.string().nullable();
 
@@ -27,46 +23,13 @@ export const vendorLogosInputSchema = z
 export const vendorSchema = z
   .object({
     id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
+    createdAt: z.date(),
+    updatedAt: z.date(),
     name: z.string().openapi({ example: "Serviceplan" }),
     slug: z.string().openapi({ example: "serviceplan" }),
     logos: vendorLogosSchema,
   })
   .openapi("Vendor");
-
-export const vendorGrantSchema = z
-  .object({
-    id: z.string().openapi({ example: "vgr_123" }),
-    createdAt: dateTimeSchema,
-    updatedAt: dateTimeSchema,
-    scope: z
-      .enum(VendorGrantScope)
-      .openapi({ example: VendorGrantScope.VENDOR }),
-    status: z
-      .enum(VendorGrantStatus)
-      .openapi({ example: VendorGrantStatus.PENDING }),
-    vendorId: z
-      .string()
-      .openapi({ example: "01960001-0001-7001-8001-000000000001" }),
-    vendor: vendorSchema,
-    userId: z.string().openapi({ example: "user_123" }),
-    workspaceId: z.string().uuid().openapi({
-      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
-    }),
-    workspace: workspaceSummarySchema,
-    resolvedAt: dateTimeSchema.nullable(),
-    awaitingVendorApprovalTaskCount: z
-      .number()
-      .int()
-      .nonnegative()
-      .openapi({ example: 1 }),
-  })
-  .openapi("VendorGrant");
-
-export const vendorGrantListSchema = z
-  .array(vendorGrantSchema)
-  .openapi("VendorGrantList");
 
 export const createVendorRequestSchema = z
   .object({

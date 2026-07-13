@@ -121,7 +121,7 @@ describe("GET /tasks/{id}/workspace", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: TEST_VENDOR_ID,
-      delegation: {
+      context: {
         userId: "user_123",
         organizationId: "org_123",
       },

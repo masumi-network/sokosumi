@@ -40,10 +40,10 @@ function getWorkspaceOwnerContext(authContext: AuthenticationContext): {
     };
   }
 
-  if (isCoworkerAuthContext(authContext) && authContext.delegation) {
+  if (isCoworkerAuthContext(authContext) && authContext.context) {
     return {
-      userId: authContext.delegation.userId,
-      organizationId: authContext.delegation.organizationId ?? null,
+      userId: authContext.context.userId,
+      organizationId: authContext.context.organizationId ?? null,
     };
   }
 

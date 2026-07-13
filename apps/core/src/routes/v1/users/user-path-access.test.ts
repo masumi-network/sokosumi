@@ -30,11 +30,11 @@ describe("requireAccessToTargetUserData", () => {
         actor: "coworker",
         coworkerId: "cow_1",
         vendorId: TEST_VENDOR_ID,
-        delegation: { userId: target, organizationId: null },
+        context: { userId: target, organizationId: null },
       },
       target,
     );
-    expect(ctx.source).toBe("delegation");
+    expect(ctx.source).toBe("context");
     expect(ctx.userId).toBe(target);
   });
 
@@ -73,7 +73,7 @@ describe("requireAccessToTargetUserData", () => {
           actor: "coworker",
           coworkerId: "cow_1",
           vendorId: TEST_VENDOR_ID,
-          delegation: { userId: "usr_other", organizationId: null },
+          context: { userId: "usr_other", organizationId: null },
         },
         target,
       ),
@@ -104,7 +104,7 @@ describe("resolveUsersPathUserId", () => {
           actor: "coworker",
           coworkerId: "cow_1",
           vendorId: TEST_VENDOR_ID,
-          delegation: { userId: "usr_x", organizationId: null },
+          context: { userId: "usr_x", organizationId: null },
         },
         USERS_PATH_ME,
       ),

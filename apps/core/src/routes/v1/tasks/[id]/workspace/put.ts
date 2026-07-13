@@ -6,7 +6,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { requireTaskNotAwaitingVendorApproval } from "@/helpers/vendor-grants";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserContext } from "@/middleware/auth";
@@ -64,7 +63,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           archivedAt: null,
         },
         select: {
-          pendingVendorGrantId: true,
           workspaceId: true,
           workspace: {
             select: {
@@ -77,8 +75,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!task) {
         throw notFound("Task not found");
       }
-
-      requireTaskNotAwaitingVendorApproval(task);
 
       const workspaceChanged =
         targetOrganizationId !== task.workspace.organizationId;

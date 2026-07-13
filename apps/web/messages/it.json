@@ -1414,9 +1414,6 @@
         "inputRequired": "Input richiesto",
         "done": "Completato"
       },
-      "AwaitingVendorApprovalBadge": {
-        "label": "Accesso fornitore in attesa"
-      },
       "Actions": {
         "add": "Aggiungi",
         "addTask": "Aggiungi task",
@@ -1654,16 +1651,7 @@
           "switchError": "Impossibile cambiare spazio di lavoro. Riprova."
         },
         "clonedFrom": "Clonata da {name}",
-        "schedule": "Pianificazione",
-        "AwaitingVendorApproval": {
-          "title": "In attesa della tua approvazione",
-          "description": "{vendor} ha bisogno del tuo permesso per eseguire questa attività in questo workspace.",
-          "approve": "Approva",
-          "deny": "Rifiuta",
-          "approveSuccess": "Accesso fornitore approvato. Questa attività partirà a breve.",
-          "denySuccess": "Accesso fornitore rifiutato. Questa attività è stata annullata.",
-          "actionError": "Impossibile aggiornare l'accesso fornitore."
-        }
+        "schedule": "Pianificazione"
       },
       "NewTask": {
         "title": "Nuovo task",
@@ -3116,28 +3104,7 @@
       "tabs": {
         "connectedApps": "App connesse",
         "apiKeys": "Chiavi API",
-        "mcp": "MCP",
-        "vendorAccess": "Accesso fornitore"
-      },
-      "VendorAccess": {
-        "title": "Accesso fornitore",
-        "description": "Rivedi e gestisci le concessioni di autonomia dei coworker per i tuoi workspace.",
-        "empty": "Nessuna concessione di accesso fornitore al momento.",
-        "loading": "Caricamento accesso fornitore…",
-        "loadError": "Impossibile caricare le concessioni di accesso fornitore.",
-        "actionError": "Impossibile aggiornare l'accesso fornitore.",
-        "personalWorkspace": "Workspace personale",
-        "scope": "Ambito: {scope}",
-        "awaitingVendorApprovalTaskCount": "{count, plural, =0 {Nessuna attività in sospeso} one {# attività in sospeso} other {# attività in sospeso}}",
-        "approve": "Approva",
-        "deny": "Rifiuta",
-        "revoke": "Revoca",
-        "status": {
-          "PENDING": "In attesa",
-          "GRANTED": "Concesso",
-          "DENIED": "Rifiutato",
-          "REVOKED": "Revocato"
-        }
+        "mcp": "MCP"
       }
     },
     "MCP": {

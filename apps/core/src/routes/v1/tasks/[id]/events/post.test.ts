@@ -994,7 +994,7 @@ describe("POST /{id}/events", () => {
       actor: "coworker",
       coworkerId: COWORKER_ID,
       vendorId: TEST_VENDOR_ID,
-      delegation: {
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1051,7 +1051,7 @@ describe("POST /{id}/events", () => {
       actor: "coworker",
       coworkerId: COWORKER_ID,
       vendorId: "01960001-0001-7001-8001-000000000001",
-      delegation: {
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1107,7 +1107,7 @@ describe("POST /{id}/events", () => {
       actor: "coworker",
       coworkerId: COWORKER_ID,
       vendorId: TEST_VENDOR_ID,
-      delegation: {
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1146,7 +1146,7 @@ describe("POST /{id}/events", () => {
       actor: "coworker",
       coworkerId: COWORKER_ID,
       vendorId: "01960001-0001-7001-8001-000000000001",
-      delegation: {
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1193,7 +1193,7 @@ describe("POST /{id}/events", () => {
       actor: "coworker",
       coworkerId: COWORKER_ID,
       vendorId: "01960001-0001-7001-8001-000000000001",
-      delegation: {
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1278,7 +1278,7 @@ describe("POST /{id}/events", () => {
       actor: "coworker",
       coworkerId: COWORKER_ID,
       vendorId: TEST_VENDOR_ID,
-      delegation: {
+      context: {
         userId: USER_ID,
         organizationId: null,
       },

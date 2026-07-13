@@ -11,17 +11,12 @@ import { testVendor } from "@/test-fixtures/vendor";
 
 import mountDeleteAdminVendor from "./[id]/delete";
 
-const {
-  vendorFindUniqueMock,
-  coworkerCountMock,
-  vendorGrantCountMock,
-  vendorDeleteMock,
-} = vi.hoisted(() => ({
-  vendorFindUniqueMock: vi.fn(),
-  coworkerCountMock: vi.fn(),
-  vendorGrantCountMock: vi.fn(),
-  vendorDeleteMock: vi.fn(),
-}));
+const { vendorFindUniqueMock, coworkerCountMock, vendorDeleteMock } =
+  vi.hoisted(() => ({
+    vendorFindUniqueMock: vi.fn(),
+    coworkerCountMock: vi.fn(),
+    vendorDeleteMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -31,9 +26,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworker: {
       count: coworkerCountMock,
-    },
-    vendorGrant: {
-      count: vendorGrantCountMock,
     },
   },
 }));
@@ -76,7 +68,6 @@ describe("DELETE /admin/vendors/{id}", () => {
     vi.clearAllMocks();
     vendorFindUniqueMock.mockResolvedValue({ id: testVendor.id });
     coworkerCountMock.mockResolvedValue(0);
-    vendorGrantCountMock.mockResolvedValue(0);
     vendorDeleteMock.mockResolvedValue({ id: testVendor.id });
   });
 
@@ -94,18 +85,6 @@ describe("DELETE /admin/vendors/{id}", () => {
 
   it("returns 409 when coworkers reference the vendor", async () => {
     coworkerCountMock.mockResolvedValueOnce(2);
-
-    const app = createApp();
-    const response = await app.request(`http://localhost/${testVendor.id}`, {
-      method: "DELETE",
-    });
-
-    expect(response.status).toBe(409);
-    expect(vendorDeleteMock).not.toHaveBeenCalled();
-  });
-
-  it("returns 409 when pending grants exist", async () => {
-    vendorGrantCountMock.mockResolvedValueOnce(1);
 
     const app = createApp();
     const response = await app.request(`http://localhost/${testVendor.id}`, {

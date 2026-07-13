@@ -140,7 +140,6 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     status: TaskStatus.READY,
     metadata: null,
     nextRunAt: null,
-    pendingVendorGrantId: null,
     awaitingVendorApproval: false,
     credits: 0,
     events: [],
@@ -339,7 +338,6 @@ describe("PUT /tasks/{id}/workspace", () => {
               is: {
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -350,7 +348,6 @@ describe("PUT /tasks/{id}/workspace", () => {
               is: {
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -704,7 +701,6 @@ describe("PUT /tasks/{id}/workspace", () => {
               is: {
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -715,7 +711,6 @@ describe("PUT /tasks/{id}/workspace", () => {
               is: {
                 workspaceId: "11111111-1111-4111-8111-111111111111",
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },

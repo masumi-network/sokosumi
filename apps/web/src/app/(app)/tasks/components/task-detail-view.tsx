@@ -5,7 +5,6 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
-import { TaskAwaitingVendorAccessBanner } from "@/app/tasks/components/task-awaiting-vendor-access-banner";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
@@ -138,18 +137,6 @@ export async function TaskDetailView({
           }
         />
 
-        {task.awaitingVendorApproval &&
-        task.pendingVendorGrantId &&
-        !forceReadOnly ? (
-          <Suspense fallback={null}>
-            <TaskAwaitingVendorAccessBannerSlot
-              grantId={task.pendingVendorGrantId}
-              coworkerId={task.coworkerId}
-              coworkersPromise={coworkersPromise}
-            />
-          </Suspense>
-        ) : null}
-
         <div className="mt-6 space-y-8">
           <Suspense
             fallback={
@@ -209,30 +196,6 @@ export async function TaskDetailView({
         </div>
       </div>
     </div>
-  );
-}
-
-async function TaskAwaitingVendorAccessBannerSlot({
-  grantId,
-  coworkerId,
-  coworkersPromise,
-}: {
-  grantId: string;
-  coworkerId: string | null;
-  coworkersPromise: Promise<CoworkersResult>;
-}) {
-  const coworkers = await coworkersPromise;
-  const vendorName =
-    coworkerId != null
-      ? coworkers.find((coworker) => coworker.id === coworkerId)?.vendor.name
-      : undefined;
-
-  if (!vendorName) {
-    return null;
-  }
-
-  return (
-    <TaskAwaitingVendorAccessBanner grantId={grantId} vendorName={vendorName} />
   );
 }
 
@@ -402,7 +365,6 @@ async function TaskDetailActionsSlot({
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
-      awaitingVendorApproval={task.awaitingVendorApproval ?? false}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
@@ -520,7 +482,6 @@ async function TaskActivitySectionContent({
         taskUserId: task.userId,
         sessionUserId: session?.user.id,
         forceReadOnly,
-        awaitingVendorApproval: task.awaitingVendorApproval ?? false,
       })}
     />
   );

@@ -32,14 +32,14 @@ const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 interface CreateAppOptions {
   actor?: "user" | "coworker";
   userId?: string;
-  delegation?: {
+  context?: {
     userId: string;
     organizationId: string | null;
   };
 }
 
 function createApp(options: CreateAppOptions = {}) {
-  const { actor = "user", userId = "user_123", delegation } = options;
+  const { actor = "user", userId = "user_123", context } = options;
   const app = new OpenAPIHono<{
     Variables: AuthVariables & WorkspaceVariables;
   }>();
@@ -53,7 +53,7 @@ function createApp(options: CreateAppOptions = {}) {
             actor: "coworker",
             coworkerId: "cow_123",
             vendorId: "01960001-0001-7001-8001-000000000001",
-            ...(delegation ? { delegation } : {}),
+            ...(context ? { context } : {}),
           } satisfies AuthenticationContext)
         : ({
             actor: "user",
@@ -64,11 +64,11 @@ function createApp(options: CreateAppOptions = {}) {
     );
     c.set(
       "workspaceContext",
-      actor === "user" || delegation
+      actor === "user" || context
         ? {
             workspaceId: testWorkspaceId,
-            userId: delegation?.userId ?? null,
-            organizationId: delegation?.organizationId ?? "org_123",
+            userId: context?.userId ?? null,
+            organizationId: context?.organizationId ?? "org_123",
           }
         : null,
     );
@@ -117,7 +117,6 @@ function createTask(
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
-    pendingVendorGrantId: null,
     metadata: null,
     nextRunAt: null,
     events: [],
@@ -152,7 +151,6 @@ describe("GET /tasks/{id}", () => {
     taskFindFirstMock.mockResolvedValue({
       id: "tsk_a",
       userId: "user_123",
-      pendingVendorGrantId: null,
       coworkerId: "cow_123",
       status: TaskStatus.READY,
       coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
@@ -188,7 +186,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -218,7 +215,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -301,7 +297,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -314,7 +309,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -337,7 +331,6 @@ describe("GET /tasks/{id}", () => {
         id: "tsk_a",
         archivedAt: null,
         status: { not: TaskStatus.DRAFT },
-        coworkerId: "cow_123",
       },
       include: expect.objectContaining({
         share: true,
@@ -347,7 +340,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
-                pendingVendorGrantId: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
               },
             },
@@ -378,7 +370,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 coworkerId: "cow_123",
                 archivedAt: null,
-                pendingVendorGrantId: null,
                 NOT: { status: { in: [TaskStatus.DRAFT] } },
               },
             },
@@ -410,7 +401,7 @@ describe("GET /tasks/{id}", () => {
   it("uses workspace-scoped reads for delegated coworkers", async () => {
     const app = createApp({
       actor: "coworker",
-      delegation: {
+      context: {
         userId: "user_delegate",
         organizationId: "org_delegate",
       },
@@ -429,7 +420,6 @@ describe("GET /tasks/{id}", () => {
       select: {
         coworkerId: true,
         status: true,
-        pendingVendorGrantId: true,
         coworker: {
           select: {
             vendorId: true,
@@ -458,7 +448,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },
@@ -471,7 +460,6 @@ describe("GET /tasks/{id}", () => {
               is: {
                 workspaceId: testWorkspaceId,
                 archivedAt: null,
-                pendingVendorGrantId: null,
               },
             },
           },

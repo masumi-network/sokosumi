@@ -96,18 +96,6 @@ describe("canCommentOnTaskForViewer", () => {
     ).toBe(false);
   });
 
-  it("blocks comments on parked tasks", () => {
-    expect(
-      canCommentOnTaskForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskUserId: "owner_1",
-        sessionUserId: "member_2",
-        forceReadOnly: false,
-        awaitingVendorApproval: true,
-      }),
-    ).toBe(false);
-  });
-
   it("does not allow comments for non-owners on personal workspace tasks", () => {
     expect(
       canCommentOnTaskForViewer({

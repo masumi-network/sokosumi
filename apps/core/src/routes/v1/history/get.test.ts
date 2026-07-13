@@ -344,7 +344,7 @@ describe("GET /history", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(prismaQueryRawMock).toHaveBeenCalledTimes(2);
+    expect(prismaQueryRawMock).toHaveBeenCalledTimes(1);
     expect(historyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

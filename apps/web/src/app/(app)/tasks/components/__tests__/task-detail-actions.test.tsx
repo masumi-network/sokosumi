@@ -650,36 +650,6 @@ describe("TaskDetailActions", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides mutating actions while awaiting vendor approval but keeps archive", async () => {
-    const user = userEvent.setup();
-    renderActions({
-      status: TASK_STATUS.DRAFT,
-      awaitingVendorApproval: true,
-      organizations: undefined,
-    });
-
-    expect(
-      screen.queryByRole("button", { name: labels.share }),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
-
-    expect(
-      screen.getByRole("menuitem", { name: labels.archive }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: "Mark as Ready" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: "Move to workspace" }),
-    ).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: "Mark as" })).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: "Create related" }),
-    ).toBeNull();
-  });
-
   it("disables the actions trigger while a status update is pending", async () => {
     const user = userEvent.setup();
     const deferred = createDeferred<{ taskId: string }>();

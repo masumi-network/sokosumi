@@ -67,9 +67,9 @@ function getActorData(authContext: AuthenticationContext) {
   // audit trail honestly shows "coworker X on behalf of user Y" rather than a
   // user-only record. Delegation only reaches tasks assigned to this coworker
   // (see SOK-554), so the recorded coworker is the task's assigned coworker.
-  if (authContext.delegation) {
+  if (authContext.context) {
     return {
-      userId: authContext.delegation.userId,
+      userId: authContext.context.userId,
       coworkerId: authContext.coworkerId,
     };
   }
@@ -239,7 +239,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? await requireTaskCollaboration(authContext, taskId, tx)
           : await requireTaskCommentAccess(c.var, taskId, tx);
 
-        if (isCoworkerAuthContext(authContext) && authContext.delegation) {
+        if (isCoworkerAuthContext(authContext) && authContext.context) {
           const coworker = requireCoworkerAuthContext(authContext);
           if (task.coworkerId !== coworker.coworkerId && hasNonCommentWrite) {
             throw forbidden(
