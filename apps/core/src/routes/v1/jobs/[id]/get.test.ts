@@ -1,7 +1,7 @@
 import { AgentJobStatus, JobType } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { buildCoworkerAuthorizedTaskWhere } from "@/helpers/vendor-siblings";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor";
 
@@ -190,6 +190,7 @@ function createJob(
       amount: BigInt(5000000),
     },
     transactionId: "txn_123",
+    workspaceId: "11111111-1111-7111-8111-111111111111",
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: "org_123",
@@ -378,20 +379,13 @@ describe("GET /jobs/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(taskFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        status: { not: TaskStatus.DRAFT },
-      },
-      select: {
-        coworkerId: true,
-        status: true,
-        coworker: {
-          select: {
-            vendorId: true,
-          },
-        },
-      },
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_123",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+      }),
+      select: { id: true },
     });
   });
 
@@ -441,12 +435,7 @@ describe("GET /jobs/{id}", () => {
       slug: "ops-agent",
       baseURL: null,
     });
-    const taskFindFirstMock = vi.fn().mockResolvedValue({
-      id: "tsk_123",
-      coworkerId: "cow_other",
-      status: TaskStatus.READY,
-      coworker: { vendorId: "other-vendor" },
-    });
+    const taskFindFirstMock = vi.fn().mockResolvedValue(null);
     jobFindFirstMock.mockResolvedValue({ ...createJob(), taskId: "tsk_123" });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>

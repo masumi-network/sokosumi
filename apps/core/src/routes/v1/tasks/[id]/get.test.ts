@@ -2,18 +2,16 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskLinkType } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildCoworkerAuthorizedTaskWhere } from "@/helpers/vendor-siblings";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
-
 import mountGetTaskById from "./get";
 
-const { taskFindFirstMock, taskFindUniqueMock, coworkerFindFirstMock } =
-  vi.hoisted(() => ({
-    taskFindFirstMock: vi.fn(),
-    taskFindUniqueMock: vi.fn(),
-    coworkerFindFirstMock: vi.fn(),
-  }));
+const { taskFindFirstMock, coworkerFindFirstMock } = vi.hoisted(() => ({
+  taskFindFirstMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -22,7 +20,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     task: {
       findFirst: taskFindFirstMock,
-      findUnique: taskFindUniqueMock,
     },
   },
 }));
@@ -136,8 +133,10 @@ function createTask(
   };
 }
 
-/** Payload returned for the viewer query (`findUnique` with `include`). Access checks use `findFirst` (user) or `findUnique` (coworker) without include. */
+/** Payload returned for the viewer query (`findFirst` with `include`). */
 let viewerTaskIncludeResult = createTask();
+
+const defaultVendorId = "01960001-0001-7001-8001-000000000001";
 
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
@@ -148,19 +147,18 @@ describe("GET /tasks/{id}", () => {
       slug: "cow",
       baseURL: "http://coworker.test",
     });
-    taskFindFirstMock.mockResolvedValue({
-      id: "tsk_a",
-      userId: "user_123",
-      coworkerId: "cow_123",
-      status: TaskStatus.READY,
-      coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
-    });
-    taskFindUniqueMock.mockImplementation(
+    taskFindFirstMock.mockImplementation(
       async (args: { include?: unknown }) => {
         if (args.include !== undefined) {
           return viewerTaskIncludeResult;
         }
-        return createTask();
+        return {
+          id: "tsk_a",
+          userId: "user_123",
+          coworkerId: "cow_123",
+          status: TaskStatus.READY,
+          coworker: { vendorId: defaultVendorId },
+        };
       },
     );
   });
@@ -172,7 +170,7 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -284,7 +282,7 @@ describe("GET /tasks/{id}", () => {
       };
     };
     expect(body.data.links).toHaveLength(1);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
@@ -326,12 +324,12 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        status: { not: TaskStatus.DRAFT },
-      },
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_a",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
+      }),
       include: expect.objectContaining({
         share: true,
         linksFrom: {
@@ -411,27 +409,14 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
+    expect(taskFindFirstMock).toHaveBeenCalledTimes(1);
     expect(taskFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        status: { not: TaskStatus.DRAFT },
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_a",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
         workspaceId: testWorkspaceId,
-      },
-      include: {
-        coworker: {
-          select: {
-            vendorId: true,
-          },
-        },
-      },
-    });
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        workspaceId: testWorkspaceId,
-      },
+      }),
       include: expect.objectContaining({
         share: true,
         linksFrom: {
@@ -463,13 +448,21 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("allows a delegated coworker to read a same-vendor sibling task", async () => {
-    taskFindFirstMock.mockResolvedValue({
-      id: "tsk_a",
-      userId: "user_123",
-      coworkerId: "cow_sibling",
-      status: TaskStatus.READY,
-      coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
-    });
+    viewerTaskIncludeResult = createTask();
+    taskFindFirstMock.mockImplementation(
+      async (args: { include?: unknown }) => {
+        if (args.include !== undefined) {
+          return viewerTaskIncludeResult;
+        }
+        return {
+          id: "tsk_a",
+          userId: "user_123",
+          coworkerId: "cow_sibling",
+          status: TaskStatus.READY,
+          coworker: { vendorId: defaultVendorId },
+        };
+      },
+    );
 
     const app = createApp({
       actor: "coworker",
@@ -486,13 +479,7 @@ describe("GET /tasks/{id}", () => {
   });
 
   it("rejects a delegated coworker reading a cross-vendor sibling task", async () => {
-    taskFindFirstMock.mockResolvedValue({
-      id: "tsk_a",
-      userId: "user_123",
-      coworkerId: "cow_sibling",
-      status: TaskStatus.READY,
-      coworker: { vendorId: "01960001-0001-7001-8001-000000000002" },
-    });
+    taskFindFirstMock.mockResolvedValue(null);
 
     const app = createApp({
       actor: "coworker",
@@ -505,18 +492,26 @@ describe("GET /tasks/{id}", () => {
 
     const response = await app.request("http://localhost/tsk_a");
 
-    expect(response.status).toBe(403);
-    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(404);
+    expect(taskFindFirstMock).toHaveBeenCalledTimes(1);
   });
 
   it("allows a bare coworker to read a same-vendor sibling task without workspace scoping", async () => {
-    taskFindFirstMock.mockResolvedValue({
-      id: "tsk_a",
-      userId: "user_123",
-      coworkerId: "cow_sibling",
-      status: TaskStatus.READY,
-      coworker: { vendorId: "01960001-0001-7001-8001-000000000001" },
-    });
+    viewerTaskIncludeResult = createTask();
+    taskFindFirstMock.mockImplementation(
+      async (args: { include?: unknown }) => {
+        if (args.include !== undefined) {
+          return viewerTaskIncludeResult;
+        }
+        return {
+          id: "tsk_a",
+          userId: "user_123",
+          coworkerId: "cow_sibling",
+          status: TaskStatus.READY,
+          coworker: { vendorId: defaultVendorId },
+        };
+      },
+    );
 
     const app = createApp({ actor: "coworker" });
     mountGetTaskById(app as unknown as OpenAPIHonoWithAuth);
@@ -525,18 +520,14 @@ describe("GET /tasks/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(taskFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        status: { not: TaskStatus.DRAFT },
-      },
-      include: {
-        coworker: {
-          select: {
-            vendorId: true,
-          },
-        },
-      },
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_a",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
+      }),
+      include: expect.objectContaining({
+        share: true,
+      }),
     });
   });
 

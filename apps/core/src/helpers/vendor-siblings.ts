@@ -16,25 +16,9 @@ const taskSiblingSelect = {
   },
 } as const;
 
-type TaskForSiblingCheck = Prisma.TaskGetPayload<{
+export type TaskForSiblingCheck = Prisma.TaskGetPayload<{
   select: typeof taskSiblingSelect;
 }>;
-
-export async function loadTaskForSiblingCheck(
-  taskId: string,
-  workspaceId: string | null,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<TaskForSiblingCheck | null> {
-  return await tx.task.findFirst({
-    where: {
-      id: taskId,
-      ...(workspaceId ? { workspaceId } : {}),
-      archivedAt: null,
-      status: { not: TaskStatus.DRAFT },
-    },
-    select: taskSiblingSelect,
-  });
-}
 
 export function isSameVendorSiblingTask(
   actor: CoworkerAuthenticationContext,
@@ -69,6 +53,30 @@ export async function loadActorVendorId(
   }
 
   return coworker.vendorId;
+}
+
+interface CoworkerAuthorizedTaskWhereParams {
+  taskId: string;
+  coworkerId: string;
+  vendorId: string;
+  workspaceId?: string | null;
+}
+
+/**
+ * Single-task coworker read/list filter: assignee or same-vendor sibling, non-DRAFT.
+ */
+export function buildCoworkerAuthorizedTaskWhere(
+  params: CoworkerAuthorizedTaskWhereParams,
+): Prisma.TaskWhereInput {
+  return {
+    id: params.taskId,
+    archivedAt: null,
+    ...(params.workspaceId ? { workspaceId: params.workspaceId } : {}),
+    ...buildCoworkerSiblingTaskListFilter({
+      coworkerId: params.coworkerId,
+      vendorId: params.vendorId,
+    }),
+  };
 }
 
 interface CoworkerSiblingTaskListAccessParams {

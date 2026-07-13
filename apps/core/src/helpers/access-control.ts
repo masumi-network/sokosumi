@@ -19,10 +19,7 @@ import {
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
-import {
-  isSameVendorSiblingTask,
-  loadTaskForSiblingCheck,
-} from "./vendor-siblings";
+import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
 // User ownership (resource belongs to the authenticated user)
@@ -173,37 +170,24 @@ export async function requireCoworkerTaskRead(
   taskId: string,
   workspaceId: string | null,
   tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
 ): Promise<Task> {
   await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
 
-  const taskWithVendor = await tx.task.findFirst({
-    where: {
-      id: taskId,
-      archivedAt: null,
-      status: { not: TaskStatus.DRAFT },
-      ...(workspaceId ? { workspaceId } : {}),
-    },
-    include: {
-      coworker: {
-        select: {
-          vendorId: true,
-        },
-      },
-    },
+  const task = await tx.task.findFirst({
+    where: buildCoworkerAuthorizedTaskWhere({
+      taskId,
+      coworkerId: authContext.coworkerId,
+      vendorId: authContext.vendorId,
+      workspaceId,
+    }),
+    ...(include ? { include } : {}),
   });
 
-  assertCoworkerCanReadTask(
-    authContext,
-    taskWithVendor
-      ? {
-          coworkerId: taskWithVendor.coworkerId,
-          status: taskWithVendor.status,
-          coworker: taskWithVendor.coworker,
-        }
-      : null,
-  );
+  if (!task) {
+    throw notFound("Task not found");
+  }
 
-  const { coworker: _coworker, ...task } = taskWithVendor!;
   return task;
 }
 
@@ -259,29 +243,6 @@ export async function requireCoworkerTaskCollaboration(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   return await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
-}
-
-function assertCoworkerCanReadTask(
-  coworker: CoworkerAuthenticationContext,
-  task: Awaited<ReturnType<typeof loadTaskForSiblingCheck>>,
-) {
-  if (!task) {
-    throw notFound("Task not found");
-  }
-
-  if (task.status === TaskStatus.DRAFT) {
-    throw notFound("Task not found");
-  }
-
-  if (task.coworkerId === coworker.coworkerId) {
-    return;
-  }
-
-  if (isSameVendorSiblingTask(coworker, task)) {
-    return;
-  }
-
-  throw forbidden("You can only access tasks assigned to your coworker");
 }
 
 /**
@@ -365,6 +326,7 @@ export async function requireTaskReadForWorkspace(
   workspaceContext: WorkspaceContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
 ): Promise<Task> {
   const { workspaceId } = workspaceContext;
 
@@ -374,6 +336,7 @@ export async function requireTaskReadForWorkspace(
       archivedAt: null,
       workspaceId,
     },
+    ...(include ? { include } : {}),
   });
 
   if (!task) {
@@ -391,6 +354,7 @@ export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
@@ -400,6 +364,7 @@ export async function requireTaskReadForRouteVars(
       requireWorkspaceContext(workspaceContext),
       taskId,
       tx,
+      include,
     );
   }
 
@@ -409,7 +374,13 @@ export async function requireTaskReadForRouteVars(
       ? requireWorkspaceContext(workspaceContext).workspaceId
       : null;
 
-  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
+  return await requireCoworkerTaskRead(
+    coworker,
+    taskId,
+    workspaceId,
+    tx,
+    include,
+  );
 }
 
 /**
@@ -586,12 +557,18 @@ async function assertCoworkerCanReadJob(
     throw forbidden("You can only access jobs assigned to your coworker");
   }
 
-  const taskForSibling = await loadTaskForSiblingCheck(
-    job.taskId,
-    job.workspaceId,
-    tx,
-  );
-  assertCoworkerCanReadTask(coworker, taskForSibling);
+  const taskForSibling = await tx.task.findFirst({
+    where: buildCoworkerAuthorizedTaskWhere({
+      taskId: job.taskId,
+      coworkerId: coworker.coworkerId,
+      vendorId: coworker.vendorId,
+      workspaceId: job.workspaceId,
+    }),
+    select: { id: true },
+  });
+  if (!taskForSibling) {
+    throw forbidden("You can only access jobs assigned to your coworker");
+  }
 }
 
 /**
