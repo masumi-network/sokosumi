@@ -109,6 +109,7 @@ interface TaskDetailActionsProps {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
+  awaitingVendorApproval?: boolean;
 }
 
 export function TaskDetailActions({
@@ -126,6 +127,7 @@ export function TaskDetailActions({
   organizations,
   personalWorkspaceLabel,
   isReadOnly = false,
+  awaitingVendorApproval = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -165,18 +167,21 @@ export function TaskDetailActions({
     null,
   );
 
-  const statusActions = isReadOnly ? [] : getTaskStatusActions(status, labels);
+  const canMutateTask = !isReadOnly && !awaitingVendorApproval;
+  const statusActions = canMutateTask
+    ? getTaskStatusActions(status, labels)
+    : [];
 
-  const canEdit = !isReadOnly && isTaskEditableStatus(status);
+  const canEdit = canMutateTask && isTaskEditableStatus(status);
   const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||
     status === TASK_STATUS.CANCELED ||
     status === TASK_STATUS.CANCEL_REQUESTED;
-  const canManageRelations = !isReadOnly && !isFinalized;
+  const canManageRelations = canMutateTask && !isFinalized;
   const canMove =
-    !isReadOnly &&
+    canMutateTask &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(currentOrganizationId, organizations) > 0;
   const parentLinks = useMemo(
@@ -379,7 +384,7 @@ export function TaskDetailActions({
 
   return (
     <div className="flex items-center gap-2">
-      {!isReadOnly ? (
+      {canMutateTask ? (
         <TaskShareButton
           task={{ id: taskId, share }}
           label={labels.share}

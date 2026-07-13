@@ -399,6 +399,7 @@ async function TaskDetailActionsSlot({
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
+      awaitingVendorApproval={task.awaitingVendorApproval ?? false}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),

@@ -35,7 +35,10 @@ export default async function EditTaskPage({
     return notFound();
   }
 
-  if (!isTaskEditableStatus(taskResult.status)) {
+  if (
+    !isTaskEditableStatus(taskResult.status) ||
+    taskResult.awaitingVendorApproval
+  ) {
     redirect(`/tasks/${taskId}`);
   }
 

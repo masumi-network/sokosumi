@@ -81,5 +81,16 @@ describe("task-dnd", () => {
         }),
       ).toBe(true);
     });
+
+    it("disallows tasks awaiting vendor approval", () => {
+      expect(
+        isTaskDnDDraggable({
+          status: TaskStatus.DRAFT,
+          metadata: null,
+          nextRunAt: null,
+          awaitingVendorApproval: true,
+        }),
+      ).toBe(false);
+    });
   });
 });
