@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testVendor } from "@/test-fixtures/vendor";
 
 import {
+  buildDelegatedCoworkerTaskListAccessFilter,
   buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter,
   buildSessionWorkspaceAwaitingVendorApprovalTaskFilter,
   getDelegatedVendorGrantState,
@@ -54,6 +55,33 @@ describe("buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter", () => {
       buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter("cow_actor"),
     ).toEqual({
       OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_actor" }],
+    });
+  });
+});
+
+describe("buildDelegatedCoworkerTaskListAccessFilter", () => {
+  it("allows assignee tasks and same-vendor sibling tasks", () => {
+    expect(
+      buildDelegatedCoworkerTaskListAccessFilter({
+        coworkerId: "cow_actor",
+        vendorId: testVendor.id,
+      }),
+    ).toEqual({
+      AND: [
+        {
+          OR: [
+            { coworkerId: "cow_actor" },
+            {
+              pendingVendorGrantId: null,
+              status: { not: TaskStatus.DRAFT },
+              coworkerId: { not: "cow_actor" },
+              coworker: {
+                vendorId: testVendor.id,
+              },
+            },
+          ],
+        },
+      ],
     });
   });
 });

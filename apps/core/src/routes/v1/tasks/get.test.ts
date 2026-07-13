@@ -64,6 +64,38 @@ const DELEGATED_WORKSPACE_CONTEXT = {
   organizationId: "org_delegate",
 } satisfies WorkspaceVariables["workspaceContext"];
 
+const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
+
+const DELEGATED_COWORKER_LIST_ACCESS_FILTER = {
+  AND: [
+    {
+      OR: [
+        { coworkerId: "cow_123" },
+        {
+          pendingVendorGrantId: null,
+          status: { not: TaskStatus.DRAFT },
+          coworkerId: { not: "cow_123" },
+          coworker: {
+            vendorId: DELEGATED_VENDOR_ID,
+          },
+        },
+      ],
+    },
+  ],
+} as const;
+
+function delegatedCoworkerListWhere(
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    archivedAt: null,
+    workspaceId: "22222222-2222-7222-8222-222222222222",
+    OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
+    ...DELEGATED_COWORKER_LIST_ACCESS_FILTER,
+    ...extra,
+  };
+}
+
 function createApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
   workspaceContext: WorkspaceVariables["workspaceContext"] = USER_WORKSPACE_CONTEXT,
@@ -345,12 +377,9 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
-          OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
+        where: delegatedCoworkerListWhere({
           userId: "user_delegate",
-        },
+        }),
       }),
     );
   });
@@ -367,12 +396,9 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
-          OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
+        where: delegatedCoworkerListWhere({
           coworkerId: "cow_999",
-        },
+        }),
       }),
     );
   });
@@ -387,11 +413,7 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
-          OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
-        },
+        where: delegatedCoworkerListWhere(),
       }),
     );
   });
@@ -406,12 +428,9 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
-          OR: [{ pendingVendorGrantId: null }, { coworkerId: "cow_123" }],
+        where: delegatedCoworkerListWhere({
           userId: "user_delegate",
-        },
+        }),
       }),
     );
   });

@@ -19,6 +19,7 @@ import {
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
 import {
+  buildDelegatedCoworkerTaskListAccessFilter,
   buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter,
   buildSessionWorkspaceAwaitingVendorApprovalTaskFilter,
 } from "@/helpers/vendor-grants";
@@ -165,6 +166,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter(
             authContext.coworkerId,
           ),
+          ...buildDelegatedCoworkerTaskListAccessFilter({
+            coworkerId: authContext.coworkerId,
+            vendorId: authContext.vendorId,
+          }),
           ...(scope === "owned"
             ? { userId: authContext.delegation.userId }
             : {}),

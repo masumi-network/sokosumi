@@ -164,6 +164,37 @@ export function buildDelegatedWorkspaceAwaitingVendorApprovalTaskFilter(
   };
 }
 
+interface DelegatedCoworkerTaskListAccessParams {
+  coworkerId: string;
+  vendorId: string;
+}
+
+/**
+ * Delegated coworker task lists mirror detail read access: assignee tasks plus
+ * same-vendor siblings (non-DRAFT, not parked).
+ */
+export function buildDelegatedCoworkerTaskListAccessFilter(
+  params: DelegatedCoworkerTaskListAccessParams,
+): Prisma.TaskWhereInput {
+  return {
+    AND: [
+      {
+        OR: [
+          { coworkerId: params.coworkerId },
+          {
+            pendingVendorGrantId: null,
+            status: { not: TaskStatus.DRAFT },
+            coworkerId: { not: params.coworkerId },
+            coworker: {
+              vendorId: params.vendorId,
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export function isGrantDenied(status: VendorGrantStatus): boolean {
   return (
     status === VendorGrantStatus.DENIED || status === VendorGrantStatus.REVOKED
