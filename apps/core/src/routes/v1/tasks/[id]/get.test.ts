@@ -2,7 +2,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskLinkType } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildCoworkerAuthorizedTaskWhere } from "@/helpers/vendor-siblings";
+import {
+  buildCoworkerAuthorizedTaskWhere,
+  buildCoworkerSiblingTaskListFilter,
+} from "@/helpers/vendor-siblings";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -137,6 +140,15 @@ function createTask(
 let viewerTaskIncludeResult = createTask();
 
 const defaultVendorId = "01960001-0001-7001-8001-000000000001";
+const defaultCoworkerId = "cow_123";
+
+const bareCoworkerVisiblePeerTaskWhere = {
+  archivedAt: null,
+  ...buildCoworkerSiblingTaskListFilter({
+    coworkerId: defaultCoworkerId,
+    vendorId: defaultVendorId,
+  }),
+};
 
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
@@ -335,11 +347,7 @@ describe("GET /tasks/{id}", () => {
         linksFrom: {
           where: {
             toTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
+              is: bareCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {
@@ -365,11 +373,7 @@ describe("GET /tasks/{id}", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
+              is: bareCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {

@@ -3,7 +3,7 @@ import { Prisma, TaskLinkType } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -46,6 +46,16 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const COWORKER_ID = "cow_123";
+
+const bareCoworkerVisiblePeerTaskWhere = {
+  archivedAt: null,
+  ...buildCoworkerSiblingTaskListFilter({
+    coworkerId: COWORKER_ID,
+    vendorId: testVendor.id,
+  }),
+};
+
 interface CreateUserAppOptions {
   userId?: string;
 }
@@ -84,7 +94,7 @@ function createCoworkerApp() {
     c.set("isAuthenticated", true);
     c.set("authContext", {
       actor: "coworker",
-      coworkerId: "cow_123",
+      coworkerId: COWORKER_ID,
       vendorId: testVendor.id,
     } satisfies AuthenticationContext);
     c.set("workspaceContext", null);
@@ -236,7 +246,7 @@ describe("GET /tasks/{id}/links", () => {
         isAuthenticated: true,
         authContext: {
           actor: "coworker",
-          coworkerId: "cow_123",
+          coworkerId: COWORKER_ID,
           vendorId: testVendor.id,
         },
         workspaceContext: null,
@@ -251,11 +261,7 @@ describe("GET /tasks/{id}/links", () => {
         linksFrom: {
           where: {
             toTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
+              is: bareCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {
@@ -281,11 +287,7 @@ describe("GET /tasks/{id}/links", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
-                coworkerId: "cow_123",
-                archivedAt: null,
-                NOT: { status: { in: [TaskStatus.DRAFT] } },
-              },
+              is: bareCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {
