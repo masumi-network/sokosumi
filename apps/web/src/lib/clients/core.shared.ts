@@ -143,7 +143,6 @@ import {
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
-  getUsersByIdVendorAccess as coreGetUsersByIdVendorAccess,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminInvoices as coreListAdminInvoices,
@@ -191,9 +190,6 @@ import {
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdUploads as corePostUsersByIdUploads,
-  postUsersByIdVendorAccessByGrantIdApprove as corePostUsersByIdVendorAccessByGrantIdApprove,
-  postUsersByIdVendorAccessByGrantIdDeny as corePostUsersByIdVendorAccessByGrantIdDeny,
-  postUsersByIdVendorAccessByGrantIdRevoke as corePostUsersByIdVendorAccessByGrantIdRevoke,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -1945,58 +1941,6 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function listMyVendorAccess(
-    status?: Array<"PENDING" | "GRANTED" | "DENIED" | "REVOKED">,
-  ) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        coreGetUsersByIdVendorAccess({
-          client,
-          path: { id: CURRENT_USER_PATH_ID },
-          query: status ? { status } : undefined,
-          cache: "no-store",
-        }),
-      "Failed to fetch vendor access grants",
-    );
-  }
-
-  async function approveMyVendorAccess(grantId: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostUsersByIdVendorAccessByGrantIdApprove({
-          client,
-          path: { id: CURRENT_USER_PATH_ID, grantId },
-        }),
-      "Failed to approve vendor access",
-    );
-  }
-
-  async function denyMyVendorAccess(grantId: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostUsersByIdVendorAccessByGrantIdDeny({
-          client,
-          path: { id: CURRENT_USER_PATH_ID, grantId },
-        }),
-      "Failed to deny vendor access",
-    );
-  }
-
-  async function revokeMyVendorAccess(grantId: string) {
-    return executeOperation(
-      getClient,
-      (client) =>
-        corePostUsersByIdVendorAccessByGrantIdRevoke({
-          client,
-          path: { id: CURRENT_USER_PATH_ID, grantId },
-        }),
-      "Failed to revoke vendor access",
-    );
-  }
-
   async function getMyOrganizations() {
     return executeOperation(
       getClient,
@@ -2889,10 +2833,6 @@ export function createCoreClient(getClient: GetClient) {
     getInvitationById,
     getMyActiveSubscription,
     getMyCredits,
-    listMyVendorAccess,
-    approveMyVendorAccess,
-    denyMyVendorAccess,
-    revokeMyVendorAccess,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyOrganizationCredits,
