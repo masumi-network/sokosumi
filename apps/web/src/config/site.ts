@@ -6,7 +6,7 @@ export const siteConfig = {
     twitter: "https://twitter.com/sokosumi",
     github: "https://github.com/masumi-network/sokosumi",
     decisionLoggingDocs:
-      "https://docs.masumi.network/core-concepts/decision-logging",
+      "https://www.masumi.network/dev/masumi/core-concepts/decision-logging",
     jobTransactionMainnet: "https://cardanoscan.io/transaction/",
     jobTransactionPreprod: "https://preprod.cardanoscan.io/transaction/",
   },

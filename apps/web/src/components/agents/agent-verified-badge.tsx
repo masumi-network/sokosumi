@@ -38,7 +38,7 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
         <p>
           {t("tooltip")}{" "}
           <Link
-            href="https://docs.masumi.network/core-concepts/identity"
+            href="https://www.masumi.network/dev/masumi/core-concepts/identity"
             target="_blank"
             rel="noreferrer noopener"
             className="underline"
