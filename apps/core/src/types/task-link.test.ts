@@ -10,6 +10,14 @@ describe("buildVisibleTaskLinksInclude", () => {
     const peerWhere = {
       workspaceId: "ws_org",
       archivedAt: null,
+      status: { not: TaskStatus.DRAFT },
+      OR: [
+        { coworkerId: "cow_agent" },
+        {
+          coworkerId: { not: "cow_agent" },
+          coworker: { vendorId: VENDOR_ID },
+        },
+      ],
     };
 
     const include = buildVisibleTaskLinksInclude(
@@ -36,6 +44,15 @@ describe("buildVisibleTaskLinksInclude", () => {
   it("scopes delegated coworker peers by delegated userId when workspaceId is absent", () => {
     const peerWhere = {
       userId: "user_delegated",
+      archivedAt: null,
+      status: { not: TaskStatus.DRAFT },
+      OR: [
+        { coworkerId: "cow_agent" },
+        {
+          coworkerId: { not: "cow_agent" },
+          coworker: { vendorId: VENDOR_ID },
+        },
+      ],
     };
 
     const include = buildVisibleTaskLinksInclude(

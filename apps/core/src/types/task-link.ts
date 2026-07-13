@@ -41,15 +41,19 @@ function buildVisiblePeerTaskWhere(
   switch (authContext.actor) {
     case "coworker": {
       if (authContext.context) {
-        if (workspaceId) {
-          return {
-            workspaceId,
-            archivedAt: null,
-          };
-        }
+        const base: Prisma.TaskWhereInput = workspaceId
+          ? { workspaceId, archivedAt: null }
+          : {
+              userId: authContext.context.userId,
+              archivedAt: null,
+            };
 
         return {
-          userId: authContext.context.userId,
+          ...base,
+          ...buildCoworkerSiblingTaskListFilter({
+            coworkerId: authContext.coworkerId,
+            vendorId: authContext.vendorId,
+          }),
         };
       }
 

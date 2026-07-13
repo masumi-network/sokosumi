@@ -150,6 +150,15 @@ const bareCoworkerVisiblePeerTaskWhere = {
   }),
 };
 
+const delegatedCoworkerVisiblePeerTaskWhere = {
+  workspaceId: testWorkspaceId,
+  archivedAt: null,
+  ...buildCoworkerSiblingTaskListFilter({
+    coworkerId: defaultCoworkerId,
+    vendorId: defaultVendorId,
+  }),
+};
+
 describe("GET /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -426,10 +435,7 @@ describe("GET /tasks/{id}", () => {
         linksFrom: {
           where: {
             toTask: {
-              is: {
-                workspaceId: testWorkspaceId,
-                archivedAt: null,
-              },
+              is: delegatedCoworkerVisiblePeerTaskWhere,
             },
           },
           include: expect.any(Object),
@@ -438,10 +444,7 @@ describe("GET /tasks/{id}", () => {
         linksTo: {
           where: {
             fromTask: {
-              is: {
-                workspaceId: testWorkspaceId,
-                archivedAt: null,
-              },
+              is: delegatedCoworkerVisiblePeerTaskWhere,
             },
           },
           include: expect.any(Object),

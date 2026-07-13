@@ -47,8 +47,18 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const COWORKER_ID = "cow_123";
+const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 
 const bareCoworkerVisiblePeerTaskWhere = {
+  archivedAt: null,
+  ...buildCoworkerSiblingTaskListFilter({
+    coworkerId: COWORKER_ID,
+    vendorId: testVendor.id,
+  }),
+};
+
+const delegatedCoworkerVisiblePeerTaskWhere = {
+  workspaceId: WORKSPACE_ID,
   archivedAt: null,
   ...buildCoworkerSiblingTaskListFilter({
     coworkerId: COWORKER_ID,
@@ -98,6 +108,33 @@ function createCoworkerApp() {
       vendorId: testVendor.id,
     } satisfies AuthenticationContext);
     c.set("workspaceContext", null);
+    return await next();
+  });
+
+  return app;
+}
+
+function createDelegatedCoworkerApp() {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & WorkspaceVariables;
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: testVendor.id,
+      context: {
+        userId: "user_delegate",
+        organizationId: "org_123",
+      },
+    } satisfies AuthenticationContext);
+    c.set("workspaceContext", {
+      workspaceId: WORKSPACE_ID,
+      userId: null,
+      organizationId: "org_123",
+    });
     return await next();
   });
 
@@ -288,6 +325,94 @@ describe("GET /tasks/{id}/links", () => {
           where: {
             fromTask: {
               is: bareCoworkerVisiblePeerTaskWhere,
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+  });
+
+  it("filters delegated coworker linked peers to assignee or same-vendor siblings", async () => {
+    const app = createDelegatedCoworkerApp();
+    mountGetTaskLinks(app as unknown as OpenAPIHonoWithAuth);
+
+    const response = await app.request("http://localhost/tsk_a/links");
+
+    expect(response.status).toBe(200);
+    expect(requireTaskReadForRouteVarsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isAuthenticated: true,
+        authContext: {
+          actor: "coworker",
+          coworkerId: COWORKER_ID,
+          vendorId: testVendor.id,
+          context: {
+            userId: "user_delegate",
+            organizationId: "org_123",
+          },
+        },
+        workspaceContext: {
+          workspaceId: WORKSPACE_ID,
+          userId: null,
+          organizationId: "org_123",
+        },
+      }),
+      "tsk_a",
+      expect.any(Object),
+    );
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { id: "tsk_a", archivedAt: null },
+      select: {
+        id: true,
+        linksFrom: {
+          where: {
+            toTask: {
+              is: delegatedCoworkerVisiblePeerTaskWhere,
+            },
+          },
+          include: {
+            fromTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+            toTask: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        linksTo: {
+          where: {
+            fromTask: {
+              is: delegatedCoworkerVisiblePeerTaskWhere,
             },
           },
           include: {
