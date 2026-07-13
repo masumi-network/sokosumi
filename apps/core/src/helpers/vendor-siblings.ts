@@ -1,60 +1,6 @@
 import { type Prisma } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
-import prisma from "@/lib/db/prisma";
-import type { CoworkerAuthenticationContext } from "@/middleware/auth";
-
-import { notFound } from "./error";
-
-const taskSiblingSelect = {
-  coworkerId: true,
-  status: true,
-  coworker: {
-    select: {
-      vendorId: true,
-    },
-  },
-} as const;
-
-export type TaskForSiblingCheck = Prisma.TaskGetPayload<{
-  select: typeof taskSiblingSelect;
-}>;
-
-export function isSameVendorSiblingTask(
-  actor: CoworkerAuthenticationContext,
-  task: TaskForSiblingCheck,
-): boolean {
-  if (task.status === TaskStatus.DRAFT) {
-    return false;
-  }
-
-  if (!task.coworkerId || !task.coworker?.vendorId) {
-    return false;
-  }
-
-  if (task.coworkerId === actor.coworkerId) {
-    return false;
-  }
-
-  return task.coworker.vendorId === actor.vendorId;
-}
-
-export async function loadActorVendorId(
-  coworkerId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<string> {
-  const coworker = await tx.coworker.findUnique({
-    where: { id: coworkerId },
-    select: { vendorId: true },
-  });
-
-  if (!coworker) {
-    throw notFound("Coworker not found");
-  }
-
-  return coworker.vendorId;
-}
-
 interface CoworkerAuthorizedTaskWhereParams {
   taskId: string;
   coworkerId: string;

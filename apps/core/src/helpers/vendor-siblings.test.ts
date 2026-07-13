@@ -1,82 +1,13 @@
 import { TaskStatus } from "@sokosumi/utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import {
+  buildCoworkerAuthorizedTaskWhere,
   buildCoworkerSiblingTaskListFilter,
-  isSameVendorSiblingTask,
 } from "./vendor-siblings";
 
-const { taskFindFirstMock, coworkerFindUniqueMock } = vi.hoisted(() => ({
-  taskFindFirstMock: vi.fn(),
-  coworkerFindUniqueMock: vi.fn(),
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    task: {
-      findFirst: taskFindFirstMock,
-    },
-    coworker: {
-      findUnique: coworkerFindUniqueMock,
-    },
-  },
-}));
-
 describe("vendor-siblings", () => {
-  beforeEach(() => {
-    taskFindFirstMock.mockReset();
-    coworkerFindUniqueMock.mockReset();
-  });
-
-  describe("isSameVendorSiblingTask", () => {
-    const actor = {
-      actor: "coworker" as const,
-      coworkerId: "cow_a",
-      vendorId: TEST_VENDOR_ID,
-    };
-
-    it("returns true for same-vendor assignee when actor is not assignee", () => {
-      expect(
-        isSameVendorSiblingTask(actor, {
-          coworkerId: "cow_b",
-          status: TaskStatus.READY,
-          coworker: { vendorId: TEST_VENDOR_ID },
-        }),
-      ).toBe(true);
-    });
-
-    it("returns false when actor is assignee", () => {
-      expect(
-        isSameVendorSiblingTask(actor, {
-          coworkerId: "cow_a",
-          status: TaskStatus.READY,
-          coworker: { vendorId: TEST_VENDOR_ID },
-        }),
-      ).toBe(false);
-    });
-
-    it("returns false for cross-vendor task", () => {
-      expect(
-        isSameVendorSiblingTask(actor, {
-          coworkerId: "cow_b",
-          status: TaskStatus.READY,
-          coworker: { vendorId: "other_vendor" },
-        }),
-      ).toBe(false);
-    });
-
-    it("returns false for DRAFT tasks", () => {
-      expect(
-        isSameVendorSiblingTask(actor, {
-          coworkerId: "cow_b",
-          status: TaskStatus.DRAFT,
-          coworker: { vendorId: TEST_VENDOR_ID },
-        }),
-      ).toBe(false);
-    });
-  });
-
   describe("buildCoworkerSiblingTaskListFilter", () => {
     it("includes assignee and same-vendor sibling tasks", () => {
       expect(
@@ -85,6 +16,33 @@ describe("vendor-siblings", () => {
           vendorId: TEST_VENDOR_ID,
         }),
       ).toEqual({
+        status: { not: TaskStatus.DRAFT },
+        OR: [
+          { coworkerId: "cow_a" },
+          {
+            coworkerId: { not: "cow_a" },
+            coworker: {
+              vendorId: TEST_VENDOR_ID,
+            },
+          },
+        ],
+      });
+    });
+  });
+
+  describe("buildCoworkerAuthorizedTaskWhere", () => {
+    it("scopes a single task with optional workspace and sibling filter", () => {
+      expect(
+        buildCoworkerAuthorizedTaskWhere({
+          taskId: "tsk_1",
+          coworkerId: "cow_a",
+          vendorId: TEST_VENDOR_ID,
+          workspaceId: "ws_1",
+        }),
+      ).toEqual({
+        id: "tsk_1",
+        archivedAt: null,
+        workspaceId: "ws_1",
         status: { not: TaskStatus.DRAFT },
         OR: [
           { coworkerId: "cow_a" },
