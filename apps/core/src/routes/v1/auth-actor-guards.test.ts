@@ -1,12 +1,12 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountGetAgentJobs from "./agents/[id]/jobs/get";
 import mountGetConversations from "./conversations/get";
@@ -25,6 +25,7 @@ function createCoworkerContextApp(
     c.set("authContext", {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
     });
     return await next();
   });
@@ -45,6 +46,7 @@ function createCoworkerUserRouteContextApp(
     c.set("authContext", {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
     });
     return await next();
   });

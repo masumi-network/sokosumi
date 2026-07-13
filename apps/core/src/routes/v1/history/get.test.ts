@@ -344,7 +344,7 @@ describe("GET /history", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(prismaQueryRawMock).toHaveBeenCalledOnce();
+    expect(prismaQueryRawMock).toHaveBeenCalledTimes(1);
     expect(historyFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -399,7 +399,9 @@ describe("GET /history", () => {
 
   it("only includes conversations when status filter is active", async () => {
     const app = createApp();
-    const response = await app.request("http://localhost/?status=active");
+    const response = await app.request(
+      "http://localhost/?status=active&types=conversation",
+    );
 
     expect(response.status).toBe(200);
     expect(prismaQueryRawMock).not.toHaveBeenCalled();

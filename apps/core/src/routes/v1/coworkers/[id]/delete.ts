@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -60,6 +61,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const archived = await tx.coworker.findFirst({
         where: { id },
+        include: coworkerInclude,
       });
 
       if (!archived) {
@@ -69,6 +71,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return archived;
     });
 
-    return ok(c, coworkerSchema.parse(coworker));
+    return ok(c, mapCoworker(coworker));
   });
 }

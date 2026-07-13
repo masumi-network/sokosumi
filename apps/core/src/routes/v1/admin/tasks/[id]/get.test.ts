@@ -3,11 +3,11 @@ import { TaskStatus } from "@sokosumi/utils";
 import { createMiddleware } from "hono/factory";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler.js";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import type { AuthVariables } from "@/middleware/auth";
 import { requireAdminAuthContext } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const { taskFindUniqueMock } = vi.hoisted(() => ({
   taskFindUniqueMock: vi.fn(),
@@ -46,7 +46,11 @@ function createApp(options: AppOptions = {}) {
     c.set("isAuthenticated", true);
 
     if (actor === "coworker") {
-      c.set("authContext", { actor: "coworker", coworkerId: "cow_123" });
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+      });
     } else {
       c.set("authContext", {
         actor: "user",

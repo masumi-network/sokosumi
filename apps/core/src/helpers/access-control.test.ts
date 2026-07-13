@@ -8,7 +8,6 @@ import type {
   UserAuthenticationContext,
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-
 import {
   requireConversationCoworkerAccess,
   requireCoworkerCapability,
@@ -20,11 +19,13 @@ import {
   requireJobReadForRouteVars,
   requireTaskAssignableCoworker,
   requireTaskCollaboration,
+  requireTaskCommentAccess,
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
   resolveConversationCoworkerId,
 } from "./access-control";
+import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 function createTransactionClient() {
   return {
@@ -49,6 +50,20 @@ const userAuthContext: UserAuthenticationContext = {
 };
 
 const sessionUserContext = { source: "session" as const, ...userAuthContext };
+
+const defaultVendorId = "01960001-0001-7001-8001-000000000001";
+
+function createCoworkerContext(
+  coworkerId: string,
+  context?: CoworkerAuthenticationContext["context"],
+): CoworkerAuthenticationContext {
+  return {
+    actor: "coworker",
+    coworkerId,
+    vendorId: defaultVendorId,
+    ...(context ? { context } : {}),
+  };
+}
 
 const workspaceId = "11111111-1111-7111-8111-111111111111";
 
@@ -97,10 +112,7 @@ describe("requireTaskCollaboration", () => {
 
   it("uses coworker task access for coworkers", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const coworkerContext = createCoworkerContext("cow_123");
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
@@ -126,10 +138,7 @@ describe("requireTaskCollaboration", () => {
 
   it("rejects coworkers without tasks capability before loading the task", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const coworkerContext = createCoworkerContext("cow_123");
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
@@ -142,14 +151,10 @@ describe("requireTaskCollaboration", () => {
 
   it("rejects delegated coworkers without tasks capability before loading the task", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-      delegation: {
-        userId: "user_delegate",
-        organizationId: "org_123",
-      },
-    };
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
@@ -207,6 +212,7 @@ describe("requireTaskReadForRouteVars", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      userId: "user_123",
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -244,20 +250,18 @@ describe("requireTaskReadForRouteVars", () => {
 
   it("delegates to coworker read for coworkers", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const coworkerContext = createCoworkerContext("cow_123");
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findUnique).mockResolvedValueOnce({
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       coworkerId: "cow_123",
       status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -268,25 +272,22 @@ describe("requireTaskReadForRouteVars", () => {
 
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
 
-    expect(tx.task.findUnique).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        status: { not: TaskStatus.DRAFT },
-        archivedAt: null,
-      },
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_123",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
+      }),
     });
+    expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 
   it("delegates coworker reads with delegation to workspace read", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-      delegation: {
-        userId: "user_delegate",
-        organizationId: "org_123",
-      },
-    };
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
@@ -296,6 +297,8 @@ describe("requireTaskReadForRouteVars", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       coworkerId: "cow_123",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -307,11 +310,12 @@ describe("requireTaskReadForRouteVars", () => {
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_123",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
         workspaceId,
-      },
+      }),
     });
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
@@ -331,16 +335,42 @@ describe("requireTaskReadForRouteVars", () => {
     expect(tx.task.findUnique).not.toHaveBeenCalled();
   });
 
+  it("rejects coworker reads of draft assignee tasks", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123");
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: null,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_draft", tx),
+    ).rejects.toThrow("Task not found");
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_draft",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
+      }),
+    });
+  });
+
   it("rejects delegated coworker reads without tasks capability before loading the task", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-      delegation: {
-        userId: "user_delegate",
-        organizationId: "org_123",
-      },
-    };
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
@@ -360,25 +390,17 @@ describe("requireTaskReadForRouteVars", () => {
 
   it("rejects a delegated coworker reading a task not assigned to it", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-      delegation: {
-        userId: "user_delegate",
-        organizationId: "org_123",
-      },
-    };
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    // Task is in the delegated user's workspace but assigned to another coworker.
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_other",
-    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -388,17 +410,154 @@ describe("requireTaskReadForRouteVars", () => {
 
     await expect(
       requireTaskReadForRouteVars(vars, "tsk_123", tx),
-    ).rejects.toThrow("You can only access tasks assigned to your coworker");
+    ).rejects.toThrow("Task not found");
+  });
+
+  it("allows a delegated coworker to read a same-vendor sibling task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskReadForRouteVars(vars, "tsk_123", tx);
+  });
+});
+
+describe("requireTaskCommentAccess", () => {
+  it("allows a bare coworker to comment on a same-vendor sibling task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123");
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: null,
+    };
+
+    await requireTaskCommentAccess(vars, "tsk_123", tx);
+  });
+
+  it("allows a session user to comment on a workspace-visible task they do not own", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      userId: "user_owner",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskCommentAccess(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+  });
+
+  it("allows a delegated coworker to comment on a same-vendor sibling task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskCommentAccess(vars, "tsk_123", tx);
+  });
+});
+
+describe("requireTaskCollaboration sibling writes", () => {
+  it("rejects a delegated coworker collaborating on a sibling task", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      userId: "user_delegate",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+    } as never);
+
+    await expect(
+      requireTaskCollaboration(coworkerContext, "tsk_123", tx),
+    ).rejects.toThrow("You can only act on tasks assigned to your coworker");
   });
 });
 
 describe("requireCoworkerTaskCollaboration", () => {
   it("loads non-draft tasks assigned to the coworker", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const coworkerContext = createCoworkerContext("cow_123");
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
@@ -425,10 +584,7 @@ describe("requireCoworkerTaskCollaboration", () => {
 
   it("rejects when tasks capability is unavailable", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const coworkerContext = createCoworkerContext("cow_123");
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
@@ -598,14 +754,10 @@ describe("requireJobOwnership", () => {
   });
 });
 
-const delegatedCoworkerContext: CoworkerAuthenticationContext = {
-  actor: "coworker",
-  coworkerId: "cow_123",
-  delegation: {
-    userId: "user_delegate",
-    organizationId: "org_123",
-  },
-};
+const delegatedCoworkerContext = createCoworkerContext("cow_123", {
+  userId: "user_delegate",
+  organizationId: "org_123",
+});
 
 describe("resolveConversationCoworkerId", () => {
   it("prefers the stable coworker_id without a DB lookup", async () => {
@@ -719,12 +871,9 @@ describe("requireConversationCoworkerAccess", () => {
     );
   });
 
-  it("rejects a coworker without delegation", async () => {
+  it("rejects a coworker without context headers", async () => {
     const tx = createTransactionClient();
-    const coworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const coworkerContext = createCoworkerContext("cow_123");
 
     await expect(
       requireConversationCoworkerAccess(
@@ -732,7 +881,9 @@ describe("requireConversationCoworkerAccess", () => {
         { coworker_id: "cow_123" },
         tx,
       ),
-    ).rejects.toThrow("Delegation is required for this resource");
+    ).rejects.toThrow(
+      "Context headers (X-Context-User-Id) are required for this resource",
+    );
   });
 });
 
@@ -785,7 +936,10 @@ describe("requireJobReadForRouteVars", () => {
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
       coworkerId: "cow_123",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -800,12 +954,16 @@ describe("requireJobReadForRouteVars", () => {
       where: { id: "job_123", workspaceId },
     });
     expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: { id: "tsk_123" },
-      select: { coworkerId: true },
+      where: buildCoworkerAuthorizedTaskWhere({
+        taskId: "tsk_123",
+        coworkerId: "cow_123",
+        vendorId: defaultVendorId,
+      }),
+      select: { id: true },
     });
   });
 
-  it("rejects a delegated coworker reading a job assigned to another coworker", async () => {
+  it("allows a delegated coworker to read a job on a same-vendor sibling task", async () => {
     const tx = createTransactionClient();
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
@@ -818,8 +976,34 @@ describe("requireJobReadForRouteVars", () => {
       taskId: "tsk_123",
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
       coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
     } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: delegatedCoworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireJobReadForRouteVars(vars, "job_123", tx);
+  });
+
+  it("rejects a delegated coworker reading a cross-vendor sibling job", async () => {
+    const tx = createTransactionClient();
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -829,7 +1013,7 @@ describe("requireJobReadForRouteVars", () => {
 
     await expect(
       requireJobReadForRouteVars(vars, "job_123", tx),
-    ).rejects.toThrow("You can only access jobs assigned to your coworker");
+    ).rejects.toThrow("Job not found");
   });
 
   it("rejects a delegated coworker reading a job with no task", async () => {
@@ -875,12 +1059,26 @@ describe("requireJobReadForRouteVars", () => {
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 
-  it("rejects a bare coworker without delegation", async () => {
+  it("allows a bare coworker to read a job on a same-vendor sibling task", async () => {
     const tx = createTransactionClient();
-    const bareCoworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const bareCoworkerContext = createCoworkerContext("cow_123");
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+      workspaceId,
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+    } as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -888,11 +1086,7 @@ describe("requireJobReadForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await expect(
-      requireJobReadForRouteVars(vars, "job_123", tx),
-    ).rejects.toThrow("Delegation headers");
-
-    expect(tx.job.findFirst).not.toHaveBeenCalled();
+    await requireJobReadForRouteVars(vars, "job_123", tx);
   });
 });
 
@@ -978,16 +1172,13 @@ describe("requireJobCollaboration", () => {
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
 
-  it("rejects a bare coworker without delegation", async () => {
+  it("rejects a bare coworker without context headers", async () => {
     const tx = createTransactionClient();
-    const bareCoworkerContext: CoworkerAuthenticationContext = {
-      actor: "coworker",
-      coworkerId: "cow_123",
-    };
+    const bareCoworkerContext = createCoworkerContext("cow_123");
 
     await expect(
       requireJobCollaboration(bareCoworkerContext, "job_123", tx),
-    ).rejects.toThrow("Delegation headers");
+    ).rejects.toThrow("Context headers");
 
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });

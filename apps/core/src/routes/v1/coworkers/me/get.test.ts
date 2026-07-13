@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
-
+import { testVendor } from "@/test-fixtures/vendor";
 import mountGetCoworkerMe from "./get";
 
 const { coworkerFindFirstMock } = vi.hoisted(() => ({
@@ -28,6 +28,7 @@ function createApp() {
     c.set("authContext", {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
     });
     return await next();
   });
@@ -53,6 +54,7 @@ describe("GET /coworkers/me", () => {
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: null,
+      vendor: testVendor,
     });
 
     const app = createApp();
@@ -76,6 +78,7 @@ describe("GET /coworkers/me", () => {
         id: "cow_123",
         archivedAt: null,
       },
+      include: { vendor: true },
     });
   });
 });

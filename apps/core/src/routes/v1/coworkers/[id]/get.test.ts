@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
-
+import { testVendor } from "@/test-fixtures/vendor";
 import mountGetCoworkerById from "./get";
 
 const { coworkerFindFirstMock } = vi.hoisted(() => ({
@@ -21,6 +21,7 @@ vi.mock("@/lib/db/prisma", () => ({
 const coworkerAuth: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_456",
+  vendorId: testVendor.id,
 };
 
 function createApp(
@@ -60,6 +61,7 @@ describe("GET /coworkers/{id}", () => {
       where: {
         id: "cow_123",
       },
+      include: { vendor: true },
     });
   });
 
@@ -75,6 +77,7 @@ describe("GET /coworkers/{id}", () => {
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: null,
+      vendor: testVendor,
     });
 
     const app = createApp();
@@ -100,6 +103,7 @@ describe("GET /coworkers/{id}", () => {
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: "https://responses.example.com/v1",
+      vendor: testVendor,
     });
 
     const app = createApp();
@@ -124,6 +128,7 @@ describe("GET /coworkers/{id}", () => {
       slug: "ops-agent",
       name: "Ops Agent",
       baseURL: null,
+      vendor: testVendor,
     });
 
     const app = createApp(coworkerAuth);
@@ -132,6 +137,7 @@ describe("GET /coworkers/{id}", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindFirstMock).toHaveBeenCalledWith({
       where: { id: "cow_123" },
+      include: { vendor: true },
     });
   });
 });

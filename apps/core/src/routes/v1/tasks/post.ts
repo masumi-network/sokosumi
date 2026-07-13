@@ -89,9 +89,62 @@ const route = withGlobalHeaderParameters(
   }),
 );
 
+async function createTaskRecord(
+  params: {
+    userId: string;
+    organizationId: string | null;
+    workspaceId: string;
+    body: z.infer<typeof createTaskRequestSchema>;
+    resolvedName: string;
+  },
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+) {
+  const { body, organizationId, resolvedName, userId, workspaceId } = params;
+
+  if (body.projectId !== null && body.projectId !== undefined) {
+    const project = await tx.project.findFirst({
+      where: {
+        id: body.projectId,
+        workspaceId,
+      },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw notFound("Project not found");
+    }
+  }
+
+  return tx.task.create({
+    data: {
+      userId,
+      organizationId,
+      workspaceId,
+      projectId: body.projectId ?? null,
+      name: resolvedName,
+      description: body.description ?? null,
+      coworkerId: body.coworkerId ?? null,
+      status: body.status,
+      metadata: null,
+      nextRunAt: null,
+      events: {
+        create: {
+          status: body.status,
+          comment: null,
+          origin: body.origin,
+          userId,
+          coworkerId: null,
+        },
+      },
+    },
+    include: taskInclude,
+  });
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const authContext = c.var.authContext;
+    const userContext = requireUserContext(authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
@@ -100,55 +153,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       description: body.description,
     });
 
-    const task = await prisma.$transaction(async (tx) => {
-      validateTaskCoworkerAssignment({
-        status: body.status,
-        coworkerId: body.coworkerId,
-      });
+    validateTaskCoworkerAssignment({
+      status: body.status,
+      coworkerId: body.coworkerId,
+    });
 
-      if (body.coworkerId !== null && body.coworkerId !== undefined) {
-        await requireTaskAssignableCoworker(body.coworkerId, tx);
-      }
+    if (body.coworkerId !== null && body.coworkerId !== undefined) {
+      await requireTaskAssignableCoworker(body.coworkerId);
+    }
 
-      if (body.projectId !== null && body.projectId !== undefined) {
-        const project = await tx.project.findFirst({
-          where: {
-            id: body.projectId,
-            workspaceId: workspaceContext.workspaceId,
-          },
-          select: { id: true },
-        });
-
-        if (!project) {
-          throw notFound("Project not found");
-        }
-      }
-
-      return tx.task.create({
-        data: {
+    const task = await prisma.$transaction(async (tx) =>
+      createTaskRecord(
+        {
           userId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
-          projectId: body.projectId ?? null,
-          name: resolvedName,
-          description: body.description ?? null,
-          coworkerId: body.coworkerId ?? null,
-          status: body.status,
-          metadata: null,
-          nextRunAt: null,
-          events: {
-            create: {
-              status: body.status,
-              comment: null,
-              origin: body.origin,
-              userId: userContext.userId,
-              coworkerId: null,
-            },
-          },
+          body,
+          resolvedName,
         },
-        include: taskInclude,
-      });
-    });
+        tx,
+      ),
+    );
 
     return created(c, taskSchema.parse(mapTask(task)));
   });

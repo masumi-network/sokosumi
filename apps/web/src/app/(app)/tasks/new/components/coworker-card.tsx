@@ -84,9 +84,9 @@ export function CoworkerCard({
               </span>
             ) : null}
           </div>
-          {option.company ? (
+          {option.vendor ? (
             <p className="text-muted-foreground mt-1 truncate text-xs">
-              by {option.company}
+              by {option.vendor.name}
             </p>
           ) : null}
         </div>

@@ -16,7 +16,10 @@ import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-r
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
-import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  canCommentOnTaskForViewer,
+  isReadOnlyForViewer,
+} from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { parsePlanName } from "@/components/billing/subscription-plan-utils";
 import { getSession } from "@/lib/auth/auth.server";
@@ -453,12 +456,6 @@ async function TaskActivitySectionContent({
     : actorsUserById;
   const agentNameById = buildAgentNameById(agents);
   const isFreePlan = currentPlan === "free";
-  const isReadOnlyWorkspaceView = isReadOnlyForViewer({
-    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskUserId: task.userId,
-    sessionUserId: session?.user.id,
-    forceReadOnly,
-  });
 
   return (
     <TaskActivitySection
@@ -480,7 +477,12 @@ async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       isFreePlan={isFreePlan}
-      canComment={!isReadOnlyWorkspaceView}
+      canComment={canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
+        taskUserId: task.userId,
+        sessionUserId: session?.user.id,
+        forceReadOnly,
+      })}
     />
   );
 }

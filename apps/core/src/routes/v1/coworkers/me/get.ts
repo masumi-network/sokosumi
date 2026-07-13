@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -23,8 +24,17 @@ const route = createRoute({
         name: "Ops Agent",
         isWhitelisted: true,
         caption: "Senior Campaign Partner",
-        company: "Serviceplan",
-        companyLogo: "https://example.com/company-logo",
+        vendor: {
+          id: "01960001-0001-7001-8001-000000000001",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+          name: "Serviceplan",
+          slug: "serviceplan",
+          logos: {
+            light: "https://example.com/company-logo",
+            dark: null,
+          },
+        },
         url: "https://example.com",
         baseURL: "https://responses.example.com/v1",
         description: "Ops helper",
@@ -59,12 +69,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         id: authContext.coworkerId,
         archivedAt: null,
       },
+      include: coworkerInclude,
     });
 
     if (!coworker) {
       throw notFound("Coworker not found");
     }
 
-    return ok(c, coworkerSchema.parse(coworker));
+    return ok(c, mapCoworker(coworker));
   });
 }

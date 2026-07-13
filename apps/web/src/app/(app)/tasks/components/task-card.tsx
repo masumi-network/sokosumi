@@ -1,3 +1,5 @@
+"use client";
+
 import { TaskStatus } from "@sokosumi/utils";
 
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
@@ -52,12 +54,14 @@ export function TaskCard({
         >
           <div className="space-y-2.5">
             <div className="space-y-2">
-              <TaskStatusBadge
-                status={task.status}
-                label={statusLabels?.[task.status]}
-                showDot={task.columnId === "in-progress"}
-                className="w-fit rounded-sm"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <TaskStatusBadge
+                  status={task.status}
+                  label={statusLabels?.[task.status]}
+                  showDot={task.columnId === "in-progress"}
+                  className="w-fit rounded-sm"
+                />
+              </div>
               <h3 className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
                 {task.name}
               </h3>

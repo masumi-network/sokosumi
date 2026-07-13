@@ -1,3 +1,5 @@
+"use client";
+
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 import type { TaskWithCoworker } from "@/lib/types/task";

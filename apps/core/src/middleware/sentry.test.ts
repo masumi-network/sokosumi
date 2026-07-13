@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthenticationContext, AuthVariables } from "./auth";
 import { setAuthContext } from "./auth";
@@ -133,6 +134,7 @@ describe("sentryMiddleware", () => {
       nestedAuthContext: {
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       },
     });
 

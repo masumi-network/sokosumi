@@ -1946,6 +1946,140 @@ export const TaskLinkPeerTaskSchema = {
     }
 } as const;
 
+export const VendorListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/Vendor'
+    }
+} as const;
+
+export const VendorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        name: {
+            type: 'string',
+            example: 'Serviceplan'
+        },
+        slug: {
+            type: 'string',
+            example: 'serviceplan'
+        },
+        logos: {
+            $ref: '#/components/schemas/VendorLogos'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'name',
+        'slug',
+        'logos'
+    ]
+} as const;
+
+export const VendorLogosSchema = {
+    type: 'object',
+    properties: {
+        light: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo.png'
+        },
+        dark: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '/images/logos/serviceplan-logo-white.png'
+        }
+    },
+    required: [
+        'light',
+        'dark'
+    ]
+} as const;
+
+export const CreateVendorRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            example: 'Serviceplan'
+        },
+        slug: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+            example: 'serviceplan'
+        },
+        logos: {
+            $ref: '#/components/schemas/VendorLogosInput'
+        }
+    },
+    required: [
+        'name',
+        'slug'
+    ]
+} as const;
+
+export const VendorLogosInputSchema = {
+    type: 'object',
+    properties: {
+        light: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        dark: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    }
+} as const;
+
+export const PatchVendorRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            example: 'Serviceplan'
+        },
+        slug: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 120,
+            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+            example: 'serviceplan'
+        },
+        logos: {
+            $ref: '#/components/schemas/VendorLogosInput'
+        }
+    }
+} as const;
+
 export const AgentSchema = {
     type: 'object',
     properties: {
@@ -8852,19 +8986,8 @@ export const CoworkerSchema = {
             ],
             example: 'Senior Campaign Partner'
         },
-        company: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Serviceplan'
-        },
-        companyLogo: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/company-logo'
+        vendor: {
+            $ref: '#/components/schemas/Vendor'
         },
         url: {
             type: [
@@ -8923,6 +9046,7 @@ export const CoworkerSchema = {
         'priority',
         'slug',
         'name',
+        'vendor',
         'baseURL',
         'capabilities'
     ]

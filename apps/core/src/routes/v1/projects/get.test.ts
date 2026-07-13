@@ -1,11 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { LIMITS } from "@/config/constants";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import { createProjectListCountsInclude } from "@/types/project";
 
 import mountListProjects from "./get.js";
@@ -194,7 +193,10 @@ describe("GET /projects", () => {
   });
 
   it("returns 403 for coworker without delegation", async () => {
-    const app = createApp({ actor: "coworker", coworkerId: "cow_1" }, null);
+    const app = createApp(
+      { actor: "coworker", coworkerId: "cow_1", vendorId: TEST_VENDOR_ID },
+      null,
+    );
     const res = await app.request("http://localhost/");
     expect(res.status).toBe(403);
   });

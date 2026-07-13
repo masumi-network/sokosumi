@@ -2,14 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-
-import { CompanyMark } from "@/components/agents/company-mark";
 import {
   OfferDetailDialog,
   type OfferDetailItem,
   type OutputKind,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
+import { VendorMark } from "@/components/agents/vendor-mark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CoworkerOffer, CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
@@ -152,24 +151,23 @@ export function AgentSpotlight({
   const groups = useMemo(() => {
     const map = new Map<string, CoworkerOption[]>();
     for (const option of options) {
-      const key = option.company ?? "";
+      const key = option.vendor.id;
       const list = map.get(key);
       if (list) list.push(option);
       else map.set(key, [option]);
     }
     return Array.from(map.entries())
-      .map(([company, members]) => ({
-        company,
+      .map(([vendorId, members]) => ({
+        vendor: members[0]?.vendor,
+        vendorId,
         members,
         topPriority: Math.max(...members.map((m) => m.priority ?? 0)),
       }))
-      .sort((a, b) => {
-        if (a.company === "") return 1;
-        if (b.company === "") return -1;
-        return (
-          b.topPriority - a.topPriority || a.company.localeCompare(b.company)
-        );
-      });
+      .sort(
+        (a, b) =>
+          b.topPriority - a.topPriority ||
+          a.vendor.name.localeCompare(b.vendor.name),
+      );
   }, [options]);
 
   const current =
@@ -213,9 +211,9 @@ export function AgentSpotlight({
         )}
       >
         {groups.map((group) => (
-          <div key={group.company || "_none"} className="space-y-1">
+          <div key={group.vendorId} className="space-y-1">
             <p className="text-muted-foreground px-2 text-xs font-medium">
-              {group.company || "Other"}
+              {group.vendor.name}
             </p>
             {group.members.map((member) => (
               <RailItem
@@ -259,11 +257,9 @@ export function AgentSpotlight({
             {current.caption ? (
               <p className="text-muted-foreground text-sm">{current.caption}</p>
             ) : null}
-            {current.company ? (
-              <div className="mt-1.5 flex h-5 items-center">
-                <CompanyMark company={current.company} className="h-4" />
-              </div>
-            ) : null}
+            <div className="mt-1.5 flex h-5 items-center">
+              <VendorMark vendor={current.vendor} className="h-4" />
+            </div>
           </div>
         </div>
 
@@ -303,7 +299,7 @@ export function AgentSpotlight({
                 offer: previewOffer,
                 coworkerName: current.name,
                 coworkerCaption: current.caption ?? undefined,
-                company: current.company ?? undefined,
+                vendor: current.vendor,
                 coworkerAvatar: (
                   <Avatar className="ring-border size-11 rounded-full ring-1">
                     <AvatarImage

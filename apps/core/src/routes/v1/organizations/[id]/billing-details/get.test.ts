@@ -2,11 +2,11 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler.js";
 import { defaultValidationHook, type OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
   getOrganizationBillingDetailsMock,
@@ -47,6 +47,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
 };
 
 const billingDetails = {

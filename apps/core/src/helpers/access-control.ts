@@ -8,6 +8,7 @@ import {
   type CoworkerAuthenticationContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
+  requireUserContext,
   type UserContext,
 } from "@/middleware/auth";
 
@@ -18,6 +19,7 @@ import {
 
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
+import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
 // User ownership (resource belongs to the authenticated user)
@@ -161,6 +163,75 @@ export async function requireTaskAssignableCoworker(
 // -----------------------------------------------------------------------------
 
 /**
+ * Coworker branch of task read: assignee or same-vendor sibling (non-DRAFT).
+ */
+async function requireCoworkerTaskRead(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  workspaceId: string | null,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+async function requireCoworkerTaskRead<I extends Prisma.TaskInclude>(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  workspaceId: string | null,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+async function requireCoworkerTaskRead(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  workspaceId: string | null,
+  tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
+): Promise<Task> {
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+
+  const task = await tx.task.findFirst({
+    where: buildCoworkerAuthorizedTaskWhere({
+      taskId,
+      coworkerId: authContext.coworkerId,
+      vendorId: authContext.vendorId,
+      workspaceId,
+    }),
+    ...(include ? { include } : {}),
+  });
+
+  if (!task) {
+    throw notFound("Task not found");
+  }
+
+  return task;
+}
+
+/**
+ * Coworker branch of task read: tasks capability, task exists (non-draft), and assignment to this coworker.
+ */
+async function requireCoworkerAssignedTaskRead(
+  authContext: CoworkerAuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+
+  const task = await tx.task.findUnique({
+    where: {
+      id: taskId,
+      status: { not: TaskStatus.DRAFT },
+      archivedAt: null,
+    },
+  });
+  if (!task) {
+    throw notFound("Task not found");
+  }
+  if (task.coworkerId !== authContext.coworkerId) {
+    throw forbidden("You can only access tasks assigned to your coworker");
+  }
+
+  return task;
+}
+
+/**
  * Coworker branch of task collaboration: tasks capability, task exists (non-draft), and assignment to this coworker.
  *
  * @param authContext - The authenticated coworker context
@@ -184,22 +255,7 @@ export async function requireCoworkerTaskCollaboration(
   taskId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
-  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
-
-  const task = await tx.task.findUnique({
-    where: {
-      id: taskId,
-      status: { not: TaskStatus.DRAFT },
-      archivedAt: null,
-    },
-  });
-  if (!task) {
-    throw notFound("Task not found");
-  }
-  if (task.coworkerId !== authContext.coworkerId) {
-    throw forbidden("You can only access tasks assigned to your coworker");
-  }
-  return task;
+  return await requireCoworkerAssignedTaskRead(authContext, taskId, tx);
 }
 
 /**
@@ -211,29 +267,28 @@ export async function requireTaskCollaboration(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Task> {
   if (isUserAuthContext(authContext)) {
-    return await requireTaskOwnership(
+    const task = await requireTaskOwnership(
       { source: "session", ...authContext },
       taskId,
       tx,
     );
+    return task;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
+  if (coworker.context) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
     const task = await requireTaskOwnership(
       {
-        source: "delegation",
-        userId: coworker.delegation.userId,
-        organizationId: coworker.delegation.organizationId,
+        source: "context",
+        userId: coworker.context.userId,
+        organizationId: coworker.context.organizationId,
       },
       taskId,
       tx,
     );
 
-    // Delegation only authorizes collaboration on tasks assigned to this
-    // coworker — not every task the delegated user owns.
     if (task.coworkerId !== coworker.coworkerId) {
       throw forbidden("You can only act on tasks assigned to your coworker");
     }
@@ -242,6 +297,34 @@ export async function requireTaskCollaboration(
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+}
+
+/**
+ * Comment access: workspace-visible session users, or assignee / same-vendor sibling coworkers.
+ */
+export async function requireTaskCommentAccess(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  const { authContext, workspaceContext } = vars;
+
+  if (isUserAuthContext(authContext)) {
+    requireUserContext(authContext);
+    return await requireTaskReadForWorkspace(
+      requireWorkspaceContext(workspaceContext),
+      taskId,
+      tx,
+    );
+  }
+
+  const coworker = requireCoworkerAuthContext(authContext);
+  const workspaceId =
+    coworker.context && workspaceContext
+      ? requireWorkspaceContext(workspaceContext).workspaceId
+      : null;
+
+  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
 // -----------------------------------------------------------------------------
@@ -255,7 +338,19 @@ export async function requireTaskCollaboration(
 export async function requireTaskReadForWorkspace(
   workspaceContext: WorkspaceContext,
   taskId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+export async function requireTaskReadForWorkspace<I extends Prisma.TaskInclude>(
+  workspaceContext: WorkspaceContext,
+  taskId: string,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+export async function requireTaskReadForWorkspace(
+  workspaceContext: WorkspaceContext,
+  taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
 ): Promise<Task> {
   const { workspaceId } = workspaceContext;
 
@@ -265,6 +360,7 @@ export async function requireTaskReadForWorkspace(
       archivedAt: null,
       workspaceId,
     },
+    ...(include ? { include } : {}),
   });
 
   if (!task) {
@@ -276,42 +372,53 @@ export async function requireTaskReadForWorkspace(
 
 /**
  * Task read for a workspace-scoped user or an assigned coworker with the tasks capability.
- * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskReadForWorkspace` or `requireCoworkerTaskCollaboration`.
+ * Pass the route `Variables` object (e.g. `c.var` from `OpenAPIHonoWithAuth`). Delegates to `requireTaskReadForWorkspace` or coworker assignment read helpers.
  */
 export async function requireTaskReadForRouteVars(
   vars: EnvVariables["Variables"],
   taskId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<Task>;
+export async function requireTaskReadForRouteVars<I extends Prisma.TaskInclude>(
+  vars: EnvVariables["Variables"],
+  taskId: string,
+  tx: Prisma.TransactionClient,
+  include: I,
+): Promise<Prisma.TaskGetPayload<{ include: I }>>;
+export async function requireTaskReadForRouteVars(
+  vars: EnvVariables["Variables"],
+  taskId: string,
   tx: Prisma.TransactionClient = prisma,
+  include?: Prisma.TaskInclude,
 ): Promise<Task> {
   const { authContext, workspaceContext } = vars;
 
   if (isUserAuthContext(authContext)) {
-    return await requireTaskReadForWorkspace(
-      requireWorkspaceContext(workspaceContext),
-      taskId,
-      tx,
-    );
+    requireUserContext(authContext);
+    const workspace = requireWorkspaceContext(workspaceContext);
+    if (include) {
+      return await requireTaskReadForWorkspace(workspace, taskId, tx, include);
+    }
+    return await requireTaskReadForWorkspace(workspace, taskId, tx);
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+  const workspaceId =
+    coworker.context && workspaceContext
+      ? requireWorkspaceContext(workspaceContext).workspaceId
+      : null;
 
-    const task = await requireTaskReadForWorkspace(
-      requireWorkspaceContext(workspaceContext),
+  if (include) {
+    return await requireCoworkerTaskRead(
+      coworker,
       taskId,
+      workspaceId,
       tx,
+      include,
     );
-
-    // Delegation only authorizes reads of tasks assigned to this coworker.
-    if (task.coworkerId !== coworker.coworkerId) {
-      throw forbidden("You can only access tasks assigned to your coworker");
-    }
-
-    return task;
   }
 
-  return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+  return await requireCoworkerTaskRead(coworker, taskId, workspaceId, tx);
 }
 
 /**
@@ -403,8 +510,10 @@ export async function requireConversationCoworkerAccess(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (!coworker.delegation) {
-    throw forbidden("Delegation is required for this resource");
+  if (!coworker.context) {
+    throw forbidden(
+      "Context headers (X-Context-User-Id) are required for this resource",
+    );
   }
 
   const conversationCoworkerId = await resolveConversationCoworkerId(
@@ -453,6 +562,9 @@ export function pinCoworkerConversationBinding(
  * `Job.taskId -> Task.coworkerId`. Jobs without a task, or whose task is
  * assigned to a different coworker, are denied.
  *
+ * Used for job **writes** only. Job reads also allow same-vendor siblings via
+ * {@link assertCoworkerCanReadJob}.
+ *
  * @throws {forbidden} If the job is not attached to a task assigned to the coworker
  */
 async function assertJobAssignedToCoworker(
@@ -474,14 +586,31 @@ async function assertJobAssignedToCoworker(
   }
 }
 
+async function assertCoworkerCanReadJob(
+  coworker: CoworkerAuthenticationContext,
+  job: Job,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  if (job.taskId === null) {
+    throw forbidden("You can only access jobs assigned to your coworker");
+  }
+
+  const taskForSibling = await tx.task.findFirst({
+    where: buildCoworkerAuthorizedTaskWhere({
+      taskId: job.taskId,
+      coworkerId: coworker.coworkerId,
+      vendorId: coworker.vendorId,
+      workspaceId: job.workspaceId,
+    }),
+    select: { id: true },
+  });
+  if (!taskForSibling) {
+    throw notFound("Job not found");
+  }
+}
+
 /**
- * Job read for a workspace-scoped user or an assigned coworker with the tasks
- * capability. Pass the route `Variables` object (e.g. `c.var` from
- * `OpenAPIHonoWithAuth`). Mirrors `requireTaskReadForRouteVars` for jobs.
- *
- * @throws {forbidden} If a bare coworker (no delegation) is used, or a delegated
- *   coworker is not assigned to the job's task
- * @throws {notFound} If the job is not in the active workspace
+ * Job read for a workspace-scoped user or a coworker with assignee / same-vendor sibling access.
  */
 export async function requireJobReadForRouteVars(
   vars: EnvVariables["Variables"],
@@ -499,24 +628,24 @@ export async function requireJobReadForRouteVars(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+  await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
-    const job = await requireJobRead(
-      requireWorkspaceContext(workspaceContext),
-      jobId,
-      tx,
-    );
-
-    await assertJobAssignedToCoworker(job, coworker.coworkerId, tx);
-
+  if (coworker.context) {
+    const workspace = requireWorkspaceContext(workspaceContext);
+    const job = await requireJobRead(workspace, jobId, tx);
+    await assertCoworkerCanReadJob(coworker, job, tx);
     return job;
   }
 
-  // Bare coworkers (no delegation) have no user/workspace context for jobs.
-  throw forbidden(
-    "Delegation headers (X-Delegation-User-Id) are required for this resource",
-  );
+  const job = await tx.job.findFirst({
+    where: { id: jobId },
+  });
+  if (!job) {
+    throw notFound("Job not found");
+  }
+
+  await assertCoworkerCanReadJob(coworker, job, tx);
+  return job;
 }
 
 /**
@@ -541,14 +670,14 @@ export async function requireJobCollaboration(
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
-  if (coworker.delegation) {
+  if (coworker.context) {
     await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
 
     const job = await requireJobOwnership(
       {
-        source: "delegation",
-        userId: coworker.delegation.userId,
-        organizationId: coworker.delegation.organizationId,
+        source: "context",
+        userId: coworker.context.userId,
+        organizationId: coworker.context.organizationId,
       },
       jobId,
       tx,
@@ -559,8 +688,8 @@ export async function requireJobCollaboration(
     return job;
   }
 
-  // Bare coworkers (no delegation) have no user/workspace context for jobs.
+  // Bare coworkers (no context headers) have no user/workspace context for jobs.
   throw forbidden(
-    "Delegation headers (X-Delegation-User-Id) are required for this resource",
+    "Context headers (X-Context-User-Id) are required for this resource",
   );
 }

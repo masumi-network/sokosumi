@@ -419,6 +419,39 @@ export type TaskLinkPeerTask = {
     archivedAt: Date | null;
 };
 
+export type VendorList = Array<Vendor>;
+
+export type Vendor = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    slug: string;
+    logos: VendorLogos;
+};
+
+export type VendorLogos = {
+    light: string | null;
+    dark: string | null;
+};
+
+export type CreateVendorRequest = {
+    name: string;
+    slug: string;
+    logos?: VendorLogosInput;
+};
+
+export type VendorLogosInput = {
+    light?: string | null;
+    dark?: string | null;
+};
+
+export type PatchVendorRequest = {
+    name?: string;
+    slug?: string;
+    logos?: VendorLogosInput;
+};
+
 export type Agent = {
     id: string;
     createdAt: Date;
@@ -2460,8 +2493,7 @@ export type Coworker = {
     slug: string;
     name: string;
     caption?: string | null;
-    company?: string | null;
-    companyLogo?: string | null;
+    vendor: Vendor;
     url?: string | null;
     /**
      * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -2727,14 +2759,14 @@ export type WorkspaceOrganization = {
 export type OrganizationSlug = string;
 
 /**
- * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+ * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
  */
-export type DelegationUserId = string;
+export type ContextUserId = string;
 
 /**
- * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+ * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
  */
-export type DelegationOrganizationId = string;
+export type ContextOrganizationId = string;
 
 export type SearchAdminUsersData = {
     body?: never;
@@ -4279,6 +4311,331 @@ export type GetAdminTaskResponses = {
 
 export type GetAdminTaskResponse = GetAdminTaskResponses[keyof GetAdminTaskResponses];
 
+export type ListAdminVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/vendors';
+};
+
+export type ListAdminVendorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminVendorsError = ListAdminVendorsErrors[keyof ListAdminVendorsErrors];
+
+export type ListAdminVendorsResponses = {
+    /**
+     * List of vendors
+     */
+    200: {
+        data: VendorList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminVendorsResponse = ListAdminVendorsResponses[keyof ListAdminVendorsResponses];
+
+export type CreateAdminVendorData = {
+    body?: CreateVendorRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/vendors';
+};
+
+export type CreateAdminVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminVendorError = CreateAdminVendorErrors[keyof CreateAdminVendorErrors];
+
+export type CreateAdminVendorResponses = {
+    /**
+     * The created vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminVendorResponse = CreateAdminVendorResponses[keyof CreateAdminVendorResponses];
+
+export type DeleteAdminVendorData = {
+    body?: never;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/vendors/{id}';
+};
+
+export type DeleteAdminVendorErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor is referenced by coworkers
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminVendorError = DeleteAdminVendorErrors[keyof DeleteAdminVendorErrors];
+
+export type DeleteAdminVendorResponses = {
+    /**
+     * Vendor deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminVendorResponse = DeleteAdminVendorResponses[keyof DeleteAdminVendorResponses];
+
+export type PatchAdminVendorData = {
+    body?: PatchVendorRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/vendors/{id}';
+};
+
+export type PatchAdminVendorErrors = {
+    /**
+     * Bad Request - validation failed
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - vendor missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - vendor slug already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchAdminVendorError = PatchAdminVendorErrors[keyof PatchAdminVendorErrors];
+
+export type PatchAdminVendorResponses = {
+    /**
+     * The updated vendor
+     */
+    200: {
+        data: Vendor;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchAdminVendorResponse = PatchAdminVendorResponses[keyof PatchAdminVendorResponses];
+
 export type GetAgentsData = {
     body?: never;
     headers?: {
@@ -4287,13 +4644,13 @@ export type GetAgentsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -4370,13 +4727,13 @@ export type GetAgentsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4442,13 +4799,13 @@ export type GetAgentsByIdReviewsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4523,13 +4880,13 @@ export type GetAgentsByIdReviewsMeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4595,13 +4952,13 @@ export type GetAgentsByIdRatingsEligibilityData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4667,13 +5024,13 @@ export type PostAgentsByIdRatingsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -4767,13 +5124,13 @@ export type GetAgentsByIdInputSchemaData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -5788,13 +6145,13 @@ export type GetAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6847,13 +7204,13 @@ export type PostAgentsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -6989,13 +7346,13 @@ export type GetCategoriesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7045,13 +7402,13 @@ export type GetChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query: {
@@ -7266,13 +7623,13 @@ export type PostChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7413,13 +7770,13 @@ export type GetChatStreamByConversationIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -7686,13 +8043,13 @@ export type GetConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7770,13 +8127,13 @@ export type PostConversationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -7868,13 +8225,13 @@ export type GetConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -7971,13 +8328,13 @@ export type PatchConversationsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -8074,13 +8431,13 @@ export type GetConversationsByIdWarmupData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -8177,13 +8534,13 @@ export type PatchConversationsByIdArchiveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -8280,13 +8637,13 @@ export type GetConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -8392,13 +8749,13 @@ export type PostConversationsByIdMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -9639,13 +9996,13 @@ export type PostHermesChatData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9762,13 +10119,13 @@ export type DeleteHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9846,13 +10203,13 @@ export type GetHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -9930,13 +10287,13 @@ export type PatchHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10042,13 +10399,13 @@ export type PostHermesMeInstanceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10140,13 +10497,13 @@ export type GetHermesMeMessagesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -10219,13 +10576,13 @@ export type GetHermesMeUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10289,13 +10646,13 @@ export type PostHermesMeInboxSeenData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10373,13 +10730,13 @@ export type PostHermesMeSecretsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10485,13 +10842,13 @@ export type PostHermesMeInstanceOnboardData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10583,13 +10940,13 @@ export type GetHermesMeInstanceOnboardingProgressData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10667,13 +11024,13 @@ export type GetHermesMeInstanceIntegrationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10751,13 +11108,13 @@ export type GetHermesMeInstanceSchedulesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -10835,13 +11192,13 @@ export type PatchHermesMeInstanceSchedulesByScheduleIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         scheduleId: string;
@@ -10949,13 +11306,13 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdApproveData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         confirmationId: string;
@@ -11049,13 +11406,13 @@ export type PostHermesMeInstanceConfirmationsByConfirmationIdRejectData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         confirmationId: string;
@@ -11149,13 +11506,13 @@ export type DeleteHermesMeInstanceIntegrationsByProviderData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         provider: HermesIntegrationProvider;
@@ -11235,13 +11592,13 @@ export type PostHermesMeInstanceIntegrationsInitiateData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11333,13 +11690,13 @@ export type PostHermesMeInstanceIntegrationsFinalizeData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11431,13 +11788,13 @@ export type GetHermesMeInstanceSkillsCatalogData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -11505,13 +11862,13 @@ export type GetHermesMeInstanceSkillsCatalogSearchData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query: {
@@ -11578,13 +11935,13 @@ export type GetHermesMeInstanceSkillsCatalogCuratedData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11648,13 +12005,13 @@ export type GetHermesMeInstanceSkillsCatalogDetailData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query: {
@@ -11735,13 +12092,13 @@ export type GetHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11805,13 +12162,13 @@ export type PostHermesMeInstanceSkillsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -11931,13 +12288,13 @@ export type GetHermesMeInstanceSkillsPreinstalledData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -12001,13 +12358,13 @@ export type DeleteHermesMeInstanceSkillsBySlugData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         slug: string;
@@ -12101,13 +12458,13 @@ export type GetHistoryData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -12312,13 +12669,13 @@ export type GetUsersByIdCreditsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -14261,13 +14618,13 @@ export type GetUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -14364,13 +14721,13 @@ export type PostUsersByIdStripeCustomerData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -14467,13 +14824,13 @@ export type GetUsersByIdBillingDetailsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -14570,13 +14927,13 @@ export type GetUsersByIdSubscriptionData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -16250,13 +16607,13 @@ export type GetProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -16343,13 +16700,13 @@ export type PostProjectsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -16413,13 +16770,13 @@ export type GetProjectsStatsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -16502,13 +16859,13 @@ export type PostProjectsByIdJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16602,13 +16959,13 @@ export type DeleteProjectsByIdJobsByJobIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16689,13 +17046,13 @@ export type PostProjectsByIdTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16789,13 +17146,13 @@ export type DeleteProjectsByIdTasksByTaskIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16876,13 +17233,13 @@ export type DeleteProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -16962,13 +17319,13 @@ export type GetProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17048,13 +17405,13 @@ export type PatchProjectsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17148,13 +17505,13 @@ export type GetJobsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -17257,13 +17614,13 @@ export type GetJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17359,13 +17716,13 @@ export type PatchJobsByIdData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17473,13 +17830,13 @@ export type PostJobsByIdRefundData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17587,13 +17944,13 @@ export type GetJobsByIdFilesData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17687,13 +18044,13 @@ export type GetJobsByIdLinksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17787,13 +18144,13 @@ export type GetJobsByIdInputRequestData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -17902,13 +18259,13 @@ export type PostJobsByIdInputsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18044,13 +18401,13 @@ export type GetJobsByIdEventsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18144,13 +18501,13 @@ export type DeleteJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18234,13 +18591,13 @@ export type PutJobsByIdShareData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18322,13 +18679,13 @@ export type PutJobsByIdWorkspaceData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -18436,13 +18793,13 @@ export type GetNotificationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -18537,13 +18894,13 @@ export type GetNotificationsUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -18607,13 +18964,13 @@ export type PatchNotificationsByIdReadData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         /**
@@ -18710,13 +19067,13 @@ export type PatchNotificationsReadAllData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;
@@ -18932,8 +19289,6 @@ export type PostCoworkersData = {
     body?: {
         name: string;
         caption?: string | null;
-        company?: string | null;
-        companyLogo?: string | null;
         url?: string | null;
         /**
          * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -18946,6 +19301,10 @@ export type PostCoworkersData = {
          */
         priority?: number;
         metadata?: CoworkerMetadata;
+        /**
+         * Vendor that owns this coworker.
+         */
+        vendorId: string;
         /**
          * Enabled coworker capabilities. Empty array means the coworker has no enabled capabilities.
          */
@@ -19713,8 +20072,6 @@ export type PatchCoworkersByIdData = {
     body?: {
         name?: string;
         caption?: string | null;
-        company?: string | null;
-        companyLogo?: string | null;
         url?: string | null;
         /**
          * OpenAI Responses API base URL used to enable this coworker for chat.
@@ -19884,13 +20241,13 @@ export type GetTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: {
@@ -20011,13 +20368,13 @@ export type PostTasksData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional delegated user id when authenticating as a coworker API key. Must be set if X-Delegation-Organization-Id is present. Temporary model: any coworker API key may delegate to any valid user until per-coworker permissions are added.
+         * Optional workspace user id when authenticating as a coworker API key. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present.
          */
-        'X-Delegation-User-Id'?: string;
+        'X-Context-User-Id'?: string;
         /**
-         * Optional delegated organization id when authenticating as a coworker API key. Requires X-Delegation-User-Id; the delegated user must be a member of this organization. Temporary model: any coworker API key may delegate to any valid user/org pair until per-coworker permissions are added.
+         * Optional workspace organization id when authenticating as a coworker API key. Requires X-Context-User-Id; the user must be a member of this organization.
          */
-        'X-Delegation-Organization-Id'?: string;
+        'X-Context-Organization-Id'?: string;
     };
     path?: never;
     query?: never;

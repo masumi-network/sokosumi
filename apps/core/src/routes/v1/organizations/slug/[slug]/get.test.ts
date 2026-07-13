@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const { prismaTransactionMock } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
@@ -26,13 +26,13 @@ vi.mock("@/middleware/auth", () => ({
 
     if (
       authContext.actor === "coworker" &&
-      "delegation" in authContext &&
-      authContext.delegation
+      "context" in authContext &&
+      authContext.context
     ) {
       return {
-        source: "delegation" as const,
-        userId: authContext.delegation.userId,
-        organizationId: authContext.delegation.organizationId,
+        source: "context" as const,
+        userId: authContext.context.userId,
+        organizationId: authContext.context.organizationId,
       };
     }
 
@@ -58,6 +58,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
 };
 
 interface TransactionMock {

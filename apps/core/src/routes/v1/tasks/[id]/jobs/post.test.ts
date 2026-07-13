@@ -1,9 +1,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostTaskJob from "./post";
 
@@ -116,6 +116,7 @@ describe("POST /tasks/{id}/jobs", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request("http://localhost/tsk_123/jobs", {
@@ -145,7 +146,8 @@ describe("POST /tasks/{id}/jobs", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: "cow_123",
-      delegation: {
+      vendorId: TEST_VENDOR_ID,
+      context: {
         userId: "user_123",
         organizationId: "org_123",
       },
@@ -166,6 +168,7 @@ describe("POST /tasks/{id}/jobs", () => {
       expect.objectContaining({
         actor: "coworker",
         coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
       }),
       "tsk_123",
     );
