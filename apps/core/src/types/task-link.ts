@@ -1,6 +1,6 @@
 import { type Prisma } from "@sokosumi/database";
-import { TaskStatus } from "@sokosumi/utils";
 
+import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import { type AuthenticationContext } from "@/middleware/auth";
 
 export const taskLinkPeerTaskSelect = {
@@ -53,14 +53,13 @@ function buildVisiblePeerTaskWhere(
         };
       }
 
+      // Match bare coworker task read: assignee or same-vendor sibling, non-DRAFT.
       return {
-        coworkerId: authContext.coworkerId,
         archivedAt: null,
-        NOT: {
-          status: {
-            in: [TaskStatus.DRAFT],
-          },
-        },
+        ...buildCoworkerSiblingTaskListFilter({
+          coworkerId: authContext.coworkerId,
+          vendorId: authContext.vendorId,
+        }),
       };
     }
     case "user": {
