@@ -165,20 +165,20 @@ export async function requireTaskAssignableCoworker(
 /**
  * Coworker branch of task read: assignee or same-vendor sibling (non-DRAFT).
  */
-export async function requireCoworkerTaskRead(
+async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
   workspaceId: string | null,
   tx?: Prisma.TransactionClient,
 ): Promise<Task>;
-export async function requireCoworkerTaskRead<I extends Prisma.TaskInclude>(
+async function requireCoworkerTaskRead<I extends Prisma.TaskInclude>(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
   workspaceId: string | null,
   tx: Prisma.TransactionClient,
   include: I,
 ): Promise<Prisma.TaskGetPayload<{ include: I }>>;
-export async function requireCoworkerTaskRead(
+async function requireCoworkerTaskRead(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
   workspaceId: string | null,
@@ -207,7 +207,7 @@ export async function requireCoworkerTaskRead(
 /**
  * Coworker branch of task read: tasks capability, task exists (non-draft), and assignment to this coworker.
  */
-export async function requireCoworkerAssignedTaskRead(
+async function requireCoworkerAssignedTaskRead(
   authContext: CoworkerAuthenticationContext,
   taskId: string,
   tx: Prisma.TransactionClient = prisma,

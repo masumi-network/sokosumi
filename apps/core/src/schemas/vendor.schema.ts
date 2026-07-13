@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 const vendorLogoSchema = z.string().nullable();
 
-export const vendorLogosSchema = z
+const vendorLogosSchema = z
   .object({
     light: vendorLogoSchema.openapi({
       example: "/images/logos/serviceplan-logo.png",

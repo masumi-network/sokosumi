@@ -1,7 +1,7 @@
 import type { Coworker, Vendor } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
-export function mockVendor(overrides: Partial<Vendor> = {}): Vendor {
+function mockVendor(overrides: Partial<Vendor> = {}): Vendor {
   return {
     id: "01960001-0001-7001-8001-000000000001",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -16,7 +16,7 @@ export function mockVendor(overrides: Partial<Vendor> = {}): Vendor {
   };
 }
 
-export function mockVendorPick(
+function mockVendorPick(
   overrides: Partial<CoworkerOption["vendor"]> = {},
 ): CoworkerOption["vendor"] {
   const vendor = mockVendor();

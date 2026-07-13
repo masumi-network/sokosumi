@@ -76,7 +76,7 @@ export type TaskWithIncludes = Prisma.TaskGetPayload<{
   include: typeof taskInclude;
 }>;
 
-export type TaskDetailInclude = ReturnType<typeof buildTaskIncludeForViewer>;
+type TaskDetailInclude = ReturnType<typeof buildTaskIncludeForViewer>;
 
 export type TaskDetailPayload = Prisma.TaskGetPayload<{
   include: TaskDetailInclude;
