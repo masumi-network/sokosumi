@@ -411,27 +411,18 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindFirstMock).toHaveBeenNthCalledWith(1, {
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
         workspaceId: testWorkspaceId,
       },
-      select: {
-        coworkerId: true,
-        status: true,
+      include: {
         coworker: {
           select: {
             vendorId: true,
           },
         },
-      },
-    });
-    expect(taskFindFirstMock).toHaveBeenNthCalledWith(2, {
-      where: {
-        id: "tsk_a",
-        archivedAt: null,
-        workspaceId: testWorkspaceId,
       },
     });
     expect(taskFindUniqueMock).toHaveBeenCalledWith({
@@ -532,14 +523,12 @@ describe("GET /tasks/{id}", () => {
     const response = await app.request("http://localhost/tsk_a");
 
     expect(response.status).toBe(200);
-    expect(taskFindFirstMock).toHaveBeenNthCalledWith(1, {
+    expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_a",
         archivedAt: null,
       },
-      select: {
-        coworkerId: true,
-        status: true,
+      include: {
         coworker: {
           select: {
             vendorId: true,

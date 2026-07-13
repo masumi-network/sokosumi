@@ -211,9 +211,6 @@ describe("GET /tasks", () => {
         },
       }),
     );
-    expect(taskFindManyMock.mock.calls[0]?.[0]?.where).not.toHaveProperty(
-      "pendingVendorGrantId",
-    );
   });
 
   it("omits the authenticated user filter when scope=workspace is provided", async () => {

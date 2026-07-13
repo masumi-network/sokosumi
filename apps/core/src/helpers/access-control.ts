@@ -176,20 +176,33 @@ export async function requireCoworkerTaskRead(
 ): Promise<Task> {
   await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
 
-  const taskForSibling = await loadTaskForSiblingCheck(taskId, workspaceId, tx);
-  assertCoworkerCanReadTask(authContext, taskForSibling);
-
-  const task = await tx.task.findFirst({
+  const taskWithVendor = await tx.task.findFirst({
     where: {
       id: taskId,
       archivedAt: null,
       ...(workspaceId ? { workspaceId } : {}),
     },
+    include: {
+      coworker: {
+        select: {
+          vendorId: true,
+        },
+      },
+    },
   });
-  if (!task) {
-    throw notFound("Task not found");
-  }
 
+  assertCoworkerCanReadTask(
+    authContext,
+    taskWithVendor
+      ? {
+          coworkerId: taskWithVendor.coworkerId,
+          status: taskWithVendor.status,
+          coworker: taskWithVendor.coworker,
+        }
+      : null,
+  );
+
+  const { coworker: _coworker, ...task } = taskWithVendor!;
   return task;
 }
 

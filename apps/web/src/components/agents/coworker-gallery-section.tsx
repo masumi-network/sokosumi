@@ -13,7 +13,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
-import { VendorMark } from "@/components/agents/company-mark";
 import {
   OfferCard,
   OfferDetailDialog,
@@ -21,6 +20,7 @@ import {
   type OutputKind,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
+import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
 import useGalleryFilter from "@/hooks/use-gallery-filter";

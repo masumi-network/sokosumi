@@ -257,17 +257,12 @@ describe("requireTaskReadForRouteVars", () => {
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce({
-        id: "tsk_123",
-        coworkerId: "cow_123",
-        status: TaskStatus.READY,
-        coworker: { vendorId: defaultVendorId },
-      } as never)
-      .mockResolvedValueOnce({
-        id: "tsk_123",
-        coworkerId: "cow_123",
-      } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_123",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+    } as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -277,14 +272,12 @@ describe("requireTaskReadForRouteVars", () => {
 
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
 
-    expect(tx.task.findFirst).toHaveBeenNthCalledWith(1, {
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         archivedAt: null,
       },
-      select: {
-        coworkerId: true,
-        status: true,
+      include: {
         coworker: {
           select: {
             vendorId: true,
@@ -307,17 +300,12 @@ describe("requireTaskReadForRouteVars", () => {
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce({
-        id: "tsk_123",
-        coworkerId: "cow_123",
-        status: TaskStatus.READY,
-        coworker: { vendorId: defaultVendorId },
-      } as never)
-      .mockResolvedValueOnce({
-        id: "tsk_123",
-        coworkerId: "cow_123",
-      } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      coworkerId: "cow_123",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+    } as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -327,27 +315,18 @@ describe("requireTaskReadForRouteVars", () => {
 
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
 
-    expect(tx.task.findFirst).toHaveBeenNthCalledWith(1, {
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
         id: "tsk_123",
         archivedAt: null,
         workspaceId,
       },
-      select: {
-        coworkerId: true,
-        status: true,
+      include: {
         coworker: {
           select: {
             vendorId: true,
           },
         },
-      },
-    });
-    expect(tx.task.findFirst).toHaveBeenNthCalledWith(2, {
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        workspaceId,
       },
     });
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({

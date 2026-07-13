@@ -140,7 +140,6 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     status: TaskStatus.READY,
     metadata: null,
     nextRunAt: null,
-    awaitingVendorApproval: false,
     credits: 0,
     events: [],
     jobs: [],

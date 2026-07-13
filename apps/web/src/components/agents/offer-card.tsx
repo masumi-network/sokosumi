@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import { VendorMark } from "@/components/agents/company-mark";
+import { VendorMark } from "@/components/agents/vendor-mark";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {

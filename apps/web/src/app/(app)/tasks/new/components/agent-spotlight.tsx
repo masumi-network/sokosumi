@@ -2,14 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-
-import { VendorMark } from "@/components/agents/company-mark";
 import {
   OfferDetailDialog,
   type OfferDetailItem,
   type OutputKind,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
+import { VendorMark } from "@/components/agents/vendor-mark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CoworkerOffer, CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
