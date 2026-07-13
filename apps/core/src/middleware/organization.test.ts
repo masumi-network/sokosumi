@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import { organizationHeaderMiddleware } from "./organization";
 
@@ -24,6 +25,7 @@ vi.mock("@/middleware/auth", () => ({
         | {
             actor: "coworker";
             coworkerId: string;
+            vendorId: string;
           };
     },
   ) => {
@@ -41,6 +43,7 @@ vi.mock("@/middleware/auth", () => ({
       | {
           actor: "coworker";
           coworkerId: string;
+          vendorId: string;
         },
   ) => authContext.actor === "user",
 }));
@@ -65,6 +68,7 @@ type Variables = {
     | {
         actor: "coworker";
         coworkerId: string;
+        vendorId: string;
       };
 };
 
@@ -103,6 +107,7 @@ function createCoworkerApp() {
     c.set("authContext", {
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
     });
     return await next();
   });
@@ -195,6 +200,7 @@ describe("organizationHeaderMiddleware", () => {
     expect(await response.json()).toEqual({
       actor: "coworker",
       coworkerId: "cow_123",
+      vendorId: TEST_VENDOR_ID,
     });
     expect(memberFindFirstMock).not.toHaveBeenCalled();
   });

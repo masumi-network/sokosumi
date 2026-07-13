@@ -24,6 +24,19 @@ vi.mock("@/lib/db/prisma", () => ({
 const coworkerAuth: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_456",
+  vendorId: "01960001-0001-7001-8001-000000000001",
+};
+
+const coworkerInclude = { vendor: true } as const;
+
+const sampleVendor = {
+  id: "01960001-0001-7001-8001-000000000001",
+  createdAt: new Date("2026-02-25T10:00:00.000Z"),
+  updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+  name: "Serviceplan",
+  slug: "serviceplan",
+  logoLight: null,
+  logoDark: null,
 };
 
 function createApp(
@@ -71,6 +84,7 @@ describe("GET /coworkers", () => {
         isWhitelisted: true,
       },
       orderBy: expectedOrderBy,
+      include: coworkerInclude,
     });
   });
 
@@ -87,6 +101,7 @@ describe("GET /coworkers", () => {
         slug: "ops-agent",
         name: "Ops Agent",
         baseURL: null,
+        vendor: sampleVendor,
       },
     ]);
 
@@ -114,6 +129,7 @@ describe("GET /coworkers", () => {
         archivedAt: null,
       },
       orderBy: expectedOrderBy,
+      include: coworkerInclude,
     });
   });
 
@@ -130,6 +146,7 @@ describe("GET /coworkers", () => {
         isWhitelisted: true,
       },
       orderBy: expectedOrderBy,
+      include: coworkerInclude,
     });
   });
 
@@ -147,6 +164,7 @@ describe("GET /coworkers", () => {
         },
       },
       orderBy: expectedOrderBy,
+      include: coworkerInclude,
     });
   });
 
@@ -166,6 +184,7 @@ describe("GET /coworkers", () => {
         },
       },
       orderBy: expectedOrderBy,
+      include: coworkerInclude,
     });
   });
 
@@ -187,6 +206,7 @@ describe("GET /coworkers", () => {
         },
       },
       orderBy: expectedOrderBy,
+      include: coworkerInclude,
     });
   });
 

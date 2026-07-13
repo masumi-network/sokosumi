@@ -131,10 +131,7 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
-      "cow_123",
-      tx,
-    );
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith("cow_123");
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 
@@ -287,10 +284,7 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
-      "cow_123",
-      tx,
-    );
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith("cow_123");
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 });

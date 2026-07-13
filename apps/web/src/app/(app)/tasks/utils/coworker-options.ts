@@ -16,8 +16,12 @@ export function getCoworkerOptions(coworkers: Coworker[]): CoworkerOption[] {
         image: coworker.image || COWORKER_FALLBACK_IMAGES[slug] || "",
         description: coworker.description || undefined,
         caption: coworker.caption || undefined,
-        company: coworker.company || undefined,
-        companyLogo: coworker.companyLogo || undefined,
+        vendor: {
+          id: coworker.vendor.id,
+          name: coworker.vendor.name,
+          slug: coworker.vendor.slug,
+          logos: coworker.vendor.logos,
+        },
         priority: coworker.priority ?? 0,
         profile: profile
           ? {

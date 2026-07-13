@@ -14,17 +14,6 @@ const coworkerEditableFieldsSchema = z.object({
     .max(255)
     .nullish()
     .openapi({ example: "Senior Campaign Partner" }),
-  company: z
-    .string()
-    .trim()
-    .min(1)
-    .max(255)
-    .nullish()
-    .openapi({ example: "Serviceplan" }),
-  companyLogo: z
-    .httpUrl()
-    .nullish()
-    .openapi({ example: "https://example.com/company-logo.png" }),
   url: z.httpUrl().nullish().openapi({ example: "https://example.com" }),
   baseURL: z.httpUrl().nullish().openapi({
     example: "https://responses.example.com/v1",
@@ -49,6 +38,10 @@ const coworkerEditableFieldsSchema = z.object({
 });
 
 export const createCoworkerRequestSchema = coworkerEditableFieldsSchema.extend({
+  vendorId: z.string().min(1).openapi({
+    example: "01960001-0001-7001-8001-000000000001",
+    description: "Vendor that owns this coworker.",
+  }),
   capabilities: coworkerCapabilitiesSchema.optional().default([]),
 });
 
@@ -57,12 +50,11 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
     capabilities: coworkerCapabilitiesSchema.optional(),
   })
   .partial()
+  .strict()
   .refine(
     (data) =>
       data.name !== undefined ||
       data.caption !== undefined ||
-      data.company !== undefined ||
-      data.companyLogo !== undefined ||
       data.url !== undefined ||
       data.baseURL !== undefined ||
       data.description !== undefined ||
@@ -75,8 +67,6 @@ export const patchCoworkerRequestSchema = coworkerEditableFieldsSchema
       path: [
         "name",
         "caption",
-        "company",
-        "companyLogo",
         "url",
         "baseURL",
         "description",

@@ -4,10 +4,10 @@ import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { LIMITS } from "@/config/constants";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import mountPostTaskEvents from "./post";
 
@@ -20,6 +20,7 @@ const {
   prismaTaskFindUniqueMock,
   prismaTransactionMock,
   publishTaskEventDataMock,
+  requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
@@ -40,12 +41,14 @@ const {
   }),
   prismaTransactionMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
+  requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskCommentAccess: requireTaskCommentAccessMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -94,6 +97,7 @@ vi.mock("@/clients/masumi-payment.client", () => ({
 
 const TASK_ID = "tsk_123";
 const USER_ID = "user_123";
+const BOB_USER_ID = "user_bob";
 const COWORKER_ID = "cow_123";
 
 const validMasumiPaymentBody = {
@@ -271,6 +275,7 @@ describe("POST /{id}/events", () => {
       user: { notificationsOptIn: true },
     });
     requireTaskCollaborationMock.mockResolvedValue(createTask());
+    requireTaskCommentAccessMock.mockResolvedValue(createTask());
   });
 
   it("allows coworkers to create OUT_OF_CREDITS events", async () => {
@@ -292,6 +297,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -344,6 +350,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -387,6 +394,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -409,6 +417,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -479,6 +488,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -518,6 +528,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -562,6 +573,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -606,6 +618,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -656,6 +669,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -694,6 +708,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -724,6 +739,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -764,6 +780,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -832,6 +849,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -875,6 +893,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -905,6 +924,7 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
     });
 
     const response = await app.request(`http://localhost/${TASK_ID}/events`, {
@@ -952,14 +972,14 @@ describe("POST /{id}/events", () => {
     expect(createPurchaseFromMasumiTaskPaymentMock).not.toHaveBeenCalled();
   });
 
-  it("attributes a delegated coworker's comment to the user and the acting coworker", async () => {
+  it("attributes a delegated coworker's comment to the acting coworker only", async () => {
     const tx: TransactionMock = {
       taskEvent: {
         create: vi.fn().mockResolvedValue(
           createTaskEvent({
             status: null,
             comment: "On behalf of the user",
-            userId: USER_ID,
+            userId: null,
             coworkerId: COWORKER_ID,
           }),
         ),
@@ -974,7 +994,8 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
-      delegation: {
+      vendorId: TEST_VENDOR_ID,
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -989,13 +1010,76 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    // Recorded against the delegated user, but the acting coworker is retained
-    // so the audit trail is not a forged user-only record.
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           comment: "On behalf of the user",
-          userId: USER_ID,
+          userId: null,
+          coworkerId: COWORKER_ID,
+        }),
+      }),
+    );
+  });
+
+  it("uses sibling-friendly comment access for delegated coworker comments", async () => {
+    const siblingTask = createTask({
+      coworkerId: "cow_sibling",
+      userId: BOB_USER_ID,
+    });
+    requireTaskCommentAccessMock.mockResolvedValueOnce(siblingTask);
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            status: null,
+            comment: "Sibling note",
+            userId: null,
+            coworkerId: COWORKER_ID,
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn(),
+      },
+    };
+
+    mockTransaction(tx);
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: {
+        userId: USER_ID,
+        organizationId: null,
+      },
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        comment: "Sibling note",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(requireTaskCommentAccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authContext: expect.objectContaining({
+          coworkerId: COWORKER_ID,
+        }),
+      }),
+      TASK_ID,
+      expect.any(Object),
+    );
+    expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
+    expect(tx.taskEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          comment: "Sibling note",
+          userId: null,
           coworkerId: COWORKER_ID,
         }),
       }),
@@ -1021,7 +1105,8 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
-      delegation: {
+      vendorId: TEST_VENDOR_ID,
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1042,7 +1127,7 @@ describe("POST /{id}/events", () => {
 
   it("rejects credits from a delegated coworker canceling a task", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.READY, coworkerId: null }),
+      createTask({ status: TaskStatus.READY, coworkerId: COWORKER_ID }),
     );
 
     const tx: TransactionMock = {
@@ -1059,7 +1144,8 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
-      delegation: {
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1082,7 +1168,7 @@ describe("POST /{id}/events", () => {
 
   it("lets a delegated coworker cancel a task without charging", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.READY, coworkerId: null }),
+      createTask({ status: TaskStatus.READY, coworkerId: COWORKER_ID }),
     );
 
     const tx: TransactionMock = {
@@ -1105,7 +1191,8 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
-      delegation: {
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: {
         userId: USER_ID,
         organizationId: null,
       },
@@ -1189,7 +1276,8 @@ describe("POST /{id}/events", () => {
     const app = createApp({
       actor: "coworker",
       coworkerId: COWORKER_ID,
-      delegation: {
+      vendorId: TEST_VENDOR_ID,
+      context: {
         userId: USER_ID,
         organizationId: null,
       },

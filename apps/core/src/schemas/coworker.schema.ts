@@ -5,6 +5,7 @@ import {
   normalizeCoworkerCapabilities,
 } from "@/helpers/coworker-capability";
 import { dateTimeSchema } from "@/helpers/datetime.js";
+import { vendorSchema } from "@/schemas/vendor.schema";
 
 export const coworkerCapabilitiesSchema = z
   .array(z.enum(COWORKER_CAPABILITIES))
@@ -181,11 +182,7 @@ export const coworkerSchema = z
       .string()
       .nullish()
       .openapi({ example: "Senior Campaign Partner" }),
-    company: z.string().nullish().openapi({ example: "Serviceplan" }),
-    companyLogo: z
-      .string()
-      .nullish()
-      .openapi({ example: "https://example.com/company-logo" }),
+    vendor: vendorSchema,
     url: z.string().nullish().openapi({ example: "https://example.com" }),
     baseURL: z.string().nullable().openapi({
       example: "https://responses.example.com/v1",

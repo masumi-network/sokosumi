@@ -4,6 +4,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import { isCoworkerAgentContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
+  type TaskDetailPayload,
   type TaskListItemWithIncludes,
   type TaskWithIncludes,
   taskEventApiInclude,
@@ -304,7 +305,7 @@ function mapTaskBase(task: TaskWithIncludes) {
   };
 }
 
-export function mapTask(task: TaskWithIncludes) {
+export function mapTask(task: TaskWithIncludes | TaskDetailPayload) {
   const links = mapTaskLinksForTask(task.linksFrom, task.linksTo);
 
   return {

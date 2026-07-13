@@ -231,6 +231,21 @@ model Workspace {
   @@map("workspace")
 }
 
+model Vendor {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String
+  slug String @unique
+  logoLight String?
+  logoDark  String?
+
+  coworkers Coworker[]
+
+  @@map("vendor")
+}
+
 enum HistoryKind {
   TASK
   JOB
@@ -1144,8 +1159,6 @@ model Coworker {
   slug        String  @unique
   name        String
   caption     String?
-  company     String?
-  companyLogo String?
   url         String?
   baseURL     String?
   description String?
@@ -1155,6 +1168,9 @@ model Coworker {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+
   coworkerApiKeys CoworkerApiKey[]
 
   tasks          Task[]
@@ -1162,6 +1178,7 @@ model Coworker {
   coworkerUsages CoworkerUsage[]
 
   @@index([archivedAt])
+  @@index([vendorId])
   @@map("coworker")
 }
 

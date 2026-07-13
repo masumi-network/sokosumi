@@ -6,11 +6,13 @@ import {
   patchCoworkerWhitelistRequestSchema,
 } from "./schema";
 
+const vendorId = "01960001-0001-7001-8001-000000000001";
+
 describe("createCoworkerRequestSchema", () => {
-  it("accepts valid HTTP(S) values for companyLogo and url", () => {
+  it("accepts valid HTTP(S) values for url", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      companyLogo: "https://example.com/company-logo.png",
+      vendorId: "01960001-0001-7001-8001-000000000001",
       url: "http://example.com",
       baseURL: "https://responses.example.com/v1",
     });
@@ -21,6 +23,7 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts null baseURL", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       baseURL: null,
     });
 
@@ -33,6 +36,7 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts capabilities and normalizes them", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       capabilities: ["tasks", "chat", "tasks"],
     });
 
@@ -45,6 +49,7 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts explicit integer priority", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       priority: 10,
     });
 
@@ -57,6 +62,7 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects non-integer priority", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       priority: 2.5,
     });
 
@@ -66,16 +72,16 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects unsupported capabilities", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       capabilities: ["search"],
     });
 
     expect(result.success).toBe(false);
   });
 
-  it("rejects companyLogo when it is not a valid URL", () => {
+  it("requires vendorId on create", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
-      companyLogo: "not-a-url",
     });
 
     expect(result.success).toBe(false);
@@ -84,6 +90,7 @@ describe("createCoworkerRequestSchema", () => {
   it("rejects url when it is not HTTP(S)", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       url: "mailto:ops@example.com",
     });
 
@@ -101,6 +108,7 @@ describe("createCoworkerRequestSchema", () => {
   it("strips isWhitelisted when provided", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       isWhitelisted: true,
     });
 
@@ -113,6 +121,7 @@ describe("createCoworkerRequestSchema", () => {
   it("accepts metadata with channels", () => {
     const result = createCoworkerRequestSchema.safeParse({
       name: "Ops Agent",
+      vendorId,
       metadata: {
         channels: {
           email: "foo@bar.com",
@@ -185,6 +194,15 @@ describe("patchCoworkerRequestSchema", () => {
   it("rejects invalid url updates", () => {
     const result = patchCoworkerRequestSchema.safeParse({
       url: "not-a-url",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects vendorId on patch", () => {
+    const result = patchCoworkerRequestSchema.safeParse({
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      name: "Ops Agent",
     });
 
     expect(result.success).toBe(false);

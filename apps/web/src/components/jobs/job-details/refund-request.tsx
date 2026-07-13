@@ -365,7 +365,7 @@ export default function RequestRefundButton({
                       {t("confirmDescription")}
                       <span className="mt-2 block">
                         <a
-                          href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                          href="https://www.masumi.network/dev/masumi/core-concepts/refunds-and-disputes"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary flex items-center gap-1 hover:underline"

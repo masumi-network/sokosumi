@@ -23,12 +23,9 @@ vi.mock("@/middleware/auth", () => ({
   },
 }));
 
-vi.mock("@/middleware/coworker-delegation", () => ({
-  coworkerDelegationMiddleware: async (
-    _c: unknown,
-    next: () => Promise<void>,
-  ) => {
-    middlewareCalls.calls.push("delegation");
+vi.mock("@/middleware/coworker-context", () => ({
+  coworkerContextMiddleware: async (_c: unknown, next: () => Promise<void>) => {
+    middlewareCalls.calls.push("context");
     await next();
   },
 }));
@@ -116,11 +113,7 @@ describe("OpenAPIHonoWithAuth", () => {
       },
       workspaceContext: null,
     });
-    expect(middlewareCalls.calls).toEqual([
-      "auth",
-      "delegation",
-      "organization",
-    ]);
+    expect(middlewareCalls.calls).toEqual(["auth", "context", "organization"]);
   });
 
   it("resolves workspaceContext when includeWorkspaceContext is enabled", async () => {
@@ -152,7 +145,7 @@ describe("OpenAPIHonoWithAuth", () => {
     });
     expect(middlewareCalls.calls).toEqual([
       "auth",
-      "delegation",
+      "context",
       "organization",
       "workspace",
     ]);

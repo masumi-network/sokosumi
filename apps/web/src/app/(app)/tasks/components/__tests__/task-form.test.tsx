@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
+import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
   markdownEditorPropsSpy,
@@ -157,18 +158,16 @@ const baseLabels = {
 };
 
 const coworkerOptions = [
-  {
+  mockCoworkerOption({
     id: "coworker-1",
     slug: "soko",
     name: "Soko",
-    image: "",
-  },
-  {
+  }),
+  mockCoworkerOption({
     id: "coworker-2",
     slug: "elena",
     name: "Elena",
-    image: "",
-  },
+  }),
 ];
 
 const projectOptions = [

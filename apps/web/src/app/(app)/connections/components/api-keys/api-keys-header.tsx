@@ -21,7 +21,7 @@ export function ApiKeysHeader({ onCreateClick }: ApiKeysHeaderProps) {
             <div>{t("description")}</div>
             <div>
               <Link
-                href="https://docs.sokosumi.com/api-reference"
+                href="https://www.masumi.network/dev/sokosumi/api-reference"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm underline underline-offset-4"

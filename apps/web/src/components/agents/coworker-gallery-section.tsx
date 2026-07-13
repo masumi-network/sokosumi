@@ -13,7 +13,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
-import { CompanyMark } from "@/components/agents/company-mark";
 import {
   OfferCard,
   OfferDetailDialog,
@@ -21,6 +20,7 @@ import {
   type OutputKind,
 } from "@/components/agents/offer-card";
 import { TagIcon } from "@/components/agents/tag-icon";
+import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
@@ -49,7 +49,32 @@ const FOCUS_RING =
 
 // Initial caps so the section stays tight as the team grows; both expand on
 // demand and are bypassed entirely while searching.
-const COMPANY_CAP = 2;
+const VENDOR_CAP = 2;
+
+interface VendorInfo {
+  description?: string;
+  website?: string;
+  legal?: string;
+}
+const VENDOR_DETAILS: Record<string, VendorInfo> = {
+  serviceplan: {
+    description:
+      "Coworkers from Serviceplan — strategy, planning, and creative leadership for your projects.",
+    website: "https://www.serviceplan.com",
+    legal: "https://www.serviceplan.com/en/imprint.html",
+  },
+  masumi: {
+    description:
+      "Coworkers from Masumi — agents and automation built on the Masumi network.",
+  },
+  "utxo-ag": {
+    description:
+      "Coworkers from utxo AG — engineering, prototyping, and content, ready to build.",
+  },
+};
+function vendorDetails(slug: string): VendorInfo {
+  return VENDOR_DETAILS[slug] ?? {};
+}
 
 function coworkerImage(coworker: Coworker): string {
   return (
@@ -65,31 +90,6 @@ function modelList(coworker: Coworker): string[] {
 
 function hostingOf(coworker: Coworker): string | undefined {
   return coworker.metadata?.profile?.hosting ?? undefined;
-}
-
-// Company-level info shown in the gallery group headers. PLACEHOLDER content —
-// replace descriptions/links with real copy (could move to the DB later).
-interface CompanyInfo {
-  description?: string;
-  website?: string;
-  legal?: string;
-}
-const COMPANIES: Record<string, CompanyInfo> = {
-  serviceplan: {
-    description:
-      "Coworkers from Serviceplan — strategy, planning, and creative leadership for your projects.",
-    website: "https://www.serviceplan.com",
-    legal: "https://www.serviceplan.com/en/imprint.html",
-  },
-  "utxo ag": {
-    description:
-      "Coworkers from utxo AG — engineering, prototyping, and content, ready to build.",
-    // website: add the real URL here
-    // legal: add the real URL here
-  },
-};
-function companyInfo(company: string): CompanyInfo {
-  return COMPANIES[company.trim().toLowerCase()] ?? {};
 }
 
 /** Square source images → square/round container with object-cover never crops. */
@@ -190,8 +190,8 @@ interface DashboardLabels {
 
 /** A company "dashboard": pick a coworker, see their ready-to-run offers. Outlined +
  * divided on purpose — a mechanical panel that gives the section a clear hierarchy. */
-function CompanyDashboard({
-  company,
+function VendorDashboard({
+  vendor,
   members,
   offers,
   labels,
@@ -200,7 +200,7 @@ function CompanyDashboard({
   onStartTask,
   isFirst,
 }: {
-  company: string;
+  vendor: Coworker["vendor"];
   members: Coworker[];
   offers: OfferItem[];
   labels: DashboardLabels;
@@ -220,24 +220,17 @@ function CompanyDashboard({
     ? allActiveOffers
     : allActiveOffers.slice(0, OFFER_PREVIEW_COUNT);
   const hasMoreOffers = allActiveOffers.length > OFFER_PREVIEW_COUNT;
-  const info = company ? companyInfo(company) : {};
+  const info = vendorDetails(vendor.slug);
 
   return (
     <div className={cn(isFirst ? "" : "pt-8 md:pt-10")}>
-      {/* Company header */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex h-6 items-center gap-3">
-          {company ? (
-            <CompanyMark
-              company={company}
-              className="h-5"
-              textClassName="text-foreground text-base leading-none font-semibold"
-            />
-          ) : (
-            <span className="text-foreground text-base leading-none font-semibold">
-              {labels.other}
-            </span>
-          )}
+          <VendorMark
+            vendor={vendor}
+            className="h-5"
+            textClassName="text-foreground text-base leading-none font-semibold"
+          />
           <span className="text-muted-foreground text-sm leading-none">
             {labels.count}
           </span>
@@ -493,10 +486,10 @@ function CoworkerGallerySection({
   // matches, OR any of their offers match. Surface all their offers when the
   // coworker matched directly, otherwise just the matching offers. Then group by
   // company (priority-sorted, so Serviceplan/Elena lead).
-  const companyGroups = useMemo(() => {
+  const vendorGroups = useMemo(() => {
     const map = new Map<
       string,
-      { coworkers: Coworker[]; offers: OfferItem[] }
+      { vendor: Coworker["vendor"]; coworkers: Coworker[]; offers: OfferItem[] }
     >();
     for (const coworker of sortedCoworkers) {
       const allOffers: OfferItem[] = (coworker.metadata?.offers ?? []).map(
@@ -507,7 +500,7 @@ function CoworkerGallerySection({
         const profile = coworker.metadata?.profile;
         const coworkerText = [
           coworker.name,
-          coworker.company ?? "",
+          coworker.vendor.name,
           coworker.caption ?? "",
           coworker.description ?? "",
           ...(profile?.capabilities ?? []),
@@ -524,20 +517,16 @@ function CoworkerGallerySection({
         if (!coworkerMatches && matchingOffers.length === 0) continue;
         offers = coworkerMatches ? allOffers : matchingOffers;
       }
-      const key = coworker.company ?? "";
+      const key = coworker.vendor.id;
       let group = map.get(key);
       if (!group) {
-        group = { coworkers: [], offers: [] };
+        group = { vendor: coworker.vendor, coworkers: [], offers: [] };
         map.set(key, group);
       }
       group.coworkers.push(coworker);
       group.offers.push(...offers);
     }
-    return Array.from(map, ([company, group]) => ({
-      company,
-      coworkers: group.coworkers,
-      offers: group.offers,
-    }));
+    return Array.from(map.values());
   }, [sortedCoworkers, q]);
 
   if (!coworkers.length) {
@@ -548,10 +537,9 @@ function CoworkerGallerySection({
   const isSearching = q !== "";
   const visibleGroups =
     showAllCompanies || isSearching
-      ? companyGroups
-      : companyGroups.slice(0, COMPANY_CAP);
-  const canShowMoreCompanies =
-    !isSearching && companyGroups.length > COMPANY_CAP;
+      ? vendorGroups
+      : vendorGroups.slice(0, VENDOR_CAP);
+  const canShowMoreCompanies = !isSearching && vendorGroups.length > VENDOR_CAP;
 
   return (
     <section className="space-y-12 md:space-y-16">
@@ -630,17 +618,17 @@ function CoworkerGallerySection({
         </div>
       </div>
 
-      {companyGroups.length > 0 ? (
+      {vendorGroups.length > 0 ? (
         <div className="space-y-8">
           <h2 className="text-foreground text-xl font-light md:text-2xl">
             {t("coworkersTitle")}
           </h2>
           <div>
             {visibleGroups.map(
-              ({ company, coworkers: members, offers }, index) => (
-                <CompanyDashboard
-                  key={company || "independent"}
-                  company={company}
+              ({ vendor, coworkers: members, offers }, index) => (
+                <VendorDashboard
+                  key={vendor.id}
+                  vendor={vendor}
                   members={members}
                   offers={offers}
                   isFirst={index === 0}
@@ -677,7 +665,7 @@ function CoworkerGallerySection({
                 {showAllCompanies
                   ? t("showLess")
                   : t("showMoreCompanies", {
-                      count: companyGroups.length - COMPANY_CAP,
+                      count: vendorGroups.length - VENDOR_CAP,
                     })}
                 {showAllCompanies ? (
                   <ChevronUp aria-hidden className="size-4" />
@@ -697,7 +685,7 @@ function CoworkerGallerySection({
                 offer: selected.offer,
                 coworkerName: selected.coworker.name,
                 coworkerCaption: selected.coworker.caption ?? undefined,
-                company: selected.coworker.company ?? undefined,
+                vendor: selected.coworker.vendor,
                 coworkerAvatar: (
                   <CoworkerAvatar
                     coworker={selected.coworker}

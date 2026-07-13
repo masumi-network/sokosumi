@@ -1,8 +1,8 @@
 import { TaskEventOrigin } from "@sokosumi/database";
 import { convertCreditsToCents, TaskStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
 import type { AuthenticationContext } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
@@ -14,6 +14,7 @@ import {
 const coworkerContext: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
 };
 
 const userContext: AuthenticationContext = {
@@ -666,7 +667,8 @@ describe("validateStatusTransition", () => {
     const delegatedCoworkerContext: AuthenticationContext = {
       actor: "coworker",
       coworkerId: "cow_123",
-      delegation: {
+      vendorId: TEST_VENDOR_ID,
+      context: {
         userId: "user_123",
         organizationId: null,
       },

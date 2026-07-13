@@ -15,6 +15,17 @@ function baseCoworker(overrides: Partial<Coworker> = {}): Coworker {
     slug: "ops-agent",
     name: "Ops Agent",
     baseURL: null,
+    vendor: {
+      id: "01960001-0001-7001-8001-000000000001",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      name: "Serviceplan",
+      slug: "serviceplan",
+      logos: {
+        light: null,
+        dark: null,
+      },
+    },
     capabilities: ["tasks"],
     metadata: null,
     ...overrides,

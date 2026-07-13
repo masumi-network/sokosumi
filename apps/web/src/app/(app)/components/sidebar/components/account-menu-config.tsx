@@ -43,7 +43,7 @@ export interface AccountNavItem {
 
 export const HELP_LINKS: HelpLinkItem[] = [
   {
-    url: "https://docs.sokosumi.com/documentation",
+    url: "https://www.masumi.network/dev/sokosumi/documentation",
     translationKey: "documentation",
     icon: BookOpen,
   },

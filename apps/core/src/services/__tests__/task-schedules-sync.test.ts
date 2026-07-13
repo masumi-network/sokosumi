@@ -32,8 +32,9 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 describe("taskSchedulesSyncService", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    vi.resetModules();
     publishTaskEventDataMock.mockResolvedValue(undefined);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));

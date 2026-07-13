@@ -32,3 +32,30 @@ export function isReadOnlyForViewer({
   }
   return taskWorkspaceOrganizationId !== null && sessionUserId !== taskUserId;
 }
+
+type CanCommentOnTaskForViewerParams = ReadOnlyForViewerParams;
+
+/**
+ * Organization workspace collaborators may comment without owning the task.
+ * Mutations stay gated by {@link isReadOnlyForViewer}.
+ */
+export function canCommentOnTaskForViewer({
+  taskWorkspaceOrganizationId,
+  taskUserId,
+  sessionUserId,
+  forceReadOnly,
+}: CanCommentOnTaskForViewerParams): boolean {
+  if (forceReadOnly) {
+    return false;
+  }
+
+  if (sessionUserId === taskUserId) {
+    return true;
+  }
+
+  return (
+    taskWorkspaceOrganizationId !== null &&
+    sessionUserId !== null &&
+    sessionUserId !== undefined
+  );
+}

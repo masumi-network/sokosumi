@@ -17,6 +17,7 @@ const {
   coworkerCreateMock,
   coworkerUpdateManyMock,
   coworkerApiKeyUpdateManyMock,
+  vendorFindUniqueMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstAuthMock: vi.fn(),
@@ -26,6 +27,7 @@ const {
   coworkerCreateMock: vi.fn(),
   coworkerUpdateManyMock: vi.fn(),
   coworkerApiKeyUpdateManyMock: vi.fn(),
+  vendorFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -50,7 +52,22 @@ interface TransactionMock {
   coworkerApiKey: {
     updateMany: ReturnType<typeof vi.fn>;
   };
+  vendor: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
 }
+
+const vendorId = "01960001-0001-7001-8001-000000000001";
+
+const sampleVendor = {
+  id: vendorId,
+  createdAt: new Date("2026-02-20T10:00:00.000Z"),
+  updatedAt: new Date("2026-02-20T10:00:00.000Z"),
+  name: "Serviceplan",
+  slug: "serviceplan",
+  logoLight: "https://example.com/company-logo",
+  logoDark: null,
+};
 
 interface AppOptions {
   userId?: string;
@@ -100,15 +117,35 @@ function createCoworkerRecord(overrides: Record<string, unknown> = {}) {
     slug: "ops-agent",
     name: "Ops Agent",
     caption: "Senior Campaign Partner",
-    company: "Serviceplan",
-    companyLogo: "https://example.com/company-logo",
     url: "https://example.com",
     description: "Ops helper",
     image: "https://example.com/logo",
     baseURL: null,
     userId: "user_123",
+    vendorId,
+    vendor: sampleVendor,
     metadata: null,
     ...overrides,
+  };
+}
+
+function createTransactionMock(
+  coworker: Partial<TransactionMock["coworker"]>,
+): TransactionMock {
+  return {
+    coworker: {
+      findUnique: coworkerFindUniqueMock,
+      findFirst: coworkerFindFirstTxMock,
+      create: coworkerCreateMock,
+      updateMany: coworkerUpdateManyMock,
+      ...coworker,
+    },
+    coworkerApiKey: {
+      updateMany: coworkerApiKeyUpdateManyMock,
+    },
+    vendor: {
+      findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+    },
   };
 }
 
@@ -125,17 +162,10 @@ describe("coworker management CRUD endpoints", () => {
   });
 
   it("creates coworker and auto-assigns authenticated creator userId", async () => {
-    const tx: TransactionMock = {
-      coworker: {
-        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
-        findFirst: coworkerFindFirstTxMock,
-        create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
-        updateMany: coworkerUpdateManyMock,
-      },
-      coworkerApiKey: {
-        updateMany: coworkerApiKeyUpdateManyMock,
-      },
-    };
+    const tx = createTransactionMock({
+      findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
+      create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
+    });
 
     mockTransaction(tx);
 
@@ -147,6 +177,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
       }),
     });
 
@@ -178,6 +209,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -190,6 +224,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
         baseURL: "https://responses.example.com/v1",
       }),
     });
@@ -224,6 +259,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -239,6 +277,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
         priority: 10,
       }),
     });
@@ -265,6 +304,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
       }),
     });
 
@@ -287,6 +327,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -299,6 +342,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
         capabilities: ["tasks", "chat", "tasks"],
       }),
     });
@@ -334,6 +378,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -346,6 +393,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
         metadata,
       }),
     });
@@ -363,17 +411,10 @@ describe("coworker management CRUD endpoints", () => {
   });
 
   it("ignores request isWhitelisted and persists false by default", async () => {
-    const tx: TransactionMock = {
-      coworker: {
-        findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
-        findFirst: coworkerFindFirstTxMock,
-        create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
-        updateMany: coworkerUpdateManyMock,
-      },
-      coworkerApiKey: {
-        updateMany: coworkerApiKeyUpdateManyMock,
-      },
-    };
+    const tx = createTransactionMock({
+      findUnique: coworkerFindUniqueMock.mockResolvedValue(null),
+      create: coworkerCreateMock.mockResolvedValue(createCoworkerRecord()),
+    });
 
     mockTransaction(tx);
 
@@ -385,6 +426,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
         isWhitelisted: true,
       }),
     });
@@ -415,6 +457,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -427,6 +472,7 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
+        vendorId,
       }),
     });
 
@@ -449,7 +495,7 @@ describe("coworker management CRUD endpoints", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("rejects create when companyLogo is not a valid HTTP URL", async () => {
+  it("rejects create when vendorId is missing", async () => {
     const app = createApp({ userId: "admin_123", role: "admin" });
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -458,7 +504,6 @@ describe("coworker management CRUD endpoints", () => {
       },
       body: JSON.stringify({
         name: "Ops Agent",
-        companyLogo: "not-a-url",
       }),
     });
 
@@ -480,6 +525,9 @@ describe("coworker management CRUD endpoints", () => {
       },
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
       },
     };
 
@@ -535,6 +583,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -577,6 +628,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -618,6 +672,9 @@ describe("coworker management CRUD endpoints", () => {
       },
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
       },
     };
 
@@ -663,6 +720,9 @@ describe("coworker management CRUD endpoints", () => {
       },
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
       },
     };
 
@@ -729,6 +789,9 @@ describe("coworker management CRUD endpoints", () => {
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
       },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
     };
 
     mockTransaction(tx);
@@ -779,6 +842,9 @@ describe("coworker management CRUD endpoints", () => {
       },
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
       },
     };
 
@@ -861,6 +927,9 @@ describe("coworker management CRUD endpoints", () => {
           count: 2,
         }),
       },
+      vendor: {
+        findUnique: vi.fn(),
+      },
     };
 
     mockTransaction(tx);
@@ -897,6 +966,7 @@ describe("coworker management CRUD endpoints", () => {
     );
     expect(coworkerFindFirstTxMock).toHaveBeenCalledWith({
       where: { id: "cow_123" },
+      include: { vendor: true },
     });
   });
 
@@ -924,6 +994,9 @@ describe("coworker management CRUD endpoints", () => {
         updateMany: coworkerApiKeyUpdateManyMock.mockResolvedValue({
           count: 2,
         }),
+      },
+      vendor: {
+        findUnique: vi.fn(),
       },
     };
 
@@ -971,6 +1044,9 @@ describe("coworker management CRUD endpoints", () => {
       },
       coworkerApiKey: {
         updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
       },
     };
 

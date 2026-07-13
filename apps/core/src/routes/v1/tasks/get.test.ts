@@ -39,12 +39,14 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
+  vendorId: "01960001-0001-7001-8001-000000000001",
 };
 
 const DELEGATED_COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
-  delegation: {
+  vendorId: "01960001-0001-7001-8001-000000000001",
+  context: {
     userId: "user_delegate",
     organizationId: "org_delegate",
   },
@@ -61,6 +63,32 @@ const DELEGATED_WORKSPACE_CONTEXT = {
   userId: "user_delegate",
   organizationId: "org_delegate",
 } satisfies WorkspaceVariables["workspaceContext"];
+
+const DELEGATED_VENDOR_ID = "01960001-0001-7001-8001-000000000001";
+
+const COWORKER_SIBLING_LIST_FILTER = {
+  status: { not: TaskStatus.DRAFT },
+  OR: [
+    { coworkerId: "cow_123" },
+    {
+      coworkerId: { not: "cow_123" },
+      coworker: {
+        vendorId: DELEGATED_VENDOR_ID,
+      },
+    },
+  ],
+} as const;
+
+function delegatedCoworkerListWhere(
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    archivedAt: null,
+    workspaceId: "22222222-2222-7222-8222-222222222222",
+    AND: [COWORKER_SIBLING_LIST_FILTER],
+    ...extra,
+  };
+}
 
 function createApp(
   authContext: AuthenticationContext = USER_AUTH_CONTEXT,
@@ -166,6 +194,22 @@ describe("GET /tasks", () => {
             contains: "review",
             mode: "insensitive",
           },
+        },
+      }),
+    );
+  });
+
+  it("scopes owned task lists to the authenticated user", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          archivedAt: null,
+          userId: "user_123",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
         },
       }),
     );
@@ -293,12 +337,11 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          coworkerId: "cow_123",
           archivedAt: null,
+          AND: [COWORKER_SIBLING_LIST_FILTER],
           status: {
             in: [TaskStatus.QUEUED],
           },
-          NOT: { status: { in: [TaskStatus.DRAFT] } },
         },
       }),
     );
@@ -329,11 +372,9 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
+        where: delegatedCoworkerListWhere({
           userId: "user_delegate",
-        },
+        }),
       }),
     );
   });
@@ -350,11 +391,9 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          archivedAt: null,
-          workspaceId: "22222222-2222-7222-8222-222222222222",
+        where: delegatedCoworkerListWhere({
           coworkerId: "cow_999",
-        },
+        }),
       }),
     );
   });
