@@ -207,7 +207,7 @@ export default function UserAvatarClient({
                 onClick={() => {
                   closeMenu();
                   handleOpenExternalLink(
-                    "https://docs.sokosumi.com/documentation",
+                    "https://www.masumi.network/dev/sokosumi/documentation",
                   );
                 }}
               >

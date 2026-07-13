@@ -16,7 +16,7 @@ export function McpActiveKeyView() {
       <McpUrlDisplay url={getMcpUrl()} />
       <div className="text-muted-foreground text-sm">
         <Link
-          href="https://docs.sokosumi.com/mcp"
+          href="https://www.masumi.network/dev/sokosumi/mcp"
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary hover:text-primary/80 inline-flex items-center gap-1 underline underline-offset-4"

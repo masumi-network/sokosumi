@@ -252,5 +252,5 @@ pnpm masumi:test
 ## References
 
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines
-- [Masumi Protocol Documentation](https://docs.masumi.network/)
+- [Masumi Protocol Documentation](https://www.masumi.network/dev/masumi/)
 - [Zod Documentation](https://zod.dev/)
