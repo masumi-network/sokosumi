@@ -77,7 +77,7 @@ export const taskService = (() => {
     });
 
     return {
-      tasks: result.data,
+      tasks: result.data ?? [],
       pagination: result.meta?.pagination ?? null,
     };
   }
