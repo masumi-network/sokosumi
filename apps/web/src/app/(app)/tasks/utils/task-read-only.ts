@@ -32,3 +32,33 @@ export function isReadOnlyForViewer({
   }
   return taskWorkspaceOrganizationId !== null && sessionUserId !== taskUserId;
 }
+
+interface CanCommentOnTaskForViewerParams extends ReadOnlyForViewerParams {
+  awaitingVendorApproval?: boolean;
+}
+
+/**
+ * Organization workspace collaborators may comment without owning the task.
+ * Mutations stay gated by {@link isReadOnlyForViewer}.
+ */
+export function canCommentOnTaskForViewer({
+  taskWorkspaceOrganizationId,
+  taskUserId,
+  sessionUserId,
+  forceReadOnly,
+  awaitingVendorApproval = false,
+}: CanCommentOnTaskForViewerParams): boolean {
+  if (forceReadOnly || awaitingVendorApproval) {
+    return false;
+  }
+
+  if (sessionUserId === taskUserId) {
+    return true;
+  }
+
+  return (
+    taskWorkspaceOrganizationId !== null &&
+    sessionUserId !== null &&
+    sessionUserId !== undefined
+  );
+}

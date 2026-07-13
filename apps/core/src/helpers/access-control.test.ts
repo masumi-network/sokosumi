@@ -537,6 +537,64 @@ describe("requireTaskReadForRouteVars", () => {
 });
 
 describe("requireTaskCommentAccess", () => {
+  it("allows a session user to comment on a workspace-visible task they do not own", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      userId: "user_owner",
+      pendingVendorGrantId: null,
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskCommentAccess(vars, "tsk_123", tx);
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "tsk_123",
+        archivedAt: null,
+        workspaceId,
+      },
+    });
+  });
+
+  it("rejects session user comments on tasks awaiting vendor approval they do not own", async () => {
+    const tx = createTransactionClient();
+    const memberAuthContext: UserAuthenticationContext = {
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_123",
+      role: "user",
+    };
+
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      userId: "user_owner",
+      pendingVendorGrantId: "grant_1",
+    } as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: memberAuthContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(requireTaskCommentAccess(vars, "tsk_123", tx)).rejects.toThrow(
+      "Task not found",
+    );
+  });
+
   it("allows a delegated coworker to comment on a same-vendor sibling task", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123", {

@@ -310,7 +310,8 @@ export async function requireTaskCollaboration(
 }
 
 /**
- * Comment access: assigned coworker or same-vendor sibling (delegated + workspace-bound).
+ * Comment access: workspace-visible session users, or assigned / same-vendor sibling
+ * delegated coworkers (workspace-bound).
  */
 export async function requireTaskCommentAccess(
   vars: EnvVariables["Variables"],
@@ -321,7 +322,14 @@ export async function requireTaskCommentAccess(
 
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
-    return await requireTaskOwnership(userContext, taskId, tx);
+    const task = await requireTaskReadForWorkspace(
+      requireWorkspaceContext(workspaceContext),
+      taskId,
+      tx,
+    );
+    assertUserCanReadTaskAwaitingVendorApproval(userContext, task);
+    requireTaskNotAwaitingVendorApproval(task);
+    return task;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);

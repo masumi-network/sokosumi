@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { isReadOnlyForViewer } from "../task-read-only";
+import {
+  canCommentOnTaskForViewer,
+  isReadOnlyForViewer,
+} from "../task-read-only";
 
 describe("isReadOnlyForViewer", () => {
   it("forces read-only for admins regardless of ownership", () => {
@@ -67,5 +70,52 @@ describe("isReadOnlyForViewer", () => {
         forceReadOnly: false,
       }),
     ).toBe(true);
+  });
+});
+
+describe("canCommentOnTaskForViewer", () => {
+  it("allows organization workspace collaborators to comment without ownership", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskUserId: "owner_1",
+        sessionUserId: "member_2",
+        forceReadOnly: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps mutation read-only collaborators from commenting when forced read-only", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskUserId: "owner_1",
+        sessionUserId: "member_2",
+        forceReadOnly: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks comments on parked tasks", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskUserId: "owner_1",
+        sessionUserId: "member_2",
+        forceReadOnly: false,
+        awaitingVendorApproval: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not allow comments for non-owners on personal workspace tasks", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: null,
+        taskUserId: "owner_1",
+        sessionUserId: "someone_else",
+        forceReadOnly: false,
+      }),
+    ).toBe(false);
   });
 });
