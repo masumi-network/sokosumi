@@ -77,6 +77,10 @@ const taskBaseSchema = z.object({
       "True when the task is parked awaiting vendor task:create grant approval",
     example: false,
   }),
+  pendingVendorGrantId: z.string().uuid().nullable().openapi({
+    description: "Vendor grant id when pendingApproval is true; null otherwise",
+    example: null,
+  }),
   metadata: z.string().nullable().openapi({
     description: "Serialized task schedule metadata JSON",
     example: null,

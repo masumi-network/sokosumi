@@ -33,6 +33,62 @@ const {
   workspaceFindUniqueMock: vi.fn(),
 }));
 
+function buildMapTaskResponse(task: {
+  id: string;
+  name?: string;
+  status?: TaskStatus;
+  organizationId?: string | null;
+  pendingVendorGrantId?: string | null;
+}) {
+  const organizationId = task.organizationId ?? "org_123";
+
+  return {
+    id: task.id,
+    createdAt: "2026-04-02T08:00:00.000Z",
+    updatedAt: "2026-04-02T08:00:00.000Z",
+    userId: "user_123",
+    organizationId,
+    projectId: null,
+    user: {
+      id: "user_123",
+      name: "Ada Lovelace",
+      image: null,
+    },
+    organization: organizationId
+      ? {
+          id: organizationId,
+          name: "Acme Labs",
+          slug: "acme-labs",
+        }
+      : null,
+    coworkerId: null,
+    coworker: null,
+    name: task.name ?? "New Task",
+    description: null,
+    status: task.status ?? TaskStatus.DRAFT,
+    metadata: null,
+    nextRunAt: null,
+    credits: 0,
+    events: [],
+    jobs: [],
+    pendingApproval: task.pendingVendorGrantId != null,
+    pendingVendorGrantId: task.pendingVendorGrantId ?? null,
+    workspace: {
+      id: "11111111-1111-7111-8111-111111111111",
+      organizationId,
+      organization: organizationId
+        ? {
+            id: organizationId,
+            name: "Acme Labs",
+            slug: "acme-labs",
+          }
+        : null,
+    },
+    share: null,
+    links: [],
+  };
+}
+
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
 }));
@@ -71,6 +127,8 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: { generateTaskName: generateTaskNameMock },
 }));
+
+const CREATE_GRANT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 
 describe("createTaskRequestSchema", () => {
   beforeEach(() => {
@@ -201,46 +259,7 @@ describe("POST /tasks", () => {
     vi.clearAllMocks();
     generateTaskNameMock.mockResolvedValue("Generated name");
     taskCreateMock.mockResolvedValue({ id: "tsk_123" });
-    mapTaskMock.mockReturnValue({
-      id: "tsk_123",
-      createdAt: "2026-04-02T08:00:00.000Z",
-      updatedAt: "2026-04-02T08:00:00.000Z",
-      userId: "user_123",
-      organizationId: "org_123",
-      projectId: null,
-      user: {
-        id: "user_123",
-        name: "Ada Lovelace",
-        image: null,
-      },
-      organization: {
-        id: "org_123",
-        name: "Acme Labs",
-        slug: "acme-labs",
-      },
-      coworkerId: null,
-      coworker: null,
-      name: "New Task",
-      description: null,
-      status: TaskStatus.DRAFT,
-      metadata: null,
-      nextRunAt: null,
-      credits: 0,
-      events: [],
-      jobs: [],
-      workspace: {
-        id: "11111111-1111-7111-8111-111111111111",
-        organizationId: "org_123",
-        organization: {
-          id: "org_123",
-          name: "Acme Labs",
-          slug: "acme-labs",
-        },
-      },
-      share: null,
-      links: [],
-      pendingApproval: false,
-    });
+    mapTaskMock.mockImplementation((task) => buildMapTaskResponse(task));
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
@@ -428,50 +447,24 @@ describe("POST /tasks delegated coworker create grant", () => {
     vi.clearAllMocks();
     generateTaskNameMock.mockResolvedValue("Generated name");
     workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_123" });
-    taskCreateMock.mockResolvedValue({
-      id: "tsk_parked",
-      pendingVendorGrantId: "create-grant",
-    });
-    mapTaskMock.mockReturnValue({
-      id: "tsk_parked",
-      createdAt: "2026-04-02T08:00:00.000Z",
-      updatedAt: "2026-04-02T08:00:00.000Z",
-      userId: "user_123",
-      organizationId: "org_123",
-      projectId: null,
-      user: {
-        id: "user_123",
-        name: "Ada Lovelace",
-        image: null,
-      },
-      organization: {
-        id: "org_123",
-        name: "Acme Labs",
-        slug: "acme-labs",
-      },
-      coworkerId: null,
-      coworker: null,
-      name: "Parked Task",
-      description: null,
-      status: TaskStatus.READY,
-      metadata: null,
-      nextRunAt: null,
-      credits: 0,
-      events: [],
-      jobs: [],
-      pendingApproval: true,
-      workspace: {
-        id: "11111111-1111-7111-8111-111111111111",
-        organizationId: "org_123",
-        organization: {
-          id: "org_123",
-          name: "Acme Labs",
-          slug: "acme-labs",
-        },
-      },
-      share: null,
-      links: [],
-    });
+    taskCreateMock.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        id: "tsk_parked",
+        ...args.data,
+      }),
+    );
+    mapTaskMock.mockImplementation((task) =>
+      buildMapTaskResponse({
+        id: task.id,
+        name: typeof task.name === "string" ? task.name : "Parked Task",
+        status: task.status as TaskStatus | undefined,
+        organizationId: task.organizationId as string | null | undefined,
+        pendingVendorGrantId: task.pendingVendorGrantId as
+          | string
+          | null
+          | undefined,
+      }),
+    );
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
@@ -486,11 +479,11 @@ describe("POST /tasks delegated coworker create grant", () => {
     );
   });
 
-  it("parks create as READY when task:create is missing", async () => {
+  it("parks create as APPROVAL_REQUIRED when task:create is missing", async () => {
     getVendorGrantMock.mockResolvedValue(null);
     requestCreateGrantMock.mockResolvedValue({
       grant: {
-        id: "create-grant",
+        id: CREATE_GRANT_ID,
         status: VendorGrantStatus.PENDING,
       },
       created: true,
@@ -521,8 +514,8 @@ describe("POST /tasks delegated coworker create grant", () => {
     expect(taskCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: TaskStatus.READY,
-          pendingVendorGrantId: "create-grant",
+          status: TaskStatus.APPROVAL_REQUIRED,
+          pendingVendorGrantId: CREATE_GRANT_ID,
         }),
       }),
     );
@@ -532,7 +525,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     getVendorGrantMock.mockResolvedValue(null);
     requestCreateGrantMock.mockResolvedValue({
       grant: {
-        id: "create-grant",
+        id: CREATE_GRANT_ID,
         status: VendorGrantStatus.GRANTED,
       },
       created: false,
@@ -567,7 +560,7 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   it("creates normally when task:create is GRANTED", async () => {
     getVendorGrantMock.mockResolvedValue({
-      id: "create-grant",
+      id: CREATE_GRANT_ID,
       status: VendorGrantStatus.GRANTED,
     });
 
@@ -600,7 +593,7 @@ describe("POST /tasks delegated coworker create grant", () => {
 
   it("rejects create when task:create was DENIED", async () => {
     getVendorGrantMock.mockResolvedValue({
-      id: "create-grant",
+      id: CREATE_GRANT_ID,
       status: VendorGrantStatus.DENIED,
     });
 
@@ -628,7 +621,7 @@ describe("POST /tasks delegated coworker create grant", () => {
     getVendorGrantMock.mockResolvedValue(null);
     requestCreateGrantMock.mockResolvedValue({
       grant: {
-        id: "create-grant",
+        id: CREATE_GRANT_ID,
         status: VendorGrantStatus.PENDING,
       },
       created: true,

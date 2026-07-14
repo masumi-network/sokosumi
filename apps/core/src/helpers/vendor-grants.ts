@@ -489,7 +489,10 @@ export async function unparkTasksForGrant(
 ): Promise<number> {
   const result = await tx.task.updateMany({
     where: { pendingVendorGrantId: grantId },
-    data: { pendingVendorGrantId: null },
+    data: {
+      pendingVendorGrantId: null,
+      status: TaskStatus.READY,
+    },
   });
   return result.count;
 }

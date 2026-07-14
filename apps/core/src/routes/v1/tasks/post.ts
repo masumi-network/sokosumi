@@ -117,14 +117,11 @@ async function createTaskRecord(
     body: z.infer<typeof createTaskRequestSchema>;
     resolvedName: string;
     pendingVendorGrantId?: string | null;
-    /** When parking, coerce to READY so workspace readers see the task. */
-    forceReady?: boolean;
   },
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
 ) {
   const {
     body,
-    forceReady,
     organizationId,
     pendingVendorGrantId,
     resolvedName,
@@ -146,7 +143,8 @@ async function createTaskRecord(
     }
   }
 
-  const status = forceReady ? TaskStatus.READY : body.status;
+  const status =
+    pendingVendorGrantId != null ? TaskStatus.APPROVAL_REQUIRED : body.status;
 
   return tx.task.create({
     data: {
@@ -247,7 +245,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Resolve grant status inside the transaction so a concurrent approve/deny
-    // cannot leave a READY task permanently parked.
+    // cannot leave an approval-required task permanently parked.
     const { task, createdPendingGrant } = await prisma.$transaction(
       async (tx) => {
         const { grant, created: pendingCreated } = await requestCreateGrant(
@@ -286,7 +284,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             body,
             resolvedName,
             pendingVendorGrantId: grant.id,
-            forceReady: true,
           },
           tx,
         );

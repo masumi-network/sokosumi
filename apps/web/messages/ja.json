@@ -1652,7 +1652,18 @@
         },
         "clonedFrom": "{name} から複製",
         "schedule": "スケジュール",
-        "pendingApproval": "承認待ち"
+        "pendingApproval": "承認待ち",
+        "VendorGrantApproval": {
+          "title": "ベンダーアクセスの承認が必要です",
+          "description": "コワーカーがこのタスクを作成しましたが、このワークスペースでタスクを作成する権限がまだありません。ベンダーアクセスを承認してタスクを有効化してください。",
+          "descriptionWithCoworker": "{coworkerName} がこのタスクを作成しましたが、このワークスペースでタスクを作成する権限がまだありません。ベンダーアクセスを承認してタスクを有効化してください。",
+          "approve": "アクセスを承認",
+          "deny": "アクセスを拒否",
+          "approveSuccess": "ベンダーアクセスを承認しました。このタスクは有効になりました。",
+          "denySuccess": "ベンダーアクセスを拒否しました。このタスクはキャンセルされました。",
+          "approveError": "ベンダーアクセスの承認に失敗しました",
+          "denyError": "ベンダーアクセスの拒否に失敗しました"
+        }
       },
       "NewTask": {
         "title": "新しいタスク",

@@ -1199,6 +1199,15 @@ export const TaskSchema = {
             description: 'True when the task is parked awaiting vendor task:create grant approval',
             example: false
         },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Vendor grant id when pendingApproval is true; null otherwise',
+            example: null
+        },
         metadata: {
             type: [
                 'string',
@@ -1271,6 +1280,7 @@ export const TaskSchema = {
         'description',
         'status',
         'pendingApproval',
+        'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
         'credits',
@@ -9540,6 +9550,15 @@ export const TaskListItemSchema = {
             description: 'True when the task is parked awaiting vendor task:create grant approval',
             example: false
         },
+        pendingVendorGrantId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Vendor grant id when pendingApproval is true; null otherwise',
+            example: null
+        },
         metadata: {
             type: [
                 'string',
@@ -9586,6 +9605,7 @@ export const TaskListItemSchema = {
         'description',
         'status',
         'pendingApproval',
+        'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
         'workspace',

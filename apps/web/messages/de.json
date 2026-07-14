@@ -1652,7 +1652,18 @@
         },
         "clonedFrom": "Geklont von {name}",
         "schedule": "Zeitplan",
-        "pendingApproval": "Freigabe ausstehend"
+        "pendingApproval": "Freigabe ausstehend",
+        "VendorGrantApproval": {
+          "title": "Freigabe des Vendor-Zugriffs erforderlich",
+          "description": "Ein Coworker hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
+          "descriptionWithCoworker": "{coworkerName} hat diese Aufgabe erstellt, hat aber noch keine Berechtigung, Aufgaben in diesem Workspace anzulegen. Genehmigen Sie den Vendor-Zugriff, um die Aufgabe zu aktivieren.",
+          "approve": "Zugriff genehmigen",
+          "deny": "Zugriff ablehnen",
+          "approveSuccess": "Vendor-Zugriff genehmigt. Diese Aufgabe ist jetzt aktiv.",
+          "denySuccess": "Vendor-Zugriff abgelehnt. Diese Aufgabe wurde abgebrochen.",
+          "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+          "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden"
+        }
       },
       "NewTask": {
         "title": "Neuer Task",

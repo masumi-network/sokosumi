@@ -155,7 +155,10 @@ describe("vendor-grants helpers", () => {
     await expect(unparkTasksForGrant("g1")).resolves.toBe(2);
     expect(taskUpdateMany).toHaveBeenCalledWith({
       where: { pendingVendorGrantId: "g1" },
-      data: { pendingVendorGrantId: null },
+      data: {
+        pendingVendorGrantId: null,
+        status: TaskStatus.READY,
+      },
     });
 
     taskUpdateMany.mockResolvedValue({ count: 1 });

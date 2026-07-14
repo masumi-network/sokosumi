@@ -1140,7 +1140,7 @@ export const postUsersByIdVendorGrants = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Approve a vendor grant for the user's personal workspace. For PENDING task:read, also approves bundled PENDING task:comment when present.
+ * Approve a vendor grant for the user's personal workspace. For task:read, also grants a bundled PENDING or DENIED task:comment when present.
  */
 export const postUsersByIdVendorGrantsByGrantIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdVendorGrantsByGrantIdApproveData, ThrowOnError>): RequestResult<PostUsersByIdVendorGrantsByGrantIdApproveResponses, PostUsersByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdVendorGrantsByGrantIdApproveResponses, PostUsersByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError>({
     responseTransformer: postUsersByIdVendorGrantsByGrantIdApproveResponseTransformer,
@@ -1288,7 +1288,7 @@ export const postOrganizationsByIdVendorGrants = <ThrowOnError extends boolean =
 });
 
 /**
- * Approve a vendor grant (PENDING / DENIED / REVOKED → GRANTED). For task:read PENDING, also approves a bundled PENDING task:comment when present. Owner/admin only.
+ * Approve a vendor grant (PENDING / DENIED / REVOKED → GRANTED). For task:read, also grants a bundled PENDING or DENIED task:comment when present. Owner/admin only.
  */
 export const postOrganizationsByIdVendorGrantsByGrantIdApprove = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdVendorGrantsByGrantIdApproveData, ThrowOnError>): RequestResult<PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses, PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses, PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdVendorGrantsByGrantIdApproveResponseTransformer,
@@ -1466,7 +1466,7 @@ export const deleteProjectsByIdJobsByJobId = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked.
+ * Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked. Any workspace member may link a workspace task.
  */
 export const postProjectsByIdTasks = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdTasksData, ThrowOnError>): RequestResult<PostProjectsByIdTasksResponses, PostProjectsByIdTasksErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdTasksResponses, PostProjectsByIdTasksErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdTasksResponseTransformer,
@@ -1479,7 +1479,7 @@ export const postProjectsByIdTasks = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Remove a task from a project without deleting the task
+ * Remove a task from a project without deleting the task. Parked tasks cannot be unlinked. Any workspace member may unlink a workspace task.
  */
 export const deleteProjectsByIdTasksByTaskId = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectsByIdTasksByTaskIdData, ThrowOnError>): RequestResult<DeleteProjectsByIdTasksByTaskIdResponses, DeleteProjectsByIdTasksByTaskIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectsByIdTasksByTaskIdResponses, DeleteProjectsByIdTasksByTaskIdErrors, ThrowOnError>({
     responseTransformer: deleteProjectsByIdTasksByTaskIdResponseTransformer,

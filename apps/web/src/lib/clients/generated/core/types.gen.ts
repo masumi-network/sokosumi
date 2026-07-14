@@ -282,6 +282,10 @@ export type Task = {
      */
     pendingApproval: boolean;
     /**
+     * Vendor grant id when pendingApproval is true; null otherwise
+     */
+    pendingVendorGrantId: string | null;
+    /**
      * Serialized task schedule metadata JSON
      */
     metadata: string | null;
@@ -2623,6 +2627,10 @@ export type TaskListItem = {
      * True when the task is parked awaiting vendor task:create grant approval
      */
     pendingApproval: boolean;
+    /**
+     * Vendor grant id when pendingApproval is true; null otherwise
+     */
+    pendingVendorGrantId: string | null;
     /**
      * Serialized task schedule metadata JSON
      */

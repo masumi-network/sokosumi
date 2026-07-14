@@ -1652,7 +1652,18 @@
         },
         "clonedFrom": "Clonada de {name}",
         "schedule": "Agendamento",
-        "pendingApproval": "Aprovação pendente"
+        "pendingApproval": "Aprovação pendente",
+        "VendorGrantApproval": {
+          "title": "Aprovação de acesso do fornecedor necessária",
+          "description": "Um coworker criou esta tarefa, mas ainda não tem permissão para criar tarefas neste workspace. Aprove o acesso do fornecedor para ativá-la.",
+          "descriptionWithCoworker": "{coworkerName} criou esta tarefa, mas ainda não tem permissão para criar tarefas neste workspace. Aprove o acesso do fornecedor para ativá-la.",
+          "approve": "Aprovar acesso",
+          "deny": "Recusar acesso",
+          "approveSuccess": "Acesso do fornecedor aprovado. Esta tarefa está ativa.",
+          "denySuccess": "Acesso do fornecedor recusado. Esta tarefa foi cancelada.",
+          "approveError": "Falha ao aprovar o acesso do fornecedor",
+          "denyError": "Falha ao recusar o acesso do fornecedor"
+        }
       },
       "NewTask": {
         "title": "Nova tarefa",

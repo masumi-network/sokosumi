@@ -1652,7 +1652,18 @@
         },
         "clonedFrom": "Clonée depuis {name}",
         "schedule": "Planification",
-        "pendingApproval": "Approbation en attente"
+        "pendingApproval": "Approbation en attente",
+        "VendorGrantApproval": {
+          "title": "Approbation d'accès fournisseur requise",
+          "description": "Un coworker a créé cette tâche mais n'a pas encore l'autorisation de créer des tâches dans cet espace de travail. Approuvez l'accès fournisseur pour l'activer.",
+          "descriptionWithCoworker": "{coworkerName} a créé cette tâche mais n'a pas encore l'autorisation de créer des tâches dans cet espace de travail. Approuvez l'accès fournisseur pour l'activer.",
+          "approve": "Approuver l'accès",
+          "deny": "Refuser l'accès",
+          "approveSuccess": "Accès fournisseur approuvé. Cette tâche est maintenant active.",
+          "denySuccess": "Accès fournisseur refusé. Cette tâche a été annulée.",
+          "approveError": "Échec de l'approbation de l'accès fournisseur",
+          "denyError": "Échec du refus de l'accès fournisseur"
+        }
       },
       "NewTask": {
         "title": "Nouvelle tâche",

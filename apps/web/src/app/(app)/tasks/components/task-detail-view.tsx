@@ -13,6 +13,7 @@ import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
@@ -137,6 +138,15 @@ export async function TaskDetailView({
           }
         />
 
+        <Suspense fallback={null}>
+          <TaskVendorGrantApprovalBannerSlot
+            task={task}
+            forceReadOnly={forceReadOnly}
+            membersPromise={membersPromise}
+            sessionPromise={sessionPromise}
+          />
+        </Suspense>
+
         <div className="mt-6 space-y-8">
           <Suspense
             fallback={
@@ -246,6 +256,52 @@ async function TaskDetailAutoSwitch({
       successMessage={t("switchedWorkspace", {
         account: targetAccountName,
       })}
+    />
+  );
+}
+
+async function TaskVendorGrantApprovalBannerSlot({
+  task,
+  forceReadOnly,
+  membersPromise,
+  sessionPromise,
+}: {
+  task: Task;
+  forceReadOnly: boolean;
+  membersPromise: Promise<MembersResult>;
+  sessionPromise: Promise<SessionResult>;
+}) {
+  if (!task.pendingApproval || forceReadOnly) {
+    return null;
+  }
+
+  const grantId = task.pendingVendorGrantId;
+  if (!grantId) {
+    return null;
+  }
+
+  const [members, session] = await Promise.all([
+    membersPromise,
+    sessionPromise,
+  ]);
+  const orgId = task.workspace.organizationId ?? null;
+  const viewerMembership =
+    orgId === null
+      ? undefined
+      : members.find((member) => member.organizationId === orgId);
+  const isOrgOwnerOrAdmin =
+    viewerMembership?.role === "owner" || viewerMembership?.role === "admin";
+  const canApprove = orgId ? isOrgOwnerOrAdmin : Boolean(session?.user.id);
+
+  if (!canApprove) {
+    return null;
+  }
+
+  return (
+    <TaskVendorGrantApprovalBanner
+      grantId={grantId}
+      coworkerName={task.coworker?.name ?? null}
+      organizationId={orgId}
     />
   );
 }

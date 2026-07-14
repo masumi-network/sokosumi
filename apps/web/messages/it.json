@@ -1652,7 +1652,18 @@
         },
         "clonedFrom": "Clonata da {name}",
         "schedule": "Pianificazione",
-        "pendingApproval": "Approvazione in sospeso"
+        "pendingApproval": "Approvazione in sospeso",
+        "VendorGrantApproval": {
+          "title": "Approvazione accesso vendor richiesta",
+          "description": "Un coworker ha creato questa attività ma non ha ancora il permesso di creare attività in questo workspace. Approva l'accesso vendor per attivarla.",
+          "descriptionWithCoworker": "{coworkerName} ha creato questa attività ma non ha ancora il permesso di creare attività in questo workspace. Approva l'accesso vendor per attivarla.",
+          "approve": "Approva accesso",
+          "deny": "Nega accesso",
+          "approveSuccess": "Accesso vendor approvato. Questa attività è ora attiva.",
+          "denySuccess": "Accesso vendor negato. Questa attività è stata annullata.",
+          "approveError": "Impossibile approvare l'accesso vendor",
+          "denyError": "Impossibile negare l'accesso vendor"
+        }
       },
       "NewTask": {
         "title": "Nuovo task",
