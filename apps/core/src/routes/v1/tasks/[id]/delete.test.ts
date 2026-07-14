@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { getTaskCannotArchiveMessage, TaskStatus } from "@sokosumi/utils";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { errorHandler } from "@/helpers/error-handler";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -9,10 +10,10 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountDeleteTask from "./delete";
 
-const { prismaTransactionMock, requireTaskOwnershipMock, mapTaskMock } =
+const { prismaTransactionMock, requireTaskArchiveAccessMock, mapTaskMock } =
   vi.hoisted(() => ({
     prismaTransactionMock: vi.fn(),
-    requireTaskOwnershipMock: vi.fn(),
+    requireTaskArchiveAccessMock: vi.fn(),
     mapTaskMock: vi.fn((task: unknown) => {
       const t = task as Record<string, unknown>;
       return {
@@ -46,7 +47,7 @@ const { prismaTransactionMock, requireTaskOwnershipMock, mapTaskMock } =
   }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskOwnership: requireTaskOwnershipMock,
+  requireTaskArchiveAccess: requireTaskArchiveAccessMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -93,48 +94,52 @@ function createApp(activeWorkspaceId = "99999999-9999-7999-8999-999999999999") {
   return app;
 }
 
+const archivedTask = {
+  id: "tsk_123",
+  createdAt: "2026-03-25T10:00:00.000Z",
+  updatedAt: "2026-03-25T10:00:00.000Z",
+  userId: "user_123",
+  organizationId: null,
+  projectId: null,
+  status: TaskStatus.READY,
+  coworkerId: null,
+  name: "Archived task",
+  description: null,
+  metadata: null,
+  nextRunAt: null,
+  credits: 0,
+  events: [],
+  jobs: [],
+  workspace: {
+    id: "22222222-2222-7222-8222-222222222222",
+    organizationId: null,
+    organization: null,
+  },
+  share: null,
+  links: [],
+  linksFrom: [],
+  linksTo: [],
+};
+
 describe("DELETE /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("uses the task workspace for link visibility in the archive response", async () => {
-    const updateMock = vi.fn().mockResolvedValue({
-      id: "tsk_123",
-      createdAt: "2026-03-25T10:00:00.000Z",
-      updatedAt: "2026-03-25T10:00:00.000Z",
-      userId: "user_123",
-      organizationId: null,
-      projectId: null,
-      status: TaskStatus.READY,
-      coworkerId: null,
-      name: "Archived task",
-      description: null,
-      metadata: null,
-      nextRunAt: null,
-      credits: 0,
-      events: [],
-      jobs: [],
-      workspace: {
-        id: "22222222-2222-7222-8222-222222222222",
-        organizationId: null,
-        organization: null,
-      },
-      share: null,
-      links: [],
-      linksFrom: [],
-      linksTo: [],
-    });
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
 
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
-          update: updateMock,
+          updateMany: updateManyMock,
+          findFirstOrThrow: findFirstOrThrowMock,
         },
       });
     });
 
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -146,22 +151,24 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith(
+    expect(updateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "tsk_123",
+          archivedAt: null,
+          status: TaskStatus.READY,
+        }),
+        data: expect.objectContaining({
+          archivedAt: expect.any(Date),
+        }),
+      }),
+    );
+    expect(findFirstOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
           linksFrom: expect.objectContaining({
             where: {
               toTask: {
-                is: {
-                  workspaceId: "22222222-2222-7222-8222-222222222222",
-                  archivedAt: null,
-                },
-              },
-            },
-          }),
-          linksTo: expect.objectContaining({
-            where: {
-              fromTask: {
                 is: {
                   workspaceId: "22222222-2222-7222-8222-222222222222",
                   archivedAt: null,
@@ -175,16 +182,17 @@ describe("DELETE /tasks/{id}", () => {
   });
 
   it("returns 422 when the task status is not archivable", async () => {
-    const updateMock = vi.fn();
+    const updateManyMock = vi.fn();
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
-          update: updateMock,
+          updateMany: updateManyMock,
+          findFirstOrThrow: vi.fn(),
         },
       });
     });
 
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskArchiveAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.RUNNING,
       workspaceId: "22222222-2222-7222-8222-222222222222",
@@ -196,7 +204,7 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(422);
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(updateManyMock).not.toHaveBeenCalled();
 
     const body = (await response.json()) as { message?: string };
     expect(body.message).toBe(getTaskCannotArchiveMessage(TaskStatus.RUNNING));

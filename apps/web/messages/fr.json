@@ -1651,7 +1651,8 @@
           "switchError": "Échec du changement d’espace de travail. Veuillez réessayer."
         },
         "clonedFrom": "Clonée depuis {name}",
-        "schedule": "Planification"
+        "schedule": "Planification",
+        "pendingApproval": "Approbation en attente"
       },
       "NewTask": {
         "title": "Nouvelle tâche",
@@ -3546,6 +3547,39 @@
           "assigned": "Attribués",
           "unused": "Inutilisés",
           "manageBilling": "Gérer la facturation"
+        },
+        "VendorGrants": {
+          "title": "Accès workspace fournisseur",
+          "description": "Approuvez les demandes des fournisseurs pour lire, commenter ou créer des tâches dans l’espace de travail de cette organisation.",
+          "pendingTitle": "Demandes en attente",
+          "pendingEmpty": "Aucune demande d’accès fournisseur en attente.",
+          "activeTitle": "Autorisations actives",
+          "activeEmpty": "Aucune autorisation fournisseur active pour le moment.",
+          "grantFormTitle": "Accorder l’accès de manière proactive",
+          "Permissions": {
+            "taskRead": "Lire les tâches",
+            "taskComment": "Commenter les tâches",
+            "taskCreate": "Créer des tâches",
+            "readAndComment": "Lire et commenter les tâches"
+          },
+          "GrantForm": {
+            "vendorLabel": "Fournisseur",
+            "permissionLabel": "Autorisation",
+            "submit": "Accorder l’accès",
+            "success": "Accès fournisseur accordé",
+            "error": "Impossible d’accorder l’accès fournisseur"
+          },
+          "Actions": {
+            "approve": "Approuver",
+            "deny": "Refuser",
+            "revoke": "Révoquer",
+            "approveSuccess": "Accès fournisseur approuvé",
+            "denySuccess": "Accès fournisseur refusé",
+            "revokeSuccess": "Accès fournisseur révoqué",
+            "approveError": "Impossible d’approuver l’accès fournisseur",
+            "denyError": "Impossible de refuser l’accès fournisseur",
+            "revokeError": "Impossible de révoquer l’accès fournisseur"
+          }
         }
       }
     },
@@ -3913,6 +3947,12 @@
         "failed": "{coworkerName} n'a pas pu terminer {taskName}",
         "canceled": "{taskName} a été annulé"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} a demandé un accès fournisseur à l’espace de travail de l’organisation",
+      "pendingReadComment": "{vendorName} a demandé un accès lecture et commentaire à l’espace de travail de l’organisation"
     }
   }
 }

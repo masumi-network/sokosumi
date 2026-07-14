@@ -278,6 +278,10 @@ export type Task = {
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
     /**
+     * True when the task is parked awaiting vendor task:create grant approval
+     */
+    pendingApproval: boolean;
+    /**
      * Serialized task schedule metadata JSON
      */
     metadata: string | null;
@@ -2038,6 +2042,21 @@ export type PendingInvitation = {
     createdAt: Date;
 };
 
+export type VendorGrant = {
+    id: string;
+    vendorId: string;
+    vendorName: string;
+    vendorSlug: string;
+    workspaceId: string;
+    permission: 'task:read' | 'task:comment' | 'task:create';
+    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+    requestedByUserId: string | null;
+    resolvedAt: Date | null;
+    resolvedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 export type OrganizationSeatSummary = {
     /**
      * Number of members with an assigned seat (0 when the organization has no paid plan)
@@ -2600,6 +2619,10 @@ export type TaskListItem = {
     name: string;
     description: string | null;
     status: 'DRAFT' | 'QUEUED' | 'READY' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELED';
+    /**
+     * True when the task is parked awaiting vendor task:create grant approval
+     */
+    pendingApproval: boolean;
     /**
      * Serialized task schedule metadata JSON
      */
@@ -15666,6 +15689,444 @@ export type GetOrganizationsByIdInvitationsResponses = {
 
 export type GetOrganizationsByIdInvitationsResponse = GetOrganizationsByIdInvitationsResponses[keyof GetOrganizationsByIdInvitationsResponses];
 
+export type GetOrganizationsByIdVendorGrantsData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: {
+        status?: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+        vendorId?: string;
+        permission?: 'task:read' | 'task:comment' | 'task:create';
+    };
+    url: '/organizations/{id}/vendor-grants';
+};
+
+export type GetOrganizationsByIdVendorGrantsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdVendorGrantsError = GetOrganizationsByIdVendorGrantsErrors[keyof GetOrganizationsByIdVendorGrantsErrors];
+
+export type GetOrganizationsByIdVendorGrantsResponses = {
+    /**
+     * List vendor grants
+     */
+    200: {
+        data: Array<VendorGrant>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdVendorGrantsResponse = GetOrganizationsByIdVendorGrantsResponses[keyof GetOrganizationsByIdVendorGrantsResponses];
+
+export type PostOrganizationsByIdVendorGrantsData = {
+    body?: {
+        vendorId: string;
+        permission: 'task:read' | 'task:comment' | 'task:create';
+    };
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants';
+};
+
+export type PostOrganizationsByIdVendorGrantsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsError = PostOrganizationsByIdVendorGrantsErrors[keyof PostOrganizationsByIdVendorGrantsErrors];
+
+export type PostOrganizationsByIdVendorGrantsResponses = {
+    /**
+     * Grant created
+     */
+    201: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsResponse = PostOrganizationsByIdVendorGrantsResponses[keyof PostOrganizationsByIdVendorGrantsResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Vendor grant ID
+         */
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/approve';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveError = PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdApproveErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses = {
+    /**
+     * Grant approved
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdApproveResponse = PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdApproveResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyData = {
+    body?: never;
+    path: {
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/deny';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyError = PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdDenyErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses = {
+    /**
+     * Grant denied
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdDenyResponse = PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdDenyResponses];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeData = {
+    body?: never;
+    path: {
+        id: string;
+        grantId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/vendor-grants/{grantId}/revoke';
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeError = PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors[keyof PostOrganizationsByIdVendorGrantsByGrantIdRevokeErrors];
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses = {
+    /**
+     * Grant revoked
+     */
+    200: {
+        data: VendorGrant;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponse = PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses[keyof PostOrganizationsByIdVendorGrantsByGrantIdRevokeResponses];
+
 export type GetOrganizationsByIdSeatSummaryData = {
     body?: never;
     path: {
@@ -20410,7 +20871,7 @@ export type PostTasksErrors = {
         };
     };
     /**
-     * Forbidden
+     * Forbidden. Delegated coworker create may return kind `grant_denied` / `grant_revoked` when vendor create access was denied.
      */
     403: {
         error: string;

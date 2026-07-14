@@ -1651,7 +1651,8 @@
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
         "clonedFrom": "Geklont von {name}",
-        "schedule": "Zeitplan"
+        "schedule": "Zeitplan",
+        "pendingApproval": "Freigabe ausstehend"
       },
       "NewTask": {
         "title": "Neuer Task",
@@ -3515,6 +3516,39 @@
           "assigned": "Zugewiesen",
           "unused": "Ungenutzt",
           "manageBilling": "Abrechnung verwalten"
+        },
+        "VendorGrants": {
+          "title": "Vendor-Workspace-Zugriff",
+          "description": "Genehmige Vendor-Anfragen zum Lesen, Kommentieren oder Erstellen von Tasks in diesem Organisations-Workspace.",
+          "pendingTitle": "Ausstehende Anfragen",
+          "pendingEmpty": "Keine ausstehenden Vendor-Zugriffsanfragen.",
+          "activeTitle": "Aktive Berechtigungen",
+          "activeEmpty": "Noch keine aktiven Vendor-Berechtigungen.",
+          "grantFormTitle": "Zugriff proaktiv gewähren",
+          "Permissions": {
+            "taskRead": "Tasks lesen",
+            "taskComment": "Tasks kommentieren",
+            "taskCreate": "Tasks erstellen",
+            "readAndComment": "Tasks lesen und kommentieren"
+          },
+          "GrantForm": {
+            "vendorLabel": "Vendor",
+            "permissionLabel": "Berechtigung",
+            "submit": "Zugriff gewähren",
+            "success": "Vendor-Zugriff gewährt",
+            "error": "Vendor-Zugriff konnte nicht gewährt werden"
+          },
+          "Actions": {
+            "approve": "Genehmigen",
+            "deny": "Ablehnen",
+            "revoke": "Widerrufen",
+            "approveSuccess": "Vendor-Zugriff genehmigt",
+            "denySuccess": "Vendor-Zugriff abgelehnt",
+            "revokeSuccess": "Vendor-Zugriff widerrufen",
+            "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
+            "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
+            "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden"
+          }
         }
       }
     },
@@ -3913,6 +3947,12 @@
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert",
+      "pendingReadComment": "{vendorName} hat Lese- und Kommentarzugriff auf den Organisations-Workspace angefordert"
     }
   }
 }

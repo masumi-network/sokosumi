@@ -1651,7 +1651,8 @@
           "switchError": "Não foi possível trocar de espaço de trabalho. Tente novamente."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Agendamento"
+        "schedule": "Agendamento",
+        "pendingApproval": "Aprovação pendente"
       },
       "NewTask": {
         "title": "Nova tarefa",
@@ -3546,6 +3547,39 @@
           "assigned": "Atribuídos",
           "unused": "Não utilizados",
           "manageBilling": "Gerenciar cobrança"
+        },
+        "VendorGrants": {
+          "title": "Acesso ao workspace do fornecedor",
+          "description": "Aprove solicitações de fornecedores para ler, comentar ou criar tarefas no workspace desta organização.",
+          "pendingTitle": "Solicitações pendentes",
+          "pendingEmpty": "Nenhuma solicitação de acesso de fornecedor pendente.",
+          "activeTitle": "Permissões ativas",
+          "activeEmpty": "Ainda não há permissões de fornecedores ativas.",
+          "grantFormTitle": "Conceder acesso de forma proativa",
+          "Permissions": {
+            "taskRead": "Ler tarefas",
+            "taskComment": "Comentar tarefas",
+            "taskCreate": "Criar tarefas",
+            "readAndComment": "Ler e comentar tarefas"
+          },
+          "GrantForm": {
+            "vendorLabel": "Fornecedor",
+            "permissionLabel": "Permissão",
+            "submit": "Conceder acesso",
+            "success": "Acesso do fornecedor concedido",
+            "error": "Falha ao conceder acesso do fornecedor"
+          },
+          "Actions": {
+            "approve": "Aprovar",
+            "deny": "Recusar",
+            "revoke": "Revogar",
+            "approveSuccess": "Acesso do fornecedor aprovado",
+            "denySuccess": "Acesso do fornecedor recusado",
+            "revokeSuccess": "Acesso do fornecedor revogado",
+            "approveError": "Falha ao aprovar acesso do fornecedor",
+            "denyError": "Falha ao recusar acesso do fornecedor",
+            "revokeError": "Falha ao revogar acesso do fornecedor"
+          }
         }
       }
     },
@@ -3913,6 +3947,12 @@
         "failed": "{coworkerName} não conseguiu concluir {taskName}",
         "canceled": "{taskName} foi cancelado"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} solicitou acesso de fornecedor ao workspace da organização",
+      "pendingReadComment": "{vendorName} solicitou acesso de leitura e comentários ao workspace da organização"
     }
   }
 }

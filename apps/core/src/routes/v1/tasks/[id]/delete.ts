@@ -5,8 +5,8 @@ import {
   isTaskArchivableStatus,
 } from "@sokosumi/utils";
 
-import { requireTaskOwnership } from "@/helpers/access-control";
-import { unprocessableEntity } from "@/helpers/error";
+import { requireTaskArchiveAccess } from "@/helpers/access-control";
+import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
@@ -26,7 +26,8 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "delete",
   path: "/{id}",
-  description: "Archive task",
+  description:
+    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor task:create approval.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -36,6 +37,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -47,7 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const task = await prisma.$transaction(async (tx) => {
-      const currentTask = await requireTaskOwnership(userContext, id, tx);
+      const currentTask = await requireTaskArchiveAccess(userContext, id, tx);
 
       if (!isTaskArchivableStatus(currentTask.status)) {
         throw unprocessableEntity(
@@ -55,16 +57,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      return tx.task.update({
+      const archivedAt = new Date();
+      const updateResult = await tx.task.updateMany({
         where: {
           id,
-          userId: userContext.userId,
           archivedAt: null,
           status: currentTask.status,
         },
         data: {
-          archivedAt: new Date(),
+          archivedAt,
         },
+      });
+
+      if (updateResult.count === 0) {
+        throw conflict("Task was modified concurrently; retry archive");
+      }
+
+      return tx.task.findFirstOrThrow({
+        where: { id },
         include: buildTaskIncludeForViewer(
           authContext,
           currentTask.workspaceId,

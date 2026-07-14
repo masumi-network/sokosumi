@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -46,7 +47,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, taskId } = c.req.valid("param");
 
@@ -59,10 +60,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project or task link not found");
     }
 
-    const unlinkResult = await prisma.task.updateMany({
-      where: { id: taskId, projectId, workspaceId },
-      data: { projectId: null },
+    const unlinkResult = await prisma.$transaction(async (tx) => {
+      await requireMutableTaskOwnership(userContext, taskId, tx);
+
+      return tx.task.updateMany({
+        where: { id: taskId, projectId, workspaceId },
+        data: { projectId: null },
+      });
     });
+
     if (unlinkResult.count === 0) {
       throw notFound("Project or task link not found");
     }

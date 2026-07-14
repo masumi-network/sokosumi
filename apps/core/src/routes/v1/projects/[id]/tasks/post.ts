@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { requireMutableTaskOwnership } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -29,7 +30,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/tasks",
-    description: "Add an existing task to a project",
+    description:
+      "Add an existing task to a project. Parked tasks awaiting vendor create approval cannot be linked.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -53,7 +55,7 @@ const route = withGlobalHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireUserContext(c.var.authContext);
+    const userContext = requireUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const body = c.req.valid("json");
@@ -67,27 +69,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    const task = await prisma.task.findFirst({
-      where: { id: body.taskId, archivedAt: null, workspaceId },
-      select: { projectId: true },
+    await prisma.$transaction(async (tx) => {
+      const task = await requireMutableTaskOwnership(
+        userContext,
+        body.taskId,
+        tx,
+      );
+
+      if (task.workspaceId !== workspaceId) {
+        throw notFound("Task not found");
+      }
+
+      if (task.projectId !== null && task.projectId !== projectId) {
+        throw conflict("Task is already assigned to a project");
+      }
+
+      if (task.projectId !== projectId) {
+        await tx.task.update({
+          where: { id: body.taskId },
+          data: {
+            projectId,
+            workspaceId,
+          },
+        });
+      }
     });
-    if (!task) {
-      throw notFound("Task not found");
-    }
-
-    if (task.projectId !== null && task.projectId !== projectId) {
-      throw conflict("Task is already assigned to a project");
-    }
-
-    if (task.projectId !== projectId) {
-      await prisma.task.update({
-        where: { id: body.taskId },
-        data: {
-          projectId,
-          workspaceId,
-        },
-      });
-    }
 
     return ok(c, projectSchema.parse(project));
   });

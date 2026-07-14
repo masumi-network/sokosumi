@@ -1,6 +1,7 @@
-import { type Prisma } from "@sokosumi/database";
+import { MemberRole, type Prisma, VendorGrantStatus } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
-import { describe, expect, it, vi } from "vitest";
+import { HTTPException } from "hono/http-exception";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EnvVariables } from "@/lib/hono";
 import type {
@@ -17,6 +18,8 @@ import {
   requireJobOwnership,
   requireJobRead,
   requireJobReadForRouteVars,
+  requireMutableTaskOwnership,
+  requireTaskArchiveAccess,
   requireTaskAssignableCoworker,
   requireTaskCollaboration,
   requireTaskCommentAccess,
@@ -26,6 +29,33 @@ import {
   resolveConversationCoworkerId,
 } from "./access-control";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
+
+const {
+  getVendorGrantMock,
+  requestCommentGrantMock,
+  requestReadGrantWithBundledCommentMock,
+  resolveMemberOrganizationByIdMock,
+} = vi.hoisted(() => ({
+  getVendorGrantMock: vi.fn(),
+  requestCommentGrantMock: vi.fn(),
+  requestReadGrantWithBundledCommentMock: vi.fn(),
+  resolveMemberOrganizationByIdMock: vi.fn(),
+}));
+
+vi.mock("./vendor-grants", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./vendor-grants")>();
+
+  return {
+    ...actual,
+    getVendorGrant: getVendorGrantMock,
+    requestCommentGrant: requestCommentGrantMock,
+    requestReadGrantWithBundledComment: requestReadGrantWithBundledCommentMock,
+  };
+});
+
+vi.mock("./organization", () => ({
+  resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
+}));
 
 function createTransactionClient() {
   return {
@@ -38,6 +68,9 @@ function createTransactionClient() {
     },
     job: {
       findFirst: vi.fn(),
+    },
+    workspace: {
+      findUnique: vi.fn(),
     },
   } as unknown as Prisma.TransactionClient;
 }
@@ -89,6 +122,90 @@ describe("requireTaskOwnership", () => {
         archivedAt: null,
       },
     });
+  });
+});
+
+describe("requireMutableTaskOwnership", () => {
+  it("rejects parked tasks", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      pendingVendorGrantId: "grant_1",
+    } as never);
+
+    await expect(
+      requireMutableTaskOwnership(sessionUserContext, "tsk_123", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "task_parked",
+      });
+      return true;
+    });
+  });
+
+  it("allows non-parked owned tasks", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      pendingVendorGrantId: null,
+    } as never);
+
+    await expect(
+      requireMutableTaskOwnership(sessionUserContext, "tsk_123", tx),
+    ).resolves.toMatchObject({ id: "tsk_123" });
+  });
+});
+
+describe("requireTaskArchiveAccess", () => {
+  it("allows the task owner including parked tasks", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      pendingVendorGrantId: "grant_1",
+      userId: "user_123",
+    } as never);
+
+    await expect(
+      requireTaskArchiveAccess(sessionUserContext, "tsk_123", tx),
+    ).resolves.toMatchObject({ id: "tsk_123" });
+  });
+
+  it("allows org owner/admin to archive parked tasks they do not own", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_parked",
+        pendingVendorGrantId: "grant_1",
+        userId: "user_other",
+        workspace: { organizationId: "org_123" },
+      } as never);
+
+    resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_123" });
+
+    await expect(
+      requireTaskArchiveAccess(sessionUserContext, "tsk_parked", tx),
+    ).resolves.toMatchObject({ id: "tsk_parked" });
+
+    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "org_123",
+        userId: "user_123",
+        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
+      }),
+    );
+  });
+
+  it("rejects non-owners for non-parked tasks", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskArchiveAccess(sessionUserContext, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
   });
 });
 
@@ -443,21 +560,33 @@ describe("requireTaskReadForRouteVars", () => {
 });
 
 describe("requireTaskCommentAccess", () => {
+  beforeEach(() => {
+    getVendorGrantMock.mockReset();
+    requestCommentGrantMock.mockReset();
+    requestReadGrantWithBundledCommentMock.mockReset();
+  });
+
   it("allows a bare coworker to comment on a same-vendor sibling task", async () => {
     const tx = createTransactionClient();
     const coworkerContext = createCoworkerContext("cow_123");
+    const siblingTask = {
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+      pendingVendorGrantId: null,
+      workspaceId,
+      workspace: { organizationId: "org_123" },
+    };
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_other",
-      status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
-    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(siblingTask as never)
+      .mockResolvedValueOnce(siblingTask as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -480,6 +609,7 @@ describe("requireTaskCommentAccess", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       userId: "user_owner",
+      pendingVendorGrantId: null,
     } as never);
 
     const vars: EnvVariables["Variables"] = {
@@ -505,18 +635,24 @@ describe("requireTaskCommentAccess", () => {
       userId: "user_delegate",
       organizationId: "org_123",
     });
+    const siblingTask = {
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+      pendingVendorGrantId: null,
+      workspaceId,
+      workspace: { organizationId: "org_123" },
+    };
 
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
     } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      coworkerId: "cow_other",
-      status: TaskStatus.READY,
-      coworker: { vendorId: defaultVendorId },
-    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(siblingTask as never)
+      .mockResolvedValueOnce(siblingTask as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -525,6 +661,256 @@ describe("requireTaskCommentAccess", () => {
     };
 
     await requireTaskCommentAccess(vars, "tsk_123", tx);
+  });
+
+  it("requests PENDING task:comment when commenting beyond baseline with read access", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+    const foreignVendorId = "01960001-0002-7001-8001-000000000002";
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    // Baseline read miss, then grant read path finds the task.
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        coworkerId: "cow_foreign",
+        status: TaskStatus.READY,
+        pendingVendorGrantId: null,
+      } as never)
+      .mockResolvedValueOnce({
+        id: "tsk_123",
+        coworkerId: "cow_foreign",
+        status: TaskStatus.READY,
+        workspaceId,
+        coworker: { vendorId: foreignVendorId },
+        workspace: { organizationId: "org_123" },
+      } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      organizationId: "org_123",
+    } as never);
+    getVendorGrantMock
+      .mockResolvedValueOnce({
+        id: "read-grant",
+        status: VendorGrantStatus.GRANTED,
+        permission: "task_read",
+      })
+      .mockResolvedValueOnce(null);
+    requestCommentGrantMock.mockResolvedValue(undefined);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskCommentAccess(vars, "tsk_123", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "grant_required",
+        extensions: { permission: "task:comment" },
+      });
+      return true;
+    });
+
+    expect(requestCommentGrantMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vendorId: defaultVendorId,
+        workspaceId,
+        organizationId: "org_123",
+      }),
+    );
+    expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("does not open PENDING when sibling baseline already allows comment", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+    const siblingTask = {
+      id: "tsk_123",
+      coworkerId: "cow_other",
+      status: TaskStatus.READY,
+      coworker: { vendorId: defaultVendorId },
+      pendingVendorGrantId: null,
+      workspaceId,
+      workspace: { organizationId: "org_123" },
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(siblingTask as never)
+      .mockResolvedValueOnce(siblingTask as never);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await requireTaskCommentAccess(vars, "tsk_123", tx);
+
+    expect(requestCommentGrantMock).not.toHaveBeenCalled();
+    expect(getVendorGrantMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireTaskReadForRouteVars vendor grants", () => {
+  beforeEach(() => {
+    getVendorGrantMock.mockReset();
+    requestCommentGrantMock.mockReset();
+    requestReadGrantWithBundledCommentMock.mockReset();
+  });
+
+  it("upserts bundled PENDING read+comment on first out-of-scope read", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_foreign",
+        coworkerId: "cow_foreign",
+        status: TaskStatus.READY,
+      } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      organizationId: "org_123",
+    } as never);
+    getVendorGrantMock.mockResolvedValue(null);
+    requestReadGrantWithBundledCommentMock.mockResolvedValue(undefined);
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_foreign", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "grant_required",
+        extensions: { permission: "task:read" },
+      });
+      return true;
+    });
+
+    expect(requestReadGrantWithBundledCommentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vendorId: defaultVendorId,
+        workspaceId,
+        organizationId: "org_123",
+      }),
+    );
+  });
+
+  it("allows out-of-scope read when task:read is GRANTED", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_foreign",
+        coworkerId: "cow_foreign",
+        status: TaskStatus.READY,
+      } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      organizationId: "org_123",
+    } as never);
+    getVendorGrantMock.mockResolvedValue({
+      id: "read-grant",
+      status: VendorGrantStatus.GRANTED,
+      permission: "task_read",
+    });
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_foreign", tx),
+    ).resolves.toMatchObject({ id: "tsk_foreign" });
+    expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("does not reopen DENIED task:read", async () => {
+    const tx = createTransactionClient();
+    const coworkerContext = createCoworkerContext("cow_123", {
+      userId: "user_delegate",
+      organizationId: "org_123",
+    });
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: null,
+    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tsk_foreign",
+        coworkerId: "cow_foreign",
+        status: TaskStatus.READY,
+      } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      organizationId: "org_123",
+    } as never);
+    getVendorGrantMock.mockResolvedValue({
+      id: "read-grant",
+      status: VendorGrantStatus.DENIED,
+      permission: "task_read",
+    });
+
+    const vars: EnvVariables["Variables"] = {
+      isAuthenticated: true,
+      authContext: coworkerContext,
+      workspaceContext: jobReadWorkspaceContext,
+    };
+
+    await expect(
+      requireTaskReadForRouteVars(vars, "tsk_foreign", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "grant_denied",
+      });
+      return true;
+    });
+    expect(requestReadGrantWithBundledCommentMock).not.toHaveBeenCalled();
   });
 });
 
@@ -925,15 +1311,17 @@ describe("requireJobReadForRouteVars", () => {
 
   it("allows a delegated coworker to read a job assigned to it", async () => {
     const tx = createTransactionClient();
-
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+    const usableCoworker = {
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
-    } as never);
+    };
+
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue(usableCoworker as never);
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
       taskId: "tsk_123",
+      workspaceId,
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -958,15 +1346,15 @@ describe("requireJobReadForRouteVars", () => {
         taskId: "tsk_123",
         coworkerId: "cow_123",
         vendorId: defaultVendorId,
+        workspaceId,
       }),
-      select: { id: true },
     });
   });
 
   it("allows a delegated coworker to read a job on a same-vendor sibling task", async () => {
     const tx = createTransactionClient();
 
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
@@ -974,6 +1362,7 @@ describe("requireJobReadForRouteVars", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
       taskId: "tsk_123",
+      workspaceId,
     } as never);
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
@@ -994,7 +1383,7 @@ describe("requireJobReadForRouteVars", () => {
   it("rejects a delegated coworker reading a cross-vendor sibling job", async () => {
     const tx = createTransactionClient();
 
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
@@ -1002,8 +1391,15 @@ describe("requireJobReadForRouteVars", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
       taskId: "tsk_123",
+      workspaceId,
     } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+    // Baseline miss + out-of-scope task missing → not found
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValue({
+      organizationId: "org_123",
+    } as never);
 
     const vars: EnvVariables["Variables"] = {
       isAuthenticated: true,
@@ -1013,7 +1409,7 @@ describe("requireJobReadForRouteVars", () => {
 
     await expect(
       requireJobReadForRouteVars(vars, "job_123", tx),
-    ).rejects.toThrow("Job not found");
+    ).rejects.toThrow("Task not found");
   });
 
   it("rejects a delegated coworker reading a job with no task", async () => {
@@ -1063,7 +1459,7 @@ describe("requireJobReadForRouteVars", () => {
     const tx = createTransactionClient();
     const bareCoworkerContext = createCoworkerContext("cow_123");
 
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+    vi.mocked(tx.coworker.findFirst).mockResolvedValue({
       id: "cow_123",
       slug: "ops-agent",
       baseURL: null,
@@ -1125,9 +1521,13 @@ describe("requireJobCollaboration", () => {
       id: "job_123",
       taskId: "tsk_123",
     } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      coworkerId: "cow_123",
-    } as never);
+    vi.mocked(tx.task.findFirst)
+      .mockResolvedValueOnce({
+        coworkerId: "cow_123",
+      } as never)
+      .mockResolvedValueOnce({
+        pendingVendorGrantId: null,
+      } as never);
 
     await requireJobCollaboration(delegatedCoworkerContext, "job_123", tx);
 
@@ -1137,6 +1537,27 @@ describe("requireJobCollaboration", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
       select: { coworkerId: true },
+    });
+  });
+
+  it("rejects job collaboration when the parent task is parked", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
+      id: "job_123",
+      taskId: "tsk_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      pendingVendorGrantId: "grant_1",
+    } as never);
+
+    await expect(
+      requireJobCollaboration(userAuthContext, "job_123", tx),
+    ).rejects.toSatisfy((error: unknown) => {
+      expect(error).toBeInstanceOf(HTTPException);
+      expect((error as HTTPException).cause).toMatchObject({
+        kind: "task_parked",
+      });
+      return true;
     });
   });
 

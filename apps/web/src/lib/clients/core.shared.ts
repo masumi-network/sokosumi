@@ -125,6 +125,7 @@ import {
   getOrganizationsByIdSeatSummary as coreGetOrganizationsByIdSeatSummary,
   getOrganizationsByIdStripeCustomer as coreGetOrganizationsByIdStripeCustomer,
   getOrganizationsByIdSubscription as coreGetOrganizationsByIdSubscription,
+  getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
@@ -181,6 +182,10 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
+  postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
+  postOrganizationsByIdVendorGrantsByGrantIdApprove as corePostOrganizationsByIdVendorGrantsByGrantIdApprove,
+  postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
+  postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -1180,6 +1185,91 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch organization invitations",
+    );
+  }
+
+  async function getOrganizationVendorGrants(
+    organizationId: string,
+    query?: {
+      status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
+      vendorId?: string;
+      permission?: "task:read" | "task:comment" | "task:create";
+    },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdVendorGrants({
+          client,
+          path: { id: organizationId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendor grants",
+    );
+  }
+
+  async function createOrganizationVendorGrant(
+    organizationId: string,
+    body: {
+      vendorId: string;
+      permission: "task:read" | "task:comment" | "task:create";
+    },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrants({
+          client,
+          path: { id: organizationId },
+          body,
+        }),
+      "Failed to create vendor grant",
+    );
+  }
+
+  async function approveOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdApprove({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to approve vendor grant",
+    );
+  }
+
+  async function denyOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdDeny({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to deny vendor grant",
+    );
+  }
+
+  async function revokeOrganizationVendorGrant(
+    organizationId: string,
+    grantId: string,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdVendorGrantsByGrantIdRevoke({
+          client,
+          path: { id: organizationId, grantId },
+        }),
+      "Failed to revoke vendor grant",
     );
   }
 
@@ -2868,6 +2958,11 @@ export function createCoreClient(getClient: GetClient) {
     getOrganizationBySlug,
     getOrganizationMembers,
     getOrganizationPendingInvitations,
+    getOrganizationVendorGrants,
+    createOrganizationVendorGrant,
+    approveOrganizationVendorGrant,
+    denyOrganizationVendorGrant,
+    revokeOrganizationVendorGrant,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,

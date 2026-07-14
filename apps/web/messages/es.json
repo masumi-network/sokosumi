@@ -1651,7 +1651,8 @@
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
         "clonedFrom": "Clonada de {name}",
-        "schedule": "Programación"
+        "schedule": "Programación",
+        "pendingApproval": "Aprobación pendiente"
       },
       "NewTask": {
         "title": "Nuevo Task",
@@ -3515,6 +3516,39 @@
           "assigned": "Asignados",
           "unused": "Sin usar",
           "manageBilling": "Gestionar facturación"
+        },
+        "VendorGrants": {
+          "title": "Acceso al workspace del proveedor",
+          "description": "Aprueba solicitudes de proveedores para leer, comentar o crear tareas en el workspace de esta organización.",
+          "pendingTitle": "Solicitudes pendientes",
+          "pendingEmpty": "No hay solicitudes de acceso de proveedores pendientes.",
+          "activeTitle": "Permisos activos",
+          "activeEmpty": "Aún no hay permisos de proveedores activos.",
+          "grantFormTitle": "Conceder acceso de forma proactiva",
+          "Permissions": {
+            "taskRead": "Leer tareas",
+            "taskComment": "Comentar tareas",
+            "taskCreate": "Crear tareas",
+            "readAndComment": "Leer y comentar tareas"
+          },
+          "GrantForm": {
+            "vendorLabel": "Proveedor",
+            "permissionLabel": "Permiso",
+            "submit": "Conceder acceso",
+            "success": "Acceso del proveedor concedido",
+            "error": "No se pudo conceder el acceso del proveedor"
+          },
+          "Actions": {
+            "approve": "Aprobar",
+            "deny": "Denegar",
+            "revoke": "Revocar",
+            "approveSuccess": "Acceso del proveedor aprobado",
+            "denySuccess": "Acceso del proveedor denegado",
+            "revokeSuccess": "Acceso del proveedor revocado",
+            "approveError": "No se pudo aprobar el acceso del proveedor",
+            "denyError": "No se pudo denegar el acceso del proveedor",
+            "revokeError": "No se pudo revocar el acceso del proveedor"
+          }
         }
       }
     },
@@ -3913,6 +3947,12 @@
         "failed": "{coworkerName} no pudo completar {taskName}",
         "canceled": "{taskName} fue cancelado"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} solicitó acceso de proveedor al workspace de la organización",
+      "pendingReadComment": "{vendorName} solicitó acceso de lectura y comentarios al workspace de la organización"
     }
   }
 }

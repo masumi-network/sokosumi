@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import { TaskEventOrigin, VendorGrantStatus } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,23 +11,40 @@ import mountPostTask, { createTaskRequestSchema } from "./post";
 
 const {
   generateTaskNameMock,
+  getVendorGrantMock,
   mapTaskMock,
   projectFindFirstMock,
   prismaTransactionMock,
+  requestCreateGrantMock,
   requireTaskAssignableCoworkerMock,
   taskCreateMock,
+  workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   generateTaskNameMock: vi.fn(),
+  getVendorGrantMock: vi.fn(),
   mapTaskMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  requestCreateGrantMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   taskCreateMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
 }));
+
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+
+  return {
+    ...actual,
+    getVendorGrant: getVendorGrantMock,
+    requestCreateGrant: requestCreateGrantMock,
+  };
+});
 
 vi.mock("@/helpers/task", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/helpers/task")>();
@@ -41,6 +58,9 @@ vi.mock("@/helpers/task", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    workspace: {
+      findUnique: workspaceFindUniqueMock,
+    },
   },
 }));
 
@@ -215,6 +235,7 @@ describe("POST /tasks", () => {
       },
       share: null,
       links: [],
+      pendingApproval: false,
     });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
@@ -365,5 +386,213 @@ describe("POST /tasks", () => {
         data: expect.objectContaining({ name: "My task" }),
       }),
     );
+  });
+});
+
+describe("POST /tasks delegated coworker create grant", () => {
+  function createDelegatedCoworkerApp() {
+    const app = new OpenAPIHono<{
+      Variables: AuthVariables & WorkspaceVariables;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("isAuthenticated", true);
+      c.set("authContext", {
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: "vendor_123",
+        context: {
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+      });
+      c.set("workspaceContext", {
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        userId: null,
+        organizationId: "org_123",
+      });
+
+      return await next();
+    });
+
+    mountPostTask(app as unknown as OpenAPIHonoWithAuth);
+
+    return app;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    generateTaskNameMock.mockResolvedValue("Generated name");
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: "org_123" });
+    taskCreateMock.mockResolvedValue({
+      id: "tsk_parked",
+      pendingVendorGrantId: "create-grant",
+    });
+    mapTaskMock.mockReturnValue({
+      id: "tsk_parked",
+      createdAt: "2026-04-02T08:00:00.000Z",
+      updatedAt: "2026-04-02T08:00:00.000Z",
+      userId: "user_123",
+      organizationId: "org_123",
+      projectId: null,
+      user: {
+        id: "user_123",
+        name: "Ada Lovelace",
+        image: null,
+      },
+      organization: {
+        id: "org_123",
+        name: "Acme Labs",
+        slug: "acme-labs",
+      },
+      coworkerId: null,
+      coworker: null,
+      name: "Parked Task",
+      description: null,
+      status: TaskStatus.READY,
+      metadata: null,
+      nextRunAt: null,
+      credits: 0,
+      events: [],
+      jobs: [],
+      pendingApproval: true,
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: "org_123",
+        organization: {
+          id: "org_123",
+          name: "Acme Labs",
+          slug: "acme-labs",
+        },
+      },
+      share: null,
+      links: [],
+    });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => {
+        return await callback({
+          project: {
+            findFirst: projectFindFirstMock,
+          },
+          task: {
+            create: taskCreateMock,
+          },
+        });
+      },
+    );
+  });
+
+  it("parks create as READY when task:create is missing", async () => {
+    getVendorGrantMock.mockResolvedValue(null);
+    requestCreateGrantMock.mockResolvedValue({
+      id: "create-grant",
+      status: VendorGrantStatus.PENDING,
+    });
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Parked Task",
+          description: null,
+          coworkerId: null,
+          status: TaskStatus.DRAFT,
+          origin: TaskEventOrigin.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(requestCreateGrantMock).toHaveBeenCalled();
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.READY,
+          pendingVendorGrantId: "create-grant",
+        }),
+      }),
+    );
+  });
+
+  it("creates normally when task:create is GRANTED", async () => {
+    getVendorGrantMock.mockResolvedValue({
+      id: "create-grant",
+      status: VendorGrantStatus.GRANTED,
+    });
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Allowed Task",
+          description: null,
+          coworkerId: null,
+          status: TaskStatus.DRAFT,
+          origin: TaskEventOrigin.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(requestCreateGrantMock).not.toHaveBeenCalled();
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.DRAFT,
+          pendingVendorGrantId: null,
+        }),
+      }),
+    );
+  });
+
+  it("rejects create when task:create was DENIED", async () => {
+    getVendorGrantMock.mockResolvedValue({
+      id: "create-grant",
+      status: VendorGrantStatus.DENIED,
+    });
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Denied Task",
+          description: null,
+          coworkerId: null,
+          status: TaskStatus.DRAFT,
+          origin: TaskEventOrigin.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects create in personal workspaces", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ organizationId: null });
+
+    const response = await createDelegatedCoworkerApp().request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Personal Task",
+          description: null,
+          coworkerId: null,
+          status: TaskStatus.DRAFT,
+          origin: TaskEventOrigin.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 });

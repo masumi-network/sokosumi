@@ -34,6 +34,7 @@ export interface TaskWithCoworker {
   agents: CoreAgentDto[];
   metadata?: string | null;
   nextRunAt?: string | null;
+  pendingApproval?: boolean;
 }
 
 export interface KanbanColumnDefinition {

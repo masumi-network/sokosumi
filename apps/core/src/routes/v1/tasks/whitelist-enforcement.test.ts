@@ -62,6 +62,7 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskOwnership: requireTaskOwnershipMock,
+  requireMutableTaskOwnership: requireTaskOwnershipMock,
 }));
 
 vi.mock("@/helpers/task", () => ({

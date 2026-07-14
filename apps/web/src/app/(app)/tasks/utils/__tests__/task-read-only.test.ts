@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canArchiveParkedTaskForViewer,
   canCommentOnTaskForViewer,
   isReadOnlyForViewer,
 } from "../task-read-only";
@@ -71,6 +72,64 @@ describe("isReadOnlyForViewer", () => {
       }),
     ).toBe(true);
   });
+
+  it("is read-only while vendor grant approval is pending", () => {
+    expect(
+      isReadOnlyForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskUserId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        pendingApproval: true,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("canArchiveParkedTaskForViewer", () => {
+  it("allows the task owner to archive while parked", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        pendingApproval: true,
+        isTaskOwner: true,
+        isOrgOwnerOrAdmin: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows org owner/admin to archive parked tasks they do not own", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        pendingApproval: true,
+        isTaskOwner: false,
+        isOrgOwnerOrAdmin: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks archive for plain members while parked", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        pendingApproval: true,
+        isTaskOwner: false,
+        isOrgOwnerOrAdmin: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("never unlocks archive under forceReadOnly", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: true,
+        pendingApproval: true,
+        isTaskOwner: true,
+        isOrgOwnerOrAdmin: true,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("canCommentOnTaskForViewer", () => {
@@ -103,6 +162,18 @@ describe("canCommentOnTaskForViewer", () => {
         taskUserId: "owner_1",
         sessionUserId: "someone_else",
         forceReadOnly: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks comments while vendor grant approval is pending", () => {
+    expect(
+      canCommentOnTaskForViewer({
+        taskWorkspaceOrganizationId: "org_1",
+        taskUserId: "owner_1",
+        sessionUserId: "owner_1",
+        forceReadOnly: false,
+        pendingApproval: true,
       }),
     ).toBe(false);
   });

@@ -1194,6 +1194,11 @@ export const TaskSchema = {
             ],
             example: 'READY'
         },
+        pendingApproval: {
+            type: 'boolean',
+            description: 'True when the task is parked awaiting vendor task:create grant approval',
+            example: false
+        },
         metadata: {
             type: [
                 'string',
@@ -1265,6 +1270,7 @@ export const TaskSchema = {
         'name',
         'description',
         'status',
+        'pendingApproval',
         'metadata',
         'nextRunAt',
         'credits',
@@ -7111,6 +7117,96 @@ export const PendingInvitationSchema = {
     ]
 } as const;
 
+export const VendorGrantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        },
+        vendorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        vendorName: {
+            type: 'string',
+            example: 'Acme Agents'
+        },
+        vendorSlug: {
+            type: 'string',
+            example: 'acme-agents'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        permission: {
+            type: 'string',
+            enum: [
+                'task:read',
+                'task:comment',
+                'task:create'
+            ],
+            example: 'task:read'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ],
+            example: 'PENDING'
+        },
+        requestedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedById: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'vendorId',
+        'vendorName',
+        'vendorSlug',
+        'workspaceId',
+        'permission',
+        'status',
+        'requestedByUserId',
+        'resolvedAt',
+        'resolvedById',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
 export const OrganizationSeatSummarySchema = {
     type: 'object',
     properties: {
@@ -9439,6 +9535,11 @@ export const TaskListItemSchema = {
             ],
             example: 'READY'
         },
+        pendingApproval: {
+            type: 'boolean',
+            description: 'True when the task is parked awaiting vendor task:create grant approval',
+            example: false
+        },
         metadata: {
             type: [
                 'string',
@@ -9484,6 +9585,7 @@ export const TaskListItemSchema = {
         'name',
         'description',
         'status',
+        'pendingApproval',
         'metadata',
         'nextRunAt',
         'workspace',

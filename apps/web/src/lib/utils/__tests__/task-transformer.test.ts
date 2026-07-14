@@ -32,6 +32,7 @@ function buildTask(
     nextRunAt: null,
     commentsCount: 0,
     jobsCount: 0,
+    pendingApproval: false,
     workspace: {
       id: "11111111-1111-7111-8111-111111111111",
       organizationId: null,

@@ -72,6 +72,11 @@ const taskBaseSchema = z.object({
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: z.enum(TaskStatus).openapi({ example: TaskStatus.READY }),
+  pendingApproval: z.boolean().openapi({
+    description:
+      "True when the task is parked awaiting vendor task:create grant approval",
+    example: false,
+  }),
   metadata: z.string().nullable().openapi({
     description: "Serialized task schedule metadata JSON",
     example: null,

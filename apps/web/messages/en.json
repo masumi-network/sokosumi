@@ -1518,6 +1518,7 @@
         "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
+        "pendingApproval": "Pending approval",
         "owner": "Owner",
         "organization": "Organization",
         "project": "Project",
@@ -3643,6 +3644,39 @@
           "assigned": "Assigned",
           "unused": "Unused",
           "manageBilling": "Manage billing"
+        },
+        "VendorGrants": {
+          "title": "Vendor workspace access",
+          "description": "Approve vendor requests to read, comment on, or create tasks in this organization workspace.",
+          "pendingTitle": "Pending requests",
+          "pendingEmpty": "No pending vendor access requests.",
+          "activeTitle": "Active grants",
+          "activeEmpty": "No active vendor grants.",
+          "grantFormTitle": "Grant access proactively",
+          "Permissions": {
+            "taskRead": "Read tasks",
+            "taskComment": "Comment on tasks",
+            "taskCreate": "Create tasks",
+            "readAndComment": "Read and comment on tasks"
+          },
+          "GrantForm": {
+            "vendorLabel": "Vendor",
+            "permissionLabel": "Permission",
+            "submit": "Grant access",
+            "success": "Vendor access granted",
+            "error": "Failed to grant vendor access"
+          },
+          "Actions": {
+            "approve": "Approve",
+            "deny": "Deny",
+            "revoke": "Revoke",
+            "approveSuccess": "Vendor access approved",
+            "denySuccess": "Vendor access denied",
+            "revokeSuccess": "Vendor access revoked",
+            "approveError": "Failed to approve vendor access",
+            "denyError": "Failed to deny vendor access",
+            "revokeError": "Failed to revoke vendor access"
+          }
         }
       }
     },
@@ -4065,6 +4099,12 @@
         "failed": "{coworkerName} failed to complete {taskName}",
         "canceled": "{taskName} was canceled"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} requested vendor access to your organization workspace",
+      "pendingReadComment": "{vendorName} requested read and comment access to your organization workspace"
     }
   }
 }

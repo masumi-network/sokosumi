@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
+import { Prisma, VendorPermission } from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
@@ -18,7 +18,10 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import { mapTaskListItem } from "@/helpers/task";
-import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
+import {
+  buildCoworkerTaskListAccessFilter,
+  hasGrantedVendorPermission,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -158,9 +161,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      const siblingFilter = buildCoworkerSiblingTaskListFilter({
+      const hasReadGrant = authContext.context
+        ? await hasGrantedVendorPermission({
+            vendorId: authContext.vendorId,
+            workspaceId: requireWorkspaceContext(c.var.workspaceContext)
+              .workspaceId,
+            permission: VendorPermission.task_read,
+          })
+        : false;
+
+      const listAccessFilter = buildCoworkerTaskListAccessFilter({
         coworkerId: authContext.coworkerId,
         vendorId: authContext.vendorId,
+        hasReadGrant,
       });
 
       if (authContext.context) {
@@ -170,7 +183,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where = {
           archivedAt: null,
           workspaceId: workspaceContext.workspaceId,
-          AND: [siblingFilter],
+          AND: [listAccessFilter],
           ...(scope === "owned" ? { userId: authContext.context.userId } : {}),
           ...(statuses ? { status: { in: statuses } } : {}),
           ...(coworkerId ? { coworkerId } : {}),
@@ -180,7 +193,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       } else {
         where = {
           archivedAt: null,
-          AND: [siblingFilter],
+          AND: [listAccessFilter],
           ...(statuses ? { status: { in: statuses } } : {}),
           ...projectFilter,
           ...searchFilter,

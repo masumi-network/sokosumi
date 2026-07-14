@@ -15,3 +15,4 @@ export {
 } from "./subscription-onboarding-coverage.service";
 export * from "./user.service";
 export * from "./utm.service";
+export * from "./vendor-grant.service";

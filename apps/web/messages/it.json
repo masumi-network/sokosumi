@@ -1651,7 +1651,8 @@
           "switchError": "Impossibile cambiare spazio di lavoro. Riprova."
         },
         "clonedFrom": "Clonata da {name}",
-        "schedule": "Pianificazione"
+        "schedule": "Pianificazione",
+        "pendingApproval": "Approvazione in sospeso"
       },
       "NewTask": {
         "title": "Nuovo task",
@@ -3546,6 +3547,39 @@
           "assigned": "Assegnati",
           "unused": "Inutilizzati",
           "manageBilling": "Gestisci fatturazione"
+        },
+        "VendorGrants": {
+          "title": "Accesso workspace vendor",
+          "description": "Approva le richieste dei vendor per leggere, commentare o creare task nel workspace di questa organizzazione.",
+          "pendingTitle": "Richieste in sospeso",
+          "pendingEmpty": "Nessuna richiesta di accesso vendor in sospeso.",
+          "activeTitle": "Permessi attivi",
+          "activeEmpty": "Nessun permesso vendor attivo.",
+          "grantFormTitle": "Concedi accesso in modo proattivo",
+          "Permissions": {
+            "taskRead": "Leggere task",
+            "taskComment": "Commentare task",
+            "taskCreate": "Creare task",
+            "readAndComment": "Leggere e commentare task"
+          },
+          "GrantForm": {
+            "vendorLabel": "Vendor",
+            "permissionLabel": "Permesso",
+            "submit": "Concedi accesso",
+            "success": "Accesso vendor concesso",
+            "error": "Impossibile concedere l’accesso vendor"
+          },
+          "Actions": {
+            "approve": "Approva",
+            "deny": "Rifiuta",
+            "revoke": "Revoca",
+            "approveSuccess": "Accesso vendor approvato",
+            "denySuccess": "Accesso vendor rifiutato",
+            "revokeSuccess": "Accesso vendor revocato",
+            "approveError": "Impossibile approvare l’accesso vendor",
+            "denyError": "Impossibile rifiutare l’accesso vendor",
+            "revokeError": "Impossibile revocare l’accesso vendor"
+          }
         }
       }
     },
@@ -3913,6 +3947,12 @@
         "failed": "{coworkerName} non è riuscito a completare {taskName}",
         "canceled": "{taskName} è stato annullato"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} ha richiesto l’accesso vendor al workspace dell’organizzazione",
+      "pendingReadComment": "{vendorName} ha richiesto l’accesso in lettura e commento al workspace dell’organizzazione"
     }
   }
 }

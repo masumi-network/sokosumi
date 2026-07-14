@@ -277,6 +277,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     name: task.name,
     description: task.description,
     status: task.status,
+    pendingApproval: task.pendingVendorGrantId != null,
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
     workspace: mapWorkspaceSummary(task.workspace),

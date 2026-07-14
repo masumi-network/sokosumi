@@ -26,6 +26,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+
+import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,6 +111,13 @@ interface TaskDetailActionsProps {
   organizations?: MemberWithOrganization[];
   personalWorkspaceLabel: string;
   isReadOnly?: boolean;
+  /** Sokosumi platform admin force-read-only (never unlock archive). */
+  forceReadOnly?: boolean;
+  /** Parked awaiting vendor create approval — archive still allowed when API allows. */
+  pendingApproval?: boolean;
+  isTaskOwner?: boolean;
+  /** Org OWNER/ADMIN for the task workspace — may archive parked tasks. */
+  isOrgOwnerOrAdmin?: boolean;
 }
 
 export function TaskDetailActions({
@@ -126,6 +135,10 @@ export function TaskDetailActions({
   organizations,
   personalWorkspaceLabel,
   isReadOnly = false,
+  forceReadOnly = false,
+  pendingApproval = false,
+  isTaskOwner = false,
+  isOrgOwnerOrAdmin = false,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
@@ -171,7 +184,16 @@ export function TaskDetailActions({
     : [];
 
   const canEdit = canMutateTask && isTaskEditableStatus(status);
-  const canArchiveTask = !isReadOnly && isTaskArchivableStatus(status);
+  // Archive while parked mirrors Core requireTaskArchiveAccess (UI is not the gate).
+  const canArchiveTask =
+    isTaskArchivableStatus(status) &&
+    (!isReadOnly ||
+      canArchiveParkedTaskForViewer({
+        forceReadOnly,
+        pendingApproval,
+        isTaskOwner,
+        isOrgOwnerOrAdmin,
+      }));
   const isFinalized =
     status === TASK_STATUS.COMPLETED ||
     status === TASK_STATUS.FAILED ||

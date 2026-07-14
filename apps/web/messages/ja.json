@@ -1651,7 +1651,8 @@
           "switchError": "ワークスペースを切り替えられませんでした。もう一度お試しください。"
         },
         "clonedFrom": "{name} から複製",
-        "schedule": "スケジュール"
+        "schedule": "スケジュール",
+        "pendingApproval": "承認待ち"
       },
       "NewTask": {
         "title": "新しいタスク",
@@ -3546,6 +3547,39 @@
           "assigned": "割り当て済み",
           "unused": "未使用",
           "manageBilling": "請求を管理"
+        },
+        "VendorGrants": {
+          "title": "ベンダーワークスペースアクセス",
+          "description": "この組織ワークスペースでタスクの閲覧・コメント・作成を行うベンダーリクエストを承認します。",
+          "pendingTitle": "保留中のリクエスト",
+          "pendingEmpty": "保留中のベンダーアクセスリクエストはありません。",
+          "activeTitle": "有効な権限",
+          "activeEmpty": "有効なベンダー権限はまだありません。",
+          "grantFormTitle": "事前にアクセスを付与",
+          "Permissions": {
+            "taskRead": "タスクを閲覧",
+            "taskComment": "タスクにコメント",
+            "taskCreate": "タスクを作成",
+            "readAndComment": "タスクを閲覧してコメント"
+          },
+          "GrantForm": {
+            "vendorLabel": "ベンダー",
+            "permissionLabel": "権限",
+            "submit": "アクセスを付与",
+            "success": "ベンダーアクセスを付与しました",
+            "error": "ベンダーアクセスの付与に失敗しました"
+          },
+          "Actions": {
+            "approve": "承認",
+            "deny": "拒否",
+            "revoke": "取り消し",
+            "approveSuccess": "ベンダーアクセスを承認しました",
+            "denySuccess": "ベンダーアクセスを拒否しました",
+            "revokeSuccess": "ベンダーアクセスを取り消しました",
+            "approveError": "ベンダーアクセスの承認に失敗しました",
+            "denyError": "ベンダーアクセスの拒否に失敗しました",
+            "revokeError": "ベンダーアクセスの取り消しに失敗しました"
+          }
         }
       }
     },
@@ -3913,6 +3947,12 @@
         "failed": "{coworkerName}は{taskName}を完了できませんでした",
         "canceled": "{taskName}はキャンセルされました"
       }
+    }
+  },
+  "notifications": {
+    "vendorGrant": {
+      "pending": "{vendorName} が組織ワークスペースへのベンダーアクセスをリクエストしました",
+      "pendingReadComment": "{vendorName} が組織ワークスペースへの閲覧・コメントアクセスをリクエストしました"
     }
   }
 }

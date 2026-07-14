@@ -287,7 +287,15 @@ async function TaskOverviewSection({
       />
 
       <TaskMetadata
-        task={task}
+        task={{
+          status: task.status,
+          pendingApproval: task.pendingApproval,
+          user: task.user,
+          organization: task.organization,
+          coworker: task.coworker,
+          metadata: task.metadata,
+          nextRunAt: task.nextRunAt,
+        }}
         project={project ? { id: project.id, name: project.name } : null}
         createdAtLabel={formatShortDateTime(task.createdAt, locale)}
         updatedAtLabel={formatShortDateTime(task.updatedAt, locale)}
@@ -295,6 +303,7 @@ async function TaskOverviewSection({
           propertiesTitle: t("properties"),
           status: t("status"),
           statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
+          pendingApproval: t("pendingApproval"),
           owner: t("owner"),
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
@@ -345,7 +354,15 @@ async function TaskDetailActionsSlot({
     taskUserId: task.userId,
     sessionUserId: session?.user.id,
     forceReadOnly,
+    pendingApproval: task.pendingApproval,
   });
+  const orgId = task.workspace.organizationId ?? null;
+  const viewerMembership =
+    orgId === null
+      ? undefined
+      : members.find((member) => member.organizationId === orgId);
+  const isOrgOwnerOrAdmin =
+    viewerMembership?.role === "owner" || viewerMembership?.role === "admin";
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -365,6 +382,10 @@ async function TaskDetailActionsSlot({
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}
       isReadOnly={isReadOnlyWorkspaceView}
+      forceReadOnly={forceReadOnly}
+      pendingApproval={Boolean(task.pendingApproval)}
+      isTaskOwner={session?.user.id === task.userId}
+      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
       actionsMenuLabel={tMembersTableHeader("actions")}
       labels={{
         edit: t("actions.edit"),
@@ -482,6 +503,7 @@ async function TaskActivitySectionContent({
         taskUserId: task.userId,
         sessionUserId: session?.user.id,
         forceReadOnly,
+        pendingApproval: task.pendingApproval,
       })}
     />
   );

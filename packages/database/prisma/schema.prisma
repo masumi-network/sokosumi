@@ -70,6 +70,9 @@ model User {
   taskEvents     TaskEvent[]
   coworkerUsages CoworkerUsage[]
 
+  vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
+  vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -224,11 +227,25 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs     Job[]
-  tasks    Task[]
-  projects Project[]
+  jobs         Job[]
+  tasks        Task[]
+  projects     Project[]
+  vendorGrants VendorGrant[]
 
   @@map("workspace")
+}
+
+enum VendorPermission {
+  task_read    @map("task:read")
+  task_comment @map("task:comment")
+  task_create  @map("task:create")
+}
+
+enum VendorGrantStatus {
+  PENDING
+  GRANTED
+  DENIED
+  REVOKED
 }
 
 model Vendor {
@@ -241,9 +258,39 @@ model Vendor {
   logoLight String?
   logoDark  String?
 
-  coworkers Coworker[]
+  coworkers    Coworker[]
+  vendorGrants VendorGrant[]
 
   @@map("vendor")
+}
+
+/// Org-wide vendor permission for a workspace. Key: (vendorId, workspaceId, permission).
+model VendorGrant {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  permission VendorPermission
+  status     VendorGrantStatus @default(PENDING)
+
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("VendorGrantResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  requestedByUserId String?
+  requestedBy       User?   @relation("VendorGrantRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  pendingTasks Task[]
+
+  @@unique([vendorId, workspaceId, permission])
+  @@index([workspaceId, status])
+  @@map("vendor_grant")
 }
 
 enum HistoryKind {
@@ -1225,6 +1272,9 @@ model Task {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 
+  pendingVendorGrantId String?      @db.Uuid
+  pendingVendorGrant   VendorGrant? @relation(fields: [pendingVendorGrantId], references: [id], onDelete: SetNull)
+
   share PublicShare?
 
   events TaskEvent[]
@@ -1246,6 +1296,7 @@ model Task {
   @@index([userId, organizationId])
   @@index([projectId])
   @@index([status, nextRunAt])
+  @@index([pendingVendorGrantId])
   @@map("task")
 }
 

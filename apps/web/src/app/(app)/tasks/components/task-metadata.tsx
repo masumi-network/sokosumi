@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { TaskScheduleDisplay } from "@/components/task-schedule-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
@@ -13,6 +14,7 @@ interface TaskMetadataLabels {
   propertiesTitle: string;
   status: string;
   statusLabels: Record<TaskStatus, string>;
+  pendingApproval: string;
   owner: string;
   organization: string;
   personalWorkspace: string;
@@ -25,6 +27,7 @@ interface TaskMetadataLabels {
 
 interface TaskMetadataTask {
   status: Task["status"];
+  pendingApproval?: boolean;
   user: Task["user"];
   organization: Task["organization"];
   coworker: Task["coworker"];
@@ -61,11 +64,16 @@ export function TaskMetadata({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-sm">{labels.status}</span>
-          <TaskStatusBadge
-            status={task.status}
-            label={labels.statusLabels[task.status]}
-            showLabel
-          />
+          <div className="flex items-center gap-2">
+            {task.pendingApproval ? (
+              <Badge variant="secondary">{labels.pendingApproval}</Badge>
+            ) : null}
+            <TaskStatusBadge
+              status={task.status}
+              label={labels.statusLabels[task.status]}
+              showLabel
+            />
+          </div>
         </div>
 
         <MetadataAvatarValue

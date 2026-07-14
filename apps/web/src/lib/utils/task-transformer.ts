@@ -114,6 +114,7 @@ export function mapTaskToTaskWithCoworker(
     columnId: getColumnId(task.status),
     description: task.description ?? null,
     descriptionPlain,
+    pendingApproval: "pendingApproval" in task ? task.pendingApproval : false,
     events: "events" in task ? task.events : [],
   };
 }

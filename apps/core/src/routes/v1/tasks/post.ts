@@ -1,20 +1,35 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskEventOrigin } from "@sokosumi/database";
+import {
+  TaskEventOrigin,
+  VendorGrantStatus,
+  VendorPermission,
+} from "@sokosumi/database";
 import { TaskStatus } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
 import { requireTaskAssignableCoworker } from "@/helpers/access-control";
-import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { errorResponseSchema, forbidden, notFound } from "@/helpers/error";
+import {
+  jsonContent,
+  jsonErrorResponse,
+  jsonSuccessResponse,
+} from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapTask, validateTaskCoworkerAssignment } from "@/helpers/task";
 import { resolveTaskName } from "@/helpers/task-name";
+import {
+  getVendorGrant,
+  isGrantDeniedOrRevoked,
+  requestCreateGrant,
+  throwGrantAccessError,
+  VendorPermissionApi,
+} from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { isCoworkerAuthContext, requireUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
 import { taskInclude } from "@/types/task";
@@ -83,7 +98,11 @@ const route = withGlobalHeaderParameters(
       201: jsonSuccessResponse(taskSchema, "Create task"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
-      403: jsonErrorResponse("Forbidden"),
+      403: {
+        description:
+          "Forbidden. Delegated coworker create may return kind `grant_denied` / `grant_revoked` when vendor create access was denied.",
+        content: jsonContent(errorResponseSchema),
+      },
       404: jsonErrorResponse("Not Found"),
     },
   }),
@@ -96,10 +115,21 @@ async function createTaskRecord(
     workspaceId: string;
     body: z.infer<typeof createTaskRequestSchema>;
     resolvedName: string;
+    pendingVendorGrantId?: string | null;
+    /** When parking, coerce to READY so workspace readers see the task. */
+    forceReady?: boolean;
   },
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
 ) {
-  const { body, organizationId, resolvedName, userId, workspaceId } = params;
+  const {
+    body,
+    forceReady,
+    organizationId,
+    pendingVendorGrantId,
+    resolvedName,
+    userId,
+    workspaceId,
+  } = params;
 
   if (body.projectId !== null && body.projectId !== undefined) {
     const project = await tx.project.findFirst({
@@ -115,6 +145,8 @@ async function createTaskRecord(
     }
   }
 
+  const status = forceReady ? TaskStatus.READY : body.status;
+
   return tx.task.create({
     data: {
       userId,
@@ -124,12 +156,13 @@ async function createTaskRecord(
       name: resolvedName,
       description: body.description ?? null,
       coworkerId: body.coworkerId ?? null,
-      status: body.status,
+      status,
       metadata: null,
       nextRunAt: null,
+      pendingVendorGrantId: pendingVendorGrantId ?? null,
       events: {
         create: {
-          status: body.status,
+          status,
           comment: null,
           origin: body.origin,
           userId,
@@ -162,18 +195,92 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireTaskAssignableCoworker(body.coworkerId);
     }
 
-    const task = await prisma.$transaction(async (tx) =>
-      createTaskRecord(
+    const shouldEnforceCreateGrant =
+      isCoworkerAuthContext(authContext) && Boolean(authContext.context);
+
+    if (!shouldEnforceCreateGrant) {
+      const task = await prisma.$transaction(async (tx) =>
+        createTaskRecord(
+          {
+            userId: userContext.userId,
+            organizationId: userContext.organizationId,
+            workspaceId: workspaceContext.workspaceId,
+            body,
+            resolvedName,
+          },
+          tx,
+        ),
+      );
+
+      return created(c, taskSchema.parse(mapTask(task)));
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceContext.workspaceId },
+      select: { organizationId: true },
+    });
+
+    if (!workspace?.organizationId) {
+      throw forbidden("Coworkers cannot create tasks in personal workspaces", {
+        kind: "grant_required",
+        extensions: { permission: VendorPermissionApi.TASK_CREATE },
+      });
+    }
+
+    const existingGrant = await getVendorGrant({
+      vendorId: authContext.vendorId,
+      workspaceId: workspaceContext.workspaceId,
+      permission: VendorPermission.task_create,
+    });
+
+    if (existingGrant && isGrantDeniedOrRevoked(existingGrant.status)) {
+      throwGrantAccessError(
+        existingGrant.status,
+        VendorPermissionApi.TASK_CREATE,
+      );
+    }
+
+    if (existingGrant?.status === VendorGrantStatus.GRANTED) {
+      const task = await prisma.$transaction(async (tx) =>
+        createTaskRecord(
+          {
+            userId: userContext.userId,
+            organizationId: userContext.organizationId,
+            workspaceId: workspaceContext.workspaceId,
+            body,
+            resolvedName,
+          },
+          tx,
+        ),
+      );
+
+      return created(c, taskSchema.parse(mapTask(task)));
+    }
+
+    const task = await prisma.$transaction(async (tx) => {
+      const grant = await requestCreateGrant(
+        {
+          vendorId: authContext.vendorId,
+          workspaceId: workspaceContext.workspaceId,
+          organizationId: workspace.organizationId!,
+          requestedByUserId: userContext.userId,
+        },
+        tx,
+      );
+
+      return createTaskRecord(
         {
           userId: userContext.userId,
           organizationId: userContext.organizationId,
           workspaceId: workspaceContext.workspaceId,
           body,
           resolvedName,
+          pendingVendorGrantId: grant.id,
+          forceReady: true,
         },
         tx,
-      ),
-    );
+      );
+    });
 
     return created(c, taskSchema.parse(mapTask(task)));
   });
