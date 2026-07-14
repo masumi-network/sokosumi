@@ -10,11 +10,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { VendorGrant } from "@/lib/clients/generated/core";
-import { coworkerService } from "@/lib/services/coworker.service";
+import { vendorService } from "@/lib/services/vendor.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import {
   groupPendingVendorGrants,
-  uniqueVendorsFromCoworkers,
   type VendorGrantDisplayRow,
 } from "@/lib/utils/vendor-grant-display";
 
@@ -77,8 +76,7 @@ export async function OrganizationVendorGrants({
     console.error("Failed to load vendor grants", error);
   }
 
-  const coworkers = await coworkerService.listCoworkers().catch(() => []);
-  const vendors = uniqueVendorsFromCoworkers(coworkers);
+  const vendors = await vendorService.listVendors().catch(() => []);
   const pendingRows = groupPendingVendorGrants(grants);
   const activeGrants = grants.filter((grant) => grant.status === "GRANTED");
 

@@ -23958,6 +23958,62 @@ export type GetSubscriptionCatalogResponses = {
 
 export type GetSubscriptionCatalogResponse = GetSubscriptionCatalogResponses[keyof GetSubscriptionCatalogResponses];
 
+export type ListVendorsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/vendors';
+};
+
+export type ListVendorsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListVendorsError = ListVendorsErrors[keyof ListVendorsErrors];
+
+export type ListVendorsResponses = {
+    /**
+     * List of vendors
+     */
+    200: {
+        data: VendorList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListVendorsResponse = ListVendorsResponses[keyof ListVendorsResponses];
+
 export type GetWorkspacesDesignMdData = {
     body?: never;
     path?: never;

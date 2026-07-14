@@ -153,6 +153,7 @@ import {
   listAdminTasks as coreListAdminTasks,
   listAdminUsers as coreListAdminUsers,
   listCreditPrices as coreListCreditPrices,
+  listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
   patchConversationsById as corePatchConversationsById,
   patchConversationsByIdArchive as corePatchConversationsByIdArchive,
@@ -1907,6 +1908,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function listVendors() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreListVendors({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch vendors",
+    );
+  }
+
   async function createTask(body: {
     name?: string;
     description?: string | null;
@@ -3043,6 +3056,7 @@ export function createCoreClient(getClient: GetClient) {
     approveMyVendorGrant,
     denyMyVendorGrant,
     revokeMyVendorGrant,
+    listVendors,
     getOrganizationSeatSummary,
     getOrganizationStripeCustomer,
     getWorkspaceDesignMd,

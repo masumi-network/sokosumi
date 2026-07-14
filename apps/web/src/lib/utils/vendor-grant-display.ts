@@ -82,27 +82,3 @@ export function groupPendingVendorGrants(
 
   return rows;
 }
-
-export interface VendorOption {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-export function uniqueVendorsFromCoworkers(
-  coworkers: Array<{ vendor: { id: string; name: string; slug: string } }>,
-): VendorOption[] {
-  const vendors = new Map<string, VendorOption>();
-
-  for (const coworker of coworkers) {
-    vendors.set(coworker.vendor.id, {
-      id: coworker.vendor.id,
-      name: coworker.vendor.name,
-      slug: coworker.vendor.slug,
-    });
-  }
-
-  return [...vendors.values()].toSorted((left, right) =>
-    left.name.localeCompare(right.name),
-  );
-}
