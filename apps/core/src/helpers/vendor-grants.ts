@@ -329,6 +329,82 @@ async function notifyWorkspaceApproversOfPendingGrant(params: {
   );
 }
 
+type VendorGrantWithVendor = VendorGrant & {
+  vendor: { name: string; slug: string };
+};
+
+/**
+ * Upsert one or more GRANTED rows for the same vendor+workspace in one call.
+ * Preserves per-permission upsert semantics; unparks tasks when task:create
+ * is included. Callers should wrap in a transaction when atomicity is required.
+ */
+export async function upsertGrantedVendorPermissions(
+  params: {
+    vendorId: string;
+    workspaceId: string;
+    permissions: VendorPermissionApiValue[];
+    resolvedById: string;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<VendorGrantWithVendor[]> {
+  const now = new Date();
+  const grants: VendorGrantWithVendor[] = [];
+
+  for (const apiPermission of params.permissions) {
+    const permission = toPrismaVendorPermission(apiPermission);
+    const upserted = await tx.vendorGrant.upsert({
+      where: {
+        vendorId_workspaceId_permission: {
+          vendorId: params.vendorId,
+          workspaceId: params.workspaceId,
+          permission,
+        },
+      },
+      create: {
+        vendorId: params.vendorId,
+        workspaceId: params.workspaceId,
+        permission,
+        status: VendorGrantStatus.GRANTED,
+        resolvedAt: now,
+        resolvedById: params.resolvedById,
+      },
+      update: {
+        status: VendorGrantStatus.GRANTED,
+        resolvedAt: now,
+        resolvedById: params.resolvedById,
+      },
+      include: {
+        vendor: { select: { name: true, slug: true } },
+      },
+    });
+
+    if (upserted.permission === VendorPermission.task_create) {
+      await unparkTasksForGrant(upserted.id, tx);
+    }
+
+    grants.push(upserted);
+  }
+
+  return grants;
+}
+
+export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
+  return {
+    id: grant.id,
+    vendorId: grant.vendorId,
+    vendorName: grant.vendor.name,
+    vendorSlug: grant.vendor.slug,
+    workspaceId: grant.workspaceId,
+    permission: toApiVendorPermission(grant.permission),
+    status: grant.status,
+    requestedByUserId: grant.requestedByUserId,
+    resolvedAt: grant.resolvedAt,
+    resolvedById: grant.resolvedById,
+    createdAt: grant.createdAt,
+    updatedAt: grant.updatedAt,
+  };
+}
+
 export async function unparkTasksForGrant(
   grantId: string,
   tx: Prisma.TransactionClient = prisma,

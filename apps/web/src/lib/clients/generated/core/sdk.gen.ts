@@ -1127,7 +1127,7 @@ export const getUsersByIdVendorGrants = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Proactively grant a vendor permission for the user's personal workspace. Granting task:create also unparks tasks awaiting that grant.
+ * Proactively grant one or more vendor permissions for the user's personal workspace. Creates or upgrades each row to GRANTED in a single transaction. Granting task:create also unparks tasks awaiting that grant. Returns all resulting grants for the request.
  */
 export const postUsersByIdVendorGrants = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdVendorGrantsData, ThrowOnError>): RequestResult<PostUsersByIdVendorGrantsResponses, PostUsersByIdVendorGrantsErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdVendorGrantsResponses, PostUsersByIdVendorGrantsErrors, ThrowOnError>({
     responseTransformer: postUsersByIdVendorGrantsResponseTransformer,
@@ -1275,7 +1275,7 @@ export const getOrganizationsByIdVendorGrants = <ThrowOnError extends boolean = 
 });
 
 /**
- * Proactively grant a vendor permission for the organization workspace (owner/admin). Creates or upgrades the row to GRANTED. Granting task:create also unparks tasks awaiting that grant.
+ * Proactively grant one or more vendor permissions for the organization workspace (owner/admin). Creates or upgrades each row to GRANTED in a single transaction. Granting task:create also unparks tasks awaiting that grant. Returns all resulting grants for the request.
  */
 export const postOrganizationsByIdVendorGrants = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdVendorGrantsData, ThrowOnError>): RequestResult<PostOrganizationsByIdVendorGrantsResponses, PostOrganizationsByIdVendorGrantsErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdVendorGrantsResponses, PostOrganizationsByIdVendorGrantsErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdVendorGrantsResponseTransformer,

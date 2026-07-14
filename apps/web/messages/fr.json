@@ -3498,7 +3498,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Fournisseur",
-          "permissionLabel": "Permission",
+          "permissionLabel": "Autorisations",
           "submit": "Accorder l’accès",
           "success": "Accès fournisseur accordé",
           "error": "Échec de l’octroi de l’accès fournisseur"
@@ -3512,7 +3512,10 @@
           "revokeSuccess": "Accès fournisseur révoqué",
           "approveError": "Échec de l’approbation de l’accès fournisseur",
           "denyError": "Échec du refus de l’accès fournisseur",
-          "revokeError": "Échec de la révocation de l’accès fournisseur"
+          "revokeError": "Échec de la révocation de l’accès fournisseur",
+          "grant": "Accorder",
+          "grantSuccess": "Accès fournisseur accordé",
+          "grantError": "Échec de l’accord de l’accès fournisseur"
         }
       }
     },
@@ -3607,7 +3610,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Fournisseur",
-            "permissionLabel": "Autorisation",
+            "permissionLabel": "Autorisations",
             "submit": "Accorder l’accès",
             "success": "Accès fournisseur accordé",
             "error": "Impossible d’accorder l’accès fournisseur"
@@ -3621,7 +3624,10 @@
             "revokeSuccess": "Accès fournisseur révoqué",
             "approveError": "Impossible d’approuver l’accès fournisseur",
             "denyError": "Impossible de refuser l’accès fournisseur",
-            "revokeError": "Impossible de révoquer l’accès fournisseur"
+            "revokeError": "Impossible de révoquer l’accès fournisseur",
+            "grant": "Accorder",
+            "grantSuccess": "Accès fournisseur accordé",
+            "grantError": "Échec de l’accord de l’accès fournisseur"
           }
         }
       }

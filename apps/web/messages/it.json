@@ -3498,7 +3498,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Fornitore",
-          "permissionLabel": "Permesso",
+          "permissionLabel": "Autorizzazioni",
           "submit": "Concedi accesso",
           "success": "Accesso fornitore concesso",
           "error": "Impossibile concedere l’accesso fornitore"
@@ -3512,7 +3512,10 @@
           "revokeSuccess": "Accesso fornitore revocato",
           "approveError": "Impossibile approvare l’accesso fornitore",
           "denyError": "Impossibile negare l’accesso fornitore",
-          "revokeError": "Impossibile revocare l’accesso fornitore"
+          "revokeError": "Impossibile revocare l’accesso fornitore",
+          "grant": "Concedi",
+          "grantSuccess": "Accesso vendor concesso",
+          "grantError": "Impossibile concedere l’accesso vendor"
         }
       }
     },
@@ -3607,7 +3610,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Vendor",
-            "permissionLabel": "Permesso",
+            "permissionLabel": "Autorizzazioni",
             "submit": "Concedi accesso",
             "success": "Accesso vendor concesso",
             "error": "Impossibile concedere l’accesso vendor"
@@ -3621,7 +3624,10 @@
             "revokeSuccess": "Accesso vendor revocato",
             "approveError": "Impossibile approvare l’accesso vendor",
             "denyError": "Impossibile rifiutare l’accesso vendor",
-            "revokeError": "Impossibile revocare l’accesso vendor"
+            "revokeError": "Impossibile revocare l’accesso vendor",
+            "grant": "Concedi",
+            "grantSuccess": "Accesso vendor concesso",
+            "grantError": "Impossibile concedere l’accesso vendor"
           }
         }
       }

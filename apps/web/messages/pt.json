@@ -3498,7 +3498,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Fornecedor",
-          "permissionLabel": "Permissão",
+          "permissionLabel": "Permissões",
           "submit": "Conceder acesso",
           "success": "Acesso de fornecedor concedido",
           "error": "Falha ao conceder acesso de fornecedor"
@@ -3512,7 +3512,10 @@
           "revokeSuccess": "Acesso de fornecedor revogado",
           "approveError": "Falha ao aprovar acesso de fornecedor",
           "denyError": "Falha ao negar acesso de fornecedor",
-          "revokeError": "Falha ao revogar acesso de fornecedor"
+          "revokeError": "Falha ao revogar acesso de fornecedor",
+          "grant": "Conceder",
+          "grantSuccess": "Acesso de fornecedor concedido",
+          "grantError": "Falha ao conceder acesso de fornecedor"
         }
       }
     },
@@ -3607,7 +3610,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Fornecedor",
-            "permissionLabel": "Permissão",
+            "permissionLabel": "Permissões",
             "submit": "Conceder acesso",
             "success": "Acesso do fornecedor concedido",
             "error": "Falha ao conceder acesso do fornecedor"
@@ -3621,7 +3624,10 @@
             "revokeSuccess": "Acesso do fornecedor revogado",
             "approveError": "Falha ao aprovar acesso do fornecedor",
             "denyError": "Falha ao recusar acesso do fornecedor",
-            "revokeError": "Falha ao revogar acesso do fornecedor"
+            "revokeError": "Falha ao revogar acesso do fornecedor",
+            "grant": "Conceder",
+            "grantSuccess": "Acesso de fornecedor concedido",
+            "grantError": "Falha ao conceder acesso de fornecedor"
           }
         }
       }

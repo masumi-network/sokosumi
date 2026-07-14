@@ -43,10 +43,26 @@ export const vendorGrantSchema = z
 
 export const vendorGrantsSchema = z.array(vendorGrantSchema);
 
-export const createVendorGrantRequestSchema = z.object({
-  vendorId: z.string().uuid(),
-  permission: vendorPermissionSchema,
-});
+export const createVendorGrantRequestSchema = z
+  .object({
+    vendorId: z.string().uuid(),
+    permissions: z
+      .array(vendorPermissionSchema)
+      .min(1)
+      .openapi({
+        example: [
+          VendorPermissionApi.TASK_READ,
+          VendorPermissionApi.TASK_COMMENT,
+        ],
+      }),
+  })
+  .refine(
+    (data) => new Set(data.permissions).size === data.permissions.length,
+    {
+      message: "permissions must be unique",
+      path: ["permissions"],
+    },
+  );
 
 export function isVendorPermissionApiValue(
   value: string,

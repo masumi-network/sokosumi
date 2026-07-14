@@ -12,16 +12,16 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 const {
   resolveMemberOrganizationByIdMock,
-  unparkTasksForGrantMock,
   vendorFindUniqueMock,
   vendorGrantUpsertMock,
+  taskUpdateManyMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
-  unparkTasksForGrantMock: vi.fn(),
   vendorFindUniqueMock: vi.fn(),
   vendorGrantUpsertMock: vi.fn(),
+  taskUpdateManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -39,16 +39,6 @@ vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/vendor-grants")>();
-
-  return {
-    ...actual,
-    unparkTasksForGrant: unparkTasksForGrantMock,
-  };
-});
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUnique: workspaceFindUniqueMock },
@@ -65,6 +55,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 };
 
 const grantId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const commentGrantId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const vendorId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const workspaceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const orgId = "org_123";
@@ -90,6 +81,23 @@ function createApp(
   return app;
 }
 
+function baseGrant(overrides: Record<string, unknown> = {}) {
+  return {
+    id: grantId,
+    vendorId,
+    workspaceId,
+    permission: VendorPermission.task_create,
+    status: VendorGrantStatus.GRANTED,
+    requestedByUserId: null,
+    resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
+    resolvedById: "user_123",
+    createdAt: new Date("2026-07-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-07-02T00:00:00.000Z"),
+    vendor: { name: "Acme", slug: "acme" },
+    ...overrides,
+  };
+}
+
 beforeAll(async () => {
   const module = await import("./post");
   mountPostVendorGrant = module.default;
@@ -105,32 +113,22 @@ describe("POST /organizations/{id}/vendor-grants", () => {
       name: "Acme",
       slug: "acme",
     });
-    unparkTasksForGrantMock.mockResolvedValue(1);
+    taskUpdateManyMock.mockResolvedValue({ count: 1 });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) =>
         callback({
           vendorGrant: {
             upsert: vendorGrantUpsertMock,
           },
+          task: {
+            updateMany: taskUpdateManyMock,
+          },
         }),
     );
   });
 
   it("grants task:create and unparks tasks awaiting that grant", async () => {
-    const upserted = {
-      id: grantId,
-      vendorId,
-      workspaceId,
-      permission: VendorPermission.task_create,
-      status: VendorGrantStatus.GRANTED,
-      requestedByUserId: null,
-      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      resolvedById: "user_123",
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-02T00:00:00.000Z"),
-      vendor: { name: "Acme", slug: "acme" },
-    };
-    vendorGrantUpsertMock.mockResolvedValue(upserted);
+    vendorGrantUpsertMock.mockResolvedValue(baseGrant());
 
     const response = await createApp().request(
       `http://localhost/${orgId}/vendor-grants`,
@@ -139,16 +137,16 @@ describe("POST /organizations/{id}/vendor-grants", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendorId,
-          permission: "task:create",
+          permissions: ["task:create"],
         }),
       },
     );
 
     expect(response.status).toBe(201);
-    expect(unparkTasksForGrantMock).toHaveBeenCalledWith(
-      grantId,
-      expect.anything(),
-    );
+    expect(taskUpdateManyMock).toHaveBeenCalledWith({
+      where: { pendingVendorGrantId: grantId },
+      data: { pendingVendorGrantId: null },
+    });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({
         allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
@@ -156,7 +154,8 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     );
 
     const body = await response.json();
-    expect(body.data).toMatchObject({
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
       id: grantId,
       permission: "task:create",
       status: "GRANTED",
@@ -164,19 +163,9 @@ describe("POST /organizations/{id}/vendor-grants", () => {
   });
 
   it("grants task:read without unparking", async () => {
-    vendorGrantUpsertMock.mockResolvedValue({
-      id: grantId,
-      vendorId,
-      workspaceId,
-      permission: VendorPermission.task_read,
-      status: VendorGrantStatus.GRANTED,
-      requestedByUserId: null,
-      resolvedAt: new Date("2026-07-02T00:00:00.000Z"),
-      resolvedById: "user_123",
-      createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      updatedAt: new Date("2026-07-02T00:00:00.000Z"),
-      vendor: { name: "Acme", slug: "acme" },
-    });
+    vendorGrantUpsertMock.mockResolvedValue(
+      baseGrant({ permission: VendorPermission.task_read }),
+    );
 
     const response = await createApp().request(
       `http://localhost/${orgId}/vendor-grants`,
@@ -185,13 +174,103 @@ describe("POST /organizations/{id}/vendor-grants", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendorId,
-          permission: "task:read",
+          permissions: ["task:read"],
         }),
       },
     );
 
     expect(response.status).toBe(201);
-    expect(unparkTasksForGrantMock).not.toHaveBeenCalled();
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("grants multiple permissions in one transaction", async () => {
+    vendorGrantUpsertMock
+      .mockResolvedValueOnce(
+        baseGrant({
+          id: grantId,
+          permission: VendorPermission.task_read,
+        }),
+      )
+      .mockResolvedValueOnce(
+        baseGrant({
+          id: commentGrantId,
+          permission: VendorPermission.task_comment,
+        }),
+      );
+
+    const response = await createApp().request(
+      `http://localhost/${orgId}/vendor-grants`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId,
+          permissions: ["task:read", "task:comment"],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(vendorGrantUpsertMock).toHaveBeenCalledTimes(2);
+    expect(taskUpdateManyMock).not.toHaveBeenCalled();
+
+    const body = await response.json();
+    expect(body.data).toHaveLength(2);
+    expect(body.data.map((g: { permission: string }) => g.permission)).toEqual([
+      "task:read",
+      "task:comment",
+    ]);
+  });
+
+  it("rejects empty permissions array", async () => {
+    const response = await createApp().request(
+      `http://localhost/${orgId}/vendor-grants`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId,
+          permissions: [],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate permissions", async () => {
+    const response = await createApp().request(
+      `http://localhost/${orgId}/vendor-grants`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId,
+          permissions: ["task:read", "task:read"],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown permissions", async () => {
+    const response = await createApp().request(
+      `http://localhost/${orgId}/vendor-grants`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId,
+          permissions: ["task:admin"],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(vendorGrantUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when vendor is missing", async () => {
@@ -204,7 +283,7 @@ describe("POST /organizations/{id}/vendor-grants", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vendorId,
-          permission: "task:create",
+          permissions: ["task:create"],
         }),
       },
     );

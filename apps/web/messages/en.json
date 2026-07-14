@@ -3594,7 +3594,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Vendor",
-          "permissionLabel": "Permission",
+          "permissionLabel": "Permissions",
           "submit": "Grant access",
           "success": "Vendor access granted",
           "error": "Failed to grant vendor access"
@@ -3608,7 +3608,10 @@
           "revokeSuccess": "Vendor access revoked",
           "approveError": "Failed to approve vendor access",
           "denyError": "Failed to deny vendor access",
-          "revokeError": "Failed to revoke vendor access"
+          "revokeError": "Failed to revoke vendor access",
+          "grant": "Grant",
+          "grantSuccess": "Vendor access granted",
+          "grantError": "Failed to grant vendor access"
         }
       }
     },
@@ -3704,7 +3707,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Vendor",
-            "permissionLabel": "Permission",
+            "permissionLabel": "Permissions",
             "submit": "Grant access",
             "success": "Vendor access granted",
             "error": "Failed to grant vendor access"
@@ -3718,7 +3721,10 @@
             "revokeSuccess": "Vendor access revoked",
             "approveError": "Failed to approve vendor access",
             "denyError": "Failed to deny vendor access",
-            "revokeError": "Failed to revoke vendor access"
+            "revokeError": "Failed to revoke vendor access",
+            "grant": "Grant",
+            "grantSuccess": "Vendor access granted",
+            "grantError": "Failed to grant vendor access"
           }
         }
       }

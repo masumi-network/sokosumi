@@ -3512,7 +3512,10 @@
           "revokeSuccess": "已撤销供应商访问权限",
           "approveError": "批准供应商访问权限失败",
           "denyError": "拒绝供应商访问权限失败",
-          "revokeError": "撤销供应商访问权限失败"
+          "revokeError": "撤销供应商访问权限失败",
+          "grant": "授予",
+          "grantSuccess": "已授予供应商访问权限",
+          "grantError": "授予供应商访问权限失败"
         }
       }
     },
@@ -3621,7 +3624,10 @@
             "revokeSuccess": "已撤销供应商访问",
             "approveError": "批准供应商访问失败",
             "denyError": "拒绝供应商访问失败",
-            "revokeError": "撤销供应商访问失败"
+            "revokeError": "撤销供应商访问失败",
+            "grant": "授予",
+            "grantSuccess": "已授予供应商访问权限",
+            "grantError": "授予供应商访问权限失败"
           }
         }
       }

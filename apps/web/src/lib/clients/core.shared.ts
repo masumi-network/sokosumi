@@ -1219,7 +1219,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     body: {
       vendorId: string;
-      permission: "task:read" | "task:comment" | "task:create";
+      permissions: Array<"task:read" | "task:comment" | "task:create">;
     },
   ) {
     return executeOperation(
@@ -1299,7 +1299,7 @@ export function createCoreClient(getClient: GetClient) {
 
   async function createMyVendorGrant(body: {
     vendorId: string;
-    permission: "task:read" | "task:comment" | "task:create";
+    permissions: Array<"task:read" | "task:comment" | "task:create">;
   }) {
     return executeOperation(
       getClient,

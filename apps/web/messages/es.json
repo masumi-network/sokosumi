@@ -3467,7 +3467,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Proveedor",
-          "permissionLabel": "Permiso",
+          "permissionLabel": "Permisos",
           "submit": "Conceder acceso",
           "success": "Acceso de proveedor concedido",
           "error": "No se pudo conceder el acceso de proveedor"
@@ -3481,7 +3481,10 @@
           "revokeSuccess": "Acceso de proveedor revocado",
           "approveError": "No se pudo aprobar el acceso de proveedor",
           "denyError": "No se pudo denegar el acceso de proveedor",
-          "revokeError": "No se pudo revocar el acceso de proveedor"
+          "revokeError": "No se pudo revocar el acceso de proveedor",
+          "grant": "Conceder",
+          "grantSuccess": "Acceso de proveedor concedido",
+          "grantError": "No se pudo conceder acceso de proveedor"
         }
       }
     },
@@ -3576,7 +3579,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Proveedor",
-            "permissionLabel": "Permiso",
+            "permissionLabel": "Permisos",
             "submit": "Conceder acceso",
             "success": "Acceso del proveedor concedido",
             "error": "No se pudo conceder el acceso del proveedor"
@@ -3590,7 +3593,10 @@
             "revokeSuccess": "Acceso del proveedor revocado",
             "approveError": "No se pudo aprobar el acceso del proveedor",
             "denyError": "No se pudo denegar el acceso del proveedor",
-            "revokeError": "No se pudo revocar el acceso del proveedor"
+            "revokeError": "No se pudo revocar el acceso del proveedor",
+            "grant": "Conceder",
+            "grantSuccess": "Acceso de proveedor concedido",
+            "grantError": "No se pudo conceder acceso de proveedor"
           }
         }
       }

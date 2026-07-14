@@ -11,12 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   approveMyVendorGrant,
+  createMyVendorGrant,
   denyMyVendorGrant,
   revokeMyVendorGrant,
 } from "@/lib/actions/account/vendor-grant-action";
 import type { ActionError } from "@/lib/actions/errors";
 import {
   approveOrganizationVendorGrant,
+  createOrganizationVendorGrant,
   denyOrganizationVendorGrant,
   revokeOrganizationVendorGrant,
 } from "@/lib/actions/organization";
@@ -24,6 +26,7 @@ import type { VendorGrant } from "@/lib/clients/generated/core";
 import type { Result } from "@/lib/ts-res";
 import type {
   VendorGrantGroup,
+  VendorGrantPermission,
   VendorPermissionSlot,
 } from "@/lib/utils/vendor-grant-display";
 
@@ -91,7 +94,7 @@ export function VendorGrantVendorList({
   return (
     <ul className="divide-border divide-y rounded-lg border">
       {groups.map((group) => (
-        <li key={group.vendorId} className="space-y-3 p-4">
+        <li key={group.vendorId} className="space-y-1.5 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
             <VendorMark
               vendor={{
@@ -102,7 +105,7 @@ export function VendorGrantVendorList({
               className="text-sm font-medium"
             />
             {group.hasPending ? (
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="h-5 px-1.5 text-xs">
                 {
                   group.slots.filter((slot) => slot.grant?.status === "PENDING")
                     .length
@@ -110,10 +113,11 @@ export function VendorGrantVendorList({
               </Badge>
             ) : null}
           </div>
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {group.slots.map((slot) => (
               <PermissionSlotRow
                 key={slot.permission}
+                vendorId={group.vendorId}
                 slot={slot}
                 mode={mode}
                 organizationId={organizationId}
@@ -132,6 +136,7 @@ export function VendorGrantVendorList({
 }
 
 interface PermissionSlotRowProps {
+  vendorId: string;
   slot: VendorPermissionSlot;
   mode: VendorGrantsMode;
   organizationId?: string;
@@ -140,6 +145,7 @@ interface PermissionSlotRowProps {
 }
 
 function PermissionSlotRow({
+  vendorId,
   slot,
   mode,
   organizationId,
@@ -152,13 +158,21 @@ function PermissionSlotRow({
   const grant = slot.grant;
 
   return (
-    <li className="bg-muted/30 flex flex-col gap-2 rounded-md px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">
-          {tPermissions(permissionLabelKey(slot.permission))}
+    <li className="bg-muted/30 flex flex-col gap-1.5 rounded-md px-2 py-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="text-sm">
+            {tPermissions(permissionLabelKey(slot.permission))}
+          </span>
+          <code className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs">
+            {slot.permission}
+          </code>
         </span>
         {grant ? (
-          <Badge variant={grant.status === "GRANTED" ? "default" : "secondary"}>
+          <Badge
+            variant={grant.status === "GRANTED" ? "default" : "secondary"}
+            className="h-5 px-1.5 text-xs"
+          >
             {t(statusLabelKey(grant.status))}
           </Badge>
         ) : (
@@ -186,7 +200,87 @@ function PermissionSlotRow({
           }
         />
       ) : null}
+
+      {!grant ? (
+        <EmptySlotGrantAction
+          vendorId={vendorId}
+          permission={slot.permission}
+          mode={mode}
+          organizationId={organizationId}
+        />
+      ) : null}
     </li>
+  );
+}
+
+interface EmptySlotGrantActionProps {
+  vendorId: string;
+  permission: VendorGrantPermission;
+  mode: VendorGrantsMode;
+  organizationId?: string;
+}
+
+function EmptySlotGrantAction({
+  vendorId,
+  permission,
+  mode,
+  organizationId,
+}: EmptySlotGrantActionProps) {
+  const tActions = useTranslations(
+    mode === "organization"
+      ? "App.Organizations.OrganizationDetail.VendorGrants.Actions"
+      : "App.Account.VendorGrants.Actions",
+  );
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  async function handleGrant() {
+    setLoading(true);
+    try {
+      let result: Result<{ grantIds: string[] }, ActionError>;
+
+      if (mode === "organization") {
+        if (!organizationId) {
+          toast.error(tActions("grantError"));
+          return;
+        }
+        result = await createOrganizationVendorGrant({
+          organizationId,
+          vendorId,
+          permissions: [permission],
+        });
+      } else {
+        result = await createMyVendorGrant({
+          vendorId,
+          permissions: [permission],
+        });
+      }
+
+      if (!result.ok) {
+        toast.error(result.error?.message ?? tActions("grantError"));
+        return;
+      }
+
+      toast.success(tActions("grantSuccess"));
+      router.refresh();
+    } catch {
+      toast.error(tActions("grantError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 px-2.5"
+      disabled={loading}
+      onClick={handleGrant}
+    >
+      {loading ? <Loader2 className="size-3.5 animate-spin" /> : null}
+      {tActions("grant")}
+    </Button>
   );
 }
 
@@ -259,20 +353,22 @@ function SlotActions({
 
   if (status === "PENDING") {
     return (
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Button
           size="sm"
+          className="h-7 px-2.5"
           disabled={loadingAction !== null}
           onClick={() => runAction("approve", approveHandler)}
         >
           {loadingAction === "approve" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin" />
           ) : null}
           {approveLabel}
         </Button>
         <Button
           size="sm"
           variant="outline"
+          className="h-7 px-2.5"
           disabled={loadingAction !== null}
           onClick={() =>
             runAction("deny", () => {
@@ -291,7 +387,7 @@ function SlotActions({
           }
         >
           {loadingAction === "deny" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin" />
           ) : null}
           {tActions("deny")}
         </Button>
@@ -304,6 +400,7 @@ function SlotActions({
       <Button
         size="sm"
         variant="outline"
+        className="h-7 px-2.5"
         disabled={loadingAction !== null}
         onClick={() =>
           runAction("revoke", () => {
@@ -322,7 +419,7 @@ function SlotActions({
         }
       >
         {loadingAction === "revoke" ? (
-          <Loader2 className="size-4 animate-spin" />
+          <Loader2 className="size-3.5 animate-spin" />
         ) : null}
         {tActions("revoke")}
       </Button>
@@ -334,11 +431,12 @@ function SlotActions({
       <Button
         size="sm"
         variant="outline"
+        className="h-7 px-2.5"
         disabled={loadingAction !== null}
         onClick={() => runAction("approve", approveHandler)}
       >
         {loadingAction === "approve" ? (
-          <Loader2 className="size-4 animate-spin" />
+          <Loader2 className="size-3.5 animate-spin" />
         ) : null}
         {tActions("approve")}
       </Button>

@@ -17,10 +17,21 @@ const vendorGrantActionSchema = z.object({
   grantId: z.string().uuid(),
 });
 
-const createVendorGrantActionSchema = z.object({
-  vendorId: z.string().uuid(),
-  permission: z.enum(["task:read", "task:comment", "task:create"]),
-});
+const vendorPermissionSchema = z.enum([
+  "task:read",
+  "task:comment",
+  "task:create",
+]);
+
+const createVendorGrantActionSchema = z
+  .object({
+    vendorId: z.string().uuid(),
+    permissions: z.array(vendorPermissionSchema).min(1),
+  })
+  .refine(
+    (data) => new Set(data.permissions).size === data.permissions.length,
+    { path: ["permissions"] },
+  );
 
 function parseVendorGrantActionError(error: unknown): ActionError {
   if (error instanceof Error) {
@@ -54,7 +65,7 @@ interface VendorGrantMutationParameters extends AuthenticatedRequest {
 
 interface CreateVendorGrantParameters extends AuthenticatedRequest {
   vendorId: string;
-  permission: VendorGrantPermission;
+  permissions: VendorGrantPermission[];
 }
 
 export const approveMyVendorGrant = withSession<
@@ -119,22 +130,22 @@ export const revokeMyVendorGrant = withSession<
 
 export const createMyVendorGrant = withSession<
   CreateVendorGrantParameters,
-  Result<{ grantId: string }, ActionError>
->(async ({ vendorId, permission }) => {
+  Result<{ grantIds: string[] }, ActionError>
+>(async ({ vendorId, permissions }) => {
   const parsed = createVendorGrantActionSchema.safeParse({
     vendorId,
-    permission,
+    permissions,
   });
   if (!parsed.success) {
     return Err({ code: CommonErrorCode.BAD_INPUT });
   }
 
   try {
-    const grant = await vendorGrantService.createMyVendorGrant(
+    const grants = await vendorGrantService.createMyVendorGrant(
       parsed.data.vendorId,
-      parsed.data.permission,
+      parsed.data.permissions,
     );
-    return Ok({ grantId: grant.id });
+    return Ok({ grantIds: grants.map((grant) => grant.id) });
   } catch (error) {
     console.error("Failed to create personal vendor grant", error);
     return Err(parseVendorGrantActionError(error));

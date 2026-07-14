@@ -26,11 +26,11 @@ export const vendorGrantService = (() => {
   async function createVendorGrant(
     organizationId: string,
     vendorId: string,
-    permission: VendorGrantPermission,
-  ): Promise<VendorGrant> {
+    permissions: VendorGrantPermission[],
+  ): Promise<VendorGrant[]> {
     const { data } = await coreClient.createOrganizationVendorGrant(
       organizationId,
-      { vendorId, permission },
+      { vendorId, permissions },
     );
     return data;
   }
@@ -77,11 +77,11 @@ export const vendorGrantService = (() => {
 
   async function createMyVendorGrant(
     vendorId: string,
-    permission: VendorGrantPermission,
-  ): Promise<VendorGrant> {
+    permissions: VendorGrantPermission[],
+  ): Promise<VendorGrant[]> {
     const { data } = await coreClient.createMyVendorGrant({
       vendorId,
-      permission,
+      permissions,
     });
     return data;
   }

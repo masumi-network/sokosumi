@@ -3467,7 +3467,7 @@
         },
         "GrantForm": {
           "vendorLabel": "Vendor",
-          "permissionLabel": "Berechtigung",
+          "permissionLabel": "Berechtigungen",
           "submit": "Zugriff gewähren",
           "success": "Vendor-Zugriff gewährt",
           "error": "Vendor-Zugriff konnte nicht gewährt werden"
@@ -3481,7 +3481,10 @@
           "revokeSuccess": "Vendor-Zugriff widerrufen",
           "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
           "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
-          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden"
+          "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+          "grant": "Gewähren",
+          "grantSuccess": "Vendor-Zugriff gewährt",
+          "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
         }
       }
     },
@@ -3576,7 +3579,7 @@
           },
           "GrantForm": {
             "vendorLabel": "Vendor",
-            "permissionLabel": "Berechtigung",
+            "permissionLabel": "Berechtigungen",
             "submit": "Zugriff gewähren",
             "success": "Vendor-Zugriff gewährt",
             "error": "Vendor-Zugriff konnte nicht gewährt werden"
@@ -3590,7 +3593,10 @@
             "revokeSuccess": "Vendor-Zugriff widerrufen",
             "approveError": "Vendor-Zugriff konnte nicht genehmigt werden",
             "denyError": "Vendor-Zugriff konnte nicht abgelehnt werden",
-            "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden"
+            "revokeError": "Vendor-Zugriff konnte nicht widerrufen werden",
+            "grant": "Gewähren",
+            "grantSuccess": "Vendor-Zugriff gewährt",
+            "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
           }
         }
       }

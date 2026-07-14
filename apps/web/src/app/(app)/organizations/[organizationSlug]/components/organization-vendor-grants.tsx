@@ -34,6 +34,11 @@ export async function OrganizationVendorGrants({
 
   const vendors = await vendorService.listVendors().catch(() => []);
   const groups = groupVendorGrantsByVendor(grants);
+  const disabledVendorIds = groups.map((group) => group.vendorId);
+  const disabledVendorIdSet = new Set(disabledVendorIds);
+  const hasSelectableVendor = vendors.some(
+    (vendor) => !disabledVendorIdSet.has(vendor.id),
+  );
 
   return (
     <Card>
@@ -53,13 +58,16 @@ export async function OrganizationVendorGrants({
           />
         </section>
 
-        <section className="space-y-4">
-          <h3 className="text-sm font-medium">{t("grantFormTitle")}</h3>
-          <OrganizationVendorGrantForm
-            organizationId={organizationId}
-            vendors={vendors}
-          />
-        </section>
+        {hasSelectableVendor ? (
+          <section className="space-y-4">
+            <h3 className="text-sm font-medium">{t("grantFormTitle")}</h3>
+            <OrganizationVendorGrantForm
+              organizationId={organizationId}
+              vendors={vendors}
+              disabledVendorIds={disabledVendorIds}
+            />
+          </section>
+        ) : null}
       </CardContent>
     </Card>
   );

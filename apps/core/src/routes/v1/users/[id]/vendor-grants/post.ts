@@ -1,13 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { VendorGrantStatus, VendorPermission } from "@sokosumi/database";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
-  toApiVendorPermission,
-  toPrismaVendorPermission,
-  unparkTasksForGrant,
+  toVendorGrantApiShape,
+  upsertGrantedVendorPermissions,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -18,7 +16,7 @@ import {
 } from "@/routes/v1/users/user-route-context";
 import {
   createVendorGrantRequestSchema,
-  vendorGrantSchema,
+  vendorGrantsSchema,
 } from "@/schemas/vendor-grant.schema";
 
 const params = z.object({
@@ -29,7 +27,7 @@ const route = createRoute({
   method: "post",
   path: "/vendor-grants",
   description:
-    "Proactively grant a vendor permission for the user's personal workspace. Granting task:create also unparks tasks awaiting that grant.",
+    "Proactively grant one or more vendor permissions for the user's personal workspace. Creates or upgrades each row to GRANTED in a single transaction. Granting task:create also unparks tasks awaiting that grant. Returns all resulting grants for the request.",
   tags: ["Users"],
   request: {
     params,
@@ -42,7 +40,7 @@ const route = createRoute({
     },
   },
   responses: {
-    201: jsonSuccessResponse(vendorGrantSchema, "Grant created"),
+    201: jsonSuccessResponse(vendorGrantsSchema, "Grants created or upgraded"),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -74,59 +72,21 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       throw notFound("Vendor not found");
     }
 
-    const permission = toPrismaVendorPermission(body.permission);
-    const now = new Date();
-
-    const grant = await prisma.$transaction(async (tx) => {
-      const upserted = await tx.vendorGrant.upsert({
-        where: {
-          vendorId_workspaceId_permission: {
-            vendorId: body.vendorId,
-            workspaceId: workspace.id,
-            permission,
-          },
-        },
-        create: {
+    const grants = await prisma.$transaction(async (tx) =>
+      upsertGrantedVendorPermissions(
+        {
           vendorId: body.vendorId,
           workspaceId: workspace.id,
-          permission,
-          status: VendorGrantStatus.GRANTED,
-          resolvedAt: now,
+          permissions: body.permissions,
           resolvedById: resolvedUserId,
         },
-        update: {
-          status: VendorGrantStatus.GRANTED,
-          resolvedAt: now,
-          resolvedById: resolvedUserId,
-        },
-        include: {
-          vendor: { select: { name: true, slug: true } },
-        },
-      });
-
-      if (upserted.permission === VendorPermission.task_create) {
-        await unparkTasksForGrant(upserted.id, tx);
-      }
-
-      return upserted;
-    });
+        tx,
+      ),
+    );
 
     return created(
       c,
-      vendorGrantSchema.parse({
-        id: grant.id,
-        vendorId: grant.vendorId,
-        vendorName: grant.vendor.name,
-        vendorSlug: grant.vendor.slug,
-        workspaceId: grant.workspaceId,
-        permission: toApiVendorPermission(grant.permission),
-        status: grant.status,
-        requestedByUserId: grant.requestedByUserId,
-        resolvedAt: grant.resolvedAt,
-        resolvedById: grant.resolvedById,
-        createdAt: grant.createdAt,
-        updatedAt: grant.updatedAt,
-      }),
+      vendorGrantsSchema.parse(grants.map(toVendorGrantApiShape)),
     );
   });
 }

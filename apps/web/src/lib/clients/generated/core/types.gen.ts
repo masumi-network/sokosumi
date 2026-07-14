@@ -14728,7 +14728,7 @@ export type GetUsersByIdVendorGrantsResponse = GetUsersByIdVendorGrantsResponses
 export type PostUsersByIdVendorGrantsData = {
     body?: {
         vendorId: string;
-        permission: 'task:read' | 'task:comment' | 'task:create';
+        permissions: Array<'task:read' | 'task:comment' | 'task:create'>;
     };
     path: {
         /**
@@ -14803,10 +14803,10 @@ export type PostUsersByIdVendorGrantsError = PostUsersByIdVendorGrantsErrors[key
 
 export type PostUsersByIdVendorGrantsResponses = {
     /**
-     * Grant created
+     * Grants created or upgraded
      */
     201: {
-        data: VendorGrant;
+        data: Array<VendorGrant>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -16229,7 +16229,7 @@ export type GetOrganizationsByIdVendorGrantsResponse = GetOrganizationsByIdVendo
 export type PostOrganizationsByIdVendorGrantsData = {
     body?: {
         vendorId: string;
-        permission: 'task:read' | 'task:comment' | 'task:create';
+        permissions: Array<'task:read' | 'task:comment' | 'task:create'>;
     };
     path: {
         /**
@@ -16304,10 +16304,10 @@ export type PostOrganizationsByIdVendorGrantsError = PostOrganizationsByIdVendor
 
 export type PostOrganizationsByIdVendorGrantsResponses = {
     /**
-     * Grant created
+     * Grants created or upgraded
      */
     201: {
-        data: VendorGrant;
+        data: Array<VendorGrant>;
         meta: {
             timestamp: Date;
             requestId: string;

@@ -26,6 +26,11 @@ export async function AccountVendorGrants() {
 
   const vendors = await vendorService.listVendors().catch(() => []);
   const groups = groupVendorGrantsByVendor(grants);
+  const disabledVendorIds = groups.map((group) => group.vendorId);
+  const disabledVendorIdSet = new Set(disabledVendorIds);
+  const hasSelectableVendor = vendors.some(
+    (vendor) => !disabledVendorIdSet.has(vendor.id),
+  );
 
   return (
     <Card>
@@ -44,10 +49,15 @@ export async function AccountVendorGrants() {
           />
         </section>
 
-        <section className="space-y-4">
-          <h3 className="text-sm font-medium">{t("grantFormTitle")}</h3>
-          <PersonalVendorGrantForm vendors={vendors} />
-        </section>
+        {hasSelectableVendor ? (
+          <section className="space-y-4">
+            <h3 className="text-sm font-medium">{t("grantFormTitle")}</h3>
+            <PersonalVendorGrantForm
+              vendors={vendors}
+              disabledVendorIds={disabledVendorIds}
+            />
+          </section>
+        ) : null}
       </CardContent>
     </Card>
   );
